@@ -26,18 +26,25 @@ import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
 
 // Server-side load function for the layout
-export const load: PageServerLoad = async ({ cookies, locals, params }) => {
+export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, theme } = locals;
 	const { language, collection } = params;
 
+	// User's preferred language from session
+	const userSystemLanguage = user?.systemLanguage;
+
+	// If the user has a preferred language and it differs from the language in the URL,
+	// redirect to the same page with the preferred language.
+	if (userSystemLanguage && userSystemLanguage !== language && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(userSystemLanguage)) {
+		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
+		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
+		throw redirect(302, newPath);
+	}
+
 	logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`);
 
-	// Get the content language from cookies
-	const contentLanguageCookie = cookies.get('contentLanguage');
-	const contentLanguage =
-		contentLanguageCookie && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(contentLanguageCookie)
-			? contentLanguageCookie
-			: publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	// The content language should be taken from the URL parameter `language`
+	const contentLanguage = language;
 
 	// ensure language exist :
 	if (!contentLanguage || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(contentLanguage) || !collection) {

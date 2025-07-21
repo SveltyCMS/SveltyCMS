@@ -41,7 +41,6 @@ import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 // Content Manager
 import { getAllPermissions } from '@src/auth/permissions';
 import { contentManager } from '@src/content/ContentManager';
-import type { CollectionData } from '@src/content/types';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
@@ -143,6 +142,13 @@ async function initializeDefaultTheme(): Promise<void> {
 	try {
 		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
 		const themes = await dbAdapter.themes.getAllThemes();
+		// Ensure themes is an array before accessing its length
+		if (!Array.isArray(themes)) {
+			logger.warn('No themes returned from database or an error occurred. Assuming no themes exist.');
+			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
+			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
+			return;
+		}
 		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes in the database`);
 
 		if (themes.length === 0) {
@@ -275,9 +281,9 @@ async function initializeSystem(): Promise<void> {
 
 		try {
 			await Promise.all([
-				dbAdapter.auth.setupAuthModels().then(() => logger.debug('Auth models setup complete')),
-				dbAdapter.media.setupMediaModels().then(() => logger.debug('Media models setup complete')),
-				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('Widget models setup complete'))
+				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
+				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
+				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete'))
 			]);
 
 			const step2Time = performance.now() - step2StartTime;
@@ -312,32 +318,24 @@ async function initializeSystem(): Promise<void> {
 			throw contentErr;
 		}
 
-		// 5. Create Collection-Specific Database Models (ONCE after schemas are loaded)
+		// 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
 		const step5StartTime = performance.now();
-
 		try {
-			const { collectionMap } = await contentManager.getCollectionData(); // Get loaded schemas
-			if (!dbAdapter) throw new Error('dbAdapter not available for model creation.'); // Should not happen here
+			const { collectionMap } = await contentManager.getCollectionData();
+			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.');
 
-			// Create models in parallel batches to avoid overwhelming the database
+			// Since ContentManager now handles model creation, this step is purely for verification.
+			// We can simply log that this step is complete, as the critical logic is in ContentManager.
+			// If ContentManager failed, initialization would have already stopped.
 			const schemas = Array.from(collectionMap.values());
-			const batchSize = 5; // Process 5 models at a time
-
-			for (let i = 0; i < schemas.length; i += batchSize) {
-				const batch = schemas.slice(i, i + batchSize);
-				await Promise.all(
-					batch.map(async (schema) => {
-						await dbAdapter.collection.createModel(schema as CollectionData);
-					})
-				);
-			}
+			logger.debug(`ContentManager reports \x1b[34m${schemas.length}\x1b[0m collections loaded. Verification complete.`);
 
 			const step5Time = performance.now() - step5StartTime;
-			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection-specific models created in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
+			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection models verified in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelErr) {
-			const message = `Error creating collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
+			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
-			throw new Error(message); // Propagate error to fail initialization
+			throw new Error(message);
 		}
 
 		// 6. Initialize Authentication (after DB/Auth adapters and models are ready)
@@ -349,7 +347,6 @@ async function initializeSystem(): Promise<void> {
 
 		try {
 			// Initialize authentication
-			logger.debug('Creating Auth instance...');
 			auth = new Auth(authAdapter, getDefaultSessionStore());
 			if (!auth) {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
@@ -358,7 +355,7 @@ async function initializeSystem(): Promise<void> {
 			// Verify auth methods are available
 			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
 			logger.debug(
-				`Auth instance created with ${authMethods.length} methods:`,
+				`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
 				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
 			);
 

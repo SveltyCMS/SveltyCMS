@@ -27,20 +27,13 @@
  - Full dark mode support with theme-based styling
 -->
 <script lang="ts">
-	// Import apiRequest for general requests, and entryActions for specific entity actions
-	import { apiRequest } from '@utils/apiClient';
-	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry, scheduleCurrentEntry } from '@utils/entryActions'; // Directly use these specific actions
+	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry, scheduleCurrentEntry, saveEntry } from '@utils/entryActions'; // Directly use these specific actions
 	// Types
 	import { StatusTypes } from '@src/content/types';
-
-	// Components
-	import ScheduleModal from './ScheduleModal.svelte';
-	import TranslationStatus from './TranslationStatus.svelte';
-	// Skeleton
-	import { getModalStore, getToastStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-	// Initialize stores at the top level, during component initialization.
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
+	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { createEventDispatcher } from 'svelte';
 
 	// Stores
 	import { page } from '$app/state';
@@ -48,9 +41,9 @@
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, headerActionButton, tabSet, validationStore } from '@stores/store.svelte';
-	// Auth
-	import type { User } from '@src/auth/types';
+
 	// Types
+	import type { User } from '@src/auth/types';
 	import type { StatusType } from '@src/content/types';
 	let user = $derived(page.data.user as User);
 
@@ -140,16 +133,6 @@
 
 	// Save form data with validation
 	async function saveData() {
-		const currentCollection = collection.value;
-		if (!currentCollection?._id) {
-			// Ensure collection and its ID exist
-			toastStore.trigger({
-				message: m.save_no_collection_error(),
-				background: 'variant-filled-error'
-			});
-			return;
-		}
-
 		if (!validationStore.isValid) {
 			console.warn('Save blocked due to validation errors.');
 			toastStore.trigger({
@@ -164,10 +147,6 @@
 		// Set metadata for all saves
 		if (mode.value === 'create') {
 			dataToSave.createdBy = user?.username ?? 'system';
-			// Apply collection schema defaults for new entries
-			if (!dataToSave.status && currentCollection?.status) {
-				dataToSave.status = currentCollection.status;
-			}
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 
@@ -178,34 +157,8 @@
 			delete dataToSave._scheduled;
 		}
 
-		const method = mode.value === 'create' ? 'POST' : 'PATCH';
-		const entryId = mode.value === 'edit' ? (dataToSave._id as string) : undefined;
-
-		// Validation for edit mode - ensure we have an entryId
-		if (mode.value === 'edit' && !entryId) {
-			console.error('No entry ID found for edit operation');
-			toastStore.trigger({
-				message: 'Cannot update entry: No entry ID found',
-				background: 'variant-filled-error'
-			});
-			return;
-		}
-
-		try {
-			// Use apiRequest directly for saving, as entryActions covers specific non-save actions.
-			await apiRequest(method, currentCollection._id, dataToSave, entryId);
-
-			toastStore.trigger({ message: m.save_success(), background: 'variant-filled-success' });
-			mode.set('view');
-			toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
-		} catch (err) {
-			console.error('Failed to save data:', err);
-			toastStore.trigger({
-				message: (err as Error).message || 'An unexpected error occurred.',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-		}
+		await saveEntry(dataToSave, toastStore);
+		toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
 	}
 
 	// function to undo the changes made by handleButtonClick

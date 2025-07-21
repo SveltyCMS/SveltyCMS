@@ -320,6 +320,11 @@ export const updateTranslationProgress = (value: TranslationProgress) => {
 	stores.translationProgress = value;
 };
 
+// Updates the system language, ensuring the change is persisted to cookies
+export function setSystemLanguage(lang: Locale) {
+	systemLanguage.set(lang);
+}
+
 // Export table headers constant
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
 

@@ -74,6 +74,13 @@ export class Auth {
 	constructor(db: authDBInterface, sessionStore: SessionStore) {
 		this.db = db;
 		this.sessionStore = sessionStore;
+
+		// Make all adapter methods available on the Auth instance
+		for (const key in db) {
+			if (typeof db[key] === 'function') {
+				this[key] = db[key];
+			}
+		}
 	}
 
 	// Role management

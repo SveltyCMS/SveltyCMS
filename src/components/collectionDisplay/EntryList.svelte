@@ -1,5 +1,5 @@
 <!--
-@file:  src/components/EntryList.svelte
+@file src/components/collectionDisplay/EntryList.svelte
 @component
 **EntryList component to display collections data.**
 
@@ -53,12 +53,13 @@ Features:
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	import TranslationStatus from '@components/TranslationStatus.svelte';
+	import TranslationStatus from './TranslationStatus.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import Loading from './Loading.svelte';
+	import Loading from '@components/Loading.svelte';
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { page } from '$app/stores';
 
 	// Initialize stores for modal  & toast
 	const modalStore = getModalStore();
@@ -395,109 +396,45 @@ Features:
 						_langChange: languageChangeTimestamp
 					};
 
-					data = await getData(queryParams);
+					const result = await getData(queryParams);
+					if (result.success) {
+						data = result.data;
+					} else {
+						toastStore.trigger({ message: result.error || 'Failed to load data.', background: 'variant-filled-error' });
+						data = undefined; // Ensure data is cleared on error
+					}
 				}
 
-				// Store raw data for actions like cloning
-				rawData = data;
-
-				// console.log(`[EntryList] Data ${usedPrefetchedData ? 'prefetched' : 'fetched'} for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
+				// Process the fetched data
+				if (data) {
+					rawData = data;
+					tableData = data.entryList;
+					pagesCount = data.pagesCount ?? 1;
+					totalItems = data.totalItems ?? 0;
+					stableDataExists = true; // We have some data to show
+				} else {
+					// Handle case where data fetch failed or returned nothing
+					rawData = undefined;
+					tableData = [];
+					pagesCount = 1;
+					totalItems = 0;
+				}
 			} catch (error) {
-				console.error(`Error fetching data: ${(error as Error).message}`);
-				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
+				console.error('Error refreshing table data:', error);
+				toastStore.trigger({
+					message: (error as Error).message || 'An unexpected error occurred while fetching data.',
+					background: 'variant-filled-error'
+				});
 				loadingState = 'error';
-				tableData = []; // Clear data on actual error
-				totalItems = 0;
+				tableData = [];
 				pagesCount = 1;
-				stableDataExists = false;
-				return;
+				totalItems = 0;
 			} finally {
+				loadingState = 'idle';
 				globalLoadingStore.stopLoading(loadingOperations.dataFetch);
+				hasInitialLoad = true; // Mark that the initial load attempt has completed
 			}
 		}
-
-		//  Process data
-		if (data?.entryList && Array.isArray(data.entryList)) {
-			tableData = await Promise.all(
-				data.entryList.map(async (entry) => {
-					const obj: { [key: string]: any } = { _id: entry._id, raw_status: entry.status || 'N/A' }; // Ensure _id is always present
-					if (currentCollection?.fields) {
-						// Process each field
-						for (const field of currentCollection.fields as any[]) {
-							const fieldNameKey = getFieldName(field);
-							const rawDataKey = getFieldName(field, false);
-
-							if (field.display && typeof field.display === 'function') {
-								obj[fieldNameKey] = await field.display({
-									data: entry[rawDataKey],
-									collection: currentCollId,
-									field,
-									entry,
-									contentLanguage: currentLanguage
-								});
-							} else {
-								// Handle cases where data might be a string '[object Object]'
-								if (typeof entry[fieldNameKey] === 'string' && entry[fieldNameKey].includes('[object Object]')) {
-									// Fallback to the raw data which should be the actual object
-									obj[fieldNameKey] = entry[rawDataKey];
-								} else {
-									obj[fieldNameKey] = entry[fieldNameKey];
-								}
-							}
-							if (field.callback && typeof field.callback === 'function') {
-								field.callback({ data: entry });
-							}
-						}
-					}
-					obj['status'] = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
-					obj['createdAt'] = entry.createdAt ? formatDisplayDate(entry.createdAt, currentSystemLanguage) : 'N/A';
-					obj['updatedAt'] = entry.updatedAt ? formatDisplayDate(entry.updatedAt, currentSystemLanguage) : 'N/A';
-					return obj;
-				})
-			);
-			stableDataExists = tableData.length > 0;
-		} else {
-			// If data.entryList is not an array, clear tableData
-			tableData = [];
-			stableDataExists = false;
-		}
-
-		// Reset selections when data changes
-		Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-		tableData.forEach((_, index) => {
-			selectedMap[index.toString()] = false;
-		});
-		SelectAll = false;
-
-		// Update pagination counts based on `data`
-		if (data?.totalItems !== undefined) {
-			totalItems = data.totalItems;
-		} else if (data?.pagesCount !== undefined && data?.entryList?.length !== undefined) {
-			totalItems = data.pagesCount * data.entryList.length;
-		} else {
-			totalItems = 0; // Ensure totalItems is 0 if no data
-		}
-
-		const currentRowsPerPage = entryListPaginationSettings.rowsPerPage > 0 ? entryListPaginationSettings.rowsPerPage : 1;
-		pagesCount = data?.pagesCount ?? (totalItems > 0 ? Math.ceil(totalItems / currentRowsPerPage) : 1);
-
-		// Adjust currentPage if it's out of bounds after data refresh
-		if (entryListPaginationSettings.currentPage > pagesCount && pagesCount > 0) {
-			entryListPaginationSettings.currentPage = pagesCount;
-			// By returning here, we stop the current function and let the main $effect
-			// trigger a single, clean refresh with the corrected page number. This breaks the loop.
-			return;
-		}
-
-		// No change needed for the other conditions, they don't cause loops.
-		if (entryListPaginationSettings.currentPage <= 0 && pagesCount >= 1) {
-			entryListPaginationSettings.currentPage = 1;
-		} else if (pagesCount === 0 && entryListPaginationSettings.currentPage !== 1) {
-			entryListPaginationSettings.currentPage = 1;
-		}
-
-		loadingState = 'idle';
-		hasInitialLoad = true;
 	}
 
 	function savePaginationSettings() {
@@ -547,6 +484,11 @@ Features:
 
 		// Skip if we're in the middle of a collection change or initializing
 		if (isCollectionChanging || isInitializing) {
+			return;
+		}
+
+		// Do not refresh data when in create or edit mode
+		if (currentMode === 'create' || currentMode === 'edit') {
 			return;
 		}
 
@@ -625,135 +567,27 @@ Features:
 
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
-		if (!status) return Promise.resolve();
-
-		// Filter out items that are already in the target status
-		const modifyList: Array<string> = [];
-		for (const [index, isSelected] of Object.entries(selectedMap)) {
-			if (isSelected) {
-				const entry = tableData[Number(index)];
-				if (entry.raw_status !== status) {
-					modifyList.push(entry._id);
-				}
-			}
-		}
-
-		if (modifyList.length === 0) {
-			toastStore.trigger({
-				message: `Selected items are already in '${status}' state or no items selected.`,
-				background: 'variant-filled-warning'
-			});
+		const selectedIds = getSelectedIds();
+		if (!selectedIds.length) {
+			toastStore.trigger({ message: 'No entries selected' });
 			return;
 		}
 
-		// Function to handle confirmation modal response
-		const handleConfirmation = async (confirm: boolean) => {
-			if (!confirm) return;
-			if (!currentCollection?._id) {
-				toastStore.trigger({ message: 'No collection selected', background: 'variant-filled-error' });
-				return;
-			}
-			try {
-				// Use new status endpoint for batch updates
-				// Pick first entry ID as base for endpoint, pass other IDs in body
-				const firstEntryId = modifyList[0];
-				await updateStatus(currentCollection._id, firstEntryId, statusMap[status], modifyList);
-
-				// Invalidate cache and refresh the table data
-				invalidateCollectionCache(currentCollection._id);
-				refreshTableData();
-				// Show a success toast
-				toastStore.trigger({ message: `Successfully set status to ${status}`, background: 'variant-filled-success' });
-			} catch (e) {
-				toastStore.trigger({
-					message: `Error setting status: ${(e as Error).message}`,
-					background: 'variant-filled-error'
-				});
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: 'Confirm Status Change',
+			body: `Are you sure you want to update ${selectedIds.length} entries to "${status}"?`,
+			response: async (r) => {
+				if (r) {
+					await setEntriesStatus(selectedIds, status as StatusType, onActionSuccess, toastStore);
+				}
 			}
 		};
-
-		const itemCount = modifyList.length;
-		const itemText = itemCount === 1 ? 'entry' : 'entries';
-
-		let modalSettings: ModalSettings;
-
-		switch (status) {
-			case StatusTypes.publish:
-				modalSettings = {
-					type: 'confirm',
-					title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
-					body:
-						itemCount === 1
-							? `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`
-							: `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>? This will make all selected entries visible to the public.`,
-					buttonTextConfirm: 'Publish',
-					buttonTextCancel: 'Cancel',
-					meta: { buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white' },
-					response: (r: boolean) => handleConfirmation(r)
-				};
-				break;
-			case StatusTypes.unpublish:
-				modalSettings = {
-					type: 'confirm',
-					title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
-					body:
-						itemCount === 1
-							? `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`
-							: `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>? This will hide all selected entries from the public.`,
-					buttonTextConfirm: 'Unpublish',
-					buttonTextCancel: 'Cancel',
-					meta: { buttonConfirmClasses: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
-					response: (r: boolean) => handleConfirmation(r)
-				};
-				break;
-			case StatusTypes.test:
-				modalSettings = {
-					type: 'confirm',
-					title: `Please Confirm <span class="text-secondary-500 font-bold">Testing</span>`,
-					body:
-						itemCount === 1
-							? `Are you sure you want to <span class="text-secondary-500 font-semibold">test</span> this entry?`
-							: `Are you sure you want to <span class="text-secondary-500 font-semibold">test</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>?`,
-					buttonTextConfirm: 'Test',
-					buttonTextCancel: 'Cancel',
-					meta: { buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white' },
-					response: (r: boolean) => handleConfirmation(r)
-				};
-				break;
-			case StatusTypes.schedule:
-				modalSettings = {
-					type: 'confirm',
-					title: `Please Confirm <span class="text-pink-500 font-bold">Scheduling</span>`,
-					body:
-						itemCount === 1
-							? `Are you sure you want to <span class="text-pink-500 font-semibold">schedule</span> this entry?`
-							: `Are you sure you want to <span class="text-pink-500 font-semibold">schedule</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>?`,
-					buttonTextConfirm: 'Schedule',
-					buttonTextCancel: 'Cancel',
-					meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' },
-					response: (r: boolean) => handleConfirmation(r)
-				};
-				break;
-			default:
-				const actionText = status.charAt(0).toUpperCase() + status.slice(1);
-				modalSettings = {
-					type: 'confirm',
-					title: `Confirm ${actionText}`,
-					body: `Are you sure you want to set status to '${status}' for ${itemCount} ${itemText}?`,
-					response: (r: boolean) => handleConfirmation(r),
-					buttonTextConfirm: actionText
-				};
-				break;
-		}
-		// Trigger the modal
 		modalStore.trigger(modalSettings);
 	});
 
+	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		if (!currentCollection?._id || !contentStructure.value) return '';
-
-		// Get parent categories excluding current collection name
-		const pathSegments = currentCollection.path?.split('/').filter(Boolean);
 		return pathSegments?.slice(0, -1).join(' >') || '';
 	});
 
@@ -773,17 +607,26 @@ Features:
 			})
 			.filter(Boolean); // Filter out any potential undefined values
 
-	// Callback function to refresh data after an action is successful
+	// Callback to refresh data after an action
 	const onActionSuccess = () => {
 		invalidateCollectionCache(collection.value!._id);
 		refreshTableData();
+	};
+
+	// Handler for creating a new entry
+	const onCreate = async () => {
+		mode.set('create');
+		// Use a microtask to allow the UI to update before other actions
+		await Promise.resolve();
+		collectionValue.set({});
+		handleUILayoutToggle();
 	};
 
 	// Handlers that call the centralized action functions
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
 	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
 	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess, toastStore);
-	const onDelete = () => deleteEntries(getSelectedIds(), showDeleted, onActionSuccess, modalStore, toastStore);
+	const onDelete = (isPermanent = false) => deleteEntries(getSelectedIds(), isPermanent || showDeleted, onActionSuccess, modalStore, toastStore);
 	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess, toastStore);
 
 	// FIX: Schedule handler now correctly processes date and calls the action
@@ -810,107 +653,23 @@ Features:
 
 	// Direct action functions for MultiButton (bypass modals)
 	async function executePublish() {
-		console.log('executePublish called - should execute directly without modal');
-		await executeStatusChange(StatusTypes.publish);
+		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
 	}
 	async function executeUnpublish() {
-		console.log('executeUnpublish called - should execute directly without modal');
-		await executeStatusChange(StatusTypes.unpublish);
+		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
 	}
 	async function executeSchedule() {
-		console.log('executeSchedule called - should execute directly without modal');
-		await executeStatusChange(StatusTypes.schedule);
+		// This needs a modal to select a date, so direct execution is not simple.
+		// For now, it will open the schedule modal.
+		legacyOnSchedule();
 	}
 	async function executeTest() {
-		console.log('executeTest called - should execute directly without modal');
-		await executeStatusChange('test');
+		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess, toastStore);
 	}
 
 	// Helper function to execute status changes without modals
-	async function executeStatusChange(status: keyof typeof statusMap) {
-		if (!currentCollection?._id) {
-			toastStore.trigger({ message: 'No collection selected', background: 'variant-filled-error' });
-			return;
-		}
-
-		// Filter out items that are already in the target status
-		const modifyList: Array<string> = [];
-		for (const [index, isSelected] of Object.entries(selectedMap)) {
-			if (isSelected) {
-				const entry = tableData[Number(index)];
-				if (entry.raw_status !== status) {
-					modifyList.push(entry._id);
-				}
-			}
-		}
-
-		if (modifyList.length === 0) {
-			toastStore.trigger({
-				message: `Selected items are already in '${status}' state or no items selected.`,
-				background: 'variant-filled-warning'
-			});
-			return;
-		}
-
-		try {
-			// Use new status endpoint for batch updates
-			const firstEntryId = modifyList[0];
-			await updateStatus(currentCollection._id, firstEntryId, statusMap[status], modifyList);
-
-			// Invalidate cache and refresh the table data
-			invalidateCollectionCache(currentCollection._id);
-			refreshTableData();
-			// Show a success toast
-			toastStore.trigger({ message: `Successfully set status to ${status}`, background: 'variant-filled-success' });
-		} catch (e) {
-			toastStore.trigger({
-				message: `Error setting status: ${(e as Error).message}`,
-				background: 'variant-filled-error'
-			});
-		}
-	}
 	async function executeDelete() {
-		console.log('executeDelete called - should execute directly without modal');
-		if (!currentCollection?._id) {
-			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
-			return;
-		}
-		const selectedIds = Object.entries(selectedMap)
-			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[Number(index)]._id);
-
-		if (selectedIds.length === 0) {
-			toastStore.trigger({ message: 'Please select items to delete.', background: 'variant-filled-warning' });
-			return;
-		}
-
-		try {
-			// Check if admin has requested permanent deletion (flag set by admin modal)
-			const forcePermantentDelete = (globalThis as any).__adminPermanentDelete === true;
-
-			if (publicEnv.USE_ARCHIVE_ON_DELETE && !forcePermantentDelete) {
-				// Archive entries by setting status to archive
-				const archivePromises = selectedIds.map((entryId) => updateStatus(currentCollection!._id, entryId, StatusTypes.archive));
-				await Promise.all(archivePromises);
-				toastStore.trigger({ message: 'Items archived successfully.', background: 'variant-filled-success' });
-			} else {
-				// Permanently delete entries (either when archiving is disabled or admin forces deletion)
-				const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
-				await Promise.all(deletePromises);
-				toastStore.trigger({
-					message: forcePermantentDelete ? 'Items permanently deleted from database.' : 'Items deleted successfully.',
-					background: 'variant-filled-success'
-				});
-			}
-			invalidateCollectionCache(currentCollection._id); // Invalidate cache
-			refreshTableData(); // Refresh data to show changes
-		} catch (e) {
-			const actionText = publicEnv.USE_ARCHIVE_ON_DELETE && !(globalThis as any).__adminPermanentDelete ? 'archiving' : 'deleting';
-			toastStore.trigger({
-				message: `Error ${actionText} items: ${(e as Error).message}`,
-				background: 'variant-filled-error'
-			});
-		}
+		await deleteEntries(getSelectedIds(), showDeleted, onActionSuccess, toastStore);
 	}
 	// Legacy onClone function - now calls centralized action
 	function legacyOnClone() {
@@ -926,6 +685,7 @@ Features:
 
 	// Use regular visibleTableHeaders - no need for complex transition logic
 	let renderHeaders = $derived(visibleTableHeaders);
+	let tableColspan = $derived((renderHeaders?.length ?? 0) + 1);
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
 		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
@@ -982,14 +742,16 @@ Features:
 
 			<!-- Collection type with icon -->
 			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
-				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+				{#if categoryName}
+					<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
 					</div>
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
-					{#if currentCollection?.icon}<span>
-							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
-						>
+					{#if currentCollection?.icon}
+						<span>
+							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon>
+						</span>
 					{/if}
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
@@ -1036,6 +798,7 @@ Features:
 					delete={onDelete}
 					test={onTest}
 					clone={onClone}
+					create={onCreate}
 				/>
 			</div>
 		</div>
@@ -1094,247 +857,255 @@ Features:
 	{/if}
 
 	{#if shouldShowTable}
-		<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
-			<table
-				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
-					? 'table-compact'
-					: entryListPaginationSettings.density === 'comfortable'
-						? 'table-comfortable'
-						: ''}"
-			>
-				<!-- Table Header -->
-				<thead class="text-tertiary-500 dark:text-primary-500">
-					{#if filterShow && renderHeaders.length > 0}
-						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
-							<th>
-								<!-- Clear All Filters Button -->
-								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
-									<button
-										onclick={() => {
-											const clearedFilters: Record<string, string> = {};
-											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
-											entryListPaginationSettings.filters = clearedFilters;
-										}}
-										aria-label="Clear All Filters"
-										class="variant-ghost-surface btn-icon btn-sm"
-									>
-										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
-									</button>
-								{/if}
-							</th>
-							<!-- Filter -->
-							{#each renderHeaders as header (header.id)}
-								<th
-									><div class="flex items-center justify-between">
-										<FloatingInput
-											type="text"
-											icon="material-symbols:search-rounded"
-											label={`Filter ${header.label}`}
-											name={header.name}
-											value={entryListPaginationSettings.filters[header.name] || ''}
-											onInput={(value: string) => {
-												const filterName = header.name;
-												filterDebounce(() => {
-													const newFilters = { ...entryListPaginationSettings.filters };
-													if (value) {
-														newFilters[filterName] = value;
-													} else {
-														delete newFilters[filterName];
-													}
-													entryListPaginationSettings.filters = newFilters;
-												});
+		{#if renderHeaders}
+			<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
+				<table
+					class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
+						? 'table-compact'
+						: entryListPaginationSettings.density === 'comfortable'
+							? 'table-comfortable'
+							: ''}"
+				>
+					<!-- Table Header -->
+					<thead class="text-tertiary-500 dark:text-primary-500">
+						{#if filterShow && renderHeaders.length > 0}
+							<tr class="divide-x divide-surface-400 dark:divide-surface-600">
+								<th>
+									<!-- Clear All Filters Button -->
+									{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
+										<button
+											onclick={() => {
+												const clearedFilters: Record<string, string> = {};
+												Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
+												entryListPaginationSettings.filters = clearedFilters;
 											}}
-											inputClass="text-xs"
-										/>
-									</div>
-								</th>
-							{/each}
-						</tr>
-					{/if}
-
-					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-							<div class="flex flex-col items-center">
-								<TableIcons
-									checked={SelectAll}
-									onCheck={(checked) => {
-										SelectAll = checked;
-									}}
-								/>
-							</div>
-						</td>
-
-						{#each renderHeaders as header (header.id)}
-							<th
-								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
-									? 'font-semibold text-primary-500 dark:text-secondary-400'
-									: 'text-tertiary-500 dark:text-primary-500'}"
-								onclick={() => {
-									let newSorted = { ...entryListPaginationSettings.sorting };
-									if (newSorted.sortedBy === header.name) {
-										newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
-										if (newSorted.isSorted === 0) newSorted.sortedBy = '';
-									} else {
-										newSorted.sortedBy = header.name;
-										newSorted.isSorted = 1;
-									}
-									entryListPaginationSettings.sorting = newSorted;
-								}}
-							>
-								<div class="flex items-center justify-center">
-									{header.label}
-									{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
-										<iconify-icon
-											icon={entryListPaginationSettings.sorting.isSorted === 1
-												? 'material-symbols:arrow-upward-rounded'
-												: 'material-symbols:arrow-downward-rounded'}
-											width="16"
-											class="ml-1 origin-center"
-										></iconify-icon>
+											aria-label="Clear All Filters"
+											class="variant-ghost-surface btn-icon btn-sm"
+										>
+											<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
+										</button>
 									{/if}
-								</div>
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#if tableData.length > 0}
-						{#each tableData as entry, index (entry._id)}
-							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
-								<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-									<TableIcons
-										checked={selectedMap[index]}
-										onCheck={(isChecked) => {
-											selectedMap[index] = isChecked;
-										}}
-									/>
-								</td>
+								</th>
+								<!-- Filter -->
 								{#each renderHeaders as header (header.id)}
-									<td
-										class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
-											? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
-											: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
-										title={header.name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
-										onclick={() => {
-											if (header.name === 'status') {
-												// console.log('🎯 Status column clicked for entry:', entry._id, 'current status:', entry.raw_status);
-
-												// Handle status column click - select this entry and show status change modal
-												// First, clear all other selections and select only this entry
-												Object.keys(selectedMap).forEach((key) => {
-													selectedMap[key] = false;
-												});
-												selectedMap[index] = true;
-												// console.log('✅ Entry selected:', selectedMap);
-
-												// Get current status and determine next logical status
-												const currentStatus = entry.raw_status;
-												let nextStatus;
-
-												// Define status progression logic
-												switch (currentStatus) {
-													case 'draft':
-													case StatusTypes.draft:
-														nextStatus = StatusTypes.publish;
-														break;
-													case 'publish':
-													case StatusTypes.publish:
-														nextStatus = StatusTypes.unpublish;
-														break;
-													case 'unpublish':
-													case StatusTypes.unpublish:
-														nextStatus = StatusTypes.publish;
-														break;
-													case 'schedule':
-													case StatusTypes.schedule:
-														nextStatus = StatusTypes.publish;
-														break;
-													default:
-														nextStatus = StatusTypes.publish;
-														break;
-												}
-
-												// console.log(`🔄 Status change: ${currentStatus} → ${nextStatus}`);
-
-												// Trigger the status change modal
-												modifyEntry.value(nextStatus);
-											} else {
-												const originalEntry = data?.entryList.find((e) => e._id === entry._id);
-												if (originalEntry) {
-													// Load the entry data into collectionValue
-													collectionValue.set(originalEntry);
-
-													// Set mode to edit
-													mode.set('edit');
-
-													// If the entry is publish, automatically set it to unpublish
-													// This follows CMS best practices where editing publish content
-													// creates a draft that needs to be republish
-													if (originalEntry.status === StatusTypes.publish) {
-														// Update the local collectionValue to unpublish status
-														collectionValue.update((current) => ({
-															...current,
-															status: StatusTypes.unpublish
-														})); // Show user feedback about the status change
-														toastStore.trigger({
-															message: 'Entry moved to draft mode for editing. Republish when ready.',
-															background: 'variant-filled-warning',
-															timeout: 4000
-														});
-													}
-
-													// Trigger UI layout change to show edit interface
-													handleUILayoutToggle();
-												}
-											}
-										}}
-									>
-										{#if header.name === 'status'}
-											<Status value={entry.raw_status} />
-										{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
-											{@html entry[header.name][currentLanguage] || '-'}
-										{:else}
-											{@html entry[header.name] || '-'}
-										{/if}
-									</td>
+									<th
+										><div class="flex items-center justify-between">
+											<FloatingInput
+												type="text"
+												icon="material-symbols:search-rounded"
+												label={`Filter ${header.label}`}
+												name={header.name}
+												value={entryListPaginationSettings.filters[header.name] || ''}
+												onInput={(value: string) => {
+													const filterName = header.name;
+													filterDebounce(() => {
+														const newFilters = { ...entryListPaginationSettings.filters };
+														if (value) {
+															newFilters[filterName] = value;
+														} else {
+															delete newFilters[filterName];
+														}
+														entryListPaginationSettings.filters = newFilters;
+													});
+												}}
+												inputClass="text-xs"
+											/>
+										</div>
+									</th>
 								{/each}
 							</tr>
-						{/each}
-					{:else if !isLoading}
-						<tr><td colspan={renderHeaders.length + 1} class="py-10 text-center text-gray-500">No entries found.</td></tr>
-					{/if}
-				</tbody>
-			</table>
-		</div>
-		<!-- Pagination -->
-		<div
-			class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
-		>
-			<TablePagination
-				bind:currentPage={entryListPaginationSettings.currentPage}
-				bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
-				{pagesCount}
-				{totalItems}
-				onUpdatePage={(page: number) => {
-					if (isCollectionChanging || isInitializing) {
-						// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
-						return;
-					}
-					entryListPaginationSettings.currentPage = page;
-					refreshTableData(true);
-				}}
-				onUpdateRowsPerPage={(rows: number) => {
-					if (isCollectionChanging || isInitializing) {
-						// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
-						return;
-					}
-					//console.log('Rows per page updated to:', rows);
-					entryListPaginationSettings.rowsPerPage = rows;
-					entryListPaginationSettings.currentPage = 1;
-					refreshTableData(true);
-				}}
-			/>
-		</div>
+						{/if}
+
+						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+							<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
+								<div class="flex flex-col items-center">
+									<TableIcons
+										checked={SelectAll}
+										onCheck={(checked) => {
+											SelectAll = checked;
+										}}
+									/>
+								</div>
+							</td>
+
+							{#if renderHeaders}
+								{#each renderHeaders as header (header.id)}
+									<th
+										class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+											? 'font-semibold text-primary-500 dark:text-secondary-400'
+											: 'text-tertiary-500 dark:text-primary-500'}"
+										onclick={() => {
+											let newSorted = { ...entryListPaginationSettings.sorting };
+											if (newSorted.sortedBy === header.name) {
+												newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
+												if (newSorted.isSorted === 0) newSorted.sortedBy = '';
+											} else {
+												newSorted.sortedBy = header.name;
+												newSorted.isSorted = 1;
+											}
+											entryListPaginationSettings.sorting = newSorted;
+										}}
+									>
+										<div class="flex items-center justify-center">
+											{header.label}
+											{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
+												<iconify-icon
+													icon={entryListPaginationSettings.sorting.isSorted === 1
+														? 'material-symbols:arrow-upward-rounded'
+														: 'material-symbols:arrow-downward-rounded'}
+													width="16"
+													class="ml-1 origin-center"
+												></iconify-icon>
+											{/if}
+										</div>
+									</th>
+								{/each}
+							{/if}
+						</tr>
+					</thead>
+					<tbody>
+						{#if tableData.length > 0}
+							{#each tableData as entry, index (entry._id)}
+								<tr
+									class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
+								>
+									<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
+										<TableIcons
+											checked={selectedMap[index]}
+											onCheck={(isChecked) => {
+												selectedMap[index] = isChecked;
+											}}
+										/>
+									</td>
+									{#each renderHeaders as header (header.id)}
+										<td
+											class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
+												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
+												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
+											title={header.name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
+											onclick={() => {
+												if (header.name === 'status') {
+													// console.log('🎯 Status column clicked for entry:', entry._id, 'current status:', entry.raw_status);
+
+													// Handle status column click - select this entry and show status change modal
+													// First, clear all other selections and select only this entry
+													Object.keys(selectedMap).forEach((key) => {
+														selectedMap[key] = false;
+													});
+													selectedMap[index] = true;
+													// console.log('✅ Entry selected:', selectedMap);
+
+													// Get current status and determine next logical status
+													const currentStatus = entry.raw_status;
+													let nextStatus;
+
+													// Define status progression logic
+													switch (currentStatus) {
+														case 'draft':
+														case StatusTypes.draft:
+															nextStatus = StatusTypes.publish;
+															break;
+														case 'publish':
+														case StatusTypes.publish:
+															nextStatus = StatusTypes.unpublish;
+															break;
+														case 'unpublish':
+														case StatusTypes.unpublish:
+															nextStatus = StatusTypes.publish;
+															break;
+														case 'schedule':
+														case StatusTypes.schedule:
+															nextStatus = StatusTypes.publish;
+															break;
+														default:
+															nextStatus = StatusTypes.publish;
+															break;
+													}
+
+													// console.log(`🔄 Status change: ${currentStatus} → ${nextStatus}`);
+
+													// Trigger the status change modal
+													modifyEntry.value(nextStatus);
+												} else {
+													const originalEntry = data?.entryList.find((e) => e._id === entry._id);
+													if (originalEntry) {
+														// Load the entry data into collectionValue
+														collectionValue.set(originalEntry);
+
+														// Set mode to edit
+														mode.set('edit');
+
+														// If the entry is publish, automatically set it to unpublish
+														// This follows CMS best practices where editing publish content
+														// creates a draft that needs to be republish
+														if (originalEntry.status === StatusTypes.publish) {
+															// Update the local collectionValue to unpublish status
+															collectionValue.update((current) => ({
+																...current,
+																status: StatusTypes.unpublish
+															})); // Show user feedback about the status change
+															toastStore.trigger({
+																message: 'Entry moved to draft mode for editing. Republish when ready.',
+																background: 'variant-filled-warning',
+																timeout: 4000
+															});
+														}
+
+														// Trigger UI layout change to show edit interface
+														handleUILayoutToggle();
+													}
+												}
+											}}
+										>
+											{#if header.name === 'status'}
+												<Status value={entry.raw_status} />
+											{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
+												{@html entry[header.name][currentLanguage] || '-'}
+											{:else}
+												{@html entry[header.name] || '-'}
+											{/if}
+										</td>
+									{/each}
+								</tr>
+							{/each}
+						{:else if !isLoading}
+							<tr>
+								<td colspan={tableColspan} class="py-10 text-center text-gray-500">No entries found.</td>
+							</tr>
+						{/if}
+					</tbody>
+				</table>
+			</div>
+			<!-- Pagination -->
+			<div
+				class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			>
+				<TablePagination
+					bind:currentPage={entryListPaginationSettings.currentPage}
+					bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
+					{pagesCount}
+					{totalItems}
+					onUpdatePage={(page: number) => {
+						if (isCollectionChanging || isInitializing) {
+							// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
+							return;
+						}
+						entryListPaginationSettings.currentPage = page;
+						refreshTableData(true);
+					}}
+					onUpdateRowsPerPage={(rows: number) => {
+						if (isCollectionChanging || isInitializing) {
+							// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
+							return;
+						}
+						//console.log('Rows per page updated to:', rows);
+						entryListPaginationSettings.rowsPerPage = rows;
+						entryListPaginationSettings.currentPage = 1;
+						refreshTableData(true);
+					}}
+				/>
+			</div>
+		{/if}
 	{:else if shouldShowNoDataMessage}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>

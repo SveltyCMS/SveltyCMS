@@ -388,7 +388,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				schema.set('backgroundIndexing', true);
 				// Create and return the new model
 				const model = mongoose.model(collectionName, schema);
-				logger.info(`Collection model ${collectionName} created successfully with ${collection.fields?.length || 0} fields.`);
+				logger.info(
+					`Collection model \x1b[34m${collectionName}\x1b[0m created successfully with \x1b[34m${collection.fields?.length || 0}\x1b[0m fields.`
+				);
 				this.collection.models.set(collectionUuid, model);
 				return model;
 			} catch (error) {

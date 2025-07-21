@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-	// Your selected theme:
+	// selected theme:
 	import '../../app.postcss';
 
 	// Icons from https://icon-sets.iconify.design/
@@ -25,18 +25,21 @@
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
 	import { onDestroy, onMount } from 'svelte';
+
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import { getTextDirection } from '@utils/utils';
+
 	// Stores
 	import { collections, contentStructure } from '@stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -45,6 +48,7 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
+
 	// Skeleton
 	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
@@ -59,8 +63,6 @@
 		data: {
 			user: User;
 			contentStructure: ContentNode[];
-			contentLanguage: string;
-			systemLanguage: string;
 		};
 	}
 
@@ -74,13 +76,9 @@
 	// Derived state for showing loading
 	let shouldShowLoading = $derived(!isCollectionsLoaded || globalLoadingStore.isLoading);
 
-	// Update collection loaded state when contentStructure or collections change
+	// Set isCollectionsLoaded to true once the initial data is available.
 	$effect(() => {
-		// Check if we have contentStructure data OR collections data
-		const hasContentStructure = contentStructure.value && contentStructure.value.length > 0;
-		const hasCollections = collections.value && Object.keys(collections.value).length > 0;
-
-		if (hasContentStructure || hasCollections) {
+		if (data.contentStructure && data.contentStructure.length > 0) {
 			isCollectionsLoaded = true;
 		}
 	});
@@ -102,7 +100,6 @@
 		try {
 			//console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
-			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);
 			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');

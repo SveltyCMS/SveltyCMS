@@ -1012,7 +1012,7 @@ export const actions: Actions = {
 		}
 	},
 
-	prefetch: async (event) => {
+	prefetch: async () => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
@@ -1022,14 +1022,14 @@ export const actions: Actions = {
 		// This action is called when user switches to SignIn/SignUp components
 		// to get collection info for later data fetching after authentication
 		try {
-			logger.info(`Collection lookup triggered for language: ${userLanguage}`);
+			logger.info(`Collection lookup triggered for language: \x1b[34m${userLanguage}}\x1b[0m`);
 
 			// Import and call lookup function (no data fetching, just collection info)
 			const { getFirstCollectionInfo } = await import('@utils/collections-prefetch');
 			const collectionInfo = await getFirstCollectionInfo(userLanguage);
 
 			if (collectionInfo) {
-				logger.info(`Collection lookup completed successfully: ${collectionInfo.name}`);
+				logger.info(`Collection lookup completed successfully: \x1b[34m${collectionInfo.name}}\x1b[0m`);
 				return { success: true, collection: collectionInfo };
 			} else {
 				logger.debug('No collection found');

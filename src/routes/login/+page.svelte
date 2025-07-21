@@ -26,6 +26,7 @@ Features:
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { setSystemLanguage } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -119,10 +120,10 @@ Features:
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			systemLanguage.set(lang as typeof $systemLanguage);
+			setSystemLanguage(lang as (typeof systemLanguage)['value']);
 			isDropdownOpen = false;
 			searchQuery = '';
-		}, 300);
+		}, 100); // Reduced delay for faster feedback
 	}
 
 	// Function to handle clicks outside of the language selector
@@ -383,11 +384,11 @@ Features:
 				<select
 					bind:value={systemLanguage.value}
 					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
-					onchange={async (e: Event) => {
+					onchange={(e: Event) => {
 						const target = e.target as HTMLSelectElement;
 						if (target) {
 							const lang = target.value;
-							await handleLanguageSelection(lang);
+							handleLanguageSelection(lang);
 						}
 					}}
 				>

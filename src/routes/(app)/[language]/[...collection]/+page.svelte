@@ -14,6 +14,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';
+
 	// ParaglideJS
 	import type { Locale } from '@src/paraglide/runtime';
 
@@ -22,10 +23,11 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+
 	// Components
-	import Fields from '@components/Fields.svelte';
-	import Loading from '@root/src/components/Loading.svelte';
-	import EntryList from '@src/components/EntryList.svelte';
+	import Loading from '@components/Loading.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
+	import EntryList from '@components/collectionDisplay/EntryList.svelte';
 
 	interface Props {
 		data: {
@@ -50,6 +52,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 
 		collection.set(data.collection);
+		mode.set('view'); // Set mode to view to render EntryList
 		isLoading = false;
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
 	}
@@ -120,9 +123,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 </svelte:head>
 <div class="content h-full">
 	{#if isLoading}
-		<div class="loading flex h-full items-center justify-center">
-			<Loading />
-		</div>
+		<Loading />
 	{:else if collection.value}
 		{#if mode.value === 'view' || mode.value === 'modify'}
 			<EntryList />
