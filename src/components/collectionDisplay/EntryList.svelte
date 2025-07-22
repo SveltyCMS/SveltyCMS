@@ -363,10 +363,10 @@ Features:
 				let usedPrefetchedData = false;
 				if (
 					page === 1 &&
-					[5, 10, 20].includes(limit) && // Allow prefetching for common page sizes
-					Object.keys(activeFilters).length === 1 &&
-					activeFilters.status === '!=deleted' &&
-					(!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
+					[5, 10, 20].includes(limit) // Allow prefetching for common page sizes
+					&& Object.keys(activeFilters).length === 1
+					&& activeFilters.status === '!=deleted'
+					&& (!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
 				) {
 					// Try to get prefetched data
 					try {
@@ -540,6 +540,7 @@ Features:
 	});
 
 	function process_selectAllRows(selectAllState: boolean) {
+		if (!Array.isArray(tableData)) return;
 		tableData.forEach((_entry, index) => {
 			selectedMap[index.toString()] = selectAllState;
 		});
@@ -787,7 +788,7 @@ Features:
 			<!-- MultiButton -->
 			<div class=" flex w-full items-center justify-end sm:mt-0 sm:w-auto">
 				<EntryListMultiButton
-					isCollectionEmpty={tableData.length === 0}
+					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
 					selectedStatuses={selectedEntriesStatuses}
@@ -850,7 +851,7 @@ Features:
 		</div>
 	{/if}
 
-	{#if isLoading && hasInitialLoad && tableData.length === 0}
+	{#if isLoading && hasInitialLoad && tableData?.length === 0}
 		<div class="py-4 text-center text-sm text-gray-500">Loading data...</div>
 	{:else if isLoading && hasInitialLoad}
 		<div class="py-2 text-center text-xs text-gray-400">Refreshing...</div>
@@ -964,7 +965,7 @@ Features:
 						</tr>
 					</thead>
 					<tbody>
-						{#if tableData.length > 0}
+						{#if tableData?.length > 0}
 							{#each tableData as entry, index (entry._id)}
 								<tr
 									class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
