@@ -265,7 +265,7 @@
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative z-0 w-full min-w-0 flex-1">
+				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full"><HeaderEdit /></header>
@@ -274,16 +274,14 @@
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative flex-grow {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG'
-							? 'mb-2'
-							: 'mb-16'}"
+						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
 					>
 						{@render children?.()}
 					</div>
 
 					<!-- Page Footer (Mobile Nav) -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
-						<footer class="sticky bottom-0 z-20 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+						<footer class="z-20 mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}

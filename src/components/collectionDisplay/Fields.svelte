@@ -21,18 +21,22 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
+	import { untrack } from 'svelte';
 	import { publicEnv } from '@root/config/public';
-	import { getFieldName, updateTranslationProgress, debounce } from '@utils/utils';
+	import { getFieldName, updateTranslationProgress } from '@utils/utils';
 	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 
 	// Auth & Page data
 	import { page } from '$app/stores';
-	const user = $derived(page.data.user);
-	const collectionName = $derived(page.params.contentTypes);
+	const user = $derived(page.data?.user);
+	const collectionName = $derived(page.params?.contentTypes);
 
 	// Stores
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
+
+	// Content processing
+	import { processModule } from '@src/content/utils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -64,21 +68,54 @@
 	let isRevisionDetailLoading = $state(false);
 	let diffObject = $state<Record<string, any> | null>(null);
 
-	// Derived state for fields
-	let derivedFields = $derived(fields || collection.value?.fields || []);
+	// Processed collection with evaluated fields (fixes the missing fields issue)
+	let processedCollection = $state<any>(null);
+	let fieldsFromModule = $state<any[]>([]);
+
+	// Process collection module to get actual fields
+	$effect(async () => {
+		if (collection.value?.module && !processedCollection) {
+			try {
+				const processed = await processModule(collection.value.module);
+				if (processed?.schema?.fields) {
+					processedCollection = processed.schema;
+					fieldsFromModule = processed.schema.fields;
+				}
+			} catch (error) {
+				console.error('Failed to process collection module:', error);
+			}
+		}
+	});
+
+	// Derived state for fields - combines all possible field sources
+	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
+
+	// Persistent form data that survives tab switches (from old working code)
+	let formDataSnapshot = $state<Record<string, any>>({});
+	let isFormDataInitialized = $state(false);
 
 	// Use a single local state for form data, initialized from the global store
-	let currentCollectionValue = $state({ ...collectionValue.value });
+	let currentCollectionValue = $state<Record<string, any>>({});
 
-	// Debounced effect to update the global store as the user types
-	const debouncedUpdateCollectionValue = debounce((value) => {
-		collectionValue.set(value);
-	}, 300);
-
-	$effect(() => {
-		// This runs whenever currentCollectionValue changes, but the update is debounced
-		debouncedUpdateCollectionValue(currentCollectionValue);
+	// Reactive function to get default collection value
+	let defaultCollectionValue = $derived.by(() => {
+		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
+		for (const field of derivedFields) {
+			const safeField = ensureFieldProperties(field);
+			const fieldName = getFieldName(safeField, false);
+			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
+				tempCollectionValue[fieldName] = {};
+			}
+		}
+		return tempCollectionValue;
 	});
+
+	// Simple function to sync changes when needed
+	function syncToGlobalStore() {
+		if (currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
+			collectionValue.set({ ...currentCollectionValue });
+		}
+	}
 
 	// Ensure fields have required properties
 	function ensureFieldProperties(field: any) {
@@ -96,14 +133,39 @@
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
-			.filter((field) => !field.permissions || !field.permissions[user.role] || field.permissions[user.role].read)
+			.filter((field) => {
+				// Always show fields if no permissions are set or user is admin
+				if (!field.permissions) return true;
+				if (user?.roles === 'admin' || user?.role === 'admin') return true;
+
+				// Check specific role permissions
+				const userRole = user?.role || user?.roles;
+				if (!userRole) return true; // Show all fields if no role defined
+
+				const rolePermissions = field.permissions[userRole];
+				return !rolePermissions || rolePermissions.read !== false;
+			})
 	);
 
 	// Update translation progress when data changes
 	$effect(() => {
 		if (!collection.value?.fields) return;
 		for (const field of collection.value.fields) {
-			updateTranslationProgress(currentCollectionValue, field);
+			updateTranslationProgress(collectionValue.value, field);
+		}
+	});
+
+	// Update the main collection value store when form data changes (debounced) - from old working code
+	let updateTimeout: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
+			if (updateTimeout) clearTimeout(updateTimeout);
+			updateTimeout = setTimeout(() => {
+				collectionValue.update((current) => ({
+					...current,
+					...currentCollectionValue
+				}));
+			}, 300);
 		}
 	});
 
@@ -134,7 +196,7 @@
 				collectionId: collection.value._id,
 				entryId: collectionValue.value._id,
 				revisionId: revisionId,
-				currentData: currentCollectionValue
+				currentData: collectionValue.value
 			});
 
 			if (result.success) {
@@ -160,7 +222,7 @@
 			response: (confirmed: boolean) => {
 				if (confirmed) {
 					const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
-					currentCollectionValue = revertData;
+					collectionValue.set(revertData);
 					toastStore.trigger({ message: 'Content reverted. Please save your changes.', background: 'variant-filled-success' });
 					localTabSet = 0;
 				}
@@ -171,9 +233,44 @@
 	}
 
 	// --- Effects ---
-
 	$effect(() => {
 		isLoading = false;
+	});
+
+	// Initialize form data snapshot on first load or when collection changes (from old working code)
+	$effect(() => {
+		if (!isFormDataInitialized && collectionValue.value) {
+			formDataSnapshot = { ...collectionValue.value };
+			currentCollectionValue = { ...defaultCollectionValue };
+			isFormDataInitialized = true;
+		}
+	});
+
+	// Form data persistence across tab switches (from old working code)
+	$effect(() => {
+		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue) {
+			// Only sync when on edit tab to avoid unnecessary updates
+			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
+		} else if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
+			// Merge snapshot data back into currentCollectionValue when returning to edit tab
+			const updatedValue = { ...currentCollectionValue };
+			for (const field of derivedFields) {
+				const safeField = ensureFieldProperties(field);
+				const fieldName = getFieldName(safeField, false);
+				if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
+					updatedValue[fieldName] = formDataSnapshot[fieldName];
+				}
+			}
+			currentCollectionValue = updatedValue;
+		}
+	});
+
+	// Initialize local state from global store when it changes
+	$effect(() => {
+		const globalData = collectionValue.value;
+		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized) {
+			currentCollectionValue = { ...globalData };
+		}
 	});
 
 	$effect(() => {
@@ -202,20 +299,24 @@
 	<Loading />
 {:else}
 	<TabGroup
-		justify="justify-between"
-		class="md:justify-around"
-		active="border-b-2 border-primary-500 text-primary-500"
-		hover="hover:variant-soft-surface"
-		bind:value={localTabSet}
+		justify="{collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
+		rounded="rounded-tl-container-token rounded-tr-container-token"
+		flex="flex-1 items-center"
+		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
+		hover="hover:variant-soft-secondary"
+		bind:group={localTabSet}
 	>
-		<Tab name="edit" value={0}>
-			<div class="flex items-center gap-2"><iconify-icon icon="mdi:pen" width="20"></iconify-icon> {m.fields_edit()}</div>
+		<Tab bind:group={localTabSet} name="edit" value={0}>
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				{m.fields_edit()}
+			</div>
 		</Tab>
 
 		{#if collection.value?.revision}
-			<Tab name="revisions" value={1}>
+			<Tab bind:group={localTabSet} name="revisions" value={1}>
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:history" width="20"></iconify-icon>
+					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					{m.applayout_version()}
 					<span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
 				</div>
@@ -223,49 +324,101 @@
 		{/if}
 
 		{#if collection.value?.livePreview}
-			<Tab name="preview" value={2}>
-				<div class="flex items-center gap-2"><iconify-icon icon="mdi:eye-outline" width="20"></iconify-icon> {m.Fields_preview()}</div>
+			<Tab bind:group={localTabSet} name="preview" value={2}>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					{m.Fields_preview()}
+				</div>
 			</Tab>
 		{/if}
 
-		{#if user.isAdmin}
-			<Tab name="api" value={3}>
-				<div class="flex items-center gap-2"><iconify-icon icon="mdi:api" width="20"></iconify-icon> API</div>
+		{#if user?.roles === 'admin'}
+			<Tab bind:group={localTabSet} name="api" value={3}>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					API
+				</div>
 			</Tab>
 		{/if}
 
 		<svelte:fragment slot="panel">
 			{#if localTabSet === 0}
-				<div class="mb-2 text-center text-xs text-surface-500">{m.fields_required()}</div>
-				<div class="rounded-md border bg-white p-4 drop-shadow-lg dark:border-surface-700 dark:bg-surface-800">
-					<div class="flex flex-wrap items-start justify-center gap-4">
-						{#each filteredFields as field (field.db_fieldName || field.name)}
-							{@const WidgetComponent = widgetFunctions().get(field.widget.Name)?.component}
-							<div class="flex-grow" style:min-width="min(300px, 100%)" style:width={field.width ? `calc(${field.width}% - 1rem)` : '100%'}>
-								<div class="mb-1 flex items-center justify-between px-1">
-									<p class="font-semibold capitalize">
-										{field.label || field.name}
-										{#if field.required}<span class="text-error-500">*</span>{/if}
-									</p>
-									<div class="flex items-center gap-2">
-										{#if field.translated}
-											<div class="variant-soft-tertiary badge-icon gap-1 text-xs">
-												<iconify-icon icon="bi:translate" width="14"></iconify-icon>
-												{contentLanguage.value?.toUpperCase() ?? 'EN'}
-											</div>
-										{/if}
-										{#if field.icon}
-											<iconify-icon icon={field.icon} width="18" class="text-surface-500"></iconify-icon>
-										{/if}
-									</div>
-								</div>
+				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
+				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
+					<!-- Debug info -->
+					{#if dev}
+						<div class="mb-4 bg-yellow-100 p-2 text-xs dark:bg-yellow-900">
+							<p>Debug Info:</p>
+							<p>derivedFields: {derivedFields.length}</p>
+							<p>filteredFields: {filteredFields.length}</p>
+							<p>fieldsFromModule: {fieldsFromModule.length}</p>
+							<p>isFormDataInitialized: {isFormDataInitialized}</p>
+							<p>user.roles: {user?.roles}</p>
+							<p>user.role: {user?.role}</p>
+							<p>collection.name: {collection.value?.name}</p>
+							<p>collection.fields: {collection.value?.fields?.length || 'undefined'}</p>
+							<p>fields prop: {fields?.length || 'undefined'}</p>
+							<p>processedCollection: {processedCollection ? 'loaded' : 'not loaded'}</p>
+							<p>collection object keys: {collection.value ? Object.keys(collection.value).join(', ') : 'no collection'}</p>
+							{#if processedCollection}
+								<p>processedCollection fields: {JSON.stringify(processedCollection.fields?.slice(0, 2), null, 2)}</p>
+							{/if}
+						</div>
+					{/if}
 
-								{#if WidgetComponent}
-									<WidgetComponent {field} bind:value={currentCollectionValue[getFieldName(field, false)]} />
-								{:else}
-									<p class="text-error-500">Widget '{field.widget.Name}' not found.</p>
-								{/if}
-							</div>
+					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+							{#if rawField.widget}
+								{@const field = ensureFieldProperties(rawField)}
+								<div
+									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
+									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+								>
+									<!-- Widget label -->
+									<div class="flex justify-between px-[5px] text-start">
+										<p class="inline-block font-semibold capitalize">
+											{field.label || field.db_fieldName}
+											{#if field.required}<span class="text-error-500">*</span>{/if}
+										</p>
+
+										<div class="flex gap-2">
+											{#if field.translated}
+												<div class="flex items-center gap-1 px-2">
+													<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"></iconify-icon>
+													<div class="text-xs font-normal text-error-500">
+														{contentLanguage.value?.toUpperCase() ?? 'EN'}
+													</div>
+													<!-- Display translation progress -->
+													<div class="text-xs font-normal">
+														({Math.round(
+															translationProgress.value[contentLanguage.value]?.translated.has(
+																`${String(collection.value?.name)}.${getFieldName(field)}`
+															)
+																? 100
+																: 0
+														)}%)
+													</div>
+												</div>
+											{/if}
+
+											{#if field.icon}
+												<iconify-icon icon={field.icon} color="dark" width="22"></iconify-icon>
+											{/if}
+										</div>
+									</div>
+
+									<!-- Widget Input -->
+									{#if field.widget}
+										{@const widgetName = field.widget.Name}
+										{@const WidgetComponent = widgetFunctions().get(widgetName)?.component}
+										{#if WidgetComponent}
+											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[getFieldName(field, false)]} />
+										{:else}
+											<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
+										{/if}
+									{/if}
+								</div>
+							{/if}
 						{/each}
 					</div>
 				</div>

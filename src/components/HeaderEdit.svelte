@@ -200,7 +200,7 @@
 						<div class="text-sm uppercase">
 							{mode.value}:
 						</div>
-						<div class="text-xs capitalize">
+						<div class="text-sm capitalize">
 							<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
 						</div>
 					</div>

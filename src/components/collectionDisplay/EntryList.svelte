@@ -363,10 +363,10 @@ Features:
 				let usedPrefetchedData = false;
 				if (
 					page === 1 &&
-					[5, 10, 20].includes(limit) // Allow prefetching for common page sizes
-					&& Object.keys(activeFilters).length === 1
-					&& activeFilters.status === '!=deleted'
-					&& (!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
+					[5, 10, 20].includes(limit) && // Allow prefetching for common page sizes
+					Object.keys(activeFilters).length === 1 &&
+					activeFilters.status === '!=deleted' &&
+					(!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
 				) {
 					// Try to get prefetched data
 					try {
@@ -408,7 +408,7 @@ Features:
 				// Process the fetched data
 				if (data) {
 					rawData = data;
-					tableData = data.entryList;
+					tableData = data.entryList || [];
 					pagesCount = data.pagesCount ?? 1;
 					totalItems = data.totalItems ?? 0;
 					stableDataExists = true; // We have some data to show
@@ -526,7 +526,11 @@ Features:
 		if (currentMode === 'view') {
 			untrack(() => {
 				meta_data.clear();
-				collectionValue.set({});
+				// Don't set empty object, just clear the existing data safely
+				const currentValue = collectionValue.value;
+				if (currentValue && Object.keys(currentValue).length > 0) {
+					collectionValue.set({});
+				}
 			});
 		}
 
@@ -589,7 +593,7 @@ Features:
 
 	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		return pathSegments?.slice(0, -1).join(' >') || '';
+		return pathSegments?.slice(0, -1).join('>') || '';
 	});
 
 	// --- Actions ---
@@ -616,10 +620,26 @@ Features:
 
 	// Handler for creating a new entry
 	const onCreate = async () => {
+		// Create a default entry object based on the collection's fields
+		const newEntry: Record<string, any> = {};
+		if (currentCollection?.fields) {
+			for (const field of currentCollection.fields) {
+				const fieldName = getFieldName(field, false);
+				// Set a default value based on the field type or widget
+				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
+			}
+		}
+		// Also initialize system fields
+		newEntry.status = 'draft';
+
+		// Set the new entry data FIRST
+		collectionValue.set(newEntry);
+
+		// THEN switch the mode
 		mode.set('create');
+
 		// Use a microtask to allow the UI to update before other actions
 		await Promise.resolve();
-		collectionValue.set({});
 		handleUILayoutToggle();
 	};
 
@@ -679,13 +699,11 @@ Features:
 
 	// Show content as soon as we have a collection, even if still loading
 	let shouldShowContent = $derived(currentCollection?._id && (hasInitialLoad || loadingState === 'loading'));
-	let shouldShowTable = $derived(shouldShowContent && (stableDataExists || tableData.length > 0) && loadingState !== 'loading');
-	let shouldShowNoDataMessage = $derived(
-		shouldShowContent && !isLoading && tableData.length === 0 && loadingState === 'idle' && hasInitialLoad && stableDataExists === false
-	);
+	let renderHeaders = $derived(visibleTableHeaders);
+	let shouldShowTable = $derived(shouldShowContent && tableData.length > 0 && !isLoading && renderHeaders?.length > 0);
+	let shouldShowNoDataMessage = $derived(shouldShowContent && !isLoading && tableData.length === 0);
 
 	// Use regular visibleTableHeaders - no need for complex transition logic
-	let renderHeaders = $derived(visibleTableHeaders);
 	let tableColspan = $derived((renderHeaders?.length ?? 0) + 1);
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
@@ -858,126 +876,122 @@ Features:
 	{/if}
 
 	{#if shouldShowTable}
-		{#if renderHeaders}
-			<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
-				<table
-					class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
-						? 'table-compact'
-						: entryListPaginationSettings.density === 'comfortable'
-							? 'table-comfortable'
-							: ''}"
-				>
-					<!-- Table Header -->
-					<thead class="text-tertiary-500 dark:text-primary-500">
-						{#if filterShow && renderHeaders.length > 0}
-							<tr class="divide-x divide-surface-400 dark:divide-surface-600">
-								<th>
-									<!-- Clear All Filters Button -->
-									{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
-										<button
-											onclick={() => {
-												const clearedFilters: Record<string, string> = {};
-												Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
-												entryListPaginationSettings.filters = clearedFilters;
+		<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
+			<table
+				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
+					? 'table-compact'
+					: entryListPaginationSettings.density === 'comfortable'
+						? 'table-comfortable'
+						: ''}"
+			>
+				<!-- Table Header -->
+				<thead class="text-tertiary-500 dark:text-primary-500">
+					{#if filterShow && renderHeaders.length > 0}
+						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
+							<th>
+								<!-- Clear All Filters Button -->
+								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
+									<button
+										onclick={() => {
+											const clearedFilters: Record<string, string> = {};
+											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
+											entryListPaginationSettings.filters = clearedFilters;
+										}}
+										aria-label="Clear All Filters"
+										class="variant-ghost-surface btn-icon btn-sm"
+									>
+										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
+									</button>
+								{/if}
+							</th>
+							<!-- Filter -->
+							{#each renderHeaders as header (header.id)}
+								<th
+									><div class="flex items-center justify-between">
+										<FloatingInput
+											type="text"
+											icon="material-symbols:search-rounded"
+											label={`Filter ${header.label}`}
+											name={header.name}
+											value={entryListPaginationSettings.filters[header.name] || ''}
+											onInput={(value: string) => {
+												const filterName = header.name;
+												filterDebounce(() => {
+													const newFilters = { ...entryListPaginationSettings.filters };
+													if (value) {
+														newFilters[filterName] = value;
+													} else {
+														delete newFilters[filterName];
+													}
+													entryListPaginationSettings.filters = newFilters;
+												});
 											}}
-											aria-label="Clear All Filters"
-											class="variant-ghost-surface btn-icon btn-sm"
-										>
-											<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
-										</button>
-									{/if}
+											inputClass="text-xs"
+										/>
+									</div>
 								</th>
-								<!-- Filter -->
-								{#each renderHeaders as header (header.id)}
-									<th
-										><div class="flex items-center justify-between">
-											<FloatingInput
-												type="text"
-												icon="material-symbols:search-rounded"
-												label={`Filter ${header.label}`}
-												name={header.name}
-												value={entryListPaginationSettings.filters[header.name] || ''}
-												onInput={(value: string) => {
-													const filterName = header.name;
-													filterDebounce(() => {
-														const newFilters = { ...entryListPaginationSettings.filters };
-														if (value) {
-															newFilters[filterName] = value;
-														} else {
-															delete newFilters[filterName];
-														}
-														entryListPaginationSettings.filters = newFilters;
-													});
-												}}
-												inputClass="text-xs"
-											/>
-										</div>
-									</th>
-								{/each}
-							</tr>
-						{/if}
+							{/each}
+						</tr>
+					{/if}
 
-						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-								<div class="flex flex-col items-center">
+					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
+							<div class="flex flex-col items-center">
+								<TableIcons
+									checked={SelectAll}
+									onCheck={(checked) => {
+										SelectAll = checked;
+									}}
+								/>
+							</div>
+						</td>
+
+						{#each renderHeaders as header (header.id)}
+							<th
+								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+									? 'font-semibold text-primary-500 dark:text-secondary-400'
+									: 'text-tertiary-500 dark:text-primary-500'}"
+								onclick={() => {
+									let newSorted = { ...entryListPaginationSettings.sorting };
+									if (newSorted.sortedBy === header.name) {
+										newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
+										if (newSorted.isSorted === 0) newSorted.sortedBy = '';
+									} else {
+										newSorted.sortedBy = header.name;
+										newSorted.isSorted = 1;
+									}
+									entryListPaginationSettings.sorting = newSorted;
+								}}
+							>
+								<div class="flex items-center justify-center">
+									{header.label}
+									{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
+										<iconify-icon
+											icon={entryListPaginationSettings.sorting.isSorted === 1
+												? 'material-symbols:arrow-upward-rounded'
+												: 'material-symbols:arrow-downward-rounded'}
+											width="16"
+											class="ml-1 origin-center"
+										></iconify-icon>
+									{/if}
+								</div>
+							</th>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					{#if tableData.length > 0}
+						{#each tableData as entry, index (entry._id)}
+							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
+								<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
 									<TableIcons
-										checked={SelectAll}
-										onCheck={(checked) => {
-											SelectAll = checked;
+										checked={selectedMap[index]}
+										onCheck={(isChecked) => {
+											selectedMap[index] = isChecked;
 										}}
 									/>
-								</div>
-							</td>
-
-							{#if renderHeaders}
-								{#each renderHeaders as header (header.id)}
-									<th
-										class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
-											? 'font-semibold text-primary-500 dark:text-secondary-400'
-											: 'text-tertiary-500 dark:text-primary-500'}"
-										onclick={() => {
-											let newSorted = { ...entryListPaginationSettings.sorting };
-											if (newSorted.sortedBy === header.name) {
-												newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
-												if (newSorted.isSorted === 0) newSorted.sortedBy = '';
-											} else {
-												newSorted.sortedBy = header.name;
-												newSorted.isSorted = 1;
-											}
-											entryListPaginationSettings.sorting = newSorted;
-										}}
-									>
-										<div class="flex items-center justify-center">
-											{header.label}
-											{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
-												<iconify-icon
-													icon={entryListPaginationSettings.sorting.isSorted === 1
-														? 'material-symbols:arrow-upward-rounded'
-														: 'material-symbols:arrow-downward-rounded'}
-													width="16"
-													class="ml-1 origin-center"
-												></iconify-icon>
-											{/if}
-										</div>
-									</th>
-								{/each}
-							{/if}
-						</tr>
-					</thead>
-					<tbody>
-						{#if tableData?.length > 0}
-							{#each tableData as entry, index (entry._id)}
-								<tr
-									class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
-								>
-									<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-										<TableIcons
-											checked={selectedMap[index]}
-											onCheck={(isChecked) => {
-												selectedMap[index] = isChecked;
-											}}
-										/>
-									</td>
+								</td>
+								{#if renderHeaders}
 									{#each renderHeaders as header (header.id)}
 										<td
 											class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
@@ -1067,46 +1081,42 @@ Features:
 											{/if}
 										</td>
 									{/each}
-								</tr>
-							{/each}
-						{:else if !isLoading}
-							<tr>
-								<td colspan={tableColspan} class="py-10 text-center text-gray-500">No entries found.</td>
+								{/if}
 							</tr>
-						{/if}
-					</tbody>
-				</table>
-			</div>
-			<!-- Pagination -->
-			<div
-				class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
-			>
-				<TablePagination
-					bind:currentPage={entryListPaginationSettings.currentPage}
-					bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
-					{pagesCount}
-					{totalItems}
-					onUpdatePage={(page: number) => {
-						if (isCollectionChanging || isInitializing) {
-							// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
-							return;
-						}
-						entryListPaginationSettings.currentPage = page;
-						refreshTableData(true);
-					}}
-					onUpdateRowsPerPage={(rows: number) => {
-						if (isCollectionChanging || isInitializing) {
-							// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
-							return;
-						}
-						//console.log('Rows per page updated to:', rows);
-						entryListPaginationSettings.rowsPerPage = rows;
-						entryListPaginationSettings.currentPage = 1;
-						refreshTableData(true);
-					}}
-				/>
-			</div>
-		{/if}
+						{/each}
+					{/if}
+				</tbody>
+			</table>
+		</div>
+		<!-- Pagination -->
+		<div
+			class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+		>
+			<TablePagination
+				bind:currentPage={entryListPaginationSettings.currentPage}
+				bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
+				{pagesCount}
+				{totalItems}
+				onUpdatePage={(page: number) => {
+					if (isCollectionChanging || isInitializing) {
+						// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
+						return;
+					}
+					entryListPaginationSettings.currentPage = page;
+					refreshTableData(true);
+				}}
+				onUpdateRowsPerPage={(rows: number) => {
+					if (isCollectionChanging || isInitializing) {
+						// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
+						return;
+					}
+					//console.log('Rows per page updated to:', rows);
+					entryListPaginationSettings.rowsPerPage = rows;
+					entryListPaginationSettings.currentPage = 1;
+					refreshTableData(true);
+				}}
+			/>
+		</div>
 	{:else if shouldShowNoDataMessage}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
