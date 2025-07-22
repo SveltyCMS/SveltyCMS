@@ -461,5 +461,6 @@
 	"set_status_error": "Tilan päivittäminen epäonnistui: {error}",
 	"clone_entry_no_selection_error": "Ei voida kloonata: Yhtäkään merkintää ei ole valittu.",
 	"entry_cloned_success": "Merkintä kloonattu onnistuneesti.",
-	"clone_entry_error": "Merkinnän {error} kloonaaminen epäonnistui"
+	"clone_entry_error": "Merkinnän {error} kloonaaminen epäonnistui",
+	"clone_entry_body": "Haluatko varmasti kloonata tämän merkinnän? Uusi kopio luodaan."
 }

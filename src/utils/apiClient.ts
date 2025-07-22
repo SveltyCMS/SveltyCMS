@@ -1,125 +1,127 @@
 /**
  * @file src/utils/apiClient.ts
  * @description Modern API client for RESTful collection endpoints with enhanced performance and caching
+ * @example GET /api/collections/posts?limit=10&offset=0
  *
  * Features:
- *
+ *    * Performance optimization with QueryBuilder
+ *    * Caching support for efficient data fetching
+ *    * Error handling and logging
+ *    * Custom log formatters
+ *    * Conditional source file tracking
+ *    * Error tracking service integration
  */
 
-import axios from 'axios';
-
-// System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Modern JSON-based API client configuration
-export const config = {
-	headers: { 'Content-Type': 'application/json' },
-	withCredentials: true
-};
+// --- Type Definitions ---
+export interface ApiResponse<T = unknown> {
+	success: boolean;
+	data?: T;
+	error?: string;
+}
 
-export type ApiMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+export interface RevisionDiff {
+	diff: Record<string, { status: 'modified' | 'added' | 'deleted'; old?: unknown; new?: unknown; value?: unknown }>;
+	revisionData: Record<string, unknown>;
+}
 
-/**
- * Modern RESTful API request function
- * Uses proper HTTP methods and endpoints instead of method-in-body pattern
- */
-export async function apiRequest(
-	method: ApiMethod,
-	collectionId: string,
-	payload: Record<string, unknown> = {},
-	entryId?: string,
-	retries = 3
-): Promise<unknown> {
-	// Build RESTful endpoint URL
-	let endpoint = `/api/collections/${collectionId}`;
-	if (entryId) {
-		endpoint += `/${entryId}`;
-	}
+export interface RevisionMeta {
+	_id: string;
+	revision_at: string; // ISO date string
+	revision_by: string;
+}
 
-	// Log request details in development
-	if (import.meta.env.DEV) {
-		logger.debug(`API ${method} request to: ${endpoint}`, { payload });
-	}
+export interface Collection {
+	_id: string;
+	name: string;
+	fields: Record<string, unknown>[];
+	// Add other collection properties as needed
+}
 
+interface GetDataResponse {
+	entryList: Record<string, unknown>[];
+	pagesCount: number;
+	totalItems: number;
+}
+
+// --- Core API Functions ---
+
+async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiResponse<T>> {
 	try {
-		let response;
-
-		switch (method) {
-			case 'GET': {
-				// Convert payload to query parameters for GET requests
-				const params = new URLSearchParams();
-				Object.entries(payload).forEach(([key, value]) => {
-					if (value !== undefined && value !== null) {
-						params.append(key, String(value));
-					}
-				});
-				const queryString = params.toString();
-				const getUrl = queryString ? `${endpoint}?${queryString}` : endpoint;
-				response = await axios.get(getUrl, { withCredentials: true });
-				break;
-			}
-
-			case 'POST':
-				response = await axios.post(endpoint, payload, config);
-				break;
-
-			case 'PATCH':
-				response = await axios.patch(endpoint, payload, config);
-				break;
-
-			case 'DELETE':
-				response = await axios.delete(endpoint, { withCredentials: true });
-				break;
-
-			default:
-				throw new Error(`Unsupported HTTP method: ${method}`);
+		const response = await fetch(endpoint, {
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'include',
+			...options
+		});
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ error: `HTTP error! Status: ${response.status}` }));
+			throw new Error(errorData.error || `An unknown error occurred.`);
 		}
-
-		logger.info(`Successfully completed ${method} request to ${endpoint}`);
-		return response.data;
+		return await response.json();
 	} catch (error) {
-		if (axios.isAxiosError(error)) {
-			// Retry for 5xx errors
-			if (error.response?.status && error.response.status >= 500 && retries > 0) {
-				logger.warn(`Retrying ${method} request (${retries} attempts remaining) for status ${error.response.status}`);
-				await new Promise((resolve) => setTimeout(resolve, 1000 * (4 - retries)));
-				return apiRequest(method, collectionId, payload, entryId, retries - 1);
-			}
-
-			// Handle 4xx errors
-			if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
-				const apiMessage = error.response.data?.error || error.message;
-				logger.error(`Client-side error in ${method} request (status ${error.response.status}):`, apiMessage);
-				throw new Error(apiMessage);
-			}
-		}
-
-		const errorMessage = `Failed to complete ${method} request: ${error instanceof Error ? error.message : String(error)}`;
-		logger.error(errorMessage, error);
-		throw new Error(errorMessage);
+		const err = error as Error;
+		logger.error(`[API Client Error]`, err);
+		return { success: false, error: err.message };
 	}
 }
 
-/**
- * Specialized function for status updates
- */
-export async function updateStatus(collectionId: string, entryId: string, status: string, entryIds?: string[]): Promise<unknown> {
-	const endpoint = `/api/collections/${collectionId}/${entryId}/status`;
-	const payload = { status, ...(entryIds && { entries: entryIds }) };
+// --- Entry Action Functions ---
 
-	try {
-		const response = await axios.patch(endpoint, payload, config);
-		logger.info(`Status updated for entry ${entryId} to ${status}`);
-		return response.data;
-	} catch (error) {
-		logger.error(`Failed to update status: ${error}`);
-		throw error;
-	}
+export function createEntry(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}`, {
+		method: 'POST',
+		body: JSON.stringify(payload)
+	});
 }
 
-/**
- * Specialized function for revisions
- */
+export function updateEntry(collectionId: string, entryId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/${entryId}`, {
+		method: 'PATCH',
+		body: JSON.stringify(payload)
+	});
+}
+
+export function batchUpdateEntries(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/batch-update`, {
+		method: 'PATCH',
+		body: JSON.stringify(payload)
+	});
+}
+
+export function batchDeleteEntries(collectionId: string, ids: string[], permanent: boolean): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/batch-delete`, {
+		method: 'POST', // Use POST for DELETE with a body
+		body: JSON.stringify({ ids, permanent })
+	});
+}
+
+export function createClones(collectionId: string, entries: Record<string, unknown>[]): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/batch-clone`, {
+		method: 'POST',
+		body: JSON.stringify({ entries })
+	});
+}
+
+// --- Revision Functions ---
+
+// A wrapper for a POST request to compare a revision with current data
+export async function getRevisionDiff(params: {
+	collectionId: string;
+	entryId: string;
+	revisionId: string;
+	currentData: Record<string, unknown>;
+}): Promise<ApiResponse<RevisionDiff>> {
+	const { collectionId, entryId, revisionId, currentData } = params;
+	const endpoint = `/api/collections/${collectionId}/${entryId}/revisions/diff`;
+
+	return fetchApi(endpoint, {
+		method: 'POST',
+		body: JSON.stringify({ revisionId, currentData })
+	});
+}
+
+// Specialized function for revisions
 export async function getRevisions(
 	collectionId: string,
 	entryId: string,
@@ -130,30 +132,15 @@ export async function getRevisions(
 		compareWith?: string;
 		metaOnly?: boolean;
 	} = {}
-): Promise<unknown> {
+): Promise<ApiResponse<RevisionMeta[]>> {
 	const endpoint = `/api/collections/${collectionId}/${entryId}/revisions`;
-	const params = new URLSearchParams();
+	const searchParams = new URLSearchParams(options as Record<string, string>).toString();
+	const url = `${endpoint}?${searchParams}`;
 
-	Object.entries(options).forEach(([key, value]) => {
-		if (value !== undefined && value !== null) {
-			params.append(key, String(value));
-		}
-	});
-
-	const queryString = params.toString();
-	const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-
-	try {
-		const response = await axios.get(url, { withCredentials: true });
-		logger.info(`Revisions retrieved for entry ${entryId}`);
-		return response.data;
-	} catch (error) {
-		logger.error(`Failed to get revisions: ${error}`);
-		throw error;
-	}
+	return fetchApi(url, { method: 'GET' });
 }
 
-// --- Enhanced Caching Logic ---
+// --- Data & Cache Functions ---
 const CACHE_TTL_MS = 30 * 1000; // 30 seconds cache TTL
 
 interface CacheEntry {
@@ -167,7 +154,7 @@ function generateCacheKey(query: Record<string, unknown>): string {
 	const normalizedQuery = {
 		collectionId: (query.collectionId as string)?.trim().toLowerCase(),
 		page: query.page || 1,
-		pageSize: query.pageSize || query.limit || 25, // Updated to use pageSize
+		pageSize: query.pageSize || query.limit || 25,
 		contentLanguage: query.contentLanguage || 'en',
 		filter: query.filter || '{}',
 		sortField: query.sortField || 'createdAt',
@@ -188,12 +175,7 @@ export function invalidateCollectionCache(collectionId: string): void {
 			dataCache.delete(key);
 		}
 	}
-}
-
-interface GetDataResponse {
-	entryList: Record<string, unknown>[];
-	pagesCount: number;
-	totalItems: number;
+	logger.info(`[Cache] Invalidated for collection ${collectionId}`);
 }
 
 /**
@@ -210,97 +192,35 @@ export async function getData(query: {
 	sortDirection?: 'asc' | 'desc';
 	sort?: string; // Backward compatibility
 	_langChange?: number;
-}): Promise<GetDataResponse> {
+}): Promise<ApiResponse<GetDataResponse>> {
 	const cacheKey = generateCacheKey(query);
-	const cachedEntry = dataCache.get(cacheKey);
+	const cached = dataCache.get(cacheKey);
 
-	if (cachedEntry && isCacheValid(cachedEntry)) {
-		logger.debug(`[CLIENT] Cache hit for ${query.collectionId}`);
-		return cachedEntry.data;
+	if (cached && isCacheValid(cached)) {
+		logger.info(`[Cache] HIT for ${cacheKey}`);
+		return { success: true, data: cached.data };
 	}
+	logger.info(`[Cache] MISS for ${cacheKey}`);
 
-	try {
-		// Convert legacy sort format if needed
-		if (query.sort && !query.sortField) {
-			try {
-				const sortObj = JSON.parse(query.sort);
-				const [field, direction] = Object.entries(sortObj)[0] || ['createdAt', 'desc'];
-				query.sortField = field as string;
-				query.sortDirection = direction === 1 || direction === 'asc' ? 'asc' : 'desc';
-			} catch {
-				// If sort parsing fails, use defaults
-				query.sortField = 'createdAt';
-				query.sortDirection = 'desc';
-			}
-		}
+	const { collectionId, ...params } = query;
+	const searchParams = new URLSearchParams(params as Record<string, string>).toString();
+	const endpoint = `/api/collections/${collectionId}?${searchParams}`;
 
-		// Prepare query parameters for RESTful endpoint
-		const apiQuery = {
-			page: query.page || 1,
-			pageSize: query.pageSize || query.limit || 25,
-			contentLanguage: query.contentLanguage || 'en',
-			filter: query.filter || '{}',
-			sortField: query.sortField || 'createdAt',
-			sortDirection: query.sortDirection || 'desc'
-		};
-
-		const response = await apiRequest('GET', query.collectionId, apiQuery);
-
-		// Handle new response format
-		const apiResponse = response as { success: boolean; data: { items: unknown[]; total: number; totalPages: number } };
-
-		if (!apiResponse.success || !Array.isArray(apiResponse.data.items)) {
-			logger.warn(`getData received invalid data for ${query.collectionId}. Returning empty.`);
-			const emptyResult = { entryList: [], pagesCount: 1, totalItems: 0 };
-			dataCache.set(cacheKey, { data: emptyResult, timestamp: Date.now(), ttl: CACHE_TTL_MS / 2 });
-			return emptyResult;
-		}
-
-		const result: GetDataResponse = {
-			entryList: apiResponse.data.items as Record<string, unknown>[],
-			pagesCount: apiResponse.data.totalPages || 1,
-			totalItems: apiResponse.data.total || apiResponse.data.items.length
-		};
-
-		dataCache.set(cacheKey, {
-			data: result,
-			timestamp: Date.now(),
-			ttl: CACHE_TTL_MS
-		});
-
-		return result;
-	} catch (error) {
-		logger.error('Error in getData:', error);
-		if (axios.isAxiosError(error) && (error.response?.status === 403 || error.response?.status === 404)) {
-			const emptyResult = { entryList: [], pagesCount: 1, totalItems: 0 };
-			dataCache.set(cacheKey, { data: emptyResult, timestamp: Date.now(), ttl: CACHE_TTL_MS / 2 });
-			return emptyResult;
-		}
-		throw error;
+	const result = await fetchApi<GetDataResponse>(endpoint, { method: 'GET' });
+	if (result.success && result.data) {
+		dataCache.set(cacheKey, { data: result.data, timestamp: Date.now(), ttl: CACHE_TTL_MS });
 	}
+	return result;
 }
 
-/**
- * Get all collections list
- */
+// Get all collections list
 export async function getCollections(
 	options: {
 		includeFields?: boolean;
 		includeStats?: boolean;
 	} = {}
-): Promise<unknown> {
-	const params = new URLSearchParams();
-	if (options.includeFields) params.append('includeFields', 'true');
-	if (options.includeStats) params.append('includeStats', 'true');
-
-	const queryString = params.toString();
-	const url = queryString ? `/api/collections?${queryString}` : '/api/collections';
-
-	try {
-		const response = await axios.get(url, { withCredentials: true });
-		return response.data;
-	} catch (error) {
-		logger.error('Failed to get collections:', error);
-		throw error;
-	}
+): Promise<ApiResponse<Collection[]>> {
+	const params = new URLSearchParams(options as Record<string, string>);
+	const endpoint = `/api/collections?${params.toString()}`;
+	return fetchApi(endpoint, { method: 'GET' });
 }

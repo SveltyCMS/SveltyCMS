@@ -15,26 +15,31 @@
 -->
 
 <script lang="ts">
-	// Your selected theme:
+	// selected theme:
 	import '../../app.postcss';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
+	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
 	import { onDestroy, onMount } from 'svelte';
+
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import { getTextDirection } from '@utils/utils';
+
 	// Stores
 	import { collections, contentStructure } from '@stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -43,6 +48,7 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
+
 	// Skeleton
 	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
@@ -57,8 +63,6 @@
 		data: {
 			user: User;
 			contentStructure: ContentNode[];
-			contentLanguage: string;
-			systemLanguage: string;
 		};
 	}
 
@@ -69,13 +73,12 @@
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Update collection loaded state when contentStructure or collections change
-	$effect(() => {
-		// Check if we have contentStructure data OR collections data
-		const hasContentStructure = contentStructure.value && contentStructure.value.length > 0;
-		const hasCollections = collections.value && Object.keys(collections.value).length > 0;
+	// Derived state for showing loading
+	let shouldShowLoading = $derived(!isCollectionsLoaded || globalLoadingStore.isLoading);
 
-		if (hasContentStructure || hasCollections) {
+	// Set isCollectionsLoaded to true once the initial data is available.
+	$effect(() => {
+		if (data.contentStructure && data.contentStructure.length > 0) {
 			isCollectionsLoaded = true;
 		}
 	});
@@ -97,7 +100,6 @@
 		try {
 			//console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
-			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);
 			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
@@ -137,8 +139,10 @@
 			// Initialize avatar with user's avatar URL from database, fallback to default
 			if (data.user.avatar && data.user.avatar !== '/Default_User.svg') {
 				avatarSrc.set(data.user.avatar);
+				console.log('Layout: Avatar initialized from database:', data.user.avatar);
 			} else {
 				avatarSrc.set('/Default_User.svg');
+				console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
 			}
 		}
 
@@ -147,6 +151,27 @@
 
 		// Initialize data
 		initializeCollections();
+	});
+
+	// Navigation loading handlers
+	beforeNavigate(({ from, to }) => {
+		// Only show loading for actual page changes, not hash changes
+		if (from && to && from.route.id !== to.route.id) {
+			globalLoadingStore.startLoading(loadingOperations.navigation);
+		}
+	});
+
+	afterNavigate(() => {
+		// Stop navigation loading
+		globalLoadingStore.stopLoading(loadingOperations.navigation);
+
+		// Clear any stale loading operations after navigation
+		setTimeout(() => {
+			// Only clear if no other operations are running
+			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
+				globalLoadingStore.stopLoading(loadingOperations.navigation);
+			}
+		}, 100);
 	});
 
 	onDestroy(() => {
@@ -193,8 +218,23 @@
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if !isCollectionsLoaded}
-			<Loading />
+		{#if shouldShowLoading}
+			<Loading
+				customTopText={!isCollectionsLoaded
+					? 'Initializing'
+					: globalLoadingStore.loadingReason === loadingOperations.navigation
+						? 'Navigating'
+						: globalLoadingStore.loadingReason === loadingOperations.dataFetch
+							? 'Loading data'
+							: globalLoadingStore.loadingReason === loadingOperations.authentication
+								? 'Authenticating'
+								: globalLoadingStore.loadingReason === loadingOperations.initialization
+									? 'Initializing'
+									: globalLoadingStore.loadingReason === loadingOperations.formSubmission
+										? 'Submitting'
+										: 'Loading'}
+				customBottomText={!isCollectionsLoaded ? 'Loading application...' : 'Please wait'}
+			/>
 		{/if}
 		{#if !isDesktop}
 			<FloatingNav />

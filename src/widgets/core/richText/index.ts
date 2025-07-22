@@ -1,15 +1,18 @@
 /**
  * @file src/widgets/core/richText/index.ts
- * @description - richText TipTap index file.
+ * @description - richText TipTap index file
+ *
+ * @example
+ * import { widgets } from '@widgets/index';
+ *
+ * Features:
+ * - RichText TipTap widget
  */
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
 import type { ModifyRequestParams } from '..';
-//import { dbAdapter } from '@src/databases/db';
-import type { MediaAccess } from '@src/utils/media/mediaModels';
-import { Permission } from '@src/utils/media/mediaModels';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -29,28 +32,10 @@ function getContentLanguage(contentLanguage?: string): string {
 	return contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE;
 }
 
-// Helper function to get MediaService instance
-function getMediaService(): MediaService {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	try {
-		const service = new MediaService(dbAdapter);
-		logger.info('MediaService initialized successfully');
-		return service;
-	} catch (err) {
-		const message = `Failed to initialize MediaService: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw new Error(message);
-	}
-}
-
-/**
- * Defines RichText widget Parameters
- */
+// Defines RichText widget Parameters
 const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
-	let display: any;
+	let display: ((args: { data: Record<string, unknown>; contentLanguage?: string }) => Promise<string> | string) & { default?: boolean };
 
 	if (!params.display) {
 		display = async ({ data, contentLanguage }) => {
@@ -84,16 +69,13 @@ const widget = (params: Params & { widgetId?: string }) => {
 
 		// permissions
 		permissions: params.permissions
-
-		// widget specific
-		// media_folder: params.media_folder
 	};
 
 	// Return the field and widget objects
 	return { ...field, widget };
 };
 
-widget.modifyRequest = async ({ data, type, id, meta_data, user }: ModifyRequestParams<typeof widget>) => {
+widget.modifyRequest = async ({ data, type, id, meta_data }: ModifyRequestParams<typeof widget>) => {
 	if (!dbAdapter) {
 		const error = 'Database adapter is not initialized';
 		logger.error(error);
@@ -115,37 +97,13 @@ widget.modifyRequest = async ({ data, type, id, meta_data, user }: ModifyRequest
 					images[match[1]] = match[1];
 				}
 
-				// Initialize MediaService only when needed
-				let mediaService: MediaService | null = null;
-
 				for (const img_id in images) {
 					if (isValidFile(images[img_id])) {
-						// Initialize MediaService on first use
-						if (!mediaService) {
-							mediaService = getMediaService();
-						}
+						// TODO: This media saving should be handled via server action
+						logger.warn('MediaService usage disabled in richText widget for browser compatibility');
 
-						// Locally selected new images
-						// Add default access permissions for the user
-						const access: MediaAccess = {
-							userId: user._id.toString(),
-							permissions: [Permission.Read, Permission.Write, Permission.Delete]
-						};
-
-						try {
-							const res = await mediaService.saveMedia(images[img_id], user._id, access);
-							_id = res._id;
-
-							// Update content with the new media URL
-							for (const lang in _data.content) {
-								_data.content[lang] = _data.content[lang].replace(`src="${img_id}"`, `src="${res.url}" media_image="${_id}"`);
-							}
-							logger.info(`Successfully saved media: ${images[img_id].name}`);
-						} catch (err) {
-							const error = err instanceof Error ? err.message : String(err);
-							logger.error(`Error saving media: ${error}`);
-							throw err;
-						}
+						// Skip media processing in browser context
+						continue;
 					} else {
 						// Selected from Media images
 						_id = images[img_id];
@@ -194,9 +152,7 @@ widget.toString = toString;
 widget.Icon = 'icon-park-outline:text';
 widget.Description = m.widget_text_description();
 
-/**
- * Widget Aggregations
- */
+// Widget Aggregations
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

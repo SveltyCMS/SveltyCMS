@@ -29,7 +29,7 @@
 	import type { FieldType } from '.';
 
 	// Utils
-	import { apiRequest, getData } from '@utils/apiClient';
+	import { createEntry, getData, updateEntry } from '@utils/apiClient';
 	import { extractData, getFieldName } from '@utils/utils';
 
 	// Valibot validation
@@ -160,18 +160,21 @@
 	export const WidgetData = async () => {
 		let relation_id = '';
 		if (!field || !relationCollection?._id) return;
+		const collectionId = relationCollection._id;
 
 		try {
 			if (entryMode === 'create') {
-				const result = (await apiRequest('POST', relationCollection._id, fieldsData)) as { _id: string }[];
-				relation_id = result[0]?._id || '';
+				const result = await createEntry(collectionId, fieldsData);
+				if (result.success && result.data) {
+					relation_id = (result.data as { _id: string })._id;
+				}
 			} else if (entryMode === 'choose') {
 				relation_id = selected?._id || '';
 			} else if (entryMode === 'edit' && relation_entry?._id) {
-				const result = (await apiRequest('PATCH', relationCollection._id, { ...fieldsData, _id: relation_entry._id })) as {
-					_id: string;
-				}[];
-				relation_id = result[0]?._id || '';
+				const result = await updateEntry(collectionId, relation_entry._id, { ...fieldsData, _id: relation_entry._id });
+				if (result.success && result.data) {
+					relation_id = (result.data as { _id: string })._id;
+				}
 			}
 
 			validateInput();

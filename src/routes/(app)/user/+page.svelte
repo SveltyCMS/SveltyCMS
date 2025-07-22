@@ -80,16 +80,8 @@
 		}
 		collection.set(null);
 
-		// Initialize avatarSrc with user's actual avatar from database
-		// Use serverUser directly to avoid fallback values
-		if (serverUser?.avatar && serverUser.avatar !== '/Default_User.svg') {
-			avatarSrc.set(serverUser.avatar);
-			console.log('Avatar initialized from database:', serverUser.avatar);
-		} else {
-			// Set to default if no avatar in database
-			avatarSrc.set('/Default_User.svg');
-			console.log('Avatar set to default');
-		}
+		// Note: Avatar initialization is handled by the layout component
+		// to ensure consistent avatar state across the application
 	});
 
 	// Modal Trigger - User Form
@@ -139,9 +131,10 @@
 			title: m.usermodaluser_settingtitle(),
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
-			response: async (r: { dataURL: string }) => {
+			response: async (r: any) => {
+				// Avatar is already updated by the ModalEditAvatar component
+				// No need to set avatarSrc here since the modal handles it
 				if (r) {
-					avatarSrc.set(r.dataURL);
 					const t = {
 						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
 						background: 'gradient-primary',
@@ -149,7 +142,7 @@
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
-					await invalidateAll(); // Reload the page data to get the updated user object
+					// invalidateAll is already called by the ModalEditAvatar component
 				}
 			}
 		};

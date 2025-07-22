@@ -461,5 +461,6 @@
 	"set_status_error": "Status konnte nicht aktualisiert werden: {error}",
 	"clone_entry_no_selection_error": "Klonen nicht möglich: Es ist kein Eintrag ausgewählt.",
 	"entry_cloned_success": "Eintrag erfolgreich geklont.",
-	"clone_entry_error": "Eintrag konnte nicht geklont werden: {error}"
+	"clone_entry_error": "Eintrag konnte nicht geklont werden: {error}",
+	"clone_entry_body": "Möchten Sie diesen Eintrag wirklich klonen? Es wird eine neue Kopie erstellt."
 }

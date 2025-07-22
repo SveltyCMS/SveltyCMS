@@ -124,7 +124,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 				);
 
 				const fieldDuration = performance.now() - fieldStart;
-				logger.debug(`Field ${fieldName} processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
+				logger.debug(`Field \x1b[34m${fieldName}\x1b[0m processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
 			} else {
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}

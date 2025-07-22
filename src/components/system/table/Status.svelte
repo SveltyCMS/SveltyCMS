@@ -3,7 +3,7 @@
 @component
 **Status component for table displaying different badges for different statuses**
 
-Value can be: publish, unpublish, schedule, delete, clone, test, draft
+Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 
 @example
 <Status value="publish" />
@@ -15,7 +15,7 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft
 <script lang="ts">
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
-	
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -26,7 +26,7 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft
 
 <!-- Display different badges for different statuses -->
 <div
-	class="grid w-full max-w-full grid-cols-1 items-center justify-start overflow-hidden rounded py-1.5 text-left text-white sm:grid-cols-2
+	class="grid w-full max-w-44 grid-cols-1 items-center justify-center overflow-hidden rounded py-1.5 text-left text-white sm:grid-cols-2
 		{value === StatusTypes.publish
 		? 'gradient-primary'
 		: value === StatusTypes.unpublish
@@ -41,7 +41,9 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft
 							? 'gradient-error'
 							: value === StatusTypes.draft
 								? 'variant-ghost text-surface-900-50-token'
-								: 'badge'} rounded text-center"
+								: value === StatusTypes.archive
+									? 'bg-surface-600 text-white'
+									: 'badge'} rounded text-center"
 	title={`Status: ${value}`}
 >
 	{#if value === StatusTypes.publish}
@@ -65,6 +67,9 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft
 	{:else if value === StatusTypes.draft}
 		<iconify-icon icon="bi:pencil-square" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">Draft</p>
+	{:else if value === StatusTypes.archive}
+		<iconify-icon icon="bi:archive-fill" width="20" class="mx-auto"></iconify-icon>
+		<p class="hidden sm:block">Archive</p>
 	{:else}
 		<p class="col-span-2">{value}</p>
 	{/if}

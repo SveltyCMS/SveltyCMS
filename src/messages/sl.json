@@ -461,5 +461,6 @@
 	"set_status_error": "Stanja ni bilo mogoče posodobiti: {error}",
 	"clone_entry_no_selection_error": "Kloniranje ni mogoče: Izbran ni noben vnos.",
 	"entry_cloned_success": "Vnos je bil uspešno kloniran.",
-	"clone_entry_error": "Kloniranje vnosa ni uspelo: {error}"
+	"clone_entry_error": "Kloniranje vnosa ni uspelo: {error}",
+	"clone_entry_body": "Ali ste prepričani, da želite klonirati ta vnos? Ustvarjena bo nova kopija."
 }

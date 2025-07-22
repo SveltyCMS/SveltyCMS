@@ -33,7 +33,9 @@ export async function getFirstCollectionInfo(language: string = 'en'): Promise<{
 			return null;
 		}
 
-		logger.info(`📋 Found first collection: ${firstCollection.name} (${firstCollection._id}) for language: ${language}`);
+		logger.info(
+			`📋 Found first collection: \x1b[34m${firstCollection.name}\x1b[0m (\x1b[33m${firstCollection._id}\x1b[0m) for language: \x1b[34m${language}\x1b[0m`
+		);
 		return {
 			collectionId: firstCollection._id,
 			name: firstCollection.name

@@ -211,7 +211,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			performance: { duration }
 		};
 
-		logger.info(`${endpoint} - Request completed successfully`, {
+		logger.info(`\x1b[34m${endpoint}\x1b[0m - Request completed successfully`, {
 			collection: schema._id,
 			userId: locals.user._id,
 			itemCount: processedData.length,

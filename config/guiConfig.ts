@@ -353,16 +353,16 @@ const languageConfig: ConfigCategory = {
 			helper: m.languageConfig_AVAILABLE_CONTENT_LANGUAGE_helper(),
 			icon: 'mdi:translate'
 		},
-		DEFAULT_SYSTEM_LANGUAGE: {
+		BASE_LOCALE: {
 			type: 'string',
 			default: 'en',
-			helper: m.languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper(),
+			helper: 'Base locale for the CMS interface (from inlang configuration)',
 			icon: 'mdi:translate'
 		},
-		AVAILABLE_SYSTEM_LANGUAGES: {
+		LOCALES: {
 			type: 'array',
 			default: ['en'],
-			helper: m.languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper(),
+			helper: 'Available interface locales (from inlang configuration)',
 			icon: 'mdi:translate'
 		}
 	}

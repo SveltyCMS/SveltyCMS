@@ -20,13 +20,13 @@ export type FieldValue = string | number | boolean | null | Record<string, unkno
 
 // Status types for collections and entries
 export const StatusTypes = {
+	archive: 'archive',
 	draft: 'draft',
 	publish: 'publish',
 	unpublish: 'unpublish',
 	schedule: 'schedule',
 	clone: 'clone',
-	test: 'test',
-	delete: 'delete'
+	test: 'test'
 } as const;
 
 export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];

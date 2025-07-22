@@ -47,7 +47,7 @@ export async function createOrUpdateConfigFile(configData) {
  * PRIVATE configuration for the application
  */
 
-import { createPrivateConfig } from './types';
+import { createPrivateConfig } from './types.ts';
 
 export const privateEnv = createPrivateConfig({
     // --- Database Configuration ---
@@ -114,7 +114,7 @@ export const privateEnv = createPrivateConfig({
  * PUBLIC configuration for the application
  */
 
-import { createPublicConfig } from './types';
+import { createPublicConfig } from './types.ts';
 
 export const publicEnv = createPublicConfig({
     // --- Site Configuration ---
@@ -124,8 +124,8 @@ export const publicEnv = createPublicConfig({
     // --- Language Configuration ---
     ${formatLine('DEFAULT_CONTENT_LANGUAGE', configData?.DEFAULT_CONTENT_LANGUAGE || 'en')}
     ${formatArrayLine('AVAILABLE_CONTENT_LANGUAGES', configData?.AVAILABLE_CONTENT_LANGUAGES, ['en', 'de'])}
-    ${formatLine('DEFAULT_SYSTEM_LANGUAGE', configData?.DEFAULT_SYSTEM_LANGUAGE || 'en')}
-    ${formatArrayLine('AVAILABLE_SYSTEM_LANGUAGES', configData?.AVAILABLE_SYSTEM_LANGUAGES, ['en', 'de', 'fr', 'es'])}
+    ${formatLine('BASE_LOCALE', configData?.BASE_LOCALE || 'en')}
+    ${formatArrayLine('LOCALES', configData?.LOCALES, ['en', 'de', 'fr', 'es'])}
 
     // --- Media Configuration ---
     ${formatLine('MEDIA_FOLDER', configData?.MEDIA_FOLDER || 'mediaFiles')}
@@ -138,6 +138,7 @@ export const publicEnv = createPublicConfig({
     ${formatLine('MAX_FILE_SIZE', configData?.MAX_FILE_SIZE, false)}
     ${formatLine('BODY_SIZE_LIMIT', configData?.BODY_SIZE_LIMIT, false)}
     ${formatLine('EXTRACT_DATA_PATH', configData?.EXTRACT_DATA_PATH)}
+    ${formatLine('USE_ARCHIVE_ON_DELETE', configData?.USE_ARCHIVE_ON_DELETE || true, false)}
 
     // --- Host Configuration ---
     ${formatLine('HOST_DEV', configData?.HOST_DEV || 'http://localhost:5173')}

@@ -15,7 +15,7 @@
 <script lang="ts">
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
-	
+
 	// Stores
 	import { storeListboxValue } from '@stores/store.svelte';
 

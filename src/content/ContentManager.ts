@@ -156,8 +156,6 @@ class ContentManager {
 				throw new Error('Database service unavailable');
 			}
 
-			logger.debug(`Loading ${files.length} collection files...`);
-
 			// Process files in batches for better performance
 			const batchSize = 10; // Process 10 files at a time
 			const batches: string[][] = [];
@@ -256,7 +254,9 @@ class ContentManager {
 				}
 
 				const batchTime = performance.now() - batchStartTime;
-				logger.debug(`Batch ${batchIndex + 1}/${batches.length} processed ${batch.length} files in ${batchTime.toFixed(2)}ms`);
+				logger.debug(
+					`Batch \x1b[34m${batchIndex + 1}/${batches.length}\x1b[0m processed \x1b[34m${batch.length}\x1b[0m files in \x1b[32m${batchTime.toFixed(2)}ms\x1b[0m`
+				);
 			}
 
 			// Cache in Redis if available
@@ -267,7 +267,7 @@ class ContentManager {
 			this.loadedCollections = collections;
 			const totalTime = performance.now() - loadStartTime;
 			logger.info(
-				`📦 Loaded ${processedCount} collections in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m (${(totalTime / processedCount).toFixed(2)}ms per collection)`
+				`📦 Loaded \x1b[34m${processedCount}\x1b[0m collections in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m (${(totalTime / processedCount).toFixed(2)}ms per collection)`
 			);
 			return collections;
 		} catch (err) {

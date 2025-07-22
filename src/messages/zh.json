@@ -461,5 +461,6 @@
 	"set_status_error": "无法更新状态： {error}",
 	"clone_entry_no_selection_error": "无法克隆：未选择任何条目。",
 	"entry_cloned_success": "条目克隆成功。",
-	"clone_entry_error": "无法克隆条目： {error}"
+	"clone_entry_error": "无法克隆条目： {error}",
+	"clone_entry_body": "您确定要克隆此条目吗？系统将创建一个新副本。"
 }

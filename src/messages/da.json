@@ -461,5 +461,6 @@
 	"set_status_error": "Kunne ikke opdatere status: {error}",
 	"clone_entry_no_selection_error": "Kan ikke klone: Ingen post er valgt.",
 	"entry_cloned_success": "Post klonet.",
-	"clone_entry_error": "Kunne ikke klone posten: {error}"
+	"clone_entry_error": "Kunne ikke klone posten: {error}",
+	"clone_entry_body": "Er du sikker på, at du vil klone denne post? Der vil blive oprettet en ny kopi."
 }

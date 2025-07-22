@@ -50,18 +50,18 @@ export async function configureLanguage(configData = {}) {
 		`Configure language settings for your CMS:
   • Default content language for new posts
   • Available languages for multilingual content
-  • System interface language preferences
-  • Enable/disable multilingual features`,
+  • Base locale for system interface
+  • Available locales for internationalization`,
 		pc.green('Language Configuration:')
 	);
 
 	// Display existing configuration
-	if (configData.DEFAULT_CONTENT_LANGUAGE || configData.DEFAULT_SYSTEM_LANGUAGE) {
+	if (configData.DEFAULT_CONTENT_LANGUAGE || configData.BASE_LOCALE) {
 		note(
 			`Default Content: ${pc.cyan(configData.DEFAULT_CONTENT_LANGUAGE || 'Not set')}\n` +
 				`Available Content: ${pc.cyan(configData.AVAILABLE_CONTENT_LANGUAGES ? configData.AVAILABLE_CONTENT_LANGUAGES.join(', ') : 'Not set')}\n` +
-				`Default System: ${pc.cyan(configData.DEFAULT_SYSTEM_LANGUAGE || 'Not set')}\n` +
-				`Available System: ${pc.cyan(configData.AVAILABLE_SYSTEM_LANGUAGES ? configData.AVAILABLE_SYSTEM_LANGUAGES.join(', ') : 'Not set')}`,
+				`Base Locale: ${pc.cyan(configData.BASE_LOCALE || 'Not set')}\n` +
+				`Available Locales: ${pc.cyan(configData.LOCALES ? configData.LOCALES.join(', ') : 'Not set')}`,
 			pc.cyan('Existing Language Configuration:')
 		);
 	}
@@ -115,54 +115,54 @@ export async function configureLanguage(configData = {}) {
 		AVAILABLE_CONTENT_LANGUAGES = [...new Set(AVAILABLE_CONTENT_LANGUAGES)];
 	}
 
-	const DEFAULT_SYSTEM_LANGUAGE = await select({
-		message: 'Choose the default system language. (Default is English):',
+	const BASE_LOCALE = await select({
+		message: 'Choose the base locale for the system interface. (Default is English):',
 		options: options,
 		required: true,
-		initialValue: configData?.DEFAULT_SYSTEM_LANGUAGE || 'en'
+		initialValue: configData?.BASE_LOCALE || 'en'
 	});
-	if (isCancel(DEFAULT_SYSTEM_LANGUAGE)) {
+	if (isCancel(BASE_LOCALE)) {
 		cancelToMainMenu();
 		return;
 	}
 
-	let AVAILABLE_SYSTEM_LANGUAGES = await multiselect({
+	let LOCALES = await multiselect({
 		// Changed const to let
-		message: 'Select the available system languages. (Default is English/German):',
+		message: 'Select the available system locales. (Default is English/German):',
 		options: options,
 		required: true,
-		initialValues: configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en', 'de'],
+		initialValues: configData?.LOCALES || ['en', 'de'],
 		validate(value) {
-			if (value.length === 0) return { message: 'At least one system language must be selected.' };
-			if (!value.includes(DEFAULT_SYSTEM_LANGUAGE)) {
+			if (value.length === 0) return { message: 'At least one system locale must be selected.' };
+			if (!value.includes(BASE_LOCALE)) {
 				return {
-					message: `The default system language (${DEFAULT_SYSTEM_LANGUAGE}) must be included in the available languages.`
+					message: `The base locale (${BASE_LOCALE}) must be included in the available locales.`
 				};
 			}
 			return undefined;
 		}
 	});
-	if (isCancel(AVAILABLE_SYSTEM_LANGUAGES)) {
+	if (isCancel(LOCALES)) {
 		cancelToMainMenu();
 		return;
 	}
 
 	// Re-validate after selection
-	if (!AVAILABLE_SYSTEM_LANGUAGES.includes(DEFAULT_SYSTEM_LANGUAGE)) {
+	if (!LOCALES.includes(BASE_LOCALE)) {
 		note(
-			`The selected default system language (${DEFAULT_SYSTEM_LANGUAGE}) was not included in the available languages. It has been added automatically.`,
+			`The selected base locale (${BASE_LOCALE}) was not included in the available locales. It has been added automatically.`,
 			pc.yellow('Validation Fix')
 		);
-		AVAILABLE_SYSTEM_LANGUAGES.push(DEFAULT_SYSTEM_LANGUAGE);
-		AVAILABLE_SYSTEM_LANGUAGES = [...new Set(AVAILABLE_SYSTEM_LANGUAGES)];
+		LOCALES.push(BASE_LOCALE);
+		LOCALES = [...new Set(LOCALES)];
 	}
 
 	// Summary
 	note(
 		`DEFAULT_CONTENT_LANGUAGE: ${pc.green(DEFAULT_CONTENT_LANGUAGE)}\n` +
 			`AVAILABLE_CONTENT_LANGUAGES: ${pc.green(AVAILABLE_CONTENT_LANGUAGES.join(', '))}\n` +
-			`DEFAULT_SYSTEM_LANGUAGE: ${pc.green(DEFAULT_SYSTEM_LANGUAGE)}\n` +
-			`AVAILABLE_SYSTEM_LANGUAGES: ${pc.green(AVAILABLE_SYSTEM_LANGUAGES.join(', '))}`,
+			`BASE_LOCALE: ${pc.green(BASE_LOCALE)}\n` +
+			`LOCALES: ${pc.green(LOCALES.join(', '))}`,
 		pc.green('Review your language configuration:')
 	);
 
@@ -185,7 +185,7 @@ export async function configureLanguage(configData = {}) {
 	return {
 		DEFAULT_CONTENT_LANGUAGE,
 		AVAILABLE_CONTENT_LANGUAGES,
-		DEFAULT_SYSTEM_LANGUAGE,
-		AVAILABLE_SYSTEM_LANGUAGES
+		BASE_LOCALE,
+		LOCALES
 	};
 }

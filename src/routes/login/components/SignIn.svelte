@@ -43,6 +43,7 @@ Features:
 
 	// Screen size store
 	import { isMobile } from '@stores/screenSizeStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
 	const {
@@ -114,6 +115,7 @@ Features:
 			// Set submitting state for better UX
 			isSubmitting = true;
 			isAuthenticating = true;
+			globalLoadingStore.startLoading(loadingOperations.authentication);
 		},
 
 		onResult: ({ result, cancel }) => {
@@ -137,6 +139,7 @@ Features:
 				// Clear authenticating state immediately for faster navigation
 				setTimeout(() => {
 					isAuthenticating = false;
+					globalLoadingStore.stopLoading(loadingOperations.authentication);
 				}, 100);
 
 				return;
@@ -144,6 +147,7 @@ Features:
 
 			// Reset all states on error
 			isAuthenticating = false;
+			globalLoadingStore.stopLoading(loadingOperations.authentication);
 			cancel();
 
 			// Trigger the toast

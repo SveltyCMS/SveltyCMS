@@ -461,5 +461,6 @@
 	"set_status_error": "Durum güncellenemedi: {error}",
 	"clone_entry_no_selection_error": "Klonlanamıyor: Hiçbir giriş seçilmedi.",
 	"entry_cloned_success": "Giriş başarıyla klonlandı.",
-	"clone_entry_error": "Giriş kopyalanamadı: {error}"
+	"clone_entry_error": "Giriş kopyalanamadı: {error}",
+	"clone_entry_body": "Bu girdiyi kopyalamak istediğinizden emin misiniz? Yeni bir kopya oluşturulacak."
 }

@@ -93,7 +93,7 @@ This widget fetches and displays the latest content items, including:
 				return 'mdi:check-circle';
 			case 'draft':
 				return 'mdi:pencil-circle';
-			case 'archived':
+			case 'archive':
 				return 'mdi:archive';
 			default:
 				return 'mdi:file-document';
@@ -125,7 +125,7 @@ This widget fetches and displays the latest content items, including:
 				return 'text-green-600 dark:text-green-400';
 			case 'draft':
 				return 'text-yellow-600 dark:text-yellow-400';
-			case 'archived':
+			case 'archive':
 				return 'text-gray-600 dark:text-gray-400';
 			default:
 				return 'text-surface-600 dark:text-surface-300';

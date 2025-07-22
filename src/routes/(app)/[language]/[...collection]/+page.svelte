@@ -7,12 +7,14 @@
 It dynamically fetches and displays data based on the current language and collection route parameters. 
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';
+
 	// ParaglideJS
 	import type { Locale } from '@src/paraglide/runtime';
 
@@ -20,10 +22,12 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+
 	// Components
-	import Fields from '@components/Fields.svelte';
-	import Loading from '@root/src/components/Loading.svelte';
-	import EntryList from '@src/components/EntryList.svelte';
+	import Loading from '@components/Loading.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
+	import EntryList from '@components/collectionDisplay/EntryList.svelte';
 
 	interface Props {
 		data: {
@@ -40,24 +44,22 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	let isLoading = $state(shouldFetchData);
 
 	async function loadCollection() {
+		globalLoadingStore.startLoading(loadingOperations.navigation);
 		isLoading = true;
-		if (!page.params.collection) return;
+		if (!page.params.collection) {
+			globalLoadingStore.stopLoading(loadingOperations.navigation);
+			return;
+		}
 
 		collection.set(data.collection);
+		mode.set('view'); // Set mode to view to render EntryList
 		isLoading = false;
+		globalLoadingStore.stopLoading(loadingOperations.navigation);
 	}
 
 	$effect(() => {
 		// Correctly using $effect here
 		if (data.collection.name && (!collection.value || data.collection.path !== collection.value.path)) {
-			console.log('[PAGE DEBUG] Collection loading effect:', {
-				dataCollectionName: data.collection.name,
-				dataCollectionPath: data.collection.path,
-				dataCollectionId: data.collection._id,
-				currentCollectionPath: collection.value?.path,
-				currentCollectionName: collection.value?.name,
-				shouldLoad: true
-			});
 			loadCollection();
 		}
 	});
@@ -69,7 +71,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	// Listen for user-initiated language changes
 	$effect(() => {
 		const handleLanguageChange = (event: CustomEvent) => {
-			console.log('[PAGE DEBUG] User-initiated language change detected:', event.detail.language);
+			// console.log('[PAGE DEBUG] User-initiated language change detected:', event.detail.language);
 			userInitiatedLanguageChange = true;
 		};
 
@@ -84,7 +86,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	$effect(() => {
 		// Reset the flag if the URL language has actually changed (navigation)
 		if (data.contentLanguage !== lastUrlLanguage) {
-			console.log('[PAGE DEBUG] URL language changed from', lastUrlLanguage, 'to', data.contentLanguage, '- resetting user flag');
+			// console.log('[PAGE DEBUG] URL language changed from', lastUrlLanguage, 'to', data.contentLanguage, '- resetting user flag');
 			userInitiatedLanguageChange = false;
 			lastUrlLanguage = data.contentLanguage;
 		}
@@ -106,28 +108,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 	});
 
-	// Handle language changes - TEMPORARILY DISABLED TO FIX BOOT LOOP
-	// $effect(() => {
-	// 	if (!collection?.value?.name && !collection.value?.path) return;
-
-	// 	const newLanguage = contentLanguage.value;
-	// 	const currentPath = page.url.pathname;
-	// 	const newPath = `/${newLanguage}${collection.value?.path?.toString()}`;
-
-	// 	console.log('[PAGE DEBUG] Language change effect:', {
-	// 		currentPath,
-	// 		newPath,
-	// 		collectionPath: collection.value?.path,
-	// 		collectionName: collection.value?.name,
-	// 		language: newLanguage
-	// 	});
-
-	// 	if (currentPath !== newPath) {
-	// 		console.log('[PAGE DEBUG] Navigating from', currentPath, 'to', newPath);
-	// 		goto(newPath);
-	// 	}
-	// });
-
 	$effect(() => {
 		if (mode.value === 'media') {
 			mode.set('view');
@@ -143,9 +123,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 </svelte:head>
 <div class="content h-full">
 	{#if isLoading}
-		<div class="loading flex h-full items-center justify-center">
-			<Loading />
-		</div>
+		<Loading />
 	{:else if collection.value}
 		{#if mode.value === 'view' || mode.value === 'modify'}
 			<EntryList />

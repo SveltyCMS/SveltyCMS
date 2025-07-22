@@ -31,6 +31,8 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	const modalStore = getModalStore();
 
 	let files: FileList | null = $state(null);
+	let isUploading = $state(false);
+	let uploadProgress = $state(0);
 
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
@@ -48,6 +50,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 	const MAX_FILE_SIZE = 5242880; // 5MB
+	const COMPRESSION_THRESHOLD = 1024 * 1024; // 1MB - compress files larger than this
 
 	const blobSchema = instance(Blob);
 	type BlobType = InferInput<typeof blobSchema>;
@@ -78,18 +81,53 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		const lastFile = files[files.length - 1];
 		console.log('Selected file:', lastFile);
 
-		const fileReader = new FileReader();
-		fileReader.onload = (e) => {
-			if (e.target instanceof FileReader) {
-				avatarSrc.set(e.target.result as string);
+		// Create optimized preview for large files
+		createOptimizedPreview(lastFile);
+	}
+
+	// Create optimized preview to avoid blocking UI
+	async function createOptimizedPreview(file: File) {
+		try {
+			// For very large files, create a smaller preview
+			if (file.size > 1024 * 1024) {
+				// 1MB
+				const canvas = document.createElement('canvas');
+				const ctx = canvas.getContext('2d');
+				const img = new Image();
+
+				img.onload = () => {
+					// Scale down large images for preview
+					const maxSize = 200;
+					const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+					canvas.width = img.width * ratio;
+					canvas.height = img.height * ratio;
+
+					ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+					avatarSrc.set(canvas.toDataURL('image/jpeg', 0.8));
+				};
+
+				img.src = URL.createObjectURL(file);
+			} else {
+				// For smaller files, use direct FileReader
+				const fileReader = new FileReader();
+				fileReader.onload = (e) => {
+					if (e.target instanceof FileReader) {
+						avatarSrc.set(e.target.result as string);
+					}
+				};
+				fileReader.readAsDataURL(file);
 			}
-		};
-		fileReader.readAsDataURL(lastFile as Blob);
+		} catch (error) {
+			console.error('Error creating preview:', error);
+			// Fallback to default avatar
+			avatarSrc.set('/Default_User.svg');
+		}
 	}
 
 	// Handle form submit
 	async function onFormSubmit(): Promise<void> {
 		if (!files || files.length === 0) return;
+		if (isUploading) return; // Prevent double submission
 
 		const file = files[0];
 
@@ -100,22 +138,88 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			if ((error as ValiError<typeof avatarSchema>).issues) {
 				const valiError = error as ValiError<typeof avatarSchema>;
 				console.error(valiError.issues[0]?.message);
+				toastStore.trigger({
+					message: valiError.issues[0]?.message || 'Invalid file',
+					background: 'variant-filled-error',
+					timeout: 3000
+				});
 				return;
 			}
 			console.error((error as Error).message);
+			toastStore.trigger({
+				message: (error as Error).message || 'Upload failed',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
 			return;
 		}
 	}
 
+	// Compress large files before upload
+	async function compressFile(file: File): Promise<File> {
+		// Don't compress SVGs or files already small enough
+		if (file.type === 'image/svg+xml' || file.size < COMPRESSION_THRESHOLD) {
+			return file;
+		}
+
+		return new Promise((resolve) => {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+			const img = new Image();
+
+			img.onload = () => {
+				// Calculate new dimensions (max 1024px)
+				const maxSize = 1024;
+				const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+				canvas.width = img.width * ratio;
+				canvas.height = img.height * ratio;
+
+				// Draw and compress
+				ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+				canvas.toBlob(
+					(blob) => {
+						if (blob) {
+							const compressedFile = new File([blob], file.name, {
+								type: 'image/jpeg',
+								lastModified: Date.now()
+							});
+							console.log(`Compressed ${file.name}: ${file.size} → ${compressedFile.size} bytes`);
+							resolve(compressedFile);
+						} else {
+							resolve(file); // Fallback to original
+						}
+					},
+					'image/jpeg',
+					0.85 // Quality
+				);
+			};
+
+			img.onerror = () => resolve(file); // Fallback to original
+			img.src = URL.createObjectURL(file);
+		});
+	}
+
 	// Upload avatar
 	async function uploadAvatar(file: File): Promise<void> {
+		isUploading = true;
+		uploadProgress = 0;
+
 		try {
+			// Compress large files first
+			const processedFile = await compressFile(file);
+
 			const formData = new FormData();
-			formData.append('avatar', file);
+			formData.append('avatar', processedFile);
 			formData.append('user_id', page.data.user._id);
 
 			const response = await axios.post('/api/user/saveAvatar', formData, {
-				headers: { 'Content-Type': 'multipart/form-data' }
+				headers: { 'Content-Type': 'multipart/form-data' },
+				timeout: 30000, // 30 second timeout
+				onUploadProgress: (progressEvent) => {
+					if (progressEvent.total) {
+						uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+					}
+				}
 			});
 
 			if (response.status === 200) {
@@ -123,7 +227,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				avatarSrc.set(response.data.avatarUrl);
 				toastStore.trigger({
 					message: 'Avatar updated successfully!',
-					background: 'gradient-primary',
+					background: 'variant-filled-success',
 					timeout: 3000
 				});
 				modalStore.close();
@@ -132,10 +236,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		} catch (error) {
 			console.error('Error uploading avatar:', error);
 			toastStore.trigger({
-				message: 'Failed to update avatar',
-				background: 'gradient-error',
-				timeout: 3000
+				message: axios.isAxiosError(error) && error.response?.data?.message ? error.response.data.message : 'Failed to update avatar',
+				background: 'variant-filled-error',
+				timeout: 5000
 			});
+		} finally {
+			isUploading = false;
+			uploadProgress = 0;
 		}
 	}
 
@@ -186,13 +293,14 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		<form class="modal-form {cForm}">
 			<div class="grid grid-cols-1 grid-rows-{avatarSrc.value ? '1' : '2'} items-center justify-center">
 				<!-- Avatar Thumbnail -->
-				<Avatar
-					src={avatarSrc.value ? avatarSrc.value : '/Default_User.svg'}
-					alt="User avatar"
-					loading="lazy"
-					rounded-full
-					class="mx-auto mb-3 w-32"
-				/>
+				<div class="relative mx-auto mb-3">
+					<Avatar src={avatarSrc.value ? avatarSrc.value : '/Default_User.svg'} alt="User avatar" loading="lazy" rounded-full class="w-32" />
+					{#if isUploading}
+						<div class="absolute inset-0 flex items-center justify-center rounded-full bg-black bg-opacity-50">
+							<div class="text-sm font-medium text-white">{uploadProgress}%</div>
+						</div>
+					{/if}
+				</div>
 				<!-- FileDropzone Area-->
 				<FileDropzone
 					on:change={onChange}
@@ -201,6 +309,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					accept="image/jpeg,image/png,image/webp,image/avif,image/svg+xml,image/gif"
 					aria-label="Upload avatar"
 					slotLead="flex flex-col justify-center items-center"
+					disabled={isUploading}
 				>
 					{#snippet lead()}
 						<!-- icon -->
@@ -220,8 +329,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					{/snippet}
 				</FileDropzone>
 			</div>
-			{#if !files}
+			{#if !files && !isUploading}
 				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>
+			{:else if isUploading}
+				<div class="flex items-center justify-center space-x-2">
+					<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary-500"></div>
+					<small class="text-center text-primary-500">Uploading... {uploadProgress}%</small>
+				</div>
 			{/if}
 		</form>
 
@@ -238,12 +352,21 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			{/if}
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" onclick={parent.onClose}>
+				<button class="variant-outline-secondary btn" onclick={parent.onClose} disabled={isUploading}>
 					{m.button_cancel()}
 				</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
-					>{m.button_save()}
+				<button
+					class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+					onclick={onFormSubmit}
+					disabled={!files || isUploading}
+				>
+					{#if isUploading}
+						<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+						Uploading...
+					{:else}
+						{m.button_save()}
+					{/if}
 				</button>
 			</div>
 		</footer>

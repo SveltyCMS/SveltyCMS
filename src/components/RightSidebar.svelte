@@ -24,9 +24,8 @@ This component provides a streamlined interface for managing collection entries 
 -->
 
 <script lang="ts">
-	import { apiRequest } from '../utils/apiClient';
 	// Correctly import the new, direct action handlers
-	import { cloneCurrentEntry, deleteCurrentEntry } from '../utils/entryActions';
+	import { cloneCurrentEntry, deleteCurrentEntry, scheduleCurrentEntry, saveEntry } from '../utils/entryActions';
 
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
@@ -40,9 +39,7 @@ This component provides a streamlined interface for managing collection entries 
 	// Utils & Components
 	import { convertTimestampToDateString } from '@utils/utils';
 	import Toggles from './system/inputs/Toggles.svelte';
-	import ScheduleModal from './ScheduleModal.svelte';
-
-	// ParaglideJS
+	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
 
@@ -115,17 +112,11 @@ This component provides a streamlined interface for managing collection entries 
 			console.warn('Save blocked due to validation errors.');
 			return;
 		}
-		const currentCollection = collection.value;
 		const dataToSave = { ...collectionValue.value };
-		if (!currentCollection) return;
 
 		// Set metadata for all saves
 		if (mode.value === 'create') {
 			dataToSave.createdBy = user?.username ?? 'system';
-			// Apply collection schema defaults for new entries
-			if (!dataToSave.status && currentCollection?.status) {
-				dataToSave.status = currentCollection.status;
-			}
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 
@@ -136,19 +127,8 @@ This component provides a streamlined interface for managing collection entries 
 			delete dataToSave._scheduled;
 		}
 
-		const method = mode.value === 'create' ? 'POST' : 'PATCH';
-		const entryId = mode.value === 'edit' ? (dataToSave._id as string) : undefined;
-
-		try {
-			await apiRequest(method, currentCollection._id, dataToSave, entryId);
-			mode.set('view');
-			handleUILayoutToggle();
-		} catch (err) {
-			toastStore.trigger({
-				message: (err as Error).message || 'Failed to save data',
-				background: 'variant-filled-error'
-			});
-		}
+		await saveEntry(dataToSave, toastStore, isPublish);
+		handleUILayoutToggle();
 	}
 
 	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
