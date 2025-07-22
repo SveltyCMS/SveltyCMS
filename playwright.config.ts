@@ -75,9 +75,9 @@ export default defineConfig({
 
 	/* Run your local dev server before starting the tests */
 	webServer: {
-		command: process.env.CI ? 'bun run build && bun run preview' : 'bun run dev',
+		command: process.env.CI ? 'pnpm build && pnpm preview' : 'pnpm dev',
 		port: process.env.CI ? 4173 : 5173,
-		timeout: 240000, // Timeout in milliseconds
+		timeout: 240000,
 		reuseExistingServer: !process.env.CI
 	}
 });

@@ -29,27 +29,77 @@ test.describe('Full Collection & Widget Flow', () => {
 		await page.getByPlaceholder(/enter last name/i).fill('Last Name');
 		await page.getByRole('button', { name: /save/i }).click();
 		await expect(page).toHaveURL('http://localhost:5173/en/Collections/Names');
+		//delete collection
 
-		// 3. Perform Collection Actions
-		const actions = ['Published', 'Unpublished', 'Scheduled', 'Cloned', 'Delete', 'Testing'];
+		const targetRow = await page.getByRole('row', {
+			name: /First Name\s+Last Name.*Unpublish/
+		}).first();
 
-		for (const action of actions) {
-			// Click action button (e.g., Published)
-			await page.getByRole('button', { name: new RegExp(`^${action}$`, 'i') }).click();
+		await targetRow.getByRole('checkbox').check();
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: 'Delete' }).click();
+		await page.getByRole('button', { name: 'Delete (1 item)' }).click();
+		await page.getByTestId('modal').getByRole('button', { name: 'Delete' }).click();
 
-			// Select first collection checkbox
-			const checkbox = page.locator('input[type="checkbox"]').first();
-			await expect(checkbox).toBeVisible({ timeout: 5000 });
-			await checkbox.check();
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: /create/i }).click();
+		await page.getByRole('button', { name: 'Create' }).click();
+		await page.getByPlaceholder(/enter first name/i).fill('First Name');
+		await page.getByPlaceholder(/enter last name/i).fill('Last Name');
+		await page.getByRole('button', { name: /save/i }).click();
+		await expect(page).toHaveURL('http://localhost:5173/en/Collections/Names');
 
-			// Click Save
-			await page.getByRole('button', { name: /save/i }).click();
+		// ✅ Step 1: Publish
+		await targetRow.getByRole('checkbox').check();
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: 'Publish', exact: true }).click();
+		await page.getByRole('button', { name: 'Publish (1 item)' }).click();
+		await page.getByTestId('modal').getByRole('button', { name: 'Publish' }).click();
 
-			// Confirm redirect to collection list
-			await expect(page).toHaveURL('http://localhost:5173/en/Collections/Names');
-		}
+		// ✅ Step 2: Unpublish
+		await targetRow.getByRole('checkbox').check(); // Optional, but safe to re-check
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await targetRow.getByRole('checkbox').check();
+		await page.getByRole('button', { name: 'Unpublish', exact: true }).click();
+		await page.getByRole('button', { name: 'Unpublish (1 item)' }).click();
+		await page.getByTestId('modal').getByRole('button', { name: 'Unpublish' }).click();
 
-		// 4. Add a Widget to Dashboard
+		await targetRow.getByRole('checkbox').check();
+
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: 'Clone' }).click();
+		await page.getByRole('button', { name: 'Clone (1 item)' }).click();
+		await page.getByTestId('modal').getByRole('button', { name: 'Clone' }).nth(0).click();
+
+		await page.getByTestId('modal').getByRole('button', { name: 'Clone' }).nth(1).click();
+
+
+
+
+
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: 'Schedule' }).click();
+		await targetRow.getByRole('checkbox').check();
+		await page.getByRole('button', { name: 'Schedule (1 item)' }).click();
+		await page.getByRole('textbox', { name: 'Schedule Date' }).fill('2025-07-31');
+		await page.getByRole('textbox', { name: 'Schedule Time' }).click();
+		await page.getByRole('textbox', { name: 'Schedule Time' }).fill('20:00');
+		await page.getByRole('button', { name: 'Save schedule' }).click();
+
+
+
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: 'Test' }).click();
+		await targetRow.getByRole('checkbox').check();
+		await page.getByRole('button', { name: 'Test (1 item)' }).click();
+
+		await targetRow.getByRole('checkbox').check();
+		await page.getByRole('button', { name: 'Toggle dropdown' }).click();
+		await page.getByRole('button', { name: 'Draft' }).click();
+		await page.getByRole('button', { name: 'Draft (1 item)' }).click();
+		await page.getByRole('button', { name: 'Draft (1 item)' }).click();
+
+
 		await page.getByRole('button', { name: /system configuration/i }).click();
 		await page.getByRole('link', { name: /dashboard/i }).click();
 		await page.getByRole('button', { name: /add widget/i }).click();
