@@ -18,10 +18,7 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	// Stores
-	import { writable } from 'svelte/store';
 	import { page } from '$app/state';
 
 	// Auth
@@ -40,13 +37,38 @@ It provides the following functionality:
 
 	let { roleData, setRoleData, updateModifiedCount }: Props = $props();
 
-	const permissionsList = writable<Permission[]>([]);
-	const roles = writable<Role[]>([]);
-	const isLoading = writable(true);
-	const error = writable<string | null>(null);
-
+	// Reactive state using Svelte 5 runes
+	let permissionsList = $state<Permission[]>([]);
+	let roles = $state<Role[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
 	let searchTerm = $state('');
-	let modifiedPermissions = new Set<string>();
+	let modifiedPermissions = $state(new Set<string>());
+
+	// Derived reactive values
+	let filteredPermissions = $derived(
+		permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+	);
+	let groups = $derived(getGroups(filteredPermissions));
+	let adminRole = $derived(roles.find((role) => role.isAdmin));
+	let nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
+
+	// Initialize data when component mounts
+	$effect(() => {
+		loadData();
+	});
+
+	// Load initial data
+	const loadData = async () => {
+		try {
+			roles = roleData;
+			permissionsList = page.data.permissions;
+		} catch (err) {
+			error = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
+		} finally {
+			isLoading = false;
+		}
+	};
 
 	// Function to get groups of permissions
 	const getGroups = (filteredPermissions: Permission[]) => {
@@ -104,75 +126,36 @@ It provides the following functionality:
 		}
 	};
 
-	// Load data on component mount
-	onMount(async () => {
-		try {
-			await loadRoles();
-			await loadPermissions();
-		} catch (err) {
-			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
-		} finally {
-			isLoading.set(false);
-		}
-	});
-
-	// Function to load permissions
-	const loadPermissions = async () => {
-		try {
-			permissionsList.set(page.data.permissions);
-		} catch (err) {
-			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	};
-
-	// Function to load roles
-	const loadRoles = async () => {
-		try {
-			roles.set(roleData);
-		} catch (err) {
-			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	};
-
 	// Toggle role assignment for a permission
-	const toggleRole = (permission: string, role: string) => {
-		roles.update((list) => {
-			const index = list.findIndex((cur) => cur._id === role);
-			const permissions = list[index].permissions;
-			const pIndex = permissions.findIndex((cur) => cur === permission);
-			if (pIndex === -1) {
-				permissions.push(permission);
-			} else {
-				permissions.splice(pIndex, 1);
+	const toggleRole = (permission: string, roleId: string) => {
+		const updatedRoles = roles.map((role) => {
+			if (role._id === roleId) {
+				const permissions = [...role.permissions];
+				const pIndex = permissions.findIndex((cur) => cur === permission);
+				if (pIndex === -1) {
+					permissions.push(permission);
+				} else {
+					permissions.splice(pIndex, 1);
+				}
+				return { ...role, permissions };
 			}
-			list.splice(index, 1, { ...list[index], permissions });
-
-			// Track modified permissions
-			modifiedPermissions.add(permission);
-
-			// Update role data and notify parent component
-			setRoleData(list);
-			updateModifiedCount(modifiedPermissions.size); // Notify parent about the number of changes
-
-			return list;
+			return role;
 		});
+
+		// Track modified permissions
+		modifiedPermissions.add(permission);
+
+		// Update role data and notify parent component
+		roles = updatedRoles;
+		setRoleData(updatedRoles);
+		updateModifiedCount(modifiedPermissions.size);
 	};
-
-	// Reactive statements for filtered permissions and current user ID
-	let filteredPermissions = $derived(
-		$permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-	);
-	let groups = $derived(getGroups(filteredPermissions));
-
-	// Reactive statements and variables
-	let adminRole = $derived($roles.find((role) => role.isAdmin));
-	let nonAdminRolesCount = $derived($roles.filter((role) => !role.isAdmin).length);
 </script>
 
-{#if $isLoading}
+{#if isLoading}
 	<Loading customTopText="Loading Permissions..." customBottomText="" />
-{:else if $error}
-	<p class="error">{$error}</p>
+{:else if error}
+	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Permission Management:</h3>
 	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
@@ -205,7 +188,7 @@ It provides the following functionality:
 							<th>Action</th>
 
 							<!-- List only non-admin roles -->
-							{#each $roles as role}
+							{#each roles as role}
 								{#if !role.isAdmin}
 									<th>{role.name}</th>
 								{/if}
@@ -233,7 +216,7 @@ It provides the following functionality:
 										<!-- Action -->
 										<td class="px-1 py-1">{permission.action}</td>
 										<!-- Roles -->
-										{#each $roles as role}
+										{#each roles as role}
 											{#if !role.isAdmin}
 												<td class="px-1 py-1">
 													<input

@@ -16,88 +16,89 @@
 -->
 
 <script lang="ts">
-	// Stores
-	import { tabSet } from '@stores/store.svelte';
 	import { page } from '$app/state';
-	import { writable } from 'svelte/store';
-
-	// Auth
-	import Roles from './Roles.svelte';
-	import Permissions from './Permissions.svelte';
-	import AdminRole from './AdminRole.svelte';
-
-	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 	import { getToastStore } from '@skeletonlabs/skeleton';
-
-	// Create local tabSet variable for binding
-	let localTabSet = $state(tabSet.value);
-
-	// Sync with store when local value changes
-	$effect(() => {
-		tabSet.set(localTabSet);
-	});
-
-	// Sync local value when store changes
-	$effect(() => {
-		localTabSet = tabSet.value;
-	});
-	const toastStore = getToastStore();
+	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import Loading from '@components/Loading.svelte';
 
+	// Auth components for tabs (assuming they are optimized internally)
+	import Roles from './Roles.svelte';
+	import Permissions from './Permissions.svelte';
+	import AdminRole from './AdminRole.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let roles = $state(page.data.roles);
-	const isLoading = writable(false);
+	const toastStore = getToastStore();
 
-	// Track the number of modified permissions
-	const modifiedCount = writable(0);
-	const modifiedPermissions = writable(false);
+	// Use $state for local component state
+	let currentTab = $state(0); // Initial tab set to 0 (Permissions)
 
+	// Use $state for page data that needs to be mutable
+	let rolesData = $state(page.data.roles); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
+
+	let isLoading = $state(false); // Global loading state for the page's save operation
+
+	// Track the number of modified permissions/roles for the "Save" button
+	let modifiedCount = $state(0);
+	let hasModifiedChanges = $state(false);
+
+	// Function to update the roles data from child components
 	const setRoleData = (data: any) => {
-		roles = data;
-		modifiedPermissions.set(true);
+		rolesData = data;
+		hasModifiedChanges = true; // Any change from children marks the page as modified
 	};
 
+	// Function to update the count of modified items (e.g., permissions, roles)
 	const updateModifiedCount = (count: number) => {
-		modifiedCount.set(count);
-		modifiedPermissions.set(count > 0);
+		modifiedCount = count;
+		hasModifiedChanges = count > 0;
 	};
 
-	const saveAllRoles = async () => {
-		isLoading.set(true);
+	const saveAllChanges = async () => {
+		isLoading = true; // Use $state directly
 		try {
+			// Send the `rolesData` (which includes modifications from children) to the API
 			const response = await fetch('/api/permission/update', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ roles: roles })
+				body: JSON.stringify({ roles: rolesData })
 			});
 
 			if (response.status === 200) {
-				showToast('Config file updated successfully', 'success');
-				modifiedPermissions.set(false);
-				modifiedCount.set(0);
+				showToast('Configuration updated successfully!', 'success');
+				hasModifiedChanges = false;
+				modifiedCount = 0;
 			} else if (response.status === 304) {
-				// Provide a custom message for 304 status
-				showToast('No changes detected, config file not updated', 'info');
+				showToast('No changes detected, configuration not updated.', 'info');
 			} else {
 				const responseText = await response.text();
-				showToast(`Error updating config file: ${responseText}`, 'error');
+				showToast(`Error updating configuration: ${responseText}`, 'error');
 			}
 		} catch (error) {
-			showToast('Network error occurred while updating config file', 'error');
+			console.error('Network error during save:', error);
+			showToast('Network error occurred while updating configuration.', 'error');
 		} finally {
-			isLoading.set(false); // Ensure that loading is stopped regardless of success or error
+			isLoading = false; // Ensure loading state is reset
 		}
 	};
 
-	// Show corresponding Toast messages
+	const resetChanges = async () => {
+		// A more robust reset would re-fetch the initial data from the server or
+		// store a deep copy of the original data. For simplicity here, we assume
+		// `page.data.roles` holds the original state if we just reset `rolesData`.
+		rolesData = page.data.roles; // Reset to initial loaded state
+		hasModifiedChanges = false;
+		modifiedCount = 0;
+		showToast('Changes have been reset.', 'info');
+	};
+
+	// Helper for toast notifications
 	function showToast(message: string, type: 'success' | 'info' | 'error') {
 		const backgrounds = {
 			success: 'variant-filled-primary',
@@ -105,33 +106,29 @@
 			error: 'variant-filled-error'
 		};
 		toastStore.trigger({
-			message: message,
+			message,
 			background: backgrounds[type],
 			timeout: 3000,
 			classes: 'border-1 !rounded-md'
 		});
 	}
-
-	const resetChanges = () => {
-		modifiedPermissions.set(false);
-		modifiedCount.set(0);
-	};
 </script>
 
-<!-- Page Title and Actions -->
 <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
 	<PageTitle name="Access Management" icon="mdi:account-key" showBackButton={true} backUrl="/config" />
 
-	<!-- Row 2 (on mobile): Save and Reset Buttons -->
-	<div class="lgd:mt-0 mt-2 flex items-center justify-center gap-4 lg:justify-end">
-		<!-- Save with changes -->
-		<button onclick={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
-			Save ({$modifiedCount})
+	<div class="mt-2 flex items-center justify-center gap-4 lg:mt-0 lg:justify-end">
+		<button onclick={saveAllChanges} aria-label="Save all changes" class="variant-filled-tertiary btn" disabled={!hasModifiedChanges || isLoading}>
+			{#if isLoading}
+				Saving...
+			{:else}
+				Save ({modifiedCount})
+			{/if}
 		</button>
 
-		<!-- Reset -->
-		<button onclick={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
+		<button onclick={resetChanges} aria-label="Reset changes" class="variant-filled-secondary btn" disabled={!hasModifiedChanges || isLoading}>
+			Reset
+		</button>
 	</div>
 </div>
 
@@ -142,44 +139,39 @@
 	</p>
 </div>
 
-{#if $isLoading}
-	<Loading customTopText="Loading Admin Role..." customBottomText="" />
+{#if isLoading && currentTab === -1}
+	<Loading customTopText="Saving changes..." />
 {:else}
-	<!-- Full height tab group with responsive design -->
 	<div class="flex flex-col">
 		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
-			<!-- User Permissions -->
-			<Tab bind:group={localTabSet} name="permissions" value={0}>
+			<Tab bind:group={currentTab} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={tabSet.value === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
+					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
+					<span class={currentTab === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tab>
 
-			<!-- User Roles -->
-			<Tab bind:group={localTabSet} name="roles" value={1}>
+			<Tab bind:group={currentTab} name="roles" value={1}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={tabSet.value === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
+					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white" />
+					<span class={currentTab === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tab>
 
-			<!-- Admin Role -->
-			<Tab bind:group={localTabSet} name="admin" value={2}>
+			<Tab bind:group={currentTab} name="admin" value={2}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={tabSet.value === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
+					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white" />
+					<span class={currentTab === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 				</div>
 			</Tab>
 
-			<!-- Tab Panels -->
 			<svelte:fragment slot="panel">
-				{#if tabSet.value === 0}
-					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
-				{:else if tabSet.value === 1}
-					<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
+				{#if currentTab === 0}
+					<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
+				{:else if currentTab === 1}
+					<Roles roleData={rolesData} {setRoleData} {updateModifiedCount} />
 				{:else}
-					<AdminRole roleData={roles} {setRoleData} />
+					<AdminRole roleData={rolesData} {setRoleData} />
 				{/if}
 			</svelte:fragment>
 		</TabGroup>

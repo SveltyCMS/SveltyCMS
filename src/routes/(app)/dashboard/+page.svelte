@@ -32,6 +32,7 @@
 	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
 	import LogsWidget from './widgets/LogsWidget.svelte';
 	import Last5ContentWidget from './widgets/Last5ContentWidget.svelte';
+	import PerformanceWidget from './widgets/PerformanceWidget.svelte';
 
 	// --- Type Definitions ---
 	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
@@ -45,7 +46,8 @@
 		Last5MediaWidget: { component: Last5MediaWidget, name: 'Last 5 Media', icon: 'mdi:image-multiple' },
 		UserActivityWidget: { component: UserActivityWidget, name: 'User Activity', icon: 'mdi:account-group' },
 		SystemMessagesWidget: { component: SystemMessagesWidget, name: 'System Messages', icon: 'mdi:message-alert' },
-		LogsWidget: { component: LogsWidget, name: 'System Logs', icon: 'mdi:file-document-outline' }
+		LogsWidget: { component: LogsWidget, name: 'System Logs', icon: 'mdi:file-document-outline' },
+		PerformanceWidget: { component: PerformanceWidget, name: 'Performance Monitor', icon: 'mdi:chart-line' }
 	} as const;
 
 	interface DashboardWidgetConfig {
@@ -287,7 +289,7 @@
 
 <main bind:this={mainContainerEl} class="relative overflow-x-hidden" style="touch-action: pan-y;">
 	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:border-surface-700">
-		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+		<PageTitle name="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config" />
 		<div class="flex items-center gap-2">
 			<div class="relative">
 				<button class="variant-filled-primary btn" onclick={() => (dropdownOpen = !dropdownOpen)} aria-haspopup="true" aria-expanded={dropdownOpen}>
