@@ -1,19 +1,31 @@
 /**
- * @file API endpoint for virtual folder operations
- * @description Handles virtual folder CRUD operations
+ * @file src/routes/api/virtual-folders/+server.ts
+ * @description API endpoint for virtual folder operations, now multi-tenant aware.
+ * @description Handles virtual folder CRUD operations.
  */
 
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
+
+// Database
+import { dbAdapter } from '@src/databases/db';
 
 // Permission checking
 import { checkApiPermission } from '@api/permissions';
 
-// GET: List all virtual folders
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+// Types
+import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+
+// GET: List all virtual folders for the current tenant
 export const GET: RequestHandler = async ({ locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		// Check permissions first
-		const permissionResult = await checkApiPermission(locals.user, {
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'system',
 			action: 'read'
 		});
@@ -29,15 +41,20 @@ export const GET: RequestHandler = async ({ locals }) => {
 			);
 		}
 
-		// For fresh installations, return empty array
-		// In production, this would query the database for virtual folders
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
+
+		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const folders = await dbAdapter.findMany('system_virtual_folders', filter);
+
 		return json({
 			success: true,
-			data: [],
-			message: 'No virtual folders found (fresh installation)'
+			data: folders,
+			message: `Found ${folders.length} virtual folders.`
 		});
-	} catch (error) {
-		console.error('Error fetching virtual folders:', error);
+	} catch (err) {
+		logger.error('Error fetching virtual folders:', { error: err, tenantId });
 		return json(
 			{
 				success: false,
@@ -48,11 +65,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 };
 
-// POST: Create a new virtual folder
+// POST: Create a new virtual folder for the current tenant
 export const POST: RequestHandler = async ({ request, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		// Check permissions first
-		const permissionResult = await checkApiPermission(locals.user, {
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'system',
 			action: 'write'
 		});
@@ -68,20 +86,37 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			);
 		}
 
-		const data = await request.json();
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
 
-		// For now, just return a placeholder response
-		// In production, this would create a virtual folder in the database
+		const data = await request.json();
+		const { name, parentId } = data;
+
+		if (!name || typeof name !== 'string') {
+			throw error(400, 'Name is required and must be a string');
+		}
+
+		const folderData: Partial<SystemVirtualFolder> = {
+			name: name.trim(),
+			parentId: parentId || null,
+			...(privateEnv.MULTI_TENANT && { tenantId }),
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString()
+		};
+
+		const newFolder = await dbAdapter.create('system_virtual_folders', folderData);
+
 		return json(
 			{
 				success: true,
-				message: 'Virtual folder creation not yet implemented',
-				data: { id: 'placeholder', ...data }
+				message: 'Virtual folder created successfully',
+				data: newFolder
 			},
-			{ status: 501 }
-		); // 501 Not Implemented
-	} catch (error) {
-		console.error('Error creating virtual folder:', error);
+			{ status: 201 }
+		);
+	} catch (err) {
+		logger.error('Error creating virtual folder:', { error: err, tenantId });
 		return json(
 			{
 				success: false,

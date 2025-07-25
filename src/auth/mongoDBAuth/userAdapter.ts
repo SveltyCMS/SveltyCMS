@@ -37,6 +37,7 @@ import { logger } from '@utils/logger.svelte';
 export const UserSchema = new Schema(
 	{
 		email: { type: String, required: true, unique: true }, // User's email, required field
+		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy, indexed for performance
 		password: { type: String }, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field
 		permissions: [{ type: String }], // User-specific permissions as names, optional field

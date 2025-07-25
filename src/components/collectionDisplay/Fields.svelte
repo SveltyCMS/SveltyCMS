@@ -27,8 +27,10 @@
 	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 
 	// Auth & Page data
+
 	import { page } from '$app/stores';
 	const user = $derived(page.data?.user);
+	const tenantId = $derived(page.data?.tenantId); // Get tenantId for multi-tenancy
 	const collectionName = $derived(page.params?.contentTypes);
 
 	// Stores
@@ -49,7 +51,7 @@
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import { widgetFunctions, ensureWidgetsInitialized } from '@src/widgets';
-	import { onMount } from 'svelte';
+	import { onMount } from 'svelte'; // Dynamic import of all widget components using Vite's glob import
 
 	// Dynamic import of all widget components using Vite's glob import
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -75,12 +77,12 @@
 	let selectedRevisionData = $state<Record<string, any> | null>(null);
 	let isRevisionDetailLoading = $state(false);
 	let diffObject = $state<Record<string, any> | null>(null);
-
 	// Processed collection with evaluated fields (fixes the missing fields issue)
+
 	let processedCollection = $state<any>(null);
 	let fieldsFromModule = $state<any[]>([]);
-
 	// Process collection module to get actual fields
+
 	$effect(async () => {
 		if (collection.value?.module && !processedCollection) {
 			try {
@@ -94,18 +96,18 @@
 			}
 		}
 	});
-
 	// Derived state for fields - combines all possible field sources
-	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
 
+	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
 	// Persistent form data that survives tab switches (from old working code)
+
 	let formDataSnapshot = $state<Record<string, any>>({});
 	let isFormDataInitialized = $state(false);
-
 	// Use a single local state for form data, initialized from the global store
-	let currentCollectionValue = $state<Record<string, any>>({});
 
+	let currentCollectionValue = $state<Record<string, any>>({});
 	// Reactive function to get default collection value
+
 	let defaultCollectionValue = $derived.by(() => {
 		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
 		for (const field of derivedFields) {
@@ -118,15 +120,15 @@
 		}
 		return tempCollectionValue;
 	});
-
 	// Simple function to sync changes when needed
+
 	function syncToGlobalStore() {
 		if (currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
 			collectionValue.set({ ...currentCollectionValue });
 		}
 	}
-
 	// Ensure fields have required properties
+
 	function ensureFieldProperties(field: any) {
 		if (!field) return null;
 		return {
@@ -136,8 +138,8 @@
 			permissions: field.permissions || {}
 		};
 	}
-
 	// Filter fields based on user permissions
+
 	let filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
@@ -145,18 +147,16 @@
 			.filter((field) => {
 				// Always show fields if no permissions are set or user is admin
 				if (!field.permissions) return true;
-				if (user?.roles === 'admin' || user?.role === 'admin') return true;
+				if (page.data?.isAdmin) return true; // Check specific role permissions
 
-				// Check specific role permissions
-				const userRole = user?.role || user?.roles;
+				const userRole = user?.role;
 				if (!userRole) return true; // Show all fields if no role defined
 
 				const rolePermissions = field.permissions[userRole];
 				return !rolePermissions || rolePermissions.read !== false;
 			})
-	);
+	); // Update translation progress when data changes
 
-	// Update translation progress when data changes
 	$effect(() => {
 		if (!collection.value?.fields) return;
 		for (const field of collection.value.fields) {
@@ -164,7 +164,7 @@
 		}
 	});
 
-	// Update the main collection value store when form data changes (debounced) - from old working code
+	// Update the main collection value store when form data changes (debounced)
 	let updateTimeout: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
@@ -263,14 +263,14 @@
 			currentCollectionValue = initialValue;
 			isFormDataInitialized = true;
 		}
-	});
+	}); // Form data persistence across tab switches
 
 	// Form data persistence across tab switches (from old working code)
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue) {
 			// Only sync when on edit tab to avoid unnecessary updates
 			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
-		} else if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
+		} else if (localTabSet !== 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
 			// Merge snapshot data back into currentCollectionValue when returning to edit tab
 			const updatedValue = { ...currentCollectionValue };
 			for (const field of derivedFields) {
@@ -336,8 +336,7 @@
 			<Tab bind:group={localTabSet} name="revisions" value={1}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					{m.applayout_version()}
-					<span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
+					{m.applayout_version()} <span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
 				</div>
 			</Tab>
 		{/if}
@@ -351,11 +350,11 @@
 			</Tab>
 		{/if}
 
-		{#if user?.roles === 'admin'}
+		{#if user?.isAdmin}
 			<Tab bind:group={localTabSet} name="api" value={3}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					API
+					                    API
 				</div>
 			</Tab>
 		{/if}
@@ -414,7 +413,7 @@
 
 											{#if WidgetComponent}
 												{@const fieldName = getFieldName(field, false)}
-												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} />
+												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
 											{:else}
 												<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 											{/if}

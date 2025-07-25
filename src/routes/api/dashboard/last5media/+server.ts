@@ -5,6 +5,7 @@
 
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -31,44 +32,50 @@ const MediaItemSchema = v.object({
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Check dashboard permissions
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'dashboard',
 		action: 'read'
 	});
 
 	if (!permissionResult.hasPermission) {
 		logger.warn('Unauthorized attempt to access media data', {
-			userId: locals.user?._id,
+			userId: user?._id,
 			error: permissionResult.error
 		});
 		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 	}
 
 	try {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
+
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
 			throw error(500, 'Database connection unavailable');
 		}
 
-		// Use database-agnostic adapter to get recent media files
+		// --- MULTI-TENANCY: Scope the query by tenantId ---
+		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {}; // Use database-agnostic adapter to get recent media files
+
 		const result = await dbAdapter.media.files.getByFolder(undefined, {
 			page: 1,
 			pageSize: 5,
 			sortField: 'updatedAt',
-			sortDirection: 'desc'
+			sortDirection: 'desc',
+			filter
 		});
 
 		if (!result.success) {
 			logger.error('Failed to fetch media files from database', {
 				error: result.error,
-				requestedBy: locals.user?._id
-			});
-			// Return empty array instead of throwing error for dashboard widgets
+				requestedBy: user?._id,
+				tenantId
+			}); // Return empty array instead of throwing error for dashboard widgets
 			return json([]);
-		}
+		} // Transform the data to match the expected format
 
-		// Transform the data to match the expected format
 		const recentMedia = result.data.items.map((file) => ({
 			name: file.filename,
 			size: file.size,
@@ -82,7 +89,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		logger.info('Recent media fetched successfully via database adapter', {
 			count: validatedData.length,
 			total: result.data.total,
-			requestedBy: locals.user?._id
+			requestedBy: user?._id,
+			tenantId
 		});
 
 		return json(validatedData);

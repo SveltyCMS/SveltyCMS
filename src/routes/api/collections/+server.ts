@@ -5,13 +5,14 @@
  * @example: GET /api/collections
  *
  * Features:
- *    * Lists all collections accessible to the current user
- *    * Filters collections based on user permissions
- *    * Provides collection metadata and configuration
- *    * Replaces /api/getCollections endpoint
+ * * Lists all collections accessible to the current user within their tenant
+ * * Filters collections based on user permissions
+ * * Provides collection metadata and configuration
+ * * Replaces /api/getCollections endpoint
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -23,25 +24,30 @@ import { logger } from '@utils/logger.svelte';
 // GET: Lists all collections accessible to the user
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const start = performance.now();
+	const { user, tenantId } = locals; // Destructure user and tenantId
 
-	if (!locals.user) {
+	if (!user) {
 		throw error(401, 'Unauthorized');
+	}
+
+	// In multi-tenant mode, a tenantId is required.
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		logger.error('List collections attempt failed: Tenant ID is missing in a multi-tenant setup.');
+		throw error(400, 'Could not identify the tenant for this request.');
 	}
 
 	try {
 		// Get query parameters
 		const includeFields = url.searchParams.get('includeFields') === 'true';
-		const includeStats = url.searchParams.get('includeStats') === 'true';
+		const includeStats = url.searchParams.get('includeStats') === 'true'; // Get all collections from ContentManager, scoped by tenantId
 
-		// Get all collections from ContentManager
-		const { collections: allCollections } = await contentManager.getCollectionData();
+		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
 
-		const accessibleCollections = [];
+		const accessibleCollections = []; // Filter collections based on user permissions
 
-		// Filter collections based on user permissions
 		for (const [collectionId, collection] of Object.entries(allCollections)) {
-			const hasReadAccess = hasCollectionPermission(locals.user, 'read', collection);
-			const hasWriteAccess = hasCollectionPermission(locals.user, 'write', collection);
+			const hasReadAccess = hasCollectionPermission(user, 'read', collection);
+			const hasWriteAccess = hasCollectionPermission(user, 'write', collection);
 
 			if (hasReadAccess || hasWriteAccess) {
 				const collectionInfo = {
@@ -55,14 +61,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 						read: hasReadAccess,
 						write: hasWriteAccess
 					}
-				};
+				}; // Include fields if requested
 
-				// Include fields if requested
 				if (includeFields) {
 					collectionInfo.fields = collection.fields;
-				}
+				} // Include stats if requested and user has read access
 
-				// Include stats if requested and user has read access
 				if (includeStats && hasReadAccess) {
 					try {
 						// You can add collection statistics here if your DB adapter supports it
@@ -82,7 +86,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const duration = performance.now() - start;
-		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms`);
+		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId}`);
 
 		return json({
 			success: true,

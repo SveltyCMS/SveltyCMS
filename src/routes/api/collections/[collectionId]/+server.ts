@@ -2,18 +2,19 @@
  * @file src/routes/api/collections/[collectionId]/+server.ts
  * @description API endpoint for listing collection entries and creating new entries
  *
- * @example for get/post single collection:   /api/collections/:collectionId
+ * @example for get/post single collection:  /api/collections/:collectionId
  *
  * Features:
- *    * Performance-optimized listing with QueryBuilder
- *    * Handles pagination, filtering, and sorting via URL parameters
- *    * Secure entry creation with automatic user metadata
- *    * ModifyRequest support for widget-based data processing
- *    * Status-based filtering for non-admin users
- *    * Content language support
+ * * Performance-optimized listing with QueryBuilder
+ * * Handles pagination, filtering, and sorting via URL parameters
+ * * Secure entry creation with automatic user metadata
+ * * ModifyRequest support for widget-based data processing
+ * * Status-based filtering for non-admin users
+ * * Content language support
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Databases
 import { dbAdapter } from '@src/databases/db';
@@ -32,59 +33,44 @@ import { logger } from '@utils/logger.svelte';
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const startTime = performance.now();
 	const endpoint = `GET /api/collections/${params.collectionId}`;
+	const { user, tenantId } = locals; // Ensure roles are initialized
 
-	// Ensure roles are initialized
-	await initializeRoles();
+	await initializeRoles(); // Get user's role and determine admin status properly
 
-	// Get user's role and determine admin status properly
 	const availableRoles = locals.roles && locals.roles.length > 0 ? locals.roles : roles;
-	const userRole = availableRoles.find((role) => role._id === locals.user?.role);
+	const userRole = availableRoles.find((role) => role._id === user?.role);
 	const isAdmin = Boolean(userRole?.isAdmin);
 
-	// Debug logging to understand the role lookup issue
-	// logger.debug(`Role lookup for user ${locals.user?._id}`, {
-	// 	userRoleId: locals.user?.role,
-	// 	availableRoles: availableRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
-	// 	foundRole: userRole,
-	// 	isAdmin: isAdmin,
-	// 	isAdminRaw: userRole?.isAdmin,
-	// 	isAdminType: typeof userRole?.isAdmin,
-	// 	rolesSource: locals.roles && locals.roles.length > 0 ? 'locals' : 'import'
-	// });
-
-	// logger.info(`${endpoint} - Request started`, {
-	// 	userId: locals.user?._id,
-	// 	userEmail: locals.user?.email,
-	// 	userRole: locals.user?.role,
-	// 	isAdmin: isAdmin,
-	// 	ip: url.searchParams.get('__ip') || 'unknown',
-	// 	params: params,
-	// 	queryParams: Object.fromEntries(url.searchParams.entries())
-	// });
-
 	try {
-		if (!locals.user) {
+		if (!user) {
 			logger.warn(`${endpoint} - Unauthorized access attempt`, {
 				ip: url.searchParams.get('__ip') || 'unknown'
 			});
 			throw error(401, 'Unauthorized');
 		}
 
-		const schema = contentManager.getCollectionById(params.collectionId);
+		// In multi-tenant mode, a tenantId is required.
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			logger.error(`Get collection entries failed: Tenant ID is missing in a multi-tenant setup.`);
+			throw error(400, 'Could not identify the tenant for this request.');
+		}
+
+		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
 				collectionId: params.collectionId,
-				userId: locals.user._id
+				userId: user._id,
+				tenantId
 			});
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(locals.user, 'read', schema, availableRoles))) {
+		if (!(await hasCollectionPermission(user, 'read', schema, availableRoles))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
 				collection: schema._id,
-				userId: locals.user._id,
-				userEmail: locals.user.email,
-				userRole: locals.user.role
+				userId: user._id,
+				userEmail: user.email,
+				userRole: user.role
 			});
 			throw error(403, 'Forbidden');
 		}
@@ -99,75 +85,42 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		if (filterParam) {
 			try {
 				filter = JSON.parse(filterParam);
-				logger.debug(`\x1b[34m${endpoint}\x1b[0m - Applied filter`, {
-					filter,
-					collection: schema._id,
-					userId: locals.user._id
-				});
 			} catch (parseError) {
 				logger.warn(`\x1b[34m${endpoint}\x1b[0m - Invalid filter parameter`, {
 					filterParam,
 					parseError: parseError.message,
 					collection: schema._id,
-					userId: locals.user._id
+					userId: user._id
 				});
 				throw error(400, 'Invalid filter parameter');
 			}
 		}
 
-		// Status filtering - non-admin users only see published content
+		// --- MULTI-TENANCY: Scope all filters by tenantId ---
+		const baseFilter = privateEnv.MULTI_TENANT ? { ...filter, tenantId } : filter; // Status filtering - non-admin users only see published content
+
+		let finalFilter = baseFilter;
 		if (!isAdmin) {
-			filter = { ...filter, status: 'published' };
-			logger.debug(`\x1b[34m${endpoint}\x1b[0m - Applied status filter for non-admin user`, {
-				userId: locals.user._id,
-				collection: schema._id,
-				userRole: locals.user.role,
-				isAdmin: isAdmin,
-				statusFilter: 'published'
-			});
+			finalFilter = { ...baseFilter, status: 'published' };
 		} else {
 			// For admin users, remove any status filtering from the original filter
-			const { status, ...adminFilter } = filter;
-			filter = adminFilter;
-			logger.debug(`\x1b[34m${endpoint}\x1b[0m - Admin user - removed status filter`, {
-				userId: locals.user._id,
-				collection: schema._id,
-				userRole: locals.user.role,
-				isAdmin: isAdmin,
-				originalFilter: { ...filter, status },
-				adminFilter: filter
-			});
-		}
+			const { status, ...adminFilter } = baseFilter;
+			finalFilter = adminFilter;
+		} // Build the query efficiently using QueryBuilder
 
-		// Build the query efficiently using QueryBuilder
 		const collectionName = `collection_${schema._id}`;
 		const query = dbAdapter
 			.queryBuilder(collectionName)
-			.where(filter)
+			.where(finalFilter)
 			.sort(sortField as keyof BaseEntity, sortDirection)
-			.paginate({ page, pageSize });
+			.paginate({ page, pageSize }); // Get both the paginated results and total count
 
-		// Get both the paginated results and total count
-		const [result, countResult] = await Promise.all([query.execute(), dbAdapter.queryBuilder(collectionName).where(filter).count()]);
+		const [result, countResult] = await Promise.all([query.execute(), dbAdapter.queryBuilder(collectionName).where(finalFilter).count()]);
 
 		if (!result.success) {
-			logger.error(`\x1b[34m${endpoint}\x1b[0m - Database query failed`, {
-				collection: schema._id,
-				collectionId: schema._id,
-				operation: 'execute',
-				error: result.error.message,
-				userId: locals.user._id
-			});
 			throw new Error(result.error.message);
 		}
 		if (!countResult.success) {
-			logger.error(`\x1b[34m${endpoint}\x1b[0m - Database count failed`, {
-				collection: schema._id,
-				collectionId: schema._id,
-				operation: 'count',
-				error: countResult.error.message,
-				userId: locals.user._id
-			});
 			throw new Error(countResult.error.message);
 		}
 
@@ -180,19 +133,14 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 					data: processedData,
 					fields: schema.fields,
 					collection: schema,
-					user: locals.user,
+					user,
 					type: 'GET'
-				});
-				logger.debug(`\x1b[34m${endpoint}\x1b[0m - ModifyRequest completed`, {
-					collection: schema._id,
-					processedCount: processedData.length,
-					userId: locals.user._id
 				});
 			} catch (modifyError) {
 				logger.warn(`\x1b[34m${endpoint}\x1b[0m - ModifyRequest failed`, {
 					collection: schema._id,
 					error: modifyError.message,
-					userId: locals.user._id,
+					userId: user._id,
 					itemCount: processedData.length
 				});
 			}
@@ -213,27 +161,24 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 		logger.info(`\x1b[34m${endpoint}\x1b[0m - Request completed successfully`, {
 			collection: schema._id,
-			userId: locals.user._id,
+			userId: user._id,
+			tenantId,
 			itemCount: processedData.length,
 			totalCount,
-			page,
-			pageSize,
-			hasFilter: Object.keys(filter).length > 0,
-			duration: `${duration.toFixed(2)}ms`,
-			status: 200
+			duration: `${duration.toFixed(2)}ms`
 		});
 
 		return json(responseData);
 	} catch (e) {
 		const duration = performance.now() - startTime;
+		const userId = locals.user?._id;
 
 		if (e.status) {
-			// SvelteKit errors (already have status codes)
 			logger.warn(`${endpoint} - Request failed`, {
 				status: e.status,
-				message: e.message || e.body?.message,
+				message: e.body?.message,
 				duration: `${duration.toFixed(2)}ms`,
-				userId: locals.user?._id,
+				userId,
 				collection: params.collectionId
 			});
 			throw e;
@@ -243,9 +188,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			error: e.message,
 			stack: e.stack,
 			duration: `${duration.toFixed(2)}ms`,
-			userId: locals.user?._id,
-			collection: params.collectionId,
-			status: 500
+			userId,
+			collection: params.collectionId
 		});
 		throw error(500, 'Internal Server Error');
 	}
@@ -255,34 +199,42 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 export const POST: RequestHandler = async ({ locals, params, request }) => {
 	const startTime = performance.now();
 	const endpoint = `POST /api/collections/${params.collectionId}`;
+	const { user, tenantId } = locals;
 
 	logger.info(`${endpoint} - Request started`, {
-		userId: locals.user?._id,
-		userEmail: locals.user?.email,
-		contentType: request.headers.get('content-type')
+		userId: user?._id,
+		userEmail: user?.email,
+		tenantId
 	});
 
 	try {
-		if (!locals.user) {
+		if (!user) {
 			logger.warn(`${endpoint} - Unauthorized access attempt`);
 			throw error(401, 'Unauthorized');
 		}
 
-		const schema = contentManager.getCollectionById(params.collectionId);
+		// In multi-tenant mode, a tenantId is required.
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			logger.error(`Create collection entry failed: Tenant ID is missing in a multi-tenant setup.`);
+			throw error(400, 'Could not identify the tenant for this request.');
+		}
+
+		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
 				collectionId: params.collectionId,
-				userId: locals.user._id
+				userId: user._id,
+				tenantId
 			});
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
+		if (!(await hasCollectionPermission(user, 'write', schema))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
 				collection: schema._id,
-				userId: locals.user._id,
-				userEmail: locals.user.email,
-				userRole: locals.user.role
+				userId: user._id,
+				userEmail: user.email,
+				userRole: user.role
 			});
 			throw error(403, 'Forbidden');
 		}
@@ -290,73 +242,44 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		let body;
 		const contentType = request.headers.get('content-type');
 
-		// Handle both JSON and FormData
 		if (contentType?.includes('application/json')) {
 			body = await request.json();
-			logger.debug(`${endpoint} - Received JSON request body`, {
-				collection: schema._id,
-				userId: locals.user._id,
-				bodyKeys: Object.keys(body || {})
-			});
 		} else if (contentType?.includes('multipart/form-data')) {
 			const formData = await request.formData();
 			body = Object.fromEntries(formData.entries());
-			logger.debug(`${endpoint} - Received FormData request body`, {
-				collection: schema._id,
-				userId: locals.user._id,
-				fieldCount: Object.keys(body || {}).length
-			});
 		} else {
-			logger.warn(`${endpoint} - Unsupported content type`, {
-				contentType,
-				collection: schema._id,
-				userId: locals.user._id
-			});
 			throw error(400, 'Unsupported content type');
-		}
+		} // Prepare data with metadata and tenantId
 
-		// Prepare data with metadata
 		const entryData = {
 			...body,
-			createdBy: locals.user._id,
-			updatedBy: locals.user._id,
+			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId
+			createdBy: user._id,
+			updatedBy: user._id,
 			status: body.status || 'draft'
-			// Note: createdAt and updatedAt are automatically set by the database adapter
-		};
+		}; // Apply modifyRequest for pre-processing
 
-		// Apply modifyRequest for pre-processing
 		const dataArray = [entryData];
 		try {
 			await modifyRequest({
 				data: dataArray,
 				fields: schema.fields,
 				collection: schema,
-				user: locals.user,
+				user,
 				type: 'POST'
-			});
-			logger.debug(`${endpoint} - ModifyRequest pre-processing completed`, {
-				collection: schema._id,
-				userId: locals.user._id
 			});
 		} catch (modifyError) {
 			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
 				collection: schema._id,
 				error: modifyError.message,
-				userId: locals.user._id
+				userId: user._id
 			});
-		}
+		} // Use the generic CRUD insert operation
 
-		// Use the generic CRUD insert operation
 		const collectionName = `collection_${schema._id}`;
 		const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 
 		if (!result.success) {
-			logger.error(`${endpoint} - Database insert failed`, {
-				collection: schema._id,
-				operation: 'insert',
-				error: result.error.message,
-				userId: locals.user._id
-			});
 			throw new Error(result.error.message);
 		}
 
@@ -369,24 +292,23 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 		logger.info(`${endpoint} - Entry created successfully`, {
 			collection: schema._id,
-			userId: locals.user._id,
+			userId: user._id,
+			tenantId,
 			entryId: result.data._id,
-			entryStatus: result.data.status,
-			duration: `${duration.toFixed(2)}ms`,
-			status: 201
+			duration: `${duration.toFixed(2)}ms`
 		});
 
 		return json(responseData, { status: 201 });
 	} catch (e) {
 		const duration = performance.now() - startTime;
+		const userId = locals.user?._id;
 
 		if (e.status) {
-			// SvelteKit errors (already have status codes)
 			logger.warn(`${endpoint} - Request failed`, {
 				status: e.status,
-				message: e.message || e.body?.message,
+				message: e.body?.message,
 				duration: `${duration.toFixed(2)}ms`,
-				userId: locals.user?._id,
+				userId,
 				collection: params.collectionId
 			});
 			throw e;
@@ -396,9 +318,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			error: e.message,
 			stack: e.stack,
 			duration: `${duration.toFixed(2)}ms`,
-			userId: locals.user?._id,
-			collection: params.collectionId,
-			status: 500
+			userId,
+			collection: params.collectionId
 		});
 		throw error(500, 'Internal Server Error');
 	}

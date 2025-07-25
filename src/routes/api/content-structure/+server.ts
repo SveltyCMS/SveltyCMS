@@ -9,10 +9,11 @@
  * Filters collections based on user permissions
  * Provides collection metadata and configuration
  * Handles creation, updates (including reordering and parent changes), and deletion of content nodes.
- * Utilizes Redis caching for performance.
+ * Utilizes Redis caching for performance, now tenant-aware.
  */
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
+import { privateEnv } from '@root/config/private';
 
 import type { ContentNodeOperation } from '@root/src/content/types';
 
@@ -30,8 +31,8 @@ import { logger } from '@utils/logger.svelte';
 const CACHE_TTL = 300; // 5 minutes
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	// Check permissions using centralized system
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Check permissions using centralized system
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'system',
 		action: 'read'
 	});
@@ -46,15 +47,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	try {
-		const action = url.searchParams.get('action');
-		logger.debug('GET request received', { action });
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant ID is required for this operation.');
+		}
 
-		// Try to get from Redis cache first
+		const action = url.searchParams.get('action');
+		logger.debug('GET request received', { action, tenantId }); // Try to get from Redis cache first
+
 		if (!browser && isRedisEnabled()) {
-			const cacheKey = `api:content-structure:${action || 'default'}`;
+			const cacheKey = `api:content-structure:${tenantId || 'global'}:${action || 'default'}`;
 			const cached = await getCache(cacheKey);
 			if (cached) {
-				logger.debug('Returning cached data from Redis', { action });
+				logger.debug('Returning cached data from Redis', { action, tenantId });
 				return json(cached);
 			}
 		}
@@ -64,15 +68,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		switch (action) {
 			case 'getStructure': {
 				// Return full structure with metadata
-				const { contentStructure: contentNodes } = await contentManager.getCollectionData();
+				const { contentStructure: contentNodes } = await contentManager.getCollectionData(tenantId);
 
 				response = {
 					contentStructure: contentNodes
-				};
+				}; // Cache the response if Redis is enabled
 
-				// Cache the response if Redis is enabled
 				if (!browser && isRedisEnabled()) {
-					const cacheKey = `api:content-structure:${action}`;
+					const cacheKey = `api:content-structure:${tenantId || 'global'}:${action}`;
 					await setCache(cacheKey, response, CACHE_TTL);
 				}
 
@@ -81,8 +84,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 			case 'getContentStructure': {
 				// Return content nodes from database
-				const { contentStructure } = await contentManager.getCollectionData();
-				logger.info('Returning content structure from database');
+				const { contentStructure } = await contentManager.getCollectionData(tenantId);
+				logger.info('Returning content structure from database', { tenantId });
 				response = {
 					success: true,
 					contentNodes: contentStructure
@@ -92,11 +95,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 			default:
 				throw error(400, 'Invalid action');
-		}
+		} // Cache in Redis if available
 
-		// Cache in Redis if available
 		if (!browser && isRedisEnabled()) {
-			const cacheKey = `api:content-structure:${action || 'default'}`;
+			const cacheKey = `api:content-structure:${tenantId || 'global'}:${action || 'default'}`;
 			await setCache(cacheKey, response, CACHE_TTL);
 		}
 		return json(response);
@@ -108,8 +110,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// Check permissions using centralized system
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Check permissions using centralized system
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'system',
 		action: 'write'
 	});
@@ -124,50 +126,46 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant ID is required for this operation.');
+		}
+
 		const data = await request.json();
 		const action = data.action;
-		logger.debug('POST request received', { data, action });
+		logger.debug('POST request received', { data, action, tenantId });
 
 		switch (action) {
 			case 'updateContentStructure': {
-				// Updates metadata for categories and collections based on operations from the frontend
 				const { items }: { items: ContentNodeOperation[] } = data;
 
 				if (!items || !Array.isArray(items)) {
 					throw error(400, 'Items array is required for updateContentStructure');
 				}
 
-				// The `contentManager.upsertContentNodes` method is expected to:
-				// 1. Iterate through `items`.
-				// 2. For each `ContentNodeOperation` (type: 'create', 'update', 'rename', 'move'):
-				//    a. Perform the respective database operation (insert, update, delete).
-				//    b. Crucially, handle `parentId` and `order` fields for 'move' operations.
-				// 3. Return the *complete, flattened, and updated content structure* from the database.
-				const updatedContentStructure = await contentManager.upsertContentNodes(items);
+				const updatedContentStructure = await contentManager.upsertContentNodes(items, tenantId);
 
-				// Clear content structure cache as data has changed
 				if (!browser && isRedisEnabled()) {
-					await clearCache('api:content-structure:*');
-					logger.debug('Cleared content-structure cache after update.');
+					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
+					await clearCache(cachePattern);
+					logger.debug('Cleared content-structure cache after update.', { tenantId });
 				}
 
-				logger.info('Content structure metadata updated successfully');
+				logger.info('Content structure metadata updated successfully', { tenantId });
 				return json({
 					success: true,
-					contentStructure: updatedContentStructure, // Send back the updated structure for frontend re-sync
+					contentStructure: updatedContentStructure,
 					message: 'Content structure metadata updated successfully'
 				});
 			}
 			case 'recompile': {
-				// Clear Redis cache if available
 				if (!browser && isRedisEnabled()) {
-					await clearCache('api:content-structure:*');
-					logger.debug('Cleared all content-structure related caches.');
+					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
+					await clearCache(cachePattern);
+					logger.debug('Cleared all content-structure related caches.', { tenantId });
 				}
 
-				// Reset the content manager's internal state and force recompilation
-				await contentManager.updateCollections(true);
-				logger.info('Collections recompiled successfully');
+				await contentManager.updateCollections(true, tenantId);
+				logger.info('Collections recompiled successfully', { tenantId });
 				return json({
 					success: true,
 					message: 'Collections recompiled successfully'
@@ -184,8 +182,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
-	// Check permissions using centralized system
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Check permissions using centralized system
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'system',
 		action: 'write'
 	});
@@ -200,24 +198,27 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant ID is required for this operation.');
+		}
+
 		const { _id, updates } = await request.json();
 
 		if (!_id || !updates) {
 			throw error(400, '_id and updates are required');
 		}
 
-		const updatedNode = await dbAdapter.updateContentStructure(_id, updates);
-		if (!updatedNode) throw error(404, 'Node not found');
+		const updatedNode = await dbAdapter.updateContentStructure(_id, updates, tenantId);
+		if (!updatedNode) throw error(404, 'Node not found'); // Invalidate cache after a single node update
 
-		// Invalidate cache after a single node update
 		if (!browser && isRedisEnabled()) {
-			await clearCache('api:content-structure:*');
-			logger.debug(`Cleared content-structure cache after PUT update for node ${_id}.`);
+			const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
+			await clearCache(cachePattern);
+			logger.debug(`Cleared content-structure cache after PUT update for node ${_id}.`, { tenantId });
 		}
-		// Update content manager's internal state (recompile if necessary)
-		// Assuming updateCollections(true) forces a full re-read and recompile
-		await contentManager.updateCollections(true); // This might be heavy; consider a more targeted update if possible
-		logger.info(`Content node \x1b[34m${_id}\x1b[0m updated successfully`);
+
+		await contentManager.updateCollections(true, tenantId);
+		logger.info(`Content node \x1b[34m${_id}\x1b[0m updated successfully`, { tenantId });
 		return json({
 			success: true,
 			message: 'Content Structure updated successfully',

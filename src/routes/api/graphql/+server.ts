@@ -3,7 +3,7 @@
  * @description GraphQL API setup and request handler for the CMS.
  *
  * This module sets up the GraphQL schema and resolvers, including:
- * - Collection-specific schemas and resolvers
+ * - Collection-specific schemas and resolvers, scoped to the current tenant
  * - User-related schemas and resolvers
  * - Media-related schemas and resolvers
  * - Access management permission definition and checking
@@ -84,7 +84,6 @@ if (!building && privateEnv.USE_REDIS === true) {
 		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
 		password: privateEnv.REDIS_PASSWORD
 	});
-
 	// Connect to Redis
 	redisClient.on('error', (err: Error) => {
 		logger.error('Redis error: ', err);
@@ -106,11 +105,11 @@ async function cleanupRedis() {
 }
 
 // Setup GraphQL schema and resolvers
-async function setupGraphQL() {
+async function setupGraphQL(tenantId?: string) {
 	try {
-		logger.info('Setting up GraphQL schema and resolvers');
+		logger.info('Setting up GraphQL schema and resolvers', { tenantId });
 
-		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
+		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections(tenantId);
 
 		const typeDefs = `
             input PaginationInput {
@@ -144,10 +143,7 @@ async function setupGraphQL() {
             }
         `;
 
-		//logger.debug('Generated GraphQL Schema:', typeDefs);
-
 		const collectionsResolversObj = await collectionsResolvers(cacheClient, privateEnv);
-		// logger.debug('Collections resolvers keys:', Object.keys(collectionsResolversObj));
 
 		const resolvers = {
 			Query: {
@@ -156,7 +152,6 @@ async function setupGraphQL() {
 				...mediaResolvers(dbAdapter),
 				accessManagementPermission: async (_, __, context) => {
 					const { user } = context;
-					logger.debug('AccessManagementPermission resolver context:', { user });
 					if (!user) {
 						throw new Error('Unauthorized: No user in context');
 					}
@@ -167,7 +162,6 @@ async function setupGraphQL() {
 					return accessManagementPermission;
 				}
 			},
-			// Spread the collection type resolvers (field resolvers for each collection)
 			...Object.keys(collectionsResolversObj)
 				.filter((key) => key !== 'Query')
 				.reduce(
@@ -179,8 +173,6 @@ async function setupGraphQL() {
 				)
 		};
 
-		// logger.debug('Final resolvers keys:', Object.keys(resolvers));
-
 		const yogaApp = createYoga<RequestHandler>({
 			schema: createSchema({
 				typeDefs,
@@ -189,8 +181,8 @@ async function setupGraphQL() {
 			graphqlEndpoint: '/api/graphql',
 			fetchAPI: globalThis,
 			context: async (event: RequestEvent) => {
-				logger.debug('GraphQL context:', { user: event.locals.user });
-				return { user: event.locals.user };
+				logger.debug('GraphQL context created', { userId: event.locals.user?._id, tenantId: event.locals.tenantId }); // Pass the user and tenantId to all resolvers
+				return { user: event.locals.user, tenantId: event.locals.tenantId };
 			}
 		});
 
@@ -205,15 +197,16 @@ async function setupGraphQL() {
 let yogaAppPromise: Promise<ReturnType<typeof createYoga<RequestHandler>>>;
 
 const handler = async (event: RequestEvent) => {
-	// Check GraphQL API permissions
-	const permissionResult = await checkApiPermission(event.locals.user, {
+	const { user, tenantId } = event.locals; // Check GraphQL API permissions
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'graphql',
 		action: 'read'
 	});
 
 	if (!permissionResult.hasPermission) {
 		logger.warn('Unauthorized attempt to access GraphQL API', {
-			userId: event.locals.user?._id,
+			userId: user?._id,
+			tenantId,
 			error: permissionResult.error
 		});
 		return json(
@@ -228,20 +221,19 @@ const handler = async (event: RequestEvent) => {
 	}
 
 	if (!yogaAppPromise) {
-		yogaAppPromise = setupGraphQL();
+		yogaAppPromise = setupGraphQL(tenantId);
 	}
 	try {
 		const yogaApp = await yogaAppPromise;
 		const response = await yogaApp.handleRequest(event.request, event);
-		logger.info('GraphQL request handled successfully', { status: response.status });
+		logger.info('GraphQL request handled successfully', { status: response.status, tenantId });
 		return new Response(response.body, {
 			status: response.status,
 			headers: response.headers
 		});
-		// return json({ success: true, output: "see src/ routes / api / graphql / +server.ts})" });
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error handling GraphQL request:', { error: errorMessage });
+		logger.error('Error handling GraphQL request:', { error: errorMessage, tenantId });
 		return json({ success: false, error: `Error handling GraphQL request: ${errorMessage}` }, { status: 500 });
 	}
 };

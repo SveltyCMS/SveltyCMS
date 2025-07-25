@@ -21,9 +21,8 @@ function getOAuthRedirectUri(): string {
 	if (dev) {
 		logger.debug('🔧 Development mode detected - using development host');
 		return `${publicEnv.HOST_DEV}/login/oauth`;
-	}
+	} // For production builds, use the production host
 
-	// For production builds, use the production host
 	logger.debug('🚀 Production mode detected - using production host');
 	return `${publicEnv.HOST_PROD}/login/oauth`;
 }
@@ -64,32 +63,30 @@ async function setCredentials(credentials: Credentials): Promise<void> {
 	}
 }
 
-async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consent' | 'none' | 'select_account'): Promise<string> {
+async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consent' | 'none' | 'select_account', tenantId?: string): Promise<string> {
 	const googleAuthClient = await googleAuth();
 	if (!googleAuthClient) {
 		throw new Error('Google OAuth is not initialized');
 	}
 
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-	const baseUrl = getOAuthRedirectUri();
-
-	// Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
+	const baseUrl = getOAuthRedirectUri(); // Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
 	// Use 'online' access_type to prevent PKCE from being auto-enabled in newer googleapis versions
+
 	const authUrlOptions: Record<string, string | boolean | undefined> = {
 		access_type: 'online', // Changed from 'offline' to 'online' to disable PKCE
 		scope: scopes.join(' '),
 		redirect_uri: baseUrl,
 		state: token ? encodeURIComponent(token) : undefined,
-		include_granted_scopes: true
-		// Note: Using 'online' access_type prevents PKCE parameters from being auto-added
-	};
+		include_granted_scopes: true // Note: Using 'online' access_type prevents PKCE parameters from being auto-added
+	}; // Only add prompt if explicitly specified
 
-	// Only add prompt if explicitly specified
 	if (promptType) {
 		authUrlOptions.prompt = promptType;
 	}
 
 	const authUrl = googleAuthClient.generateAuthUrl(authUrlOptions);
+	logger.debug('Generated Google Auth URL', { tenantId, promptType });
 
 	return authUrl;
 }

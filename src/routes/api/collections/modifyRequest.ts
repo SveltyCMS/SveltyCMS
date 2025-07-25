@@ -4,7 +4,7 @@
  *
  * This module provides functionality to:
  * - Process each field in a collection schema
- * - Apply widget-specific modifications to the request data
+ * - Apply widget-specific modifications to the request data, now with tenant context.
  * - Handle custom widget logic for different request types (GET, POST, etc.)
  *
  * Features:
@@ -51,21 +51,22 @@ interface ModifyRequestParams {
 	collection: CollectionModel;
 	user: User;
 	type: string;
+	tenantId?: string; // Add tenantId for multi-tenancy
 }
 
 // Function to modify request data based on field widgets
-export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
+export async function modifyRequest({ data, fields, collection, user, type, tenantId }: ModifyRequestParams) {
 	const start = performance.now();
 	try {
 		// Check if user has permission to access this collection
-		if (!hasCollectionPermission(user, collection.id, 'read')) {
+		if (!hasCollectionPermission(user, 'read', collection)) {
 			const error = new Error(`Access denied: User does not have permission to access collection '${collection.id}'`);
 			logger.warn(`ModifyRequest permission denied for user: ${user._id}, collection: ${collection.id}`);
 			throw error;
 		}
 
 		logger.debug(
-			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m`
+			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m, tenant: \x1b[34m${tenantId}\x1b[0m`
 		);
 
 		for (const field of fields) {
@@ -99,6 +100,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 									data: dataAccessor,
 									user,
 									type,
+									tenantId, // Pass tenantId to the widget
 									id: entryCopy._id,
 									meta_data: entryCopy.meta_data
 								});
@@ -138,7 +140,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 		const duration = performance.now() - start;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`ModifyRequest failed after  \x1b[33m${duration.toFixed(2)}ms\x1b[0m: ${errorMessage}`, {
+		logger.error(`ModifyRequest failed after \x1b[33m${duration.toFixed(2)}ms\x1b[0m: ${errorMessage}`, {
 			stack: errorStack
 		});
 		throw error;

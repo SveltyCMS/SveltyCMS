@@ -8,6 +8,7 @@
  * Features:
  * - **Defense in Depth**: Specific permission checking for token modification.
  * - **Secure Validation**: A restrictive schema ensures only editable fields are accepted.
+ * - **Multi-Tenant Safe**: Verifies that tokens can only be edited within the same tenant.
  * - Token data modification.
  * - Error handling and logging.
  *
@@ -15,6 +16,8 @@
  * PUT /api/user/editToken
  * Body: JSON object with 'tokenId' and 'newTokenData' properties
  */
+
+import { privateEnv } from '@root/config/private';
 
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -45,15 +48,17 @@ const editTokenSchema = object({
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
+		const { user, tenantId } = locals; // Destructure user and tenantId
 		// **SECURITY**: Check permissions for token editing
-		const permissionResult = await checkApiPermission(locals.user, {
+
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'system',
 			action: 'write'
 		});
 
 		if (!permissionResult.hasPermission) {
 			logger.warn('Unauthorized attempt to edit a token', {
-				userId: locals.user?._id,
+				userId: user?._id,
 				error: permissionResult.error
 			});
 			return json(
@@ -72,6 +77,28 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		// If there's nothing to update, return an error.
 		if (Object.keys(newTokenData).length === 0) {
 			throw error(400, 'No data provided to update.');
+		}
+
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
+
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			const tokenToEdit = await auth.getTokenByValue(tokenId);
+			if (!tokenToEdit || tokenToEdit.tenantId !== tenantId) {
+				logger.warn('Attempt to edit a token belonging to another tenant.', {
+					adminId: user?._id,
+					adminTenantId: tenantId,
+					targetTokenId: tokenId,
+					targetTenantId: tokenToEdit?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only edit tokens within your own tenant.');
+			}
 		}
 
 		const dataToUpdate: { role?: string; expires?: Date } = {};
@@ -99,12 +126,6 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			const seconds = expirationInSeconds[newTokenData.expires];
 			dataToUpdate.expires = new Date(Date.now() + seconds * 1000);
 		}
-
-		if (!auth) {
-			logger.error('Database authentication adapter not initialized');
-			throw error(500, 'Database authentication not available');
-		}
-
 		// Update the token with the sanitized and validated data.
 		const updatedToken = await auth.updateToken(tokenId, dataToUpdate);
 
@@ -115,7 +136,8 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		logger.info('Token updated successfully', {
 			tokenId: tokenId,
 			updatedData: dataToUpdate,
-			updatedBy: locals.user?._id
+			updatedBy: user?._id,
+			tenantId
 		});
 
 		return json({

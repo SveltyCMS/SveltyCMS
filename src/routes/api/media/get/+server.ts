@@ -1,7 +1,7 @@
 /**
  * @file src/routes/api/media/get/+server.ts
  * @description
- * API endpoint for retrieving media files.
+ * API endpoint for retrieving media files, scoped to the current tenant.
  *
  * @example GET /api/media/get?url=https://example.com/image.jpg
  *
@@ -9,11 +9,12 @@
  * - Centralized permission checking for media access
  * - Requires authentication and media read permissions
  * - Admin override for unrestricted access
- * - Secure file retrieval with proper headers
+ * - Secure, tenant-aware file retrieval with proper headers
  */
 
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Permissions
 import { checkApiPermission } from '@api/permissions';
@@ -25,18 +26,23 @@ import { getFile } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	// Use centralized permission checking
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Use centralized permission checking
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'media',
 		action: 'read'
 	});
 
 	if (!permissionResult.hasPermission) {
 		logger.warn('Unauthorized attempt to retrieve media file', {
-			userId: locals.user?._id,
+			userId: user?._id,
+			tenantId,
 			error: permissionResult.error
 		});
 		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	}
+
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		throw error(400, 'Tenant could not be identified for this operation.');
 	}
 
 	try {
@@ -45,12 +51,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			throw error(400, 'URL parameter is required');
 		}
 
-		const buffer = await getFile(fileUrl);
+		// Pass tenantId to ensure the file is retrieved from the correct tenant's storage
+		const buffer = await getFile(fileUrl, tenantId);
 
 		logger.debug('Media file retrieved successfully', {
 			fileUrl,
 			fileSize: buffer.length,
-			userId: locals.user?._id
+			userId: user?._id,
+			tenantId
 		});
 
 		return new Response(buffer, {
@@ -64,7 +72,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const message = `Error retrieving file: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, {
 			fileUrl: url.searchParams.get('url'),
-			userId: locals.user?._id
+			userId: user?._id,
+			tenantId
 		});
 		throw error(500, message);
 	}

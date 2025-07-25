@@ -11,13 +11,14 @@
  *
  * ### Features
  * - User authentication and authorization
- * - Persists user dashboard preferences to the database
+ * - Persists user dashboard preferences to the database, scoped to the current tenant.
  * - Update preferences for a specific screen size
  * - Proper error handling and logging
  */
 
 import { dbAdapter } from '@src/databases/db';
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Permissions
 import { checkApiPermission } from '@api/permissions';
@@ -26,15 +27,16 @@ import { checkApiPermission } from '@api/permissions';
 import { logger } from '@utils/logger.svelte';
 
 export const GET = async ({ locals, url }) => {
-	// Check system preferences permissions
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Check system preferences permissions
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'systemPreferences',
 		action: 'read'
 	});
 
 	if (!permissionResult.hasPermission) {
 		logger.warn('Unauthorized attempt to load system preferences', {
-			userId: locals.user?._id,
+			userId: user?._id,
+			tenantId,
 			error: permissionResult.error
 		});
 		return json(
@@ -47,64 +49,70 @@ export const GET = async ({ locals, url }) => {
 		);
 	}
 
-	// Try to get userId from query param, otherwise use locals.user
-	const userId = url.searchParams.get('userId') || locals.user._id.toString();
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		throw error(400, 'Tenant could not be identified for this operation.');
+	} // Try to get userId from query param, otherwise use locals.user
 
-	// Handle widget state requests
+	const userId = url.searchParams.get('userId') || user._id.toString(); // Handle widget state requests
+
 	const widgetId = url.searchParams.get('widgetId');
 	if (widgetId) {
 		try {
-			const state = await dbAdapter.systemPreferences.getWidgetState(userId, widgetId);
+			// Pass tenantId to the adapter method
+			const state = await dbAdapter.systemPreferences.getWidgetState(userId, widgetId, tenantId);
 			return json({ state });
 		} catch (e) {
-			logger.error('Failed to load widget state:', e);
+			logger.error('Failed to load widget state:', { error: e, tenantId });
 			return json({ error: 'Failed to load widget state' }, { status: 500 });
 		}
-	}
+	} // Default system preferences load
 
-	// Default system preferences load
 	try {
-		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId);
+		// Pass tenantId to the adapter method
+		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId, tenantId); // Return a flat array of widgets instead of nested preferences
 
-		// Return a flat array of widgets instead of nested preferences
 		const response = {
 			preferences: preferences || []
 		};
 		return json(response);
 	} catch (e) {
-		logger.error('Failed to load system preferences:', e);
+		logger.error('Failed to load system preferences:', { error: e, tenantId });
 		return json({ error: 'Failed to load preferences' }, { status: 500 });
 	}
 };
 
 export const POST = async ({ request, locals }) => {
-	const data = await request.json();
+	const { user, tenantId } = locals;
+	const data = await request.json(); // Try to get userId from request body, otherwise use locals.user
 
-	// Try to get userId from request body, otherwise use locals.user
-	const userId = data.userId || locals.user?._id?.toString();
+	const userId = data.userId || user?._id?.toString();
 	if (!userId) {
 		logger.warn('Unauthorized attempt to save system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	// Handle widget state persistence
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		throw error(400, 'Tenant could not be identified for this operation.');
+	} // Handle widget state persistence
+
 	if (data.widgetId && data.state) {
 		try {
-			await dbAdapter.systemPreferences.setWidgetState(userId, data.widgetId, data.state);
+			// Pass tenantId to the adapter method
+			await dbAdapter.systemPreferences.setWidgetState(userId, data.widgetId, data.state, tenantId);
 			return json({ success: true });
 		} catch (e) {
-			logger.error('Failed to save widget state:', e);
+			logger.error('Failed to save widget state:', { error: e, tenantId });
 			return json({ error: 'Failed to save widget state' }, { status: 500 });
 		}
-	}
+	} // Default preferences save
 
-	// Default preferences save
 	const { preferences } = data;
 	try {
-		await dbAdapter.systemPreferences.setUserPreferences(userId, preferences);
+		// Pass tenantId to the adapter method
+		await dbAdapter.systemPreferences.setUserPreferences(userId, preferences, tenantId);
 		return json({ success: true });
 	} catch (e) {
-		logger.error('Failed to save system preferences:', e);
+		logger.error('Failed to save system preferences:', { error: e, tenantId });
 		return json({ error: 'Failed to save preferences' }, { status: 500 });
 	}
 };

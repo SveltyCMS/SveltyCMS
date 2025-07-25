@@ -60,6 +60,7 @@ export const privateEnv = createPrivateConfig({
     ${formatLine('DB_RETRY_ATTEMPTS', configData?.DB_RETRY_ATTEMPTS, false)}
     ${formatLine('DB_RETRY_DELAY', configData?.DB_RETRY_DELAY, false)}
     ${formatLine('DB_POOL_SIZE', configData?.DB_POOL_SIZE, false)}
+    ${formatLine('MULTI_TENANT', configData?.MULTI_TENANT || false, false)}
 
     // --- SMTP Configuration ---
     ${formatLine('SMTP_HOST', configData?.SMTP_HOST)}

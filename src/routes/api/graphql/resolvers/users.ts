@@ -4,7 +4,7 @@
  *
  * This module provides:
  * - Dynamic generation of GraphQL type definitions based on User type
- * - Resolver function to fetch user data from the database
+ * - Resolver function to fetch user data from the database, scoped to the current tenant
  *
  * Features:
  * - Automatic mapping of TypeScript types to GraphQL types
@@ -17,6 +17,7 @@
  * - Allows querying of user data through the GraphQL API
  */
 
+import { privateEnv } from '@root/config/private';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -66,6 +67,7 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>
 const userTypeSample: Partial<User> = {
 	_id: '',
 	email: '',
+	tenantId: '', // Add tenantId for multi-tenancy
 	password: '',
 	role: '',
 	username: '',
@@ -88,9 +90,15 @@ export function userTypeDefs() {
 	return generateGraphQLTypeDefsFromType(userTypeSample, 'User');
 }
 
+// GraphQL context type
+interface GraphQLContext {
+	user?: User;
+	tenantId?: string;
+}
+
 // Resolvers with pagination support
 export function userResolvers(dbAdapter: dbInterface) {
-	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: { user?: User }) => {
+	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Check user permissions - only users with user management permissions should see user data
 		if (!context.user) {
 			logger.warn(`GraphQL: No user in context for ${contentTypes}`);
@@ -112,21 +120,31 @@ export function userResolvers(dbAdapter: dbInterface) {
 			throw Error('Database adapter is not initialized');
 		}
 
+		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
+			throw new Error('Internal Server Error: Tenant context is missing.');
+		}
+
 		const { page = 1, limit = 10 } = pagination || {};
 		const skip = (page - 1) * limit;
 
 		try {
-			const users = await dbAdapter.findMany(contentTypes, {}, { sort: { lastActiveAt: -1 }, skip, limit });
-			logger.info(`Fetched ${contentTypes}`, { count: users.length });
+			// --- MULTI-TENANCY: Scope the query by tenantId ---
+			const query: { tenantId?: string } = {};
+			if (privateEnv.MULTI_TENANT) {
+				query.tenantId = context.tenantId;
+			}
+			const users = await dbAdapter.findMany(contentTypes, query, { sort: { lastActiveAt: -1 }, skip, limit });
+			logger.info(`Fetched ${contentTypes}`, { count: users.length, tenantId: context.tenantId });
 			return users;
 		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, error);
+			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
 			throw Error(`Failed to fetch data for ${contentTypes}`);
 		}
 	};
 
 	return {
-		users: async (_: unknown, args: { pagination: { page: number; limit: number } }, context: { user?: User }) =>
+		users: async (_: unknown, args: { pagination: { page: number; limit: number } }, context: GraphQLContext) =>
 			await fetchWithPagination('auth_users', args.pagination, context)
 	};
 }

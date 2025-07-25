@@ -3,15 +3,8 @@
  * @description API endpoints for user management.
  *
  * This module provides functionality to:
- * - Retrieve all us				props: { 
-					username: '', // Will be filled by the user during signup
-					email: email,
-					role, 
-					token: token, // Include the raw token for fallback
-					tokenLink: inviteLink,
-					expiresInLabel: expiresIn
-				}GET)
- * - Create a new user and send a token via email (POST)
+ * - Retrieve all users for the current tenant (GET)
+ * - Create a new user within the current tenant and send a token via email (POST)
  *
  * Features:
  * - **Defense in Depth**: Specific permission checks for both GET and POST.
@@ -30,6 +23,7 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
 import { error, type HttpError } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Auth and permission helpers
 import { checkApiPermission } from '@api/permissions';
@@ -38,24 +32,26 @@ import { checkApiPermission } from '@api/permissions';
 import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		// **SECURITY**: Check for specific 'read:user:all' permission.
-		// This prevents any user who gets past the hook from listing all other users.
-		// It ensures only users with explicit rights can access this sensitive data.
-		// **SECURITY**: Check permissions for listing users
-		const permissionResult = await checkApiPermission(locals.user, {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		} // **SECURITY**: Check permissions for listing users
+
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'users',
 			action: 'read'
 		});
 
 		if (!permissionResult.hasPermission) {
 			logger.warn('Unauthorized attempt to list all users', {
-				userId: locals.user?._id,
+				userId: user?._id,
+				tenantId,
 				error: permissionResult.error
 			});
 			return json(
@@ -66,34 +62,40 @@ export const GET: RequestHandler = async ({ locals }) => {
 			);
 		}
 
-		const users = await auth.getAllUsers();
-		logger.info('Fetched all users successfully', { count: users.length, requestedBy: locals.user?._id });
+		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const users = await auth.getAllUsers({ filter });
+		logger.info('Fetched all users successfully', { count: users.length, requestedBy: user?._id, tenantId });
 		return json(users);
 	} catch (err) {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || 'Internal Server Error';
-		logger.error('Error fetching users:', { error: message, status });
+		logger.error('Error fetching users:', { error: message, status, tenantId });
 		throw error(status, message);
 	}
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		// **SECURITY**: Check permissions for creating users
-		const permissionResult = await checkApiPermission(locals.user, {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		} // **SECURITY**: Check permissions for creating users
+
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'users',
 			action: 'write'
 		});
 
 		if (!permissionResult.hasPermission) {
 			logger.warn('Unauthorized attempt to create a user', {
-				userId: locals.user?._id,
+				userId: user?._id,
+				tenantId,
 				error: permissionResult.error
 			});
 			return json(
@@ -106,12 +108,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const addUserForm = await superValidate(request, valibot(addUserTokenSchema));
 		if (!addUserForm.valid) {
-			logger.warn('Invalid form data for user creation', { errors: addUserForm.errors });
+			logger.warn('Invalid form data for user creation', { errors: addUserForm.errors, tenantId });
 			return json({ form: addUserForm, message: 'Invalid form data' }, { status: 400 });
 		}
 
 		const { email, role, expiresIn } = addUserForm.data;
-		logger.info('Request to create user received', { email, role, requestedBy: locals.user?._id });
+		logger.info('Request to create user received', { email, role, requestedBy: user?._id, tenantId });
 
 		const expirationTimes: Record<string, number> = {
 			'2 hrs': 7200,
@@ -122,28 +124,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const expirationTime = expirationTimes[expiresIn];
 		if (!expirationTime) {
-			logger.warn('Invalid value for token validity', { expiresIn });
+			logger.warn('Invalid value for token validity', { expiresIn, tenantId });
 			return json({ form: addUserForm, message: 'Invalid value for token validity' }, { status: 400 });
 		}
 
-		const existingUser = await auth.checkUser({ email });
+		const checkCriteria: { email: string; tenantId?: string } = { email };
+		if (privateEnv.MULTI_TENANT) {
+			checkCriteria.tenantId = tenantId;
+		}
+		const existingUser = await auth.checkUser(checkCriteria);
 		if (existingUser) {
-			logger.warn('Attempted to create a user that already exists', { email });
-			return json({ message: 'User already exists' }, { status: 409 }); // 409 Conflict
+			logger.warn('Attempted to create a user that already exists in this tenant', { email, tenantId });
+			return json({ message: 'User already exists in this tenant' }, { status: 409 }); // 409 Conflict
 		}
 
 		const newUser = await auth.createUser({
 			email,
 			role,
+			...(privateEnv.MULTI_TENANT && { tenantId }),
 			lastAuthMethod: 'password',
 			isRegistered: false
 		});
 		const expiresAt = new Date(Date.now() + expirationTime * 1000);
-		const token = await auth.createToken(newUser._id, expiresAt);
+		const token = await auth.createToken(newUser._id, expiresAt, tenantId);
 
-		logger.info('User created successfully', { userId: newUser._id });
+		logger.info('User created successfully', { userId: newUser._id, tenantId }); // Send token via email. Pass the request origin for server-side fetch.
 
-		// Send token via email. Pass the request origin for server-side fetch.
 		await sendUserToken(request.url.origin, email, token, role, expirationTime);
 
 		return json(newUser, { status: 201 }); // 201 Created
@@ -151,7 +157,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || `Error creating user: ${err.message}`;
-		logger.error('Error creating user', { error: message, status });
+		logger.error('Error creating user', { error: message, status, tenantId });
 		return json({ success: false, error: message }, { status });
 	}
 };
@@ -187,8 +193,7 @@ async function sendUserToken(origin: string, email: string, token: string, role:
 
 		logger.info('User token email sent successfully', { email });
 	} catch (err) {
-		logger.error('Error sending user token email', { error: err.message, email });
-		// Re-throw the error to be caught and handled by the main POST handler.
+		logger.error('Error sending user token email', { error: err.message, email }); // Re-throw the error to be caught and handled by the main POST handler.
 		throw err;
 	}
 }

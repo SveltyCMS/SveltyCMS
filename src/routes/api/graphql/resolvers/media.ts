@@ -20,6 +20,8 @@
  * - Provides the foundation for querying media data through the GraphQL API
  */
 
+import { privateEnv } from '@root/config/private';
+
 import { dbAdapter } from '@src/databases/db';
 // System Logs
 import { logger } from '@utils/logger.svelte';
@@ -81,6 +83,7 @@ interface PaginationArgs {
 // GraphQL context type
 interface GraphQLContext {
 	user?: User;
+	tenantId?: string;
 }
 
 // GraphQL parent type for media resolvers
@@ -110,15 +113,26 @@ export function mediaResolvers() {
 			throw Error('Database adapter is not initialized');
 		}
 
+		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
+			throw new Error('Internal Server Error: Tenant context is missing.');
+		}
+
 		const { page = 1, limit = 50 } = pagination || {};
 		const skip = (page - 1) * limit;
 
 		try {
-			const result = await dbAdapter.findMany(contentTypes, {}, { sort: { createdAt: -1 }, skip, limit });
-			logger.info(`Fetched ${contentTypes}`, { count: result.length });
+			// --- MULTI-TENANCY: Scope the query by tenantId ---
+			const query: { tenantId?: string } = {};
+			if (privateEnv.MULTI_TENANT) {
+				query.tenantId = context.tenantId;
+			}
+
+			const result = await dbAdapter.findMany(contentTypes, query, { sort: { createdAt: -1 }, skip, limit });
+			logger.info(`Fetched ${contentTypes}`, { count: result.length, tenantId: context.tenantId });
 			return result;
 		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, error);
+			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
 			throw Error(`Failed to fetch data for ${contentTypes}`);
 		}
 	};

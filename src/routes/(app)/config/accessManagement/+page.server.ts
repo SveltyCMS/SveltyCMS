@@ -8,62 +8,48 @@ import type { PageServerLoad } from './$types';
 
 // Auth - Ensure these imports point to optimized, efficient functions
 import { hasPermissionWithRoles, getAllPermissions } from '@src/auth/permissions';
-import { initializeRoles, roles } from '@root/config/roles'; // Assuming `roles` is a pre-loaded, static array
 
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		// Initialize roles once if they are not already loaded in memory.
-		// If `roles` is a static, pre-initialized array, this `await` might be redundant or could be optimized.
-		// For a CMS, roles might be dynamic and fetched from a DB, so ensure `initializeRoles` handles caching.
-		await initializeRoles();
-
-		logger.debug('Starting load function for access management page');
-
-		const { user } = locals;
+		const { user, roles: tenantRoles, tenantId } = locals; // Use tenant-specific roles from locals
 
 		if (!user) {
 			logger.warn('User not authenticated, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: ${user._id}`); // Use template literals for cleaner logging
-		// Removed color codes from logs; they might not render correctly in all environments
-		// and can be distracting. Use your logger's formatting options if needed.
+		logger.debug(`User authenticated successfully for user: ${user._id}`, { tenantId });
 
 		if (!user.role) {
 			const message = `User role is missing for user ${user.email}`;
-			logger.warn(message);
+			logger.warn(message, { tenantId });
 			throw error(403, message);
-		}
+		} // Check user permission using tenant-specific roles
 
-		// Check user permission
-		const hasAccessPermission = hasPermissionWithRoles(user, 'config:accessManagement', roles);
+		const hasAccessPermission = hasPermissionWithRoles(user, 'config:accessManagement', tenantRoles);
 
 		if (!hasAccessPermission) {
 			const message = `User ${user._id} does not have permission to access management`;
-			logger.warn(message);
+			logger.warn(message, { tenantId });
 			throw error(403, message);
-		}
+		} // Fetch permissions. Roles are already available from locals.
 
-		// Fetch roles and permissions. `roles` is directly imported, implying it's already available.
-		logger.debug('Fetching roles and permissions...');
-		const allRoles = roles; // Directly use the imported `roles`
+		logger.debug('Fetching permissions...', { tenantId });
 		const permissions = getAllPermissions();
 
-		logger.debug(`Roles fetched: ${allRoles.length}`);
-		logger.debug(`Permissions fetched: ${permissions.length}`);
+		logger.debug(`Roles fetched: ${tenantRoles.length}`, { tenantId });
+		logger.debug(`Permissions fetched: ${permissions.length}`, { tenantId }); // Return only necessary user data to the client to minimize payload
 
-		// Return only necessary user data to the client to minimize payload
 		return {
 			user: {
 				_id: user._id.toString(),
 				email: user.email,
 				role: user.role
 			},
-			roles: allRoles,
+			roles: tenantRoles, // Pass the tenant-specific roles to the page
 			permissions
 		};
 	} catch (err) {
@@ -73,7 +59,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw err;
 		}
 		const message = `Error in load function for Access Management: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
+		logger.error(message, { tenantId: locals.tenantId });
 		throw error(500, message); // Generic 500 for unhandled server errors
 	}
 };

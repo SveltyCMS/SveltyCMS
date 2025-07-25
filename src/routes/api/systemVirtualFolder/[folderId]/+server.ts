@@ -5,6 +5,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -20,10 +21,15 @@ import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
 // GET /api/systemVirtualFolder/[folderId] - Fetches contents of a specific virtual folder
 export const GET: RequestHandler = async ({ params, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		// Check authentication
-		if (!locals.user) {
+		if (!user) {
 			throw error(401, 'Authentication required');
+		}
+
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
 		const { folderId } = params;
@@ -32,47 +38,47 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		let folders: SystemVirtualFolder[] = [];
 		let files: any[] = [];
 
+		const tenantFilter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+
 		if (folderId === 'root') {
-			// Root folder - get top-level folders and files
-			folders = await dbAdapter.getAll('system_virtual_folders', { parentId: null });
+			// Root folder - get top-level folders and files, scoped by tenant
+			const folderQuery = { parentId: null, ...tenantFilter };
+			folders = await dbAdapter.findMany('system_virtual_folders', folderQuery);
 
-			// Get media files in root
+			const fileQuery = { virtualFolderId: null, ...tenantFilter };
 			const [images, documents, audio, videos] = await Promise.all([
-				dbAdapter.getAll('media_images', { virtualFolderId: null }),
-				dbAdapter.getAll('media_documents', { virtualFolderId: null }),
-				dbAdapter.getAll('media_audio', { virtualFolderId: null }),
-				dbAdapter.getAll('media_videos', { virtualFolderId: null })
+				dbAdapter.findMany('media_images', fileQuery),
+				dbAdapter.findMany('media_documents', fileQuery),
+				dbAdapter.findMany('media_audio', fileQuery),
+				dbAdapter.findMany('media_videos', fileQuery)
 			]);
-
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
-			// Specific folder
-			currentFolder = await dbAdapter.getOneById('system_virtual_folders', folderId);
+			// Specific folder - ensure it belongs to the current tenant
+			const folderQuery = { _id: folderId, ...tenantFilter };
+			currentFolder = await dbAdapter.findOne('system_virtual_folders', folderQuery);
 
 			if (!currentFolder) {
 				throw error(404, 'Folder not found');
-			}
+			} // Get subfolders and files, scoped by tenant
 
-			// Get subfolders
-			folders = await dbAdapter.getAll('system_virtual_folders', { parentId: folderId });
+			const subfolderQuery = { parentId: folderId, ...tenantFilter };
+			folders = await dbAdapter.findMany('system_virtual_folders', subfolderQuery);
 
-			// Get media files in this folder
+			const fileQuery = { virtualFolderId: folderId, ...tenantFilter };
 			const [images, documents, audio, videos] = await Promise.all([
-				dbAdapter.getAll('media_images', { virtualFolderId: folderId }),
-				dbAdapter.getAll('media_documents', { virtualFolderId: folderId }),
-				dbAdapter.getAll('media_audio', { virtualFolderId: folderId }),
-				dbAdapter.getAll('media_videos', { virtualFolderId: folderId })
+				dbAdapter.findMany('media_images', fileQuery),
+				dbAdapter.findMany('media_documents', fileQuery),
+				dbAdapter.findMany('media_audio', fileQuery),
+				dbAdapter.findMany('media_videos', fileQuery)
 			]);
-
 			files = [...images, ...documents, ...audio, ...videos];
-		}
+		} // Process files with URL construction
 
-		// Process files with URL construction
 		const processedFiles = files.map((file) => {
 			try {
 				const originalUrl = constructMediaUrl(file, 'original');
 				const thumbnailUrl = constructMediaUrl(file, 'thumbnail');
-
 				return {
 					...file,
 					url: originalUrl,
@@ -96,7 +102,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			}
 		});
 
-		logger.debug(`Fetched folder ${folderId}: ${processedFiles.length} files, ${folders.length} subfolders`);
+		logger.debug(`Fetched folder ${folderId}: ${processedFiles.length} files, ${folders.length} subfolders`, { tenantId });
 
 		return json({
 			success: true,
@@ -110,7 +116,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		});
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Error fetching folder contents for ${params.folderId}: ${message}`);
+		logger.error(`Error fetching folder contents for ${params.folderId}: ${message}`, { tenantId });
 
 		throw error(500, message);
 	}

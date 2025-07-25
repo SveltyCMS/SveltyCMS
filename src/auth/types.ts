@@ -32,6 +32,7 @@ export enum PermissionType {
 export interface User {
 	_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
+	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
 	password?: string; // Hashed password of the user
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
 	username?: string; // Username of the user
@@ -91,6 +92,7 @@ export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires (ISO date string)
+	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
 }
 
 // Token Interface

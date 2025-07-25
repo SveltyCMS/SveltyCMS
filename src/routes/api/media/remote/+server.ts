@@ -1,58 +1,51 @@
 /**
  * @file src/routes/api/media/remote/+server.ts
  * @description
- * API endpoint for saving remote media files
+ * API endpoint for saving remote media files to the current tenant's storage.
  *
  * @example POST /api/media/remote
  *
  * Features:
- * - Secure, granular access control per operation
- * - Status-based access control for non-admin users
- * - ModifyRequest support for widget-based data processing
- * - Status-based access control for non-admin users
+ * - Secure, granular access control per operation.
+ * - Multi-Tenant Safe: Saves files to the correct tenant's storage.
  */
 
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Auth
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 import { saveRemoteMedia } from '@utils/media/mediaStorage';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) {
-		logger.warn('No session ID found during remote media save');
+export const POST: RequestHandler = async ({ request, locals }) => {
+	const { user, tenantId } = locals;
+	if (!user) {
+		logger.warn('Unauthorized: No user session found during remote media save');
 		throw error(401, 'Unauthorized');
 	}
 
-	if (!auth) {
-		logger.error('Auth service is not initialized');
-		throw error(500, 'Auth service not available');
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		logger.error('Tenant ID is missing in a multi-tenant setup.');
+		throw error(400, 'Could not identify the tenant for this operation.');
 	}
 
 	try {
-		const user = await auth.validateSession(session_id);
-		if (!user) {
-			logger.warn('Invalid session during remote media save');
-			throw error(401, 'Unauthorized');
-		}
-
 		const { fileUrl, contentTypes } = await request.json();
 		if (!fileUrl || !contentTypes) {
 			throw error(400, 'File URL and collection types are required');
 		}
 
-		const result = await saveRemoteMedia(fileUrl, contentTypes, user._id.toString());
+		// Pass tenantId to ensure the remote media is saved to the correct tenant's storage
+		const result = await saveRemoteMedia(fileUrl, contentTypes, user._id.toString(), tenantId);
+
+		logger.info('Remote media saved successfully', { fileUrl, userId: user._id, tenantId });
 		return json({ success: true, ...result });
 	} catch (err) {
 		const message = `Error saving remote media: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
+		logger.error(message, { userId: user._id, tenantId });
 		throw error(500, message);
 	}
 };

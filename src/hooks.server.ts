@@ -3,7 +3,7 @@
  * @description Server-side hooks for SvelteKit CMS application
  *
  * This file handles:
- * - Authentication and session management
+ * - Authentication and session management (now multi-tenant aware)
  * - Rate limiting for API endpoints
  * - Permission checks for protected routes
  * - Static asset caching
@@ -85,6 +85,27 @@ const apiLimiter = new RateLimiter({
 	IP: [500, 'm'], // 500 requests per minute per IP
 	IPUA: [200, 'm'] // 200 requests per minute per IP+User-Agent
 });
+
+// --- NEW: Tenant Identification Logic ---
+/**
+ * Identifies a tenant based on the request hostname.
+ * In a real-world application, this would query a database of tenants.
+ * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
+ * @param hostname The hostname from the request URL.
+ * @returns The tenant ID or null if not a tenant-specific domain.
+ */
+const getTenantIdFromHostname = (hostname: string): string | null => {
+	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
+		return 'default'; // A default tenant for local development
+	}
+	const parts = hostname.split('.');
+	// Assuming a structure like `tenant-name.your-domain.com`
+	if (parts.length > 2 && !['www', 'app', 'api'].includes(parts[0])) {
+		return parts[0];
+	}
+	// This could return a default tenant ID for the main domain if desired
+	return null;
+};
 
 // Check if a given pathname is a static asset
 const isStaticAsset = (pathname: string): boolean =>
@@ -225,13 +246,13 @@ setInterval(
 // Export health metrics for monitoring endpoints
 export const getHealthMetrics = () => ({ ...healthMetrics });
 
-// Optimized user count getter with caching and deduplication
-const getCachedUserCount = async (authServiceReady: boolean): Promise<number> => {
+// Optimized user count getter with caching and deduplication (now tenant-aware)
+const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
-	const cacheKey = 'global:userCount';
+	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
 	const cacheStore = getCacheStore(); // Get distributed cache instance
-
 	// Try distributed cache first
+
 	try {
 		const cached = await cacheStore.get<{ count: number; timestamp: number }>(cacheKey);
 		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL) {
@@ -241,26 +262,25 @@ const getCachedUserCount = async (authServiceReady: boolean): Promise<number> =>
 		}
 	} catch (err) {
 		logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
-	}
+	} // Return local cached value if still valid (fallback)
 
-	// Return local cached value if still valid (fallback)
 	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL) {
 		return userCountCache.count;
-	}
+	} // Use deduplication for expensive database operations
 
-	// Use deduplication for expensive database operations
-	return deduplicate(`getUserCount:${authServiceReady}`, async () => {
+	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
 		let userCount = -1;
+		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
 
 		if (authServiceReady && auth) {
 			try {
-				userCount = await auth.getUserCount();
+				userCount = await auth.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from auth service: ${err.message}`);
 			}
 		} else if (authAdapter && typeof authAdapter.getUserCount === 'function') {
 			try {
-				userCount = await authAdapter.getUserCount();
+				userCount = await authAdapter.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from adapter: ${err.message}`);
 			}
@@ -282,19 +302,27 @@ const getCachedUserCount = async (authServiceReady: boolean): Promise<number> =>
 	});
 };
 
-// Get user from session ID with optimized caching (initialization-aware)
-const getUserFromSessionId = async (session_id: string | undefined, authServiceReady: boolean = false): Promise<User | null> => {
+// Get user from session ID with optimized caching (now tenant-aware)
+const getUserFromSessionId = async (session_id: string | undefined, authServiceReady: boolean = false, tenantId?: string): Promise<User | null> => {
 	if (!session_id) return null;
 
 	const cacheStore = getCacheStore();
-	const now = Date.now();
+	const now = Date.now(); // Only use cached sessions if auth service is ready OR if this is a static asset request
 
-	// Only use cached sessions if auth service is ready OR if this is a static asset request
 	const canUseCache = authServiceReady || auth !== null;
+
+	const validateUserTenant = (user: User): User | null => {
+		if (privateEnv.MULTI_TENANT && user.tenantId !== tenantId) {
+			logger.warn(`Session user's tenant ('${user.tenantId}') does not match request tenant ('${tenantId}'). Access denied.`);
+			return null;
+		}
+		return user;
+	};
 
 	const memCached = sessionCache.get(session_id);
 	if (memCached && now - memCached.timestamp < CACHE_TTL && canUseCache) {
-		// Extend session in cache proactively on every hit
+		const validUser = validateUserTenant(memCached.user);
+		if (!validUser) return null; // Extend session in cache proactively on every hit
 		const sessionData = { user: memCached.user, timestamp: now };
 		sessionCache.set(session_id, sessionData); // Update in-memory timestamp
 		cacheStore
@@ -309,7 +337,8 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 		try {
 			const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
 			if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
-				// Ensure redis cache isn't stale if TTLs differ
+				const validUser = validateUserTenant(redisCached.user);
+				if (!validUser) return null; // Ensure redis cache isn't stale if TTLs differ
 				sessionCache.set(session_id, redisCached); // Populate in-memory cache
 				sessionMetrics.lastActivity.set(session_id, now);
 				return redisCached.user;
@@ -327,10 +356,14 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 
 	try {
 		// Use circuit breaker for database auth operations
-		const user = await authCircuitBreaker.execute(
+		let user = await authCircuitBreaker.execute(
 			() => auth.validateSession(session_id),
 			() => null // Fallback to null if circuit is open
 		);
+
+		if (user) {
+			user = validateUserTenant(user);
+		}
 
 		if (user) {
 			const sessionData = { user, timestamp: now };
@@ -352,13 +385,14 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 	return null;
 };
 
-// Optimized admin data loading with caching
-const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown> => {
+// Optimized admin data loading with caching (now tenant-aware)
+const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: string): Promise<unknown> => {
 	const now = Date.now();
 	const distributedCacheStore = getCacheStore(); // Assuming Redis
-	const inMemoryCacheKey = `inMemoryAdmin:${cacheKey}`; // Separate key for in-memory cache
-
+	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `adminData:tenant:${tenantId}:${cacheKey}` : `adminData:${cacheKey}`;
+	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`; // Separate key for in-memory cache
 	// 1. Try in-memory cache first (fastest)
+
 	const memCached = adminDataCache.get(inMemoryCacheKey);
 	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL) {
 		return memCached.data;
@@ -368,7 +402,7 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 	if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 		// Only cache specific keys in Redis
 		try {
-			const redisCached = await distributedCacheStore.get<{ data: unknown; timestamp: number }>(`adminData:${cacheKey}`);
+			const redisCached = await distributedCacheStore.get<{ data: unknown; timestamp: number }>(distributedCacheKey);
 			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL) {
 				adminDataCache.set(inMemoryCacheKey, redisCached); // Populate in-memory cache
 				return redisCached.data;
@@ -379,37 +413,36 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 	}
 
 	let data = null;
+	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
+
 	if (auth) {
 		try {
 			if (cacheKey === 'roles') {
 				// First try to get roles from the database
-				data = await auth.getAllRoles();
-				// If no roles in database, initialize and use the config roles
+				data = await auth.getAllRoles(); // If no roles in database, initialize and use the config roles
 				if (!data || data.length === 0) {
 					await initializeRoles();
 					data = roles;
 				}
 			} else if (cacheKey === 'users') {
-				data = await auth.getAllUsers();
+				data = await auth.getAllUsers(filter);
 			} else if (cacheKey === 'tokens') {
-				data = await auth.getAllTokens();
+				data = await auth.getAllTokens(filter.filter);
 			}
 
 			if (data) {
 				// Cache in-memory
-				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now });
-				// Cache in distributed store
+				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now }); // Cache in distributed store
 				if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 					try {
-						await distributedCacheStore.set(`adminData:${cacheKey}`, { data, timestamp: now }, new Date(now + USER_PERM_CACHE_TTL));
+						await distributedCacheStore.set(distributedCacheKey, { data, timestamp: now }, new Date(now + USER_PERM_CACHE_TTL));
 					} catch (err) {
 						logger.error(`Failed to write admin data (${cacheKey}) to distributed cache: ${err.message}`);
 					}
 				}
 			}
 		} catch (err) {
-			logger.warn(`Failed to load admin data from DB (${cacheKey}): ${err.message}`);
-			// Specific fallback for roles if DB fetch fails
+			logger.warn(`Failed to load admin data from DB (${cacheKey}): ${err.message}`); // Specific fallback for roles if DB fetch fails
 			if (cacheKey === 'roles') {
 				try {
 					await initializeRoles();
@@ -435,32 +468,35 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 };
 
 // Helper function to invalidate admin data cache - exported for use in API endpoints
-export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): void => {
+export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
 	const distributedCacheStore = getCacheStore();
+	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
+	const distributedCacheKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${cacheKey}`;
+
 	if (cacheKey) {
-		adminDataCache.delete(`inMemoryAdmin:${cacheKey}`); // Invalidate local cache
+		adminDataCache.delete(inMemoryCacheKey); // Invalidate local cache
 		distributedCacheStore
-			.delete(`adminData:${cacheKey}`)
+			.delete(distributedCacheKey)
 			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[31m${cacheKey}\x1b[0m: ${err.message}`));
-		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0m`);
+		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
 	} else {
 		adminDataCache.clear(); // Clear all local caches
 		// For distributed cache, you'd need a pattern-based deletion or iterate if you have a known set of keys
 		// Note: If your cache store supports pattern deletion, use it here
 		['roles', 'users', 'tokens'].forEach((key) => {
-			distributedCacheStore
-				.delete(`adminData:${key}`)
-				.catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
+			const distKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${key}`;
+			distributedCacheStore.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
 		});
 		logger.debug('All admin cache cleared');
 	}
 };
 
 // Helper function to invalidate user count cache - exported for use after user creation/deletion
-export const invalidateUserCountCache = (): void => {
+export const invalidateUserCountCache = (tenantId?: string): void => {
 	userCountCache = null; // Invalidate local cache
 	const distributedCacheStore = getCacheStore();
-	distributedCacheStore.delete('global:userCount').catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
+	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
+	distributedCacheStore.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
 	logger.debug('User count cache invalidated');
 };
 
@@ -484,8 +520,7 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 	const currentLimiter = event.url.pathname.startsWith('/api/') ? apiLimiter : limiter;
 	if (await currentLimiter.isLimited(event)) {
-		logger.warn(`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, endpoint: \x1b[34m${event.url.pathname}\x1b[0m`);
-		// Throw a SvelteKit error that can be caught by +error.svelte
+		logger.warn(`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, endpoint: \x1b[34m${event.url.pathname}\x1b[0m`); // Throw a SvelteKit error that can be caught by +error.svelte
 		throw error(429, 'Too Many Requests. Please try again later.');
 	}
 	return resolve(event);
@@ -542,19 +577,16 @@ async function handleSessionRotation(
 						sessionMetrics.activeExtensions.set(session_id, now);
 
 						const cacheStore = getCacheStore();
-						const sessionData = { user, timestamp: now };
+						const sessionData = { user, timestamp: now }; // Update distributed cache with new session ID
 
-						// Update distributed cache with new session ID
 						sessionCache.set(newTokenId, sessionData);
-						await cacheStore.set(newTokenId, sessionData, new Date(now + CACHE_TTL));
+						await cacheStore.set(newTokenId, sessionData, new Date(now + CACHE_TTL)); // Clean up old session from cache
 
-						// Clean up old session from cache
 						sessionCache.delete(oldSessionId);
 						cacheStore
 							.delete(oldSessionId)
-							.catch((err) => logger.warn(`Failed to delete old session \x1b[31m${oldSessionId}\x1b[0m from cache: ${err.message}`));
+							.catch((err) => logger.warn(`Failed to delete old session \x1b[31m${oldSessionId}\x1b[0m from cache: ${err.message}`)); // Update the cookie to the new session ID
 
-						// Update the cookie to the new session ID
 						event.cookies.set(cookieName, session_id, {
 							path: '/',
 							httpOnly: true,
@@ -593,25 +625,32 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	const requestStartTime = performance.now();
 	const { url, cookies, locals } = event; // Destructure for cleaner access
-
 	// Track request metrics
-	healthMetrics.requests.total++;
 
-	// Skip auth entirely for static assets during initialization
+	healthMetrics.requests.total++; // Skip auth entirely for static assets during initialization
+
 	if (isStaticAsset(url.pathname)) {
 		logger.debug(`Skipping auth for static asset: ${url.pathname}`);
 		return resolve(event);
 	}
 
 	try {
-		// Wait for database initialization
-		await dbInitPromise;
+		// --- MULTI-TENANCY LOGIC ---
+		if (privateEnv.MULTI_TENANT) {
+			const tenantId = getTenantIdFromHostname(url.hostname);
+			if (!tenantId) {
+				throw error(404, `Tenant not found for hostname: ${url.hostname}`);
+			}
+			locals.tenantId = tenantId;
+			logger.debug(`Request identified for tenant: ${tenantId}`);
+		} // Wait for database initialization
 
-		// Check if auth service is ready
+		await dbInitPromise; // Check if auth service is ready
+
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
 
 		let session_id = cookies.get(SESSION_COOKIE_NAME);
-		const user = await getUserFromSessionId(session_id, authServiceReady);
+		const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
 
 		locals.user = user;
 		locals.permissions = user?.permissions || [];
@@ -633,7 +672,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Load roles and other admin data conditionally and with caching
 		if (authServiceReady) {
 			// First, load roles for everyone (guests might need to see public roles)
-			locals.roles = (await getAdminDataCached(user, 'roles')) as unknown[];
+			locals.roles = (await getAdminDataCached(user, 'roles', locals.tenantId)) as unknown[];
 
 			if (locals.user) {
 				// This block now ONLY runs for logged-in users
@@ -648,7 +687,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 					(isAdmin || locals.hasManageUsersPermission) &&
 					(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
 				) {
-					const [allUsers, allTokens] = await Promise.all([getAdminDataCached(locals.user, 'users'), getAdminDataCached(locals.user, 'tokens')]);
+					const [allUsers, allTokens] = await Promise.all([
+						getAdminDataCached(locals.user, 'users', locals.tenantId),
+						getAdminDataCached(locals.user, 'tokens', locals.tenantId)
+					]);
 					locals.allUsers = allUsers as unknown[];
 					locals.allTokens = allTokens;
 				} else {

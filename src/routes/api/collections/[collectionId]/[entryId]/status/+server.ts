@@ -5,13 +5,14 @@
  * @example: PATCH /api/collections/posts/123/status
  *
  * Features:
- *    * Dedicated endpoint for status changes
- *    * Supports batch status updates via query parameters
- *    * Maintains audit trail of status changes
- *    * Permission checking for status modifications
+ * * Dedicated endpoint for status changes
+ * * Supports batch status updates via query parameters
+ * * Maintains audit trail of status changes
+ * * Permission checking for status modifications, scoped to the current tenant
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Databases
 import { dbAdapter } from '@src/databases/db';
@@ -33,26 +34,31 @@ import { logger } from '@utils/logger.svelte';
 // PATCH: Updates entry status
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const start = performance.now();
+	const { user, tenantId } = locals; // Destructure user and tenantId
 
-	if (!locals.user) {
+	if (!user) {
 		throw error(401, 'Unauthorized');
 	}
 
-	const schema = contentManager.getCollectionById(params.collectionId);
+	// In multi-tenant mode, a tenantId is required.
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		logger.error('Status update failed: Tenant ID is missing in a multi-tenant setup.');
+		throw error(400, 'Could not identify the tenant for this request.');
+	}
+
+	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
 		throw error(404, 'Collection not found');
 	}
 
-	if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
+	if (!(await hasCollectionPermission(user, 'write', schema))) {
 		throw error(403, 'Forbidden');
 	}
 
 	try {
-		// Debug logging for request body
 		let body;
 		try {
 			body = await request.json();
-			logger.debug(`PATCH /api/collections/${params.collectionId}/${params.entryId}/status - Request body:`, body);
 		} catch (parseError) {
 			logger.error(`Failed to parse request body: ${parseError.message}`);
 			throw error(400, 'Invalid JSON in request body');
@@ -64,45 +70,48 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Status is required');
 		}
 
-		// Validate status value
-		// Note: 'draft' is only for data entered but never saved (auto-save scenarios)
-		// ActionType mapping: 'publish' action, 'unpublish' action, 'schedule' action
 		const validStatuses = ['draft', 'publish', 'unpublish', 'schedule', 'test', 'archive'];
 		if (!validStatuses.includes(status)) {
 			throw error(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
 		}
 
 		let results = [];
-
-		// Get normalized collection name for database operations
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
+		const updateData = { status, updatedBy: user._id };
 
-		if (entries && Array.isArray(entries)) {
+		if (entries && Array.isArray(entries) && entries.length > 0) {
 			// Batch status update
-			for (const entryId of entries) {
-				const updateData = {
-					status,
-					updatedBy: locals.user._id
-					// Note: updatedAt is automatically set by the database adapter
-					// Removed duplicate statusChangedAt and statusChangedBy fields
-				};
+			const query = { _id: { $in: entries } };
+			if (privateEnv.MULTI_TENANT) {
+				query.tenantId = tenantId;
+			}
 
-				const result = await dbAdapter.crud.update(normalizedCollectionId, entryId, updateData);
+			// --- MULTI-TENANCY SECURITY CHECK ---
+			// Verify all entries belong to the current tenant before updating.
+			const verificationResult = await dbAdapter.crud.find(normalizedCollectionId, query);
+			if (!verificationResult.success || verificationResult.data.length !== entries.length) {
+				logger.warn(`Attempt to update status for entries outside of tenant`, {
+					userId: user._id,
+					tenantId,
+					requestedEntryIds: entries
+				});
+				throw error(403, 'Forbidden: One or more entries do not belong to your tenant or do not exist.');
+			}
 
-				if (result.success) {
-					results.push({ entryId, success: true, data: result.data });
-				} else {
-					results.push({ entryId, success: false, error: result.error.message });
-				}
+			const result = await dbAdapter.crud.updateMany(normalizedCollectionId, query, updateData);
+			if (result.success) {
+				results = entries.map((entryId) => ({ entryId, success: true }));
+			} else {
+				throw error(500, result.error.message);
 			}
 		} else {
 			// Single entry status update
-			const updateData = {
-				status,
-				updatedBy: locals.user._id
-			};
+			const query = { _id: params.entryId };
+			if (privateEnv.MULTI_TENANT) {
+				query.tenantId = tenantId;
+			}
 
-			const result = await dbAdapter.crud.update(normalizedCollectionId, params.entryId, updateData);
+			const result = await dbAdapter.crud.update(normalizedCollectionId, query, updateData);
 
 			if (!result.success) {
 				throw error(500, result.error.message);
@@ -118,7 +127,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const duration = performance.now() - start;
 		const successCount = results.filter((r) => r.success).length;
 
-		logger.info(`Status updated for ${successCount}/${results.length} entries in ${duration.toFixed(2)}ms`);
+		logger.info(`Status updated for ${successCount}/${results.length} entries in ${duration.toFixed(2)}ms`, { tenantId });
 
 		return json({
 			success: true,
