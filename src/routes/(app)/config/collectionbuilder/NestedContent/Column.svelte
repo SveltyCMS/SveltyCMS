@@ -176,9 +176,9 @@
 					<Column
 						item={child}
 						children={child.children ?? []}
-						level={level + 1} // Increase level for nested items
+						level={level + 1} 
 						isCategory={child.nodeType === 'category'}
-						onNodeReorder={onNodeReorder} // Pass the same `onNodeReorder` callback down
+						onNodeReorder={onNodeReorder}  `onNodeReorder` callback down
 						{onEditCategory}
 					/>
 				</div>

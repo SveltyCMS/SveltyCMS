@@ -141,10 +141,10 @@
 		{#each structureState as item (item.id)}
 			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
 				<Column
-					level={0} // Top-level columns start at level 0
+					level={0} 
 					{item}
 					children={item.children ?? []}
-					onNodeReorder={handleDndFinalize} // Pass Board's finalize as callback for any nested reorder
+					onNodeReorder={handleDndFinalize}
 					isCategory={item.nodeType === 'category'}
 					{onEditCategory}
 				/>

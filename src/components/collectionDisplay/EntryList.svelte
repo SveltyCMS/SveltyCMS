@@ -68,9 +68,13 @@ Features:
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 300;
+
+	// Simple ID generator for table headers (no need for crypto UUID)
+	function generateId(): string {
+		return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+	}
 
 	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
 		displayTableHeaders = event.detail.items;
@@ -131,7 +135,7 @@ Features:
 					if (Array.isArray(parsed.displayTableHeaders)) {
 						newSettings.displayTableHeaders = parsed.displayTableHeaders.map(
 							(header: Partial<TableHeader>): TableHeader => ({
-								id: typeof header.id === 'string' && header.id ? header.id : uuidv4().replace(/-/g, ''),
+								id: typeof header.id === 'string' && header.id ? header.id : generateId(),
 								label: typeof header.label === 'string' ? header.label : 'Unknown Label',
 								name: typeof header.name === 'string' ? header.name : 'unknown_name',
 								visible: typeof header.visible === 'boolean' ? header.visible : true
@@ -218,7 +222,7 @@ Features:
 		if (!currentCollection?.fields) return [];
 		const schemaHeaders: TableHeader[] = currentCollection.fields.map(
 			(field: any): TableHeader => ({
-				id: uuidv4().replace(/-/g, ''),
+				id: generateId(),
 				label: field.label,
 				name: getFieldName(field),
 				visible: true // Default visibility
@@ -226,9 +230,9 @@ Features:
 		);
 		return [
 			...schemaHeaders,
-			{ id: uuidv4().replace(/-/g, ''), label: 'createdAt', name: 'createdAt', visible: true },
-			{ id: uuidv4().replace(/-/g, ''), label: 'updatedAt', name: 'updatedAt', visible: true },
-			{ id: uuidv4().replace(/-/g, ''), label: 'status', name: 'status', visible: true }
+			{ id: generateId(), label: 'createdAt', name: 'createdAt', visible: true },
+			{ id: generateId(), label: 'updatedAt', name: 'updatedAt', visible: true },
+			{ id: generateId(), label: 'status', name: 'status', visible: true }
 		];
 	});
 

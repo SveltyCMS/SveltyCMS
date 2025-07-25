@@ -185,13 +185,13 @@
 			return (
 				parsed.displayTableHeaders?.map((header: Partial<TableHeader>) => ({
 					...header,
-					id: crypto.randomUUID()
+					id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 				})) ??
 				tableHeadersUser.map((header) => ({
 					label: header.label,
 					key: header.key,
 					visible: true,
-					id: crypto.randomUUID()
+					id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 				}))
 			);
 		})()
@@ -204,7 +204,7 @@
 			label: header.label,
 			key: header.key,
 			visible: true,
-			id: crypto.randomUUID()
+			id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 		}));
 
 		// Update selectedRows based on selectedMap
