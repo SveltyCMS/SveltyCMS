@@ -882,7 +882,7 @@
 			<!-- Pagination  -->
 
 			<!-- FIX: Added mb-16 for margin-bottom on mobile and other screen sizes -->
-			<div class="mb-16 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
 					{currentPage}
 					{pagesCount}

@@ -21,7 +21,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
-	const { theme, user } = locals;
+	const { theme, user, isAdmin, hasManageUsersPermission, permissions, roles } = locals;
 
 	try {
 		await contentManager.initialize();
@@ -53,10 +53,13 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		return {
 			theme: theme || DEFAULT_THEME,
 			contentStructure: contentStructure,
-			user: freshUser
+			user: freshUser,
+			isAdmin,
+			hasManageUsersPermission,
+			permissions,
+			roles
 		};
 	} catch (error) {
-		console.error('Failed to load layout data:', error);
 		logger.error('Failed to load layout data:', error);
 
 		// Return fallback data
@@ -64,7 +67,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			theme: theme || DEFAULT_THEME,
 			user,
 			contentStructure: [],
-			error: 'Failed to load collection data'
+			error: 'Failed to load collection data',
+			isAdmin: isAdmin || false,
+			hasManageUsersPermission: hasManageUsersPermission || false,
+			permissions: permissions || [],
+			roles: roles || []
 		};
 	}
 };

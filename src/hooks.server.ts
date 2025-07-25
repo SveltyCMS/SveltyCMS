@@ -632,20 +632,34 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		// Load roles and other admin data conditionally and with caching
 		if (authServiceReady) {
-			locals.roles = (await getAdminDataCached(user, 'roles')) as unknown[]; // Type assertion for safety
-			const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })._id === user?.role);
-			const isAdmin = (userRole as { isAdmin?: boolean })?.isAdmin === true;
-			const userHasManagePermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, locals.roles); // Pass roles from locals
-			locals.hasManageUsersPermission = userHasManagePermission;
+			// First, load roles for everyone (guests might need to see public roles)
+			locals.roles = (await getAdminDataCached(user, 'roles')) as unknown[];
 
-			if (
-				(isAdmin || userHasManagePermission) &&
-				(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
-			) {
-				const [allUsers, allTokens] = await Promise.all([getAdminDataCached(user, 'users'), getAdminDataCached(user, 'tokens')]);
-				locals.allUsers = allUsers as unknown[]; // Type assertion
-				locals.allTokens = allTokens;
+			if (locals.user) {
+				// This block now ONLY runs for logged-in users
+				const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
+				const isAdmin = !!(userRole as { isAdmin?: boolean })?.isAdmin;
+
+				locals.isAdmin = isAdmin;
+				locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(locals.user, 'manage', 'user', undefined, locals.roles);
+
+				// Conditionally load other admin data
+				if (
+					(isAdmin || locals.hasManageUsersPermission) &&
+					(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
+				) {
+					const [allUsers, allTokens] = await Promise.all([getAdminDataCached(locals.user, 'users'), getAdminDataCached(locals.user, 'tokens')]);
+					locals.allUsers = allUsers as unknown[];
+					locals.allTokens = allTokens;
+				} else {
+					locals.allUsers = [];
+					locals.allTokens = [];
+				}
 			} else {
+				// This block runs for guests (user is null)
+				// Set safe defaults for non-authenticated users
+				locals.isAdmin = false;
+				locals.hasManageUsersPermission = false;
 				locals.allUsers = [];
 				locals.allTokens = [];
 			}
@@ -653,6 +667,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			// If auth service not ready, set safe defaults and fall back to config roles
 			await initializeRoles(); // Ensure config roles are loaded
 			locals.roles = roles;
+			locals.isAdmin = false;
 			locals.hasManageUsersPermission = false;
 			locals.allUsers = [];
 			locals.allTokens = [];

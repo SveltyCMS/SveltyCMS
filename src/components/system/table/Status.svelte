@@ -55,6 +55,9 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 	{:else if value === StatusTypes.schedule}
 		<iconify-icon icon="bi:clock" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_schedule()}</p>
+	{:else if value === 'deleted'}
+		<iconify-icon icon="bi:trash3-fill" width="20" class="mx-auto"></iconify-icon>
+		<p class="hidden sm:block">Deleted</p>
 	{:else if value === StatusTypes.delete}
 		<iconify-icon icon="bi:trash3-fill" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">Deleted</p>

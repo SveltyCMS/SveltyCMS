@@ -304,7 +304,17 @@ export const translationStatusOpen = () => stores.translationStatusOpen;
 export const setTranslationStatusOpen = (value: boolean) => {
 	stores.translationStatusOpen = value;
 };
-export const translationProgress = () => stores.translationProgress;
+export const translationProgress = {
+	get value() {
+		return stores.translationProgress;
+	},
+	set(value: TranslationProgress) {
+		stores.translationProgress = value;
+	},
+	update(updater: (value: TranslationProgress) => TranslationProgress) {
+		stores.translationProgress = updater(stores.translationProgress);
+	}
+};
 
 // Export update functions for the rune-based stores
 export const updateTranslationStatus = (value: Record<string, unknown>) => {

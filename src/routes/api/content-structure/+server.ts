@@ -2,13 +2,14 @@
  * @file src/routes/api/content-structure/+server.ts
  * @description Unified API endpoint for managing content structure metadata
  *
- *  @example GET /api/content-structure?operation=getContentStructure
+ * @example GET /api/content-structure?operation=getContentStructure
  *
- * Features:
- *    * Lists all collections accessible to the current user
- *    * Filters collections based on user permissions
- *    * Provides collection metadata and configuration
- *
+ * #Features:
+ * Lists all collections accessible to the current user
+ * Filters collections based on user permissions
+ * Provides collection metadata and configuration
+ * Handles creation, updates (including reordering and parent changes), and deletion of content nodes.
+ * Utilizes Redis caching for performance.
  */
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
@@ -53,7 +54,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const cacheKey = `api:content-structure:${action || 'default'}`;
 			const cached = await getCache(cacheKey);
 			if (cached) {
-				logger.debug('Returning cached data', { action });
+				logger.debug('Returning cached data from Redis', { action });
 				return json(cached);
 			}
 		}
@@ -65,7 +66,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				// Return full structure with metadata
 				const { contentStructure: contentNodes } = await contentManager.getCollectionData();
 
-				// Process collections with UUIDs
 				response = {
 					contentStructure: contentNodes
 				};
@@ -87,7 +87,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 					success: true,
 					contentNodes: contentStructure
 				};
-				break;
+				break; // Continue to caching and return
 			}
 
 			default:
@@ -130,20 +130,31 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		switch (action) {
 			case 'updateContentStructure': {
-				// Updates metadata for categories and collections
+				// Updates metadata for categories and collections based on operations from the frontend
 				const { items }: { items: ContentNodeOperation[] } = data;
 
 				if (!items || !Array.isArray(items)) {
-					throw error(400, 'Items array is required');
+					throw error(400, 'Items array is required for updateContentStructure');
 				}
 
-				const contentStructure = await contentManager.upsertContentNodes(items);
+				// The `contentManager.upsertContentNodes` method is expected to:
+				// 1. Iterate through `items`.
+				// 2. For each `ContentNodeOperation` (type: 'create', 'update', 'rename', 'move'):
+				//    a. Perform the respective database operation (insert, update, delete).
+				//    b. Crucially, handle `parentId` and `order` fields for 'move' operations.
+				// 3. Return the *complete, flattened, and updated content structure* from the database.
+				const updatedContentStructure = await contentManager.upsertContentNodes(items);
 
-				// await contentManager.updateCollections(true);
+				// Clear content structure cache as data has changed
+				if (!browser && isRedisEnabled()) {
+					await clearCache('api:content-structure:*');
+					logger.debug('Cleared content-structure cache after update.');
+				}
+
 				logger.info('Content structure metadata updated successfully');
 				return json({
 					success: true,
-					contentStructure,
+					contentStructure: updatedContentStructure, // Send back the updated structure for frontend re-sync
 					message: 'Content structure metadata updated successfully'
 				});
 			}
@@ -151,6 +162,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				// Clear Redis cache if available
 				if (!browser && isRedisEnabled()) {
 					await clearCache('api:content-structure:*');
+					logger.debug('Cleared all content-structure related caches.');
 				}
 
 				// Reset the content manager's internal state and force recompilation
@@ -196,8 +208,15 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 		const updatedNode = await dbAdapter.updateContentStructure(_id, updates);
 		if (!updatedNode) throw error(404, 'Node not found');
-		// Update collections to reflect the changes
-		await contentManager.updateCollections(true);
+
+		// Invalidate cache after a single node update
+		if (!browser && isRedisEnabled()) {
+			await clearCache('api:content-structure:*');
+			logger.debug(`Cleared content-structure cache after PUT update for node ${_id}.`);
+		}
+		// Update content manager's internal state (recompile if necessary)
+		// Assuming updateCollections(true) forces a full re-read and recompile
+		await contentManager.updateCollections(true); // This might be heavy; consider a more targeted update if possible
 		logger.info(`Content node \x1b[34m${_id}\x1b[0m updated successfully`);
 		return json({
 			success: true,

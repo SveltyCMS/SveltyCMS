@@ -1,3 +1,13 @@
+/**
+ * @file src/auth/rateLimiter.ts
+ * @description  Rate Limiter
+ *
+ * Feature:
+ * - Rate Limiting
+ * - Time Window
+ * - Identifier
+ */
+
 import { dev } from '$app/environment';
 
 interface RateLimitRecord {

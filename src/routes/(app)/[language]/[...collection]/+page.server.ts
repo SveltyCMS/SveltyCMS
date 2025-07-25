@@ -27,7 +27,7 @@ import { contentManager } from '@root/src/content/ContentManager';
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-	const { user, theme } = locals;
+	const { user, theme, isAdmin, hasManageUsersPermission, permissions, roles } = locals;
 	const { language, collection } = params;
 
 	// User's preferred language from session
@@ -110,12 +110,29 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			path: currentCollection?.path,
 			icon: currentCollection?.icon,
 			label: currentCollection?.label,
-			description: currentCollection?.description
+			description: currentCollection?.description,
+			// Only pass serializable field properties
+			fields:
+				currentCollection?.fields?.map((field) => ({
+					label: field.label,
+					name: field.name,
+					type: field.type,
+					widget: field.widget ? { Name: field.widget.Name } : undefined,
+					db_fieldName: field.db_fieldName,
+					required: field.required,
+					unique: field.unique,
+					translated: field.translated
+					// Exclude non-serializable properties like display, callback functions
+				})) || []
 		},
 		user: {
 			username: user.username,
 			role: user.role,
 			avatar: user.avatar
-		}
+		},
+		isAdmin,
+		hasManageUsersPermission,
+		permissions,
+		roles
 	};
 };

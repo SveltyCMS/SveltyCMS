@@ -170,14 +170,6 @@ This component provides a lightweight, flexible interface for table filtering, u
 		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
 
-	{#if filterShow}
-		<!-- Show Deleted Checkbox (only when filter is expanded) -->
-		<label class="ml-2 flex cursor-pointer items-center gap-2 text-sm">
-			<input type="checkbox" bind:checked={showDeleted} />
-			Show Deleted
-		</label>
-	{/if}
-
 	<!-- Column Order & Visibility -->
 	<button
 		type="button"

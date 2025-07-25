@@ -83,16 +83,24 @@ export function updateEntry(collectionId: string, entryId: string, payload: Reco
 }
 
 export function batchUpdateEntries(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
-	return fetchApi(`/api/collections/${collectionId}/batch-update`, {
-		method: 'PATCH',
-		body: JSON.stringify(payload)
-	});
+	// Use the status endpoint for batch status updates
+	const { ids, status, ...otherFields } = payload;
+	if (status && ids && Array.isArray(ids)) {
+		// Use status endpoint for status changes
+		return fetchApi(`/api/collections/${collectionId}/${ids[0]}/status`, {
+			method: 'PATCH',
+			body: JSON.stringify({ status, entries: ids, ...otherFields })
+		});
+	}
+	// For other batch operations, we might need a different approach
+	// For now, throw error if not status update
+	throw new Error('Batch updates only supported for status changes');
 }
 
-export function batchDeleteEntries(collectionId: string, ids: string[], permanent: boolean): Promise<ApiResponse<unknown>> {
-	return fetchApi(`/api/collections/${collectionId}/batch-delete`, {
-		method: 'POST', // Use POST for DELETE with a body
-		body: JSON.stringify({ ids, permanent })
+export function updateEntryStatus(collectionId: string, entryId: string, status: string): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/${entryId}/status`, {
+		method: 'PATCH',
+		body: JSON.stringify({ status })
 	});
 }
 

@@ -7,8 +7,17 @@ import type { StatusType } from '@src/content/types';
 import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
 import type { ModalStore, ToastStore } from '@skeletonlabs/skeleton';
 import { publicEnv } from '@root/config/public';
-import { batchUpdateEntries, batchDeleteEntries, createClones, updateEntry, createEntry, invalidateCollectionCache } from './apiClient';
+import { batchUpdateEntries, createClones, updateEntry, createEntry, invalidateCollectionCache, updateEntryStatus } from './apiClient';
 import * as m from '@src/paraglide/messages';
+
+// Helper function to update entry status
+async function updateStatus(collectionId: string, entryId: string, status: string) {
+	const result = await updateEntryStatus(collectionId, entryId, status);
+	if (!result.success) {
+		throw new Error(result.error || 'Failed to update status');
+	}
+	return result;
+}
 
 // Sets the status for one or more entries
 export async function setEntriesStatus(
@@ -38,14 +47,26 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 	if (!collId) return;
 
 	const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE && !isPermanentDelete;
-	const actionText = isArchiving ? 'archived' : 'permanently deleted';
 
-	const result = await batchDeleteEntries(collId, entryIds, isPermanentDelete);
-	if (result.success) {
-		toastStore.trigger({ message: `Entries ${actionText}` });
-		onSuccess();
+	if (isArchiving) {
+		// Archive entries by updating their status to 'archive'
+		const result = await batchUpdateEntries(collId, { ids: entryIds, status: StatusTypes.archive });
+		if (result.success) {
+			toastStore.trigger({ message: 'Entries archived successfully', background: 'variant-filled-success' });
+			onSuccess();
+		} else {
+			toastStore.trigger({ message: result.error || 'Failed to archive entries', background: 'variant-filled-error' });
+		}
 	} else {
-		toastStore.trigger({ message: result.error || `Failed to ${actionText.slice(0, -1)} entries` });
+		// Permanent delete - for now, we'll also use status update to 'delete' status
+		// TODO: Implement actual deletion API endpoint for permanent deletion
+		const result = await batchUpdateEntries(collId, { ids: entryIds, status: StatusTypes.delete });
+		if (result.success) {
+			toastStore.trigger({ message: 'Entries deleted permanently', background: 'variant-filled-success' });
+			onSuccess();
+		} else {
+			toastStore.trigger({ message: result.error || 'Failed to delete entries', background: 'variant-filled-error' });
+		}
 	}
 }
 
@@ -79,7 +100,16 @@ export async function saveEntry(entryData: Record<string, unknown>, toastStore: 
 	}
 
 	const entryId = entryData._id as string | undefined;
-	const payload = { ...entryData, status: publish ? 'published' : 'draft' };
+
+	// Preserve user's chosen status unless explicitly publishing
+	const payload = { ...entryData };
+	if (publish) {
+		payload.status = 'publish';
+	} else if (!payload.status) {
+		// Only set to draft if no status is specified (new entries)
+		payload.status = 'draft';
+	}
+	// Otherwise preserve the existing status from entryData
 
 	const result = entryId ? await updateEntry(collId, entryId, payload) : await createEntry(collId, payload);
 

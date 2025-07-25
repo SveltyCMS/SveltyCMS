@@ -28,7 +28,7 @@ Features:
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { getData, invalidateCollectionCache } from '@utils/apiClient';
+	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus } from '@utils/apiClient';
 	import { getCachedCollectionData } from '@utils/collections-prefetch';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
@@ -195,7 +195,7 @@ Features:
 	let stableDataExists = $state(false);
 	let hasInitialLoad = $state(false);
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
-	let rawData = $state<{ entryList: any[]; pagesCount?: number; totalItems?: number } | undefined>();
+	let rawData = $state<{ items: any[]; totalPages?: number; total?: number } | undefined>();
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -310,7 +310,7 @@ Features:
 		selectAllColumns = displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
 	});
 
-	let data = $state<{ entryList: any[]; pagesCount?: number; totalItems?: number } | undefined>();
+	let data = $state<{ items: any[]; totalPages?: number; total?: number } | undefined>();
 	let tableData = $state<any[]>([]); // Processed data for rendering
 	let pagesCount = $state(1);
 	let totalItems = $state(0);
@@ -359,36 +359,17 @@ Features:
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
 						: {};
 
-				// Check for prefetched data first (only for first page with default filters/sorting)
+				// Skip prefetched data to ensure proper pagination
+				// Prefetched data often contains more items than the requested limit
+				// which interferes with pagination functionality
 				let usedPrefetchedData = false;
-				if (
-					page === 1 &&
-					[5, 10, 20].includes(limit) && // Allow prefetching for common page sizes
-					Object.keys(activeFilters).length === 1 &&
-					activeFilters.status === '!=deleted' &&
-					(!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
-				) {
-					// Try to get prefetched data
-					try {
-						const { getCachedCollectionData } = await import('@utils/collections-prefetch');
-						const prefetchedData = getCachedCollectionData(currentCollId, currentLanguage);
-
-						if (prefetchedData) {
-							data = prefetchedData;
-							usedPrefetchedData = true;
-						} else {
-						}
-					} catch (prefetchError) {
-						// Silently continue if prefetch fails
-					}
-				}
 
 				// If no prefetched data available, fetch normally
 				if (!usedPrefetchedData) {
 					const queryParams = {
 						collectionId: currentCollId,
 						page,
-						limit,
+						pageSize: limit, // API expects pageSize, not limit
 						contentLanguage: currentLanguage,
 						filter: JSON.stringify(activeFilters),
 						sort: JSON.stringify(sortParam),
@@ -408,9 +389,10 @@ Features:
 				// Process the fetched data
 				if (data) {
 					rawData = data;
-					tableData = data.entryList || [];
-					pagesCount = data.pagesCount ?? 1;
-					totalItems = data.totalItems ?? 0;
+					// Use NEW API response format - API returns 'items' array
+					tableData = data.items || [];
+					pagesCount = data.totalPages || 1;
+					totalItems = data.total || 0;
 					stableDataExists = true; // We have some data to show
 				} else {
 					// Handle case where data fetch failed or returned nothing
@@ -526,10 +508,55 @@ Features:
 		if (currentMode === 'view') {
 			untrack(() => {
 				meta_data.clear();
-				// Don't set empty object, just clear the existing data safely
+				// Handle unsaved draft creation when exiting create mode
 				const currentValue = collectionValue.value;
 				if (currentValue && Object.keys(currentValue).length > 0) {
+					// Check if we have unsaved data from create mode that should be saved as draft
+					const hasUnsavedData = Object.entries(currentValue).some(([key, value]) => {
+						// Ignore system fields when checking for content
+						if (key.startsWith('_') || key === 'createdAt' || key === 'updatedAt' || key === 'createdBy' || key === 'updatedBy') {
+							return false;
+						}
+						// Check if field has meaningful content
+						if (value && typeof value === 'object' && !Array.isArray(value)) {
+							// For translated fields, check if any language has content
+							return Object.values(value).some((v) => v !== null && v !== '' && v !== undefined);
+						}
+						// For simple fields, check if not empty
+						return value !== null && value !== '' && value !== undefined;
+					});
+
+					// If there's unsaved content and no _id (new entry), save as draft
+					if (hasUnsavedData && !currentValue._id) {
+						// Use collection's default status instead of hardcoded 'draft'
+						const defaultStatus = collection.value?.status || 'draft';
+						const draftEntry = { ...currentValue, status: defaultStatus };
+						// Save as draft silently
+						untrack(async () => {
+							const collId = collection.value?._id;
+							if (collId) {
+								try {
+									const result = await createEntry(collId, draftEntry);
+									if (result.success) {
+										// Don't show toast for auto-draft save to avoid confusion
+										invalidateCollectionCache(collId);
+									}
+								} catch (error) {
+									// Silently handle errors for auto-draft saves
+									console.warn('Auto-draft save failed:', error);
+								}
+							}
+						});
+					}
+
+					// Clear the collection value
 					collectionValue.set({});
+				}
+				// Refresh data when returning to view mode (after save/edit)
+				const currentCollId = collection.value?._id;
+				if (currentCollId && hasInitialLoad) {
+					invalidateCollectionCache(currentCollId);
+					refreshTableData(true);
 				}
 			});
 		}
@@ -608,14 +635,24 @@ Features:
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => {
 				const selectedId = tableData[Number(index)]._id;
-				return rawData?.entryList.find((rawEntry) => rawEntry._id === selectedId);
+				// Use NEW API response format - API returns 'items' array
+				const entryList = rawData?.items || [];
+				return entryList.find((rawEntry) => rawEntry._id === selectedId);
 			})
 			.filter(Boolean); // Filter out any potential undefined values
 
 	// Callback to refresh data after an action
 	const onActionSuccess = () => {
-		invalidateCollectionCache(collection.value!._id);
-		refreshTableData();
+		const currentCollId = collection.value?._id;
+		if (currentCollId) {
+			invalidateCollectionCache(currentCollId);
+			// Force a refresh by resetting state and fetching new data
+			untrack(() => {
+				hasInitialLoad = false;
+				stableDataExists = false;
+				refreshTableData(true);
+			});
+		}
 	};
 
 	// Handler for creating a new entry
@@ -629,8 +666,8 @@ Features:
 				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
 			}
 		}
-		// Also initialize system fields
-		newEntry.status = 'draft';
+		// Don't set status here - let it be set when user saves
+		// This allows draft status only when user exits without saving
 
 		// Set the new entry data FIRST
 		collectionValue.set(newEntry);
@@ -876,7 +913,7 @@ Features:
 	{/if}
 
 	{#if shouldShowTable}
-		<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
+		<div class="table-container max-h-[calc(100dvh)] overflow-auto">
 			<table
 				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
 					? 'table-compact'
@@ -998,20 +1035,10 @@ Features:
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
 											title={header.name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
-											onclick={() => {
+											onclick={async () => {
 												if (header.name === 'status') {
-													// console.log('🎯 Status column clicked for entry:', entry._id, 'current status:', entry.raw_status);
-
-													// Handle status column click - select this entry and show status change modal
-													// First, clear all other selections and select only this entry
-													Object.keys(selectedMap).forEach((key) => {
-														selectedMap[key] = false;
-													});
-													selectedMap[index] = true;
-													// console.log('✅ Entry selected:', selectedMap);
-
-													// Get current status and determine next logical status
-													const currentStatus = entry.raw_status;
+													// Handle single entry status change with modal (same style as multibutton)
+													const currentStatus = entry.status || entry.raw_status || 'draft';
 													let nextStatus;
 
 													// Define status progression logic
@@ -1037,12 +1064,66 @@ Features:
 															break;
 													}
 
-													// console.log(`🔄 Status change: ${currentStatus} → ${nextStatus}`);
+													// Create modal with same styling as multibutton modals
+													const getStatusColor = (status: string) => {
+														switch (status) {
+															case StatusTypes.publish:
+																return { color: 'primary', name: 'Publication' };
+															case StatusTypes.unpublish:
+																return { color: 'yellow', name: 'Unpublication' };
+															case StatusTypes.draft:
+																return { color: 'surface', name: 'Draft' };
+															default:
+																return { color: 'primary', name: 'Status Change' };
+														}
+													};
 
-													// Trigger the status change modal
-													modifyEntry.value(nextStatus);
+													const statusInfo = getStatusColor(nextStatus);
+													const modalSettings: ModalSettings = {
+														type: 'confirm',
+														title: `Please Confirm <span class="text-${statusInfo.color}-500 font-bold">${statusInfo.name}</span>`,
+														body: `Are you sure you want to <span class="text-${statusInfo.color}-500 font-semibold">change</span> this entry status to <span class="text-${statusInfo.color}-500 font-semibold">${nextStatus}</span>?`,
+														buttonTextConfirm: nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1),
+														buttonTextCancel: 'Cancel',
+														meta: {
+															buttonConfirmClasses: `bg-${statusInfo.color}-500 hover:bg-${statusInfo.color}-600 text-white`
+														},
+														response: async (confirmed: boolean) => {
+															if (confirmed) {
+																try {
+																	const collId = collection.value?._id;
+																	if (!collId) return;
+
+																	// Use single entry update API
+																	const result = await updateEntryStatus(collId, entry._id, nextStatus);
+																	if (result.success) {
+																		toastStore.trigger({
+																			message: `Entry status updated to ${nextStatus}`,
+																			background: 'variant-filled-success'
+																		});
+																		// Refresh the table data
+																		onActionSuccess();
+																	} else {
+																		toastStore.trigger({
+																			message: result.error || 'Failed to update entry status',
+																			background: 'variant-filled-error'
+																		});
+																	}
+																} catch (error) {
+																	console.error('Error updating entry status:', error);
+																	toastStore.trigger({
+																		message: 'An error occurred while updating entry status',
+																		background: 'variant-filled-error'
+																	});
+																}
+															}
+														}
+													};
+													modalStore.trigger(modalSettings);
 												} else {
-													const originalEntry = data?.entryList.find((e) => e._id === entry._id);
+													// Use NEW API response format - API returns 'items' array
+													const entryList = rawData?.items || [];
+													const originalEntry = entryList.find((e) => e._id === entry._id);
 													if (originalEntry) {
 														// Load the entry data into collectionValue
 														collectionValue.set(originalEntry);
@@ -1073,7 +1154,16 @@ Features:
 											}}
 										>
 											{#if header.name === 'status'}
-												<Status value={entry.raw_status} />
+												<Status value={entry.status || entry.raw_status || 'draft'} />
+											{:else if header.name === 'createdAt' || header.name === 'updatedAt'}
+												<div class="flex flex-col text-xs">
+													<div class="font-semibold">
+														{formatDisplayDate(entry[header.name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
+													</div>
+													<div class="text-surface-500 dark:text-surface-400">
+														{formatDisplayDate(entry[header.name], 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+													</div>
+												</div>
 											{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
 												{@html entry[header.name][currentLanguage] || '-'}
 											{:else}
@@ -1090,7 +1180,7 @@ Features:
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				bind:currentPage={entryListPaginationSettings.currentPage}
