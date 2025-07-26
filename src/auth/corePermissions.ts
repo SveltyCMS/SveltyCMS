@@ -59,7 +59,13 @@ export const corePermissions: Permission[] = [
 	{ _id: 'user:update', name: 'User Update Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'user' },
 	{ _id: 'user:delete', name: 'User Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'user' },
 
-	// System resource permissions (used by tokens, themes, content-structure, etc.)
+	// --- NEW: Tenant management permissions (for multi-tenant mode) ---
+	{ _id: 'tenant:create', name: 'Create Tenants', action: PermissionAction.CREATE, type: PermissionType.SYSTEM, contextId: 'tenant' },
+	{ _id: 'tenant:read', name: 'Read Tenants', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'tenant' },
+	{ _id: 'tenant:update', name: 'Update Tenants', action: PermissionAction.UPDATE, type: PermissionType.SYSTEM, contextId: 'tenant' },
+	{ _id: 'tenant:delete', name: 'Delete Tenants', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'tenant' },
+	{ _id: 'tenant:manage', name: 'Manage Tenants', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM, contextId: 'tenant' }, // System resource permissions (used by tokens, themes, content-structure, etc.)
+
 	{ _id: 'system:read', name: 'System Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'system' },
 	{ _id: 'system:write', name: 'System Write Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'system' },
 	{ _id: 'system:delete', name: 'System Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'system' },

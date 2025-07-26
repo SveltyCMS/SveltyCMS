@@ -38,7 +38,6 @@ import type { ComponentType } from 'svelte';
 import { privateEnv } from '@root/config/private';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Nodemailer for actual email sending
 import nodemailer from 'nodemailer';
@@ -101,8 +100,8 @@ const renderEmailToStrings = async (
 	try {
 		// Use Svelte's server-side render function
 		const result = render(component, { props: props || {} });
-
 		// Extract HTML and create a simple text version
+
 		const html = result.body;
 		// Create a simple text version by stripping HTML tags
 		const text = html
@@ -130,27 +129,28 @@ function createErrorResponse(message: string, status: number = 500) {
 
 // --- POST Handler ---
 export const POST: RequestHandler = async ({ request, locals }) => {
+	const { user, tenantId } = locals;
 	// Check for internal API calls (from createToken API)
 	const isInternalCall = request.headers.get('x-internal-call') === 'true';
-
 	// Check sendMail permissions (skip for internal calls)
 	if (!isInternalCall) {
-		const permissionResult = await checkApiPermission(locals.user, {
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'sendMail',
 			action: 'write'
 		});
 
 		if (!permissionResult.hasPermission) {
 			logger.warn('Unauthorized attempt to send email', {
-				userId: locals.user?._id,
+				userId: user?._id,
+				tenantId,
 				error: permissionResult.error
 			});
 			return createErrorResponse(permissionResult.error || 'Forbidden', permissionResult.error?.includes('Authentication') ? 401 : 403);
 		}
 
-		logger.debug(`User '${locals.user?.username || 'Unknown (hook issue or public access attempt)'}' calling /api/sendMail`);
+		logger.debug(`User '${user?.username || 'Unknown'}' calling /api/sendMail`, { tenantId });
 	} else {
-		logger.debug('Internal API call to /api/sendMail');
+		logger.debug('Internal API call to /api/sendMail', { tenantId });
 	}
 
 	let requestBody: {
@@ -164,29 +164,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		requestBody = await request.json();
 	} catch (error) {
-		logger.error('Invalid JSON in request body:', error);
+		logger.error('Invalid JSON in request body:', { error, tenantId });
 		return createErrorResponse('Invalid JSON in request body.', 400);
 	}
 
 	const { recipientEmail, subject, templateName, props = {}, languageTag = 'en' } = requestBody;
-
 	// Basic input validation
 	if (!recipientEmail || !subject || !templateName) {
 		return createErrorResponse('Missing required fields: recipientEmail, subject, or templateName.', 400);
 	}
 	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
 		return createErrorResponse('Invalid recipient email address format.', 400);
-	}
+	} // 1. Get the email template component dynamically
 
-	// logger.info('Processing email request via API:', { recipientEmail, subject, templateName, lang: languageTag });
-
-	// 1. Get the email template component dynamically
 	const SelectedTemplateComponent = await getEmailTemplate(templateName);
 	if (!SelectedTemplateComponent) {
 		const availableTemplateNames = Object.keys(svelteEmailModules).map((path) => path.split('/').pop()?.replace('.svelte', ''));
 		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
-
 	// Validate SMTP configuration from privateEnv
 	const requiredSmtpVars: (keyof typeof privateEnv)[] = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
 	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
@@ -195,24 +190,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.error('SMTP configuration is incomplete in /api/sendMail. Missing variables:', { missingVars });
 		return createErrorResponse(`Server SMTP configuration is incomplete. Email sending aborted.`, 500);
 	}
+	// Enhance props with languageTag if your templates expect it
 
-	// Enhance props with languageTag if your templates expect it (they should get it from svelte-email-tailwind's render context or directly)
 	const templateProps = {
 		...props,
-		languageTag: languageTag // Ensure languageTag is consistently available
+		languageTag: languageTag
 	};
-
 	// 2. Render email content (HTML and Text)
+
 	let emailHtml: string, emailText: string;
 	try {
 		const rendered = await renderEmailToStrings(SelectedTemplateComponent, templateName, templateProps);
 		emailHtml = rendered.html;
 		emailText = rendered.text;
 	} catch (renderErr) {
-		// renderEmailToStrings already logs, createErrorResponse will also log.
 		return createErrorResponse((renderErr as Error).message, 500);
 	}
-
 	// 3. Configure Nodemailer Transporter
 	const smtpPort = Number(privateEnv.SMTP_PORT);
 	const secureConnection = smtpPort === 465;
@@ -226,24 +219,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			pass: privateEnv.SMTP_PASSWORD
 		},
 		tls: {
-			// For production, it should be true (or omitted, as true is default).
 			rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true
 		},
-		debug: process.env.NODE_ENV === 'development' // Enable Nodemailer debug logs in development
+		debug: process.env.NODE_ENV === 'development'
 	});
-
-	// Optional: Verify SMTP connection (can be slow, use judiciously)
-	if (process.env.NODE_ENV === 'development') {
-		try {
-			await transporter.verify();
-			logger.info(`SMTP connection verified successfully by \x1b[34m/api/sendMail\x1b[0m`);
-		} catch (err) {
-			const verifyError = err as Error;
-			logger.warn('SMTP connection verification failed in /api/sendMail:', { error: verifyError.message });
-		}
-	}
-
 	// 4. Define Mail Options
+
 	const mailOptions: Mail.Options = {
 		from: {
 			name: props?.sitename || privateEnv.SMTP_FROM_NAME || 'SveltyCMS',
@@ -254,7 +235,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		text: emailText,
 		html: emailHtml
 	};
-
 	// 5. Send Email
 	try {
 		const info = await transporter.sendMail(mailOptions);
@@ -263,7 +243,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			subject,
 			templateName,
 			messageId: info.messageId,
-			response: info.response
+			tenantId
 		});
 		return json({ success: true, message: 'Email sent successfully.' });
 	} catch (err) {
@@ -273,7 +253,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			subject,
 			templateName,
 			error: sendError.message,
-			stack: sendError.stack
+			tenantId
 		});
 		return createErrorResponse(`Email sending failed: ${sendError.message}`, 500);
 	}

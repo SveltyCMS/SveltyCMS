@@ -58,9 +58,9 @@ export function uniqueItems(items: Record<string, unknown>[], key: string): obje
 export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
 	const guiFields: Record<string, unknown> = {};
 	for (const key in GuiSchema) {
-		if (Array.isArray(fieldParams[key])) {
-			guiFields[key] = deepCopy(fieldParams[key]);
-		} else {
+		if (Object.prototype.hasOwnProperty.call(fieldParams, key) && Array.isArray(fieldParams[key])) {
+			guiFields[key] = deepCopy(fieldParams[key] as unknown[]);
+		} else if (Object.prototype.hasOwnProperty.call(fieldParams, key)) {
 			guiFields[key] = fieldParams[key];
 		}
 	}
@@ -357,7 +357,7 @@ export function updateTranslationProgress(data: unknown, field: unknown) {
 	if (!fieldName || !field?.translated) {
 		return; // Exit if field name is invalid or field is not translatable
 	}
-	const current = translationProgress();
+	const current = translationProgress.value;
 	// Ensure 'show' property exists or initialize it
 	if (typeof current.show === 'undefined') {
 		current.show = false; // Or true, depending on desired initial state

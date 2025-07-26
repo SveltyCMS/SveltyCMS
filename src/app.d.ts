@@ -42,6 +42,7 @@ declare global {
 			permissions: string[]; // Changed from optional to required, and removed 'any'
 			session_id?: string; // Added this property
 			isFirstUser: boolean; // Added this property
+			isAdmin: boolean; // Added this property for component access
 			hasManageUsersPermission: boolean; // Added this property
 			roles: Role[]; // Using imported Role type
 			allUsers: User[]; // Using imported User type

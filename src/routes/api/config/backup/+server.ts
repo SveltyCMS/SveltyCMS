@@ -7,7 +7,6 @@ import fs from 'fs/promises';
 import path from 'path';
 
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 export async function POST({ cookies }) {
 	// Check permissions using centralized system

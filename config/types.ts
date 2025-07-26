@@ -25,50 +25,51 @@ export const privateConfigSchema = object({
 	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Optional: Number of retry attempts on connection failure
 	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Optional: Delay in ms between retry attempts
 	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Optional: Database connection pool size
-
+	MULTI_TENANT: optional(boolean()), // Optional: Set to `true` to enable multi-tenancy
 	// --- SMTP config - See https://nodemailer.com ---
+
 	SMTP_HOST: optional(string()), // SMTP server host for sending emails
 	SMTP_PORT: optional(pipe(number(), minValue(1))), // SMTP server port
 	SMTP_EMAIL: optional(string()), // Email address to send from
 	SMTP_PASSWORD: optional(string()), // Password for the SMTP email account
 	SERVER_PORT: optional(pipe(number(), minValue(1))), // Port for the application server
-
 	// --- Google OAuth ---
+
 	USE_GOOGLE_OAUTH: boolean(), // Set to `true` to enable Google OAuth for login
 	GOOGLE_CLIENT_ID: optional(string()), // Google OAuth Client ID
 	GOOGLE_CLIENT_SECRET: optional(string()), // Google OAuth Client Secret
-
 	// --- Redis config ---
+
 	USE_REDIS: boolean(), // Set to `true` to enable Redis for caching
 	REDIS_HOST: optional(string()), // Redis server host address
 	REDIS_PORT: optional(pipe(number(), minValue(1))), // Redis server port number
 	REDIS_PASSWORD: optional(string()), // Optional: Password for Redis server
-
 	// --- Session configuration ---
+
 	SESSION_CLEANUP_INTERVAL: optional(pipe(number(), minValue(1))), // Interval in ms to clean up expired sessions
 	MAX_IN_MEMORY_SESSIONS: optional(pipe(number(), minValue(1))), // Maximum number of sessions to hold in memory
 	DB_VALIDATION_PROBABILITY: optional(pipe(number(), minValue(0), maxValue(1))), // Probability (0-1) of validating a session against the DB
 	SESSION_EXPIRATION_SECONDS: optional(pipe(number(), minValue(1))), // Duration in seconds until a session expires
-
 	// --- Mapbox config ---
+
 	USE_MAPBOX: boolean(), // Set to `true` to enable Mapbox integration
 	MAPBOX_API_TOKEN: optional(string()), // Public Mapbox API token (for client-side use)
 	SECRET_MAPBOX_API_TOKEN: optional(string()), // Secret Mapbox API token (for server-side use)
-
 	// --- Other APIs ---
+
 	GOOGLE_API_KEY: optional(string()), // Google API Key for services like Maps and YouTube
 	TWITCH_TOKEN: optional(string()), // API token for Twitch integration
 	USE_TIKTOK: optional(boolean()), // Set to `true` to enable TikTok integration
 	TIKTOK_TOKEN: optional(string()), // API token for TikTok integration
-
 	// --- LLM APIs ---
-	LLM_APIS: optional(object({})), // Configuration object for Large Language Model APIs
 
+	LLM_APIS: optional(object({})), // Configuration object for Large Language Model APIs
 	// --- Roles and Permissions ---
+
 	ROLES: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one role is required.')), // List of user roles available in the system
 	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one permission is required.')), // List of permissions available in the system
-
 	// --- JWT Secret ---
+
 	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')) // Secret key for JWT
 });
 
@@ -79,18 +80,18 @@ export const publicConfigSchema = object({
 	// --- Host configuration ---
 	HOST_DEV: pipe(string(), minLength(1)), // Development server URL (e.g., 'http://localhost:5173')
 	HOST_PROD: pipe(string(), minLength(1)), // Production server URL (e.g., 'https://mywebsite.com')
-
 	// --- Site configuration ---
+
 	SITE_NAME: pipe(string(), minLength(1)), // The public name of the website
 	PASSWORD_LENGTH: pipe(number(), minValue(8)), // Minimum required length for user passwords
-
 	// --- Language Configuration ---
+
 	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)), // Default language for content (e.g., 'en')
 	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available content languages
 	BASE_LOCALE: pipe(string(), minLength(1)), // Default/base locale for the CMS interface (from inlang)
 	LOCALES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available interface locales (from inlang)
-
 	// --- Media configuration ---
+
 	MEDIA_FOLDER: pipe(string(), minLength(1)), // Server path where media files are stored
 	MEDIA_OUTPUT_FORMAT_QUALITY: object({
 		format: union([literal('original'), literal('jpg'), literal('webp'), literal('avif')]), // Image format for output
@@ -102,15 +103,15 @@ export const publicConfigSchema = object({
 	BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))), // Body size limit for server requests in bytes
 	EXTRACT_DATA_PATH: optional(string()), // Optional file path where exported collection data will be written (e.g., './exports/data.json')
 	USE_ARCHIVE_ON_DELETE: optional(boolean()), // Set to `true` to enable archiving instead of permanent deletion
-
 	// --- Seasons Icons for login page ---
+
 	SEASONS: optional(boolean()), // Set to `true` to enable seasonal themes on the login page
 	SEASON_REGION: optional(union([literal('Western_Europe'), literal('South_Asia'), literal('East_Asia'), literal('Global')])), // Region for determining seasonal themes
-
 	// --- Versioning ---
-	PKG_VERSION: optional(string()), // Package version, often synced with package.json for display
 
+	PKG_VERSION: optional(string()), // Package version, often synced with package.json for display
 	// --- Logging ---
+
 	LOG_LEVELS: pipe(
 		array(
 			union([
@@ -127,8 +128,8 @@ export const publicConfigSchema = object({
 	), // Defines the logging levels to be active. Default: ['error'] for production efficiency
 	LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))), // Number of days to keep log files
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
-
 	// --- Demo Mode ---
+
 	DEMO: optional(boolean()) // Set to `true` to enable demo mode, which may restrict certain features
 });
 
@@ -177,10 +178,10 @@ function logValidationErrors(issues: Issue[], configFile: string): void {
 
 	issues.forEach((issue) => {
 		const fieldPath = formatPath(issue.path) || 'Configuration object';
-		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
-		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
+		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
+		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
 		if (issue.input !== undefined) {
-			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
+			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
 		}
 	});
 }
@@ -192,9 +193,8 @@ function logValidationErrors(issues: Issue[], configFile: string): void {
  * @returns An array of human-readable error messages.
  */
 function performConditionalValidation(config: Record<string, unknown>): string[] {
-	const errors: string[] = [];
+	const errors: string[] = []; // Private Config Checks
 
-	// Private Config Checks
 	if (config.USE_GOOGLE_OAUTH && (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET)) {
 		errors.push(
 			`When ${colors.cyan}USE_GOOGLE_OAUTH${colors.reset} is true, both ${colors.cyan}GOOGLE_CLIENT_ID${colors.reset} and ${colors.cyan}GOOGLE_CLIENT_SECRET${colors.reset} are required.`
@@ -210,9 +210,8 @@ function performConditionalValidation(config: Record<string, unknown>): string[]
 	}
 	if (config.USE_TIKTOK && !config.TIKTOK_TOKEN) {
 		errors.push(`When ${colors.cyan}USE_TIKTOK${colors.reset} is true, a ${colors.cyan}TIKTOK_TOKEN${colors.reset} is required.`);
-	}
+	} // Public Config Checks
 
-	// Public Config Checks
 	if (config.SEASONS && !config.SEASON_REGION) {
 		errors.push(`When ${colors.cyan}SEASONS${colors.reset} is true, a ${colors.cyan}SEASON_REGION${colors.reset} must be selected.`);
 	}
@@ -253,11 +252,11 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		const conditionalErrors = performConditionalValidation(result.output as Record<string, unknown>);
 		if (conditionalErrors.length > 0) {
 			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
-			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
+			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
 			console.error('━'.repeat(70));
 			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
 			conditionalErrors.forEach((error) => {
-				console.error(`   - ${error}`);
+				console.error(`   - ${error}`);
 			});
 			console.error('\n' + '━'.repeat(70));
 			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);

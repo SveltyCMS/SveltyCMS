@@ -50,11 +50,11 @@ Features:
 	 */
 	function validateForm(): boolean {
 		if (!isFormValid) {
-			errorMessage = m.schedule_modal_error_datetime_required();
+			errorMessage = 'Date and time are required';
 			return false;
 		}
 		if (new Date(scheduleDate) < new Date()) {
-			errorMessage = m.schedule_modal_error_past_date();
+			errorMessage = 'Please select a future date and time';
 			return false;
 		}
 		errorMessage = '';
@@ -88,8 +88,8 @@ Features:
 
 {#if $modalStore[0]}
 	<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
-		<header id="schedule-modal-title" class={`text-center text-primary-500 ${cHeader}`}>{m.schedule_modal_title()}</header>
-		<article class="text-center text-sm">{m.schedule_modal_body()}</article>
+		<header id="schedule-modal-title" class={`text-center text-primary-500 ${cHeader}`}>Schedule Entry</header>
+		<article class="text-center text-sm">Set a date and time to publish this entry.</article>
 
 		<form
 			class="modal-form {cForm}"
@@ -101,19 +101,19 @@ Features:
 			<!-- Date and Time Inputs -->
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<label class="label">
-					<span>{m.schedule_modal_date_label()}</span>
-					<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label={m.schedule_modal_date_label()} />
+					<span>Date</span>
+					<input class="input" type="date" bind:value={scheduleDateOnly} required aria-label="Date" />
 				</label>
 				<label class="label">
-					<span>{m.schedule_modal_time_label()}</span>
-					<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label={m.schedule_modal_time_label()} />
+					<span>Time</span>
+					<input class="input" type="time" bind:value={scheduleTimeOnly} required aria-label="Time" />
 				</label>
 			</div>
 
 			<!-- Action Select -->
 			<label class="label">
-				<span>{m.schedule_modal_action_label()}</span>
-				<select class="select" bind:value={action} aria-label={m.schedule_modal_action_label()}>
+				<span>Action</span>
+				<select class="select" bind:value={action} aria-label="Action">
 					{#each actionOptions as opt}
 						<option value={opt.value}>{opt.label}</option>
 					{/each}
@@ -128,7 +128,9 @@ Features:
 
 		<footer class="modal-footer flex items-center justify-end space-x-4 {parent.regionFooter}">
 			<button class="btn {parent.buttonNeutral}" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
-			<button class="btn {parent.buttonPositive}" onclick={() => handleSubmission()} disabled={!isFormValid}>{m.button_schedule()}</button>
+			<button class="btn {parent.buttonPositive}" onclick={() => handleSubmission()} disabled={!isFormValid}
+				>{m.entrylist_multibutton_schedule()}</button
+			>
 		</footer>
 	</div>
 {/if}

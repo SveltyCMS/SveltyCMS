@@ -23,7 +23,6 @@
 	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar, clipboard, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
@@ -38,6 +37,7 @@
 		username: string;
 		email: string;
 		role: string;
+		tenantId?: string;
 		blocked: boolean;
 		avatar?: string;
 		activeSessions: number;
@@ -52,6 +52,7 @@
 		email: string;
 		role: string;
 		user_id: string;
+		tenantId?: string;
 		blocked: boolean;
 		expires: Date;
 		createdAt: Date;
@@ -77,7 +78,11 @@
 	}
 
 	// Props
-	let { adminData, currentUser = null } = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null }>();
+	let {
+		adminData,
+		currentUser = null,
+		isMultiTenant = false
+	} = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean }>();
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -116,6 +121,7 @@
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.form_username(), key: 'username' },
 		{ label: m.form_role(), key: 'role' },
+		{ label: 'Tenant ID', key: 'tenantId' },
 		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_activesession(), key: 'activeSessions' },
 		{ label: m.adminarea_lastaccess(), key: 'lastAccess' },
@@ -127,6 +133,7 @@
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.form_role(), key: 'role' },
+		{ label: 'Tenant ID', key: 'tenantId' },
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
@@ -178,33 +185,17 @@
 	let sorting = $state<SortingState>({ sortedBy: '', isSorted: 0 });
 
 	// Initialize displayTableHeaders with a safe default
-	let displayTableHeaders = $state<TableHeader[]>(
-		(() => {
-			const settings = localStorage.getItem('userPaginationSettings');
-			const parsed = settings ? JSON.parse(settings) : {};
-			return (
-				parsed.displayTableHeaders?.map((header: Partial<TableHeader>) => ({
-					...header,
-					id: crypto.randomUUID()
-				})) ??
-				tableHeadersUser.map((header) => ({
-					label: header.label,
-					key: header.key,
-					visible: true,
-					id: crypto.randomUUID()
-				}))
-			);
-		})()
-	);
+	let displayTableHeaders = $state<TableHeader[]>([]);
 
-	// Update displayTableHeaders when view changes
 	$effect(() => {
 		// Update displayTableHeaders when view changes
-		displayTableHeaders = (showUserList ? tableHeadersUser : tableHeaderToken).map((header) => ({
+		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
+		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
+		displayTableHeaders = relevantHeaders.map((header) => ({
 			label: header.label,
 			key: header.key,
 			visible: true,
-			id: crypto.randomUUID()
+			id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 		}));
 
 		// Update selectedRows based on selectedMap
@@ -880,9 +871,7 @@
 			</div>
 
 			<!-- Pagination  -->
-
-			<!-- FIX: Added mb-16 for margin-bottom on mobile and other screen sizes -->
-			<div class="mb-16 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
 					{currentPage}
 					{pagesCount}

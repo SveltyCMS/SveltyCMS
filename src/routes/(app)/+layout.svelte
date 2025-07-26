@@ -49,6 +49,9 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
+	// Widgets
+	import { initializeWidgets } from '@src/widgets';
+
 	// Skeleton
 	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
@@ -139,7 +142,6 @@
 			// Initialize avatar with user's avatar URL from database, fallback to default
 			if (data.user.avatar && data.user.avatar !== '/Default_User.svg') {
 				avatarSrc.set(data.user.avatar);
-				console.log('Layout: Avatar initialized from database:', data.user.avatar);
 			} else {
 				avatarSrc.set('/Default_User.svg');
 				console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
@@ -258,32 +260,30 @@
 					<aside
 						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
 							? 'w-[220px]'
-							: 'w-fit'} relative z-10 border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
 					</aside>
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative z-0 w-full min-w-0 flex-1">
+				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
-						<header class="sticky top-0 z-10 w-full"><HeaderEdit /></header>
+						<header class="sticky top-0 w-full"><HeaderEdit /></header>
 					{/if}
 
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative flex-grow {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG'
-							? 'mb-2'
-							: 'mb-16'}"
+						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
 					>
 						{@render children?.()}
 					</div>
 
 					<!-- Page Footer (Mobile Nav) -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
-						<footer class="sticky bottom-0 z-20 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}
@@ -292,7 +292,7 @@
 				<!-- Sidebar Right -->
 				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
 					<aside
-						class="z-10 max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
 						<RightSidebar />
 					</aside>

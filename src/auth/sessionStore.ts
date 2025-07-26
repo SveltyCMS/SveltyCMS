@@ -3,6 +3,13 @@
  * @description Simplified session store implementation
  *
  * This module provides a unified session store that works with both Redis and in-memory storage.
+ *
+ * Multi-Tenancy Note:
+ * This session store is a generic key-value store where the key is a globally unique session ID.
+ * It is inherently multi-tenant safe because the data it stores (the User object) contains the
+ * tenantId. The responsibility for checking the tenantId of the retrieved user lies with the
+ * calling code (e.g., the server hooks).
+ *
  * Key features:
  * - Automatic fallback from Redis to in-memory storage
  * - Simple interface for session management
@@ -21,9 +28,8 @@ class InMemorySessionStore implements SessionStore {
 
 	async get(session_id: string): Promise<User | null> {
 		const session = this.sessions.get(session_id);
-		if (!session) return null;
+		if (!session) return null; // Check if session has expired
 
-		// Check if session has expired
 		if (new Date() > session.expiresAt) {
 			this.sessions.delete(session_id);
 			return null;
@@ -56,9 +62,8 @@ class InMemorySessionStore implements SessionStore {
 
 	async close(): Promise<void> {
 		this.sessions.clear();
-	}
+	} // Cleanup expired sessions
 
-	// Cleanup expired sessions
 	cleanup(): void {
 		const now = new Date();
 		for (const [sessionId, session] of this.sessions) {
@@ -71,10 +76,10 @@ class InMemorySessionStore implements SessionStore {
 
 // Redis session store (optional)
 class RedisSessionStore implements SessionStore {
-	private redisClient: unknown;
+	private redisClient: any; // Use `any` to avoid strict Redis client type dependency
 	private fallbackStore: InMemorySessionStore;
 
-	constructor(redisClient?: unknown) {
+	constructor(redisClient?: any) {
 		this.redisClient = redisClient;
 		this.fallbackStore = new InMemorySessionStore();
 	}
@@ -84,8 +89,7 @@ class RedisSessionStore implements SessionStore {
 			if (this.redisClient) {
 				const sessionData = await this.redisClient.get(session_id);
 				if (sessionData) {
-					const parsed = JSON.parse(sessionData);
-					// Check expiration
+					const parsed = JSON.parse(sessionData); // Check expiration
 					if (new Date() > new Date(parsed.expiresAt)) {
 						await this.redisClient.del(session_id);
 						return null;
@@ -95,9 +99,8 @@ class RedisSessionStore implements SessionStore {
 			}
 		} catch (err) {
 			logger.warn(`Redis session get failed, falling back to memory: ${err instanceof Error ? err.message : String(err)}`);
-		}
+		} // Fallback to in-memory store
 
-		// Fallback to in-memory store
 		return await this.fallbackStore.get(session_id);
 	}
 
@@ -114,9 +117,8 @@ class RedisSessionStore implements SessionStore {
 			}
 		} catch (err) {
 			logger.warn(`Redis session set failed, falling back to memory: ${err instanceof Error ? err.message : String(err)}`);
-		}
+		} // Fallback to in-memory store
 
-		// Fallback to in-memory store
 		await this.fallbackStore.set(session_id, user, expiration);
 	}
 
@@ -127,9 +129,8 @@ class RedisSessionStore implements SessionStore {
 			}
 		} catch (err) {
 			logger.warn(`Redis session delete failed: ${err instanceof Error ? err.message : String(err)}`);
-		}
+		} // Also delete from fallback store
 
-		// Also delete from fallback store
 		await this.fallbackStore.delete(session_id);
 	}
 
@@ -145,9 +146,8 @@ class RedisSessionStore implements SessionStore {
 			}
 		} catch (err) {
 			logger.warn(`Redis pattern delete failed: ${err instanceof Error ? err.message : String(err)}`);
-		}
+		} // Also delete from fallback store
 
-		// Also delete from fallback store
 		const fallbackDeleted = await this.fallbackStore.deletePattern(pattern);
 		return deletedCount + fallbackDeleted;
 	}
@@ -166,7 +166,7 @@ class RedisSessionStore implements SessionStore {
 }
 
 // Factory function to create the appropriate session store
-export function createSessionStore(redisClient?: unknown): SessionStore {
+export function createSessionStore(redisClient?: any): SessionStore {
 	if (redisClient) {
 		logger.info('Creating Redis session store with in-memory fallback');
 		return new RedisSessionStore(redisClient);
@@ -198,7 +198,6 @@ export function startSessionCleanup(store: SessionStore, intervalMs: number = 60
 	return setInterval(() => {
 		if (store instanceof InMemorySessionStore) {
 			store.cleanup();
-		}
-		// Redis handles TTL automatically, so no cleanup needed
+		} // Redis handles TTL automatically, so no cleanup needed
 	}, intervalMs);
 }

@@ -7,7 +7,6 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Permission checking
-import { checkApiPermission } from '@api/permissions';
 
 // GET: Get a specific virtual folder by ID
 export const GET: RequestHandler = async ({ params, locals }) => {

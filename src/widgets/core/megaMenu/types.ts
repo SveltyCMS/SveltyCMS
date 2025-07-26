@@ -11,7 +11,6 @@ import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@root/src/auth';
-import GuiFields from './GuiFields.svelte';
 
 import widgets, { type WidgetType } from '../../index';
 type Fields = ReturnType<WidgetType[keyof WidgetType]>[][];
@@ -55,8 +54,8 @@ export const GuiSchema = {
 	// Permissions
 	permissions: { widget: PermissionsSetting, required: false },
 
-	// Widget Specific parameters
-	fields: { widget: GuiFields, required: true }
+	// Widget Specific parameters - Use Input for now to avoid circular dependency
+	fields: { widget: Input, required: true }
 };
 
 /**

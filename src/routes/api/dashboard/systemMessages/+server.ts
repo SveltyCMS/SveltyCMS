@@ -15,7 +15,6 @@ import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

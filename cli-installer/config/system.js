@@ -1,6 +1,6 @@
 /**
- @file cli-installer/config/system.js
- @description Configuration prompts for the System section
+ @file cli-installer/config/system.js
+ @description Configuration prompts for the System section
 
  ### Features
  - Displays a note about the System configuration
@@ -89,13 +89,14 @@ const validateSizeFormat = (value, fieldName) => {
 
 export async function configureSystem(privateConfigData = {}) {
 	// SveltyCMS Title
-	Title();
+	Title(); // Display a note about the System configuration
 
 	// Display a note about the System configuration
 	note(
 		`Configure essential system settings for your SveltyCMS installation:
   • Site name and branding
   • Development and production hostnames
+  • Multi-tenant support
   • Security settings (JWT, password strength)
   • File upload limits and body size restrictions
   • Data archiving and export features
@@ -103,15 +104,15 @@ export async function configureSystem(privateConfigData = {}) {
   • Session management settings
   • Seasonal theme options`,
 		pc.green('System Configuration:')
-	);
+	); // Display existing configuration (secrets hidden)
 
-	// Display existing configuration (secrets hidden)
 	if (privateConfigData.SITE_NAME) {
 		// Check if any system config exists
 		note(
 			`Site Name: ${pc.cyan(privateConfigData.SITE_NAME)}\n` +
 				`Dev Host: ${pc.cyan(privateConfigData.HOST_DEV)}\n` +
 				`Prod Host: ${pc.cyan(privateConfigData.HOST_PROD)}\n` +
+				`Multi-Tenancy Enabled: ${pc.cyan(privateConfigData.MULTI_TENANT ? 'Yes' : 'No')}\n` +
 				`Password Length: ${pc.cyan(privateConfigData.PASSWORD_LENGTH?.toString())}\n` +
 				`Body Size Limit: ${pc.cyan(formatBytesToSize(privateConfigData.BODY_SIZE_LIMIT) || 'Not set')}\n` +
 				`Max File Size: ${pc.cyan(formatBytesToSize(privateConfigData.MAX_FILE_SIZE) || 'Not set')}\n` +
@@ -166,12 +167,20 @@ export async function configureSystem(privateConfigData = {}) {
 		placeholder: 'https://yourdomain.com',
 		initialValue: privateConfigData.HOST_PROD || 'https://sveltycms.com',
 		validate(value) {
-			if (!value || value.length === 0) return { message: `Domain name is required!` };
-			// Optional: Add URL validation
+			if (!value || value.length === 0) return { message: `Domain name is required!` }; // Optional: Add URL validation
 			return undefined;
 		}
 	});
 	if (isCancel(HOST_PROD)) {
+		cancelToMainMenu();
+		return;
+	}
+
+	const MULTI_TENANT = await confirm({
+		message: 'Enable multi-tenancy? (isolates data for different tenants)',
+		initialValue: privateConfigData.MULTI_TENANT || false
+	});
+	if (isCancel(MULTI_TENANT)) {
 		cancelToMainMenu();
 		return;
 	}
@@ -441,6 +450,7 @@ export async function configureSystem(privateConfigData = {}) {
 		`Site Name: ${pc.green(SITE_NAME)}\n` +
 			`Dev Host: ${pc.green(HOST_DEV)}\n` +
 			`Prod Host: ${pc.green(HOST_PROD)}\n` +
+			`Multi-Tenancy Enabled: ${pc.green(MULTI_TENANT ? 'Yes' : 'No')}\n` +
 			`Password Length: ${pc.green(PASSWORD_LENGTH)}\n` +
 			`Body Size Limit: ${pc.green(formatBytesToSize(BODY_SIZE_LIMIT) || 'Not set')}\n` +
 			`Max File Size: ${pc.green(formatBytesToSize(MAX_FILE_SIZE) || 'Not set')}\n` +
@@ -481,6 +491,7 @@ export async function configureSystem(privateConfigData = {}) {
 		SITE_NAME,
 		HOST_DEV,
 		HOST_PROD,
+		MULTI_TENANT,
 		PASSWORD_LENGTH: Number(PASSWORD_LENGTH),
 		BODY_SIZE_LIMIT, // Already in bytes
 		MAX_FILE_SIZE, // Already in bytes

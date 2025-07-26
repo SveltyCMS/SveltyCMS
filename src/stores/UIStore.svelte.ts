@@ -68,7 +68,7 @@ const createUIStores = () => {
 			leftSidebar: isViewMode ? 'full' : 'collapsed',
 			rightSidebar: isViewMode ? 'hidden' : 'full',
 			pageheader: isViewMode ? 'hidden' : 'full',
-			pagefooter: isViewMode ? 'hidden' : 'full',
+			pagefooter: isViewMode ? 'hidden' : 'hidden', // Hide on desktop edit mode since RightSidebar shows detailed info
 			header: 'hidden',
 			footer: 'hidden'
 		};

@@ -23,10 +23,11 @@ Features:
 		labelColor?: string; // Default label color
 		iconOn?: string; // Default icon when toggle is on
 		iconOff?: string; // Default icon when toggle is off
-		onChange?: (checked: boolean) => void;
+		onChange?: (changed: boolean) => void;
 	}>();
 
-	const random = crypto.randomUUID();
+	// Generate a simple unique ID for the toggle input - no need for crypto UUID
+	const toggleId = `toggle-${Math.random().toString(36).substring(2, 9)}`;
 
 	// Function to handle toggle update
 	function handleToggle(event: Event) {
@@ -36,13 +37,13 @@ Features:
 	}
 </script>
 
-<label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
+<label for={toggleId} class="text-dark flex cursor-pointer select-none items-center text-white">
 	<span class="mr-3 flex items-center gap-2 capitalize {value ? 'text-primary-500' : labelColor}">
 		{label}
 	</span>
 
 	<div class="relative">
-		<input name={label} type="checkbox" id="toggleSwitch{random}" checked={value} class="peer sr-only" onclick={handleToggle} />
+		<input name={label} type="checkbox" id={toggleId} checked={value} class="peer sr-only" onclick={handleToggle} />
 
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">

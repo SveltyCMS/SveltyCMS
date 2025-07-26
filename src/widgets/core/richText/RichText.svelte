@@ -17,7 +17,6 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
-	import { v4 as uuidv4 } from 'uuid';
 	import { meta_data, debounce, getFieldName } from '@utils/utils';
 	import { getTextDirection } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
@@ -426,7 +425,7 @@
 
 		if (value instanceof File) {
 			url = URL.createObjectURL(value);
-			let image_id = uuidv4().replace(/-/g, '');
+			let image_id = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
 			// Simulate upload delay for UX

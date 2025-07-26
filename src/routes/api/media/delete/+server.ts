@@ -1,7 +1,7 @@
 /**
  * @file src/routes/api/media/delete/+server.ts
  * @description
- * API endpoint for changing the access of a media file
+ * API endpoint for deleting a media file within the current tenant.
  *
  * @example DELETE /api/media/delete
  *
@@ -14,9 +14,9 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Media
 import { deleteFile } from '@utils/media/mediaStorage';
@@ -25,18 +25,23 @@ import { deleteFile } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
-	// Check media delete permissions
-	const permissionResult = await checkApiPermission(locals.user, {
+	const { user, tenantId } = locals; // Check media delete permissions
+	const permissionResult = await checkApiPermission(user, {
 		resource: 'media',
 		action: 'delete'
 	});
 
 	if (!permissionResult.hasPermission) {
 		logger.warn('Unauthorized attempt to delete media file', {
-			userId: locals.user?._id,
+			userId: user?._id,
+			tenantId,
 			error: permissionResult.error
 		});
 		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	}
+
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		throw error(400, 'Tenant could not be identified for this operation.');
 	}
 
 	try {
@@ -45,17 +50,19 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'URL is required');
 		}
 
-		await deleteFile(url);
+		// Pass tenantId to ensure the file is deleted from the correct tenant's storage
+		await deleteFile(url, tenantId);
 
 		logger.info('File deleted successfully', {
 			url,
-			user: locals.user?.email || 'unknown'
+			user: user?.email || 'unknown',
+			tenantId
 		});
 
 		return json({ success: true });
 	} catch (err) {
 		const message = `Error deleting file: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { user: locals.user?.email || 'unknown' });
+		logger.error(message, { user: user?.email || 'unknown', tenantId });
 		throw error(500, message);
 	}
 };

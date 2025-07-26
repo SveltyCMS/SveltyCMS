@@ -20,23 +20,32 @@ Features:
 
 	let { conflictingName = $bindable(), conflictPath = $bindable(), suggestions = $bindable([]), onConfirm = $bindable(() => {}) }: Props = $props();
 
-	let selectedName = $state(suggestions[0] || '');
+	let selectedName = $state(suggestions[0] || ''); // Default to first suggestion
 	let customName = $state('');
-	let useCustomName = $state(false);
+	let useCustomName = $state(false); // Controls whether custom name input is enabled
 
+	// Handles the confirmation action. Chooses between selected suggested name or custom name
 	function handleConfirm() {
 		const newName = useCustomName ? customName : selectedName;
-		if (newName) {
+		if (newName && validateCustomName(newName)) {
+			// Validate custom name even if not explicitly enabled
 			modalStore.close();
-			onConfirm(newName);
+			onConfirm(newName); // Call the provided confirmation callback
 		}
 	}
 
+	// Handles the cancel action, closing the modal without confirmation
 	function handleCancel() {
 		modalStore.close();
 	}
 
+	/**
+	 * Validates the format of a custom name.
+	 * @param name The custom name to validate.
+	 * @returns True if the name is valid, false otherwise.
+	 */
 	function validateCustomName(name: string): boolean {
+		// Name must start with a letter and contain only letters and numbers
 		return /^[a-zA-Z][a-zA-Z0-9]*$/.test(name);
 	}
 </script>
@@ -45,7 +54,7 @@ Features:
 	<div class="alert variant-filled-warning mb-4">
 		<div class="alert-message">
 			<h3 class="h3">Collection Name Conflict</h3>
-			<p>The collection name "{conflictingName}" already exists at:</p>
+			<p>The collection name "<code class="font-bold">{conflictingName}</code>" already exists at:</p>
 			<code class="mt-2 block rounded bg-surface-900 p-2">{conflictPath}</code>
 		</div>
 	</div>
@@ -78,7 +87,7 @@ Features:
 			/>
 		</div>
 		{#if useCustomName && customName && !validateCustomName(customName)}
-			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers</p>
+			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers (no spaces or special characters).</p>
 		{/if}
 	</div>
 

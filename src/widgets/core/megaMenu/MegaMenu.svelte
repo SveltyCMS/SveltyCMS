@@ -24,7 +24,7 @@
 	import { headerController } from '@stores/UIStore.svelte';
 
 	// Components
-	import Fields from '@components/Fields.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
 	import ListNode from './ListNode.svelte';
 
 	//ParaglideJS

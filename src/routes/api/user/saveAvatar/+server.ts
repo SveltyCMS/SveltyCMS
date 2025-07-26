@@ -23,7 +23,6 @@ import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';

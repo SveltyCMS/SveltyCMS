@@ -3,15 +3,16 @@
  * @description This configuration file defines the Vite setup for a SvelteKit project.
  * It includes checks & validation for required configuration files (private.ts and public.ts),
  * a custom plugin for dynamic collection handling (compilation, type generation, hot reloading),
- * dynamic role and permission handling with hot reloading, Tailwind CSS purging,
+ * dynamic role and permission handling with hot reloading, Tailwind CSS purging
  * and Paraglide integration for internationalization. The configuration also initializes
- * compilation tasks, sets up environment variables, and defines alias paths for the project.
+ * compilation tasks, sets up environment variables, and defines alias paths for the project
  */
 
 import Path from 'path';
 import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
+import { pathToFileURL } from 'url'; // Import pathToFileURL
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
@@ -80,9 +81,9 @@ export default defineConfig(async () => {
 			process.exit(0); // Exit gracefully
 		}
 
-		// Use dynamic import to avoid cache issues
-		const publicModule = await import(publicConfigPath);
-		const privateModule = await import(privateConfigPath);
+		// Use dynamic import with file:// protocol to avoid cache issues and support Windows
+		const publicModule = await import(pathToFileURL(publicConfigPath).href);
+		const privateModule = await import(pathToFileURL(privateConfigPath).href);
 		actualPublicConfig = publicModule.publicEnv;
 		actualPrivateConfig = privateModule.privateEnv;
 	} catch (importError) {
@@ -243,12 +244,10 @@ export default defineConfig(async () => {
 								console.log('🔍 Re-validating configuration...');
 
 								try {
-									// Clear module cache and re-import configs
-									delete require.cache[require.resolve('./config/private')];
-									delete require.cache[require.resolve('./config/public')];
-
-									const { privateEnv: newPrivateConfig } = await import('./config/private');
-									const { publicEnv: newPublicConfig } = await import('./config/public');
+									// Re-import configs with a cache-busting query string
+									const timestamp = Date.now();
+									const { privateEnv: newPrivateConfig } = await import(`${pathToFileURL(privateConfigPath).href}?t=${timestamp}`);
+									const { publicEnv: newPublicConfig } = await import(`${pathToFileURL(publicConfigPath).href}?t=${timestamp}`);
 
 									// Re-validate configurations
 									const validationPassed = tryValidateConfig(newPrivateConfig, newPublicConfig);
@@ -271,13 +270,14 @@ export default defineConfig(async () => {
 								console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
 
 								try {
-									// Clear module cache to force re-import
-									const rolesPath = `file://${Path.posix.resolve(process.cwd(), 'config', 'roles.ts')}`;
-									// Dynamically reimport updated roles & permissions
-									const { roles } = await import(rolesPath + `?update=${Date.now()}`);
+									// Dynamically re-import updated roles & permissions using file URL and cache-busting
+									const rolesPath = pathToFileURL(resolve(process.cwd(), 'config', 'roles.ts')).href;
+									const { roles } = await import(`${rolesPath}?update=${Date.now()}`);
+									
 									// Update roles and permissions in the application
 									const { setLoadedRoles } = await import('./src/auth/types');
 									setLoadedRoles(roles);
+									
 									// Trigger full page reload
 									server.ws.send({ type: 'full-reload' });
 									console.log('Roles updated successfully');

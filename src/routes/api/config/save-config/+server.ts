@@ -12,7 +12,6 @@ import path from 'path';
 import { pathToFileURL } from 'url';
 
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 // Helper to get a fresh, non-cached module
 async function importFresh(modulePath) {

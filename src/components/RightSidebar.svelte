@@ -62,8 +62,24 @@ This component provides a streamlined interface for managing collection entries 
 	});
 
 	let dates = $derived({
-		created: convertTimestampToDateString(typeof collectionValue.value?.createdAt === 'number' ? collectionValue.value.createdAt : 0),
-		updated: convertTimestampToDateString(typeof collectionValue.value?.updatedAt === 'number' ? collectionValue.value.updatedAt : 0)
+		created: collectionValue.value?.createdAt
+			? new Date(collectionValue.value.createdAt).toLocaleDateString(getLocale(), {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+			: '-',
+		updated: collectionValue.value?.updatedAt
+			? new Date(collectionValue.value.updatedAt).toLocaleDateString(getLocale(), {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+			: '-'
 	});
 
 	let next = $state(() => {});
@@ -221,25 +237,16 @@ This component provides a streamlined interface for managing collection entries 
 					</button>
 				</div>
 
-				<div class="space-y-2">
-					<label for="creation-date-input" class="text-sm font-medium">{m.adminarea_createat()}</label>
-					<input
-						id="creation-date-input"
-						type="text"
-						value={dates.created}
-						class="input variant-filled-surface w-full text-sm"
-						aria-label="Creation date"
-						readonly
-						tabindex="-1"
-					/>
-				</div>
-
 				<div class="space-y-3">
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{collectionValue.value?.createdBy || user.username}
+								{#if user?.username}
+									<div class="-ml-1.5">
+										{user?.username}
+									</div>
+								{/if}
 							</span>
 						</div>
 					</div>
@@ -249,7 +256,11 @@ This component provides a streamlined interface for managing collection entries 
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{collectionValue.value.updatedBy}
+									{#if user?.username}
+										<div class="-ml-1.5">
+											{user?.username}
+										</div>
+									{/if}
 								</span>
 							</div>
 						</div>

@@ -18,6 +18,8 @@
  * }
  */
 
+import { privateEnv } from '@root/config/private';
+
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -26,7 +28,6 @@ import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 // TODO: Remove once blockTokens/unblockTokens are added to database-agnostic interface
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkApiPermission } from '@api/permissions';
 
 // Validation
 import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
@@ -44,20 +45,20 @@ const batchTokenActionSchema = object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		const { user, tenantId } = locals; // Destructure user and tenantId
 		const body = await request.json().catch(() => {
 			throw error(400, 'Invalid JSON in request body');
 		});
 		const { tokenIds, action } = parse(batchTokenActionSchema, body);
-
 		// Check permissions for token batch operations
-		const permissionResult = await checkApiPermission(locals.user, {
+		const permissionResult = await checkApiPermission(user, {
 			resource: 'system',
 			action: action === 'delete' ? 'delete' : 'write'
 		});
 
 		if (!permissionResult.hasPermission) {
 			logger.warn(`Unauthorized attempt to '${action}' tokens`, {
-				userId: locals.user?._id,
+				userId: user?._id,
 				error: permissionResult.error
 			});
 			return json(
@@ -72,38 +73,52 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			logger.error('Database authentication adapter not initialized');
 			throw error(500, 'Database authentication not available');
 		}
+
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			const tokenAdapter = new TokenAdapter();
+			const tokensToVerify = await tokenAdapter.getAllTokens({ token: { $in: tokenIds }, tenantId });
+			if (tokensToVerify.length !== tokenIds.length) {
+				logger.warn(`Attempt to act on tokens outside of tenant`, {
+					userId: user?._id,
+					tenantId,
+					requestedTokenIds: tokenIds
+				});
+				throw error(403, 'Forbidden: One or more tokens do not belong to your tenant or do not exist.');
+			}
+		}
+
 		let successMessage = '';
+		const tokenAdapter = new TokenAdapter(); // Re-use the adapter instance
 
 		switch (action) {
 			case 'delete': {
-				// TODO: Add deleteTokens to database-agnostic interface
-				const tokenAdapter = new TokenAdapter();
+				// The adapter method needs to be tenant-aware internally
 				await tokenAdapter.deleteTokens(tokenIds);
 				successMessage = 'Tokens deleted successfully.';
 				break;
 			}
 			case 'block': {
-				// TODO: Add blockTokens to database-agnostic interface
-				const tokenAdapter = new TokenAdapter();
 				await tokenAdapter.blockTokens(tokenIds);
 				successMessage = 'Tokens blocked successfully.';
 				break;
 			}
 			case 'unblock': {
-				// TODO: Add unblockTokens to database-agnostic interface
-				const tokenAdapter = new TokenAdapter();
 				await tokenAdapter.unblockTokens(tokenIds);
 				successMessage = 'Tokens unblocked successfully.';
 				break;
 			}
 		}
-
 		// Invalidate the tokens cache so changes appear immediately in admin area
-		invalidateAdminCache('tokens');
+		invalidateAdminCache('tokens', tenantId);
 
 		logger.info(`Batch token action '${action}' completed.`, {
 			affectedIds: tokenIds,
-			executedBy: locals.user?._id
+			executedBy: user?._id,
+			tenantId
 		});
 
 		return json({ success: true, message: successMessage });

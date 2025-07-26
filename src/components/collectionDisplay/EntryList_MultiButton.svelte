@@ -29,7 +29,7 @@
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { storeListboxValue } from '@stores/store.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -45,9 +45,9 @@
 
 	// Access user data from page context
 	const user = $derived(page.data?.user);
-	const isAdmin = $derived(user?.isAdmin === true);
+	const isAdmin = $derived(page.data?.isAdmin === true);
 
-	type ActionType = 'create' | keyof typeof StatusTypes;
+	type ActionType = 'create' | 'archive' | keyof typeof StatusTypes;
 
 	// Props
 	let {
@@ -122,6 +122,10 @@
 			case 'clone':
 				openCloneModal(); // Open colorful confirmation modal
 				break;
+			case 'archive':
+				// Handle archive action (always archives, regardless of user role)
+				openDeleteModal(); // This will handle archiving logic
+				break;
 			case 'delete':
 				openDeleteModal(); // Open colorful confirmation modal
 				break;
@@ -149,44 +153,84 @@
 
 	// Enhanced Delete Modal with colorful styling and admin options
 	function openDeleteModal(): void {
+		const currentAction = storeListboxValue.value;
 		const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
 
 		// Check if all selected entries are already archived
 		const allEntriesArchived = selectedStatuses.length > 0 && selectedStatuses.every((status) => status === 'archive');
 
-		// For admin users when archiving is enabled
-		if (isAdmin && isArchiving) {
-			// If all selected entries are already archived, go straight to permanent delete confirmation
-			if (allEntriesArchived) {
-				openPermanentDeleteConfirmation();
-				return;
-			}
-			// Otherwise, show admin options modal
-			openAdminDeleteModal();
+		// Determine the action based on what button was clicked
+		if (currentAction === 'archive') {
+			// Direct archive action (admin users only when USE_ARCHIVE_ON_DELETE=true)
+			openArchiveModal();
 			return;
 		}
 
-		// Standard modal for non-admin users or when archiving is disabled
+		if (currentAction === 'delete') {
+			// For admin users when archiving is enabled, show options
+			if (isAdmin && isArchiving) {
+				// If all selected entries are already archived, go straight to permanent delete confirmation
+				if (allEntriesArchived) {
+					openPermanentDeleteModal();
+					return;
+				}
+				// Otherwise, show admin options modal (archive or permanent delete)
+				openAdminDeleteModal();
+				return;
+			}
+
+			// For non-admin users when archiving is enabled, perform archive but show as "delete"
+			if (!isAdmin && isArchiving) {
+				openArchiveModal();
+				return;
+			}
+
+			// Standard permanent delete (when archiving is disabled)
+			openPermanentDeleteModal();
+			return;
+		}
+	}
+
+	// Archive confirmation modal
+	function openArchiveModal(): void {
 		const modalSettings: ModalSettings = {
 			type: 'confirm',
-			title: isArchiving
-				? `Please Confirm <span class="text-warning-500 font-bold">Archiving</span>`
-				: `Please Confirm <span class="text-error-500 font-bold">Deletion</span>`,
-			body: isArchiving
-				? selectedCount === 1
+			title: `Please Confirm <span class="text-warning-500 font-bold">Archiving</span>`,
+			body:
+				selectedCount === 1
 					? `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> this entry? Archived items can be restored later.`
-					: `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? Archived items can be restored later.`
-				: selectedCount === 1
-					? `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> this entry? This action cannot be undone and will permanently remove the entry from the system.`
-					: `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This action cannot be undone and will permanently remove all selected entries from the system.`,
-			buttonTextConfirm: isArchiving ? 'Archive' : 'Delete',
+					: `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? Archived items can be restored later.`,
+			buttonTextConfirm: 'Archive',
 			buttonTextCancel: 'Cancel',
 			meta: {
-				buttonConfirmClasses: isArchiving ? 'bg-warning-500 hover:bg-warning-600 text-white' : 'bg-error-500 hover:bg-error-600 text-white'
+				buttonConfirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white'
 			},
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					deleteAction(false);
+					deleteAction(false); // false = archive
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Permanent delete confirmation modal
+	function openPermanentDeleteModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm <span class="text-error-500 font-bold">Deletion</span>`,
+			body:
+				selectedCount === 1
+					? `Are you sure you want to <span class="text-error-500 font-semibold">permanently delete</span> this entry? This action cannot be undone and will remove the entry from the system.`
+					: `Are you sure you want to <span class="text-error-500 font-semibold">permanently delete</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This action cannot be undone and will remove all selected entries from the system.`,
+			buttonTextConfirm: 'Delete',
+			buttonTextCancel: 'Cancel',
+			meta: {
+				buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white'
+			},
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					deleteAction(true); // true = permanent delete
 				}
 			}
 		};
@@ -238,63 +282,14 @@
 					deleteAction(false);
 				} else {
 					// Show permanent delete confirmation
-					openPermanentDeleteConfirmation();
+					openPermanentDeleteModal();
 				}
 			}
 		};
 		modalStore.trigger(modalSettings);
 	}
 
-	// Confirmation modal for permanent deletion
-	function openPermanentDeleteConfirmation(): void {
-		const entryText = selectedCount === 1 ? 'entry' : `${selectedCount} entries`;
-		const allEntriesArchived = selectedStatuses.length > 0 && selectedStatuses.every((status) => status === 'archive');
-
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `<span class="text-error-500 font-bold">Confirm Permanent Deletion</span>`,
-			body: `
-                <div class="space-y-4">
-                    <div class="flex items-center gap-3 p-3 border border-error-300 rounded-lg bg-error-50 dark:bg-error-900/20">
-                        <iconify-icon icon="bi:exclamation-triangle-fill" width="24" class="text-error-600"></iconify-icon>
-                        <div>
-                            <div class="font-semibold text-error-700 dark:text-error-300">Warning: This action cannot be undone!</div>
-                            <div class="text-sm text-error-600 dark:text-error-400">
-                                You are about to permanently delete ${allEntriesArchived ? 'archived' : ''} ${entryText} from the database.
-                            </div>
-                        </div>
-                    </div>
-                    <p class="text-surface-700 dark:text-surface-300">
-                        This will completely remove the ${entryText} from the system. Unlike archiving, this action is irreversible.
-                    </p>
-                    ${
-											allEntriesArchived
-												? `
-                        <p class="text-sm text-warning-600 dark:text-warning-400 bg-warning-50 dark:bg-warning-900/20 p-2 rounded">
-                            <iconify-icon icon="bi:info-circle-fill" width="16" class="inline mr-1"></iconify-icon>
-                            These entries are currently archived. Deleting them will remove them permanently.
-                        </p>
-                    `
-												: ''
-										}
-                    <p class="text-sm text-surface-600 dark:text-surface-400">
-                        Are you absolutely sure you want to proceed with permanent deletion?
-                    </p>
-                </div>
-            `,
-			buttonTextConfirm: 'Yes, Permanently Delete',
-			buttonTextCancel: 'Cancel',
-			meta: {
-				buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white'
-			},
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					deleteAction(true);
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
-	} // Enhanced Publish Modal with colorful styling
+	// Enhanced Publish Modal with colorful styling
 	function openPublishModal(): void {
 		const modalSettings: ModalSettings = {
 			type: 'confirm',
@@ -357,15 +352,36 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	const buttonMap: Record<string, [string, string, string, string]> = {
-		create: [m.entrylist_multibutton_create(), 'gradient-tertiary', 'ic:round-plus', 'text-tertiary-500'],
-		publish: [m.entrylist_multibutton_publish(), 'gradient-primary', 'bi:hand-thumbs-up-fill', 'text-primary-500'],
-		unpublish: [m.entrylist_multibutton_unpublish(), 'gradient-yellow', 'bi:pause-circle', 'text-yellow-500'],
-		schedule: [m.entrylist_multibutton_schedule(), 'gradient-pink', 'bi:clock', 'text-pink-500'],
-		clone: [m.entrylist_multibutton_clone(), 'gradient-secondary', 'bi:clipboard-data-fill', 'text-secondary-500'],
-		delete: [m.button_delete(), 'gradient-error', 'bi:trash3-fill', 'text-error-500'],
-		test: [m.entrylist_multibutton_testing(), 'gradient-error', 'icon-park-outline:preview-open', 'text-error-500']
-	};
+	// Dynamic buttonMap based on configuration and user role
+	const buttonMap = $derived(
+		(() => {
+			const baseMap: Record<string, [string, string, string, string]> = {
+				create: [m.entrylist_multibutton_create(), 'gradient-tertiary', 'ic:round-plus', 'text-tertiary-500'],
+				publish: [m.entrylist_multibutton_publish(), 'gradient-primary', 'bi:hand-thumbs-up-fill', 'text-primary-500'],
+				unpublish: [m.entrylist_multibutton_unpublish(), 'gradient-yellow', 'bi:pause-circle', 'text-yellow-500'],
+				schedule: [m.entrylist_multibutton_schedule(), 'gradient-pink', 'bi:clock', 'text-pink-500'],
+				clone: [m.entrylist_multibutton_clone(), 'gradient-secondary', 'bi:clipboard-data-fill', 'text-secondary-500'],
+				test: [m.entrylist_multibutton_testing(), 'gradient-error', 'icon-park-outline:preview-open', 'text-error-500']
+			};
+
+			// Handle delete/archive options based on configuration and user role
+			if (publicEnv.USE_ARCHIVE_ON_DELETE) {
+				// When archiving is enabled
+				if (isAdmin) {
+					// Admins see both archive and delete options
+					baseMap.archive = ['Archive', 'gradient-warning', 'bi:archive-fill', 'text-warning-500'];
+					baseMap.delete = [m.button_delete(), 'gradient-error', 'bi:trash3-fill', 'text-error-500'];
+				} else {
+					// Non-admin users only see archive option (labeled as "Delete" for UX)
+					baseMap.delete = ['Archive', 'gradient-warning', 'bi:archive-fill', 'text-warning-500'];
+				}
+			} else {
+				// When archiving is disabled, everyone sees delete
+				baseMap.delete = [m.button_delete(), 'gradient-error', 'bi:trash3-fill', 'text-error-500'];
+			}
+			return baseMap;
+		})()
+	);
 
 	// Update button display when storeListboxValue changes using root effect
 	$effect(() => {
@@ -400,15 +416,6 @@
 
 <!-- Multibutton group-->
 <div class="relative z-20 mt-1 flex items-center font-medium text-white">
-	<!-- View Deleted Toggle -->
-	<button
-		class="variant-ghost-surface btn mr-2 flex items-center gap-2"
-		onclick={() => (showDeleted = !showDeleted)}
-		title={showDeleted ? 'View active entries' : 'View archived entries'}
-	>
-		<iconify-icon icon={showDeleted ? 'bi:eye-slash-fill' : 'bi:archive-fill'} width="20"></iconify-icon>
-		<span class="hidden sm:inline">{showDeleted ? 'Active' : 'Archive'}</span>
-	</button>
 	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
 		<!-- Left button -->
 		<button
@@ -466,11 +473,6 @@
 							<iconify-icon icon={icon as string} width="24" class=""></iconify-icon>
 							<p class="w-full">
 								{label}
-								{#if type !== 'create' && !hasSelections}
-									<span class="text-xs opacity-75"></span>
-								{:else if type !== 'create' && hasSelections && selectedCount > 1}
-									<span class="text-xs opacity-75">({selectedCount} items)</span>
-								{/if}
 							</p>
 						</button>
 					</li>

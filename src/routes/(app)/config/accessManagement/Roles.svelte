@@ -17,10 +17,7 @@ It provides the following functionality:
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	// Store
-	import { writable } from 'svelte/store';
 	import { page } from '$app/state';
 
 	// Auth
@@ -44,49 +41,53 @@ It provides the following functionality:
 
 	let { roleData, setRoleData, updateModifiedCount } = $props();
 
-	const roles = writable<Role[]>([]);
-	const availablePermissions = writable<Permission[]>([]);
-	let selectedPermissions: string[] = [];
-	const selectedRoles = writable<Set<string>>(new Set());
-	const isLoading = writable(true);
-	const error = writable<string | null>(null);
-	let modifiedRoles = new Set<string>();
+	// Reactive state using Svelte 5 runes
+	let roles = $state<Role[]>([]);
+	let availablePermissions = $state<Permission[]>([]);
+	let selectedPermissions = $state<string[]>([]);
+	let selectedRoles = $state<Set<string>>(new Set());
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let modifiedRoles = $state(new Set<string>());
+	let items = $state<Role[]>([]);
 
 	// Modal state
-	let isEditMode = false;
-	let currentRoleId: string | null = null;
-	let currentGroupName: string = '';
+	let isEditMode = $state(false);
+	let currentRoleId = $state<string | null>(null);
+	let currentGroupName = $state('');
 
-	let items: any = $state();
+	// Initialize data when component mounts
+	$effect(() => {
+		loadData();
+	});
 
-	// Fetch roles and permissions on mount
-	onMount(async () => {
+	const loadData = async () => {
 		try {
 			await loadRoleGroups();
 			await loadPermissions();
 		} catch (err) {
-			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
+			error = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
 		} finally {
-			isLoading.set(false);
+			isLoading = false;
 		}
-	});
+	};
 
 	const loadRoleGroups = async () => {
 		try {
 			// Add id property for dndzone while keeping _id for data
 			const rolesWithId = roleData.map((role: Role) => ({ ...role, id: role._id }));
-			roles.set(rolesWithId);
+			roles = rolesWithId;
 			items = rolesWithId;
 		} catch (err) {
-			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
+			error = `Failed to load roles: ${err instanceof Error ? err.message : String(err)}`;
 		}
 	};
 
 	const loadPermissions = async () => {
 		try {
-			availablePermissions.set(page.data.permissions);
+			availablePermissions = page.data.permissions;
 		} catch (err) {
-			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
+			error = `Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`;
 		}
 	};
 
@@ -153,7 +154,7 @@ It provides the following functionality:
 			showToast('Role updated. Click "Save" at the top to apply changes.', 'info');
 		}
 
-		roles.set(items);
+		roles = items;
 		// Remove id property when sending data to parent
 		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
@@ -179,14 +180,14 @@ It provides the following functionality:
 	}
 
 	const deleteSelectedRoles = async () => {
-		for (const roleId of $selectedRoles) {
+		for (const roleId of selectedRoles) {
 			const index = items.findIndex((cur: { _id: string }) => cur._id === roleId);
 			items.splice(index, 1);
 			modifiedRoles.add(roleId);
 		}
 		items = [...items];
-		roles.set(items);
-		selectedRoles.set(new Set());
+		roles = items;
+		selectedRoles = new Set();
 		showToast('Roles deleted. Click "Save" at the top to apply changes.', 'info');
 
 		// Remove id property when sending data to parent
@@ -200,14 +201,13 @@ It provides the following functionality:
 	};
 
 	const toggleRoleSelection = (roleId: string) => {
-		selectedRoles.update((selected) => {
-			if (selected.has(roleId)) {
-				selected.delete(roleId);
-			} else {
-				selected.add(roleId);
-			}
-			return selected;
-		});
+		const newSelection = new Set(selectedRoles);
+		if (newSelection.has(roleId)) {
+			newSelection.delete(roleId);
+		} else {
+			newSelection.add(roleId);
+		}
+		selectedRoles = newSelection;
 	};
 
 	// Types for DND events
@@ -222,7 +222,7 @@ It provides the following functionality:
 		}>
 	) {
 		items = [...e.detail.items];
-		roles.set(items);
+		roles = items;
 		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
 
 		// Remove id property when sending data to parent
@@ -244,7 +244,7 @@ It provides the following functionality:
 		}>
 	) {
 		items = [...e.detail.items];
-		roles.set(items);
+		roles = items;
 		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
 
 		// Remove id property when sending data to parent
@@ -266,10 +266,10 @@ It provides the following functionality:
 	}
 </script>
 
-{#if $isLoading}
+{#if isLoading}
 	<Loading customTopText="Loading Roles..." customBottomText="" />
-{:else if $error}
-	<p class="error">{$error}</p>
+{:else if error}
+	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>
 
@@ -282,13 +282,13 @@ It provides the following functionality:
 			<!-- Create -->
 			<button onclick={() => openModal(null, '')} class="variant-filled-primary btn">Create Role</button>
 			<!-- Delete -->
-			<button onclick={deleteSelectedRoles} class="variant-filled-error btn" disabled={$selectedRoles.size === 0}>
-				Delete Roles ({$selectedRoles.size})
+			<button onclick={deleteSelectedRoles} class="variant-filled-error btn" disabled={selectedRoles.size === 0}>
+				Delete Roles ({selectedRoles.size})
 			</button>
 		</div>
 
 		<div class="role mt-4 flex-1 overflow-auto">
-			{#if $roles.length === 0}
+			{#if roles.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
 				<div class="rounded-8">
@@ -305,7 +305,7 @@ It provides the following functionality:
 									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300"></iconify-icon>
 
 									{#if !role.isAdmin}
-										<input type="checkbox" checked={$selectedRoles.has(role._id)} onchange={() => toggleRoleSelection(role._id)} class="mr-2" />
+										<input type="checkbox" checked={selectedRoles.has(role._id)} onchange={() => toggleRoleSelection(role._id)} class="mr-2" />
 									{/if}
 
 									<!-- Role Name with Tooltip -->

@@ -28,7 +28,7 @@ Features:
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { getData, invalidateCollectionCache } from '@utils/apiClient';
+	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus } from '@utils/apiClient';
 	import { getCachedCollectionData } from '@utils/collections-prefetch';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
@@ -68,9 +68,13 @@ Features:
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 300;
+
+	// Simple ID generator for table headers (no need for crypto UUID)
+	function generateId(): string {
+		return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+	}
 
 	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
 		displayTableHeaders = event.detail.items;
@@ -131,7 +135,7 @@ Features:
 					if (Array.isArray(parsed.displayTableHeaders)) {
 						newSettings.displayTableHeaders = parsed.displayTableHeaders.map(
 							(header: Partial<TableHeader>): TableHeader => ({
-								id: typeof header.id === 'string' && header.id ? header.id : uuidv4().replace(/-/g, ''),
+								id: typeof header.id === 'string' && header.id ? header.id : generateId(),
 								label: typeof header.label === 'string' ? header.label : 'Unknown Label',
 								name: typeof header.name === 'string' ? header.name : 'unknown_name',
 								visible: typeof header.visible === 'boolean' ? header.visible : true
@@ -195,7 +199,7 @@ Features:
 	let stableDataExists = $state(false);
 	let hasInitialLoad = $state(false);
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
-	let rawData = $state<{ entryList: any[]; pagesCount?: number; totalItems?: number } | undefined>();
+	let rawData = $state<{ items: any[]; totalPages?: number; total?: number } | undefined>();
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -218,7 +222,7 @@ Features:
 		if (!currentCollection?.fields) return [];
 		const schemaHeaders: TableHeader[] = currentCollection.fields.map(
 			(field: any): TableHeader => ({
-				id: uuidv4().replace(/-/g, ''),
+				id: generateId(),
 				label: field.label,
 				name: getFieldName(field),
 				visible: true // Default visibility
@@ -226,9 +230,9 @@ Features:
 		);
 		return [
 			...schemaHeaders,
-			{ id: uuidv4().replace(/-/g, ''), label: 'createdAt', name: 'createdAt', visible: true },
-			{ id: uuidv4().replace(/-/g, ''), label: 'updatedAt', name: 'updatedAt', visible: true },
-			{ id: uuidv4().replace(/-/g, ''), label: 'status', name: 'status', visible: true }
+			{ id: generateId(), label: 'createdAt', name: 'createdAt', visible: true },
+			{ id: generateId(), label: 'updatedAt', name: 'updatedAt', visible: true },
+			{ id: generateId(), label: 'status', name: 'status', visible: true }
 		];
 	});
 
@@ -310,7 +314,7 @@ Features:
 		selectAllColumns = displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
 	});
 
-	let data = $state<{ entryList: any[]; pagesCount?: number; totalItems?: number } | undefined>();
+	let data = $state<{ items: any[]; totalPages?: number; total?: number } | undefined>();
 	let tableData = $state<any[]>([]); // Processed data for rendering
 	let pagesCount = $state(1);
 	let totalItems = $state(0);
@@ -359,36 +363,17 @@ Features:
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
 						: {};
 
-				// Check for prefetched data first (only for first page with default filters/sorting)
+				// Skip prefetched data to ensure proper pagination
+				// Prefetched data often contains more items than the requested limit
+				// which interferes with pagination functionality
 				let usedPrefetchedData = false;
-				if (
-					page === 1 &&
-					[5, 10, 20].includes(limit) && // Allow prefetching for common page sizes
-					Object.keys(activeFilters).length === 1 &&
-					activeFilters.status === '!=deleted' &&
-					(!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
-				) {
-					// Try to get prefetched data
-					try {
-						const { getCachedCollectionData } = await import('@utils/collections-prefetch');
-						const prefetchedData = getCachedCollectionData(currentCollId, currentLanguage);
-
-						if (prefetchedData) {
-							data = prefetchedData;
-							usedPrefetchedData = true;
-						} else {
-						}
-					} catch (prefetchError) {
-						// Silently continue if prefetch fails
-					}
-				}
 
 				// If no prefetched data available, fetch normally
 				if (!usedPrefetchedData) {
 					const queryParams = {
 						collectionId: currentCollId,
 						page,
-						limit,
+						pageSize: limit, // API expects pageSize, not limit
 						contentLanguage: currentLanguage,
 						filter: JSON.stringify(activeFilters),
 						sort: JSON.stringify(sortParam),
@@ -408,9 +393,10 @@ Features:
 				// Process the fetched data
 				if (data) {
 					rawData = data;
-					tableData = data.entryList;
-					pagesCount = data.pagesCount ?? 1;
-					totalItems = data.totalItems ?? 0;
+					// Use NEW API response format - API returns 'items' array
+					tableData = data.items || [];
+					pagesCount = data.totalPages || 1;
+					totalItems = data.total || 0;
 					stableDataExists = true; // We have some data to show
 				} else {
 					// Handle case where data fetch failed or returned nothing
@@ -526,7 +512,56 @@ Features:
 		if (currentMode === 'view') {
 			untrack(() => {
 				meta_data.clear();
-				collectionValue.set({});
+				// Handle unsaved draft creation when exiting create mode
+				const currentValue = collectionValue.value;
+				if (currentValue && Object.keys(currentValue).length > 0) {
+					// Check if we have unsaved data from create mode that should be saved as draft
+					const hasUnsavedData = Object.entries(currentValue).some(([key, value]) => {
+						// Ignore system fields when checking for content
+						if (key.startsWith('_') || key === 'createdAt' || key === 'updatedAt' || key === 'createdBy' || key === 'updatedBy') {
+							return false;
+						}
+						// Check if field has meaningful content
+						if (value && typeof value === 'object' && !Array.isArray(value)) {
+							// For translated fields, check if any language has content
+							return Object.values(value).some((v) => v !== null && v !== '' && v !== undefined);
+						}
+						// For simple fields, check if not empty
+						return value !== null && value !== '' && value !== undefined;
+					});
+
+					// If there's unsaved content and no _id (new entry), save as draft
+					if (hasUnsavedData && !currentValue._id) {
+						// Use collection's default status instead of hardcoded 'draft'
+						const defaultStatus = collection.value?.status || 'draft';
+						const draftEntry = { ...currentValue, status: defaultStatus };
+						// Save as draft silently
+						untrack(async () => {
+							const collId = collection.value?._id;
+							if (collId) {
+								try {
+									const result = await createEntry(collId, draftEntry);
+									if (result.success) {
+										// Don't show toast for auto-draft save to avoid confusion
+										invalidateCollectionCache(collId);
+									}
+								} catch (error) {
+									// Silently handle errors for auto-draft saves
+									console.warn('Auto-draft save failed:', error);
+								}
+							}
+						});
+					}
+
+					// Clear the collection value
+					collectionValue.set({});
+				}
+				// Refresh data when returning to view mode (after save/edit)
+				const currentCollId = collection.value?._id;
+				if (currentCollId && hasInitialLoad) {
+					invalidateCollectionCache(currentCollId);
+					refreshTableData(true);
+				}
 			});
 		}
 
@@ -540,6 +575,7 @@ Features:
 	});
 
 	function process_selectAllRows(selectAllState: boolean) {
+		if (!Array.isArray(tableData)) return;
 		tableData.forEach((_entry, index) => {
 			selectedMap[index.toString()] = selectAllState;
 		});
@@ -588,7 +624,12 @@ Features:
 
 	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		return pathSegments?.slice(0, -1).join(' >') || '';
+		// Remove the first segment if it matches the current system language
+		const segments = pathSegments?.slice() ?? [];
+		if (segments.length > 0 && segments[0].toLowerCase() === currentSystemLanguage?.toLowerCase()) {
+			segments.shift();
+		}
+		return segments.slice(0, -1).join('>') || '';
 	});
 
 	// --- Actions ---
@@ -603,22 +644,48 @@ Features:
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => {
 				const selectedId = tableData[Number(index)]._id;
-				return rawData?.entryList.find((rawEntry) => rawEntry._id === selectedId);
+				// Use NEW API response format - API returns 'items' array
+				const entryList = rawData?.items || [];
+				return entryList.find((rawEntry) => rawEntry._id === selectedId);
 			})
 			.filter(Boolean); // Filter out any potential undefined values
 
 	// Callback to refresh data after an action
 	const onActionSuccess = () => {
-		invalidateCollectionCache(collection.value!._id);
-		refreshTableData();
+		const currentCollId = collection.value?._id;
+		if (currentCollId) {
+			invalidateCollectionCache(currentCollId);
+			// Force a refresh by resetting state and fetching new data
+			untrack(() => {
+				hasInitialLoad = false;
+				stableDataExists = false;
+				refreshTableData(true);
+			});
+		}
 	};
 
 	// Handler for creating a new entry
 	const onCreate = async () => {
+		// Create a default entry object based on the collection's fields
+		const newEntry: Record<string, any> = {};
+		if (currentCollection?.fields) {
+			for (const field of currentCollection.fields) {
+				const fieldName = getFieldName(field, false);
+				// Set a default value based on the field type or widget
+				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
+			}
+		}
+		// Don't set status here - let it be set when user saves
+		// This allows draft status only when user exits without saving
+
+		// Set the new entry data FIRST
+		collectionValue.set(newEntry);
+
+		// THEN switch the mode
 		mode.set('create');
+
 		// Use a microtask to allow the UI to update before other actions
 		await Promise.resolve();
-		collectionValue.set({});
 		handleUILayoutToggle();
 	};
 
@@ -678,13 +745,11 @@ Features:
 
 	// Show content as soon as we have a collection, even if still loading
 	let shouldShowContent = $derived(currentCollection?._id && (hasInitialLoad || loadingState === 'loading'));
-	let shouldShowTable = $derived(shouldShowContent && (stableDataExists || tableData.length > 0) && loadingState !== 'loading');
-	let shouldShowNoDataMessage = $derived(
-		shouldShowContent && !isLoading && tableData.length === 0 && loadingState === 'idle' && hasInitialLoad && stableDataExists === false
-	);
+	let renderHeaders = $derived(visibleTableHeaders);
+	let shouldShowTable = $derived(shouldShowContent && tableData.length > 0 && !isLoading && renderHeaders?.length > 0);
+	let shouldShowNoDataMessage = $derived(shouldShowContent && !isLoading && tableData.length === 0);
 
 	// Use regular visibleTableHeaders - no need for complex transition logic
-	let renderHeaders = $derived(visibleTableHeaders);
 	let tableColspan = $derived((renderHeaders?.length ?? 0) + 1);
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
@@ -787,7 +852,7 @@ Features:
 			<!-- MultiButton -->
 			<div class=" flex w-full items-center justify-end sm:mt-0 sm:w-auto">
 				<EntryListMultiButton
-					isCollectionEmpty={tableData.length === 0}
+					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
 					selectedStatuses={selectedEntriesStatuses}
@@ -850,153 +915,139 @@ Features:
 		</div>
 	{/if}
 
-	{#if isLoading && hasInitialLoad && tableData.length === 0}
+	{#if isLoading && hasInitialLoad && tableData?.length === 0}
 		<div class="py-4 text-center text-sm text-gray-500">Loading data...</div>
 	{:else if isLoading && hasInitialLoad}
 		<div class="py-2 text-center text-xs text-gray-400">Refreshing...</div>
 	{/if}
 
 	{#if shouldShowTable}
-		{#if renderHeaders}
-			<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
-				<table
-					class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
-						? 'table-compact'
-						: entryListPaginationSettings.density === 'comfortable'
-							? 'table-comfortable'
-							: ''}"
-				>
-					<!-- Table Header -->
-					<thead class="text-tertiary-500 dark:text-primary-500">
-						{#if filterShow && renderHeaders.length > 0}
-							<tr class="divide-x divide-surface-400 dark:divide-surface-600">
-								<th>
-									<!-- Clear All Filters Button -->
-									{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
-										<button
-											onclick={() => {
-												const clearedFilters: Record<string, string> = {};
-												Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
-												entryListPaginationSettings.filters = clearedFilters;
+		<div class="table-container max-h-[calc(100dvh)] overflow-auto">
+			<table
+				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
+					? 'table-compact'
+					: entryListPaginationSettings.density === 'comfortable'
+						? 'table-comfortable'
+						: ''}"
+			>
+				<!-- Table Header -->
+				<thead class="text-tertiary-500 dark:text-primary-500">
+					{#if filterShow && renderHeaders.length > 0}
+						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
+							<th>
+								<!-- Clear All Filters Button -->
+								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
+									<button
+										onclick={() => {
+											const clearedFilters: Record<string, string> = {};
+											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
+											entryListPaginationSettings.filters = clearedFilters;
+										}}
+										aria-label="Clear All Filters"
+										class="variant-ghost-surface btn-icon btn-sm"
+									>
+										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
+									</button>
+								{/if}
+							</th>
+							<!-- Filter -->
+							{#each renderHeaders as header (header.id)}
+								<th
+									><div class="flex items-center justify-between">
+										<FloatingInput
+											type="text"
+											icon="material-symbols:search-rounded"
+											label={`Filter ${header.label}`}
+											name={header.name}
+											value={entryListPaginationSettings.filters[header.name] || ''}
+											onInput={(value: string) => {
+												const filterName = header.name;
+												filterDebounce(() => {
+													const newFilters = { ...entryListPaginationSettings.filters };
+													if (value) {
+														newFilters[filterName] = value;
+													} else {
+														delete newFilters[filterName];
+													}
+													entryListPaginationSettings.filters = newFilters;
+												});
 											}}
-											aria-label="Clear All Filters"
-											class="variant-ghost-surface btn-icon btn-sm"
-										>
-											<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
-										</button>
-									{/if}
+											inputClass="text-xs"
+										/>
+									</div>
 								</th>
-								<!-- Filter -->
-								{#each renderHeaders as header (header.id)}
-									<th
-										><div class="flex items-center justify-between">
-											<FloatingInput
-												type="text"
-												icon="material-symbols:search-rounded"
-												label={`Filter ${header.label}`}
-												name={header.name}
-												value={entryListPaginationSettings.filters[header.name] || ''}
-												onInput={(value: string) => {
-													const filterName = header.name;
-													filterDebounce(() => {
-														const newFilters = { ...entryListPaginationSettings.filters };
-														if (value) {
-															newFilters[filterName] = value;
-														} else {
-															delete newFilters[filterName];
-														}
-														entryListPaginationSettings.filters = newFilters;
-													});
-												}}
-												inputClass="text-xs"
-											/>
-										</div>
-									</th>
-								{/each}
-							</tr>
-						{/if}
+							{/each}
+						</tr>
+					{/if}
 
-						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-								<div class="flex flex-col items-center">
+					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
+							<div class="flex flex-col items-center">
+								<TableIcons
+									checked={SelectAll}
+									onCheck={(checked) => {
+										SelectAll = checked;
+									}}
+								/>
+							</div>
+						</td>
+
+						{#each renderHeaders as header (header.id)}
+							<th
+								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+									? 'font-semibold text-primary-500 dark:text-secondary-400'
+									: 'text-tertiary-500 dark:text-primary-500'}"
+								onclick={() => {
+									let newSorted = { ...entryListPaginationSettings.sorting };
+									if (newSorted.sortedBy === header.name) {
+										newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
+										if (newSorted.isSorted === 0) newSorted.sortedBy = '';
+									} else {
+										newSorted.sortedBy = header.name;
+										newSorted.isSorted = 1;
+									}
+									entryListPaginationSettings.sorting = newSorted;
+								}}
+							>
+								<div class="flex items-center justify-center">
+									{header.label}
+									{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
+										<iconify-icon
+											icon={entryListPaginationSettings.sorting.isSorted === 1
+												? 'material-symbols:arrow-upward-rounded'
+												: 'material-symbols:arrow-downward-rounded'}
+											width="16"
+											class="ml-1 origin-center"
+										></iconify-icon>
+									{/if}
+								</div>
+							</th>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					{#if tableData.length > 0}
+						{#each tableData as entry, index (entry._id)}
+							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
+								<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
 									<TableIcons
-										checked={SelectAll}
-										onCheck={(checked) => {
-											SelectAll = checked;
+										checked={selectedMap[index]}
+										onCheck={(isChecked) => {
+											selectedMap[index] = isChecked;
 										}}
 									/>
-								</div>
-							</td>
-
-							{#if renderHeaders}
-								{#each renderHeaders as header (header.id)}
-									<th
-										class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
-											? 'font-semibold text-primary-500 dark:text-secondary-400'
-											: 'text-tertiary-500 dark:text-primary-500'}"
-										onclick={() => {
-											let newSorted = { ...entryListPaginationSettings.sorting };
-											if (newSorted.sortedBy === header.name) {
-												newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
-												if (newSorted.isSorted === 0) newSorted.sortedBy = '';
-											} else {
-												newSorted.sortedBy = header.name;
-												newSorted.isSorted = 1;
-											}
-											entryListPaginationSettings.sorting = newSorted;
-										}}
-									>
-										<div class="flex items-center justify-center">
-											{header.label}
-											{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
-												<iconify-icon
-													icon={entryListPaginationSettings.sorting.isSorted === 1
-														? 'material-symbols:arrow-upward-rounded'
-														: 'material-symbols:arrow-downward-rounded'}
-													width="16"
-													class="ml-1 origin-center"
-												></iconify-icon>
-											{/if}
-										</div>
-									</th>
-								{/each}
-							{/if}
-						</tr>
-					</thead>
-					<tbody>
-						{#if tableData.length > 0}
-							{#each tableData as entry, index (entry._id)}
-								<tr
-									class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
-								>
-									<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-										<TableIcons
-											checked={selectedMap[index]}
-											onCheck={(isChecked) => {
-												selectedMap[index] = isChecked;
-											}}
-										/>
-									</td>
+								</td>
+								{#if renderHeaders}
 									{#each renderHeaders as header (header.id)}
 										<td
 											class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
 												? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 												: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
 											title={header.name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
-											onclick={() => {
+											onclick={async () => {
 												if (header.name === 'status') {
-													// console.log('🎯 Status column clicked for entry:', entry._id, 'current status:', entry.raw_status);
-
-													// Handle status column click - select this entry and show status change modal
-													// First, clear all other selections and select only this entry
-													Object.keys(selectedMap).forEach((key) => {
-														selectedMap[key] = false;
-													});
-													selectedMap[index] = true;
-													// console.log('✅ Entry selected:', selectedMap);
-
-													// Get current status and determine next logical status
-													const currentStatus = entry.raw_status;
+													// Handle single entry status change with modal (same style as multibutton)
+													const currentStatus = entry.status || entry.raw_status || 'draft';
 													let nextStatus;
 
 													// Define status progression logic
@@ -1022,12 +1073,66 @@ Features:
 															break;
 													}
 
-													// console.log(`🔄 Status change: ${currentStatus} → ${nextStatus}`);
+													// Create modal with same styling as multibutton modals
+													const getStatusColor = (status: string) => {
+														switch (status) {
+															case StatusTypes.publish:
+																return { color: 'primary', name: 'Publication' };
+															case StatusTypes.unpublish:
+																return { color: 'yellow', name: 'Unpublication' };
+															case StatusTypes.draft:
+																return { color: 'surface', name: 'Draft' };
+															default:
+																return { color: 'primary', name: 'Status Change' };
+														}
+													};
 
-													// Trigger the status change modal
-													modifyEntry.value(nextStatus);
+													const statusInfo = getStatusColor(nextStatus);
+													const modalSettings: ModalSettings = {
+														type: 'confirm',
+														title: `Please Confirm <span class="text-${statusInfo.color}-500 font-bold">${statusInfo.name}</span>`,
+														body: `Are you sure you want to <span class="text-${statusInfo.color}-500 font-semibold">change</span> this entry status to <span class="text-${statusInfo.color}-500 font-semibold">${nextStatus}</span>?`,
+														buttonTextConfirm: nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1),
+														buttonTextCancel: 'Cancel',
+														meta: {
+															buttonConfirmClasses: `bg-${statusInfo.color}-500 hover:bg-${statusInfo.color}-600 text-white`
+														},
+														response: async (confirmed: boolean) => {
+															if (confirmed) {
+																try {
+																	const collId = collection.value?._id;
+																	if (!collId) return;
+
+																	// Use single entry update API
+																	const result = await updateEntryStatus(collId, entry._id, nextStatus);
+																	if (result.success) {
+																		toastStore.trigger({
+																			message: `Entry status updated to ${nextStatus}`,
+																			background: 'variant-filled-success'
+																		});
+																		// Refresh the table data
+																		onActionSuccess();
+																	} else {
+																		toastStore.trigger({
+																			message: result.error || 'Failed to update entry status',
+																			background: 'variant-filled-error'
+																		});
+																	}
+																} catch (error) {
+																	console.error('Error updating entry status:', error);
+																	toastStore.trigger({
+																		message: 'An error occurred while updating entry status',
+																		background: 'variant-filled-error'
+																	});
+																}
+															}
+														}
+													};
+													modalStore.trigger(modalSettings);
 												} else {
-													const originalEntry = data?.entryList.find((e) => e._id === entry._id);
+													// Use NEW API response format - API returns 'items' array
+													const entryList = rawData?.items || [];
+													const originalEntry = entryList.find((e) => e._id === entry._id);
 													if (originalEntry) {
 														// Load the entry data into collectionValue
 														collectionValue.set(originalEntry);
@@ -1058,7 +1163,16 @@ Features:
 											}}
 										>
 											{#if header.name === 'status'}
-												<Status value={entry.raw_status} />
+												<Status value={entry.status || entry.raw_status || 'draft'} />
+											{:else if header.name === 'createdAt' || header.name === 'updatedAt'}
+												<div class="flex flex-col text-xs">
+													<div class="font-semibold">
+														{formatDisplayDate(entry[header.name], 'en', { year: 'numeric', month: 'short', day: 'numeric' })}
+													</div>
+													<div class="text-surface-500 dark:text-surface-400">
+														{formatDisplayDate(entry[header.name], 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+													</div>
+												</div>
 											{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
 												{@html entry[header.name][currentLanguage] || '-'}
 											{:else}
@@ -1066,46 +1180,42 @@ Features:
 											{/if}
 										</td>
 									{/each}
-								</tr>
-							{/each}
-						{:else if !isLoading}
-							<tr>
-								<td colspan={tableColspan} class="py-10 text-center text-gray-500">No entries found.</td>
+								{/if}
 							</tr>
-						{/if}
-					</tbody>
-				</table>
-			</div>
-			<!-- Pagination -->
-			<div
-				class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
-			>
-				<TablePagination
-					bind:currentPage={entryListPaginationSettings.currentPage}
-					bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
-					{pagesCount}
-					{totalItems}
-					onUpdatePage={(page: number) => {
-						if (isCollectionChanging || isInitializing) {
-							// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
-							return;
-						}
-						entryListPaginationSettings.currentPage = page;
-						refreshTableData(true);
-					}}
-					onUpdateRowsPerPage={(rows: number) => {
-						if (isCollectionChanging || isInitializing) {
-							// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
-							return;
-						}
-						//console.log('Rows per page updated to:', rows);
-						entryListPaginationSettings.rowsPerPage = rows;
-						entryListPaginationSettings.currentPage = 1;
-						refreshTableData(true);
-					}}
-				/>
-			</div>
-		{/if}
+						{/each}
+					{/if}
+				</tbody>
+			</table>
+		</div>
+		<!-- Pagination -->
+		<div
+			class="sticky bottom-0 left-0 right-0 z-10 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+		>
+			<TablePagination
+				bind:currentPage={entryListPaginationSettings.currentPage}
+				bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
+				{pagesCount}
+				{totalItems}
+				onUpdatePage={(page: number) => {
+					if (isCollectionChanging || isInitializing) {
+						// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
+						return;
+					}
+					entryListPaginationSettings.currentPage = page;
+					refreshTableData(true);
+				}}
+				onUpdateRowsPerPage={(rows: number) => {
+					if (isCollectionChanging || isInitializing) {
+						// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
+						return;
+					}
+					//console.log('Rows per page updated to:', rows);
+					entryListPaginationSettings.rowsPerPage = rows;
+					entryListPaginationSettings.currentPage = 1;
+					refreshTableData(true);
+				}}
+			/>
+		</div>
 	{:else if shouldShowNoDataMessage}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>

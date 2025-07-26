@@ -10,12 +10,10 @@
  * - Setting up default roles and permissions
  * - Configuring Google OAuth2 client if credentials are provided
  *
- * Key Features:
- * - Dynamic Adapter Loading: Supports MongoDB and SQL-based adapters (MariaDB, PostgreSQL) with dynamic import.
- * - Initialization Management: Manages initialization state to prevent redundant setup processes.
- * - Theme Initialization: Handles default theme setup and ensures it's marked as default if not already.
- * - Authentication and Authorization: Configures and initializes authentication adapters.
- * - Google OAuth2 Integration: Optionally sets up Google OAuth2 client if the client ID and secret are provided.
+ * Multi-Tenancy Note:
+ * This file handles the one-time global startup of the server. Tenant-specific
+ * data scoping is handled by the API endpoints and server hooks that use the
+ * initialized services from this module.
  */
 
 import { building } from '$app/environment';
@@ -86,9 +84,8 @@ async function loadAdapters() {
 					getUserById: userAdapter.getUserById.bind(userAdapter),
 					getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 					getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-					getUserCount: userAdapter.getUserCount.bind(userAdapter),
+					getUserCount: userAdapter.getUserCount.bind(userAdapter), // Session Management Methods
 
-					// Session Management Methods
 					createSession: sessionAdapter.createSession.bind(sessionAdapter),
 					updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
 					deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
@@ -99,8 +96,8 @@ async function loadAdapters() {
 					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
 					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter), // Add rotateToken binding
 					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter), // Add cleanup binding
-
 					// Token Management Methods
+
 					createToken: tokenAdapter.createToken.bind(tokenAdapter),
 					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
 					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
@@ -108,17 +105,15 @@ async function loadAdapters() {
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
+					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter), // Permission Management Methods (Imported)
 
-					// Permission Management Methods (Imported)
 					getAllPermissions
 				};
 				logger.debug('Auth adapters created and bound');
 				break;
 			}
 			case 'mariadb':
-			case 'postgresql':
-				// Implement SQL adapters loading here
+			case 'postgresql': // Implement SQL adapters loading here
 				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
 				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 			default:
@@ -141,8 +136,7 @@ async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
 		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
-		const themes = await dbAdapter.themes.getAllThemes();
-		// Ensure themes is an array before accessing its length
+		const themes = await dbAdapter.themes.getAllThemes(); // Ensure themes is an array before accessing its length
 		if (!Array.isArray(themes)) {
 			logger.warn('No themes returned from database or an error occurred. Assuming no themes exist.');
 			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
@@ -170,8 +164,7 @@ async function initializeMediaFolder(): Promise<void> {
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
-		logger.debug(`Checking media folder: ${mediaFolderPath}`);
-		// Check if the media folder exists
+		logger.debug(`Checking media folder: ${mediaFolderPath}`); // Check if the media folder exists
 		await fs.access(mediaFolderPath);
 		logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
 	} catch {
@@ -202,12 +195,10 @@ async function initializeVirtualFolders(): Promise<void> {
 		const systemVirtualFolders = systemVirtualFoldersResult.data;
 
 		if (systemVirtualFolders.length === 0) {
-			logger.info('No virtual folders found. Creating default root folder...');
-			// Create a default root folder
+			logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
 			const rootFolderData = {
 				name: publicEnv.MEDIA_FOLDER,
-				path: publicEnv.MEDIA_FOLDER,
-				// parentId is undefined for root folders
+				path: publicEnv.MEDIA_FOLDER, // parentId is undefined for root folders
 				order: 0
 			};
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
@@ -217,9 +208,8 @@ async function initializeVirtualFolders(): Promise<void> {
 				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 
-			const rootFolder = creationResult.data;
+			const rootFolder = creationResult.data; // Log only the essential information
 
-			// Log only the essential information
 			logger.info('Default root virtual folder created:', {
 				name: rootFolder.name,
 				path: rootFolder.path,
@@ -237,8 +227,7 @@ async function initializeVirtualFolders(): Promise<void> {
 
 // Initialize adapters
 async function initializeRevisions(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
-	// Add any revision-specific setup if needed in the future
+	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.'); // Add any revision-specific setup if needed in the future
 	logger.debug('Revisions initialized.');
 }
 
@@ -269,14 +258,12 @@ async function initializeSystem(): Promise<void> {
 		]);
 		isConnected = true; // Mark connected after DB connection succeeds
 		const step1Time = performance.now() - step1StartTime;
-		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`);
+		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
 
-		// Check if adapters loaded correctly (loadAdapters throws on critical failure)
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
-		}
+		} // 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
 
-		// 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
 		const step2StartTime = performance.now();
 
 		try {
@@ -291,9 +278,8 @@ async function initializeSystem(): Promise<void> {
 		} catch (modelSetupErr) {
 			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
 			throw modelSetupErr;
-		}
+		} // 3. Initialize remaining components in parallel
 
-		// 3. Initialize remaining components in parallel
 		const step3StartTime = performance.now();
 
 		try {
@@ -304,9 +290,8 @@ async function initializeSystem(): Promise<void> {
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);
 			throw componentErr;
-		}
+		} // 4. Initialize ContentManager (loads collection schemas into memory)
 
-		// 4. Initialize ContentManager (loads collection schemas into memory)
 		const step4StartTime = performance.now();
 
 		try {
@@ -316,17 +301,15 @@ async function initializeSystem(): Promise<void> {
 		} catch (contentErr) {
 			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
 			throw contentErr;
-		}
+		} // 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
 
-		// 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
 		const step5StartTime = performance.now();
 		try {
 			const { collectionMap } = await contentManager.getCollectionData();
-			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.');
-
-			// Since ContentManager now handles model creation, this step is purely for verification.
+			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.'); // Since ContentManager now handles model creation, this step is purely for verification.
 			// We can simply log that this step is complete, as the critical logic is in ContentManager.
 			// If ContentManager failed, initialization would have already stopped.
+
 			const schemas = Array.from(collectionMap.values());
 			logger.debug(`ContentManager reports \x1b[34m${schemas.length}\x1b[0m collections loaded. Verification complete.`);
 
@@ -336,9 +319,8 @@ async function initializeSystem(): Promise<void> {
 			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
 			throw new Error(message);
-		}
+		} // 6. Initialize Authentication (after DB/Auth adapters and models are ready)
 
-		// 6. Initialize Authentication (after DB/Auth adapters and models are ready)
 		const step6StartTime = performance.now();
 
 		if (!authAdapter) {
@@ -350,16 +332,14 @@ async function initializeSystem(): Promise<void> {
 			auth = new Auth(authAdapter, getDefaultSessionStore());
 			if (!auth) {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
-			}
+			} // Verify auth methods are available
 
-			// Verify auth methods are available
 			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
 			logger.debug(
 				`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
 				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
-			);
+			); // Test auth functionality
 
-			// Test auth functionality
 			if (typeof auth.validateSession !== 'function') {
 				throw new Error('Auth instance missing validateSession method');
 			}
@@ -393,13 +373,11 @@ async function initializeSystem(): Promise<void> {
 if (!building) {
 	if (!initializationPromise) {
 		logger.debug('Creating system initialization promise...');
-		initializationPromise = initializeSystem();
+		initializationPromise = initializeSystem(); // Handle initialization errors
 
-		// Handle initialization errors
 		initializationPromise.catch((err) => {
 			logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-			logger.error('Clearing initialization promise to allow retry');
-			// Ensure promise variable is cleared so retries might be possible if the app handles it
+			logger.error('Clearing initialization promise to allow retry'); // Ensure promise variable is cleared so retries might be possible if the app handles it
 			initializationPromise = null;
 		});
 	} else {

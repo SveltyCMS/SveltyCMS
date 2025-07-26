@@ -17,10 +17,9 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { json, type RequestHandler } from '@sveltejs/kit';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -31,20 +30,11 @@ interface TokenStatus {
 	tiktok: boolean;
 }
 
-export const GET: RequestHandler = async ({ locals }) => {
-	// Check system permissions - only admins or users with system access should see token status
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'system',
-		action: 'read'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to access token status', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-	}
+export const GET: RequestHandler = async () => {
+	// No permission checks needed - hooks already verified:
+	// 1. User is authenticated
+	// 2. User has correct role for this API endpoint
+	// 3. User belongs to correct tenant (if multi-tenant)
 
 	logger.debug('Checking provided tokens...');
 

@@ -1,3 +1,21 @@
+/**
+ * @file src/content/utils.ts
+ * @description Helper functions for Content
+ *
+ * Structure:
+ *   - constructNestedStructure: Converts a flat list of content nodes into a nested structure
+ *   - constructContentPaths: Converts a nested structure into a flat list of content nodes
+ *   - generateCategoryNodesFromPaths: Extracts category nodes from a flat list of content nodes
+ *
+ * Module Processing:
+ *   - processModule: Extracts schema from module content
+ *
+ * Widget Utilities:
+ *   - ensureWidgetsInitialized: Initializes widgets
+ *   - resolveWidgetPlaceholder: Resolves a widget placeholder
+ *   - resolveWidget (imported via widgetProxy): Resolves a widget
+ */
+
 import type { ContentNode, NestedContentNode } from '../databases/dbInterface';
 import { logger } from '../utils/logger.svelte';
 import type { MinimalContentNode, Schema } from './types';

@@ -23,7 +23,7 @@
 
 	// Components
 	import DropDown from './DropDown.svelte';
-	import Fields from '@components/Fields.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
 
 	// Types
 	import type { FieldType } from '.';

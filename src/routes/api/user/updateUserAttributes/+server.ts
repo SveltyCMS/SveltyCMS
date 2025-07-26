@@ -9,6 +9,7 @@
  * between a user editing their own profile vs. an admin editing another user's.
  * - **Privilege Escalation Prevention**: The validation schema dynamically prevents
  * users from changing their own role. Only an admin can change another user's role.
+ * - **Multi-Tenant Safe**: Verifies that admins can only edit users within their own tenant.
  * - Secure input validation with Valibot.
  * - Robust error handling and session cache invalidation.
  *
@@ -17,12 +18,13 @@
  * Body: JSON object with 'user_id' and 'newUserData' properties.
  */
 
+import { privateEnv } from '@root/config/private';
+
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { checkApiPermission } from '@api/permissions';
 import { getCacheStore } from '@src/cacheStore/index.server';
 import { auth } from '@src/databases/db';
 
@@ -41,13 +43,15 @@ const baseUserDataSchema = object({
 
 export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 	try {
+		const { user, tenantId } = locals; // Destructure user and tenantId
+
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
 		// Check if user is authenticated
-		if (!locals.user) {
+		if (!user) {
 			logger.warn('Unauthenticated request to updateUserAttributes');
 			throw error(401, 'Unauthorized: Please log in to continue');
 		}
@@ -65,7 +69,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		}
 
 		// **TWO-LEVEL PERMISSION SYSTEM**: Check if user is editing their own profile or has admin permissions
-		const isEditingSelf = locals.user._id === userIdToUpdate;
+		const isEditingSelf = user._id === userIdToUpdate;
 		let hasPermission = false;
 
 		if (isEditingSelf) {
@@ -73,7 +77,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			hasPermission = true;
 		} else {
 			// To edit another user, use centralized permission system
-			const permissionResult = await checkApiPermission(locals.user, {
+			const permissionResult = await checkApiPermission(user, {
 				resource: 'user',
 				action: 'update'
 			});
@@ -81,7 +85,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 			if (!hasPermission && permissionResult.error) {
 				logger.warn('Unauthorized attempt to update user attributes.', {
-					requestedBy: locals.user?._id,
+					requestedBy: user?._id,
 					targetUserId: userIdToUpdate,
 					error: permissionResult.error
 				});
@@ -91,10 +95,28 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to update user attributes.', {
-				requestedBy: locals.user?._id,
+				requestedBy: user?._id,
 				targetUserId: userIdToUpdate
 			});
 			throw error(403, 'Forbidden: You do not have permission to update this user.');
+		}
+
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		// If an admin is editing another user, ensure the target user is in the same tenant.
+		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			const userToUpdate = await auth.getUserById(userIdToUpdate);
+			if (!userToUpdate || userToUpdate.tenantId !== tenantId) {
+				logger.warn('Admin attempted to edit a user outside their tenant.', {
+					adminId: user?._id,
+					adminTenantId: tenantId,
+					targetUserId: userIdToUpdate,
+					targetTenantId: userToUpdate?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only edit users within your own tenant.');
+			}
 		}
 
 		// **SECURITY FEATURE**: Prevent users from changing their own role
@@ -102,7 +124,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		if (newUserData.role) {
 			if (isEditingSelf) {
 				// If a user tries to submit a 'role' change for themselves, throw an error.
-				logger.warn('User attempted to change their own role.', { userId: locals.user._id, attemptedRole: newUserData.role });
+				logger.warn('User attempted to change their own role.', { userId: user._id, attemptedRole: newUserData.role });
 				throw error(403, 'Forbidden: You cannot change your own role.');
 			} else {
 				// If an admin is editing another user, allow the role change.
@@ -142,11 +164,12 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 		// Invalidate admin cache since user data has changed
 		const { invalidateAdminCache } = await import('@src/hooks.server');
-		invalidateAdminCache('users');
+		invalidateAdminCache('users', tenantId);
 
 		logger.info('User attributes updated successfully', {
 			user_id: userIdToUpdate,
-			updatedBy: locals.user?._id,
+			updatedBy: user?._id,
+			tenantId: tenantId,
 			updatedFields: Object.keys(validatedData)
 		});
 

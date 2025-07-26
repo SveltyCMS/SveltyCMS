@@ -52,6 +52,14 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 
 		collection.set(data.collection);
+
+		// Initialize collectionValue with language keys
+		const initialValue: Record<string, any> = {
+			_id: collectionValue.value?._id,
+			slug: collectionValue.value?.slug
+		};
+		collectionValue.set(initialValue);
+
 		mode.set('view'); // Set mode to view to render EntryList
 		isLoading = false;
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
@@ -64,47 +72,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 	});
 
-	// Track if language was set by user to avoid overriding user selection
-	let userInitiatedLanguageChange = $state(false);
-	let lastUrlLanguage = $state(data.contentLanguage);
-
-	// Listen for user-initiated language changes
 	$effect(() => {
-		const handleLanguageChange = (event: CustomEvent) => {
-			// console.log('[PAGE DEBUG] User-initiated language change detected:', event.detail.language);
-			userInitiatedLanguageChange = true;
-		};
-
-		if (typeof window !== 'undefined') {
-			window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-			return () => {
-				window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-			};
-		}
-	});
-
-	$effect(() => {
-		// Reset the flag if the URL language has actually changed (navigation)
-		if (data.contentLanguage !== lastUrlLanguage) {
-			// console.log('[PAGE DEBUG] URL language changed from', lastUrlLanguage, 'to', data.contentLanguage, '- resetting user flag');
-			userInitiatedLanguageChange = false;
-			lastUrlLanguage = data.contentLanguage;
-		}
-
-		// Only set language from URL if user hasn't initiated a language change
-		if (!userInitiatedLanguageChange) {
-			if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
-				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
-				if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
-					console.log('[PAGE DEBUG] Setting invalid language fallback to en');
-					contentLanguage.set('en');
-				}
-			} else {
-				console.log('[PAGE DEBUG] Setting language from URL data:', data.contentLanguage);
-				contentLanguage.set(data.contentLanguage as Locale);
-			}
-		} else {
-			console.log('[PAGE DEBUG] Skipping language set from URL due to user-initiated change');
+		if (!contentLanguage.value) {
+			contentLanguage.set(data.contentLanguage as Locale);
 		}
 	});
 

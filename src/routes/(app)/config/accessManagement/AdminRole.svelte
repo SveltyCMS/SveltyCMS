@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/config/adminRoleManagement/AdminRoleManagement.svelte
+@file src/routes/(app)/config/adminRoleManagement/AdminRole.svelte
 @component
 **This component manages the selection and updating of the administrator role within the application**
 
@@ -18,8 +18,6 @@ It provides functionality to:
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { writable } from 'svelte/store';
 	import { tick } from 'svelte';
 
 	// Types
@@ -33,52 +31,44 @@ It provides functionality to:
 
 	let { roleData, setRoleData } = $props();
 
-	// State stores
-	const roles = writable<Role[]>([]);
-	const isLoading = writable(true);
-	const error = writable<string | null>(null);
-	const currentAdminRole = writable<string | null>(null);
-	const currentAdminName = writable<string | null>(null);
-	const selectedAdminRole = writable<string | null>(null);
-	const hasChanges = writable(false);
-	const isSaving = writable(false);
-	const notification = writable<string | null>(null);
+	// Reactive state using Svelte 5 runes
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let currentAdminRole = $state<string | null>(null);
+	let currentAdminName = $state<string | null>(null);
+	let selectedAdminRole = $state<string | null>(null);
+	let isSaving = $state(false);
+	let notification = $state<string | null>(null);
 
-	// Fetch roles on component mount
-	onMount(async () => {
-		try {
-			await loadRoles(); // Load roles after initialization
-		} catch (err) {
-			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
-		} finally {
-			isLoading.set(false); // Set loading to false after loading roles
-		}
+	// Derived state for computed values
+	let availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));
+	let hasChanges = $derived(selectedAdminRole !== currentAdminRole);
+
+	// Initialize component data
+	$effect(() => {
+		loadRoles();
 	});
 
 	// Function to load roles from the authAdapter
 	const loadRoles = async () => {
 		try {
-			const rolesData = roleData;
-			const currentAdmin = rolesData.find((role: Role) => role.isAdmin === true);
+			const currentAdmin = roleData.find((role: Role) => role.isAdmin === true);
 			if (currentAdmin) {
-				currentAdminRole.set(currentAdmin._id); // Set the current admin role
-				currentAdminName.set(currentAdmin.name);
-				selectedAdminRole.set(currentAdmin._id); // Initially set the selected admin role to the current admin role
-				// Remove the current admin role from the dropdown options
-				roles.set(rolesData.filter((role: Role) => role._id !== currentAdmin._id));
-			} else {
-				roles.set(rolesData); // If no current admin role, show all roles
+				currentAdminRole = currentAdmin._id;
+				currentAdminName = currentAdmin.name;
+				selectedAdminRole = currentAdmin._id;
 			}
 		} catch (err) {
-			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
+			error = `Failed to load roles: ${err instanceof Error ? err.message : String(err)}`;
+		} finally {
+			isLoading = false;
 		}
 	};
 
 	// Handle role change
 	const handleRoleChange = (event: Event) => {
 		const selectedRoleId = (event.target as HTMLSelectElement).value;
-		selectedAdminRole.set(selectedRoleId); // Update the selected role in the store
-		hasChanges.set(selectedRoleId !== $currentAdminRole); // Check if the selected role is different from the current role
+		selectedAdminRole = selectedRoleId;
 	};
 
 	// Show corresponding Toast messages
@@ -99,18 +89,17 @@ It provides functionality to:
 	// Function to save the new admin role
 	const saveAdminRole = async () => {
 		try {
-			isSaving.set(true);
-			notification.set(null); // Clear any existing notifications
+			isSaving = true;
+			notification = null;
 
-			// Simulate the saving process
-			await tick(); // Ensure DOM updates before save process begins
-			// Implement the logic to save the new admin role here
+			// Ensure DOM updates before save process begins
+			await tick();
 
-			currentAdminRole.set($selectedAdminRole);
+			currentAdminRole = selectedAdminRole;
 			try {
 				const result = roleData.map((cur: Role) => {
-					if (cur._id === $selectedAdminRole) {
-						currentAdminName.set(cur.name);
+					if (cur._id === selectedAdminRole) {
+						currentAdminName = cur.name;
 						return { ...cur, isAdmin: true };
 					}
 					if (cur.isAdmin === true) {
@@ -118,31 +107,28 @@ It provides functionality to:
 					}
 					return cur;
 				});
-				roles.set(result.filter((cur: Role) => !cur.isAdmin));
 				setRoleData(result);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
-			hasChanges.set(false);
-			notification.set('Admin role changed. Click "Save" at the top to apply changes.');
+			notification = 'Admin role changed. Click "Save" at the top to apply changes.';
 		} catch (err) {
-			notification.set(`Failed to save admin role: ${err instanceof Error ? err.message : String(err)}`);
+			notification = `Failed to save admin role: ${err instanceof Error ? err.message : String(err)}`;
 		} finally {
-			isSaving.set(false);
+			isSaving = false;
 		}
 	};
 
 	// Function to cancel changes and reset the selected role to the current admin role
 	const cancelChanges = () => {
-		selectedAdminRole.set($currentAdminRole);
-		hasChanges.set(false);
+		selectedAdminRole = currentAdminRole;
 	};
 </script>
 
-{#if $isLoading}
+{#if isLoading}
 	<Loading customTopText="Loading Admin Role..." customBottomText="" />
-{:else if $error}
-	<p class="error">{$error}</p>
+{:else if error}
+	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>
 	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
@@ -151,30 +137,30 @@ It provides functionality to:
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
-			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$currentAdminName}</span>
+			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->
 		<label for="adminRole" class="block text-sm text-surface-300">Select new Administrator Role:</label>
-		<select id="adminRole" class="input" onchange={handleRoleChange} bind:value={$selectedAdminRole}>
-			{#each $roles as role}
+		<select id="adminRole" class="input" onchange={handleRoleChange} bind:value={selectedAdminRole}>
+			{#each availableRoles as role}
 				<option value={role._id}>{role.name}</option>
 			{/each}
 		</select>
 
 		<!-- Save and Cancel Buttons -->
-		{#if $hasChanges}
+		{#if hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-left">
-				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$selectedAdminRole}</span>
+				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
 				<button onclick={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
 
 				<!-- Save -->
-				<button onclick={saveAdminRole} class="variant-filled-tertiary btn" disabled={$isSaving}>
-					{#if $isSaving}
+				<button onclick={saveAdminRole} class="variant-filled-tertiary btn" disabled={isSaving}>
+					{#if isSaving}
 						Saving...
 					{:else}
 						Save Changes
@@ -184,8 +170,8 @@ It provides functionality to:
 		{/if}
 
 		<!-- Notification Message -->
-		{#if $notification}
-			<p class="mt-4 text-green-600">{$notification}</p>
+		{#if notification}
+			<p class="mt-4 text-green-600">{notification}</p>
 		{/if}
 	</div>
 {/if}

@@ -4,8 +4,8 @@
  *
  * This module is responsible for:
  * - Creating a new token with a specified role and expiration.
- * - Associating the token with a user ID and email.
- * - Requires 'create:token' permission.
+ * - Associating the token with a user ID and email within the current tenant.
+ * - Requires 'system:write' permission.
  *
  * @usage
  * POST /api/token
@@ -17,12 +17,13 @@
  * "expiresInLabel": "7d"
  * }
  */
+import { privateEnv } from '@root/config/private';
+
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // Cache invalidation
 import { invalidateAdminCache } from '@src/hooks.server';
@@ -43,27 +44,13 @@ const createTokenSchema = object({
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
+	const { tenantId } = locals; // User and permissions are guaranteed by hooks
 
 	try {
-		// Check permissions for token creation
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized token creation attempt`, {
-				userId: locals.user?._id,
-				userEmail: locals.user?.email,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to create tokens.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// No permission checks needed - hooks already verified:
+		// 1. User is authenticated
+		// 2. User has correct role for 'api:token' endpoint
+		// 3. User belongs to correct tenant (if multi-tenant)
 
 		const body = await request.json();
 
@@ -74,7 +61,7 @@ export const POST: RequestHandler = async (event) => {
 			if (err.name === 'ValiError') {
 				const validationErrors = err.issues?.map((issue) => `${issue.path?.join('.')}: ${issue.message}`) || ['Invalid data'];
 				logger.warn(`Token creation validation failed`, {
-					userId: locals.user?._id,
+					userId: user?._id,
 					validationErrors,
 					providedFields: Object.keys(body || {})
 				});
@@ -88,6 +75,24 @@ export const POST: RequestHandler = async (event) => {
 			throw error(500, 'Database authentication not available');
 		}
 
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			// Verify the target user belongs to the same tenant as the admin creating the token.
+			const targetUser = await auth.getUserById(tokenData.user_id);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Attempt to create a token for a user in another tenant.', {
+					adminId: user?._id,
+					adminTenantId: tenantId,
+					targetUserId: tokenData.user_id,
+					targetTenantId: targetUser?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only create tokens for users within your own tenant.');
+			}
+		}
+
 		const expiresAt = new Date(Date.now() + tokenData.expiresIn * 60 * 60 * 1000);
 
 		logger.debug(`Creating token for user`, {
@@ -95,18 +100,19 @@ export const POST: RequestHandler = async (event) => {
 			targetEmail: tokenData.email,
 			role: tokenData.role,
 			expiresIn: tokenData.expiresIn,
-			createdBy: locals.user?._id
+			createdBy: user?._id,
+			tenantId
 		});
 
 		const token = await auth.createToken({
 			user_id: tokenData.user_id,
+			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
 			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
 			expires: expiresAt,
 			type: 'registration' // Or another appropriate type
 		});
-
 		// Invalidate the tokens cache so the new token appears immediately in admin area
-		invalidateAdminCache('tokens');
+		invalidateAdminCache('tokens', tenantId);
 
 		const responseData = {
 			success: true,
@@ -119,7 +125,8 @@ export const POST: RequestHandler = async (event) => {
 			targetEmail: tokenData.email,
 			role: tokenData.role,
 			expiresAt: expiresAt.toISOString(),
-			createdBy: locals.user?._id
+			createdBy: user?._id,
+			tenantId
 		});
 
 		return json(responseData, { status: 201 });

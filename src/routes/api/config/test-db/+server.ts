@@ -7,10 +7,10 @@ import { json } from '@sveltejs/kit';
 import mariadb from 'mariadb';
 import mongoose from 'mongoose';
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 export async function POST({ request, locals }) {
-	// Check permissions using centralized system
+	// Check fine-grained permissions for database configuration
+	// Note: Basic API access (api:config) is already verified by hooks
 	const permissionResult = await checkApiPermission(locals.user, {
 		resource: 'system',
 		action: 'write'
@@ -19,7 +19,7 @@ export async function POST({ request, locals }) {
 	if (!permissionResult.hasPermission) {
 		return json(
 			{ error: permissionResult.error || 'Forbidden: Insufficient permissions to test database connection' },
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			{ status: 403 } // Always 403 since user is authenticated by hooks
 		);
 	}
 

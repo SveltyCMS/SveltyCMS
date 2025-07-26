@@ -2,14 +2,14 @@
  * @file src/routes/(app)/config/collectionbuilder/+page.server.ts
  * @description Server-side logic for Collection Builder page authentication and authorization.
  *
- * Handles user authentication and role-based access control for the Collection Builder page.
- * Redirects unauthenticated users to the login page and restricts access based on user permissions.
- *
- * Responsibilities:
+ * #Features:
  * - Checks for authenticated user in locals (set by hooks.server.ts).
- * - Checks user permissions for collection builder access.
- * - Returns user data if authentication and authorization are successful.
- * - Handles cases of unauthenticated users or insufficient permissions.
+ * - Verifies user permissions for collection builder access (`config:collectionbuilder`).
+ * - Fetches initial content structure data from `contentManager`.
+ * - Determines user's admin status based on roles.
+ * - Redirects unauthenticated users to login.
+ * - Throws 403 error for insufficient permissions.
+ * - Returns user data and content structure for client-side rendering.
  */
 
 import { redirect, error } from '@sveltejs/kit';
@@ -56,13 +56,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
+		// Fetch the initial content structure
 		const { contentStructure } = await contentManager.getCollectionData();
 
 		// Determine admin status properly by checking role
 		const userRole = roles.find((role) => role._id === user.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
 
-		// Return user data with proper admin status
+		// Return user data with proper admin status and the content structure
 		const { _id, ...rest } = user;
 		return {
 			user: {

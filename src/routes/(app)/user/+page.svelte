@@ -45,7 +45,7 @@
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
-	let { user: serverUser, isFirstUser } = $derived(data);
+	let { user: serverUser, isFirstUser, isMultiTenant } = $derived(data);
 
 	// Make user data reactive
 	let user = $derived<User>({
@@ -54,6 +54,7 @@
 		username: serverUser?.username ?? '',
 		role: serverUser?.role ?? '',
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
+		tenantId: serverUser?.tenantId ?? '', // Add tenantId
 		permissions: []
 	});
 
@@ -193,6 +194,12 @@
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
 					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
+				<!-- Tenant ID -->
+				{#if isMultiTenant}
+					<div class="gradient-primary badge w-full max-w-xs text-white">
+						Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span>
+					</div>
+				{/if}
 				<!-- Permissions List -->
 				{#each user.permissions as permission}
 					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">

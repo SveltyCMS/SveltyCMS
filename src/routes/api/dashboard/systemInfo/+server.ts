@@ -45,7 +45,6 @@ import { promisify } from 'util';
 import { performance } from 'perf_hooks';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
