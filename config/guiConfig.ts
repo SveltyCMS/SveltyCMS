@@ -8,36 +8,36 @@
  *
  * @imports
  * - m: A collection of localized messages imported from '@src/paraglide/messages' used to
- *   provide descriptions and helper texts for the configuration fields.
+ * provide descriptions and helper texts for the configuration fields.
  *
  * @interfaces
  * - ConfigField<T>: A generic interface representing a configuration field,
- *   including its type, default value, helper text, optional allowed values, and an icon.
+ *   including its type, default value, helper text, optional allowed values, and an icon.
  * - ConfigCategory: An interface representing a configuration category that contains a
- *   description, an icon, and a collection of configuration fields.
+ *   description, an icon, and a collection of configuration fields.
  *
  * @configurations
  * - databaseConfig: Configuration settings related to the database, including type, host,
- *   port, credentials, retry logic, and connection pooling.
+ *   port, credentials, retry logic, and connection pooling.
  * - emailConfig: Configuration settings for SMTP email services, including host, port,
- *   and authentication details.
+ *   and authentication details.
  * - googleConfig: Configuration settings for Google OAuth and API integration.
  * - redisConfig: Configuration settings for Redis, including host, port, and authentication.
  * - mapboxConfig: Configuration settings for Mapbox API integration.
  * - tiktokConfig: Configuration settings for TikTok integration.
  * - llmConfig: Configuration settings for LLM integration.
  * - systemConfig: System-wide settings, including site name, server hosts, body size
- *   limits, password strength, and seasonal features.
+ *   limits, password strength, and seasonal features.
  * - languageConfig: Language-related settings, including default and available content
- *   and system languages.
+ *   and system languages.
  * - mediaConfig: Media management settings, including image sizes, media folder paths,
- *   output format quality, and media server URL.
+ *   output format quality, and media server URL.
  *
  * @exports
  * - privateConfigCategories: An object containing private configuration categories like
- *   database, email, and third-party service integrations.
+ *   database, email, and third-party service integrations.
  * - publicConfigCategories: An object containing public configuration categories like
- *   system, language, and media settings.
+ *   system, language, and media settings.
  */
 
 // ParaglideJS
@@ -337,7 +337,7 @@ const llmConfig: ConfigCategory = {
 
 // --- NEW: Security Category ---
 const securityConfig: ConfigCategory = {
-	description: 'Manage security settings, roles, permissions, and secret keys.',
+	description: 'Manage security settings, roles, permissions, secret keys, and two-factor authentication.',
 	icon: 'mdi:shield-lock',
 	fields: {
 		JWT_SECRET_KEY: {
@@ -345,6 +345,24 @@ const securityConfig: ConfigCategory = {
 			default: '',
 			helper: 'The secret key for signing JWTs. Must be at least 32 characters long.',
 			icon: 'mdi:key-variant'
+		},
+		USE_2FA: {
+			type: 'boolean',
+			default: false,
+			helper: 'Enable Two-Factor Authentication globally for enhanced security.',
+			icon: 'mdi:two-factor-authentication'
+		},
+		TWO_FACTOR_AUTH_SECRET: {
+			type: 'string',
+			default: '',
+			helper: 'Secret key for 2FA token generation. Leave empty to auto-generate.',
+			icon: 'mdi:key-plus'
+		},
+		TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: {
+			type: 'number',
+			default: 10,
+			helper: 'Number of backup codes to generate for 2FA recovery (1-50).',
+			icon: 'mdi:backup-restore'
 		},
 		ROLES: {
 			type: 'object',

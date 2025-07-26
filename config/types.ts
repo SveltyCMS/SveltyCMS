@@ -6,7 +6,7 @@
  * It maintains enhanced, developer-friendly error reporting.
  */
 
-import type { BaseSchema, InferOutput, BaseIssue, Issue } from 'valibot';
+import type { BaseSchema, InferOutput, BaseIssue } from 'valibot';
 import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
@@ -70,7 +70,13 @@ export const privateConfigSchema = object({
 	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one permission is required.')), // List of permissions available in the system
 	// --- JWT Secret ---
 
-	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')) // Secret key for JWT
+	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')), // Secret key for JWT
+
+	// --- Two-Factor Authentication ---
+
+	USE_2FA: optional(boolean()), // Set to `true` to enable Two-Factor Authentication globally
+	TWO_FACTOR_AUTH_SECRET: optional(string()), // Optional: Secret for 2FA token generation (auto-generated if not provided)
+	TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: optional(pipe(number(), minValue(1), maxValue(50))) // Optional: Number of backup codes to generate (default: 10)
 });
 
 /**
@@ -163,7 +169,7 @@ const colors = {
  * @param path - The path array from a Valibot issue.
  * @returns A dot-separated string representing the field path.
  */
-function formatPath(path: Issue['path']): string {
+function formatPath(path: BaseIssue<unknown>['path']): string {
 	if (!path || path.length === 0) return 'root';
 	return path.map((p: { key: string }) => p.key).join('.');
 }
@@ -173,15 +179,15 @@ function formatPath(path: Issue['path']): string {
  * @param issues - An array of Valibot issues.
  * @param configFile - The name of the configuration file being validated.
  */
-function logValidationErrors(issues: Issue[], configFile: string): void {
+function logValidationErrors(issues: BaseIssue<unknown>[], configFile: string): void {
 	console.error(`\n${colors.yellow}⚠️ Invalid configuration in ${colors.cyan}${configFile}${colors.reset}`);
 
 	issues.forEach((issue) => {
 		const fieldPath = formatPath(issue.path) || 'Configuration object';
-		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
-		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
+		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
+		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
 		if (issue.input !== undefined) {
-			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
+			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
 		}
 	});
 }
@@ -210,7 +216,20 @@ function performConditionalValidation(config: Record<string, unknown>): string[]
 	}
 	if (config.USE_TIKTOK && !config.TIKTOK_TOKEN) {
 		errors.push(`When ${colors.cyan}USE_TIKTOK${colors.reset} is true, a ${colors.cyan}TIKTOK_TOKEN${colors.reset} is required.`);
-	} // Public Config Checks
+	}
+
+	// 2FA validation
+	if (
+		config.USE_2FA &&
+		config.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT &&
+		(config.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT < 1 || config.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT > 50)
+	) {
+		errors.push(
+			`When ${colors.cyan}USE_2FA${colors.reset} is enabled, ${colors.cyan}TWO_FACTOR_AUTH_BACKUP_CODES_COUNT${colors.reset} must be between 1 and 50.`
+		);
+	}
+
+	// Public Config Checks
 
 	if (config.SEASONS && !config.SEASON_REGION) {
 		errors.push(`When ${colors.cyan}SEASONS${colors.reset} is true, a ${colors.cyan}SEASON_REGION${colors.reset} must be selected.`);
@@ -252,11 +271,11 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		const conditionalErrors = performConditionalValidation(result.output as Record<string, unknown>);
 		if (conditionalErrors.length > 0) {
 			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
-			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
+			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
 			console.error('━'.repeat(70));
 			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
 			conditionalErrors.forEach((error) => {
-				console.error(`   - ${error}`);
+				console.error(`   - ${error}`);
 			});
 			console.error('\n' + '━'.repeat(70));
 			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);

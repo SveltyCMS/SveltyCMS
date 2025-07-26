@@ -1,6 +1,6 @@
 /**
- @file cli-installer/config/system.js
- @description Configuration prompts for the System section
+@file cli-installer/config/system.js
+@description Configuration prompts for the System section
 
  ### Features
  - Displays a note about the System configuration
@@ -11,13 +11,7 @@
 import { confirm, text, note, select, isCancel, multiselect, password } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title, cancelToMainMenu } from '../cli-installer.js';
-import crypto from 'crypto';
-
-// Generate JWT Secret
-function generateRandomJWTSecret(length = 64) {
-	// Increased default length for better security
-	return crypto.randomBytes(length).toString('hex');
-}
+import { generateRandomJWTSecret, generateRandom2FASecret } from '../utils/cryptoUtils.js';
 
 // Validate positive integer (using new error return)
 const validatePositiveInteger = (value, fieldName) => {
@@ -445,6 +439,82 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	}
 
+	// Two-Factor Authentication Configuration
+	const USE_2FA = await confirm({
+		message: 'Enable Two-Factor Authentication (2FA) for enhanced security?',
+		initialValue: privateConfigData.USE_2FA || false
+	});
+
+	if (isCancel(USE_2FA)) {
+		cancelToMainMenu();
+		return;
+	}
+
+	let TWO_FACTOR_AUTH_SECRET = null;
+	let TWO_FACTOR_AUTH_BACKUP_CODES_COUNT = 10;
+
+	if (USE_2FA) {
+		const existing2FASecret = privateConfigData.TWO_FACTOR_AUTH_SECRET;
+		const hasExisting2FASecret = existing2FASecret && typeof existing2FASecret === 'string' && existing2FASecret.length >= 16;
+
+		const USE_GENERATED_2FA_SECRET = await confirm({
+			message: hasExisting2FASecret ? 'Use existing 2FA secret key?' : 'Generate 2FA secret key automatically?',
+			initialValue: true
+		});
+
+		if (isCancel(USE_GENERATED_2FA_SECRET)) {
+			cancelToMainMenu();
+			return;
+		}
+
+		if (USE_GENERATED_2FA_SECRET && hasExisting2FASecret) {
+			TWO_FACTOR_AUTH_SECRET = existing2FASecret;
+		} else if (USE_GENERATED_2FA_SECRET) {
+			TWO_FACTOR_AUTH_SECRET = generateRandom2FASecret();
+			note(
+				`A secure 2FA secret key has been generated automatically.\n` +
+					`Length: ${TWO_FACTOR_AUTH_SECRET.length} characters\n` +
+					`This key will be used for generating 2FA tokens.`,
+				pc.green('2FA Secret Generated:')
+			);
+		} else {
+			TWO_FACTOR_AUTH_SECRET = await password({
+				message: 'Enter your custom 2FA secret key (minimum 16 characters):',
+				placeholder: 'Enter a secure 2FA secret key...',
+				validate(value) {
+					if (!value) return { message: '2FA secret key is required when 2FA is enabled!' };
+					if (value.length < 16) return { message: '2FA secret must be at least 16 characters long for security.' };
+					return undefined;
+				}
+			});
+			if (isCancel(TWO_FACTOR_AUTH_SECRET)) {
+				cancelToMainMenu();
+				return;
+			}
+		}
+
+		// Backup codes count
+		const backupCodesInput = await text({
+			message: 'Number of backup codes to generate for 2FA recovery (1-50):',
+			placeholder: '10',
+			initialValue: String(privateConfigData.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT || 10),
+			validate(value) {
+				const num = Number(value);
+				if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 50) {
+					return { message: 'Backup codes count must be an integer between 1 and 50.' };
+				}
+				return undefined;
+			}
+		});
+
+		if (isCancel(backupCodesInput)) {
+			cancelToMainMenu();
+			return;
+		}
+
+		TWO_FACTOR_AUTH_BACKUP_CODES_COUNT = Number(backupCodesInput);
+	}
+
 	// Summary (Secret hidden)
 	note(
 		`Site Name: ${pc.green(SITE_NAME)}\n` +
@@ -506,6 +576,9 @@ export async function configureSystem(privateConfigData = {}) {
 		SESSION_EXPIRATION_SECONDS: Number(SESSION_EXPIRATION_SECONDS),
 		SEASONS,
 		SEASON_REGION: SEASONS ? SEASON_REGION : undefined, // Only set region if seasons enabled
-		JWT_SECRET_KEY
+		JWT_SECRET_KEY,
+		USE_2FA,
+		TWO_FACTOR_AUTH_SECRET,
+		TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: USE_2FA ? Number(TWO_FACTOR_AUTH_BACKUP_CODES_COUNT) : undefined
 	};
 }

@@ -21,6 +21,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:permission': ['admin'], // Permission management
 	'api:systemPreferences': ['admin'], // System preferences
 
+	// Authentication & Security - All authenticated users can manage their own 2FA
+	'api:auth/2fa': ['*'], // 2FA management (setup, disable, backup codes)
+
 	// User Management - Admin and Editor
 	'api:user': ['admin', 'editor'], // User management (includes profile updates)
 

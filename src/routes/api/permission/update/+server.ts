@@ -13,7 +13,7 @@
 import { privateEnv } from '@root/config/private';
 
 import type { RequestHandler } from './$types';
-import { json, error } from '@sveltejsjs/kit';
+import { json, error } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import * as ts from 'typescript';

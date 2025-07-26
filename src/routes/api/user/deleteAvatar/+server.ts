@@ -27,7 +27,7 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Media storage
-import { moveMediaToTrash } from '@utils/media/mediaUtils';
+import { moveMediaToTrash } from '@utils/media/mediaStorage';
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
 	const { user: currentUser, tenantId } = locals;
@@ -48,30 +48,30 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		} catch {
 			// If no body or invalid JSON, use default (self)
 		} // **TWO-LEVEL PERMISSION SYSTEM**: Check if user is deleting their own avatar or has admin permissions
+		// Role-based access is handled by hooks.server.ts, we just need to check if editing self vs others
 
 		const isEditingSelf = currentUser._id === targetUserId;
-		let hasPermission = false;
 
-		if (isEditingSelf) {
-			// Users can always delete their own avatar
-			hasPermission = true;
-		} else {
-			// To delete another user's avatar, need admin permissions
-			const permissionResult = await checkApiPermission(currentUser, {
-				resource: 'users',
-				action: 'write'
-			});
-			hasPermission = permissionResult.hasPermission;
+		// In multi-tenant mode, ensure target user is in same tenant when editing others
+		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+			// Ensure the authentication system is initialized
+			if (!auth) {
+				logger.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error: Auth system not initialized');
+			}
+
+			const targetUser = await auth.getUserById(targetUserId, tenantId);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Admin attempted to delete avatar for user outside their tenant', {
+					adminId: currentUser._id,
+					targetUserId,
+					tenantId
+				});
+				throw error(403, 'Forbidden: You can only delete avatars for users within your own tenant.');
+			}
 		}
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to delete avatar', {
-				requestedBy: currentUser?._id,
-				targetUserId: targetUserId,
-				tenantId
-			});
-			throw error(403, "Forbidden: You do not have permission to delete this user's avatar.");
-		} // Ensure the authentication system is initialized
+		// Ensure the authentication system is initialized
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
@@ -87,8 +87,8 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
 		if (user.avatar) {
 			try {
-				// Pass tenantId to correctly locate the file in a tenant-specific directory
-				await moveMediaToTrash(user.avatar, tenantId);
+				// Move avatar to trash
+				await moveMediaToTrash(user.avatar);
 				logger.info('Avatar moved to trash successfully', { userId: user._id, avatar: user.avatar, deletedBy: currentUser._id, tenantId });
 			} catch (moveError) {
 				if (moveError.message.includes('ENOENT')) {

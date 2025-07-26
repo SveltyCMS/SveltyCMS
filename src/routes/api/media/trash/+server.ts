@@ -62,8 +62,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'URL and collection types are required');
 		}
 
-		// Pass tenantId to ensure the file is moved within the correct tenant's storage
-		await moveMediaToTrash(url, contentTypes, tenantId);
+		// Move media to trash
+		await moveMediaToTrash(url);
 
 		logger.info('Media file moved to trash successfully', { url, userId: user?._id, tenantId });
 		return json({ success: true });

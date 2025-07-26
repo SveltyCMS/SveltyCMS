@@ -27,13 +27,12 @@
  - Full dark mode support with theme-based styling
 -->
 <script lang="ts">
-	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry, scheduleCurrentEntry, saveEntry } from '@utils/entryActions'; // Directly use these specific actions
+	import { saveEntry } from '@utils/entryActions'; // Only import what's actually used
 	// Types
 	import { StatusTypes } from '@src/content/types';
 	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import { createEventDispatcher } from 'svelte';
 	import { invalidateCollectionCache, batchUpdateEntries, updateEntryStatus, createEntry } from '@src/utils/apiClient';
 	import { publicEnv } from '@root/config/public';
 
@@ -258,7 +257,7 @@
 					}
 
 					try {
-						const result = await updateEntryStatus(coll._id, entry._id, StatusTypes.publish);
+						const result = await updateEntryStatus(String(coll._id), String(entry._id), StatusTypes.publish);
 						if (result.success) {
 							collectionValue.update((cv) => ({ ...cv, status: StatusTypes.publish }));
 							toastStore.trigger({
@@ -307,7 +306,7 @@
 					}
 
 					try {
-						const result = await updateEntryStatus(coll._id, entry._id, StatusTypes.unpublish);
+						const result = await updateEntryStatus(String(coll._id), String(entry._id), StatusTypes.unpublish);
 						if (result.success) {
 							collectionValue.update((cv) => ({ ...cv, status: StatusTypes.unpublish }));
 							toastStore.trigger({

@@ -50,6 +50,9 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account (ISO date string)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
+	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
+	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
+	last2FAVerification?: Date; // Timestamp of last successful 2FA verification
 	permissions: string[]; // Set of permissions associated with the user
 	isAdmin?: boolean; // Is the user an admin
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.

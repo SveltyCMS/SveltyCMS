@@ -85,6 +85,13 @@ Features:
 	// State for improved spinner control
 	let isSubmitting = $state(false);
 	let isAuthenticating = $state(false);
+	
+	// 2FA state
+	let requires2FA = $state(false);
+	let twoFAUserId = $state('');
+	let twoFACode = $state('');
+	let useBackupCode = $state(false);
+	let isVerifying2FA = $state(false);
 
 	// Login form setup
 	const { form, constraints, allErrors, errors, enhance } = superForm(FormSchemaLogin, {
@@ -142,6 +149,25 @@ Features:
 					globalLoadingStore.stopLoading(loadingOperations.authentication);
 				}, 100);
 
+				return;
+			}
+
+			// Check if 2FA is required
+			if (result.type === 'failure' && result.data?.requires2FA) {
+				requires2FA = true;
+				twoFAUserId = result.data.userId || '';
+				isAuthenticating = false;
+				globalLoadingStore.stopLoading(loadingOperations.authentication);
+				
+				// Show 2FA required message
+				toastStore.trigger({
+					message: m.twofa_verify_title(),
+					background: 'variant-filled-warning',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				});
+				
+				cancel();
 				return;
 			}
 
@@ -341,6 +367,99 @@ Features:
 		}
 	});
 
+	// 2FA Functions
+	async function verify2FA() {
+		if (!twoFACode.trim() || isVerifying2FA) return;
+
+		if (!useBackupCode && twoFACode.length !== 6) {
+			toastStore.trigger({
+				message: m.twofa_error_invalid_code(),
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
+			return;
+		}
+
+		if (useBackupCode && twoFACode.length < 8) {
+			toastStore.trigger({
+				message: 'Invalid backup code format',
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
+			return;
+		}
+
+		isVerifying2FA = true;
+
+		try {
+			const formData = new FormData();
+			formData.append('userId', twoFAUserId);
+			formData.append('code', twoFACode.trim());
+
+			const response = await fetch('?/verify2FA', {
+				method: 'POST',
+				body: formData
+			});
+
+			// Parse response
+			if (response.ok) {
+				// Success - redirect will be handled by SvelteKit
+				toastStore.trigger({
+					message: m.twofa_success_verified(),
+					background: 'variant-filled-success',
+					timeout: 2000,
+					classes: 'border-1 !rounded-md'
+				});
+				
+				// The server will redirect on successful verification
+				window.location.reload();
+			} else {
+				const errorData = await response.json();
+				throw new Error(errorData.message || m.twofa_error_invalid_code());
+			}
+
+		} catch (error) {
+			toastStore.trigger({
+				message: error instanceof Error ? error.message : m.twofa_error_invalid_code(),
+				background: 'variant-filled-error',
+				timeout: 4000,
+				classes: 'border-1 !rounded-md'
+			});
+		} finally {
+			isVerifying2FA = false;
+		}
+	}
+
+	function handle2FAInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		let value = input.value;
+
+		if (!useBackupCode) {
+			// For TOTP codes, only allow 6 digits
+			value = value.replace(/\D/g, '').slice(0, 6);
+		} else {
+			// For backup codes, allow alphanumeric and remove spaces
+			value = value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10);
+		}
+
+		twoFACode = value;
+	}
+
+	function toggle2FACodeType() {
+		useBackupCode = !useBackupCode;
+		twoFACode = '';
+	}
+
+	function back2FAToLogin() {
+		requires2FA = false;
+		twoFAUserId = '';
+		twoFACode = '';
+		useBackupCode = false;
+		isVerifying2FA = false;
+	}
+
 	// Side effect for URL token handling
 	$effect(() => {
 		if (browser && current_url.includes('/login') && current_url.includes('token')) {
@@ -513,6 +632,97 @@ Features:
 								>
 									{m.signin_forgottenpassword()}
 								</button>
+							</div>
+						</div>
+					{/if}
+
+					<!-- Two-Factor Authentication -->
+					{#if requires2FA && !PWforgot && !PWreset}
+						<div class="flex w-full flex-col gap-4">
+							<!-- 2FA Header -->
+							<div class="text-center">
+								<div class="mb-3">
+									<iconify-icon icon="mdi:shield-key" width="48" class="text-primary-500 mx-auto"></iconify-icon>
+								</div>
+								<h3 class="h3 mb-2">{m.twofa_verify_title()}</h3>
+								<p class="text-surface-600 dark:text-surface-300 text-sm">
+									{useBackupCode ? 'Enter your backup recovery code:' : m.twofa_verify_description()}
+								</p>
+							</div>
+
+							<!-- Code Input -->
+							<div class="flex flex-col gap-3">
+								<div class="relative">
+									<input
+										type="text"
+										bind:value={twoFACode}
+										oninput={handle2FAInput}
+										onkeydown={(e) => e.key === 'Enter' && verify2FA()}
+										placeholder={useBackupCode ? 'Enter backup code' : m.twofa_code_placeholder()}
+										class="input text-center font-mono tracking-wider"
+										class:text-2xl={!useBackupCode}
+										class:text-lg={useBackupCode}
+										maxlength={useBackupCode ? "10" : "6"}
+										autocomplete="off"
+										autofocus
+									/>
+									
+									<!-- Character counter for backup codes -->
+									{#if useBackupCode}
+										<div class="text-xs text-surface-500 mt-1 text-center">
+											{twoFACode.length}/10
+										</div>
+									{/if}
+								</div>
+
+								<!-- Toggle Code Type -->
+								<div class="text-center">
+									<button
+										type="button"
+										onclick={toggle2FACodeType}
+										class="text-primary-500 hover:text-primary-600 text-sm underline"
+									>
+										{useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
+									</button>
+								</div>
+
+								<!-- Action Buttons -->
+								<div class="flex gap-3">
+									<button
+										type="button"
+										onclick={back2FAToLogin}
+										class="btn variant-soft-surface flex-1"
+									>
+										<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
+										{m.button_back()}
+									</button>
+
+									<button
+										type="button"
+										onclick={verify2FA}
+										disabled={!twoFACode.trim() || isVerifying2FA || (!useBackupCode && twoFACode.length !== 6) || (useBackupCode && twoFACode.length < 8)}
+										class="btn variant-filled-primary flex-1"
+									>
+										{#if isVerifying2FA}
+											<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
+											{m.twofa_verifying()}
+										{:else}
+											<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+											{m.twofa_verify_button()}
+										{/if}
+									</button>
+								</div>
+
+								<!-- Help Text -->
+								<div class="text-center mt-2">
+									<div class="text-xs text-surface-500">
+										{#if !useBackupCode}
+											<p>Enter the 6-digit code from your authenticator app</p>
+										{:else}
+											<p>Enter one of your 8-character backup codes</p>
+										{/if}
+									</div>
+								</div>
 							</div>
 						</div>
 					{/if}

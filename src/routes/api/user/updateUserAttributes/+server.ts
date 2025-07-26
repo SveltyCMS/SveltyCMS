@@ -70,36 +70,9 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 		// **TWO-LEVEL PERMISSION SYSTEM**: Check if user is editing their own profile or has admin permissions
 		const isEditingSelf = user._id === userIdToUpdate;
-		let hasPermission = false;
 
-		if (isEditingSelf) {
-			// A user always has permission to update their own profile.
-			hasPermission = true;
-		} else {
-			// To edit another user, use centralized permission system
-			const permissionResult = await checkApiPermission(user, {
-				resource: 'user',
-				action: 'update'
-			});
-			hasPermission = permissionResult.hasPermission;
-
-			if (!hasPermission && permissionResult.error) {
-				logger.warn('Unauthorized attempt to update user attributes.', {
-					requestedBy: user?._id,
-					targetUserId: userIdToUpdate,
-					error: permissionResult.error
-				});
-				throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error);
-			}
-		}
-
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to update user attributes.', {
-				requestedBy: user?._id,
-				targetUserId: userIdToUpdate
-			});
-			throw error(403, 'Forbidden: You do not have permission to update this user.');
-		}
+		// Permission checking is handled by hooks.server.ts
+		// Users can always edit their own profiles, admins can edit others (handled by hooks)
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		// If an admin is editing another user, ensure the target user is in the same tenant.

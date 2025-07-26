@@ -25,7 +25,7 @@ This component provides a streamlined interface for managing collection entries 
 
 <script lang="ts">
 	// Correctly import the new, direct action handlers
-	import { cloneCurrentEntry, deleteCurrentEntry, scheduleCurrentEntry, saveEntry } from '../utils/entryActions';
+	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
 
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
@@ -37,7 +37,6 @@ This component provides a streamlined interface for managing collection entries 
 	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
 
 	// Utils & Components
-	import { convertTimestampToDateString } from '@utils/utils';
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
 	import * as m from '@src/paraglide/messages';
@@ -51,6 +50,10 @@ This component provides a streamlined interface for managing collection entries 
 
 	const { user } = page.data;
 
+	// --- Wrapper functions for event handlers ---
+	const handleCloneEntry = () => cloneCurrentEntry(modalStore, toastStore);
+	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, toastStore);
+
 	// --- State Management ---
 	let isPublish = $state(false);
 	let schedule = $state('');
@@ -63,7 +66,7 @@ This component provides a streamlined interface for managing collection entries 
 
 	let dates = $derived({
 		created: collectionValue.value?.createdAt
-			? new Date(collectionValue.value.createdAt).toLocaleDateString(getLocale(), {
+			? new Date(String(collectionValue.value.createdAt)).toLocaleDateString(getLocale(), {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -72,7 +75,7 @@ This component provides a streamlined interface for managing collection entries 
 				})
 			: '-',
 		updated: collectionValue.value?.updatedAt
-			? new Date(collectionValue.value.updatedAt).toLocaleDateString(getLocale(), {
+			? new Date(String(collectionValue.value.updatedAt)).toLocaleDateString(getLocale(), {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -191,7 +194,7 @@ This component provides a streamlined interface for managing collection entries 
 					<div class="flex w-full flex-col gap-2">
 						<button
 							type="button"
-							onclick={cloneCurrentEntry}
+							onclick={handleCloneEntry}
 							disabled={!canCreate}
 							class="gradient-secondary gradient-secondary-hover btn w-full gap-2 text-white shadow-md transition-all duration-200"
 							aria-label="Clone entry"
@@ -202,7 +205,7 @@ This component provides a streamlined interface for managing collection entries 
 
 						<button
 							type="button"
-							onclick={deleteCurrentEntry}
+							onclick={handleDeleteEntry}
 							disabled={!canDelete}
 							class="variant-filled-error btn w-full gap-2 shadow-md transition-all duration-200 hover:shadow-lg"
 							aria-label="Delete entry"

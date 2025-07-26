@@ -38,6 +38,29 @@ export {
 	getUserRole,
 	getUserRoles
 } from './permissions';
+
+// Export 2FA functionality
+export {
+	generateTOTPSecret,
+	getCurrentTOTPCode,
+	verifyTOTPCode,
+	generateQRCodeURL,
+	generateManualEntryDetails,
+	generateBackupCodes,
+	isValidTOTPSecret
+} from './totp';
+
+export {
+	TwoFactorAuthService,
+	createTwoFactorAuthService,
+	getDefaultTwoFactorAuthService
+} from './twoFactorAuth';
+
+export type { 
+	TwoFactorSetupResponse,
+	TwoFactorVerificationResult
+} from './twoFactorAuth';
+
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
 // Import argon2 and related constants

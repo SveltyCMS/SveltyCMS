@@ -1,6 +1,12 @@
 /**
  * @file src/auth/mongoDBAuth/userAdapter.ts
- * @description MongoDB adapter for user-related operations.
+ * @d	resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
+	resetToken: String, // Token for resetting the user's password, optional field
+	lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
+	is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
+	totpSecret: String, // TOTP secret for 2FA (base32 encoded), optional field
+	backupCodes: [String], // Array of hashed backup codes for 2FA recovery, optional field
+	last2FAVerification: { type: Date } // Timestamp of last successful 2FA verification, optional fieldiption MongoDB adapter for user-related operations.
  *
  * This module provides functionality to:
  * - Create, update, delete, and retrieve users

@@ -23,11 +23,7 @@ import { logger } from '@utils/logger.svelte';
 // GET: Lists all collections accessible to the user
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const start = performance.now();
-	const { user, tenantId } = locals; // Destructure user and tenantId
-
-	if (!user) {
-		throw error(401, 'Unauthorized');
-	}
+	const { tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
 	// In multi-tenant mode, a tenantId is required.
 	if (privateEnv.MULTI_TENANT && !tenantId) {

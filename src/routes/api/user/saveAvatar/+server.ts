@@ -36,32 +36,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
 		const targetUserId = (formData.get('userId') as string) || locals.user._id; // Default to self if no userId provided
-		const isEditingSelf = locals.user._id === targetUserId;
-		let hasPermission = false;
 
-		if (isEditingSelf) {
-			// Users can always update their own avatar
-			hasPermission = true;
-		} else {
-			// To update another user's avatar, need admin permissions
-			const permissionResult = await checkApiPermission(locals.user, {
-				resource: 'users',
-				action: 'write'
-			});
-			hasPermission = permissionResult.hasPermission;
-		}
+		// Role-based access is handled by hooks.server.ts
+		const isEditingSelf = targetUserId === locals.user._id;
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to update avatar', {
-				requestedBy: locals.user?._id,
-				targetUserId: targetUserId
-			});
-			return json(
-				{
-					error: "Forbidden: You do not have permission to update this user's avatar."
-				},
-				{ status: 403 }
-			);
+		// In multi-tenant mode, ensure target user is in same tenant when editing others
+		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+			const targetUser = await auth.getUserById(targetUserId, tenantId);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Admin attempted to update avatar for user outside their tenant', {
+					adminId: locals.user._id,
+					targetUserId,
+					tenantId
+				});
+				return json(
+					{
+						error: 'Forbidden: You can only update avatars for users within your own tenant.'
+					},
+					{ status: 403 }
+				);
+			}
 		}
 
 		// Ensure the authentication system is initialized

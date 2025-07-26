@@ -20,18 +20,16 @@
 -->
 
 <script lang="ts">
-	import { dev } from '$app/environment';
 	import { untrack } from 'svelte';
-	import { publicEnv } from '@root/config/public';
 	import { getFieldName, updateTranslationProgress } from '@utils/utils';
 	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 
 	// Auth & Page data
 
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	const user = $derived(page.data?.user);
 	const tenantId = $derived(page.data?.tenantId); // Get tenantId for multi-tenancy
-	const collectionName = $derived(page.params?.contentTypes);
+	const collectionName = $derived(page.params?.collection);
 
 	// Stores
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
@@ -70,7 +68,7 @@
 	let apiUrl = $state('');
 	let isLoading = $state(true);
 	let localTabSet = $state(0);
-	let currentEntryId = $state<any>(null); // Revisions State
+	// Revisions State
 	let revisionsMeta = $state<any[]>([]);
 	let isRevisionsLoading = $state(false);
 	let selectedRevisionId = $state('');
@@ -83,17 +81,19 @@
 	let fieldsFromModule = $state<any[]>([]);
 	// Process collection module to get actual fields
 
-	$effect(async () => {
-		if (collection.value?.module && !processedCollection) {
-			try {
-				const processed = await processModule(collection.value.module);
-				if (processed?.schema?.fields) {
-					processedCollection = processed.schema;
-					fieldsFromModule = processed.schema.fields;
+	$effect(() => {
+		if (collection.value && (collection.value as any)?.module && !processedCollection) {
+			untrack(async () => {
+				try {
+					const processed = await processModule((collection.value as any).module);
+					if (processed?.schema?.fields) {
+						processedCollection = processed.schema;
+						fieldsFromModule = processed.schema.fields;
+					}
+				} catch (error) {
+					console.error('Failed to process collection module:', error);
 				}
-			} catch (error) {
-				console.error('Failed to process collection module:', error);
-			}
+			});
 		}
 	});
 	// Derived state for fields - combines all possible field sources
@@ -120,13 +120,6 @@
 		}
 		return tempCollectionValue;
 	});
-	// Simple function to sync changes when needed
-
-	function syncToGlobalStore() {
-		if (currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
-			collectionValue.set({ ...currentCollectionValue });
-		}
-	}
 	// Ensure fields have required properties
 
 	function ensureFieldProperties(field: any) {
@@ -144,7 +137,7 @@
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
-			.filter((field) => {
+			.filter((field: any) => {
 				// Always show fields if no permissions are set or user is admin
 				if (!field.permissions) return true;
 				if (page.data?.isAdmin) return true; // Check specific role permissions
@@ -184,7 +177,9 @@
 		if (!collection.value?._id || !collectionValue.value?._id) return;
 		isRevisionsLoading = true;
 		try {
-			const result = await getRevisions(collection.value._id, collectionValue.value._id, { metaOnly: true });
+			const collectionId = String(collection.value._id);
+			const entryId = String(collectionValue.value._id);
+			const result = await getRevisions(collectionId, entryId, { metaOnly: true });
 			if (result.success) {
 				revisionsMeta = result.data || [];
 			} else {
@@ -201,21 +196,24 @@
 		diffObject = null;
 		selectedRevisionData = null;
 		try {
+			const collectionId = String(collection.value._id);
+			const entryId = String(collectionValue.value._id);
 			const result = await getRevisionDiff({
-				collectionId: collection.value._id,
-				entryId: collectionValue.value._id,
+				collectionId: collectionId,
+				entryId: entryId,
 				revisionId: revisionId,
 				currentData: collectionValue.value
 			});
 
-			if (result.success) {
+			if (result.success && result.data) {
 				diffObject = result.data.diff;
 				selectedRevisionData = result.data.revisionData;
 			} else {
 				throw new Error(result.error || 'Failed to fetch revision diff.');
 			}
 		} catch (error) {
-			toastStore.trigger({ message: `Error loading revision diff: ${error.message}`, background: 'variant-filled-error' });
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+			toastStore.trigger({ message: `Error loading revision diff: ${errorMessage}`, background: 'variant-filled-error' });
 		} finally {
 			isRevisionDetailLoading = false;
 		}

@@ -15,12 +15,14 @@
 -->
 
 <script lang="ts">
+	import { privateEnv } from '@root/config/private';
 	import { invalidateAll } from '$app/navigation';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	// Auth
 	import type { User } from '@src/auth/types';
+	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -246,6 +248,13 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if privateEnv.USE_2FA}
+		<!-- Two-Factor Authentication Section -->
+		<div class="wrapper2 mb-4">
+			<TwoFactorAuth {user} />
+		</div>
+	{/if}
 
 	<!-- Admin area -->
 	<PermissionGuard

@@ -211,11 +211,6 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	});
 
 	try {
-		if (!user) {
-			logger.warn(`${endpoint} - Unauthorized access attempt`);
-			throw error(401, 'Unauthorized');
-		}
-
 		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
