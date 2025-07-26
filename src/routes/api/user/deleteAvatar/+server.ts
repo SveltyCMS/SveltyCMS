@@ -22,7 +22,6 @@ import { privateEnv } from '@root/config/private';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions'; // Import static roles for fallback
 
 // System logger
 import { logger } from '@utils/logger.svelte';

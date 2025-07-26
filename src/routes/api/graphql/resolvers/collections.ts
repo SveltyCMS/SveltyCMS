@@ -32,7 +32,6 @@ import { contentManager } from '@src/content/ContentManager';
 import { logger } from '@utils/logger.svelte';
 
 // Permissions
-import { hasCollectionPermission } from '@api/permissions';
 
 // Types
 import type { User } from '@src/auth/types';
@@ -243,10 +242,7 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 				throw new Error('Internal server error: Tenant context mismatch.');
 			}
 
-			if (!hasCollectionPermission(context.user, collection._id, 'read')) {
-				throw new Error(`Access denied: Insufficient permissions for collection '${collection.name}'`);
-			}
-
+			// Access validation is handled by hooks
 			if (!dbAdapter) {
 				throw new Error('Database adapter is not initialized');
 			}

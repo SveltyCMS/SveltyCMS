@@ -24,7 +24,6 @@ import type { RequestHandler } from './$types';
 
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // Cache invalidation
 import { invalidateAdminCache } from '@src/hooks.server';
@@ -45,28 +44,13 @@ const createTokenSchema = object({
 
 export const POST: RequestHandler = async (event) => {
 	const { request, locals } = event;
-	const { user, tenantId } = locals; // Destructure user and tenantId
+	const { tenantId } = locals; // User and permissions are guaranteed by hooks
 
 	try {
-		// Check permissions for token creation
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized token creation attempt`, {
-				userId: user?._id,
-				userEmail: user?.email,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to create tokens.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// No permission checks needed - hooks already verified:
+		// 1. User is authenticated
+		// 2. User has correct role for 'api:token' endpoint
+		// 3. User belongs to correct tenant (if multi-tenant)
 
 		const body = await request.json();
 

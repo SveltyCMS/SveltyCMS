@@ -20,7 +20,6 @@ import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

@@ -27,7 +27,6 @@ import type { RequestHandler } from './$types';
 // Auth (Database Agnostic)
 // TODO: Remove once batch user operations are added to database-agnostic interface
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-import { checkApiPermission } from '@api/permissions';
 
 // Validation
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';

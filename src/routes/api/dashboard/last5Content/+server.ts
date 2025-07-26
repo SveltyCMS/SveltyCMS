@@ -1,6 +1,10 @@
 /**
  * @file src/routes/api/dashboard/last5Content/+server.ts
- * @description API endpoint for recent content data for dashboard widgets.
+ * @descripti		// 3. Process all collections (hooks already validated access)
+		const collectionsEntries = Object.entries(allCollections);
+
+		// 4. Query EACH collection for its top 'limit' recent items efficiently (scoped to the tenant)
+		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {point for recent content data for dashboard widgets.
  *
  * @example GET /api/dashboard/last5Content
  *
@@ -19,10 +23,6 @@ import { privateEnv } from '@root/config/private';
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
 import { StatusTypes } from '@src/content/types';
-
-// Permissions
-import { checkApiPermission } from '@api/permissions';
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -75,16 +75,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
 			throw error(500, 'Database connection unavailable');
-		} // 3. Filter collections user can read and query each for recent items
+		}
 
-		const readableCollectionPromises = Object.entries(allCollections).map(async ([collectionId, collection]) => {
-			const canRead = await hasCollectionPermission(user, 'read', collection);
-			return canRead ? [collectionId, collection] : null;
-		});
+		// 3. Process all collections (hooks already validated access)
+		const collectionsEntries = Object.entries(allCollections);
 
-		const readableCollections = (await Promise.all(readableCollectionPromises)).filter(Boolean) as Array<[string, Record<string, unknown>]>; // 4. Query EACH collection for its top 'limit' recent items efficiently (scoped to the tenant)
-
-		const queryPromises = readableCollections.map(async ([collectionId, collection]) => {
+		// 4. Query EACH collection for its top 'limit' recent items efficiently (scoped to the tenant)
+		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
 			try {
 				const collectionName = `collection_${collection._id}`;
 				const filter = privateEnv.MULTI_TENANT ? { tenantId } : {}; // Use database-agnostic query builder for efficient querying

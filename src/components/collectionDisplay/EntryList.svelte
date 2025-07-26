@@ -624,7 +624,12 @@ Features:
 
 	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		return pathSegments?.slice(0, -1).join('>') || '';
+		// Remove the first segment if it matches the current system language
+		const segments = pathSegments?.slice() ?? [];
+		if (segments.length > 0 && segments[0].toLowerCase() === currentSystemLanguage?.toLowerCase()) {
+			segments.shift();
+		}
+		return segments.slice(0, -1).join('>') || '';
 	});
 
 	// --- Actions ---

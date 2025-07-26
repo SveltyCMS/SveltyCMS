@@ -17,7 +17,6 @@ import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Media
 import { deleteFile } from '@utils/media/mediaStorage';

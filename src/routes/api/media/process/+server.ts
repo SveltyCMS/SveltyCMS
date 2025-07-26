@@ -19,7 +19,6 @@ import { privateEnv } from '@root/config/private';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing';

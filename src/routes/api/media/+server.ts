@@ -19,7 +19,6 @@ import { privateEnv } from '@root/config/private';
 import { dbAdapter } from '@src/databases/db';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

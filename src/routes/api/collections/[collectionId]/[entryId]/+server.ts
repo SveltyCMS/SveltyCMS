@@ -20,7 +20,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 import { modifyRequest } from '@api/collections/modifyRequest';
 import { roles, initializeRoles } from '@root/config/roles';
 
@@ -68,17 +67,6 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 				tenantId
 			});
 			throw error(404, 'Collection not found');
-		}
-
-		if (!(await hasCollectionPermission(user, 'read', schema))) {
-			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: user._id,
-				userEmail: user.email,
-				userRole: user.role
-			});
-			throw error(403, 'Forbidden');
 		}
 
 		const collectionName = `collection_${schema._id}`;
@@ -152,7 +140,6 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 		return json(responseData);
 	} catch (e) {
-		const duration = performance.now() - startTime;
 		if (e.status) {
 			throw e;
 		}
@@ -183,9 +170,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(user, 'write', schema))) {
-			throw error(403, 'Forbidden');
-		}
+		// User access already validated by hooks
 
 		let body;
 		const contentType = request.headers.get('content-type');
@@ -237,7 +222,6 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		return json(responseData);
 	} catch (e) {
-		const duration = performance.now() - startTime;
 		if (e.status) {
 			throw e;
 		}
@@ -268,10 +252,6 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(user, 'write', schema))) {
-			throw error(403, 'Forbidden');
-		}
-
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
 		if (privateEnv.MULTI_TENANT) {
@@ -291,7 +271,6 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		return new Response(null, { status: 204 }); // 204 No Content
 	} catch (e) {
-		const duration = performance.now() - startTime;
 		if (e.status) {
 			throw e;
 		}

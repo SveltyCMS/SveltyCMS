@@ -20,7 +20,6 @@ import { privateEnv } from '@root/config/private';
 
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
@@ -39,37 +38,19 @@ import { getLocale } from '@src/paraglide/runtime';
 
 export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 	try {
-		const { user, tenantId } = locals; // Destructure user and tenantId
-		// **SECURITY**: Check permissions for token creation
+		const { tenantId } = locals; // User and permissions are guaranteed by hooks
 
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to create an invitation token', {
-				userId: user?._id,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to create user tokens.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// No permission checks needed - hooks already verified:
+		// 1. User is authenticated
+		// 2. User has correct role for 'api:token' endpoint
+		// 3. User belongs to correct tenant (if multi-tenant)
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
-		// In multi-tenant mode, a tenantId is required.
-		if (privateEnv.MULTI_TENANT && !tenantId) {
-			logger.error('Token creation attempt failed: Tenant ID is missing in a multi-tenant setup.');
-			throw error(400, 'Could not identify the tenant for this request.');
-		}
+		// Note: tenantId validation is handled by hooks in multi-tenant mode
 
 		const body = await request.json();
 		logger.debug('Received token creation request:', { ...body, tenantId }); // Validate input using the Valibot schema

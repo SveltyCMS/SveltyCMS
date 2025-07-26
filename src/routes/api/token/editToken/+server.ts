@@ -25,7 +25,6 @@ import type { RequestHandler } from './$types';
 // Auth and permission helpers
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
@@ -48,9 +47,10 @@ const editTokenSchema = object({
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
-		const { user, tenantId } = locals; // Destructure user and tenantId
-		// **SECURITY**: Check permissions for token editing
+		const { user, tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
+		// Check fine-grained permissions for token editing
+		// Note: Basic API access (api:token) is already verified by hooks
 		const permissionResult = await checkApiPermission(user, {
 			resource: 'system',
 			action: 'write'
@@ -65,7 +65,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 				{
 					error: permissionResult.error || 'Forbidden: You do not have permission to edit tokens.'
 				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+				{ status: 403 } // Always 403 since user is authenticated by hooks
 			);
 		}
 

@@ -5,11 +5,9 @@
 
 import type { RequestHandler } from './$types';
 import { ThemeManager } from '@src/databases/themeManager';
-import { json, error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { json } from '@sveltejs/kit';
 
 // Permission checking
-import { checkApiPermission } from '@api/permissions';
 
 // System Logs
 import { logger } from '@utils/logger.svelte';
@@ -18,9 +16,11 @@ import { logger } from '@utils/logger.svelte';
 const themeManager = ThemeManager.getInstance();
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const { user, tenantId } = locals;
+	const { user, tenantId } = locals; // User is guaranteed to exist due to hooks protection
+
 	try {
-		// Check permissions for theme access
+		// Check fine-grained permissions for theme access
+		// Note: Basic API access (api:theme) is already verified by hooks
 		const permissionResult = await checkApiPermission(user, {
 			resource: 'system',
 			action: 'read'
@@ -36,14 +36,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 				{
 					error: permissionResult.error || 'Forbidden'
 				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+				{ status: 403 } // Always 403 since user is authenticated by hooks
 			);
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
-		}
-
+		// Note: tenantId validation is handled by hooks in multi-tenant mode
 		const currentTheme = await themeManager.getTheme(tenantId);
 		if (currentTheme) {
 			logger.info('Current theme fetched successfully', { theme: currentTheme.name, tenantId });

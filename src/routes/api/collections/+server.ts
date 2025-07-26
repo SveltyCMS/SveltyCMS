@@ -16,7 +16,6 @@ import { privateEnv } from '@root/config/private';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -43,46 +42,43 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
 
-		const accessibleCollections = []; // Filter collections based on user permissions
+		const accessibleCollections = []; // All collections are accessible since hooks handle authorization
 
 		for (const [collectionId, collection] of Object.entries(allCollections)) {
-			const hasReadAccess = hasCollectionPermission(user, 'read', collection);
-			const hasWriteAccess = hasCollectionPermission(user, 'write', collection);
-
-			if (hasReadAccess || hasWriteAccess) {
-				const collectionInfo = {
-					id: collection._id,
-					name: collection.name,
-					label: collection.label || collection.name,
-					description: collection.description,
-					icon: collection.icon,
-					path: collection.path,
-					permissions: {
-						read: hasReadAccess,
-						write: hasWriteAccess
-					}
-				}; // Include fields if requested
-
-				if (includeFields) {
-					collectionInfo.fields = collection.fields;
-				} // Include stats if requested and user has read access
-
-				if (includeStats && hasReadAccess) {
-					try {
-						// You can add collection statistics here if your DB adapter supports it
-						// For now, just add placeholder
-						collectionInfo.stats = {
-							totalEntries: 0,
-							publishedEntries: 0,
-							draftEntries: 0
-						};
-					} catch (statsError) {
-						logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
-					}
+			const collectionInfo = {
+				id: collection._id,
+				name: collection.name,
+				label: collection.label || collection.name,
+				description: collection.description,
+				icon: collection.icon,
+				path: collection.path,
+				permissions: {
+					read: true, // User already authorized by hooks
+					write: true // User already authorized by hooks
 				}
+			};
 
-				accessibleCollections.push(collectionInfo);
+			// Include fields if requested
+			if (includeFields) {
+				collectionInfo.fields = collection.fields;
 			}
+
+			// Include stats if requested (user already authorized by hooks)
+			if (includeStats) {
+				try {
+					// You can add collection statistics here if your DB adapter supports it
+					// For now, just add placeholder
+					collectionInfo.stats = {
+						totalEntries: 0,
+						publishedEntries: 0,
+						draftEntries: 0
+					};
+				} catch (statsError) {
+					logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
+				}
+			}
+
+			accessibleCollections.push(collectionInfo);
 		}
 
 		const duration = performance.now() - start;

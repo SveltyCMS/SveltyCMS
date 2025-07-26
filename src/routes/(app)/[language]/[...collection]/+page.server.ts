@@ -1,21 +1,12 @@
 /**
- * @file src/routes/(app)/[language]/+layout.server.ts
- * @description
- * This module handles the server-side loading logic for a SvelteKit application,
- * specifically for routes that include a language parameter. It manages collection access,
- * language-specific routing, and utilizes the centralized theme. The module performs the following tasks:
+ * @file src/routes/(app)/[language]/[...collection]/+page.server.ts
+ * @description Server-side loading for collection pages
  *
- * - Ensures that the requested language is available.
- * - Manages collection access based on user permissions and tenant context.
- * - Uses authentication information set by hooks.server.ts.
- * - Utilizes the theme provided by event.locals.theme.
- *
- * The module utilizes various utilities and configurations for robust error handling
- * and logging, providing a secure and user-friendly experience.
+ * This module handles collection loading for specific collection pages.
+ * Most authentication and user data is already handled by hooks.server.ts.
  */
 
 import { publicEnv } from '@root/config/public';
-import { privateEnv } from '@root/config/private';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -28,58 +19,55 @@ import { contentManager } from '@root/src/content/ContentManager';
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-	const { user, theme, isAdmin, hasManageUsersPermission, permissions, roles: tenantRoles, tenantId } = locals;
-	const { language, collection } = params; // User's preferred language from session
+	// Destructure data already provided by hooks.server.ts
+	const { user, theme, isAdmin, hasManageUsersPermission, roles: tenantRoles, tenantId } = locals;
+	const { language, collection } = params;
 
-	const userSystemLanguage = user?.systemLanguage; // If the user has a preferred language and it differs from the language in the URL,
-	// redirect to the same page with the preferred language.
+	// Basic validation - most auth is handled by hooks.server.ts
+	if (!user) {
+		logger.warn('User not authenticated, redirecting to login.');
+		throw redirect(302, '/login');
+	}
 
+	// Handle user system language preferences
+	const userSystemLanguage = user?.systemLanguage;
 	if (userSystemLanguage && userSystemLanguage !== language && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
 		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
 		throw redirect(302, newPath);
 	}
 
-	logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`, { tenantId }); // The content language should be taken from the URL parameter `language`
-
-	const contentLanguage = language; // ensure language exist :
-
-	if (!contentLanguage || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(contentLanguage) || !collection) {
+	// Validate language and collection parameters
+	if (!language || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language) || !collection) {
 		const message = 'The language parameter is missing or invalid.';
 		logger.warn(message, { language, collection });
 		throw error(404, message);
-	} // Ensure the user is authenticated (this should already be handled by hooks.server.ts)
+	}
 
-	if (!user) {
-		logger.warn('User not authenticated, redirecting to login.');
-		throw redirect(302, '/login');
-	} // Redirect to user page if lastAuthMethod is token
-
+	// Handle token-based auth redirect
 	if (user.lastAuthMethod === 'token') {
 		logger.debug('User authenticated with token, redirecting to user page.');
 		throw redirect(302, '/user');
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
-		throw error(400, 'Tenant could not be identified for this operation.');
-	}
+	logger.debug(`Collection page load started. Language: \x1b[34m${language}\x1b[0m`, { tenantId });
 
-	await contentManager.initialize(tenantId); // Get collection data to access the mapping for the current tenant
-
+	// Initialize ContentManager and get collection data
+	await contentManager.initialize(tenantId);
 	const { collectionMap } = await contentManager.getCollectionData(tenantId);
 
 	let currentCollection = null;
-	let collectionIdentifier = collection; // Check if the collection parameter is a UUID
+	let collectionIdentifier = collection;
 
+	// Check if the collection parameter is a UUID
 	const isUUID = /^[a-f0-9]{8}-([a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(collection);
 
 	if (isUUID) {
-		// Direct UUID lookup within the tenant
+		// Direct UUID lookup
 		currentCollection = await contentManager.getCollection(collection, tenantId);
 	} else {
-		// Path-based lookup - need to find the UUID for this path within the tenant
+		// Path-based lookup - find the UUID for this path
 		const collectionPath = `/${collection}`;
-
 		for (const [uuid, schemaData] of collectionMap.entries()) {
 			if (schemaData.path === collectionPath) {
 				currentCollection = await contentManager.getCollection(uuid, tenantId);
@@ -87,17 +75,19 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 				break;
 			}
 		}
-	} // If no collection found, return 404
+	}
 
+	// Return 404 if collection not found
 	if (!currentCollection) {
 		const message = `Collection not found: ${collection}`;
 		logger.warn(message, { tenantId });
 		throw error(404, message);
 	}
 
+	// Return simplified data - hooks.server.ts already provided most of what we need
 	return {
 		theme: theme || DEFAULT_THEME,
-		contentLanguage,
+		contentLanguage: language,
 		collection: {
 			module: currentCollection?.module,
 			name: currentCollection?.name,
@@ -118,14 +108,15 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 					translated: field.translated
 				})) || []
 		},
+		// User data already provided by hooks.server.ts
 		user: {
 			username: user.username,
 			role: user.role,
 			avatar: user.avatar
 		},
+		// These are already set by hooks.server.ts, just pass them through
 		isAdmin,
 		hasManageUsersPermission,
-		permissions,
-		roles: tenantRoles // Pass tenant-specific roles
+		roles: tenantRoles
 	};
 };

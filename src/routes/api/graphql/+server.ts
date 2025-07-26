@@ -26,7 +26,6 @@ import { createClient } from 'redis';
 
 // Auth / Permission
 import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
-import { checkApiPermission } from '@api/permissions';
 import { PermissionAction, PermissionType } from '@src/auth/types';
 
 // Roles Configuration

@@ -20,7 +20,6 @@ import type { ContentNodeOperation } from '@root/src/content/types';
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';

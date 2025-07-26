@@ -16,7 +16,6 @@ import { privateEnv } from '@root/config/private';
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { hasCollectionPermission } from '@api/permissions';
 import { roles } from '@root/config/roles';
 
 // Databases & Api
@@ -54,12 +53,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (collectionsParam) {
 			collectionsToSearch = collectionsParam.split(',').map((c) => c.trim());
 		} else {
-			// If no collections specified, search all accessible collections within the tenant
+			// If no collections specified, search all collections within the tenant (hooks already validated access)
 			const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
-			collectionsToSearch = Object.keys(allCollections).filter((collectionId) => {
-				const collection = allCollections[collectionId];
-				return hasCollectionPermission(user, 'read', collection);
-			});
+			collectionsToSearch = Object.keys(allCollections);
 		}
 		// Parse additional filters
 		let additionalFilter = {};
@@ -91,8 +87,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		for (const collectionId of collectionsToSearch) {
 			const collection = await contentManager.getCollectionById(collectionId, tenantId);
 			if (!collection) continue;
-			// Check permissions
-			if (!hasCollectionPermission(user, 'read', collection)) continue;
 
 			try {
 				// Build search filter

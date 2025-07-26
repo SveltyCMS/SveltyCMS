@@ -25,7 +25,6 @@ import { privateEnv } from '@root/config/private';
 import { auth } from '@src/databases/db';
 // TODO: Remove once updateToken is added to database-agnostic interface
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkApiPermission } from '@api/permissions';
 
 // Validation
 import { object, any, parse, type ValiError } from 'valibot';

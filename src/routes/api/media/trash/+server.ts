@@ -16,7 +16,6 @@ import { error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
 // Permission checking
-import { checkApiPermission } from '@api/permissions';
 
 // Auth
 import { auth } from '@src/databases/db';

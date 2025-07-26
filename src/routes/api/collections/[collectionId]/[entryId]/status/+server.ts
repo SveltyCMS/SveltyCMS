@@ -19,7 +19,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -40,19 +39,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	// In multi-tenant mode, a tenantId is required.
-	if (privateEnv.MULTI_TENANT && !tenantId) {
-		logger.error('Status update failed: Tenant ID is missing in a multi-tenant setup.');
-		throw error(400, 'Could not identify the tenant for this request.');
-	}
-
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
 		throw error(404, 'Collection not found');
-	}
-
-	if (!(await hasCollectionPermission(user, 'write', schema))) {
-		throw error(403, 'Forbidden');
 	}
 
 	try {

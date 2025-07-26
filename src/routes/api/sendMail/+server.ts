@@ -38,7 +38,6 @@ import type { ComponentType } from 'svelte';
 import { privateEnv } from '@root/config/private';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Nodemailer for actual email sending
 import nodemailer from 'nodemailer';

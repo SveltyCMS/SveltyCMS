@@ -19,7 +19,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -33,19 +32,9 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	// In multi-tenant mode, a tenantId is required.
-	if (privateEnv.MULTI_TENANT && !tenantId) {
-		logger.error('Get revisions failed: Tenant ID is missing in a multi-tenant setup.');
-		throw error(400, 'Could not identify the tenant for this request.');
-	}
-
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
 		throw error(404, 'Collection not found');
-	}
-
-	if (!(await hasCollectionPermission(user, 'read', schema))) {
-		throw error(403, 'Forbidden');
 	}
 
 	try {

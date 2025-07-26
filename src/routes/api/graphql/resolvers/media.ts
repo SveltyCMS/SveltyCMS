@@ -27,7 +27,6 @@ import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Types
 import type { User } from '@src/auth/types';

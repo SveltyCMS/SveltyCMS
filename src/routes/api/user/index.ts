@@ -26,7 +26,6 @@ import { error, type HttpError } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
 // Auth and permission helpers
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

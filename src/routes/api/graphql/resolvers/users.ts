@@ -22,7 +22,6 @@ import { privateEnv } from '@root/config/private';
 import { logger } from '@utils/logger.svelte';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Types
 import type { dbInterface } from '@src/databases/dbInterface';

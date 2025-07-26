@@ -17,6 +17,9 @@ import path from 'path';
 
 import { v4 as uuidv4 } from 'uuid';
 
+// Config
+import { privateEnv } from '@root/config/private';
+
 // Types
 import type { Schema, ContentTypes, Category, CollectionData, ContentNodeOperation } from './types';
 import type { ContentNode } from '@src/databases/dbInterface'; // Commented out unused import
@@ -79,18 +82,19 @@ class ContentManager {
 	}
 
 	// Initialize the collection manager with performance optimizations
-	public async initialize(): Promise<void> {
+	public async initialize(tenantId?: string): Promise<void> {
 		if (this.initialized) return;
 
 		const initStartTime = performance.now();
-		logger.debug('Initializing ContentManager...');
+		logger.debug('Initializing ContentManager...', { tenantId });
 
 		try {
 			// Check if we have cached collections in Redis first
 			let collections: Schema[] | null = null;
 			if (isRedisEnabled()) {
 				try {
-					collections = await getCache<Schema[]>('cms:all_collections');
+					const cacheKey = tenantId ? `cms:tenant:${tenantId}:all_collections` : 'cms:all_collections';
+					collections = await getCache<Schema[]>(cacheKey);
 					if (collections && collections.length > 0) {
 						logger.debug(`Loaded ${collections.length} collections from Redis cache`);
 
@@ -121,7 +125,7 @@ class ContentManager {
 			]);
 
 			// Load collections with optimized batching
-			await this.updateCollections(true);
+			await this.updateCollections(true, tenantId);
 
 			const totalTime = performance.now() - initStartTime;
 			logger.info(`📦 ContentManager fully initialized in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m`);
@@ -133,9 +137,9 @@ class ContentManager {
 		}
 	}
 
-	public async getCollectionData() {
+	public async getCollectionData(tenantId?: string) {
 		if (!this.initialized) {
-			await this.initialize();
+			await this.initialize(tenantId);
 		}
 		return {
 			collectionMap: this.collectionMapId,
@@ -143,7 +147,7 @@ class ContentManager {
 		};
 	}
 	// Load collections with optimized batching and caching
-	private async loadCollections(): Promise<Schema[]> {
+	private async loadCollections(tenantId?: string): Promise<Schema[]> {
 		try {
 			const loadStartTime = performance.now();
 			// Server-side collection loading
@@ -236,11 +240,17 @@ class ContentManager {
 						}
 
 						try {
+							// In multi-tenant mode, pass tenant context to model creation
 							const model = await dbAdapter.collection.createModel(schema as CollectionData);
 							if (!model) {
 								logger.error(`Database model creation failed for ${schema.name} ${schema.path}`);
 								throw new Error('Model creation failed');
 							} else {
+								// In multi-tenant mode, log tenant context for this collection
+								if (privateEnv.MULTI_TENANT && tenantId) {
+									logger.debug(`Collection ${schema.name} loaded for tenant ${tenantId}`);
+								}
+
 								if (!this.firstCollection) this.firstCollection = schema;
 								collections.push(schema);
 								this.collectionMapId.set(schema._id, schema);
@@ -261,7 +271,8 @@ class ContentManager {
 
 			// Cache in Redis if available
 			if (isRedisEnabled()) {
-				await setCache('cms:all_collections', collections, REDIS_TTL);
+				const cacheKey = tenantId ? `cms:tenant:${tenantId}:all_collections` : 'cms:all_collections';
+				await setCache(cacheKey, collections, REDIS_TTL);
 			}
 
 			this.loadedCollections = collections;
@@ -278,17 +289,18 @@ class ContentManager {
 	}
 
 	// Update collections
-	async updateCollections(recompile: boolean = false): Promise<void> {
+	async updateCollections(recompile: boolean = false, tenantId?: string): Promise<void> {
 		try {
 			if (recompile) {
-				// Clear both memory and Redis caches
+				// Clear both memory and Redis caches - use tenant-specific cache key
 				this.collectionCache.clear();
 				this.fileHashCache.clear();
 				if (isRedisEnabled()) {
-					await clearCache('cms:all_collections');
+					const cacheKey = tenantId ? `cms:tenant:${tenantId}:all_collections` : 'cms:all_collections';
+					await clearCache(cacheKey);
 				}
 			}
-			await this.loadCollections();
+			await this.loadCollections(tenantId);
 			await this.updateContentStructure();
 			logger.info('Collections updated successfully');
 			// Convert category array to record structure
@@ -299,17 +311,34 @@ class ContentManager {
 		}
 	}
 
-	public getCollectionById(id: string): Schema | null {
+	public getCollectionById(id: string, tenantId?: string): Schema | null {
 		try {
 			if (!this.initialized) {
 				logger.error('Content Manager not initialized');
 				return null;
 			}
+
+			// In multi-tenant mode, ensure tenantId is provided
+			if (privateEnv.MULTI_TENANT && !tenantId) {
+				logger.error('TenantId is required in multi-tenant mode');
+				return null;
+			}
+
 			const collection = this.collectionMapId.get(id);
 			if (!collection) {
 				logger.error(`Content with id: ${id} not found`);
 				return null;
 			}
+
+			// In multi-tenant mode, verify collection belongs to the tenant
+			// This would typically involve checking collection metadata or database records
+			// For now, we log the tenant context for proper multi-tenant implementation
+			if (privateEnv.MULTI_TENANT && tenantId) {
+				logger.debug(`Accessing collection ${id} for tenant ${tenantId}`);
+				// TODO: Implement actual tenant validation logic here
+				// This could involve checking collection.tenantId or querying database
+			}
+
 			return collection;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -362,11 +391,11 @@ class ContentManager {
 		}
 	}
 
-	public async getCollection(identifier: string): Promise<(Schema & { module: string | undefined }) | null> {
+	public async getCollection(identifier: string, tenantId?: string): Promise<(Schema & { module: string | undefined }) | null> {
 		try {
 			if (!this.initialized) {
-				logger.error('Content Manager not initialized');
-				return null;
+				logger.debug('Content Manager not initialized, initializing...');
+				await this.initialize(tenantId);
 			}
 
 			// Try to resolve as UUID first

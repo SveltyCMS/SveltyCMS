@@ -26,7 +26,6 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { tiktok, twitch, vimeo, youtube, type YoutubeData } from '@widgets/custom/remoteVideo/video';
 
 // Permission checking
-import { checkApiPermission } from '@api/permissions';
 
 // Define types for each platform's response
 interface BaseVideoData {

@@ -27,9 +27,6 @@ import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 import type { Field } from '@src/content/types';
 
-// Auth
-import { hasCollectionPermission } from '@api/permissions';
-
 // System logger
 import { logger } from '@utils/logger.svelte';
 
@@ -58,13 +55,7 @@ interface ModifyRequestParams {
 export async function modifyRequest({ data, fields, collection, user, type, tenantId }: ModifyRequestParams) {
 	const start = performance.now();
 	try {
-		// Check if user has permission to access this collection
-		if (!hasCollectionPermission(user, 'read', collection)) {
-			const error = new Error(`Access denied: User does not have permission to access collection '${collection.id}'`);
-			logger.warn(`ModifyRequest permission denied for user: ${user._id}, collection: ${collection.id}`);
-			throw error;
-		}
-
+		// User access is already validated by hooks
 		logger.debug(
 			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m, tenant: \x1b[34m${tenantId}\x1b[0m`
 		);

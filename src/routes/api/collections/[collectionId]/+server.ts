@@ -22,7 +22,6 @@ import type { BaseEntity } from '@src/databases/dbInterface';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 import { modifyRequest } from '@api/collections/modifyRequest';
 import { roles, initializeRoles } from '@root/config/roles';
 
@@ -33,28 +32,18 @@ import { logger } from '@utils/logger.svelte';
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const startTime = performance.now();
 	const endpoint = `GET /api/collections/${params.collectionId}`;
-	const { user, tenantId } = locals; // Ensure roles are initialized
+	const { user, tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
-	await initializeRoles(); // Get user's role and determine admin status properly
+	// Ensure roles are initialized
+	await initializeRoles();
 
+	// Get user's role and determine admin status properly
 	const availableRoles = locals.roles && locals.roles.length > 0 ? locals.roles : roles;
 	const userRole = availableRoles.find((role) => role._id === user?.role);
 	const isAdmin = Boolean(userRole?.isAdmin);
 
 	try {
-		if (!user) {
-			logger.warn(`${endpoint} - Unauthorized access attempt`, {
-				ip: url.searchParams.get('__ip') || 'unknown'
-			});
-			throw error(401, 'Unauthorized');
-		}
-
-		// In multi-tenant mode, a tenantId is required.
-		if (privateEnv.MULTI_TENANT && !tenantId) {
-			logger.error(`Get collection entries failed: Tenant ID is missing in a multi-tenant setup.`);
-			throw error(400, 'Could not identify the tenant for this request.');
-		}
-
+		// Note: tenantId validation is handled by hooks in multi-tenant mode
 		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
@@ -63,16 +52,6 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 				tenantId
 			});
 			throw error(404, 'Collection not found');
-		}
-
-		if (!(await hasCollectionPermission(user, 'read', schema, availableRoles))) {
-			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema._id,
-				userId: user._id,
-				userEmail: user.email,
-				userRole: user.role
-			});
-			throw error(403, 'Forbidden');
 		}
 
 		const page = Number(url.searchParams.get('page') ?? 1);
@@ -85,6 +64,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		if (filterParam) {
 			try {
 				filter = JSON.parse(filterParam);
+				// Convert string operators to MongoDB operators
+				filter = convertFilterOperators(filter);
 			} catch (parseError) {
 				logger.warn(`\x1b[34m${endpoint}\x1b[0m - Invalid filter parameter`, {
 					filterParam,
@@ -96,17 +77,39 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			}
 		}
 
-		// --- MULTI-TENANCY: Scope all filters by tenantId ---
-		const baseFilter = privateEnv.MULTI_TENANT ? { ...filter, tenantId } : filter; // Status filtering - non-admin users only see published content
+		// Helper function to convert string operators to MongoDB operators
+		function convertFilterOperators(obj: Record<string, unknown>): Record<string, unknown> {
+			if (typeof obj !== 'object' || obj === null) {
+				return obj;
+			}
 
+			const result: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(obj)) {
+				if (typeof value === 'string' && value.startsWith('!=')) {
+					// Convert "!=value" to {$ne: "value"}
+					const actualValue = value.substring(2);
+					result[key] = { $ne: actualValue };
+				} else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+					// Recursively convert nested objects
+					result[key] = convertFilterOperators(value as Record<string, unknown>);
+				} else {
+					result[key] = value;
+				}
+			}
+			return result;
+		}
+
+		// --- MULTI-TENANCY: Scope all filters by tenantId ---
+		logger.debug(`Multi-tenant check: MULTI_TENANT=${privateEnv.MULTI_TENANT}, tenantId=${tenantId}`);
+		const baseFilter = privateEnv.MULTI_TENANT ? { ...filter, tenantId } : filter;
+		logger.debug(`Filter applied:`, { baseFilter, originalFilter: filter });
+
+		// Status filtering - non-admin users only see published content
 		let finalFilter = baseFilter;
 		if (!isAdmin) {
 			finalFilter = { ...baseFilter, status: 'published' };
-		} else {
-			// For admin users, remove any status filtering from the original filter
-			const { status, ...adminFilter } = baseFilter;
-			finalFilter = adminFilter;
-		} // Build the query efficiently using QueryBuilder
+		}
+		logger.debug(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
 
 		const collectionName = `collection_${schema._id}`;
 		const query = dbAdapter
@@ -213,12 +216,6 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		// In multi-tenant mode, a tenantId is required.
-		if (privateEnv.MULTI_TENANT && !tenantId) {
-			logger.error(`Create collection entry failed: Tenant ID is missing in a multi-tenant setup.`);
-			throw error(400, 'Could not identify the tenant for this request.');
-		}
-
 		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
@@ -227,16 +224,6 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 				tenantId
 			});
 			throw error(404, 'Collection not found');
-		}
-
-		if (!(await hasCollectionPermission(user, 'write', schema))) {
-			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema._id,
-				userId: user._id,
-				userEmail: user.email,
-				userRole: user.role
-			});
-			throw error(403, 'Forbidden');
 		}
 
 		let body;

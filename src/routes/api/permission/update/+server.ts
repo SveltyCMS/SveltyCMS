@@ -21,7 +21,6 @@ import * as ts from 'typescript';
 // Authorization
 import { dbInitPromise } from '@src/databases/db';
 import { getAllPermissions } from '@src/auth/permissions';
-import { checkApiPermission } from '@api/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logger

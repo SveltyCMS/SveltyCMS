@@ -21,7 +21,6 @@ import { fileExists } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const { user, tenantId } = locals; // Use centralized permission checking

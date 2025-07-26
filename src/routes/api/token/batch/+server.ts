@@ -28,7 +28,6 @@ import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 // TODO: Remove once blockTokens/unblockTokens are added to database-agnostic interface
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkApiPermission } from '@api/permissions';
 
 // Validation
 import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';

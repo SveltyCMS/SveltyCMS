@@ -20,7 +20,6 @@ import { json, error, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -56,12 +55,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
-
-		// In multi-tenant mode, a tenantId is required.
-		if (privateEnv.MULTI_TENANT && !tenantId) {
-			logger.error('Create user attempt failed: Tenant ID is missing in a multi-tenant setup.');
-			throw error(400, 'Tenant ID is required to create a user.');
 		}
 
 		const body = await request.json();

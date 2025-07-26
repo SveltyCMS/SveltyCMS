@@ -12,6 +12,7 @@
  * - OAuth route handling
  * - Performance logging
  * - Session metrics cleanup
+ * - API protection with tenant-aware permissions
  */
 
 import { building } from '$app/environment';
@@ -29,6 +30,7 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { roles, initializeRoles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
+import { hasApiPermission } from '@src/auth/apiPermissions';
 import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
 
 import type { User } from '@src/auth';
@@ -41,6 +43,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const SESSION_TTL = CACHE_TTL; // Align session TTL with cache TTL
 const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
 const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
@@ -619,6 +622,138 @@ async function handleSessionRotation(
 	return session_id;
 }
 
+// Handle API requests with optimized caching and tenant-aware permissions
+const handleApiRequest = async (
+	event: RequestEvent,
+	resolve: (event: RequestEvent) => Promise<Response>,
+	user: User,
+	tenantId?: string
+): Promise<Response> => {
+	const apiEndpoint = event.url.pathname.split('/api/')[1]?.split('/')[0];
+
+	if (!apiEndpoint) {
+		logger.warn(`Could not determine API endpoint from path: ${event.url.pathname}`);
+		throw error(400, 'Invalid API path');
+	}
+
+	// SPECIAL CASE: Logout should always be allowed regardless of permissions
+	if (event.url.pathname === '/api/user/logout') {
+		logger.debug('Logout endpoint accessed - bypassing permission checks');
+		return resolve(event);
+	}
+
+	const cacheStore = getCacheStore();
+	const now = Date.now();
+
+	// Check if user role has permission to access this API endpoint
+	if (!hasApiPermission(user.role, apiEndpoint)) {
+		logger.warn(
+			`User \x1b[34m${user._id}\x1b[0m (role: ${user.role}, tenant: ${tenantId || 'global'}) denied access to API /api/${apiEndpoint} due to insufficient role permissions`
+		);
+		throw error(403, `Forbidden: Your role (${user.role}) does not have permission to access this API endpoint.`);
+	}
+
+	logger.debug(`User granted access to API`, {
+		email: user.email || user._id,
+		role: user.role,
+		apiEndpoint: `/api/${apiEndpoint}`,
+		tenant: tenantId || 'global'
+	});
+
+	// Handle GET requests with tenant-aware caching
+	if (event.request.method === 'GET') {
+		const cacheKey = `api:${apiEndpoint}:${user._id}:${tenantId || 'global'}:${event.url.search}`; // Include tenant in cache key
+		try {
+			const cached = await cacheStore.get<{
+				data: unknown;
+				timestamp: number;
+				headers: Record<string, string>;
+			}>(cacheKey);
+			if (cached && now - cached.timestamp < API_CACHE_TTL) {
+				// Check cache TTL
+				logger.debug(`Cache hit for API GET \x1b[34m${cacheKey}\x1b[0m`);
+				healthMetrics.cache.hits++;
+				return new Response(JSON.stringify(cached.data), {
+					status: 200,
+					headers: { ...cached.headers, 'Content-Type': 'application/json', 'X-Cache': 'hit' }
+				});
+			}
+		} catch (cacheGetError) {
+			logger.warn(`Error fetching from API cache for \x1b[31m${cacheKey}\x1b[0m: ${cacheGetError.message}`);
+		}
+
+		const response = await resolve(event);
+
+		// GraphQL might have its own complex caching
+		if (apiEndpoint === 'graphql') {
+			response.headers.append('X-Cache', 'miss');
+			healthMetrics.cache.misses++;
+			return response;
+		}
+
+		if (response.ok) {
+			try {
+				const responseBody = await response.json();
+				await cacheStore.set(
+					cacheKey,
+					{
+						data: responseBody,
+						timestamp: now,
+						headers: Object.fromEntries(response.headers)
+					},
+					new Date(now + API_CACHE_TTL)
+				);
+				healthMetrics.cache.misses++;
+				// Return a new Response with the updated headers
+				return new Response(JSON.stringify(responseBody), {
+					status: response.status,
+					headers: {
+						...Object.fromEntries(response.headers),
+						'Content-Type': 'application/json',
+						'X-Cache': 'miss'
+					}
+				});
+			} catch (processingError) {
+				logger.error(
+					`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m, tenant: ${tenantId || 'global'}): ${processingError.message}`
+				);
+				return new Response(
+					JSON.stringify({
+						error: 'Failed to process API response',
+						message: processingError.message,
+						endpoint: `/api/${apiEndpoint}`
+					}),
+					{
+						status: 500,
+						headers: { 'Content-Type': 'application/json' }
+					}
+				);
+			}
+		}
+		return response;
+	}
+
+	// Handle non-GET requests (POST, PUT, DELETE etc.) with tenant-aware cache invalidation
+	const response = await resolve(event);
+
+	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method) && response.ok) {
+		const baseCacheKey = `api:${apiEndpoint}:${user._id}:${tenantId || 'global'}`;
+		try {
+			// Try to delete pattern-based cache keys if supported
+			if (typeof cacheStore.deletePattern === 'function') {
+				await cacheStore.deletePattern(`${baseCacheKey}:*`);
+			}
+			await cacheStore.delete(baseCacheKey);
+			logger.debug(
+				`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[32m${event.request.method}\x1b[0m request`
+			);
+		} catch (err) {
+			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
+		}
+	}
+	return response;
+};
+
 // Handle authentication, authorization, and API caching
 const handleAuth: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
@@ -665,7 +800,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		// Optimized first user check with caching
-		const userCount = await getCachedUserCount(authServiceReady);
+		const userCount = await getCachedUserCount(authServiceReady, locals.tenantId);
 		const isFirstUser = userCount === 0;
 		locals.isFirstUser = isFirstUser;
 
@@ -763,6 +898,11 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
 				throw redirect(302, '/');
 			}
+
+			if (isApi && locals.user && !isPublic) {
+				logger.debug('Handling API request for authenticated user');
+				return handleApiRequest(event, resolve, locals.user, locals.tenantId);
+			}
 		} else {
 			logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
 		}
@@ -822,10 +962,10 @@ export const handle: Handle = sequence(
 	addSecurityHeaders
 );
 
-// Helper function to invalidate API cache
-export const invalidateApiCache = async (apiEndpoint: string, userId: string): Promise<void> => {
+// Helper function to invalidate API cache with tenant awareness
+export const invalidateApiCache = async (apiEndpoint: string, userId: string, tenantId?: string): Promise<void> => {
 	const cacheStore = getCacheStore();
-	const basePattern = `api:${apiEndpoint}:${userId}`;
+	const basePattern = `api:${apiEndpoint}:${userId}:${tenantId || 'global'}`;
 	logger.debug(`Attempting to invalidate API cache for pattern \x1b[33m${basePattern}:*\x1b[0m and exact key \x1b[33m${basePattern}\x1b[0m`);
 	try {
 		// Try to delete pattern-based cache keys if supported

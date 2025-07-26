@@ -20,7 +20,6 @@ import { json, error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
 // Permission checking
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
