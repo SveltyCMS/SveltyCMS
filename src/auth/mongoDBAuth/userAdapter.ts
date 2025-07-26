@@ -423,7 +423,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 			if (user) {
 				user._id = user._id.toString();
 				logger.debug(`User retrieved by ID: \x1b[34m${user_id}\x1b[0m`, {
-					tenantId: tenantId || 'none (single-tenant mode)'
+					tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
 				});
 				return user as User;
 			} else {
@@ -433,7 +433,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const message = `Error in UserAdapter.getUserById: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
 				user_id,
-				tenantId: tenantId || 'none (single-tenant mode)'
+				tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
 			});
 			throw error(500, message);
 		}
@@ -451,7 +451,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 				user._id = user._id.toString();
 				logger.debug(`User retrieved by email:`, {
 					email: normalizedEmail,
-					tenantId: criteria.tenantId || 'none (single-tenant mode)'
+					tenantId: criteria.tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
 				});
 				return user as User;
 			} else {
@@ -461,7 +461,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
 				email: criteria.email,
-				tenantId: criteria.tenantId || 'none (single-tenant mode)'
+				tenantId: criteria.tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
 			});
 			throw error(500, message);
 		}

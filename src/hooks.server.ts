@@ -1,54 +1,56 @@
 /**
  * @file src/hooks.server.ts
- * @description Server-side hooks for SvelteKit CMS application
+ * @description Optimized server-side hooks for SvelteKit CMS application
  *
  * This file handles:
- * - Authentication and session management (now multi-tenant aware)
- * - Rate limiting for API endpoints
- * - Permission checks for protected routes
- * - Static asset caching
- * - API response caching using session store
+ * - Modular middleware architecture for performance
+ * - Conditional loading based on environment settings
+ * - Multi-tenant support (configurable)
+ * - Redis caching (configurable)
+ * - Static asset optimization
+ * - Rate limiting
+ * - Session authentication and management
+ * - Authorization and role management
+ * - API request handling with caching
+ * - Locale management
  * - Security headers
- * - OAuth route handling
- * - Performance logging
- * - Session metrics cleanup
- * - API protection with tenant-aware permissions
+ * - Performance monitoring
  */
 
 import { building } from '$app/environment';
 import { privateEnv } from '@root/config/private';
-import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { redirect, error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
-// Stores
-import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-
-// Rate Limiter
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
-
-// Auth and Database Adapters
+// Core authentication and database
 import { roles, initializeRoles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { hasApiPermission } from '@src/auth/apiPermissions';
 import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
-
 import type { User } from '@src/auth';
-import type { Locale } from '@src/paraglide/runtime';
+
+// Stores (removed unused imports)
+
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Import middleware modules
+import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+import { handleRateLimit } from './hooks/handleRateLimit';
+import { addSecurityHeaders } from './hooks/addSecurityHeaders';
+import { handleLocale } from './hooks/handleLocale';
+import { handleApiRequests } from './hooks/handleApiRequests';
+
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const SESSION_TTL = CACHE_TTL; // Align session TTL with cache TTL
 const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
 const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
 
-// Performance Caches - Consider moving to WeakMap for better memory management
+// Performance Caches - Optimized for memory management
 let userCountCache: { count: number; timestamp: number } | null = null;
 const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 
@@ -59,102 +61,8 @@ const sessionMetrics = {
 	rotationAttempts: new Map<string, number>()
 };
 
-// Initialize rate limiters
-const limiter = new RateLimiter({
-	IP: [300, 'h'], // 300 requests per hour per IP
-	IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
-	cookie: {
-		name: 'ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY as string,
-		rate: [500, 'm'], // 500 requests per minute per cookie
-		preflight: true
-	}
-});
-
-// Stricter rate limiter for token refresh operations
-const refreshLimiter = new RateLimiter({
-	IP: [10, 'm'], // 10 requests per minute per IP
-	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
-	cookie: {
-		name: 'refreshlimit',
-		secret: privateEnv.JWT_SECRET_KEY as string,
-		rate: [10, 'm'], // 10 requests per minute per cookie
-		preflight: true
-	}
-});
-
-// Get a stricter rate limiter for API requests
-const apiLimiter = new RateLimiter({
-	IP: [500, 'm'], // 500 requests per minute per IP
-	IPUA: [200, 'm'] // 200 requests per minute per IP+User-Agent
-});
-
-// --- NEW: Tenant Identification Logic ---
-/**
- * Identifies a tenant based on the request hostname.
- * In a real-world application, this would query a database of tenants.
- * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
- * @param hostname The hostname from the request URL.
- * @returns The tenant ID or null if not a tenant-specific domain.
- */
-const getTenantIdFromHostname = (hostname: string): string | null => {
-	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
-		return 'default'; // A default tenant for local development
-	}
-	const parts = hostname.split('.');
-	// Assuming a structure like `tenant-name.your-domain.com`
-	if (parts.length > 2 && !['www', 'app', 'api'].includes(parts[0])) {
-		return parts[0];
-	}
-	// This could return a default tenant ID for the main domain if desired
-	return null;
-};
-
-// Check if a given pathname is a static asset
-const isStaticAsset = (pathname: string): boolean =>
-	pathname.startsWith('/static/') ||
-	pathname.startsWith('/_app/') ||
-	pathname.endsWith('.js') ||
-	pathname.endsWith('.css') ||
-	pathname === '/favicon.ico';
-
-// Check if the given IP is localhost
-const isLocalhost = (ip: string): boolean => ip === '::1' || ip === '127.0.0.1';
-
-// Check if a route is an OAuth route
-const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login') && pathname.includes('OAuth');
-
-// Check if the route is public or an OAuth route
-const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
-	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
-};
-
-const getClientIp = (event: RequestEvent): string => {
-	try {
-		return (
-			event.getClientAddress() ||
-			event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-			event.request.headers.get('x-real-ip') ||
-			'127.0.0.1'
-		);
-	} catch {
-		return '127.0.0.1';
-	}
-};
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
-
 // Session and Permission Caches
 const sessionCache = new Map<string, { user: User; timestamp: number }>();
-const lastRefreshAttempt = new Map<string, number>();
 
 // Request deduplication for expensive operations
 const pendingOperations = new Map<string, Promise<unknown>>();
@@ -246,31 +154,86 @@ setInterval(
 	60 * 60 * 1000
 );
 
-// Export health metrics for monitoring endpoints
-export const getHealthMetrics = () => ({ ...healthMetrics });
+// Utility functions
+const isStaticAsset = (pathname: string): boolean =>
+	pathname.startsWith('/static/') ||
+	pathname.startsWith('/_app/') ||
+	pathname.endsWith('.js') ||
+	pathname.endsWith('.css') ||
+	pathname === '/favicon.ico';
+
+const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login') && pathname.includes('OAuth');
+
+const isPublicOrOAuthRoute = (pathname: string): boolean => {
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
+	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
+};
+
+const getClientIp = (event: RequestEvent): string => {
+	try {
+		return (
+			event.getClientAddress() ||
+			event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+			event.request.headers.get('x-real-ip') ||
+			'127.0.0.1'
+		);
+	} catch {
+		return '127.0.0.1';
+	}
+};
+
+/**
+ * Identifies a tenant based on the request hostname.
+ * In a real-world application, this would query a database of tenants.
+ * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
+ */
+const getTenantIdFromHostname = (hostname: string): string | null => {
+	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
+		return 'default'; // A default tenant for local development
+	}
+	const parts = hostname.split('.');
+	// Assuming a structure like `tenant-name.your-domain.com`
+	if (parts.length > 2 && !['www', 'app', 'api'].includes(parts[0])) {
+		return parts[0];
+	}
+	// This could return a default tenant ID for the main domain if desired
+	return null;
+};
+
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
 
 // Optimized user count getter with caching and deduplication (now tenant-aware)
 const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
 	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	const cacheStore = getCacheStore(); // Get distributed cache instance
-	// Try distributed cache first
+	const cacheStore = getCacheStore();
 
-	try {
-		const cached = await cacheStore.get<{ count: number; timestamp: number }>(cacheKey);
-		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL) {
-			// Also update local cache for very fast subsequent access on the same instance
-			userCountCache = cached;
-			return cached.count;
+	// Try distributed cache first (if Redis is enabled)
+	if (privateEnv.USE_REDIS) {
+		try {
+			const cached = await cacheStore.get<{ count: number; timestamp: number }>(cacheKey);
+			if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL) {
+				userCountCache = cached;
+				return cached.count;
+			}
+		} catch (err) {
+			logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
 		}
-	} catch (err) {
-		logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
-	} // Return local cached value if still valid (fallback)
+	}
 
+	// Return local cached value if still valid (fallback)
 	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL) {
 		return userCountCache.count;
-	} // Use deduplication for expensive database operations
+	}
 
+	// Use deduplication for expensive database operations
 	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
 		let userCount = -1;
 		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
@@ -292,12 +255,15 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 		// Cache the result in both distributed and local cache
 		if (userCount >= 0) {
 			const dataToCache = { count: userCount, timestamp: now };
-			try {
-				await cacheStore.set(cacheKey, dataToCache, new Date(now + USER_COUNT_CACHE_TTL));
-			} catch (err) {
-				logger.error(`Failed to write user count to distributed cache: ${err.message}`);
+
+			if (privateEnv.USE_REDIS) {
+				try {
+					await cacheStore.set(cacheKey, dataToCache, new Date(now + USER_COUNT_CACHE_TTL));
+				} catch (err) {
+					logger.error(`Failed to write user count to distributed cache: ${err.message}`);
+				}
 			}
-			// Also update local cache for very fast subsequent access on the same instance
+
 			userCountCache = dataToCache;
 		}
 
@@ -310,50 +276,59 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 	if (!session_id) return null;
 
 	const cacheStore = getCacheStore();
-	const now = Date.now(); // Only use cached sessions if auth service is ready OR if this is a static asset request
-
+	const now = Date.now();
 	const canUseCache = authServiceReady || auth !== null;
 
 	const validateUserTenant = (user: User): User | null => {
 		if (privateEnv.MULTI_TENANT && user.tenantId !== tenantId) {
-			logger.warn(`Session user's tenant ('${user.tenantId}') does not match request tenant ('${tenantId}'). Access denied.`);
+			logger.warn(
+				`Session user's tenant ('\x1b[34m${user.tenantId}\x1b[0m') does not match request tenant ('\x1b[34m${tenantId}\x1b[0m'). Access denied.`
+			);
 			return null;
 		}
 		return user;
 	};
 
+	// Check in-memory cache first
 	const memCached = sessionCache.get(session_id);
 	if (memCached && now - memCached.timestamp < CACHE_TTL && canUseCache) {
 		const validUser = validateUserTenant(memCached.user);
-		if (!validUser) return null; // Extend session in cache proactively on every hit
+		if (!validUser) return null;
+
+		// Extend session in cache proactively on every hit
 		const sessionData = { user: memCached.user, timestamp: now };
-		sessionCache.set(session_id, sessionData); // Update in-memory timestamp
-		cacheStore
-			.set(session_id, sessionData, new Date(now + CACHE_TTL))
-			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		sessionMetrics.lastActivity.set(session_id, now); // Update session metrics
+		sessionCache.set(session_id, sessionData);
+
+		if (privateEnv.USE_REDIS) {
+			cacheStore
+				.set(session_id, sessionData, new Date(now + CACHE_TTL))
+				.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
+		}
+
+		sessionMetrics.lastActivity.set(session_id, now);
 		return memCached.user;
 	}
 
-	// Try Redis cache only if auth service is ready
-	if (canUseCache) {
+	// Try Redis cache only if enabled and auth service is ready
+	if (canUseCache && privateEnv.USE_REDIS) {
 		try {
 			const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
 			if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
 				const validUser = validateUserTenant(redisCached.user);
-				if (!validUser) return null; // Ensure redis cache isn't stale if TTLs differ
-				sessionCache.set(session_id, redisCached); // Populate in-memory cache
+				if (!validUser) return null;
+
+				sessionCache.set(session_id, redisCached);
 				sessionMetrics.lastActivity.set(session_id, now);
 				return redisCached.user;
 			}
 		} catch (cacheError) {
-			logger.error(`Error reading from session cache store for ${session_id}: ${cacheError.message}`);
+			logger.error(`Error reading from session cache store for \x1b[34m${session_id}\x1b[0m: ${cacheError.message}`);
 		}
 	}
 
 	// Validate session in database only if auth service is ready
 	if (!authServiceReady || !auth) {
-		logger.debug(`Auth service not ready, skipping session validation for ${session_id}`);
+		logger.debug(`Auth service not ready, skipping session validation for \x1b[34m${session_id}\x1b[0m`);
 		return null;
 	}
 
@@ -361,7 +336,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 		// Use circuit breaker for database auth operations
 		let user = await authCircuitBreaker.execute(
 			() => auth.validateSession(session_id),
-			() => null // Fallback to null if circuit is open
+			() => null
 		);
 
 		if (user) {
@@ -373,45 +348,46 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 			sessionCache.set(session_id, sessionData);
 
 			// Use circuit breaker for cache operations too
-			await cacheCircuitBreaker.execute(
-				() => cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL)),
-				() => {} // Fallback to no-op if cache circuit is open
-			);
+			if (privateEnv.USE_REDIS) {
+				await cacheCircuitBreaker.execute(
+					() => cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL)),
+					() => {} // Fallback to no-op if cache circuit is open
+				);
+			}
 
 			sessionMetrics.lastActivity.set(session_id, now);
 			return user;
 		}
-		logger.warn(`Session validation returned no user for ${session_id}`);
+		logger.warn(`Session validation returned no user for \x1b[34m${session_id}\x1b[0m`);
 	} catch (dbError) {
-		logger.error(`Session validation DB error for \x1b[31m${session_id}\x1b[0m: ${dbError.message}`);
+		logger.error(`Session validation DB error for \x1b[34m${session_id}\x1b[0m: ${dbError.message}`);
 	}
 	return null;
 };
 
 // Optimized admin data loading with caching (now tenant-aware)
-const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: string): Promise<unknown> => {
+const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?: string): Promise<unknown> => {
 	const now = Date.now();
-	const distributedCacheStore = getCacheStore(); // Assuming Redis
+	const distributedCacheStore = getCacheStore();
 	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `adminData:tenant:${tenantId}:${cacheKey}` : `adminData:${cacheKey}`;
-	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`; // Separate key for in-memory cache
-	// 1. Try in-memory cache first (fastest)
+	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
 
+	// 1. Try in-memory cache first (fastest)
 	const memCached = adminDataCache.get(inMemoryCacheKey);
 	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL) {
 		return memCached.data;
 	}
 
-	// 2. Try distributed cache (e.g., Redis)
-	if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
-		// Only cache specific keys in Redis
+	// 2. Try distributed cache (e.g., Redis) if enabled
+	if (privateEnv.USE_REDIS && (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens')) {
 		try {
 			const redisCached = await distributedCacheStore.get<{ data: unknown; timestamp: number }>(distributedCacheKey);
 			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL) {
-				adminDataCache.set(inMemoryCacheKey, redisCached); // Populate in-memory cache
+				adminDataCache.set(inMemoryCacheKey, redisCached);
 				return redisCached.data;
 			}
 		} catch (err) {
-			logger.warn(`Failed to read admin data (${cacheKey}) from distributed cache: ${err.message}`);
+			logger.warn(`Failed to read admin data (\x1b[34m${cacheKey}\x1b[0m) from distributed cache: ${err.message}`);
 		}
 	}
 
@@ -421,8 +397,7 @@ const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: strin
 	if (auth) {
 		try {
 			if (cacheKey === 'roles') {
-				// First try to get roles from the database
-				data = await auth.getAllRoles(); // If no roles in database, initialize and use the config roles
+				data = await auth.getAllRoles();
 				if (!data || data.length === 0) {
 					await initializeRoles();
 					data = roles;
@@ -435,23 +410,27 @@ const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: strin
 
 			if (data) {
 				// Cache in-memory
-				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now }); // Cache in distributed store
-				if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
+				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now });
+
+				// Cache in distributed store if enabled
+				if (privateEnv.USE_REDIS && (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens')) {
 					try {
 						await distributedCacheStore.set(distributedCacheKey, { data, timestamp: now }, new Date(now + USER_PERM_CACHE_TTL));
 					} catch (err) {
-						logger.error(`Failed to write admin data (${cacheKey}) to distributed cache: ${err.message}`);
+						logger.error(`Failed to write admin data (\x1b[34m${cacheKey}\x1b[0m) to distributed cache: ${err.message}`);
 					}
 				}
 			}
 		} catch (err) {
-			logger.warn(`Failed to load admin data from DB (${cacheKey}): ${err.message}`); // Specific fallback for roles if DB fetch fails
+			logger.warn(`Failed to load admin data from DB (\x1b[34m${cacheKey}\x1b[0m): ${err.message}`);
+
+			// Specific fallback for roles if DB fetch fails
 			if (cacheKey === 'roles') {
 				try {
 					await initializeRoles();
-					data = roles; // Use config roles as last resort
+					data = roles;
 				} catch (roleErr) {
-					logger.warn(`Failed to initialize config roles fallback: ${roleErr.message}`);
+					logger.warn(`Failed to initialize config roles fallback: \x1b[34m${roleErr.message}\x1b[0m`);
 				}
 			}
 		}
@@ -462,7 +441,7 @@ const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: strin
 				await initializeRoles();
 				data = roles;
 			} catch (roleErr) {
-				logger.warn(`Failed to initialize config roles: ${roleErr.message}`);
+				logger.warn(`Failed to initialize config roles: \x1b[34m${roleErr.message}\x1b[0m`);
 			}
 		}
 	}
@@ -470,334 +449,46 @@ const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: strin
 	return data || [];
 };
 
-// Helper function to invalidate admin data cache - exported for use in API endpoints
-export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
-	const distributedCacheStore = getCacheStore();
-	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-	const distributedCacheKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${cacheKey}`;
-
-	if (cacheKey) {
-		adminDataCache.delete(inMemoryCacheKey); // Invalidate local cache
-		distributedCacheStore
-			.delete(distributedCacheKey)
-			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[31m${cacheKey}\x1b[0m: ${err.message}`));
-		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
-	} else {
-		adminDataCache.clear(); // Clear all local caches
-		// For distributed cache, you'd need a pattern-based deletion or iterate if you have a known set of keys
-		// Note: If your cache store supports pattern deletion, use it here
-		['roles', 'users', 'tokens'].forEach((key) => {
-			const distKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${key}`;
-			distributedCacheStore.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
-		});
-		logger.debug('All admin cache cleared');
-	}
-};
-
-// Helper function to invalidate user count cache - exported for use after user creation/deletion
-export const invalidateUserCountCache = (tenantId?: string): void => {
-	userCountCache = null; // Invalidate local cache
-	const distributedCacheStore = getCacheStore();
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	distributedCacheStore.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
-	logger.debug('User count cache invalidated');
-};
-
-// Handle static asset caching
-const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
-	if (isStaticAsset(event.url.pathname)) {
-		const response = await resolve(event);
-		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-		return response;
-	}
-	return resolve(event);
-};
-
-// Handle rate limiting
-const handleRateLimit: Handle = async ({ event, resolve }) => {
-	const clientIp = getClientIp(event);
-
-	if (isStaticAsset(event.url.pathname) || isLocalhost(clientIp) || building) {
-		return resolve(event);
-	}
-
-	const currentLimiter = event.url.pathname.startsWith('/api/') ? apiLimiter : limiter;
-	if (await currentLimiter.isLimited(event)) {
-		logger.warn(`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, endpoint: \x1b[34m${event.url.pathname}\x1b[0m`); // Throw a SvelteKit error that can be caught by +error.svelte
-		throw error(429, 'Too Many Requests. Please try again later.');
-	}
-	return resolve(event);
-};
-
-// Helper function for session rotation logic
-async function handleSessionRotation(
-	event: RequestEvent,
-	user: User,
-	session_id: string,
-	authService: typeof auth,
-	refreshLimiter: RateLimiter,
-	cookieName: string
-): Promise<string> {
-	if (typeof authService.getSessionTokenData !== 'function') {
-		logger.error('auth.getSessionTokenData is not a function in authService');
-		event.cookies.delete(cookieName, { path: '/' });
-		throw redirect(302, '/login');
-	}
-
-	let tokenData: { expiresAt: Date; user_id: string } | null = null;
-	try {
-		tokenData = await authService.getSessionTokenData(session_id);
-	} catch (tokenError) {
-		logger.error(`Failed to get session token data for session \x1b[31m${session_id}\x1b[0m: ${tokenError.message}`);
-		event.cookies.delete(cookieName, { path: '/' });
-		throw redirect(302, '/login');
-	}
-
-	if (tokenData && tokenData.user_id === user._id) {
-		const now = Date.now();
-		const expiresAtTime = new Date(tokenData.expiresAt).getTime();
-		const timeLeft = expiresAtTime - now;
-
-		const shouldRefresh = timeLeft > 0 && timeLeft < 60 * 60 * 1000; // Less than 1 hour left
-		const REFRESH_DEBOUNCE_MS = 5 * 60 * 1000;
-		const lastAttempt = lastRefreshAttempt.get(session_id) || 0;
-
-		if (shouldRefresh && now - lastAttempt > REFRESH_DEBOUNCE_MS) {
-			lastRefreshAttempt.set(session_id, now);
-			sessionMetrics.rotationAttempts.set(session_id, (sessionMetrics.rotationAttempts.get(session_id) || 0) + 1);
-
-			if (await refreshLimiter.isLimited(event)) {
-				logger.warn(`Refresh rate limit exceeded for user \x1b[34m${user._id}\x1b[0m, IP: \x1b[34m${getClientIp(event)}\x1b[0m`);
-			} else {
-				try {
-					const oldSessionId = session_id;
-					const newExpiryDate = new Date(now + CACHE_TTL);
-					const newTokenId = await authService.rotateToken(session_id, newExpiryDate);
-
-					if (newTokenId) {
-						session_id = newTokenId;
-						logger.debug(`Token rotated for user \x1b[34m${user._id}\x1b[0m. New session ID: \x1b[34m${newTokenId}\x1b[0m`);
-						sessionMetrics.activeExtensions.set(session_id, now);
-
-						const cacheStore = getCacheStore();
-						const sessionData = { user, timestamp: now }; // Update distributed cache with new session ID
-
-						sessionCache.set(newTokenId, sessionData);
-						await cacheStore.set(newTokenId, sessionData, new Date(now + CACHE_TTL)); // Clean up old session from cache
-
-						sessionCache.delete(oldSessionId);
-						cacheStore
-							.delete(oldSessionId)
-							.catch((err) => logger.warn(`Failed to delete old session \x1b[31m${oldSessionId}\x1b[0m from cache: ${err.message}`)); // Update the cookie to the new session ID
-
-						event.cookies.set(cookieName, session_id, {
-							path: '/',
-							httpOnly: true,
-							secure: event.url.protocol === 'https:',
-							maxAge: CACHE_TTL / 1000,
-							sameSite: 'lax'
-						});
-
-						logger.debug(`Cache updated for token rotation - old: ${oldSessionId}, new: ${newTokenId}`);
-					} else {
-						logger.warn(`Token rotation failed for user ${user._id}: newTokenId was null/undefined.`);
-					}
-				} catch (rotationError) {
-					logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError.message}`);
-				}
-			}
-		}
-	} else if (tokenData && tokenData.user_id !== user._id) {
-		logger.error(
-			`CRITICAL: Session ID ${session_id} for user ${user._id} resolved to token data for different user ${tokenData.user_id}. Invalidating session.`
-		);
-		event.cookies.delete(cookieName, { path: '/' });
-		throw redirect(302, '/login');
-	} else if (!tokenData && session_id) {
-		logger.warn(`Session ${session_id} for user ${user._id} yielded no valid tokenData. Clearing cookie.`);
-		event.cookies.delete(cookieName, { path: '/' });
-		event.locals.user = null; // Ensure locals.user is nullified
-	}
-
-	return session_id;
-}
-
-// Handle API requests with optimized caching and tenant-aware permissions
-const handleApiRequest = async (
-	event: RequestEvent,
-	resolve: (event: RequestEvent) => Promise<Response>,
-	user: User,
-	tenantId?: string
-): Promise<Response> => {
-	const apiEndpoint = event.url.pathname.split('/api/')[1]?.split('/')[0];
-
-	if (!apiEndpoint) {
-		logger.warn(`Could not determine API endpoint from path: ${event.url.pathname}`);
-		throw error(400, 'Invalid API path');
-	}
-
-	// SPECIAL CASE: Logout should always be allowed regardless of permissions
-	if (event.url.pathname === '/api/user/logout') {
-		logger.debug('Logout endpoint accessed - bypassing permission checks');
-		return resolve(event);
-	}
-
-	const cacheStore = getCacheStore();
-	const now = Date.now();
-
-	// Check if user role has permission to access this API endpoint
-	if (!hasApiPermission(user.role, apiEndpoint)) {
-		logger.warn(
-			`User \x1b[34m${user._id}\x1b[0m (role: ${user.role}, tenant: ${tenantId || 'global'}) denied access to API /api/${apiEndpoint} due to insufficient role permissions`
-		);
-		throw error(403, `Forbidden: Your role (${user.role}) does not have permission to access this API endpoint.`);
-	}
-
-	logger.debug(`User granted access to API`, {
-		email: user.email || user._id,
-		role: user.role,
-		apiEndpoint: `/api/${apiEndpoint}`,
-		tenant: tenantId || 'global'
-	});
-
-	// Handle GET requests with tenant-aware caching
-	if (event.request.method === 'GET') {
-		const cacheKey = `api:${apiEndpoint}:${user._id}:${tenantId || 'global'}:${event.url.search}`; // Include tenant in cache key
-		try {
-			const cached = await cacheStore.get<{
-				data: unknown;
-				timestamp: number;
-				headers: Record<string, string>;
-			}>(cacheKey);
-			if (cached && now - cached.timestamp < API_CACHE_TTL) {
-				// Check cache TTL
-				logger.debug(`Cache hit for API GET \x1b[34m${cacheKey}\x1b[0m`);
-				healthMetrics.cache.hits++;
-				return new Response(JSON.stringify(cached.data), {
-					status: 200,
-					headers: { ...cached.headers, 'Content-Type': 'application/json', 'X-Cache': 'hit' }
-				});
-			}
-		} catch (cacheGetError) {
-			logger.warn(`Error fetching from API cache for \x1b[31m${cacheKey}\x1b[0m: ${cacheGetError.message}`);
-		}
-
-		const response = await resolve(event);
-
-		// GraphQL might have its own complex caching
-		if (apiEndpoint === 'graphql') {
-			response.headers.append('X-Cache', 'miss');
-			healthMetrics.cache.misses++;
-			return response;
-		}
-
-		if (response.ok) {
-			try {
-				const responseBody = await response.json();
-				await cacheStore.set(
-					cacheKey,
-					{
-						data: responseBody,
-						timestamp: now,
-						headers: Object.fromEntries(response.headers)
-					},
-					new Date(now + API_CACHE_TTL)
-				);
-				healthMetrics.cache.misses++;
-				// Return a new Response with the updated headers
-				return new Response(JSON.stringify(responseBody), {
-					status: response.status,
-					headers: {
-						...Object.fromEntries(response.headers),
-						'Content-Type': 'application/json',
-						'X-Cache': 'miss'
-					}
-				});
-			} catch (processingError) {
-				logger.error(
-					`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m, tenant: ${tenantId || 'global'}): ${processingError.message}`
-				);
-				return new Response(
-					JSON.stringify({
-						error: 'Failed to process API response',
-						message: processingError.message,
-						endpoint: `/api/${apiEndpoint}`
-					}),
-					{
-						status: 500,
-						headers: { 'Content-Type': 'application/json' }
-					}
-				);
-			}
-		}
-		return response;
-	}
-
-	// Handle non-GET requests (POST, PUT, DELETE etc.) with tenant-aware cache invalidation
-	const response = await resolve(event);
-
-	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method) && response.ok) {
-		const baseCacheKey = `api:${apiEndpoint}:${user._id}:${tenantId || 'global'}`;
-		try {
-			// Try to delete pattern-based cache keys if supported
-			if (typeof cacheStore.deletePattern === 'function') {
-				await cacheStore.deletePattern(`${baseCacheKey}:*`);
-			}
-			await cacheStore.delete(baseCacheKey);
-			logger.debug(
-				`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[32m${event.request.method}\x1b[0m request`
-			);
-		} catch (err) {
-			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
-		}
-	}
-	return response;
-};
-
-// Handle authentication, authorization, and API caching
+// Main authentication and authorization middleware
 const handleAuth: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
 	const requestStartTime = performance.now();
-	const { url, cookies, locals } = event; // Destructure for cleaner access
+	const { url, cookies, locals } = event;
+
 	// Track request metrics
+	healthMetrics.requests.total++;
 
-	healthMetrics.requests.total++; // Skip auth entirely for static assets during initialization
-
+	// Skip auth entirely for static assets during initialization
 	if (isStaticAsset(url.pathname)) {
-		logger.debug(`Skipping auth for static asset: ${url.pathname}`);
+		logger.debug(`Skipping auth for static asset: \x1b[34m${url.pathname}\x1b[0m`);
 		return resolve(event);
 	}
 
 	try {
-		// --- MULTI-TENANCY LOGIC ---
+		// Multi-tenancy logic (only if enabled)
 		if (privateEnv.MULTI_TENANT) {
+			// Process multi-tenancy within the main auth handler to avoid duplication
 			const tenantId = getTenantIdFromHostname(url.hostname);
 			if (!tenantId) {
-				throw error(404, `Tenant not found for hostname: ${url.hostname}`);
+				throw error(404, `Tenant not found for hostname: \x1b[34m${url.hostname}\x1b[0m`);
 			}
 			locals.tenantId = tenantId;
-			logger.debug(`Request identified for tenant: ${tenantId}`);
-		} // Wait for database initialization
+			logger.debug(`Request identified for tenant: \x1b[34m${tenantId}\x1b[0m`);
+		}
 
-		await dbInitPromise; // Check if auth service is ready
+		// Wait for database initialization
+		await dbInitPromise;
 
+		// Check if auth service is ready
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
 
-		let session_id = cookies.get(SESSION_COOKIE_NAME);
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
 
 		locals.user = user;
 		locals.permissions = user?.permissions || [];
 		locals.session_id = user ? session_id : undefined;
-
-		if (user && session_id && authServiceReady) {
-			// Session management and token rotation logic
-			session_id = await handleSessionRotation(event, user, session_id, auth, refreshLimiter, SESSION_COOKIE_NAME);
-		} else if (!user && session_id) {
-			logger.debug(`Clearing invalid session cookie: ${session_id}`);
-			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		}
 
 		// Optimized first user check with caching
 		const userCount = await getCachedUserCount(authServiceReady, locals.tenantId);
@@ -834,7 +525,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				}
 			} else {
 				// This block runs for guests (user is null)
-				// Set safe defaults for non-authenticated users
 				locals.isAdmin = false;
 				locals.hasManageUsersPermission = false;
 				locals.allUsers = [];
@@ -842,7 +532,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			}
 		} else {
 			// If auth service not ready, set safe defaults and fall back to config roles
-			await initializeRoles(); // Ensure config roles are loaded
+			await initializeRoles();
 			locals.roles = roles;
 			locals.isAdmin = false;
 			locals.hasManageUsersPermission = false;
@@ -850,32 +540,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			locals.allTokens = [];
 		}
 
-		// Update stores from existing cookies if present
-		const systemLangCookie = cookies.get('systemLanguage');
-		const contentLangCookie = cookies.get('contentLanguage');
-
-		if (systemLangCookie) {
-			try {
-				systemLanguage.set(systemLangCookie as Locale);
-			} catch {
-				logger.warn(`Invalid system language cookie value: ${systemLangCookie}`);
-				cookies.delete('systemLanguage', { path: '/' });
-			}
-		}
-
-		if (contentLangCookie) {
-			try {
-				contentLanguage.set(contentLangCookie as Locale);
-			} catch {
-				logger.warn(`Invalid content language cookie value: ${contentLangCookie}`);
-				cookies.delete('contentLanguage', { path: '/' });
-			}
-		}
-
 		// Performance logging for the request duration
 		const responseTime = performance.now() - requestStartTime;
 		logger.debug(
-			`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: ${authServiceReady})`
+			`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`
 		);
 
 		// Authorization checks
@@ -898,13 +566,8 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
 				throw redirect(302, '/');
 			}
-
-			if (isApi && locals.user && !isPublic) {
-				logger.debug('Handling API request for authenticated user');
-				return handleApiRequest(event, resolve, locals.user, locals.tenantId);
-			}
 		} else {
-			logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
+			logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
 		}
 
 		return resolve(event);
@@ -919,7 +582,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		const clientIp = getClientIp(event);
 		logger.error(
-			`Unhandled error in handleAuth for \x1b[34m${url.pathname}\x1b[0m (IP: ${clientIp}): ${err instanceof Error ? err.message : JSON.stringify(err)}`,
+			`Unhandled error in handleAuth for \x1b[34m${url.pathname}\x1b[0m (IP: \x1b[34m${clientIp}\x1b[0m): ${err instanceof Error ? err.message : JSON.stringify(err)}`,
 			{
 				stack: err instanceof Error ? err.stack : undefined
 			}
@@ -936,46 +599,73 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 };
 
-// Add security headers to the response
-const addSecurityHeaders: Handle = async ({ event, resolve }) => {
-	const response = await resolve(event);
-	const headers = {
-		'X-Frame-Options': 'SAMEORIGIN',
-		'X-XSS-Protection': '1; mode=block',
-		'X-Content-Type-Options': 'nosniff',
-		'Referrer-Policy': 'strict-origin-when-cross-origin',
-		'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), display-capture=()'
-	};
-	Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
-	if (event.url.protocol === 'https:') {
-		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-	}
-	return response;
+// Build the middleware sequence based on configuration
+const buildMiddlewareSequence = (): Handle[] => {
+	const middleware: Handle[] = [];
+
+	// Always include static asset caching first for performance
+	middleware.push(handleStaticAssetCaching);
+
+	// Add rate limiting (always enabled for security)
+	middleware.push(handleRateLimit);
+
+	// Add multi-tenancy middleware if enabled (integrated into auth handler for efficiency)
+	// No separate middleware needed as it's handled in handleAuth
+
+	// Add authentication and authorization
+	middleware.push(handleAuth);
+
+	// Add API request handling
+	middleware.push(handleApiRequests);
+
+	// Add locale handling
+	middleware.push(handleLocale);
+
+	// Always add security headers last
+	middleware.push(addSecurityHeaders);
+
+	return middleware;
 };
 
-// Combine all hooks
-export const handle: Handle = sequence(
-	// logRequestHook, // Uncomment for debugging
-	handleStaticAssetCaching,
-	handleRateLimit,
-	handleAuth,
-	addSecurityHeaders
-);
+// Combine all hooks using the optimized sequence
+export const handle: Handle = sequence(...buildMiddlewareSequence());
 
-// Helper function to invalidate API cache with tenant awareness
-export const invalidateApiCache = async (apiEndpoint: string, userId: string, tenantId?: string): Promise<void> => {
-	const cacheStore = getCacheStore();
-	const basePattern = `api:${apiEndpoint}:${userId}:${tenantId || 'global'}`;
-	logger.debug(`Attempting to invalidate API cache for pattern \x1b[33m${basePattern}:*\x1b[0m and exact key \x1b[33m${basePattern}\x1b[0m`);
-	try {
-		// Try to delete pattern-based cache keys if supported
-		if (typeof cacheStore.deletePattern === 'function') {
-			await cacheStore.deletePattern(`${basePattern}:*`);
+// Export utility functions for external use
+export const getHealthMetrics = () => ({ ...healthMetrics });
+
+export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
+	const distributedCacheStore = getCacheStore();
+	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
+	const distributedCacheKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${cacheKey}`;
+
+	if (cacheKey) {
+		adminDataCache.delete(inMemoryCacheKey);
+		if (privateEnv.USE_REDIS) {
+			distributedCacheStore
+				.delete(distributedCacheKey)
+				.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[34m${cacheKey}\x1b[0m: ${err.message}`));
 		}
-		await cacheStore.delete(basePattern);
-	} catch (e) {
-		logger.error(`Error during explicit API cache invalidation for \x1b[31m${basePattern}\x1b[0m: ${e.message}`);
+		logger.debug(`Admin cache invalidated for: \x1b[34m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
+	} else {
+		adminDataCache.clear();
+		if (privateEnv.USE_REDIS) {
+			['roles', 'users', 'tokens'].forEach((key) => {
+				const distKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${key}`;
+				distributedCacheStore.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
+			});
+		}
+		logger.debug('All admin cache cleared');
 	}
+};
+
+export const invalidateUserCountCache = (tenantId?: string): void => {
+	userCountCache = null;
+	if (privateEnv.USE_REDIS) {
+		const distributedCacheStore = getCacheStore();
+		const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
+		distributedCacheStore.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
+	}
+	logger.debug('User count cache invalidated');
 };
 
 export const cleanupSessionMetrics = (): void => {
@@ -992,6 +682,6 @@ export const cleanupSessionMetrics = (): void => {
 		}
 	}
 	if (cleanedCount > 0) {
-		logger.info(`Cleaned up metrics for ${cleanedCount} stale sessions.`);
+		logger.info(`Cleaned up metrics for \x1b[34m${cleanedCount}\x1b[0m stale sessions.`);
 	}
 };

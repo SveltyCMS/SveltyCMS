@@ -100,7 +100,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope all filters by tenantId ---
-		logger.debug(`Multi-tenant check: MULTI_TENANT=${privateEnv.MULTI_TENANT}, tenantId=${tenantId}`);
+		logger.debug(`Multi-tenant check: MULTI_TENANT=\x1b[34m${privateEnv.MULTI_TENANT}\x1b[0m, tenantId=\x1b[34m${tenantId}\x1b[0m`);
 		const baseFilter = privateEnv.MULTI_TENANT ? { ...filter, tenantId } : filter;
 		logger.debug(`Filter applied:`, { baseFilter, originalFilter: filter });
 
