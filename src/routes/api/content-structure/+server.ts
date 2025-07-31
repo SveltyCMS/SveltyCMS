@@ -30,19 +30,11 @@ import { logger } from '@utils/logger.svelte';
 const CACHE_TTL = 300; // 5 minutes
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const { user, tenantId } = locals; // Check permissions using centralized system
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'system',
-		action: 'read'
-	});
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	try {
@@ -109,19 +101,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const { user, tenantId } = locals; // Check permissions using centralized system
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'system',
-		action: 'write'
-	});
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	try {
@@ -181,19 +165,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
-	const { user, tenantId } = locals; // Check permissions using centralized system
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'system',
-		action: 'write'
-	});
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	try {

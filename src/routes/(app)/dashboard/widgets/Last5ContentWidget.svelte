@@ -25,20 +25,15 @@ This widget fetches and displays the latest content items, including:
 - Enhanced accessibility support
 -->
 
-<script lang="ts">
+<script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Last 5 Content',
 		icon: 'mdi:file-document-multiple',
-		defaultW: 2,
-		defaultH: 2,
-		validSizes: [
-			{ w: 1, h: 1 },
-			{ w: 2, h: 2 },
-			{ w: 2, h: 1 },
-			{ w: 1, h: 2 }
-		]
+		defaultSize: '1/2'
 	};
+</script>
 
+<script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 
 	interface ContentItem {
@@ -57,32 +52,16 @@ This widget fetches and displays the latest content items, including:
 		theme = 'light',
 		icon = 'mdi:file-document-multiple',
 		widgetId = undefined,
-		currentSize = '1/4' as '1/4' | '1/2' | '3/4' | 'full',
-		availableSizes = ['1/4', '1/2', '3/4', 'full'] as ('1/4' | '1/2' | '3/4' | 'full')[],
-		onSizeChange = (_newSize: '1/4' | '1/2' | '3/4' | 'full') => {},
-		draggable = true,
-		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
-		gridCellWidth = 0,
-		ROW_HEIGHT = 0,
-		GAP_SIZE = 0,
-		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		size = '1/2',
+		onSizeChange = (newSize) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		size?: '1/4' | '1/2' | '3/4' | 'full';
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-		draggable?: boolean;
-		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
-		gridCellWidth: number;
-		ROW_HEIGHT: number;
-		GAP_SIZE: number;
-		resizable?: boolean;
-		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -133,25 +112,7 @@ This widget fetches and displays the latest content items, including:
 	}
 </script>
 
-<BaseWidget
-	{label}
-	{theme}
-	endpoint="/api/dashboard/last5Content"
-	pollInterval={30000}
-	{icon}
-	{widgetId}
-	{currentSize}
-	{availableSizes}
-	{onSizeChange}
-	{draggable}
-	{onDragStart}
-	{gridCellWidth}
-	{ROW_HEIGHT}
-	{GAP_SIZE}
-	{resizable}
-	{onResizeCommitted}
-	{onCloseRequest}
->
+<BaseWidget {label} {theme} endpoint="/api/dashboard/last5Content" pollInterval={30000} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 content items">

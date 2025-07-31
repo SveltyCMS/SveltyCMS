@@ -33,19 +33,9 @@ const QuerySchema = v.object({
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { user, tenantId } = locals;
 	try {
-		// Check if user has permission for media access
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'media',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to access media data', {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+		// Authentication is handled by hooks.server.ts
+		if (!user) {
+			throw error(401, 'Unauthorized');
 		}
 
 		if (privateEnv.MULTI_TENANT && !tenantId) {

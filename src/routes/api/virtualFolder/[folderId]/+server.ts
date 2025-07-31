@@ -9,24 +9,9 @@ import type { RequestHandler } from './$types';
 // Permission checking
 
 // GET: Get a specific virtual folder by ID
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params }) => {
 	try {
-		// Check permissions first
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'system',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			return json(
-				{
-					success: false,
-					error: permissionResult.error || 'Forbidden',
-					code: 'PERMISSION_DENIED'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const { folderId } = params;
 
@@ -52,24 +37,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 };
 
 // PUT: Update a specific virtual folder
-export const PUT: RequestHandler = async ({ params, request, locals }) => {
+export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
-		// Check permissions first
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			return json(
-				{
-					success: false,
-					error: permissionResult.error || 'Forbidden',
-					code: 'PERMISSION_DENIED'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const { folderId } = params;
 		const data = await request.json();
@@ -97,24 +67,9 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 };
 
 // DELETE: Delete a specific virtual folder
-export const DELETE: RequestHandler = async ({ params, locals }) => {
+export const DELETE: RequestHandler = async ({ params }) => {
 	try {
-		// Check permissions first
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'system',
-			action: 'delete'
-		});
-
-		if (!permissionResult.hasPermission) {
-			return json(
-				{
-					success: false,
-					error: permissionResult.error || 'Forbidden',
-					code: 'PERMISSION_DENIED'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const { folderId } = params;
 

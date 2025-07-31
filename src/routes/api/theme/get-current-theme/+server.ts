@@ -19,25 +19,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const { user, tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
 	try {
-		// Check fine-grained permissions for theme access
-		// Note: Basic API access (api:theme) is already verified by hooks
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to fetch current theme`, {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden'
-				},
-				{ status: 403 } // Always 403 since user is authenticated by hooks
-			);
+		// Authentication is handled by hooks.server.ts
+		if (!user) {
+			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
 		// Note: tenantId validation is handled by hooks in multi-tenant mode

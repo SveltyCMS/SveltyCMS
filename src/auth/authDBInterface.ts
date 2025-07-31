@@ -43,6 +43,7 @@ export interface authDBInterface {
 	validateSession(session_id: string): Promise<DatabaseResult<User | null>>; // Validate a session
 	invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>; // Invalidate all sessions for a user in a tenant
 	getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>>; // Get active sessions for a user in a tenant
+	getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>; // Get all active sessions for a tenant
 	getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: Date; user_id: string } | null>>; // Get session token data
 	rotateToken(oldToken: string, expires: Date): Promise<DatabaseResult<string>>; // Rotate a token
 	cleanupRotatedSessions?(): Promise<DatabaseResult<number>>; // Clean up rotated sessions

@@ -4,6 +4,14 @@
 Displays real-time system metrics integrated with the dashboard grid system
 -->
 
+<script lang="ts" context="module">
+	export const widgetMeta = {
+		name: 'Performance Monitor',
+		icon: 'mdi:chart-line',
+		description: 'Track system performance metrics'
+	};
+</script>
+
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 	import type { Snippet } from 'svelte';
@@ -27,7 +35,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 		onPreviewSizeChange = (_previewSize: '1/4' | '1/2' | '3/4' | 'full') => {},
 		rowSpan = 1,
 		onRowSpanChange = (_newRowSpan: number) => {},
-		onDragStart = (_event: MouseEvent | TouchEvent, _item: any, _element: HTMLElement) => {},
+		onDragStart = (_event: MouseEvent | TouchEvent, _element: HTMLElement) => {},
 		onCloseRequest = () => {},
 		gridCellWidth = 0,
 		ROW_HEIGHT = 200,
@@ -39,7 +47,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 		onPreviewSizeChange?: (previewSize: '1/4' | '1/2' | '3/4' | 'full') => void;
 		rowSpan?: number;
 		onRowSpanChange?: (newRowSpan: number) => void;
-		onDragStart?: (event: MouseEvent | TouchEvent, item: any, element: HTMLElement) => void;
+		onDragStart?: (event: MouseEvent | TouchEvent, element: HTMLElement) => void;
 		onCloseRequest?: () => void;
 		gridCellWidth?: number;
 		ROW_HEIGHT?: number;
@@ -137,6 +145,8 @@ Displays real-time system metrics integrated with the dashboard grid system
 
 			<div class="flex h-full flex-col space-y-3 text-sm">
 				<!-- Performance Overview -->
+				<h3 class="text-center text-xs font-semibold">Performance Overview:</h3>
+
 				<div class="grid grid-cols-2 gap-3">
 					<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
 						<div class="flex items-center justify-between">
@@ -170,7 +180,8 @@ Displays real-time system metrics integrated with the dashboard grid system
 				<!-- System Metrics (if available) -->
 				{#if metrics.system}
 					<div class="space-y-2">
-						<h4 class="font-medium text-surface-700 dark:text-surface-200">System</h4>
+						<h3 class="text-center text-xs font-semibold">System:</h3>
+
 						<div class="grid grid-cols-2 gap-2 text-xs">
 							<div class="flex justify-between">
 								<span class="text-surface-600 dark:text-surface-400">Memory:</span>
@@ -186,7 +197,8 @@ Displays real-time system metrics integrated with the dashboard grid system
 
 				<!-- Request Metrics -->
 				<div class="space-y-2">
-					<h4 class="font-medium text-surface-700 dark:text-surface-200">Requests</h4>
+					<h3 class="text-center text-xs font-semibold">Requests:</h3>
+
 					<div class="grid grid-cols-2 gap-2 text-xs">
 						<div class="flex justify-between">
 							<span class="text-surface-600 dark:text-surface-400">Total:</span>

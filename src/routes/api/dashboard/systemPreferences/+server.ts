@@ -54,25 +54,10 @@ const WidgetStateBodySchema = v.object({
 // --- API Handlers ---
 
 export const GET = async ({ locals, url }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'dashboard',
-		action: 'read'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to load system preferences', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to load system preferences');
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userId = locals.user._id.toString();
@@ -103,25 +88,10 @@ export const GET = async ({ locals, url }) => {
 };
 
 export const POST = async ({ request, locals }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'dashboard',
-		action: 'write'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to save system preferences', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to save system preferences');
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userId = locals.user._id.toString();
@@ -158,25 +128,10 @@ export const POST = async ({ request, locals }) => {
 };
 
 export const PUT = async ({ request, locals }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'dashboard',
-		action: 'update'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to update system preferences', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to update system preferences');
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const userId = locals.user._id.toString();

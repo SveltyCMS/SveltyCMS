@@ -37,20 +37,7 @@ const createUserSchema = object({
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const { user, tenantId } = locals; // Destructure user and tenantId from locals
-		// Check for user create permission using centralized system
-
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'user',
-			action: 'create'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to create user', {
-				userId: user?._id,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');

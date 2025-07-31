@@ -20,32 +20,18 @@ import { dbAdapter } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
-// Permissions
-
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const GET = async ({ locals, url }) => {
-	const { user, tenantId } = locals; // Check system preferences permissions
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'systemPreferences',
-		action: 'read'
-	});
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
 		logger.warn('Unauthorized attempt to load system preferences', {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
+			tenantId
 		});
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	if (privateEnv.MULTI_TENANT && !tenantId) {

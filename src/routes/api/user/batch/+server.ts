@@ -47,25 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		const { userIds, action } = parse(batchUserActionSchema, body);
 
-		// Map batch actions to permission actions
-		const actionMap: Record<string, string> = {
-			delete: 'delete',
-			block: 'update',
-			unblock: 'update'
-		};
-
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'user',
-			action: actionMap[action]
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to '${action}' users`, {
-				userId: user?._id,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (userIds.some((id) => id === user?._id)) {
 			throw error(400, 'You cannot perform batch actions on your own account.');

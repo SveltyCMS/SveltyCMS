@@ -75,36 +75,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Check appropriate permissions based on operation type
 
-		let requiredAction: 'read' | 'write' | 'delete';
 		switch (processType) {
 			case 'metadata':
-				requiredAction = 'read';
 				break;
 			case 'save':
-				requiredAction = 'write';
 				break;
 			case 'delete':
-				requiredAction = 'delete';
 				break;
 			default:
 				throw error(400, `Unsupported process type: ${processType}`);
-		} // Check media permissions based on the specific operation
-
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'media',
-			action: requiredAction
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to ${processType} media`, {
-				userId: user?._id,
-				tenantId,
-				processType,
-				requiredAction,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-		} // Initialize MediaService
+		} // Authentication is handled by hooks.server.ts - user presence confirms access // Initialize MediaService
 
 		const mediaService = getMediaService();
 

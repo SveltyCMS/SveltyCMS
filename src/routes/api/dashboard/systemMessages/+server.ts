@@ -76,18 +76,10 @@ async function readLastLines(filePath: string, maxLines: number): Promise<string
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'dashboard',
-		action: 'read'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to access system messages', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to access system messages');
+		throw error(401, 'Unauthorized');
 	}
 
 	try {

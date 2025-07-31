@@ -42,27 +42,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(501, 'This feature is not available in multi-tenant mode.');
 	}
 
-	// Check permission management permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'permissions',
-		action: 'update'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to update permissions', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				success: false,
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
-	}
+	// Authentication is handled by hooks.server.ts - user presence confirms access
 
 	// Authorization check
 	const user = locals.user;

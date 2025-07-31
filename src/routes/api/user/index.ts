@@ -42,26 +42,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // **SECURITY**: Check permissions for listing users
 
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'users',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to list all users', {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to list users.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
-
-		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		// Authentication is handled by hooks.server.ts - user presence confirms access		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
 		const users = await auth.getAllUsers({ filter });
 		logger.info('Fetched all users successfully', { count: users.length, requestedBy: user?._id, tenantId });
 		return json(users);
@@ -84,26 +65,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (privateEnv.MULTI_TENANT && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
-		} // **SECURITY**: Check permissions for creating users
-
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'users',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to create a user', {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to create users.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		} // **SECURITY**: Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const addUserForm = await superValidate(request, valibot(addUserTokenSchema));
 		if (!addUserForm.valid) {

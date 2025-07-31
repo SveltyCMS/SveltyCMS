@@ -25,19 +25,11 @@ import { getFile } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const { user, tenantId } = locals; // Use centralized permission checking
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'media',
-		action: 'read'
-	});
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to retrieve media file', {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		throw error(401, 'Unauthorized');
 	}
 
 	if (privateEnv.MULTI_TENANT && !tenantId) {

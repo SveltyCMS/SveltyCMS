@@ -3,7 +3,7 @@
  * @description Widget Manager for handling widget loading, activation, and configuration
  */
 import { mount } from 'svelte';
-import { v4 as uuidv4 } from 'uuid';
+import { uuidv4 } from '@utils/uuid';
 import MissingWidget from './MissingWidget.svelte';
 import type { Widget, WidgetModule, WidgetId } from './types';
 import type { User } from '@src/auth/types';
@@ -174,7 +174,7 @@ async function initializeWidgets(): Promise<void> {
 			throw new Error('No valid widgets found');
 		}
 
-		const newWidgetFunctions: Map<string, WidgetFunction> = new Map();
+		const newWidgetFunctions: Map<string, WidgetFunction> = new SvelteMap();
 
 		for (const { name, module } of validModules) {
 			const originalFn = module.default;

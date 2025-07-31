@@ -1176,6 +1176,166 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						}
 					};
 				}
+			},
+
+			getByFolder: async (folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
+				try {
+					// Use system_media collection for media files
+					const MediaModel = mongoose.models['system_media'];
+					if (!MediaModel) {
+						return {
+							success: false,
+							error: {
+								code: 'MODEL_NOT_FOUND',
+								message: 'Media model not initialized'
+							}
+						};
+					}
+
+					// Build query - if folderId is undefined, get all files, otherwise filter by folderId
+					const query = folderId ? { folderId } : {};
+
+					// Apply additional filters if provided
+					if (options?.filter) {
+						Object.assign(query, options.filter);
+					}
+
+					// Apply pagination
+					const page = options?.page || 1;
+					const pageSize = options?.pageSize || 10;
+					const skip = (page - 1) * pageSize;
+
+					// Build sort criteria
+					const sortField = options?.sortField || 'createdAt';
+					const sortDirection = options?.sortDirection === 'asc' ? 1 : -1;
+					const sort = { [sortField]: sortDirection };
+
+					// Execute query with pagination
+					const [items, total] = await Promise.all([
+						MediaModel.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
+						MediaModel.countDocuments(query).exec()
+					]);
+
+					// Calculate pagination metadata
+					const totalPages = Math.ceil(total / pageSize);
+
+					return {
+						success: true,
+						data: {
+							items: items as MediaItem[],
+							total,
+							totalPages,
+							currentPage: page,
+							pageSize
+						}
+					};
+				} catch (error) {
+					logger.error('Error in getByFolder:', error as LoggableValue);
+					return {
+						success: false,
+						error: {
+							code: 'GET_BY_FOLDER_ERROR',
+							message: 'Failed to fetch media files',
+							details: error
+						}
+					};
+				}
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			uploadMany: async (_files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'uploadMany method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			delete: async (_fileId: DatabaseId): Promise<DatabaseResult<void>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'delete method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			deleteMany: async (_fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'deleteMany method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			search: async (_query: string, _options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'search method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			getMetadata: async (_fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'getMetadata method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			updateMetadata: async (_fileId: DatabaseId, _metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>> => {
+				// Placeholder implementation - can be implemented later if need
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'updateMetadata method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			move: async (_fileIds: DatabaseId[], _targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'move method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			duplicate: async (_fileId: DatabaseId, _newName?: string): Promise<DatabaseResult<MediaItem>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'duplicate method not yet implemented'
+					}
+				};
 			}
 		},
 

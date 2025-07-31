@@ -93,6 +93,7 @@ async function loadAdapters() {
 					validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
 					invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
 					getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+					getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
 					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
 					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter), // Add rotateToken binding
 					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter), // Add cleanup binding

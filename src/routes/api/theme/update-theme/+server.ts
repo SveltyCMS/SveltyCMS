@@ -28,24 +28,11 @@ import { logger } from '@utils/logger.svelte';
 const themeManager = ThemeManager.getInstance();
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const { user, tenantId } = locals; // Check permissions using centralized system
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'system',
-		action: 'write'
-	});
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
-		logger.warn(`Unauthorized attempt to update theme`, {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 	}
 
 	if (privateEnv.MULTI_TENANT && !tenantId) {

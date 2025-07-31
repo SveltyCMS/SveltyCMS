@@ -24,7 +24,7 @@ Features:
 - Proper lifecycle management
 - Enhanced debugging and logging
 -->
-<script lang="ts">
+<script lang="ts" context="module">
 	export const widgetMeta = {
 		name: 'Memory Usage',
 		icon: 'mdi:memory',
@@ -35,13 +35,15 @@ Features:
 			{ w: 2, h: 2 }
 		]
 	};
+</script>
 
+<script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 	import { onDestroy } from 'svelte';
-	import { Chart, DoughnutController, ArcElement, Tooltip } from 'chart.js';
+	import { Chart, PieController, ArcElement, Tooltip } from 'chart.js';
 	import type { ChartConfiguration, Plugin } from 'chart.js';
 
-	Chart.register(DoughnutController, ArcElement, Tooltip);
+	Chart.register(PieController, ArcElement, Tooltip);
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
@@ -57,7 +59,7 @@ Features:
 
 		// Drag props
 		draggable = true,
-		onDragStart = (event, item, element) => {},
+		onDragStart = (_event: MouseEvent | TouchEvent, _element: HTMLElement) => {},
 
 		// Legacy props
 		gridCellWidth = 0,
@@ -79,7 +81,7 @@ Features:
 
 		// Drag props
 		draggable?: boolean;
-		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
+		onDragStart?: (event: MouseEvent | TouchEvent, element: HTMLElement) => void;
 
 		// Legacy props
 		gridCellWidth?: number;
@@ -91,7 +93,7 @@ Features:
 	}>();
 
 	let currentData = $state<any>(undefined);
-	let chart = $state<Chart<'doughnut', number[], string> | undefined>(undefined);
+	let chart = $state<Chart<'pie', number[], string> | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
 	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
@@ -124,7 +126,7 @@ Features:
 				existingChart.destroy();
 			}
 
-			const memoryTextCenterPlugin: Plugin<'doughnut'> = {
+			const memoryTextCenterPlugin: Plugin<'pie'> = {
 				id: 'memoryTextCenterPlugin',
 				beforeDraw(chart) {
 					const ctx = chart.ctx;
@@ -148,8 +150,8 @@ Features:
 				}
 			};
 
-			const config: ChartConfiguration<'doughnut', number[], string> = {
-				type: 'doughnut',
+			const config: ChartConfiguration<'pie', number[], string> = {
+				type: 'pie',
 				data: {
 					labels: ['Used', 'Free'],
 					datasets: [
@@ -164,7 +166,6 @@ Features:
 								theme === 'dark' ? 'rgba(75, 85, 99, 0.8)' : 'rgba(229, 231, 235, 1)'
 							],
 							borderWidth: 2,
-							cutout: '75%',
 							borderRadius: 4
 						}
 					]
@@ -220,7 +221,7 @@ Features:
 	pollInterval={10000}
 	{icon}
 	{widgetId}
-	{currentSize}
+	size={currentSize}
 	{availableSizes}
 	{onSizeChange}
 	{draggable}
@@ -239,62 +240,68 @@ Features:
 			{@const freeMemGB = (fetchedData.memoryInfo.total.freeMemMb || 0) / 1024}
 			{@const usedPercentage = fetchedData.memoryInfo.total.usedMemPercentage || 0}
 			{@const usageLevel = usedPercentage > 80 ? 'high' : usedPercentage > 60 ? 'medium' : 'low'}
+			{@const freePercentage = 100 - usedPercentage}
 
 			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Memory usage statistics">
-				<div class="flex items-center justify-between">
-					<div class="flex items-center space-x-3">
+				<div class="flex items-center space-x-3">
+					<div class="flex items-center space-x-2">
 						<div class="relative">
 							<div
-								class="flex h-12 w-12 items-center justify-center rounded-full {usageLevel === 'high'
-									? 'bg-red-100 dark:bg-red-900/30'
+								class="h-3 w-3 rounded-full {usageLevel === 'high' ? 'bg-red-500' : usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
+							></div>
+							<div
+								class="absolute inset-0 h-3 w-3 rounded-full {usageLevel === 'high'
+									? 'bg-red-500'
 									: usageLevel === 'medium'
-										? 'bg-yellow-100 dark:bg-yellow-900/30'
-										: 'bg-green-100 dark:bg-green-900/30'}"
-								aria-hidden="true"
-							>
-								<iconify-icon
-									icon="mdi:memory"
-									width="24"
-									class={usageLevel === 'high'
-										? 'text-red-600 dark:text-red-400'
-										: usageLevel === 'medium'
-											? 'text-yellow-600 dark:text-yellow-400'
-											: 'text-green-600 dark:text-green-400'}
-									aria-label="Memory icon"
-								></iconify-icon>
-							</div>
+										? 'bg-yellow-500'
+										: 'bg-green-500'} animate-ping opacity-75"
+							></div>
 						</div>
-						<div>
-							<div class="text-2xl font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}" aria-live="polite">
-								{usedPercentage.toFixed(1)}%
+
+						<div class="flex w-full items-center justify-between">
+							<div class="flex gap-2">
+								<div class="text-sm font-bold" aria-live="polite">{usedPercentage.toFixed(1)}%</div>
+								<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Memory Used</div>
 							</div>
-							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Memory Used</div>
+							<div class="flex gap-2">
+								<div class="text-sm font-bold" aria-live="polite">{freePercentage.toFixed(1)}%</div>
+								<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Memory Free</div>
+							</div>
 						</div>
 					</div>
 				</div>
 
-				<div class="relative flex-shrink-0" style="height: calc({ROW_HEIGHT}px * 0.45); min-height: 80px; max-height: 180px;">
-					<canvas bind:this={chartCanvas} class="h-full w-full" use:updateChartAction={fetchedData} aria-label="Memory usage doughnut chart"></canvas>
+				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Usage Overview</h3>
+				<div class="relative flex-shrink-0" style="height: 120px; min-height: 80px; max-height: 180px; width: 100%;">
+					<canvas
+						bind:this={chartCanvas}
+						class="h-full w-full"
+						use:updateChartAction={fetchedData}
+						style="display: block; width: 100% !important; height: 100% !important;"
+						aria-label="Memory usage pie chart"
+					></canvas>
 				</div>
 
+				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Statistics</h3>
 				<div class="flex-shrink-0 space-y-3">
 					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
-						<div class="flex flex-col space-y-1 text-center">
+						<div class="flex flex-col text-center">
 							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
-							<span class="font-semibold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{totalMemGB.toFixed(1)} GB</span>
+							<span class="text-sm font-semibold">{totalMemGB.toFixed(1)} GB</span>
 						</div>
-						<div class="flex flex-col space-y-1">
+						<div class="flex flex-col text-center">
 							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</span>
 							<span
-								class="font-semibold {usageLevel === 'high'
+								class="text-sm font-semibold {usageLevel === 'high'
 									? 'text-red-600 dark:text-red-400'
 									: usageLevel === 'medium'
 										? 'text-yellow-600 dark:text-yellow-400'
 										: 'text-green-600 dark:text-green-400'}">{usedMemGB.toFixed(1)} GB</span
 							>
 						</div>
+
 						{#if currentSize !== '1/4'}
-							<div class="flex flex-col space-y-1">
+							<div class="flex flex-col space-y-1 text-center">
 								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
 								<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeMemGB.toFixed(1)} GB</span>
 							</div>
@@ -309,7 +316,7 @@ Features:
 				</div>
 				<div class="text-center">
 					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading memory data</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-xs">Please wait...</div>
 				</div>
 			</div>
 		{/if}

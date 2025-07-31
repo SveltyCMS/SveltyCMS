@@ -9,18 +9,9 @@ import mongoose from 'mongoose';
 // Auth
 
 export async function POST({ request, locals }) {
-	// Check fine-grained permissions for database configuration
-	// Note: Basic API access (api:config) is already verified by hooks
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'system',
-		action: 'write'
-	});
-
-	if (!permissionResult.hasPermission) {
-		return json(
-			{ error: permissionResult.error || 'Forbidden: Insufficient permissions to test database connection' },
-			{ status: 403 } // Always 403 since user is authenticated by hooks
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const config = await request.json();

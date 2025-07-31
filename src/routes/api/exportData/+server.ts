@@ -52,28 +52,22 @@ interface CollectionEntry {
 export const GET: RequestHandler = async ({ locals }) => {
 	const { user, tenantId } = locals;
 	try {
-		// Use centralized permission checking
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Data export permission denied', {
-				userId: user?._id,
-				userRole: user?.role,
-				error: permissionResult.error
-			});
-			throw error(403, permissionResult.error || 'Forbidden: Insufficient permissions');
+		// Authentication is handled by hooks.server.ts
+		if (!user) {
+			logger.warn('Unauthorized attempt to access export data');
+			throw error(401, 'Unauthorized');
 		}
 
 		if (privateEnv.MULTI_TENANT && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		logger.debug('User has permission to export data', { tenantId }); // Fetch data from all collections concurrently, scoped to the tenant
+		logger.debug('User has permission to export data', { tenantId });
 
-		const data = await fetchAllCollectionData(collections.value, tenantId); // Ensure the EXTRACT_DATA_PATH environment variable is configured
+		// Fetch data from all collections concurrently, scoped to the tenant
+		const data = await fetchAllCollectionData(collections.value, tenantId);
+
+		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 
 		if (!publicEnv.EXTRACT_DATA_PATH) {
 			logger.error('EXTRACT_DATA_PATH not configured');

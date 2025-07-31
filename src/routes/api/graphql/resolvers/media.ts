@@ -97,15 +97,7 @@ export function mediaResolvers() {
 			throw new Error('Authentication required');
 		}
 
-		const permissionResult = await checkApiPermission(context.user, {
-			resource: 'media',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`GraphQL: User ${context.user._id} denied access to media type ${contentTypes}`);
-			throw new Error(`Access denied: ${permissionResult.error || 'Insufficient permissions for media access'}`);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');

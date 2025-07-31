@@ -11,7 +11,6 @@
 
 import { privateEnv } from '@root/config/private';
 import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
-import { json } from '@sveltejs/kit';
 import { building } from '$app/environment';
 
 // GraphQL Yoga
@@ -193,55 +192,29 @@ async function setupGraphQL(tenantId?: string) {
 	}
 }
 
-let yogaAppPromise: Promise<ReturnType<typeof createYoga<RequestHandler>>>;
+let yogaAppPromise: Promise<ReturnType<typeof createYoga<RequestHandler>>> | null = null;
 
 const handler = async (event: RequestEvent) => {
-	const { user, tenantId } = event.locals; // Check GraphQL API permissions
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'graphql',
-		action: 'read'
-	});
+	const { locals } = event;
 
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to access GraphQL API', {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				success: false,
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		return new Response('Unauthorized', { status: 401 });
 	}
 
+	// Ensure Redis is disconnected when the server shuts down
+	if (!building && typeof process !== 'undefined') {
+		process.on('SIGINT', cleanupRedis);
+		process.on('SIGTERM', cleanupRedis);
+	}
+
+	// Initialize yogaAppPromise if not already done
 	if (!yogaAppPromise) {
-		yogaAppPromise = setupGraphQL(tenantId);
+		yogaAppPromise = setupGraphQL(locals.tenantId);
 	}
-	try {
-		const yogaApp = await yogaAppPromise;
-		const response = await yogaApp.handleRequest(event.request, event);
-		logger.info('GraphQL request handled successfully', { status: response.status, tenantId });
-		return new Response(response.body, {
-			status: response.status,
-			headers: response.headers
-		});
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error handling GraphQL request:', { error: errorMessage, tenantId });
-		return json({ success: false, error: `Error handling GraphQL request: ${errorMessage}` }, { status: 500 });
-	}
+	const yogaApp = await yogaAppPromise;
+	return yogaApp.handleRequest(event);
 };
-
-// Ensure Redis is disconnected when the server shuts down
-if (!building && typeof process !== 'undefined') {
-	process.on('SIGINT', cleanupRedis);
-	process.on('SIGTERM', cleanupRedis);
-}
 
 // Export the handlers for GET and POST requests
 export { handler as GET, handler as POST };

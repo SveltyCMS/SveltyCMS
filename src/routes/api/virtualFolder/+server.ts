@@ -23,21 +23,9 @@ import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 export const GET: RequestHandler = async ({ locals }) => {
 	const { user, tenantId } = locals;
 	try {
-		// Check permissions first
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			return json(
-				{
-					success: false,
-					error: permissionResult.error || 'Forbidden',
-					code: 'PERMISSION_DENIED'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
+		// Authentication is handled by hooks.server.ts
+		if (!user) {
+			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
 		if (privateEnv.MULTI_TENANT && !tenantId) {
@@ -68,21 +56,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 	try {
-		// Check permissions first
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			return json(
-				{
-					success: false,
-					error: permissionResult.error || 'Forbidden',
-					code: 'PERMISSION_DENIED'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
+		// Authentication is handled by hooks.server.ts
+		if (!user) {
+			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
 		if (privateEnv.MULTI_TENANT && !tenantId) {

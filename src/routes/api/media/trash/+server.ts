@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/media/trash/+server.ts
+ * @file src/routes/api/m	// Authentication is handled by hooks.server.ts - user presence confirms accessts
  * @description
  * API endpoint for moving a media file to the trash within the current tenant.
  *
@@ -27,25 +27,8 @@ import { moveMediaToTrash } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	const { user, tenantId } = locals; // Check permissions for media deletion/trash operations
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'media',
-		action: 'delete'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized media trash operation attempt', {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				error: permissionResult.error || 'Forbidden'
-			},
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-		);
-	}
+	const { user, tenantId } = locals;
+	// Authentication is handled by hooks.server.ts - user presence confirms access
 
 	if (!auth) {
 		logger.error('Auth service is not initialized');

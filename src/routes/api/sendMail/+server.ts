@@ -134,19 +134,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const isInternalCall = request.headers.get('x-internal-call') === 'true';
 	// Check sendMail permissions (skip for internal calls)
 	if (!isInternalCall) {
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'sendMail',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to send email', {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			return createErrorResponse(permissionResult.error || 'Forbidden', permissionResult.error?.includes('Authentication') ? 401 : 403);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		logger.debug(`User '${user?.username || 'Unknown'}' calling /api/sendMail`, { tenantId });
 	} else {

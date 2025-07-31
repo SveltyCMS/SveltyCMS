@@ -17,18 +17,15 @@
 - Uses efficient data fetching with cache-busting
 -->
 
-<script lang="ts">
+<script lang="ts" module>
 	export const widgetMeta = {
 		name: 'CPU Usage',
 		icon: 'mdi:cpu-64-bit',
-		defaultW: 1,
-		defaultH: 1,
-		validSizes: [
-			{ w: 1, h: 1 },
-			{ w: 2, h: 2 }
-		]
+		defaultSize: '1/4'
 	};
+</script>
 
+<script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Chart, LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
@@ -43,45 +40,16 @@
 		theme = 'light',
 		icon = 'mdi:cpu-64-bit',
 		widgetId = undefined,
-
-		// New sizing props
-		currentSize = '1/4',
-		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		size = '1/4',
 		onSizeChange = (newSize) => {},
-
-		// Drag props
-		draggable = true,
-		onDragStart = (event, item, element) => {},
-
-		// Legacy props (keeping for compatibility)
-		gridCellWidth = 0,
-		ROW_HEIGHT = 0,
-		GAP_SIZE = 0,
-		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
-		// initialData is NOT typically passed here, BaseWidget handles fetching
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-
-		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		size?: '1/4' | '1/2' | '3/4' | 'full';
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// Drag props
-		draggable?: boolean;
-		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
-
-		// Legacy props
-		gridCellWidth?: number;
-		ROW_HEIGHT?: number;
-		GAP_SIZE?: number;
-		resizable?: boolean;
-		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -299,16 +267,8 @@
 	pollInterval={5000}
 	{icon}
 	{widgetId}
-	{currentSize}
-	{availableSizes}
+	{size}
 	{onSizeChange}
-	{draggable}
-	{onDragStart}
-	{gridCellWidth}
-	{ROW_HEIGHT}
-	{GAP_SIZE}
-	{resizable}
-	{onResizeCommitted}
 	{onCloseRequest}
 >
 	{#snippet children({ data: fetchedData as any })}
@@ -323,9 +283,11 @@
 					<div class="flex flex-col space-y-1">
 						<div class="flex items-center space-x-2">
 							<div class="relative">
+								<!-- Current Usage -->
 								<div
 									class="h-3 w-3 rounded-full {usageLevel === 'high' ? 'bg-red-500' : usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
 								></div>
+
 								<div
 									class="absolute inset-0 h-3 w-3 rounded-full {usageLevel === 'high'
 										? 'bg-red-500'
@@ -334,13 +296,13 @@
 											: 'bg-green-500'} animate-ping opacity-75"
 								></div>
 							</div>
-							<span class="text-lg font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{currentUsage.toFixed(1)}%</span>
+							<span class="text-sm font-bold">{currentUsage.toFixed(1)}%</span>
+							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Current Usage</span>
 						</div>
-						<span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Current Usage</span>
 					</div>
-					<div class="text-right">
-						<div class="text-sm font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{averageUsage.toFixed(1)}%</div>
-						<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Average</div>
+					<div class="flex items-center gap-2 text-right">
+						<div class="text-sm font-semibold">{averageUsage.toFixed(1)}%</div>
+						<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Average</div>
 					</div>
 				</div>
 				<div class="space-y-2">
@@ -356,7 +318,9 @@
 						<div class="absolute inset-0 h-full w-full animate-pulse bg-gradient-to-r from-transparent via-white to-transparent opacity-20"></div>
 					</div>
 				</div>
-				<div class="relative flex-grow rounded-lg {theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'} p-3" style="min-height: 120px; height: 100%;">
+
+				<!-- Chart -->
+				<div class="relative flex-grow rounded-lg" style="min-height: 120px; height: 100%;">
 					<div class="relative h-full w-full">
 						<canvas
 							bind:this={chartCanvasElement}
@@ -367,16 +331,17 @@
 						></canvas>
 					</div>
 				</div>
-				{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
-					<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
-						<span>
-							Cores: <span class="font-bold">{fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
-						</span>
-						<span>
-							Model: <span class="font-bold">{fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
-						</span>
-					</div>
-				{/if}
+			</div>
+			<!-- Cpu Info -->
+			<div class="flex justify-between px-2 text-xs {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">
+				<span>
+					Cores: <span class="font-bold text-white">{fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
+				</span>
+				<span>
+					Model: <span class="font-bold text-white"
+						>{fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span
+					>
+				</span>
 			</div>
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center space-y-3">
@@ -385,7 +350,7 @@
 				</div>
 				<div class="text-center">
 					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading CPU data</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm">Please wait...</div>
 				</div>
 			</div>
 		{/if}

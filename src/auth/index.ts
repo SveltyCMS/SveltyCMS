@@ -50,16 +50,9 @@ export {
 	isValidTOTPSecret
 } from './totp';
 
-export {
-	TwoFactorAuthService,
-	createTwoFactorAuthService,
-	getDefaultTwoFactorAuthService
-} from './twoFactorAuth';
+export { TwoFactorAuthService, createTwoFactorAuthService, getDefaultTwoFactorAuthService } from './twoFactorAuth';
 
-export type { 
-	TwoFactorSetupResponse,
-	TwoFactorVerificationResult
-} from './twoFactorAuth';
+export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuth';
 
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
@@ -345,6 +338,32 @@ export class Auth {
 
 	async invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<void> {
 		await this.db.invalidateAllUserSessions(user_id, tenantId);
+	}
+
+	async getActiveSessions(user_id: string, tenantId?: string): Promise<{ success: boolean; data: Session[]; message?: string }> {
+		try {
+			const result = await this.db.getActiveSessions(user_id, tenantId);
+			if (result && result.success) {
+				return { success: true, data: result.data };
+			}
+			return { success: false, data: [], message: 'Failed to retrieve active sessions' };
+		} catch (err) {
+			logger.error(`Error getting active sessions: ${err instanceof Error ? err.message : String(err)}`);
+			return { success: false, data: [], message: err instanceof Error ? err.message : 'Unknown error' };
+		}
+	}
+
+	async getAllActiveSessions(tenantId?: string): Promise<{ success: boolean; data: Session[]; message?: string }> {
+		try {
+			const result = await this.db.getAllActiveSessions(tenantId);
+			if (result && result.success) {
+				return { success: true, data: result.data };
+			}
+			return { success: false, data: [], message: 'Failed to retrieve all active sessions' };
+		} catch (err) {
+			logger.error(`Error getting all active sessions: ${err instanceof Error ? err.message : String(err)}`);
+			return { success: false, data: [], message: err instanceof Error ? err.message : 'Unknown error' };
+		}
 	}
 
 	async updateUserPassword(email: string, password: string, tenantId?: string): Promise<{ status: boolean; message?: string }> {

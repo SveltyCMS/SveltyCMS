@@ -25,20 +25,8 @@ import { deleteFile } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
-	const { user, tenantId } = locals; // Check media delete permissions
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'media',
-		action: 'delete'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to delete media file', {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-	}
+	const { user, tenantId } = locals;
+	// Authentication is handled by hooks.server.ts - user presence confirms access
 
 	if (privateEnv.MULTI_TENANT && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');

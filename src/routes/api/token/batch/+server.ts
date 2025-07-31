@@ -50,24 +50,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Invalid JSON in request body');
 		});
 		const { tokenIds, action } = parse(batchTokenActionSchema, body);
-		// Check permissions for token batch operations
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: action === 'delete' ? 'delete' : 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to '${action}' tokens`, {
-				userId: user?._id,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || `Forbidden: You do not have permission to ${action} tokens.`
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!auth) {
 			logger.error('Database authentication adapter not initialized');

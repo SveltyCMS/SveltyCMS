@@ -98,20 +98,9 @@ interface GraphQLContext {
 // Resolvers with pagination support
 export function userResolvers(dbAdapter: dbInterface) {
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
-		// Check user permissions - only users with user management permissions should see user data
+		// Authentication is handled by hooks.server.ts
 		if (!context.user) {
-			logger.warn(`GraphQL: No user in context for ${contentTypes}`);
 			throw new Error('Authentication required');
-		}
-
-		const permissionResult = await checkApiPermission(context.user, {
-			resource: 'users',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`GraphQL: User ${context.user._id} denied access to ${contentTypes}`);
-			throw new Error(`Access denied: ${permissionResult.error || 'Insufficient permissions for user data access'}`);
 		}
 
 		if (!dbAdapter) {

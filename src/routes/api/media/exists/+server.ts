@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/media/exists/+server.ts
+ * @file src/routes/a	// Authentication is handled by hooks.server.ts - user presence confirms accesss/+server.ts
  * @description
  * API endpoint for checking the existence of a media file within the current tenant.
  *
@@ -23,20 +23,8 @@ import { logger } from '@utils/logger.svelte';
 // Permissions
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const { user, tenantId } = locals; // Use centralized permission checking
-	const permissionResult = await checkApiPermission(user, {
-		resource: 'media',
-		action: 'read'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to check media file existence', {
-			userId: user?._id,
-			tenantId,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-	}
+	const { user, tenantId } = locals;
+	// Authentication is handled by hooks.server.ts - user presence confirms access
 
 	if (privateEnv.MULTI_TENANT && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');

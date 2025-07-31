@@ -19,20 +19,16 @@
 - Enhanced debugging and logging
 -->
 
-<script lang="ts">
+<script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Last 5 Media',
 		icon: 'mdi:image-multiple',
-		defaultW: 2,
-		defaultH: 2,
-		validSizes: [
-			{ w: 1, h: 1 },
-			{ w: 2, h: 2 },
-			{ w: 2, h: 1 },
-			{ w: 1, h: 2 }
-		]
+		description: 'View recent media uploads',
+		defaultSize: '1/2'
 	};
+</script>
 
+<script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 
 	interface MediaFile {
@@ -52,44 +48,16 @@
 		theme = 'light',
 		icon = 'mdi:image-multiple',
 		widgetId = undefined,
-
-		// New sizing props
-		currentSize = '1/4',
-		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		size = '1/2',
 		onSizeChange = (newSize) => {},
-
-		// Drag props
-		draggable = true,
-		onDragStart = (event, item, element) => {},
-
-		// Legacy props
-		gridCellWidth = 0,
-		ROW_HEIGHT = 0,
-		GAP_SIZE = 0,
-		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-
-		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		size?: '1/4' | '1/2' | '3/4' | 'full';
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// Drag props
-		draggable?: boolean;
-		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
-
-		// Legacy props
-		gridCellWidth?: number;
-		ROW_HEIGHT?: number;
-		GAP_SIZE?: number;
-		resizable?: boolean;
-		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -133,25 +101,7 @@
 	}
 </script>
 
-<BaseWidget
-	{label}
-	{theme}
-	endpoint="/api/media"
-	pollInterval={30000}
-	{icon}
-	{widgetId}
-	{currentSize}
-	{availableSizes}
-	{onSizeChange}
-	{draggable}
-	{onDragStart}
-	{gridCellWidth}
-	{ROW_HEIGHT}
-	{GAP_SIZE}
-	{resizable}
-	{onResizeCommitted}
-	{onCloseRequest}
->
+<BaseWidget {label} {theme} endpoint="/api/dashboard/last5media" pollInterval={30000} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 media files">

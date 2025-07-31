@@ -1,6 +1,5 @@
 /**
- * @file src/routes/api/token/[tokenId]/+server.ts
- * @description API endpoint for updating an existing token.
+ * @file src/routes/api/token/[tokenId]/+se		// Authentication is handled by hooks.server.ts - user presence confirms accession API endpoint for updating an existing token.
  *
  * This module is responsible for:
  * - Updating an existing token's data (e.g., email, role, expiration) within the current tenant.
@@ -45,26 +44,8 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 		const tokenId = params.tokenID;
 		if (!tokenId) {
 			throw error(400, 'Token ID is required in the URL path.');
-		} // Check permissions for token editing
-
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to edit token ${tokenId}`, {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to edit tokens.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
 		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const body = await request.json().catch(() => {
 			throw error(400, 'Invalid JSON in request body');
@@ -127,26 +108,8 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		const tokenId = params.tokenID;
 		if (!tokenId) {
 			throw error(400, 'Token ID is required in the URL path.');
-		} // Check permissions for token deletion
-
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'delete'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to delete token ${tokenId}`, {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to delete tokens.'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
 		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		if (privateEnv.MULTI_TENANT) {

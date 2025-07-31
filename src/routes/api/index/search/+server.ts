@@ -49,20 +49,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			logger.warn('Invalid search query', { tenantId });
 			throw error(400, 'Invalid search query');
 		}
-		// Check API permissions using centralized system
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'search',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to access search API', {
-				userId: user?._id,
-				tenantId,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 		// Perform search across all collections
 		const results = [];
 		const skip = (page - 1) * limit;

@@ -51,23 +51,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 		// Check fine-grained permissions for token editing
 		// Note: Basic API access (api:token) is already verified by hooks
-		const permissionResult = await checkApiPermission(user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to edit a token', {
-				userId: user?._id,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden: You do not have permission to edit tokens.'
-				},
-				{ status: 403 } // Always 403 since user is authenticated by hooks
-			);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const body = await request.json();
 

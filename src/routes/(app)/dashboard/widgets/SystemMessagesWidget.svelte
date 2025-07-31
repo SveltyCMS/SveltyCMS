@@ -18,8 +18,7 @@ Features:
 - Proper lifecycle management
 - Enhanced debugging and logging
 -->
-<script lang="ts">
-	// --- Widget Metadata ---
+<script lang="ts" context="module">
 	export const widgetMeta = {
 		name: 'System Messages',
 		icon: 'mdi:message-alert',
@@ -32,6 +31,10 @@ Features:
 			{ w: 2, h: 2 }
 		]
 	};
+</script>
+
+<script lang="ts">
+	// --- Widget Metadata ---
 
 	import BaseWidget from '../BaseWidget.svelte';
 
@@ -60,7 +63,7 @@ Features:
 		// FIX: Added types and prefixed unused parameters with an underscore.
 		onSizeChange = (_newSize: Size) => {},
 		draggable = true,
-		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
+		onDragStart = (_event: MouseEvent | TouchEvent, _element: HTMLElement) => {},
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
@@ -76,7 +79,7 @@ Features:
 		availableSizes?: Size[];
 		onSizeChange?: (newSize: Size) => void;
 		draggable?: boolean;
-		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
+		onDragStart?: (event: MouseEvent | TouchEvent, element: HTMLElement) => void;
 		gridCellWidth?: number;
 		ROW_HEIGHT?: number;
 		GAP_SIZE?: number;
@@ -114,8 +117,9 @@ Features:
 					<div class="rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex items-start justify-between">
 							<strong class="text-text-900 dark:text-text-100 text-sm" aria-label="Message title">{message.title}</strong>
-							<small class="flex-shrink-0 pl-2 text-surface-500 dark:text-surface-400" aria-label="Timestamp"
-								>{new Date(message.timestamp).toLocaleString()}</small
+							<small class="flex-shrink-0 pl-2 text-surface-500 dark:text-surface-400" aria-label="Timestamp">
+								{new Date(message.timestamp).toLocaleString()}
+							</small>
 							>
 						</div>
 						<p class="mt-1 text-surface-700 dark:text-surface-300" aria-label="Message body">{message.body}</p>

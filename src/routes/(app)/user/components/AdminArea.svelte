@@ -873,11 +873,11 @@
 			<!-- Pagination  -->
 			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
-					{currentPage}
+					bind:currentPage
+					bind:rowsPerPage
 					{pagesCount}
-					{rowsPerPage}
-					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
 					totalItems={filteredTableData.length}
+					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
 					onUpdatePage={(page) => {
 						currentPage = page;
 					}}

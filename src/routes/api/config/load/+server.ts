@@ -22,9 +22,11 @@ function getFreshPath(modulePath) {
 	return `${fileUrl}?v=${Date.now()}`;
 }
 
-export async function GET({ cookies }) {
-	// Check permissions using centralized system
-	await checkApiPermission(cookies, 'config:settings');
+export async function GET({ locals }) {
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		return json({ success: false, message: 'Unauthorized' }, { status: 401 });
+	}
 
 	try {
 		// Resolve absolute paths from the project root directory
