@@ -273,7 +273,7 @@
 						src={avatarSrc.value && avatarSrc.value.startsWith('data:')
 							? avatarSrc.value
 							: avatarSrc.value
-								? `${avatarSrc.value}${avatarSrc.value.startsWith('/') ? '' : ''}?t=${Date.now()}`
+								? `${avatarSrc.value}?t=${Date.now()}`
 								: '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"

@@ -3,7 +3,7 @@
  * @description Widget Manager for handling widget loading, activation, and configuration
  */
 import { mount } from 'svelte';
-import { uuidv4 } from '@utils/uuid';
+import { v4 as uuidv4 } from 'uuid';
 import MissingWidget from './MissingWidget.svelte';
 import type { Widget, WidgetModule, WidgetId } from './types';
 import type { User } from '@src/auth/types';

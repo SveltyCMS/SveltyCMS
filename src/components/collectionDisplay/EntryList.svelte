@@ -28,11 +28,11 @@ Features:
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus } from '@utils/apiClient';
+	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus, deleteEntry, batchDeleteEntries } from '@utils/apiClient';
 	import { getCachedCollectionData } from '@utils/collections-prefetch';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
-	import { cloneEntries, deleteEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
+	import { cloneEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
 	// Config
 	import { publicEnv } from '@root/config/public';
 	// Types
@@ -655,10 +655,17 @@ Features:
 		const currentCollId = collection.value?._id;
 		if (currentCollId) {
 			invalidateCollectionCache(currentCollId);
+			// Clear selections
+			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+			SelectAll = false;
+			// Reset to page 1 to avoid empty pages after deletions
+			entryListPaginationSettings.currentPage = 1;
 			// Force a refresh by resetting state and fetching new data
 			untrack(() => {
 				hasInitialLoad = false;
 				stableDataExists = false;
+				// Add timestamp to force fresh data fetch
+				languageChangeTimestamp = Date.now();
 				refreshTableData(true);
 			});
 		}
@@ -675,8 +682,11 @@ Features:
 				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
 			}
 		}
-		// Don't set status here - let it be set when user saves
-		// This allows draft status only when user exits without saving
+		// Set the default status from collection schema for new entries
+		// This ensures new entries use the collection's intended default status
+		if (collection.value?.status) {
+			newEntry.status = collection.value.status;
+		}
 
 		// Set the new entry data FIRST
 		collectionValue.set(newEntry);
@@ -693,7 +703,81 @@ Features:
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
 	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
 	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess, toastStore);
-	const onDelete = (isPermanent = false) => deleteEntries(getSelectedIds(), isPermanent || showDeleted, onActionSuccess, modalStore, toastStore);
+	const onDelete = (isPermanent = false) => {
+		const selectedIds = getSelectedIds();
+		if (!selectedIds.length) {
+			toastStore.trigger({ message: 'No entries selected' });
+			return;
+		}
+
+		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const isForArchived = showDeleted || isPermanent;
+		const willDelete = !useArchiving || isForArchived;
+
+		const actionName = willDelete ? 'Delete' : 'Archive';
+		const actionVerb = willDelete ? 'delete' : 'archive';
+		const actionColor = willDelete ? 'error' : 'warning';
+
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm <span class="text-${actionColor}-500 font-bold">${actionName}</span>`,
+			body: willDelete
+				? `Are you sure you want to <span class="text-${actionColor}-500 font-semibold">${actionVerb}</span> ${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'}? This action will remove ${selectedIds.length === 1 ? 'it' : 'them'} from the system.`
+				: `Are you sure you want to <span class="text-${actionColor}-500 font-semibold">${actionVerb}</span> ${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'}? Archived items can be restored later.`,
+			buttonTextConfirm: actionName,
+			buttonTextCancel: 'Cancel',
+			meta: { buttonConfirmClasses: `bg-${actionColor}-500 hover:bg-${actionColor}-600 text-white` },
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					try {
+						if (willDelete) {
+							// Use batch delete API with fallback to individual deletes
+							try {
+								const collId = collection.value?._id;
+								if (collId) {
+									const result = await batchDeleteEntries(collId, selectedIds);
+									if (result.success) {
+										toastStore.trigger({
+											message: `${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`,
+											background: 'variant-filled-success'
+										});
+									} else {
+										throw new Error('Batch delete failed');
+									}
+								}
+							} catch (batchError) {
+								// Fallback to individual deletes
+								console.warn('Batch delete failed, using individual deletes:', batchError);
+								await Promise.all(
+									selectedIds.map((entryId) => {
+										const collId = collection.value?._id;
+										if (collId) {
+											return deleteEntry(collId, entryId);
+										}
+										return Promise.resolve();
+									})
+								);
+								toastStore.trigger({
+									message: `${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`,
+									background: 'variant-filled-success'
+								});
+							}
+						} else {
+							// Archive entries - setEntriesStatus already shows toast, so don't duplicate
+							await setEntriesStatus(selectedIds, StatusTypes.archive, () => {}, toastStore);
+						}
+						onActionSuccess();
+					} catch (error) {
+						toastStore.trigger({
+							message: `Failed to ${actionVerb} entries: ${(error as Error).message}`,
+							background: 'variant-filled-error'
+						});
+					}
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	};
 	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess, toastStore);
 
 	// FIX: Schedule handler now correctly processes date and calls the action
@@ -736,7 +820,48 @@ Features:
 
 	// Helper function to execute status changes without modals
 	async function executeDelete() {
-		await deleteEntries(getSelectedIds(), showDeleted, onActionSuccess, toastStore);
+		const selectedIds = getSelectedIds();
+		if (!selectedIds.length) return;
+
+		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const isForArchived = showDeleted;
+		const willDelete = !useArchiving || isForArchived;
+
+		try {
+			if (willDelete) {
+				// Use batch delete API with fallback to individual deletes
+				try {
+					const collId = collection.value?._id;
+					if (collId) {
+						const result = await batchDeleteEntries(collId, selectedIds);
+						if (!result.success) {
+							throw new Error('Batch delete failed');
+						}
+					}
+				} catch (batchError) {
+					// Fallback to individual deletes
+					console.warn('Batch delete failed, using individual deletes:', batchError);
+					await Promise.all(
+						selectedIds.map((entryId) => {
+							const collId = collection.value?._id;
+							if (collId) {
+								return deleteEntry(collId, entryId);
+							}
+							return Promise.resolve();
+						})
+					);
+				}
+			} else {
+				// Archive entries
+				await setEntriesStatus(selectedIds, StatusTypes.archive, () => {}, toastStore);
+			}
+			onActionSuccess();
+		} catch (error) {
+			toastStore.trigger({
+				message: `Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`,
+				background: 'variant-filled-error'
+			});
+		}
 	}
 	// Legacy onClone function - now calls centralized action
 	function legacyOnClone() {

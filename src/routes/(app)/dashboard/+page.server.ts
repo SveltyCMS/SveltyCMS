@@ -6,20 +6,18 @@
  * - `user`: The authenticated user data.
  * - `availableWidgets`: Dynamically discovered widgets from the widgets folder
  *
- * ### Usage
- * - Access user data from the server-side and pass it to the client-side component
- * - Dynamically load available widget components
- *
- * ### Features
+ * Features:
  * - User authentication and authorization
- * - Proper typing for user data
- * - Dynamic widget discovery
+ * - Dynamic widget discovery from widgets folder
+ * - Server-side UUID v4 generation for new widgets
+ * - Support for dynamic width and height sizing
  */
 
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { redirect, json, error } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 import { readdirSync } from 'fs';
 import { join } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -33,10 +31,7 @@ interface WidgetInfo {
 
 async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
 	try {
-		// Dynamically import the widget component to get its metadata
-		// Using @vite-ignore to suppress Vite's dynamic import analysis warning
-		const widgetModule = await import(/* @vite-ignore */ `./widgets/${componentName}.svelte`);
-
+		const widgetModule = await import(`./widgets/${componentName}.svelte`);
 		if (widgetModule.widgetMeta) {
 			return {
 				componentName,
@@ -45,13 +40,11 @@ async function getWidgetMetadata(componentName: string): Promise<WidgetInfo> {
 				description: widgetModule.widgetMeta.description
 			};
 		}
-
 		logger.warn(`Widget ${componentName} has no widgetMeta export, using fallback`);
-	} catch (error) {
-		logger.error(`Failed to load metadata for widget ${componentName}:`, error);
+	} catch (err) {
+		logger.error(`Failed to load metadata for widget ${componentName}:`, err);
 	}
 
-	// Fallback metadata generation
 	return {
 		componentName,
 		name: componentName
@@ -80,34 +73,78 @@ async function discoverWidgets(): Promise<WidgetInfo[]> {
 
 		logger.debug(`Discovered ${sortedWidgets.length} dashboard widgets`);
 		return sortedWidgets;
-	} catch (error) {
-		logger.error('Failed to discover widgets:', error);
+	} catch (err) {
+		logger.error('Failed to discover widgets:', err);
 		return [];
 	}
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	// Check if user is authenticated
-	const user = locals.user;
-
+	const { user, isAdmin, hasManageUsersPermission, permissions, roles } = locals;
 	if (!user) {
 		logger.warn('User not authenticated, redirecting to login.');
-		redirect(301, '/login');
+		throw redirect(301, '/login');
 	}
 
-	logger.debug(`User authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
+	// Ensure only admins can access the dashboard
+	if (!isAdmin) {
+		logger.warn(`Non-admin user (${user.email}) attempted to access the dashboard. Redirecting.`);
+		throw redirect(302, '/'); // Redirect to home page or an access-denied page
+	}
+
+	logger.debug(`Admin user authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
 
 	const { _id, ...rest } = user;
-
-	// Discover available widgets
 	const availableWidgets = await discoverWidgets();
 
-	// Return user data with proper typing and available widgets
 	return {
-		user: {
-			id: _id.toString(),
-			...rest
+		pageData: {
+			user: {
+				id: _id.toString(),
+				...rest
+			},
+			isAdmin,
+			hasManageUsersPermission,
+			permissions,
+			roles
 		},
 		availableWidgets
 	};
+};
+
+export const actions: Actions = {
+	default: async ({ request, locals }) => {
+		const user = locals.user;
+		if (!user) {
+			logger.warn('Unauthorized attempt to add widget');
+			throw error(401, 'Unauthorized');
+		}
+
+		const data = await request.json();
+		const { userId, component, label, icon, size } = data;
+
+		if (userId !== user._id.toString()) {
+			logger.warn(`User ID mismatch: ${userId} vs ${user._id}`);
+			throw error(403, 'Forbidden');
+		}
+
+		if (!component || !label || !icon || !size || typeof size.w !== 'number' || typeof size.h !== 'number') {
+			logger.error('Invalid widget data:', data);
+			throw error(400, 'Invalid widget data');
+		}
+
+		const widget = {
+			id: uuidv4(),
+			component,
+			label,
+			icon,
+			size,
+			gridPosition: 0,
+			movable: true,
+			resizable: true
+		};
+
+		logger.debug(`Created widget ${widget.id} for user ${userId}`);
+		return json(widget);
+	}
 };

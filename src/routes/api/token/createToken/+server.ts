@@ -2,7 +2,18 @@
  * @file: src/routes/api/user/createToken/+server.ts
  * @description: API endpoint for creating user registration tokens and sending invitation emails
  *
- * This module provides functionality to:
+ * Thi		// Invalidate the admin cache for tokens so the UI refreshes immediately
+
+		invalidateAdminCache('tokens', tenantId); // Return success response
+
+		return json({
+			success: true,
+			message: emailSkipped 
+				? 'Token created successfully. Email sending skipped (development mode - configure SMTP settings to enable email).'
+				: 'Token created and email sent successfully.',
+			token: { value: token, expires: expires.toISOString() },
+			email_sent: !emailSkipped
+		});provides functionality to:
  * - Create new registration tokens for inviting users, scoped to the current tenant.
  * - Handle token creation requests
  *
@@ -133,7 +144,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 					languageTag: getLocale()
 				}
 			})
-		}); // Handle email sending failure
+		}); // Handle email sending response
 
 		if (!emailResponse.ok) {
 			const emailError = await emailResponse.json();
@@ -145,11 +156,24 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			throw error(500, emailError.message || 'Failed to send invitation email.');
 		}
 
-		logger.info('Token created and email sent successfully', {
-			email: validatedData.email,
-			role: roleInfo.name,
-			tenantId
-		}); // Invalidate the admin cache for tokens so the UI refreshes immediately
+		// Check if email was actually sent or skipped due to dummy config
+		const emailResult = await emailResponse.json();
+		const emailSkipped = emailResult.dev_mode === true;
+
+		if (emailSkipped) {
+			logger.info('Token created successfully - email sending skipped (development mode)', {
+				email: validatedData.email,
+				role: roleInfo.name,
+				tenantId,
+				config_status: 'dummy_email_config'
+			});
+		} else {
+			logger.info('Token created and email sent successfully', {
+				email: validatedData.email,
+				role: roleInfo.name,
+				tenantId
+			});
+		} // Invalidate the admin cache for tokens so the UI refreshes immediately
 
 		invalidateAdminCache('tokens', tenantId); // Return success response
 

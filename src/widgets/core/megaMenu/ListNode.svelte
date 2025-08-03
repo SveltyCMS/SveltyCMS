@@ -8,7 +8,17 @@
 
 ### Props
 - `self`: Object
-- `parent`: Object
+- `p			$c			$currentChild = self;
+			mode.set('edit');
+			depth = level;
+			showFields = true;
+			translationProgress.value = { ...translationProgress.value, show: true };
+			$shouldShowNextButton = true;Child = self;
+			mode.set('edit');
+			depth = level;
+			showFields = true;
+			translationProgress.show = true;
+			$shouldShowNextButton = true;: Object
 - `level`: Number
 - `depth`: Number
 - `maxDepth`: Number
@@ -383,7 +393,7 @@
 					depth = level + 1;
 					showFields = true;
 					mode.set('create');
-					translationProgress.value.show = true;
+					translationProgress.value = { ...translationProgress.value, show: true };
 					$shouldShowNextButton = true;
 				}}
 				aria-label="Add child item"
@@ -401,7 +411,7 @@
 				mode.set('edit');
 				depth = level;
 				showFields = true;
-				translationProgress.value.show = true;
+				translationProgress.show = true;
 				$shouldShowNextButton = true;
 			}}
 			aria-label="Edit item"

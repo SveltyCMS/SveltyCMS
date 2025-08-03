@@ -23,10 +23,8 @@ import { privateEnv } from '@root/config/private';
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
-// Auth (Database Agnostic)
-// TODO: Remove once batch user operations are added to database-agnostic interface
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
+// Auth and permission helpers
+import { auth } from '@src/databases/db';
 
 // Validation
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
@@ -53,7 +51,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'You cannot perform batch actions on your own account.');
 		}
 
-		const userAdapter = new UserAdapter();
+		if (!auth) {
+			throw error(500, 'Authentication system is not initialized');
+		}
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		// Before performing any action, verify all target users belong to the current tenant.
@@ -61,10 +61,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}
-			const filter = { filter: { _id: { $in: userIds }, tenantId } };
-			const usersToVerify = await userAdapter.getAllUsers(filter);
-			if (usersToVerify.length !== userIds.length) {
-				logger.warn(`Attempt to act on users outside of tenant`, {
+			// Check if all users exist and belong to the tenant
+			const userChecks = await Promise.all(
+				userIds.map(async (userId) => {
+					const userResult = await auth.db.getUserById(userId, tenantId);
+					return userResult.success ? userResult.data : null;
+				})
+			);
+			
+			if (userChecks.some(user => user === null)) {
+				logger.warn(`Attempt to act on users outside of tenant or non-existent users`, {
 					userId: user?._id,
 					tenantId,
 					requestedUserIds: userIds
@@ -76,18 +82,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		let successMessage = '';
 
 		switch (action) {
-			case 'delete':
-				await userAdapter.deleteUsers(userIds, tenantId);
+			case 'delete': {
+				const result = await auth.db.deleteUsers(userIds, tenantId);
+				if (!result.success) {
+					throw error(500, `Failed to delete users: ${result.error}`);
+				}
 				successMessage = 'Users deleted successfully.';
 				break;
-			case 'block':
-				await userAdapter.blockUsers(userIds, tenantId);
+			}
+			case 'block': {
+				const result = await auth.db.blockUsers(userIds, tenantId);
+				if (!result.success) {
+					throw error(500, `Failed to block users: ${result.error}`);
+				}
 				successMessage = 'Users blocked successfully.';
 				break;
-			case 'unblock':
-				await userAdapter.unblockUsers(userIds, tenantId);
+			}
+			case 'unblock': {
+				const result = await auth.db.unblockUsers(userIds, tenantId);
+				if (!result.success) {
+					throw error(500, `Failed to unblock users: ${result.error}`);
+				}
 				successMessage = 'Users unblocked successfully.';
 				break;
+			}
 		}
 
 		logger.info(`Batch user action '${action}' completed.`, {

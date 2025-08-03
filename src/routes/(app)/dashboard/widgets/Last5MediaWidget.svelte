@@ -15,21 +15,19 @@
 - Real-time data updates
 - Customizable widget properties (size, position, etc.)
 - Improved error handling and data validation
-- Proper lifecycle management
 - Enhanced debugging and logging
 -->
-
 <script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Last 5 Media',
-		icon: 'mdi:image-multiple',
-		description: 'View recent media uploads',
-		defaultSize: '1/2'
+		icon: 'mdi:image-multiple-outline',
+		defaultSize: { w: 1, h: 2 }
 	};
 </script>
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
+	import { formatDisplayDate } from '@utils/dateUtils';
 
 	interface MediaFile {
 		id: string;
@@ -46,18 +44,18 @@
 	let {
 		label = 'Last 5 Media',
 		theme = 'light',
-		icon = 'mdi:image-multiple',
+		icon = 'mdi:image-multiple-outline',
 		widgetId = undefined,
-		size = '1/2',
-		onSizeChange = (newSize) => {},
+		size = { w: 1, h: 1 },
+		onSizeChange = (newSize: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		size?: '1/4' | '1/2' | '3/4' | 'full';
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		size?: { w: number; h: number };
+		onSizeChange?: (newSize: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -69,29 +67,10 @@
 		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 	}
 
-	function formatDate(dateString: string): string {
-		try {
-			const date = new Date(dateString);
-			return date.toLocaleDateString('en-US', {
-				month: 'short',
-				day: 'numeric',
-				year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-			});
-		} catch (error) {
-			return 'Unknown';
-		}
-	}
-
-	function formatAuthor(author: string): string {
-		// Truncate long author names
-		return author && author.length > 12 ? author.substring(0, 12) + '...' : author || 'Unknown';
-	}
-
 	function getFileIcon(type: string): string {
-		if (!type) return 'mdi:file'; // Guard against undefined type
+		if (!type) return 'mdi:file';
 		const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 		const videoTypes = ['mp4', 'mov', 'avi'];
-
 		if (imageTypes.includes(type.toLowerCase())) {
 			return 'mdi:image';
 		} else if (videoTypes.includes(type.toLowerCase())) {
@@ -123,8 +102,8 @@
 							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
 								{file.type}
 							</span>
-							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Modified: ${formatDate(file.modified)}`}>
-								{formatDate(file.modified)}
+							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Modified: ${formatDisplayDate(file.modified)}`}>
+								{formatDisplayDate(file.modified)}
 							</span>
 						</div>
 					</div>

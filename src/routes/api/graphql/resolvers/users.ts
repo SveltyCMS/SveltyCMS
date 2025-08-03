@@ -24,7 +24,7 @@ import { logger } from '@utils/logger.svelte';
 // Permissions
 
 // Types
-import type { dbInterface } from '@src/databases/dbInterface';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { User } from '@src/auth/types';
 
 // GraphQL types
@@ -96,7 +96,7 @@ interface GraphQLContext {
 }
 
 // Resolvers with pagination support
-export function userResolvers(dbAdapter: dbInterface) {
+export function userResolvers(dbAdapter: DatabaseAdapter) {
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Authentication is handled by hooks.server.ts
 		if (!context.user) {
@@ -114,7 +114,6 @@ export function userResolvers(dbAdapter: dbInterface) {
 		}
 
 		const { page = 1, limit = 10 } = pagination || {};
-		const skip = (page - 1) * limit;
 
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
@@ -122,9 +121,18 @@ export function userResolvers(dbAdapter: dbInterface) {
 			if (privateEnv.MULTI_TENANT) {
 				query.tenantId = context.tenantId;
 			}
-			const users = await dbAdapter.findMany(contentTypes, query, { sort: { lastActiveAt: -1 }, skip, limit });
-			logger.info(`Fetched ${contentTypes}`, { count: users.length, tenantId: context.tenantId });
-			return users;
+
+			// Use query builder pattern consistent with REST API
+			const queryBuilder = dbAdapter.queryBuilder(contentTypes).where(query).sort('lastActiveAt', 'desc').paginate({ page, pageSize: limit });
+
+			const result = await queryBuilder.execute();
+
+			if (!result.success) {
+				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
+			}
+
+			logger.info(`Fetched ${contentTypes}`, { count: result.data.length, tenantId: context.tenantId });
+			return result.data;
 		} catch (error) {
 			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
 			throw Error(`Failed to fetch data for ${contentTypes}`);

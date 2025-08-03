@@ -21,6 +21,9 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Config
+import { privateEnv } from '@root/config/private';
+
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
 
@@ -42,6 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// In multi-tenant mode, ensure target user is in same tenant when editing others
 		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+			const tenantId = locals.tenantId;
 			const targetUser = await auth.getUserById(targetUserId, tenantId);
 			if (!targetUser || targetUser.tenantId !== tenantId) {
 				logger.warn('Admin attempted to update avatar for user outside their tenant', {
@@ -58,12 +62,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 
-		// Ensure the authentication system is initialized
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
-
 		const avatarFile = formData.get('avatar') as File | null;
 
 		if (!avatarFile) {
@@ -72,14 +70,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate file type on the server as a secondary check
-		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 		if (!allowedTypes.includes(avatarFile.type)) {
 			logger.error('Invalid file type for avatar', {
 				userId: locals.user._id,
 				targetUserId,
 				fileType: avatarFile.type
 			});
-			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
+			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, WebP, and SVG are allowed.');
 		}
 
 		// Before saving a new avatar, move the old one to trash if it exists.

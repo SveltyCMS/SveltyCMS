@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { getFieldName, updateTranslationProgress } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 
 	// Auth & Page data
@@ -34,6 +34,10 @@
 	// Stores
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
+
+	// Config
+	import { publicEnv } from '@root/config/public';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// Content processing
 	import { processModule } from '@src/content/utils';
@@ -151,9 +155,44 @@
 	); // Update translation progress when data changes
 
 	$effect(() => {
-		if (!collection.value?.fields) return;
-		for (const field of collection.value.fields) {
-			updateTranslationProgress(collectionValue.value, field);
+		const currentCollectionValue = collectionValue.value;
+		const fields = collection.value?.fields;
+
+		if (!fields || !currentCollectionValue) return;
+
+		// This is the logic from the deleted `updateTranslationProgress` function,
+		// now correctly placed within a component's effect.
+		const progress = { ...translationProgress.value }; // Create a mutable copy
+		let hasUpdates = false;
+
+		for (const field of fields) {
+			if (field.translated) {
+				const fieldName = `${collection.value.name}.${getFieldName(field)}`;
+				const dbFieldName = getFieldName(field, false);
+				const fieldValue = currentCollectionValue[dbFieldName];
+
+				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
+					if (!progress[lang]) continue;
+					const langValue = fieldValue?.[lang];
+					const isTranslated =
+						langValue !== null && langValue !== undefined && (typeof langValue === 'string' ? langValue.trim() !== '' : Boolean(langValue));
+
+					const wasTranslated = progress[lang]!.translated.has(fieldName);
+
+					if (isTranslated && !wasTranslated) {
+						progress[lang]!.translated.add(fieldName);
+						hasUpdates = true;
+					} else if (!isTranslated && wasTranslated) {
+						progress[lang]!.translated.delete(fieldName);
+						hasUpdates = true;
+					}
+				}
+			}
+		}
+
+		if (hasUpdates) {
+			// Correctly update the rune by assigning to its .value
+			translationProgress.value = progress;
 		}
 	});
 

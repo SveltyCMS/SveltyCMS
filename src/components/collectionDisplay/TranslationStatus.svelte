@@ -21,7 +21,7 @@
 	import { publicEnv } from '@root/config/public';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { contentLanguage, translationProgress, updateTranslationProgress } from '@stores/store.svelte';
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
@@ -103,7 +103,7 @@
 	// Initialize translation progress with all translatable fields
 	function initializeTranslationProgress(currentCollection: any) {
 		// console.log('[TranslationStatus] Initializing translation progress for collection:', currentCollection.name);
-		const currentProgress = translationProgress.value;
+		const currentProgress = { ...translationProgress.value }; // Create a mutable copy
 		let hasTranslatableFields = false;
 
 		// Initialize total fields for each language
@@ -129,12 +129,12 @@
 		// Show translation progress if there are translatable fields
 		currentProgress.show = hasTranslatableFields;
 		// console.log('[TranslationStatus] Translation progress show:', currentProgress.show, 'hasTranslatableFields:', hasTranslatableFields);
-		updateTranslationProgress(currentProgress);
+		translationProgress.value = currentProgress;
 	}
 
 	// Update translation progress based on current field values
 	function updateTranslationProgressFromFields(currentCollection: any, currentCollectionValue: Record<string, any>) {
-		const currentProgress = translationProgress.value;
+		const currentProgress = { ...translationProgress.value }; // Create a mutable copy
 		let hasUpdates = false;
 		for (const lang of availableLanguages) {
 			if (!currentProgress[lang]) continue;
@@ -166,7 +166,7 @@
 		}
 
 		if (hasUpdates) {
-			updateTranslationProgress(currentProgress);
+			translationProgress.value = currentProgress;
 			renderLanguageProgess();
 		}
 	}

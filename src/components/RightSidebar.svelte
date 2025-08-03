@@ -24,6 +24,9 @@ This component provides a streamlined interface for managing collection entries 
 -->
 
 <script lang="ts">
+	// Svelte debug for collection and collectionValue
+	//@ts-ignore
+	//@debug collection, collectionValue
 	// Correctly import the new, direct action handlers
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
 
@@ -34,7 +37,8 @@ This component provides a streamlined interface for managing collection entries 
 	import { page } from '$app/state';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
-	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
+	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// Utils & Components
 	import Toggles from './system/inputs/Toggles.svelte';
@@ -49,21 +53,91 @@ This component provides a streamlined interface for managing collection entries 
 	const modalStore = getModalStore();
 
 	const { user } = page.data;
+	const isAdmin = page.data.isAdmin || false;
 
 	// --- Wrapper functions for event handlers ---
 	const handleCloneEntry = () => cloneCurrentEntry(modalStore, toastStore);
-	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, toastStore);
+	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, toastStore, isAdmin);
 
-	// --- State Management ---
-	let isPublish = $state(false);
+	// --- Status Management using collection status directly (Svelte 5 runes) ---
+	const isPublish = $derived(() => {
+		// Use ?? to ensure we get the collection default if entry status is undefined/null
+		//@debug collection, collectionValue
+		const status = collectionValue.value?.status ?? collection.value?.status ?? StatusTypes.unpublish;
+		return status === StatusTypes.publish;
+	});
+	let isLoading = $state(false);
+
+	// Handle toggle changes - update collection status directly
+	async function handleStatusToggle(newValue: boolean) {
+		if (newValue === isPublish || isLoading) {
+			console.log('[RightSidebar] Toggle skipped', { newValue, isPublish, isLoading });
+			return false;
+		}
+
+		isLoading = true;
+		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
+		console.log('[RightSidebar] Status toggle clicked - updating to:', newStatus);
+
+		try {
+			// If entry exists, update via API
+			if (collectionValue.value?._id && collection.value?._id) {
+				const { updateEntryStatus } = await import('@src/utils/apiClient');
+				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
+
+				if (result.success) {
+					// Update the collection value store
+					collectionValue.update((current) => ({ ...current, status: newStatus }));
+
+					toastStore.trigger({
+						message: newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.',
+						background: 'variant-filled-success'
+					});
+
+					console.log('[RightSidebar] API update successful');
+					return true;
+				} else {
+					toastStore.trigger({
+						message: result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`,
+						background: 'variant-filled-error'
+					});
+
+					console.error('[RightSidebar] API update failed:', result.error);
+					return false;
+				}
+			} else {
+				// New entry - just update local state
+				collectionValue.update((current) => ({ ...current, status: newStatus }));
+				console.log('[RightSidebar] Local update for new entry');
+				return true;
+			}
+		} catch (e) {
+			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
+			toastStore.trigger({
+				message: errorMessage,
+				background: 'variant-filled-error'
+			});
+
+			console.error('[RightSidebar] Toggle error:', e);
+			return false;
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	const shouldDisableStatusToggle = $derived(
+		(mode.value === 'create' && !uiStateManager.isRightSidebarVisible.value) ||
+			(mode.value === 'edit' && !uiStateManager.isRightSidebarVisible.value && screenSize.value !== 'LG') ||
+			isLoading
+	);
+
 	let schedule = $state('');
 
+	// Handle schedule updates
 	$effect(() => {
 		const cv = collectionValue.value;
-		isPublish = cv?.status === StatusTypes.publish;
 		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
 	});
-
 	let dates = $derived({
 		created: collectionValue.value?.createdAt
 			? new Date(String(collectionValue.value.createdAt)).toLocaleDateString(getLocale(), {
@@ -98,8 +172,8 @@ This component provides a streamlined interface for managing collection entries 
 		const modalComponent: ModalComponent = { ref: ScheduleModal };
 		const modalSettings: ModalSettings = {
 			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
+			title: m.scheduler_title(),
+			body: m.scheduler_body(),
 			component: modalComponent,
 			response: (r: { date: string; action: string } | boolean) => {
 				if (typeof r === 'object' && r.date) {
@@ -110,6 +184,7 @@ This component provides a streamlined interface for managing collection entries 
 							status: StatusTypes.schedule,
 							_scheduled: new Date(r.date).getTime()
 						}));
+						console.log('[RightSidebar] Entry scheduled');
 					}
 				}
 			}
@@ -117,21 +192,25 @@ This component provides a streamlined interface for managing collection entries 
 		modalStore.trigger(modalSettings);
 	}
 
-	function toggleStatus() {
-		isPublish = !isPublish;
-		collectionValue.update((cv) => ({
-			...cv,
-			status: isPublish ? StatusTypes.publish : StatusTypes.unpublish,
-			updatedAt: new Date()
-		}));
-	}
-
 	async function saveData() {
 		if (!validationStore.isValid) {
-			console.warn('Save blocked due to validation errors.');
+			console.warn('[RightSidebar] Save blocked due to validation errors.');
+			toastStore.trigger({
+				message: m.validation_fix_before_save(),
+				background: 'variant-filled-error'
+			});
 			return;
 		}
 		const dataToSave = { ...collectionValue.value };
+
+		// Status rules: Schedule takes precedence, otherwise use current collection status
+		if (schedule && schedule.trim() !== '') {
+			dataToSave.status = StatusTypes.schedule;
+			dataToSave._scheduled = new Date(schedule).getTime();
+		} else {
+			dataToSave.status = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
+			delete dataToSave._scheduled;
+		}
 
 		// Set metadata for all saves
 		if (mode.value === 'create') {
@@ -139,14 +218,8 @@ This component provides a streamlined interface for managing collection entries 
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 
-		// Handle scheduling if set
-		if (schedule && schedule.trim() !== '') {
-			dataToSave._scheduled = new Date(schedule).getTime();
-		} else {
-			delete dataToSave._scheduled;
-		}
-
-		await saveEntry(dataToSave, toastStore, isPublish);
+		console.log('[RightSidebar] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
+		await saveEntry(dataToSave, toastStore);
 		handleUILayoutToggle();
 	}
 
@@ -173,7 +246,7 @@ This component provides a streamlined interface for managing collection entries 
 					class:opacity-50={!validationStore.isValid || !canWrite}
 					class:cursor-not-allowed={!validationStore.isValid || !canWrite}
 					aria-label="Save entry"
-					title={validationStore.isValid() ? 'Save changes' : 'Please fix validation errors before saving'}
+					title={validationStore.isValid ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
 					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
@@ -181,12 +254,14 @@ This component provides a streamlined interface for managing collection entries 
 
 				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
+						value={isPublish}
 						label={isPublish ? m.status_publish() : m.status_unpublish()}
 						labelColor={isPublish ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
-						bind:value={isPublish}
-						onChange={toggleStatus}
+						disabled={shouldDisableStatusToggle || isLoading}
+						on:change={(e) => handleStatusToggle(e.detail)}
+						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : isPublish ? m.status_publish() : m.status_unpublish()}
 					/>
 				</div>
 
@@ -245,11 +320,7 @@ This component provides a streamlined interface for managing collection entries 
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{#if user?.username}
-									<div class="-ml-1.5">
-										{user?.username}
-									</div>
-								{/if}
+								{collectionValue.value?.createdBy || user?.username || 'system'}
 							</span>
 						</div>
 					</div>
@@ -259,11 +330,7 @@ This component provides a streamlined interface for managing collection entries 
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{#if user?.username}
-										<div class="-ml-1.5">
-											{user?.username}
-										</div>
-									{/if}
+									{collectionValue.value.updatedBy || user?.username || 'system'}
 								</span>
 							</div>
 						</div>

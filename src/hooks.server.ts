@@ -26,8 +26,16 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { roles, initializeRoles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
 import type { User } from '@src/auth';
+
+// Dynamically import db stuff only when not building
+let dbModule, dbInitPromise;
+if (!building) {
+	dbModule = await import('@src/databases/db');
+	dbInitPromise = dbModule.dbInitPromise;
+} else {
+	dbInitPromise = Promise.resolve();
+}
 
 // Stores (removed unused imports)
 
@@ -238,15 +246,15 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 		let userCount = -1;
 		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
 
-		if (authServiceReady && auth) {
+		if (authServiceReady && dbModule.auth) {
 			try {
-				userCount = await auth.getUserCount(filter);
+				userCount = await dbModule.auth.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from auth service: ${err.message}`);
 			}
-		} else if (authAdapter && typeof authAdapter.getUserCount === 'function') {
+		} else if (dbModule.authAdapter && typeof dbModule.authAdapter.getUserCount === 'function') {
 			try {
-				userCount = await authAdapter.getUserCount(filter);
+				userCount = await dbModule.authAdapter.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from adapter: ${err.message}`);
 			}
@@ -277,7 +285,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 
 	const cacheStore = getCacheStore();
 	const now = Date.now();
-	const canUseCache = authServiceReady || auth !== null;
+	const canUseCache = authServiceReady || dbModule.auth !== null;
 
 	const validateUserTenant = (user: User): User | null => {
 		if (privateEnv.MULTI_TENANT && user.tenantId !== tenantId) {
@@ -327,7 +335,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 	}
 
 	// Validate session in database only if auth service is ready
-	if (!authServiceReady || !auth) {
+	if (!authServiceReady || !dbModule.auth) {
 		logger.debug(`Auth service not ready, skipping session validation for \x1b[34m${session_id}\x1b[0m`);
 		return null;
 	}
@@ -335,7 +343,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 	try {
 		// Use circuit breaker for database auth operations
 		let user = await authCircuitBreaker.execute(
-			() => auth.validateSession(session_id),
+			() => dbModule.auth.validateSession(session_id),
 			() => null
 		);
 
@@ -394,18 +402,18 @@ const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?
 	let data = null;
 	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
 
-	if (auth) {
+	if (dbModule.auth) {
 		try {
 			if (cacheKey === 'roles') {
-				data = await auth.getAllRoles();
+				data = await dbModule.auth.getAllRoles();
 				if (!data || data.length === 0) {
 					await initializeRoles();
 					data = roles;
 				}
 			} else if (cacheKey === 'users') {
-				data = await auth.getAllUsers(filter);
+				data = await dbModule.auth.getAllUsers(filter);
 			} else if (cacheKey === 'tokens') {
-				data = await auth.getAllTokens(filter.filter);
+				data = await dbModule.auth.getAllTokens(filter.filter);
 			}
 
 			if (data) {
@@ -480,8 +488,30 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Wait for database initialization
 		await dbInitPromise;
 
+		// Get the current dbAdapter from the module (it might have been updated during initialization)
+		const currentDbAdapter = dbModule.dbAdapter;
+
+		// Ensure dbAdapter is properly initialized before making it available
+		if (!currentDbAdapter) {
+			logger.error('Database adapter is null after initialization', {
+				dbModuleExists: !!dbModule,
+				dbAdapterFromModule: !!dbModule.dbAdapter,
+				dbInitPromiseCompleted: true
+			});
+			throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
+		}
+
+		// Make the dbAdapter available to all subsequent handlers and endpoints
+		locals.dbAdapter = currentDbAdapter;
+
+		// Debug: Log dbAdapter status
+		logger.debug('Database adapter status in hooks', {
+			dbAdapterExists: !!currentDbAdapter,
+			dbAdapterType: currentDbAdapter?.constructor?.name || 'null'
+		});
+
 		// Check if auth service is ready
-		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
+		const authServiceReady = dbModule.auth !== null && typeof dbModule.auth.validateSession === 'function';
 
 		const session_id = cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
@@ -568,6 +598,9 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			}
 		} else {
 			logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
+			if (!isPublic) {
+				throw error(503, 'Service Unavailable: Authentication service is initializing. Please try again shortly.');
+			}
 		}
 
 		return resolve(event);

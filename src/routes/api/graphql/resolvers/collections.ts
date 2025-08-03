@@ -22,11 +22,13 @@
 import widgets from '@widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
-import { dbAdapter } from '@src/databases/db';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { GraphQLFieldResolver } from 'graphql';
+import { privateEnv } from '@root/config/private';
 
 // Collection Manager
 import { contentManager } from '@src/content/ContentManager';
+import { modifyRequest } from '@api/collections/modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -40,7 +42,7 @@ import type { User } from '@src/auth/types';
  * Creates a clean GraphQL type name from collection info
  * Uses collection name + short UUID suffix for uniqueness and readability
  */
-function createCleanTypeName(collection: Collection): string {
+export function createCleanTypeName(collection: Collection): string {
 	// Get the last part of the collection name (after any slashes)
 	const baseName = collection.name.split('/').pop() || collection.name;
 	// Clean the name: remove spaces, special chars, and convert to PascalCase
@@ -103,7 +105,10 @@ interface CacheClient {
 // Registers collection schemas dynamically, now tenant-aware
 export async function registerCollections(tenantId?: string) {
 	await contentManager.initialize(tenantId);
-	const { collections } = await contentManager.getCollectionData(tenantId);
+	const collectionData = await contentManager.getCollectionData(tenantId);
+
+	// Ensure collections exist and is an array
+	const collections = collectionData?.collections || [];
 
 	logger.debug(
 		`Collections loaded for GraphQL:`,
@@ -218,7 +223,12 @@ export async function registerCollections(tenantId?: string) {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(cacheClient: CacheClient | null, privateEnv: { USE_REDIS?: boolean }, tenantId?: string) {
+export async function collectionsResolvers(
+	dbAdapter: DatabaseAdapter,
+	cacheClient: CacheClient | null,
+	_privateEnv: { USE_REDIS?: boolean },
+	tenantId?: string
+) {
 	const { resolvers, collections } = await registerCollections(tenantId);
 
 	for (const collection of collections as Collection[]) {
@@ -243,12 +253,12 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 			}
 
 			// Access validation is handled by hooks
+			// The dbAdapter is now passed as an argument, so the check is for its presence.
 			if (!dbAdapter) {
 				throw new Error('Database adapter is not initialized');
 			}
 
 			const { page = 1, limit = 50 } = args.pagination || {};
-			const skip = (page - 1) * limit;
 
 			try {
 				const cacheKey = `${context.tenantId || 'global'}:${collection._id}:${page}:${limit}`;
@@ -264,14 +274,36 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 					query.tenantId = context.tenantId;
 				}
 
-				const options = { limit, offset: skip };
-				const dbResult = await dbAdapter.crud.findMany(collection._id, query, options);
+				// Use query builder pattern consistent with REST API
+				const collectionName = `collection_${collection._id}`;
+				const queryBuilder = dbAdapter.queryBuilder(collectionName).where(query).paginate({ page, pageSize: limit });
 
-				if (!dbResult.success) {
-					throw new Error(`Database query failed: ${dbResult.error?.message || 'Unknown error'}`);
+				const result = await queryBuilder.execute();
+
+				if (!result.success) {
+					throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
 				}
 
-				const resultArray = (Array.isArray(dbResult.data) ? dbResult.data : []) as DocumentBase[];
+				const resultArray = (Array.isArray(result.data) ? result.data : []) as DocumentBase[];
+
+				// Apply modifyRequest processing for consistency with REST API
+				if (resultArray.length > 0) {
+					try {
+						await modifyRequest({
+							data: resultArray,
+							fields: collection.fields,
+							collection: collection,
+							user: context.user!,
+							type: 'GET'
+						});
+					} catch (modifyError) {
+						logger.warn(`GraphQL modifyRequest failed for collection ${collection._id}`, {
+							error: modifyError instanceof Error ? modifyError.message : 'Unknown error',
+							userId: context.user?._id,
+							itemCount: resultArray.length
+						});
+					}
+				}
 
 				resultArray.forEach((doc: DocumentBase) => {
 					doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();

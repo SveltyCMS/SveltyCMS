@@ -141,9 +141,9 @@
 		if (data.user) {
 			// Initialize avatar with user's avatar URL from database, fallback to default
 			if (data.user.avatar && data.user.avatar !== '/Default_User.svg') {
-				avatarSrc.set(data.user.avatar);
+				avatarSrc.value = data.user.avatar;
 			} else {
-				avatarSrc.set('/Default_User.svg');
+				avatarSrc.value = '/Default_User.svg';
 				console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
 			}
 		}

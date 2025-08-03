@@ -8,7 +8,7 @@ import { error, json } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
 // Database
-import { dbAdapter } from '@src/databases/db';
+// import { dbAdapter } from '@src/databases/db';
 
 // Auth
 
@@ -31,6 +31,7 @@ const MediaItemSchema = v.object({
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals }) => {
+	const dbAdapter = locals.dbAdapter;
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts

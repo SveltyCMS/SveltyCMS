@@ -1,27 +1,47 @@
 /**
  * @file src/databases/mongodb/models/systemPreferences.ts
- * @description MongoDB schema and model for System Preferences.
- *
- * This module defines a schema and model for system-wide preferences and settings.
+ * @description MongoDB schema and model for System Preferences, supporting user-specific dashboard layouts.
  */
-import type { DatabaseResult, SystemPreferences } from '@src/databases/dbInterface';
+
+import mongoose, { Schema } from 'mongoose';
+import type { DatabaseResult } from '@src/databases/dbInterface';
 import type { FilterQuery, Model } from 'mongoose';
-
-import mongoose from 'mongoose';
-const { Schema } = mongoose;
-
-// System Logger
+import type { Layout } from '@stores/systemPreferences.svelte';
+import type { DashboardWidgetConfig } from '@config/dashboard.types';
 import { logger } from '@utils/logger.svelte';
 
+// Widget schema aligned with +server.ts
+const WidgetSchema = new Schema<DashboardWidgetConfig>(
+	{
+		id: { type: String, required: true, unique: true },
+		component: { type: String, required: true },
+		label: { type: String, required: true },
+		icon: { type: String, required: true },
+		size: {
+			w: { type: Number, required: true },
+			h: { type: Number, required: true }
+		},
+		settings: { type: Schema.Types.Mixed, default: {} },
+		gridPosition: { type: Number, required: true }
+	},
+	{ _id: false }
+);
+
+// Layout schema
+const LayoutSchema = new Schema({
+	id: { type: String, required: true },
+	name: { type: String, required: true },
+	preferences: { type: [WidgetSchema], default: [] }
+});
+
 // System preferences schema
-export const systemPreferencesSchema = new Schema<SystemPreferences>(
+const SystemPreferencesSchema = new Schema(
 	{
 		_id: { type: String, required: true }, // UUID as per dbInterface.ts
-		key: { type: String, required: true, unique: true }, // Unique key for the preference
-		value: { type: Schema.Types.Mixed }, // Value of the preference, can be any type
-		scope: { type: String, enum: ['user', 'system', 'widget'], default: 'system' }, // Scope of the preference
 		userId: { type: String, ref: 'auth_users', required: false }, // Optional userId for user-scoped preferences
-		preferences: { type: Schema.Types.Mixed }, // <-- Add this line to allow saving preferences
+		layoutId: { type: String, required: true }, // Unique layout identifier
+		layout: { type: LayoutSchema, required: true }, // Structured layout data
+		scope: { type: String, enum: ['user', 'system', 'widget'], default: 'user' }, // Scope of the preference
 		createdAt: { type: Date, default: Date.now },
 		updatedAt: { type: Date, default: Date.now }
 	},
@@ -33,95 +53,69 @@ export const systemPreferencesSchema = new Schema<SystemPreferences>(
 );
 
 // Indexes
-systemPreferencesSchema.index({ key: 1, scope: 1, userId: 1 }, { unique: true }); // Unique index for key, scope, userId
-systemPreferencesSchema.index({ scope: 1, userId: 1 }); // Index for scope and userId queries
-systemPreferencesSchema.index({ scope: 1 }); // Index for scope-based queries
+SystemPreferencesSchema.index({ userId: 1, layoutId: 1, scope: 1 }, { unique: true }); // Unique per user and layout
+SystemPreferencesSchema.index({ scope: 1, userId: 1 }); // Index for scope and userId queries
+SystemPreferencesSchema.index({ scope: 1 }); // Index for scope-based queries
 
 // Static methods
-systemPreferencesSchema.statics = {
-	//Get preference by key and scope
-	async getPreferenceByKeyScope(key: string, scope: string, userId?: string): Promise<DatabaseResult<SystemPreferences | null>> {
+SystemPreferencesSchema.statics = {
+	// Get preference by layoutId and userId
+	async getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>> {
 		try {
-			const query: FilterQuery<SystemPreferences> = { key, scope };
-			if (scope === 'user' && userId) {
-				query.userId = userId;
+			const query: FilterQuery<any> = { userId, layoutId, scope: 'user' };
+			const doc = await this.findOne(query).lean().exec();
+			if (!doc) {
+				logger.debug(`No preference found for userId: ${userId}, layoutId: ${layoutId}`);
+				return { success: true, data: null };
 			}
-			const preferenceResult = (await this.findOne(query).lean().exec()) as SystemPreferences | null;
-			if (!preferenceResult) {
-				return { success: true, data: null }; // Explicitly return null for "not found" case
-			}
-			logger.debug(`Retrieved system preference by key: ${key}, scope: ${scope}, userId: ${userId || 'system'}`);
-			return { success: true, data: preferenceResult };
+			logger.debug(`Retrieved system preference for userId: ${userId}, layoutId: ${layoutId}`);
+			return { success: true, data: doc.layout };
 		} catch (error) {
-			logger.error(`Error retrieving system preference: ${error.message}`);
+			logger.error(`Error retrieving system preference for userId: ${userId}, layoutId: ${layoutId}`, error);
 			return {
 				success: false,
 				error: {
 					code: 'PREFERENCE_GET_ERROR',
-					message: `Failed to retrieve preference for key: ${key}`
+					message: `Failed to retrieve preference for userId: ${userId}, layoutId: ${layoutId}`
 				}
 			};
 		}
 	},
 
-	// Bulk delete preferences by scope
-	async bulkDeletePreferencesByScope(scope: string): Promise<DatabaseResult<number>> {
+	// Set preference for a specific layout
+	async setPreference(userId: string, layoutId: string, layout: Layout): Promise<DatabaseResult<void>> {
 		try {
-			const result = await this.deleteMany({ scope }).exec();
-			logger.info(`Bulk deleted ${result.deletedCount} system preferences for scope: ${scope}`);
-			return { success: true, data: result.deletedCount };
+			const query: FilterQuery<SystemPreferences> = { userId, layoutId, scope: 'user' };
+			// The _id for the document should be a combination of userId and layoutId for uniqueness
+			const documentId = `${userId}_${layoutId}`;
+			await this.updateOne(query, { $set: { layout, _id: documentId } }, { upsert: true }).exec();
+			logger.debug(`Set system preference for userId: ${userId}, layoutId: ${layoutId}`);
+			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error bulk deleting system preferences by scope: ${error.message}`);
+			logger.error(`Error setting system preference for userId: ${userId}, layoutId: ${layoutId}`, error);
 			return {
 				success: false,
 				error: {
-					code: 'PREFERENCE_BULK_DELETE_ERROR',
-					message: 'Failed to bulk delete system preferences',
-					details: error
+					code: 'PREFERENCE_SET_ERROR',
+					message: `Failed to set preference for userId: ${userId}, layoutId: ${layoutId}`
 				}
 			};
 		}
 	},
 
-	// Set a preference value
-	async setPreference(key: string, value: unknown, scope: string, userId?: string): Promise<DatabaseResult<void>> {
+	// Delete preferences for a user
+	async deletePreferencesByUser(userId: string): Promise<DatabaseResult<number>> {
 		try {
-			const query: FilterQuery<SystemPreferences> = { key, scope };
-			if (scope === 'user' && userId) {
-				query.userId = userId;
-			}
-			await this.updateOne(query, { $set: { value } }, { upsert: true }).exec();
-			logger.debug(`Set system preference for key: ${key}, scope: ${scope}, userId: ${userId || 'system'}`);
-			return { success: true, data: undefined };
+			const result = await this.deleteMany({ userId, scope: 'user' }).exec();
+			logger.info(`Deleted ${result.deletedCount} system preferences for userId: ${userId}`);
+			return { success: true, data: result.deletedCount };
 		} catch (error) {
-			logger.error(`Error setting system preference: ${error.message}`);
-			return {
-				success: false,
-				error: { code: 'PREFERENCE_SET_ERROR', message: `Failed to set preference for key: ${key}` }
-			};
-		}
-	},
-
-	// Delete a preference by key and scope
-	async deletePreference(key: string, scope: string, userId?: string): Promise<DatabaseResult<void>> {
-		try {
-			const query: FilterQuery<SystemPreferences> = { key, scope };
-			if (scope === 'user' && userId) {
-				query.userId = userId;
-			}
-			const result = await this.deleteOne(query).exec();
-			if (result.deletedCount === 0) {
-				logger.warn(`Preference with key "${key}" not found for deletion (scope: ${scope}, userId: ${userId || 'system'}).`);
-			}
-			logger.debug(`Deleted system preference for key: ${key}, scope: ${scope}, userId: ${userId || 'system'}`);
-			return { success: true, data: undefined };
-		} catch (error) {
-			logger.error(`Error deleting system preference: ${error.message}`);
+			logger.error(`Error deleting system preferences for userId: ${userId}`, error);
 			return {
 				success: false,
 				error: {
 					code: 'PREFERENCE_DELETE_ERROR',
-					message: `Failed to delete preference for key: ${key}`
+					message: `Failed to delete preferences for userId: ${userId}`
 				}
 			};
 		}
@@ -130,5 +124,4 @@ systemPreferencesSchema.statics = {
 
 // Create and export the SystemPreferencesModel
 export const SystemPreferencesModel =
-	(mongoose.models?.SystemPreferences as typeof Model<SystemPreferences> | undefined) ||
-	mongoose.model<SystemPreferences>('SystemPreferences', systemPreferencesSchema);
+	(mongoose.models?.SystemPreferences as Model<any> | undefined) || mongoose.model('SystemPreferences', SystemPreferencesSchema);

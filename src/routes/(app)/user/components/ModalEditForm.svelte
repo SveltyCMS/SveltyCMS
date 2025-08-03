@@ -115,7 +115,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		if (formData.username !== originalData.username) {
 			changes.push('username');
 		}
-		if (formData.role !== originalData.role) {
+		if (!isOwnProfile && formData.role !== originalData.role) {
 			const oldRole = roles?.find((r: any) => r._id === originalData.role)?.name || originalData.role;
 			const newRole = roles?.find((r: any) => r._id === formData.role)?.name || formData.role;
 			changes.push(`role (${oldRole} → ${newRole})`);
@@ -129,9 +129,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 			user_id: formData.user_id,
 			username: formData.username,
 			email: formData.email,
-			role: formData.role,
 			_changes: changes // Include changes for the response handler
 		};
+
+		// Only include role if user is not editing their own profile
+		if (!isOwnProfile) {
+			submitData.role = formData.role;
+		}
 
 		// Only include password fields if they're not empty
 		if (formData.password && formData.password.trim() !== '') {
@@ -286,27 +290,46 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			<!-- Role Select -->
 			<PermissionGuard config={modaleEditFormConfig} silent={true}>
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
-					<div class="flex-auto">
-						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-							{#if roles && roles.length > 0}
-								{#each roles as r}
-									<button
-										type="button"
-										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										onclick={() => (formData.role = r._id)}
-									>
-										{#if formData.role === r._id}
-											<span><iconify-icon icon="fa:check"></iconify-icon></span>
-										{/if}
-										<span class="capitalize">{r.name}</span>
-									</button>
-								{/each}
-							{/if}
+				{#if !isOwnProfile}
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+						<div class="flex-auto">
+							<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+								{#if roles && roles.length > 0}
+									{#each roles as r}
+										<button
+											type="button"
+											class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+											onclick={() => (formData.role = r._id)}
+										>
+											{#if formData.role === r._id}
+												<span><iconify-icon icon="fa:check"></iconify-icon></span>
+											{/if}
+											<span class="capitalize">{r.name}</span>
+										</button>
+									{/each}
+								{/if}
+							</div>
 						</div>
 					</div>
-				</div>
+				{:else}
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+						<div class="flex-auto">
+							<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+								<div class="flex items-center">
+									<iconify-icon icon="mdi:information" width="16" class="mr-2 flex-shrink-0"></iconify-icon>
+									<div>
+										<strong>Current Role:</strong>
+										{roles?.find((r: any) => r._id === formData.role)?.name || formData.role}
+										<br />
+										<em>You cannot change your own role for security reasons.</em>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</PermissionGuard>
 		</form>
 		<footer class="modal-footer {parent.regionFooter} flex {showDeleteButton ? 'justify-between' : 'justify-end'}">

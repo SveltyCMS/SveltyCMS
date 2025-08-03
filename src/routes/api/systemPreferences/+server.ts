@@ -43,8 +43,9 @@ export const GET = async ({ locals, url }) => {
 	const widgetId = url.searchParams.get('widgetId');
 	if (widgetId) {
 		try {
-			// Pass tenantId to the adapter method
-			const state = await dbAdapter.systemPreferences.getWidgetState(userId, widgetId, tenantId);
+			// Use "default" as the default layout ID for widget state
+			const layoutId = url.searchParams.get('layoutId') || 'default';
+			const state = await dbAdapter.systemPreferences.getWidgetState(userId, layoutId, widgetId);
 			return json({ state });
 		} catch (e) {
 			logger.error('Failed to load widget state:', { error: e, tenantId });
@@ -53,11 +54,13 @@ export const GET = async ({ locals, url }) => {
 	} // Default system preferences load
 
 	try {
-		// Pass tenantId to the adapter method
-		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId, tenantId); // Return a flat array of widgets instead of nested preferences
+		// Use "default" as the default layout ID
+		const layoutId = url.searchParams.get('layoutId') || 'default';
+		// Get the layout from the database
+		const layout = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
 
 		const response = {
-			preferences: preferences || []
+			preferences: layout?.preferences || []
 		};
 		return json(response);
 	} catch (e) {
@@ -91,10 +94,16 @@ export const POST = async ({ request, locals }) => {
 		}
 	} // Default preferences save
 
-	const { preferences } = data;
+	const { preferences, layoutId = 'default' } = data;
 	try {
-		// Pass tenantId to the adapter method
-		await dbAdapter.systemPreferences.setUserPreferences(userId, preferences, tenantId);
+		// Create a layout object as expected by the database
+		const layout = {
+			id: layoutId,
+			name: layoutId === 'default' ? 'Default Layout' : layoutId,
+			preferences: preferences || []
+		};
+		// Save the user preferences
+		await dbAdapter.systemPreferences.setUserPreferences(userId, layoutId, layout);
 		return json({ success: true });
 	} catch (e) {
 		logger.error('Failed to save system preferences:', { error: e, tenantId });

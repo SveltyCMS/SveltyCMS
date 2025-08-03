@@ -175,8 +175,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
 
 	if (missingVars.length > 0) {
-		logger.error('SMTP configuration is incomplete in /api/sendMail. Missing variables:', { missingVars });
-		return createErrorResponse(`Server SMTP configuration is incomplete. Email sending aborted.`, 500);
+		logger.warn('SMTP configuration incomplete. Email sending skipped.', {
+			missingVars,
+			tenantId
+		});
+		return json({
+			success: true,
+			message: 'Email sending skipped due to incomplete SMTP configuration',
+			dev_mode: true,
+			missing_config: missingVars
+		});
 	}
 	// Enhance props with languageTag if your templates expect it
 

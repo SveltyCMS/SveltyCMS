@@ -16,7 +16,6 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
 // Databases
-import { dbAdapter } from '@src/databases/db';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -69,6 +68,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			throw error(404, 'Collection not found');
 		}
 
+		const dbAdapter = locals.dbAdapter;
 		const collectionName = `collection_${schema._id}`;
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
 		if (privateEnv.MULTI_TENANT) {
@@ -200,12 +200,20 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, { error: modifyError.message });
 		}
 
+		const dbAdapter = locals.dbAdapter;
 		const collectionName = `collection_${schema._id}`;
+		// First verify the entry exists and belongs to the current tenant
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
 		if (privateEnv.MULTI_TENANT) {
 			query.tenantId = tenantId;
 		}
-		const result = await dbAdapter.crud.update(collectionName, query, dataArray[0]);
+
+		const verificationResult = await dbAdapter.crud.findOne(collectionName, query);
+		if (!verificationResult.success || !verificationResult.data) {
+			throw error(404, 'Entry not found or access denied');
+		}
+
+		const result = await dbAdapter.crud.update(collectionName, params.entryId, dataArray[0]);
 
 		if (!result.success) {
 			throw new Error(result.error.message);
@@ -252,12 +260,21 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(404, 'Collection not found');
 		}
 
+		const dbAdapter = locals.dbAdapter;
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
+
+		// First verify the entry exists and belongs to the current tenant
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
 		if (privateEnv.MULTI_TENANT) {
 			query.tenantId = tenantId;
 		}
-		const result = await dbAdapter.crud.delete(normalizedCollectionId, query);
+
+		const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query);
+		if (!verificationResult.success || !verificationResult.data) {
+			throw error(404, 'Entry not found or access denied');
+		}
+
+		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId);
 
 		if (!result.success) {
 			if (result.error.message.includes('not found')) {

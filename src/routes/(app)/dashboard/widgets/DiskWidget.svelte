@@ -1,5 +1,9 @@
 <!--
-@file src/routes/(app)/dashboard/widgets/DiskWidget.svelte
+@file src/routes/	export const widgetMeta = {
+		name: 'Disk Usage',
+		icon: 'mdi:harddisk',
+		defaultSize: { w: 1, h: 2 }
+	};/dashboard/widgets/DiskWidget.svelte
 @component
 **A reusable widget component for displaying disk usage information with improved rendering and error handling**
 
@@ -18,18 +22,12 @@ This widget fetches and displays real-time disk usage data, including:
 ### Features:
 - Responsive doughnut chart visualization
 - Theme-aware rendering (light/dark mode support)
-- Real-time data updates
-- Customizable widget properties (size, position, etc.)
-- Improved error handling and data validation
-- Proper lifecycle management
-- Enhanced debugging and logging
 -->
-
 <script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Disk Usage',
-		icon: 'mdi:harddisk',
-		defaultSize: '1/4'
+		icon: 'mdi:disk',
+		defaultSize: { w: 1, h: 2 }
 	};
 </script>
 

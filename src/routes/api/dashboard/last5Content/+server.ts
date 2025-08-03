@@ -121,14 +121,53 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		});
 
 		// 6. Take only the requested limit and transform to final format
-		const recentContent = allEntries.slice(0, query.limit).map((entry) => ({
-			id: entry._id?.toString() || entry.id || crypto.randomUUID(),
-			title: entry.title || entry.name || entry.label || 'Untitled',
-			collection: entry.collectionName,
-			createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
-			createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
-			status: entry.status || entry.state || StatusTypes.publish
-		}));
+		const limitedEntries = allEntries.slice(0, query.limit);
+
+		// 7. Get unique user IDs for username lookup
+		const userIds = [...new Set(limitedEntries.map((entry) => entry.createdBy || entry.author || entry.creator).filter(Boolean))];
+
+		// 8. Lookup usernames
+		const userLookup = new Map();
+		if (userIds.length > 0) {
+			try {
+				const userResult = await dbAdapter.crud.findMany(
+					'auth_users',
+					{ _id: { $in: userIds } },
+					{ fields: ['_id', 'username', 'email', 'firstName', 'lastName'] }
+				);
+
+				if (userResult.success && userResult.data) {
+					userResult.data.forEach((user) => {
+						// Create display name - prefer username, fallback to firstName + lastName, then email
+						let displayName = user.username;
+						if (!displayName && (user.firstName || user.lastName)) {
+							displayName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+						}
+						if (!displayName) {
+							displayName = user.email?.split('@')[0] || 'Unknown';
+						}
+						userLookup.set(user._id.toString(), displayName);
+					});
+				}
+			} catch (err) {
+				logger.warn('Failed to lookup usernames for content:', err);
+			}
+		}
+
+		// 9. Transform to final format with usernames
+		const recentContent = limitedEntries.map((entry) => {
+			const userId = entry.createdBy || entry.author || entry.creator || 'Unknown';
+			const username = userLookup.get(userId?.toString()) || 'Unknown';
+
+			return {
+				id: entry._id?.toString() || entry.id || crypto.randomUUID(),
+				title: entry.title || entry.name || entry.label || 'Untitled',
+				collection: entry.collectionName,
+				createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
+				createdBy: username,
+				status: entry.status || entry.state || StatusTypes.publish
+			};
+		});
 
 		const validatedData = v.parse(v.array(ContentItemSchema), recentContent);
 

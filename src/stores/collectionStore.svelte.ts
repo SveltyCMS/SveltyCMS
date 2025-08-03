@@ -12,7 +12,7 @@
 import { store } from '@utils/reactivity.svelte';
 import type { Schema } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
-import type { ContentNode } from '../databases/dbInterface';
+import type { ContentNode } from '../databases/types';
 import { SvelteMap } from 'svelte/reactivity';
 
 // Define types
@@ -48,7 +48,8 @@ export const collectionValue = {
 		collectionValueState = newValue;
 	},
 	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
-		collectionValueState = fn(collectionValueState);
+		const newValue = fn(collectionValueState);
+		collectionValueState = newValue;
 	}
 };
 
@@ -62,7 +63,8 @@ export const mode = {
 		modeState = newMode;
 	},
 	update: (fn: (value: ModeType) => ModeType) => {
-		modeState = fn(modeState);
+		const newMode = fn(modeState);
+		modeState = newMode;
 	}
 };
 

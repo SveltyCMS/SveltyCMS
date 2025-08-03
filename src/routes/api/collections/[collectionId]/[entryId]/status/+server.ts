@@ -14,11 +14,9 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
-// Databases
-import { dbAdapter } from '@src/databases/db';
-
 // Auth
 import { contentManager } from '@src/content/ContentManager';
+import { StatusTypes } from '@src/content/types';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -59,11 +57,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Status is required');
 		}
 
-		const validStatuses = ['draft', 'publish', 'unpublish', 'schedule', 'test', 'archive'];
+		const validStatuses = Object.values(StatusTypes);
 		if (!validStatuses.includes(status)) {
 			throw error(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
 		}
 
+		const dbAdapter = locals.dbAdapter;
 		let results = [];
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 		const updateData = { status, updatedBy: user._id };
@@ -77,7 +76,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 			// --- MULTI-TENANCY SECURITY CHECK ---
 			// Verify all entries belong to the current tenant before updating.
-			const verificationResult = await dbAdapter.crud.find(normalizedCollectionId, query);
+			const verificationResult = await dbAdapter.crud.findMany(normalizedCollectionId, query);
 			if (!verificationResult.success || verificationResult.data.length !== entries.length) {
 				logger.warn(`Attempt to update status for entries outside of tenant`, {
 					userId: user._id,
@@ -94,13 +93,19 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				throw error(500, result.error.message);
 			}
 		} else {
-			// Single entry status update
+			// Single entry status update - verify entry exists and belongs to tenant first
 			const query = { _id: params.entryId };
 			if (privateEnv.MULTI_TENANT) {
 				query.tenantId = tenantId;
 			}
 
-			const result = await dbAdapter.crud.update(normalizedCollectionId, query, updateData);
+			// Verify the entry exists and belongs to the current tenant
+			const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query);
+			if (!verificationResult.success || !verificationResult.data) {
+				throw error(404, 'Entry not found or access denied');
+			}
+
+			const result = await dbAdapter.crud.update(normalizedCollectionId, params.entryId, updateData);
 
 			if (!result.success) {
 				throw error(500, result.error.message);

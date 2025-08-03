@@ -103,7 +103,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					canvas.height = img.height * ratio;
 
 					ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-					avatarSrc.set(canvas.toDataURL('image/jpeg', 0.8));
+					avatarSrc.value = canvas.toDataURL('image/jpeg', 0.8);
 				};
 
 				img.src = URL.createObjectURL(file);
@@ -112,7 +112,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				const fileReader = new FileReader();
 				fileReader.onload = (e) => {
 					if (e.target instanceof FileReader) {
-						avatarSrc.set(e.target.result as string);
+						avatarSrc.value = e.target.result as string;
 					}
 				};
 				fileReader.readAsDataURL(file);
@@ -120,7 +120,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		} catch (error) {
 			console.error('Error creating preview:', error);
 			// Fallback to default avatar
-			avatarSrc.set('/Default_User.svg');
+			avatarSrc.value = '/Default_User.svg';
 		}
 	}
 
@@ -224,7 +224,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 			if (response.status === 200) {
 				console.debug(response);
-				avatarSrc.set(response.data.avatarUrl);
+				avatarSrc.value = response.data.avatarUrl;
 				toastStore.trigger({
 					message: 'Avatar updated successfully!',
 					background: 'variant-filled-success',
@@ -252,7 +252,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			const response = await axios.delete('/api/user/deleteAvatar');
 
 			if (response.status === 200) {
-				avatarSrc.set('/Default_User.svg');
+				avatarSrc.value = '/Default_User.svg';
 
 				toastStore.trigger({
 					message: '<iconify-icon icon="radix-icons:avatar" color="white" width="24" class="mr-1"></iconify-icon> Avatar Deleted',

@@ -4,11 +4,12 @@
 Displays real-time system metrics integrated with the dashboard grid system
 -->
 
-<script lang="ts" context="module">
+<script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Performance Monitor',
 		icon: 'mdi:chart-line',
-		description: 'Track system performance metrics'
+		description: 'Track system performance metrics',
+		defaultSize: { w: 1, h: 2 }
 	};
 </script>
 
@@ -30,29 +31,21 @@ Displays real-time system metrics integrated with the dashboard grid system
 	}
 
 	const {
-		currentSize = '1/2' as '1/4' | '1/2' | '3/4' | 'full',
-		onSizeChange = (_newSize: '1/4' | '1/2' | '3/4' | 'full') => {},
-		onPreviewSizeChange = (_previewSize: '1/4' | '1/2' | '3/4' | 'full') => {},
-		rowSpan = 1,
-		onRowSpanChange = (_newRowSpan: number) => {},
-		onDragStart = (_event: MouseEvent | TouchEvent, _element: HTMLElement) => {},
-		onCloseRequest = () => {},
-		gridCellWidth = 0,
-		ROW_HEIGHT = 200,
-		GAP_SIZE = 16,
-		...rest
+		label = 'Performance Monitor',
+		theme = 'light',
+		icon = 'mdi:chart-line',
+		widgetId = undefined,
+		size = { w: 1, h: 1 },
+		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onCloseRequest = () => {}
 	} = $props<{
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-		onPreviewSizeChange?: (previewSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-		rowSpan?: number;
-		onRowSpanChange?: (newRowSpan: number) => void;
-		onDragStart?: (event: MouseEvent | TouchEvent, element: HTMLElement) => void;
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: { w: number; h: number };
+		onSizeChange?: (newSize: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
-		gridCellWidth?: number;
-		ROW_HEIGHT?: number;
-		GAP_SIZE?: number;
-		[key: string]: any;
 	}>();
 
 	// Performance indicator color based on metrics
@@ -109,21 +102,15 @@ Displays real-time system metrics integrated with the dashboard grid system
 </script>
 
 <BaseWidget
-	label="Performance Monitor"
-	icon="mdi:chart-line"
+	{label}
+	{theme}
 	endpoint="/api/dashboard/metrics?detailed=true"
 	pollInterval={10000}
-	{currentSize}
+	{icon}
+	{widgetId}
+	{size}
 	{onSizeChange}
-	{onPreviewSizeChange}
-	{rowSpan}
-	{onRowSpanChange}
-	{onDragStart}
 	{onCloseRequest}
-	{gridCellWidth}
-	{ROW_HEIGHT}
-	{GAP_SIZE}
-	{...rest}
 >
 	{#snippet children({ data })}
 		{@const metrics = data as HealthMetrics | null}

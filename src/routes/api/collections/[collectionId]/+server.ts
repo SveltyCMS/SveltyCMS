@@ -17,7 +17,6 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
 // Databases
-import { dbAdapter } from '@src/databases/db';
 import type { BaseEntity } from '@src/databases/dbInterface';
 
 // Auth
@@ -33,6 +32,15 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const startTime = performance.now();
 	const endpoint = `GET /api/collections/${params.collectionId}`;
 	const { user, tenantId } = locals; // User is guaranteed to exist due to hooks protection
+
+	// If auth service is not ready, user might be null
+	if (!user) {
+		logger.warn(`${endpoint} - Unauthorized access due to unavailable user object`, {
+			collectionId: params.collectionId,
+			tenantId
+		});
+		throw error(401, 'Unauthorized');
+	}
 
 	// Ensure roles are initialized
 	await initializeRoles();
@@ -110,6 +118,17 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			finalFilter = { ...baseFilter, status: 'published' };
 		}
 		logger.debug(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
+
+		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized in locals', {
+				hasLocals: !!locals,
+				localKeys: Object.keys(locals || {}),
+				collection: schema._id,
+				userId: user._id
+			});
+			throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
+		}
 
 		const collectionName = `collection_${schema._id}`;
 		const query = dbAdapter
@@ -233,12 +252,47 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Unsupported content type');
 		} // Prepare data with metadata and tenantId
 
+		// Map form field names to database field names
+		const mappedBody = {};
+
+		// Create a mapping from form field keys to database field names
+		schema.fields.forEach((field) => {
+			// The field key used in forms is typically the lowercase label without spaces
+			const formFieldKey = field.label.toLowerCase().replace(/\s+/g, '');
+			const dbFieldName = field.db_fieldName || formFieldKey;
+
+			// Check if this form field exists in the body
+			if (formFieldKey in body) {
+				mappedBody[dbFieldName] = body[formFieldKey];
+			}
+			// Also check for exact label match
+			else if (field.label in body) {
+				mappedBody[dbFieldName] = body[field.label];
+			}
+		});
+
+		// Add any remaining fields that don't need mapping
+		Object.entries(body).forEach(([key, value]) => {
+			const formFieldKey = key.toLowerCase().replace(/\s+/g, '');
+			const hasMapping = schema.fields.some((field) => field.label.toLowerCase().replace(/\s+/g, '') === formFieldKey || field.label === key);
+
+			if (!hasMapping) {
+				mappedBody[key] = value;
+			}
+		});
+
+		logger.debug('Field mapping completed', {
+			originalBody: body,
+			mappedBody: mappedBody,
+			collection: schema._id
+		});
+
 		const entryData = {
-			...body,
+			...mappedBody,
 			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId
 			createdBy: user._id,
 			updatedBy: user._id,
-			status: body.status || 'draft'
+			status: body.status || schema.status || 'draft' // Respect collection's default status
 		}; // Apply modifyRequest for pre-processing
 
 		const dataArray = [entryData];
@@ -258,6 +312,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			});
 		} // Use the generic CRUD insert operation
 
+		const dbAdapter = locals.dbAdapter;
 		const collectionName = `collection_${schema._id}`;
 		const result = await dbAdapter.crud.insert(collectionName, dataArray[0]);
 

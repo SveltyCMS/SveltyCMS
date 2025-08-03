@@ -96,6 +96,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			icon: currentCollection?.icon,
 			label: currentCollection?.label,
 			description: currentCollection?.description,
+			status: currentCollection?.status, // Include the collection status
 			fields:
 				currentCollection?.fields?.map((field) => ({
 					label: field.label,

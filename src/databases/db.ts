@@ -370,8 +370,11 @@ async function initializeSystem(): Promise<void> {
 	}
 }
 
-// Automatically initialize the system, but only at runtime
-if (!building) {
+// Automatically initialize the system, but only at runtime.
+// We check process.argv to detect if a build-related command is running.
+const isBuildProcess = typeof process !== 'undefined' && process.argv.some((arg) => ['build', 'preview', 'check'].includes(arg));
+
+if (!building && !isBuildProcess) {
 	if (!initializationPromise) {
 		logger.debug('Creating system initialization promise...');
 		initializationPromise = initializeSystem(); // Handle initialization errors

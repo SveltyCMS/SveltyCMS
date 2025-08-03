@@ -24,16 +24,11 @@ Features:
 - Proper lifecycle management
 - Enhanced debugging and logging
 -->
-<script lang="ts" context="module">
+<script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Memory Usage',
 		icon: 'mdi:memory',
-		defaultW: 1,
-		defaultH: 1,
-		validSizes: [
-			{ w: 1, h: 1 },
-			{ w: 2, h: 2 }
-		]
+		defaultSize: { w: 1, h: 2 }
 	};
 </script>
 
@@ -51,44 +46,16 @@ Features:
 		theme = 'light',
 		icon = 'mdi:memory',
 		widgetId = undefined,
-
-		// New sizing props
-		currentSize = '1/4',
-		availableSizes = ['1/4', '1/2', '3/4', 'full'],
-		onSizeChange = (newSize) => {},
-
-		// Drag props
-		draggable = true,
-		onDragStart = (_event: MouseEvent | TouchEvent, _element: HTMLElement) => {},
-
-		// Legacy props
-		gridCellWidth = 0,
-		ROW_HEIGHT = 0,
-		GAP_SIZE = 0,
-		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		size = { w: 1, h: 2 },
+		onSizeChange = (newSize: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-
-		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// Drag props
-		draggable?: boolean;
-		onDragStart?: (event: MouseEvent | TouchEvent, element: HTMLElement) => void;
-
-		// Legacy props
-		gridCellWidth?: number;
-		ROW_HEIGHT?: number;
-		GAP_SIZE?: number;
-		resizable?: boolean;
-		onResizeCommitted?: (spans: { w: number; h: number }) => void;
+		size?: { w: number; h: number };
+		onSizeChange?: (newSize: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -109,13 +76,11 @@ Features:
 	$effect(() => {
 		if (!chartCanvas || !currentData?.memoryInfo?.total) return;
 
-		const { usedMemMb, freeMemMb, usedMemPercentage, freeMemPercentage, totalMemMb } = currentData.memoryInfo.total;
+		const { usedMemMb, freeMemMb, usedMemPercentage } = currentData.memoryInfo.total;
 
 		const plainUsedMem = Number(usedMemMb) || 0;
 		const plainFreeMem = Number(freeMemMb) || 0;
 		const usedPercent = Number(usedMemPercentage) || 0;
-		const freePercent = Number(freeMemPercentage) || 0;
-		const totalMem = Number(totalMemMb) || 0;
 
 		if (chart) {
 			chart.data.datasets[0].data = [plainUsedMem, plainFreeMem];
@@ -137,12 +102,12 @@ Features:
 					ctx.textBaseline = 'middle';
 
 					// Main percentage text
-					ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+					ctx.font = `bold ${size.w > 1 ? '20px' : '16px'} system-ui, -apple-system, sans-serif`;
 					ctx.fillStyle = theme === 'dark' ? '#f9fafb' : '#111827';
 					ctx.fillText(`${usedPercent.toFixed(1)}%`, width / 2, height / 2 - 8);
 
 					// Subtitle text
-					ctx.font = '12px system-ui, -apple-system, sans-serif';
+					ctx.font = `${size.w > 1 ? '12px' : '10px'} system-ui, -apple-system, sans-serif`;
 					ctx.fillStyle = theme === 'dark' ? '#9ca3af' : '#6b7280';
 					ctx.fillText('Used', width / 2, height / 2 + 12);
 
@@ -214,26 +179,8 @@ Features:
 	});
 </script>
 
-<BaseWidget
-	{label}
-	{theme}
-	endpoint="/api/dashboard/systemInfo?type=memory"
-	pollInterval={10000}
-	{icon}
-	{widgetId}
-	size={currentSize}
-	{availableSizes}
-	{onSizeChange}
-	{draggable}
-	{onDragStart}
-	{gridCellWidth}
-	{ROW_HEIGHT}
-	{GAP_SIZE}
-	{resizable}
-	{onResizeCommitted}
-	{onCloseRequest}
->
-	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
+<BaseWidget {label} {theme} endpoint="/api/dashboard/systemInfo?type=memory" pollInterval={10000} {icon} {onCloseRequest}>
+	{#snippet children({ data: fetchedData }: { data: any | undefined })}
 		{#if fetchedData?.memoryInfo?.total}
 			{@const totalMemGB = (fetchedData.memoryInfo.total.totalMemMb || 0) / 1024}
 			{@const usedMemGB = (fetchedData.memoryInfo.total.usedMemMb || 0) / 1024}
@@ -284,7 +231,7 @@ Features:
 
 				<h3 class="text-xs font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} text-center">Memory Statistics</h3>
 				<div class="flex-shrink-0 space-y-3">
-					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
+					<div class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
 						<div class="flex flex-col text-center">
 							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
 							<span class="text-sm font-semibold">{totalMemGB.toFixed(1)} GB</span>
@@ -300,7 +247,7 @@ Features:
 							>
 						</div>
 
-						{#if currentSize !== '1/4'}
+						{#if size.w !== 1}
 							<div class="flex flex-col space-y-1 text-center">
 								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
 								<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeMemGB.toFixed(1)} GB</span>

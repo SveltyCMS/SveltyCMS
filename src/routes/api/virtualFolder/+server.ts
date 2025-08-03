@@ -9,7 +9,7 @@ import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
 
 // Database
-import { dbAdapter } from '@src/databases/db';
+// import { dbAdapter } from '@src/databases/db';
 
 // Permission checking
 
@@ -21,6 +21,7 @@ import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
 // GET: List all virtual folders for the current tenant
 export const GET: RequestHandler = async ({ locals }) => {
+	const dbAdapter = locals.dbAdapter;
 	const { user, tenantId } = locals;
 	try {
 		// Authentication is handled by hooks.server.ts
@@ -54,6 +55,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 // POST: Create a new virtual folder for the current tenant
 export const POST: RequestHandler = async ({ request, locals }) => {
+	const dbAdapter = locals.dbAdapter;
 	const { user, tenantId } = locals;
 	try {
 		// Authentication is handled by hooks.server.ts

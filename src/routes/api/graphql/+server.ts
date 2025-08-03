@@ -10,15 +10,15 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
+import type { RequestEvent } from '@sveltejs/kit';
 import { building } from '$app/environment';
 
 // GraphQL Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
-import { registerCollections, collectionsResolvers } from './resolvers/collections';
+import { registerCollections, collectionsResolvers, createCleanTypeName } from './resolvers/collections';
 import { userTypeDefs, userResolvers } from './resolvers/users';
 import { mediaTypeDefs, mediaResolvers } from './resolvers/media';
-import { dbAdapter } from '@src/databases/db';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 
 // Redis
 import { createClient } from 'redis';
@@ -32,22 +32,6 @@ import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Creates a clean GraphQL type name from collection info
-function createCleanTypeName(collection: { name: string; _id: string }): string {
-	// Get the last part of the collection name (after any slashes)
-	const baseName = collection.name.split('/').pop() || collection.name;
-	// Clean the name: remove spaces, special chars, and convert to PascalCase
-	const cleanName = baseName
-		.replace(/[^a-zA-Z0-9]/g, '')
-		.replace(/^[0-9]/, 'Collection$&') // Handle names starting with numbers
-		.replace(/^\w/, (c) => c.toUpperCase()); // Ensure starts with uppercase
-
-	// Use first 8 characters of UUID for uniqueness while keeping it readable
-	const shortId = collection._id.substring(0, 8);
-
-	return `${cleanName}_${shortId}`;
-}
 
 // Define the access management permission configuration
 const accessManagementPermission = {
@@ -103,11 +87,18 @@ async function cleanupRedis() {
 }
 
 // Setup GraphQL schema and resolvers
-async function setupGraphQL(tenantId?: string) {
+async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	try {
 		logger.info('Setting up GraphQL schema and resolvers', { tenantId });
 
 		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections(tenantId);
+
+		// Ensure collections is properly formatted
+		const collectionsArray = Array.isArray(collections) ? collections : Object.values(collections || {});
+		logger.debug('Collections array for GraphQL', {
+			collectionsCount: collectionsArray.length,
+			collectionNames: collectionsArray.map((c) => c?.name).filter(Boolean)
+		});
 
 		const typeDefs = `
             input PaginationInput {
@@ -128,7 +119,8 @@ async function setupGraphQL(tenantId?: string) {
             }
             
             type Query {
-                ${Object.values(collections)
+                ${collectionsArray
+									.filter((collection) => collection && collection.name && collection._id)
 									.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
 									.join('\n')}
                 users: [User]
@@ -141,7 +133,7 @@ async function setupGraphQL(tenantId?: string) {
             }
         `;
 
-		const collectionsResolversObj = await collectionsResolvers(cacheClient, privateEnv);
+		const collectionsResolversObj = await collectionsResolvers(dbAdapter, cacheClient, privateEnv, tenantId);
 
 		const resolvers = {
 			Query: {
@@ -171,35 +163,80 @@ async function setupGraphQL(tenantId?: string) {
 				)
 		};
 
-		const yogaApp = createYoga<RequestHandler>({
+		// Create schema and return GraphQL Yoga app
+		const yogaApp = createYoga({
 			schema: createSchema({
 				typeDefs,
 				resolvers
 			}),
 			graphqlEndpoint: '/api/graphql',
-			fetchAPI: globalThis,
-			context: async (event: RequestEvent) => {
-				logger.debug('GraphQL context created', { userId: event.locals.user?._id, tenantId: event.locals.tenantId }); // Pass the user and tenantId to all resolvers
-				return { user: event.locals.user, tenantId: event.locals.tenantId };
+			landingPage: false, // Disable landing page but keep GraphiQL
+			healthCheckEndpoint: false, // Disable health check to avoid SvelteKit compatibility issues
+			plugins: [], // Disable all plugins to prevent URL compatibility issues
+			cors: false, // Let SvelteKit handle CORS
+			graphiql: true, // Enable built-in GraphiQL interface
+			context: async ({ request }) => {
+				// Extract the context from the request if it was passed
+				const contextData = (request as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData || {};
+				const user = contextData.user as { _id?: string } | undefined;
+				logger.debug('GraphQL context created', {
+					userId: user?._id,
+					tenantId: contextData.tenantId
+				});
+				return {
+					user: contextData.user,
+					tenantId: contextData.tenantId
+				};
 			}
 		});
 
 		logger.info('GraphQL setup completed successfully');
 		return yogaApp;
 	} catch (error) {
-		logger.error('Error setting up GraphQL:', error);
+		logger.error('Error setting up GraphQL:', {
+			errorMessage: error instanceof Error ? error.message : 'Unknown error',
+			errorStack: error instanceof Error ? error.stack : undefined,
+			errorType: typeof error,
+			errorString: String(error),
+			tenantId
+		});
 		throw error;
 	}
 }
 
-let yogaAppPromise: Promise<ReturnType<typeof createYoga<RequestHandler>>> | null = null;
+let yogaAppPromise: Promise<ReturnType<typeof createYoga>> | null = null;
 
 const handler = async (event: RequestEvent) => {
-	const { locals } = event;
+	const { locals, request } = event;
 
-	// Authentication is handled by hooks.server.ts
+	// Authentication is handled by hooks.server.ts, but let's be extra sure
 	if (!locals.user) {
-		return new Response('Unauthorized', { status: 401 });
+		logger.warn('Unauthorized access to GraphQL endpoint');
+		return new Response(
+			JSON.stringify({
+				error: 'Unauthorized',
+				message: 'You must be logged in to access the GraphQL endpoint.'
+			}),
+			{
+				status: 401,
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
+	}
+
+	// Check if database adapter is available
+	if (!locals.dbAdapter) {
+		logger.error('Database adapter not available in GraphQL handler');
+		return new Response(
+			JSON.stringify({
+				error: 'Service Unavailable',
+				message: 'Database service is not available.'
+			}),
+			{
+				status: 503,
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
 	}
 
 	// Ensure Redis is disconnected when the server shuts down
@@ -208,12 +245,75 @@ const handler = async (event: RequestEvent) => {
 		process.on('SIGTERM', cleanupRedis);
 	}
 
-	// Initialize yogaAppPromise if not already done
-	if (!yogaAppPromise) {
-		yogaAppPromise = setupGraphQL(locals.tenantId);
+	try {
+		// Initialize yogaAppPromise if not already done
+		if (!yogaAppPromise) {
+			logger.debug('Initializing GraphQL Yoga app', { tenantId: locals.tenantId });
+			yogaAppPromise = setupGraphQL(locals.dbAdapter, locals.tenantId);
+		}
+		const yogaApp = await yogaAppPromise;
+		logger.debug('GraphQL Yoga app ready, handling request');
+
+		// Create a compatible Request object for GraphQL Yoga
+		// The issue is that SvelteKit's request.url is a URL object, but GraphQL Yoga expects a string
+		const requestInit: RequestInit = {
+			method: request.method,
+			headers: request.headers
+		};
+
+		// Only add body and duplex for non-GET requests
+		if (request.method !== 'GET' && request.body) {
+			requestInit.body = request.body;
+			requestInit.duplex = 'half';
+		}
+
+		const compatibleRequest = new Request(request.url.toString(), requestInit);
+
+		// Add context data to the request object for GraphQL Yoga
+		(compatibleRequest as Request & { contextData?: { user: unknown; tenantId?: string } }).contextData = {
+			user: locals.user,
+			tenantId: locals.tenantId
+		};
+
+		// Use GraphQL Yoga's handleRequest method which is designed for server environments
+		const yogaResponse = await yogaApp.handleRequest(compatibleRequest);
+
+		// Convert GraphQL Yoga response to proper SvelteKit Response
+		const responseText = await yogaResponse.text();
+		const headers = new Headers();
+
+		// Copy headers from yoga response
+		yogaResponse.headers.forEach((value, key) => {
+			headers.set(key, value);
+		});
+
+		return new Response(responseText, {
+			status: yogaResponse.status,
+			statusText: yogaResponse.statusText,
+			headers: headers
+		});
+	} catch (error) {
+		logger.error('Error handling GraphQL request:', {
+			errorMessage: error instanceof Error ? error.message : 'Unknown error',
+			errorStack: error instanceof Error ? error.stack : undefined,
+			errorType: typeof error,
+			errorString: String(error),
+			tenantId: locals.tenantId,
+			userId: locals.user?._id
+		});
+
+		// Return proper JSON error response
+		return new Response(
+			JSON.stringify({
+				error: 'Internal Server Error',
+				message: 'An error occurred while processing your GraphQL request.'
+			}),
+			{
+				status: 500,
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
 	}
-	const yogaApp = await yogaAppPromise;
-	return yogaApp.handleRequest(event);
 };
 
 // Export the handlers for GET and POST requests

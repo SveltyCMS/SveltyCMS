@@ -7,7 +7,7 @@
  * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
  * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
  * - Data manipulation and validation (extractData, deepCopy, validateValibot)
- * - Internationalization helpers (getTextDirection, updateTranslationProgress)
+ * - Internationalization helpers (getTextDirection)
  * - UI-related utilities (getGuiFields, motion)
  * - String manipulation (pascalToCamelCase, getEditDistance)
  * - And various other helper functions
@@ -28,7 +28,7 @@ import type { Field } from '@src/content/types';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, updateTranslationProgress as updateTranslationStore, contentLanguage } from '@stores/store.svelte';
+import { contentLanguage } from '@stores/store.svelte';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
@@ -348,40 +348,6 @@ export function ReadableExpireIn(expiresIn: string) {
 	const minutesText = minutesDiff > 0 ? `${minutesDiff} minute${minutesDiff > 1 ? 's' : ''}` : '';
 
 	return `${daysText} ${hoursText} ${minutesText}`.trim();
-}
-
-export function updateTranslationProgress(data: unknown, field: unknown) {
-	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
-	const fieldName = getFieldName(field); // Get the unique field name
-
-	if (!fieldName || !field?.translated) {
-		return; // Exit if field name is invalid or field is not translatable
-	}
-	const current = translationProgress.value;
-	// Ensure 'show' property exists or initialize it
-	if (typeof current.show === 'undefined') {
-		current.show = false; // Or true, depending on desired initial state
-	}
-
-	for (const lang of languages) {
-		// Language entry is guaranteed to exist due to store initialization
-		// Determine if the field is considered "translated" for this language
-		const value = data?.[lang];
-		const isTranslated = value !== null && value !== undefined && value !== ''; // Basic check for non-empty
-
-		// Add or remove from the translated set based on the value
-		if (isTranslated) {
-			current[lang].translated.add(fieldName);
-		} else {
-			current[lang].translated.delete(fieldName);
-		}
-
-		// Ensure the 'total' set is managed elsewhere (e.g., in Fields.svelte)
-		// We no longer add to 'total' here.
-	}
-	// Make sure the progress is shown if there are translatable fields
-	current.show = Object.values(current).some((langData) => typeof langData === 'object' && langData.total instanceof Set && langData.total.size > 0);
-	updateTranslationStore(current);
 }
 
 // Get elements by ID

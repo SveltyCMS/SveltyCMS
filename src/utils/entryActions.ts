@@ -4,11 +4,23 @@
  */
 
 import type { StatusType } from '@src/content/types';
+import { StatusTypes } from '@src/content/types';
 import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
 import type { ModalStore, ToastStore } from '@skeletonlabs/skeleton';
 import { publicEnv } from '@root/config/public';
-import { batchUpdateEntries, createClones, updateEntry, createEntry, invalidateCollectionCache, updateEntryStatus } from './apiClient';
+import {
+	batchUpdateEntries,
+	createClones,
+	updateEntry,
+	createEntry,
+	invalidateCollectionCache,
+	updateEntryStatus,
+	deleteEntry,
+	batchDeleteEntries
+} from './apiClient';
 import * as m from '@src/paraglide/messages';
+import { createScheduleModal, createCloneModal } from './modalUtils';
+import { entryMessages } from './entryActionsMessages';
 
 // Helper function to update entry status
 async function updateStatus(collectionId: string, entryId: string, status: string) {
@@ -33,14 +45,39 @@ export async function setEntriesStatus(
 
 	const result = await batchUpdateEntries(collId, { ids: entryIds, status, ...payload });
 	if (result.success) {
-		toastStore.trigger({ message: `Entries updated to ${status}` });
+		// Use centralized messaging
+		const count = entryIds.length;
+		let message: string;
+
+		switch (status) {
+			case StatusTypes.archive:
+				message = entryMessages.entriesArchived(count);
+				break;
+			case StatusTypes.publish:
+				message = entryMessages.entriesPublished(count);
+				break;
+			case StatusTypes.unpublish:
+				message = entryMessages.entriesUnpublished(count);
+				break;
+			case 'test':
+				message = entryMessages.entriesSetToTest(count);
+				break;
+			case StatusTypes.schedule:
+				message = entryMessages.entriesScheduled(count);
+				break;
+			default:
+				message = entryMessages.entriesUpdated(count, status);
+		}
+
+		toastStore.trigger({ message, background: 'variant-filled-success' });
 		onSuccess();
 	} else {
-		toastStore.trigger({ message: result.error || 'Failed to update entries' });
+		toastStore.trigger({
+			message: result.error || entryMessages.updateFailed('update'),
+			background: 'variant-filled-error'
+		});
 	}
-}
-
-// Deletes or archives one or more entries
+} // Deletes or archives one or more entries with improved batch delete
 export async function deleteEntries(entryIds: string[], isPermanentDelete: boolean, onSuccess: () => void, toastStore: ToastStore) {
 	if (!entryIds.length) return;
 	const collId = collection.value?._id;
@@ -48,25 +85,52 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 
 	const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE && !isPermanentDelete;
 
-	if (isArchiving) {
-		// Archive entries by updating their status to 'archive'
-		const result = await batchUpdateEntries(collId, { ids: entryIds, status: StatusTypes.archive });
-		if (result.success) {
-			toastStore.trigger({ message: 'Entries archived successfully', background: 'variant-filled-success' });
-			onSuccess();
+	try {
+		if (isArchiving) {
+			// Archive entries by updating their status to 'archive'
+			const result = await batchUpdateEntries(collId, { ids: entryIds, status: StatusTypes.archive });
+			if (result.success) {
+				toastStore.trigger({
+					message: entryMessages.entriesArchived(entryIds.length),
+					background: 'variant-filled-success'
+				});
+				onSuccess();
+			} else {
+				toastStore.trigger({
+					message: result.error || entryMessages.updateFailed('archive'),
+					background: 'variant-filled-error'
+				});
+			}
 		} else {
-			toastStore.trigger({ message: result.error || 'Failed to archive entries', background: 'variant-filled-error' });
+			// Use batch delete API if available, fallback to individual deletes
+			try {
+				const result = await batchDeleteEntries(collId, entryIds);
+				if (result.success) {
+					toastStore.trigger({
+						message: entryMessages.entriesDeleted(entryIds.length),
+						background: 'variant-filled-success'
+					});
+					onSuccess();
+				} else {
+					// Fallback to individual deletes if batch delete fails
+					throw new Error('Batch delete not supported, falling back to individual deletes');
+				}
+			} catch (batchError) {
+				// Fallback: delete entries one by one
+				console.warn('Batch delete failed, using individual deletes:', batchError);
+				await Promise.all(entryIds.map((entryId) => deleteEntry(collId, entryId)));
+				toastStore.trigger({
+					message: entryMessages.entriesDeleted(entryIds.length),
+					background: 'variant-filled-success'
+				});
+				onSuccess();
+			}
 		}
-	} else {
-		// Permanent delete - for now, we'll also use status update to 'delete' status
-		// TODO: Implement actual deletion API endpoint for permanent deletion
-		const result = await batchUpdateEntries(collId, { ids: entryIds, status: StatusTypes.delete });
-		if (result.success) {
-			toastStore.trigger({ message: 'Entries deleted permanently', background: 'variant-filled-success' });
-			onSuccess();
-		} else {
-			toastStore.trigger({ message: result.error || 'Failed to delete entries', background: 'variant-filled-error' });
-		}
+	} catch (e) {
+		toastStore.trigger({
+			message: entryMessages.deleteFailed(isArchiving ? 'archive' : 'delete') + `: ${(e as Error).message}`,
+			background: 'variant-filled-error'
+		});
 	}
 }
 
@@ -106,8 +170,8 @@ export async function saveEntry(entryData: Record<string, unknown>, toastStore: 
 	if (publish) {
 		payload.status = 'publish';
 	} else if (!payload.status) {
-		// Only set to draft if no status is specified (new entries)
-		payload.status = 'draft';
+		// Use collection's default status if no status is specified (new entries)
+		payload.status = collection.value?.status || 'draft';
 	}
 	// Otherwise preserve the existing status from entryData
 
@@ -126,7 +190,7 @@ export async function saveEntry(entryData: Record<string, unknown>, toastStore: 
 }
 
 // Deletes the currently active entry after confirmation
-export async function deleteCurrentEntry(modalStore: ModalStore, toastStore: ToastStore) {
+export async function deleteCurrentEntry(modalStore: ModalStore, toastStore: ToastStore, isAdmin: boolean = false) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry?._id || !coll?._id) {
@@ -136,29 +200,118 @@ export async function deleteCurrentEntry(modalStore: ModalStore, toastStore: Toa
 		});
 		return;
 	}
+
+	const entryStatus = entry.status || StatusTypes.draft;
+	const isArchived = entryStatus === StatusTypes.archive;
+	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+
+	// Determine what options to show based on rules
+	if (!useArchiving) {
+		// USE_ARCHIVE_ON_DELETE: false - Always delete directly
+		showDeleteConfirmationModal(coll._id, entry._id, 'delete', modalStore, toastStore);
+	} else if (isArchived) {
+		// Archived entry - only admins can permanently delete
+		if (isAdmin) {
+			showDeleteConfirmationModal(coll._id, entry._id, 'delete', modalStore, toastStore);
+		} else {
+			toastStore.trigger({
+				message: 'Only administrators can delete archived entries.',
+				background: 'variant-filled-warning'
+			});
+		}
+	} else {
+		// Active entry (draft, clone, publish, unpublish, test)
+		if (isAdmin) {
+			// Admin can choose: show both options in one modal
+			showAdminChoiceModal(coll._id, entry._id, modalStore, toastStore);
+		} else {
+			// Non-admin can only archive
+			showDeleteConfirmationModal(coll._id, entry._id, 'archive', modalStore, toastStore);
+		}
+	}
+}
+
+// Helper function to show admin choice modal (Archive or Delete options)
+function showAdminChoiceModal(collectionId: string, entryId: string, modalStore: ModalStore, toastStore: ToastStore) {
+	// First show the archive option
+	const archiveModal: ModalSettings = {
+		type: 'confirm',
+		title: 'Archive Entry',
+		body: `
+			<div class="space-y-3">
+				<p>Do you want to <strong class="text-warning-600">archive</strong> this entry?</p>
+				<p class="text-sm text-surface-600 dark:text-surface-400">Archived entries are hidden from view but kept in the database and can be restored later.</p>
+			</div>
+		`,
+		buttonTextCancel: 'Show Delete Option',
+		buttonTextConfirm: 'Archive',
+		meta: {
+			buttonConfirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white'
+		},
+		response: (confirmed: boolean) => {
+			if (confirmed) {
+				showDeleteConfirmationModal(collectionId, entryId, 'archive', modalStore, toastStore);
+			} else {
+				// Show delete option instead
+				const deleteModal: ModalSettings = {
+					type: 'confirm',
+					title: 'Delete Entry Permanently',
+					body: `
+						<div class="space-y-3">
+							<p>Do you want to <strong class="text-error-600">permanently delete</strong> this entry?</p>
+							<p class="text-sm text-surface-600 dark:text-surface-400">This will completely remove the entry from the database. This action cannot be undone.</p>
+						</div>
+					`,
+					buttonTextCancel: 'Cancel',
+					buttonTextConfirm: 'Delete Permanently',
+					meta: {
+						buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white'
+					},
+					response: (deleteConfirmed: boolean) => {
+						if (deleteConfirmed) {
+							showDeleteConfirmationModal(collectionId, entryId, 'delete', modalStore, toastStore);
+						}
+					}
+				};
+				modalStore.trigger(deleteModal);
+			}
+		}
+	};
+	modalStore.trigger(archiveModal);
+}
+
+// Helper function to show final confirmation modal
+function showDeleteConfirmationModal(
+	collectionId: string,
+	entryId: string,
+	action: 'archive' | 'delete',
+	modalStore: ModalStore,
+	toastStore: ToastStore
+) {
+	const isArchive = action === 'archive';
 	const modalSettings: ModalSettings = {
 		type: 'confirm',
-		title: m.confirm_deletion_title(),
-		body: publicEnv.USE_ARCHIVE_ON_DELETE
-			? 'This will archive the entry. Only admins can permanently delete archived entries.'
-			: 'This will permanently delete the entry. This action cannot be undone.',
+		title: `Please Confirm <span class="text-error-500 font-bold">${isArchive ? 'Archiving' : 'Deletion'}</span>`,
+		body: isArchive
+			? `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> this entry? Archived items can be restored later.`
+			: `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> this entry? This action will remove the entry from the system.`,
 		buttonTextCancel: m.button_cancel(),
-		buttonTextConfirm: publicEnv.USE_ARCHIVE_ON_DELETE ? 'Archive' : 'Delete',
-		meta: { buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white' },
+		buttonTextConfirm: isArchive ? 'Archive' : 'Delete',
+		meta: { buttonConfirmClasses: isArchive ? 'bg-warning-500 hover:bg-warning-600 text-white' : 'bg-error-500 hover:bg-error-600 text-white' },
 		response: async (confirmed: boolean) => {
 			if (confirmed) {
 				try {
-					if (publicEnv.USE_ARCHIVE_ON_DELETE) {
-						await updateStatus(coll._id, entry._id, StatusTypes.archive);
+					if (isArchive) {
+						await updateStatus(collectionId, entryId, StatusTypes.archive);
 						collectionValue.update((cv) => ({ ...cv, status: StatusTypes.archive }));
 						toastStore.trigger({ message: 'Entry archived successfully.', background: 'variant-filled-success' });
 					} else {
-						await apiRequest('DELETE', coll._id, { ids: JSON.stringify([entry._id]) });
+						await deleteEntry(collectionId, entryId);
 						toastStore.trigger({ message: m.entry_deleted_success(), background: 'variant-filled-success' });
 					}
 					mode.set('view');
 					collectionValue.set({});
-					invalidateCollectionCache(coll._id);
+					invalidateCollectionCache(collectionId);
 				} catch (e) {
 					toastStore.trigger({
 						message: m.delete_entry_error({ error: (e as Error).message }),
@@ -191,7 +344,7 @@ export async function permanentlyDeleteEntry(entryId: string, modalStore: ModalS
 		response: async (confirmed: boolean) => {
 			if (confirmed) {
 				try {
-					await apiRequest('DELETE', coll._id, { ids: JSON.stringify([entryId]) });
+					await deleteEntry(coll._id, entryId);
 					toastStore.trigger({ message: 'Entry permanently deleted.', background: 'variant-filled-success' });
 					invalidateCollectionCache(coll._id);
 					mode.set('view');
@@ -239,14 +392,14 @@ export async function setEntryStatus(newStatus: StatusType, toastStore: ToastSto
 	}
 }
 
-// Schedule entry for future publication
+// Schedule entry for future publication with improved date picker integration
 export async function scheduleCurrentEntry(modalStore: ModalStore, toastStore: ToastStore, scheduledDate?: Date) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 
 	if (!entry?._id || !coll?._id) {
 		toastStore.trigger({
-			message: 'No entry selected for scheduling.',
+			message: entryMessages.noEntryForScheduling(),
 			background: 'variant-filled-warning'
 		});
 		return;
@@ -263,47 +416,45 @@ export async function scheduleCurrentEntry(modalStore: ModalStore, toastStore: T
 				scheduledDate: scheduledDate.toISOString()
 			}));
 			toastStore.trigger({
-				message: `Entry scheduled for ${scheduledDate.toLocaleDateString()}`,
+				message: entryMessages.entryScheduled(scheduledDate.toLocaleDateString()),
 				background: 'variant-filled-success'
 			});
 		} catch (e) {
 			toastStore.trigger({
-				message: `Error scheduling entry: ${(e as Error).message}`,
+				message: entryMessages.errorScheduling((e as Error).message),
 				background: 'variant-filled-error'
 			});
 		}
 	} else {
-		// Show modal for date selection
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: 'Schedule Entry',
-			body: 'Set this entry to be published at a scheduled time. Status will be changed to "schedule".',
-			buttonTextCancel: m.button_cancel(),
-			buttonTextConfirm: 'Schedule',
-			meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' },
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					try {
-						await updateStatus(coll._id, entry._id, StatusTypes.schedule);
-						collectionValue.update((cv) => ({ ...cv, status: StatusTypes.schedule }));
-						toastStore.trigger({
-							message: 'Entry status changed to scheduled.',
-							background: 'variant-filled-success'
-						});
-					} catch (e) {
-						toastStore.trigger({
-							message: `Error scheduling entry: ${(e as Error).message}`,
-							background: 'variant-filled-error'
-						});
-					}
+		// Use the existing ScheduleModal component
+		const modalSettings = createScheduleModal({
+			initialAction: 'publish',
+			onSchedule: async (date: Date, action: string) => {
+				try {
+					await updateStatus(coll._id, entry._id, StatusTypes.schedule);
+					collectionValue.update((cv) => ({
+						...cv,
+						status: StatusTypes.schedule,
+						scheduledDate: date.toISOString(),
+						scheduledAction: action
+					}));
+					toastStore.trigger({
+						message: entryMessages.entryScheduled(date.toLocaleDateString()),
+						background: 'variant-filled-success'
+					});
+				} catch (e) {
+					toastStore.trigger({
+						message: entryMessages.errorScheduling((e as Error).message),
+						background: 'variant-filled-error'
+					});
 				}
 			}
-		};
+		});
 		modalStore.trigger(modalSettings);
 	}
 }
 
-// Clones the currently active entry
+// Clones the currently active entry with improved modal
 export async function cloneCurrentEntry(modalStore: ModalStore, toastStore: ToastStore) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
@@ -314,43 +465,44 @@ export async function cloneCurrentEntry(modalStore: ModalStore, toastStore: Toas
 		});
 		return;
 	}
-	const modalSettings: ModalSettings = {
-		type: 'confirm',
-		title: m.entrylist_multibutton_clone(),
-		body: m.clone_entry_body(),
-		buttonTextCancel: m.button_cancel(),
-		buttonTextConfirm: m.entrylist_multibutton_clone(),
-		meta: { buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white' },
-		response: async (confirmed: boolean) => {
-			if (confirmed) {
-				try {
-					// Create a deep copy of the entry with all its data
-					const clonedPayload = JSON.parse(JSON.stringify(entry));
 
-					// Remove unique identifiers and timestamps
-					delete clonedPayload._id;
-					delete clonedPayload.createdAt;
-					delete clonedPayload.updatedAt;
+	const modalSettings = createCloneModal({
+		count: 1,
+		onConfirm: async () => {
+			try {
+				// Create a deep copy of the entry with all its data
+				const clonedPayload = JSON.parse(JSON.stringify(entry));
 
-					// Set clone status and reference to original
-					clonedPayload.status = StatusTypes.clone; // Use 'clone' not 'cloned'
-					clonedPayload.clonedFrom = entry._id;
+				// Remove unique identifiers and timestamps
+				delete clonedPayload._id;
+				delete clonedPayload.createdAt;
+				delete clonedPayload.updatedAt;
 
-					console.log('Cloning entry with payload:', clonedPayload);
+				// Set clone status and reference to original
+				clonedPayload.status = StatusTypes.clone;
+				clonedPayload.clonedFrom = entry._id;
 
-					await apiRequest('POST', coll._id, clonedPayload);
-					toastStore.trigger({ message: m.entry_cloned_success(), background: 'variant-filled-success' });
+				console.log('Cloning entry with payload:', clonedPayload);
+
+				const result = await createEntry(coll._id, clonedPayload);
+				if (result.success) {
+					toastStore.trigger({
+						message: entryMessages.entryCloned(),
+						background: 'variant-filled-success'
+					});
 					invalidateCollectionCache(coll._id);
 					mode.set('view');
-				} catch (e) {
-					toastStore.trigger({
-						message: m.clone_entry_error({ error: (e as Error).message }),
-						background: 'variant-filled-error'
-					});
+				} else {
+					throw new Error(result.error || 'Failed to create clone');
 				}
+			} catch (e) {
+				toastStore.trigger({
+					message: m.clone_entry_error({ error: (e as Error).message }),
+					background: 'variant-filled-error'
+				});
 			}
 		}
-	};
+	});
 	modalStore.trigger(modalSettings);
 }
 
@@ -400,12 +552,18 @@ export async function saveDraftAndLeave(modalStore: ModalStore, toastStore: Toas
 
 						if (entry._id) {
 							// Update existing entry with draft status
-							await apiRequest('PATCH', coll._id, draftData, entry._id);
+							const result = await updateEntry(coll._id, entry._id, draftData);
+							if (!result.success) {
+								throw new Error(result.error || 'Failed to update entry');
+							}
 							await updateStatus(coll._id, entry._id, StatusTypes.draft);
 						} else {
 							// Create new entry with draft status
 							draftData.status = StatusTypes.draft;
-							await apiRequest('POST', coll._id, draftData);
+							const result = await createEntry(coll._id, draftData);
+							if (!result.success) {
+								throw new Error(result.error || 'Failed to create entry');
+							}
 						}
 
 						toastStore.trigger({

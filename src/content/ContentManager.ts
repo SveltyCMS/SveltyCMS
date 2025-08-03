@@ -142,6 +142,7 @@ class ContentManager {
 			await this.initialize(tenantId);
 		}
 		return {
+			collections: this.loadedCollections,
 			collectionMap: this.collectionMapId,
 			contentStructure: this.contentStructure
 		};

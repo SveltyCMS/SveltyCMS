@@ -22,7 +22,7 @@
 
 import { privateEnv } from '@root/config/private';
 
-import { dbAdapter } from '@src/databases/db';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 // System Logs
 import { logger } from '@utils/logger.svelte';
 
@@ -89,7 +89,9 @@ interface GraphQLContext {
 type MediaResolverParent = unknown;
 
 // Builds resolvers for querying media data with pagination support.
-export function mediaResolvers() {
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
+
+export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Check media permissions
 		if (!context.user) {
@@ -110,7 +112,6 @@ export function mediaResolvers() {
 		}
 
 		const { page = 1, limit = 50 } = pagination || {};
-		const skip = (page - 1) * limit;
 
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
@@ -119,9 +120,17 @@ export function mediaResolvers() {
 				query.tenantId = context.tenantId;
 			}
 
-			const result = await dbAdapter.findMany(contentTypes, query, { sort: { createdAt: -1 }, skip, limit });
-			logger.info(`Fetched ${contentTypes}`, { count: result.length, tenantId: context.tenantId });
-			return result;
+			// Use query builder pattern consistent with REST API
+			const queryBuilder = dbAdapter.queryBuilder(contentTypes).where(query).sort('createdAt', 'desc').paginate({ page, pageSize: limit });
+
+			const result = await queryBuilder.execute();
+
+			if (!result.success) {
+				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
+			}
+
+			logger.info(`Fetched ${contentTypes}`, { count: result.data.length, tenantId: context.tenantId });
+			return result.data;
 		} catch (error) {
 			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
 			throw Error(`Failed to fetch data for ${contentTypes}`);

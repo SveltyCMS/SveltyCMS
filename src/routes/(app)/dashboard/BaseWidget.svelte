@@ -7,7 +7,7 @@
 	// Define Snippet type locally to avoid import issues
 	type Snippet<T = any> = (args: T) => any;
 
-	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
+	type WidgetSize = { w: number; h: number };
 
 	type ChildSnippetProps = {
 		data: any;
@@ -23,7 +23,7 @@
 		pollInterval = 0,
 		widgetId = undefined,
 		children = undefined as Snippet<ChildSnippetProps> | undefined,
-		size = '1/4' as WidgetSize,
+		size = { w: 1, h: 1 } as WidgetSize,
 		onSizeChange = (_newSize: WidgetSize) => {},
 		resizable = true,
 		onCloseRequest = () => {},
@@ -54,19 +54,7 @@
 
 	// Debug effect to check size prop
 	$effect(() => {
-		console.log(`Widget "${label}" current size:`, size, 'columns:', getColumnSpan(size));
-	});
-
-	// Debug the showSizeMenu state and size comparison
-	$effect(() => {
-		if (showSizeMenu) {
-			console.log('Size menu opened for widget:', label);
-			console.log('Current size prop:', size);
-			console.log('Available sizes:', availableSizes);
-			availableSizes.forEach((s) => {
-				console.log(`Size ${s} === ${size}:`, s === size);
-			});
-		}
+		console.log(`Widget "${label}" current size:`, size);
 	});
 
 	// Effect for fetching data from an endpoint
@@ -108,7 +96,24 @@
 
 	let widgetEl: HTMLDivElement | undefined = $state();
 	let showSizeMenu = $state(false);
-	const availableSizes: WidgetSize[] = ['1/4', '1/2', '3/4', 'full'];
+	const availableSizes: WidgetSize[] = [
+		{ w: 1, h: 1 },
+		{ w: 2, h: 1 },
+		{ w: 3, h: 1 },
+		{ w: 4, h: 1 },
+		{ w: 1, h: 2 },
+		{ w: 2, h: 2 },
+		{ w: 3, h: 2 },
+		{ w: 4, h: 2 },
+		{ w: 1, h: 3 },
+		{ w: 2, h: 3 },
+		{ w: 3, h: 3 },
+		{ w: 4, h: 3 },
+		{ w: 1, h: 4 },
+		{ w: 2, h: 4 },
+		{ w: 3, h: 4 },
+		{ w: 4, h: 4 }
+	];
 
 	// --- Resizing Logic ---
 	let isResizing = $state(false);
@@ -119,9 +124,14 @@
 		e.preventDefault();
 		e.stopPropagation();
 
+		// Get direction from the clicked element or its parent
+		const target = e.target as HTMLElement;
+		const direction = target.dataset.direction || target.closest('[data-direction]')?.getAttribute('data-direction');
+		console.log('Resize handle clicked:', direction);
+
 		isResizing = true;
-		const direction = (e.target as HTMLElement).dataset.direction;
 		const startX = e.clientX;
+		const startY = e.clientY;
 		const gridContainer = widgetEl.closest('.responsive-dashboard-grid') as HTMLElement;
 
 		if (!gridContainer) {
@@ -133,33 +143,37 @@
 		const gridCols = 4;
 		const totalGapWidth = gridGap * (gridCols - 1);
 		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / gridCols;
+		const singleRowHeight = 180; // Updated to match the CSS grid-auto-rows value
 
-		const currentColumns = getColumnSpan(size);
+		const currentColumns = size.w;
+		const currentRows = size.h;
 
 		const handlePointerMove = (moveEvent: PointerEvent) => {
 			const deltaX = moveEvent.clientX - startX;
+			const deltaY = moveEvent.clientY - startY;
 
 			let columnChange = 0;
-			if (direction?.includes('e')) {
-				columnChange = deltaX / (singleColumnWidth + gridGap);
-			} else if (direction?.includes('w')) {
-				columnChange = -deltaX / (singleColumnWidth + gridGap);
-			}
+			if (direction?.includes('e')) columnChange = deltaX / (singleColumnWidth + gridGap);
+			else if (direction?.includes('w')) columnChange = -deltaX / (singleColumnWidth + gridGap);
+
+			let rowChange = 0;
+			if (direction?.includes('s')) rowChange = deltaY / (singleRowHeight + gridGap);
+			else if (direction?.includes('n')) rowChange = -deltaY / (singleRowHeight + gridGap);
 
 			const targetColumns = Math.round(currentColumns + columnChange);
-			const newColumns = Math.max(1, Math.min(4, targetColumns));
+			const targetRows = Math.round(currentRows + rowChange);
 
-			if (newColumns === 1) previewSize = '1/4';
-			else if (newColumns === 2) previewSize = '1/2';
-			else if (newColumns === 3) previewSize = '3/4';
-			else if (newColumns === 4) previewSize = 'full';
+			const newColumns = Math.max(1, Math.min(4, targetColumns));
+			const newRows = Math.max(1, Math.min(4, targetRows));
+
+			previewSize = { w: newColumns, h: newRows };
 		};
 
 		const handlePointerUp = () => {
 			window.removeEventListener('pointermove', handlePointerMove);
 			window.removeEventListener('pointerup', handlePointerUp);
 			isResizing = false;
-			if (previewSize && previewSize !== size) {
+			if (previewSize && (previewSize.w !== size.w || previewSize.h !== size.h)) {
 				onSizeChange(previewSize);
 			}
 			previewSize = null;
@@ -202,19 +216,8 @@
 		return widgetState[key];
 	}
 
-	function getColumnSpan(size: WidgetSize): number {
-		const spanMap: Record<WidgetSize, number> = { '1/4': 1, '1/2': 2, '3/4': 3, full: 4 };
-		return spanMap[size] || 1;
-	}
-
 	function getSizeLabel(s: WidgetSize): string {
-		const labels: Record<WidgetSize, string> = {
-			'1/4': 'Small (1/4)',
-			'1/2': 'Medium (1/2)',
-			'3/4': 'Large (3/4)',
-			full: 'Full Width'
-		};
-		return labels[s];
+		return `${s.w}x${s.h}`;
 	}
 </script>
 
@@ -250,14 +253,14 @@
 					>
 						{#each availableSizes as s (s)}
 							<button
-								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size ===
-								s
+								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
+									s.w && size.h === s.h
 									? 'font-bold text-primary-500'
 									: ''}"
 								onclick={() => handleMenuSizeChange(s)}
 							>
 								<span>{getSizeLabel(s)}</span>
-								{#if size === s}
+								{#if size.w === s.w && size.h === s.h}
 									<iconify-icon icon="mdi:check" class="text-primary-500"></iconify-icon>
 								{/if}
 							</button>
@@ -298,7 +301,7 @@
 		<div class="resize-handles pointer-events-none absolute inset-0">
 			{#each [{ dir: 'nw', classes: 'top-0 left-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 left-1/2 cursor-n-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 right-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 right-0 cursor-e-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 right-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '' }, { dir: 's', classes: 'bottom-0 left-1/2 cursor-s-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 left-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 left-0 cursor-w-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle}
 				<div
-					class="pointer-events-auto absolute z-10 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
+					class="pointer-events-auto absolute z-20 flex items-center justify-center opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100 group-hover:opacity-60 {handle.classes} {handle.rotation}"
 					style="width: 16px; height: 16px; {handle.style || ''}"
 					data-direction={handle.dir}
 					title="Resize widget by dragging {handle.dir}"

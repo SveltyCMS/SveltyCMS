@@ -18,7 +18,7 @@
 	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
-	import { updateTranslationProgress, getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
@@ -44,12 +44,12 @@
 	// Computed values
 	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
-	// Initialize data structure and update translation progress
+	// Initialize data structure
 	$effect(() => {
 		if (!_data[_language]) {
 			_data[_language] = { checked: false, label: '' };
 		}
-		updateTranslationProgress(_data, field);
+		// Translation progress is now handled by the Fields.svelte component
 	});
 
 	// Define the validation schema for this widget

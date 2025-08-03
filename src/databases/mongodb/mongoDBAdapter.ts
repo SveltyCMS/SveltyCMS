@@ -35,6 +35,7 @@ import type { SystemPreferences } from '@stores/systemPreferences.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Types
+import type { Layout } from '@config/dashboard.types';
 import type { CollectionConfig } from '@src/content/types';
 import type { MediaType } from '@utils/media/mediaModels';
 import type { ContentStructureNode as ContentNode } from './models/contentStructure';
@@ -1558,26 +1559,57 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	//  System Preferences Management
 	systemPreferences = {
-		// Set user preferences
-		setUserPreferences: async (userId: string, preferences: SystemPreferences): Promise<void> => {
+		// Set user preferences for a specific layout
+		setUserPreferences: async (userId: string, layoutId: string, layout: Layout): Promise<void> => {
 			try {
-				const query = { key: 'dashboard', scope: 'user', userId };
-				await SystemPreferencesModel.updateOne(query, { $set: { preferences } }, { upsert: true });
+				await SystemPreferencesModel.setPreference(userId, layoutId, layout);
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save user preferences');
 			}
 		},
 
-		// Get system preferences for a user
-		getSystemPreferences: async (userId: string): Promise<SystemPreferences | null> => {
+		// Get system preferences for a user, specifically a single layout
+		getSystemPreferences: async (userId: string, layoutId: string): Promise<Layout | null> => {
 			try {
-				const query = { key: 'dashboard', scope: 'user', userId };
-
-				const doc = await SystemPreferencesModel.findOne(query).lean().exec();
-
-				return doc?.preferences ?? null;
+				const result = await SystemPreferencesModel.getPreferenceByLayout(userId, layoutId);
+				if (result.success) {
+					return result.data;
+				}
+				return null;
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_LOAD_ERROR', 'Failed to load user preferences');
+			}
+		},
+
+		// Get the state for a single widget within a layout
+		getWidgetState: async <T>(userId: string, layoutId: string, widgetId: string): Promise<T | null> => {
+			try {
+				const layout = await this.systemPreferences.getSystemPreferences(userId, layoutId);
+				// The model uses `preferences` for the widget array
+				return (layout?.preferences?.find((w) => w.id === widgetId)?.settings as T) ?? null;
+			} catch (error) {
+				throw createDatabaseError(error, 'WIDGET_STATE_LOAD_ERROR', 'Failed to load widget state');
+			}
+		},
+
+		// Set the state for a single widget within a layout
+		setWidgetState: async (userId: string, layoutId: string, widgetId: string, state: unknown): Promise<void> => {
+			try {
+				const query = {
+					userId,
+					layoutId,
+					'layout.preferences.id': widgetId
+				};
+				const update = {
+					$set: { 'layout.preferences.$.settings': state }
+				};
+				const result = await SystemPreferencesModel.updateOne(query, update);
+
+				if (result.matchedCount === 0) {
+					logger.warn(`Widget with id ${widgetId} not found in layout ${layoutId} for user ${userId}. State was not set.`);
+				}
+			} catch (error) {
+				throw createDatabaseError(error, 'WIDGET_STATE_SAVE_ERROR', 'Failed to save widget state');
 			}
 		},
 
@@ -1603,7 +1635,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Clear all preferences for a user
 		clearSystemPreferences: async (userId: string): Promise<void> => {
 			try {
-				await SystemPreferencesModel.deleteOne({ userId }).exec();
+				await SystemPreferencesModel.deletePreferencesByUser(userId);
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', 'Failed to clear preferences');
 			}

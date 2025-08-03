@@ -14,9 +14,6 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 
-// Databases
-import { dbAdapter } from '@src/databases/db';
-
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 
@@ -26,7 +23,8 @@ import { logger } from '@utils/logger.svelte';
 // GET: Retrieves revision history for an entry
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const start = performance.now();
-	const { user, tenantId } = locals; // Destructure user and tenantId
+	const endpoint = `GET /api/collections/${params.collectionId}/${params.entryId}/revisions`;
+	const { user, tenantId, dbAdapter } = locals; // Destructure user, tenantId and dbAdapter
 
 	if (!user) {
 		throw error(401, 'Unauthorized');
@@ -42,7 +40,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		// Verify the entry itself belongs to the current tenant before fetching its revisions.
 		if (privateEnv.MULTI_TENANT) {
 			const collectionName = `collection_${schema._id}`;
-			const entryResult = await dbAdapter.crud.find(collectionName, { _id: params.entryId, tenantId });
+			const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: params.entryId, tenantId });
 			if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {
 				logger.warn(`Attempt to access revisions for an entry not in the current tenant.`, {
 					userId: user._id,
@@ -57,14 +55,19 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const page = parseInt(url.searchParams.get('page') ?? '1', 10);
 		const limit = parseInt(url.searchParams.get('limit') ?? '10', 10); // Get revision history for the entry, scoped by tenant
 
-		const revisionsResult = await dbAdapter.content.revisions.getHistory(params.entryId, tenantId);
+		const revisionResult = await dbAdapter.getRevisions(params.collectionId, params.entryId);
 
-		if (!revisionsResult.success) {
-			logger.error(`Failed to get revisions for entry ${params.entryId}: ${revisionsResult.error?.message}`);
-			throw error(500, 'Failed to retrieve revisions');
+		if (!revisionResult.success) {
+			logger.error(`${endpoint} - Failed to get revisions`, {
+				collectionId: params.collectionId,
+				entryId: params.entryId,
+				error: revisionResult.error.message,
+				userId: user._id
+			});
+			throw error(500, 'Failed to get revisions');
 		}
 
-		const revisions = revisionsResult.data || []; // Apply pagination
+		const revisions = revisionResult.data || []; // Apply pagination
 
 		const startIndex = (page - 1) * limit;
 		const paginatedRevisions = revisions.slice(startIndex, startIndex + limit);

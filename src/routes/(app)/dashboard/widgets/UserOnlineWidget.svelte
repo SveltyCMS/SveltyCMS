@@ -19,12 +19,10 @@ Features:
 - Real-time data updates
 -->
 <script lang="ts" module>
-	// --- Widget Metadata ---
 	export const widgetMeta = {
 		name: 'Online Users',
-		icon: 'mdi:account-group-outline',
-		description: 'See who is currently logged in.',
-		defaultSize: '1/2'
+		icon: 'mdi:account-multiple-outline',
+		defaultSize: { w: 1, h: 2 }
 	};
 </script>
 
@@ -46,9 +44,9 @@ Features:
 	let {
 		label = 'Online Users',
 		theme = 'light',
-		icon = 'mdi:account-group-outline',
-		widgetId,
-		size = '1/2',
+		icon = 'mdi:account-multiple-outline',
+		widgetId = undefined,
+		size = { w: 1, h: 1 },
 		onSizeChange = (newSize) => {},
 		onCloseRequest = () => {}
 	} = $props<{
