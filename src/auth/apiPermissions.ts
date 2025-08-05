@@ -50,6 +50,9 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	// GraphQL - Admin and Editor (for complex queries)
 	'api:graphql': ['admin', 'editor'], // GraphQL endpoint
 
+	// Widget Management - Admin and Developer
+	'api:widgets': ['admin', 'developer'], // Widget management and marketplace
+
 	// Public/Semi-public endpoints (authenticated users)
 	'api:sendMail': ['*'], // Email sending (used internally, but needs auth)
 	'api:getTokensProvided': ['admin'] // Token information - admin only

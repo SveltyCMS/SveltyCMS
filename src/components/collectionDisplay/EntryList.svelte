@@ -393,7 +393,6 @@ Features:
 				// Process the fetched data
 				if (data) {
 					rawData = data;
-					// Use NEW API response format - API returns 'items' array
 					tableData = data.items || [];
 					pagesCount = data.totalPages || 1;
 					totalItems = data.total || 0;
@@ -644,7 +643,6 @@ Features:
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => {
 				const selectedId = tableData[Number(index)]._id;
-				// Use NEW API response format - API returns 'items' array
 				const entryList = rawData?.items || [];
 				return entryList.find((rawEntry) => rawEntry._id === selectedId);
 			})
@@ -1255,7 +1253,6 @@ Features:
 													};
 													modalStore.trigger(modalSettings);
 												} else {
-													// Use NEW API response format - API returns 'items' array
 													const entryList = rawData?.items || [];
 													const originalEntry = entryList.find((e) => e._id === entry._id);
 													if (originalEntry) {

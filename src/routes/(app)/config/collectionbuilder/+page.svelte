@@ -278,17 +278,22 @@
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
 
 <div class="my-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
+	<!-- Add Category Button -->
 	<button
 		onclick={() => modalAddCategory()}
 		type="button"
 		aria-label="Add New Category"
-		class="variant-filled-tertiary btn flex items-center justify-between gap-1 rounded font-bold dark:variant-filled-primary"
+		class="variant-filled-tertiary btn flex items-center justify-between gap-1 rounded font-bold dark:variant-filled-primary
+			sm:btn-icon md:btn
+			lg:btn sm:justify-center
+			sm:gap-0 sm:rounded-full sm:p-2 sm:font-normal md:flex-row lg:flex-row"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
-		{m.collection_addcategory()}
+		<span class="hidden sm:hidden md:inline lg:inline">{m.collection_addcategory()}</span>
 	</button>
 
+	<!-- Add Collection Button -->
 	<button
 		onclick={handleAddCollectionClick}
 		type="button"
@@ -300,13 +305,23 @@
 		{m.collection_addcollection()}
 	</button>
 
-	<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-primary btn gap-2 lg:ml-4" disabled={isLoading}>
+	<!-- Save Button -->
+	<button
+		type="button"
+		onclick={handleSave}
+		aria-label="Save"
+		class="variant-filled-primary btn-icon gap-2 sm:btn-icon
+			md:btn lg:btn
+			sm:justify-center sm:gap-0
+			sm:rounded-full sm:p-2 sm:font-normal md:flex-row lg:ml-4 lg:flex-row"
+		disabled={isLoading}
+	>
 		{#if isLoading}
 			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
 		{:else}
 			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 		{/if}
-		{m.button_save()}
+		<span class="hidden sm:hidden md:inline lg:inline">{m.button_save()}</span>
 	</button>
 </div>
 

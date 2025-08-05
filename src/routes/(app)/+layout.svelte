@@ -21,10 +21,11 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
+	import { fade } from 'svelte/transition';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { beforeNavigate, afterNavigate } from '$app/navigation';
-	import { publicEnv } from '@root/config/public';
 	import { onDestroy, onMount } from 'svelte';
+	import { publicEnv } from '@root/config/public';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -34,7 +35,7 @@
 	import { getTextDirection } from '@utils/utils';
 
 	// Stores
-	import { collections, contentStructure } from '@stores/collectionStore.svelte';
+	import { contentStructure } from '@stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
@@ -49,14 +50,11 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
-	// Widgets
-	import { initializeWidgets } from '@src/widgets';
-
 	// Skeleton
 	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
-	import type { ContentNode } from '@root/src/databases/dbInterface';
+	// import type { ContentNode } from '@root/src/databases/dbInterface';
 	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
@@ -65,24 +63,43 @@
 		children?: import('svelte').Snippet;
 		data: {
 			user: User;
-			contentStructure: ContentNode[];
+			contentStructure: any[]; // Changed from ContentNode[] to any[]
 		};
 	}
 
 	let { children, data }: Props = $props();
 
-	// State variables
-	let isCollectionsLoaded = $state(false);
+	// --- State Management ---
+	globalLoadingStore.startLoading(loadingOperations.initialization); // Start initial loading immediately.
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Derived state for showing loading
-	let shouldShowLoading = $derived(!isCollectionsLoaded || globalLoadingStore.isLoading);
+	// A single derived value now controls the loading indicator's visibility.
+	let shouldShowLoading = $derived(globalLoadingStore.isLoading);
+
+	// A derived value to compute the loading text cleanly.
+	let loadingTopText = $derived(() => {
+		// Use the reason from the global store to set the text.
+		switch (globalLoadingStore.loadingReason) {
+			case loadingOperations.initialization:
+				return 'Initializing';
+			case loadingOperations.navigation:
+				return 'Navigating';
+			case loadingOperations.dataFetch:
+				return 'Loading data';
+			case loadingOperations.authentication:
+				return 'Authenticating';
+			case loadingOperations.formSubmission:
+				return 'Submitting';
+			default:
+				return 'Loading'; // Fallback text.
+		}
+	});
 
 	// Set isCollectionsLoaded to true once the initial data is available.
 	$effect(() => {
 		if (data.contentStructure && data.contentStructure.length > 0) {
-			isCollectionsLoaded = true;
+			globalLoadingStore.stopLoading(loadingOperations.initialization);
 		}
 	});
 
@@ -144,7 +161,7 @@
 				avatarSrc.value = data.user.avatar;
 			} else {
 				avatarSrc.value = '/Default_User.svg';
-				console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
+				// console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
 			}
 		}
 
@@ -220,24 +237,6 @@
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if shouldShowLoading}
-			<Loading
-				customTopText={!isCollectionsLoaded
-					? 'Initializing'
-					: globalLoadingStore.loadingReason === loadingOperations.navigation
-						? 'Navigating'
-						: globalLoadingStore.loadingReason === loadingOperations.dataFetch
-							? 'Loading data'
-							: globalLoadingStore.loadingReason === loadingOperations.authentication
-								? 'Authenticating'
-								: globalLoadingStore.loadingReason === loadingOperations.initialization
-									? 'Initializing'
-									: globalLoadingStore.loadingReason === loadingOperations.formSubmission
-										? 'Submitting'
-										: 'Loading'}
-				customBottomText={!isCollectionsLoaded ? 'Loading application...' : 'Please wait'}
-			/>
-		{/if}
 		{#if !isDesktop}
 			<FloatingNav />
 		{/if}
@@ -273,11 +272,22 @@
 						<header class="sticky top-0 w-full"><HeaderEdit /></header>
 					{/if}
 
-					<!-- Router Slot -->
+					<!-- Router Slot & Scoped Loader -->
 					<div
 						role="main"
 						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
 					>
+						<!-- The loading component  -->
+						{#if shouldShowLoading}
+							<div transition:fade={{ duration: 200 }} class="variant-glass-surface absolute z-50 flex h-full w-full items-center justify-center">
+								<Loading
+									customTopText={loadingTopText()}
+									customBottomText={globalLoadingStore.loadingReason === loadingOperations.initialization ? 'Loading application...' : 'Please wait'}
+								/>
+							</div>
+						{/if}
+
+						<!-- The page content is rendered here. -->
 						{@render children?.()}
 					</div>
 

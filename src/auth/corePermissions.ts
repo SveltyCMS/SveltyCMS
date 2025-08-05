@@ -153,6 +153,13 @@ export const corePermissions: Permission[] = [
 		type: PermissionType.SYSTEM,
 		description: 'Grants access to the media API endpoints.'
 	},
+	{
+		_id: 'api:widgets',
+		name: 'Widget API Access',
+		action: PermissionAction.ACCESS,
+		type: PermissionType.SYSTEM,
+		description: 'Grants access to the widget management API endpoints.'
+	},
 
 	// Collection permissions
 	{ _id: 'collection:create', name: 'Create Collection Entries', action: PermissionAction.CREATE, type: PermissionType.COLLECTION },
