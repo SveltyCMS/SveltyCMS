@@ -10,7 +10,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
@@ -96,7 +96,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				const [, timestamp, level, message] = match;
 				const lowerLevel = level.toLowerCase();
 				return {
-					id: crypto.randomUUID(),
+					id: uuidv4(),
 					title: `${level.toUpperCase()} Message`,
 					message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
 					level: lowerLevel,
@@ -108,7 +108,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		if (messages.length === 0) {
 			messages.push({
-				id: crypto.randomUUID(),
+				id: uuidv4(),
 				title: 'System Status',
 				message: 'System is running normally. No recent critical messages.',
 				level: 'info',

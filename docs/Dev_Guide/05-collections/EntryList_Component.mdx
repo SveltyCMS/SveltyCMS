@@ -1,0 +1,757 @@
+---
+title: EntryList Component Guide
+description: Comprehensive developer documentation for the EntryList component - architecture, features, customization, and integration guide
+type: dev
+icon: mdi:view-list
+folder: 05-collections
+order: 52
+created: 2025-08-06
+updated: 2025-08-06
+---
+
+# EntryList Component Guide
+
+The EntryList component is a sophisticated data display component in SveltyCMS that provides advanced table functionality with caching, pagination, filtering, multi-selection, and real-time updates. This guide covers architecture, features, customization, and integration.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Core Features](#core-features)
+- [State Management](#state-management)
+- [Caching System](#caching-system)
+- [Component Props](#component-props)
+- [Event System](#event-system)
+- [Customization](#customization)
+- [Performance Optimization](#performance-optimization)
+- [Integration Examples](#integration-examples)
+- [Troubleshooting](#troubleshooting)
+
+## Overview
+
+EntryList is a ~1,800 line Svelte 5 component that serves as the primary interface for displaying and managing collection entries. It combines a powerful data table with advanced features like intelligent caching, race condition prevention, and sophisticated user interactions.
+
+### Key Capabilities
+
+- **Advanced Data Table**: Sortable columns, pagination, row selection
+- **Intelligent Caching**: Multi-level caching with automatic invalidation
+- **Real-time Updates**: Reactive data synchronization
+- **Batch Operations**: Multi-entry actions and bulk operations
+- **Race Condition Prevention**: Sophisticated request handling
+- **Responsive Design**: Mobile-optimized interface
+- **Accessibility**: Full ARIA compliance and keyboard navigation
+
+## Architecture
+
+### Component Structure
+
+```
+EntryList.svelte
+├── Data Layer
+│   ├── Cache Management (dataCache)
+│   ├── API Client Integration
+│   └── State Synchronization
+├── UI Layer
+│   ├── Table Headers (sortable)
+│   ├── Data Rows (selectable)
+│   ├── Pagination Controls
+│   └── Action Buttons
+├── Logic Layer
+│   ├── Event Handlers
+│   ├── Race Condition Prevention
+│   └── Performance Optimization
+└── Integration Layer
+    ├── Widget System
+    ├── Permission System
+    └── Theme System
+```
+
+### Dependencies
+
+```typescript
+// External Dependencies
+import { page } from '$app/stores';
+import { goto } from '$app/navigation';
+import { getData } from '@utils/getData';
+
+// Internal Components
+import EntryFieldDisplay from '@components/widgets/EntryFieldDisplay.svelte';
+import Pagination from '@components/ui/Pagination.svelte';
+import ActionButtons from '@components/ui/ActionButtons.svelte';
+
+// Utilities
+import { dataCache } from '@stores/dataCache';
+import { getTranslation } from '@utils/translations';
+```
+
+## Core Features
+
+### 1. Advanced Data Table
+
+The component renders a sophisticated data table with:
+
+- **Sortable Headers**: Click to sort by any field
+- **Row Selection**: Single and multi-row selection
+- **Dynamic Columns**: Configurable field display
+- **Responsive Layout**: Mobile-optimized display
+
+```svelte
+<!-- Table Header Example -->
+<thead>
+	<tr class="bg-surface-200 dark:bg-surface-700">
+		{#each displayFields as field}
+			<th class="sortable-header" on:click={() => handleSort(field.key)}>
+				{field.label}
+				<SortIcon direction={getSortDirection(field.key)} />
+			</th>
+		{/each}
+	</tr>
+</thead>
+```
+
+### 2. Intelligent Caching System
+
+Multi-level caching provides optimal performance:
+
+```typescript
+// Cache key generation
+const cacheKey = `${collection}_${JSON.stringify({
+	page: currentPage,
+	pageSize,
+	sortField,
+	sortDirection,
+	filter: currentFilter,
+	contentLanguage
+})}`;
+
+// Cache-first data loading
+if (dataCache.has(cacheKey) && !forceRefresh) {
+	entries = dataCache.get(cacheKey);
+	return;
+}
+```
+
+### 3. Race Condition Prevention
+
+Sophisticated request handling prevents data inconsistencies:
+
+```typescript
+let activeRequest = null;
+
+async function loadData() {
+	const requestId = Date.now();
+	activeRequest = requestId;
+
+	try {
+		const result = await getData(params);
+
+		// Only update if this is still the active request
+		if (activeRequest === requestId) {
+			entries = result.data;
+			updateCache(cacheKey, result.data);
+		}
+	} catch (error) {
+		if (activeRequest === requestId) {
+			handleError(error);
+		}
+	}
+}
+```
+
+### 4. Batch Operations
+
+Multi-entry operations with progress tracking:
+
+```typescript
+async function batchOperation(action, selectedIds) {
+	const results = {
+		successful: 0,
+		failed: 0,
+		errors: []
+	};
+
+	for (const id of selectedIds) {
+		try {
+			await performAction(action, id);
+			results.successful++;
+		} catch (error) {
+			results.failed++;
+			results.errors.push({ id, error: error.message });
+		}
+	}
+
+	return results;
+}
+```
+
+## State Management
+
+### Core State Variables
+
+```typescript
+// Data State
+let entries = [];
+let totalEntries = 0;
+let loading = false;
+let error = null;
+
+// UI State
+let selectedEntries = new Set();
+let currentPage = 1;
+let pageSize = 25;
+
+// Sorting State
+let sortField = 'createdAt';
+let sortDirection = 'desc';
+
+// Filter State
+let currentFilter = {};
+let filterDebounceTimer = null;
+```
+
+### Reactive Updates
+
+```svelte
+<!-- Reactive data loading -->
+$: {
+  if (collection && $page.url.searchParams) {
+    loadEntries();
+  }
+}
+
+<!-- Reactive URL sync -->
+$: {
+  updateURL({
+    page: currentPage,
+    sort: sortField,
+    direction: sortDirection,
+    filter: JSON.stringify(currentFilter)
+  });
+}
+```
+
+## Caching System
+
+### Cache Strategy
+
+The EntryList implements a sophisticated multi-level caching system:
+
+#### 1. Memory Cache (dataCache store)
+
+- **Purpose**: Immediate access to recently loaded data
+- **TTL**: 5 minutes default
+- **Scope**: Component instance lifetime
+- **Invalidation**: Automatic on data mutations
+
+#### 2. URL-based Cache Keys
+
+```typescript
+const generateCacheKey = (params) => {
+	return `entrylist_${collection}_${JSON.stringify({
+		page: params.page,
+		pageSize: params.pageSize,
+		sortField: params.sortField,
+		sortDirection: params.sortDirection,
+		filter: params.filter,
+		contentLanguage: params.contentLanguage
+	})}`;
+};
+```
+
+#### 3. Cache Invalidation Strategy
+
+```typescript
+// Invalidate cache on data changes
+function invalidateCache() {
+	const pattern = `entrylist_${collection}`;
+	dataCache.invalidatePattern(pattern);
+}
+
+// Automatic invalidation on mutations
+onMount(() => {
+	dataCache.onInvalidate(pattern, () => {
+		loadEntries(true); // Force refresh
+	});
+});
+```
+
+## Component Props
+
+### Required Props
+
+```typescript
+export let collection: string; // Collection identifier
+export let fields: FieldConfig[]; // Field configuration
+```
+
+### Optional Props
+
+```typescript
+export let pageSize: number = 25; // Items per page
+export let sortField: string = 'createdAt'; // Default sort field
+export let sortDirection: 'asc' | 'desc' = 'desc'; // Sort direction
+export let filter: FilterConfig = {}; // Default filters
+export let selectable: boolean = true; // Enable row selection
+export let actions: ActionConfig[] = []; // Available actions
+export let permissions: PermissionConfig = {}; // Permission settings
+export let theme: ThemeConfig = {}; // Theme customization
+```
+
+### Field Configuration
+
+```typescript
+interface FieldConfig {
+	key: string; // Field identifier
+	label: string; // Display label
+	type: WidgetType; // Widget type
+	sortable?: boolean; // Enable sorting
+	filterable?: boolean; // Enable filtering
+	width?: string; // Column width
+	align?: 'left' | 'center' | 'right'; // Text alignment
+	render?: RenderFunction; // Custom renderer
+}
+```
+
+### Action Configuration
+
+```typescript
+interface ActionConfig {
+	id: string; // Action identifier
+	label: string; // Display label
+	icon?: string; // Icon identifier
+	type: 'single' | 'batch'; // Action scope
+	permission?: string; // Required permission
+	handler: ActionHandler; // Action function
+}
+```
+
+## Event System
+
+### Custom Events
+
+The EntryList component dispatches several custom events:
+
+```typescript
+// Entry selection events
+dispatch('select', {
+	entry: selectedEntry,
+	selected: selectedEntries
+});
+
+// Action events
+dispatch('action', {
+	action: actionId,
+	entries: selectedEntries,
+	result: actionResult
+});
+
+// Data change events
+dispatch('dataChange', {
+	operation: 'create' | 'update' | 'delete',
+	entries: affectedEntries
+});
+
+// Error events
+dispatch('error', {
+	error: errorObject,
+	context: 'loading' | 'action' | 'validation'
+});
+```
+
+### Event Handling Examples
+
+```svelte
+<script>
+	function handleSelection(event) {
+		console.log('Selected entries:', event.detail.selected);
+	}
+
+	function handleAction(event) {
+		const { action, entries, result } = event.detail;
+		// Handle action completion
+	}
+
+	function handleDataChange(event) {
+		const { operation, entries } = event.detail;
+		// Sync with parent state or other components
+	}
+</script>
+
+<EntryList {collection} {fields} on:select={handleSelection} on:action={handleAction} on:dataChange={handleDataChange} on:error={handleError} />
+```
+
+## Customization
+
+### Theme Customization
+
+```typescript
+const customTheme = {
+	table: {
+		headerBackground: 'bg-primary-100',
+		rowHover: 'hover:bg-primary-50',
+		selectedRow: 'bg-primary-200'
+	},
+	pagination: {
+		buttonStyle: 'btn-primary',
+		activeStyle: 'btn-primary-active'
+	}
+};
+```
+
+### Custom Field Renderers
+
+```typescript
+const customRenderers = {
+	status: (value, entry) => {
+		return `<span class="status-${value}">${value}</span>`;
+	},
+
+	actions: (value, entry) => {
+		return `
+      <button onclick="editEntry('${entry._id}')">Edit</button>
+      <button onclick="deleteEntry('${entry._id}')">Delete</button>
+    `;
+	}
+};
+```
+
+### Custom Actions
+
+```typescript
+const customActions = [
+	{
+		id: 'export',
+		label: 'Export to CSV',
+		icon: 'mdi:download',
+		type: 'batch',
+		handler: async (entries) => {
+			const csv = generateCSV(entries);
+			downloadFile(csv, 'export.csv');
+		}
+	},
+
+	{
+		id: 'duplicate',
+		label: 'Duplicate',
+		icon: 'mdi:content-copy',
+		type: 'single',
+		handler: async (entry) => {
+			const duplicate = { ...entry };
+			delete duplicate._id;
+			return await createEntry(duplicate);
+		}
+	}
+];
+```
+
+## Performance Optimization
+
+### 1. Virtual Scrolling (Large Datasets)
+
+```typescript
+// Enable virtual scrolling for large datasets
+export let virtualScrolling: boolean = false;
+export let itemHeight: number = 60;
+
+// Virtual scrolling implementation
+$: visibleItems = virtualScrolling ? getVisibleItems(entries, scrollTop, containerHeight, itemHeight) : entries;
+```
+
+### 2. Debounced Filtering
+
+```typescript
+let filterDebounceTimer;
+
+function debounceFilter(filterValue, delay = 300) {
+	clearTimeout(filterDebounceTimer);
+	filterDebounceTimer = setTimeout(() => {
+		currentFilter = filterValue;
+		loadEntries();
+	}, delay);
+}
+```
+
+### 3. Optimistic Updates
+
+```typescript
+async function optimisticUpdate(entry, changes) {
+	// Update UI immediately
+	updateEntryInList(entry._id, changes);
+
+	try {
+		// Sync with server
+		const updated = await updateEntry(entry._id, changes);
+		// Update with server response
+		updateEntryInList(entry._id, updated);
+	} catch (error) {
+		// Revert on error
+		revertEntryChanges(entry._id);
+		throw error;
+	}
+}
+```
+
+### 4. Memory Management
+
+```typescript
+onDestroy(() => {
+	// Clear timers
+	clearTimeout(filterDebounceTimer);
+	clearTimeout(refreshTimer);
+
+	// Clear cache for this component
+	dataCache.clearPattern(`entrylist_${collection}`);
+
+	// Remove event listeners
+	removeEventListeners();
+});
+```
+
+## Integration Examples
+
+### Basic Usage
+
+```svelte
+<script>
+	import EntryList from '@components/EntryList.svelte';
+
+	const fields = [
+		{ key: 'title', label: 'Title', type: 'text', sortable: true },
+		{ key: 'status', label: 'Status', type: 'select', filterable: true },
+		{ key: 'createdAt', label: 'Created', type: 'date', sortable: true }
+	];
+</script>
+
+<EntryList collection="posts" {fields} pageSize={20} sortField="createdAt" sortDirection="desc" />
+```
+
+### Advanced Usage with Custom Actions
+
+```svelte
+<script>
+	import EntryList from '@components/EntryList.svelte';
+
+	const fields = [
+		{ key: 'title', label: 'Title', type: 'text' },
+		{ key: 'status', label: 'Status', type: 'select' },
+		{ key: 'author', label: 'Author', type: 'relation' }
+	];
+
+	const actions = [
+		{
+			id: 'publish',
+			label: 'Publish',
+			type: 'batch',
+			handler: publishEntries
+		},
+		{
+			id: 'archive',
+			label: 'Archive',
+			type: 'batch',
+			handler: archiveEntries
+		}
+	];
+
+	async function publishEntries(entries) {
+		return await batchUpdateStatus(entries, 'published');
+	}
+
+	async function archiveEntries(entries) {
+		return await batchUpdateStatus(entries, 'archived');
+	}
+</script>
+
+<EntryList collection="posts" {fields} {actions} on:action={handleActionComplete} on:select={handleSelectionChange} />
+```
+
+### Integration with Forms
+
+```svelte
+<script>
+	import EntryList from '@components/EntryList.svelte';
+	import EntryForm from '@components/EntryForm.svelte';
+
+	let showForm = false;
+	let editingEntry = null;
+	let entryListComponent;
+
+	function handleEdit(event) {
+		editingEntry = event.detail.entry;
+		showForm = true;
+	}
+
+	function handleSave(event) {
+		const savedEntry = event.detail.entry;
+		showForm = false;
+		editingEntry = null;
+
+		// Refresh the list
+		entryListComponent.refresh();
+	}
+</script>
+
+<EntryList bind:this={entryListComponent} collection="posts" {fields} on:edit={handleEdit} />
+
+{#if showForm}
+	<EntryForm collection="posts" entry={editingEntry} on:save={handleSave} on:cancel={() => (showForm = false)} />
+{/if}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Data Not Loading
+
+**Symptoms**: Empty table, loading indicator persists
+**Causes**:
+
+- Invalid collection name
+- API endpoint errors
+- Permission issues
+
+**Solutions**:
+
+```typescript
+// Check collection configuration
+console.log('Collection config:', getCollectionConfig(collection));
+
+// Verify API endpoint
+console.log('API URL:', getApiUrl(collection));
+
+// Check user permissions
+console.log('User permissions:', getUserPermissions());
+```
+
+#### 2. Cache Issues
+
+**Symptoms**: Stale data, changes not reflected
+**Causes**:
+
+- Cache not invalidating
+- Multiple cache keys
+
+**Solutions**:
+
+```typescript
+// Force cache refresh
+entryListComponent.refresh(true);
+
+// Clear all cache
+dataCache.clear();
+
+// Debug cache keys
+console.log('Cache keys:', dataCache.keys());
+```
+
+#### 3. Performance Issues
+
+**Symptoms**: Slow rendering, UI freezing
+**Causes**:
+
+- Large datasets without pagination
+- Inefficient rendering
+
+**Solutions**:
+
+```typescript
+// Enable virtual scrolling
+<EntryList virtualScrolling={true} itemHeight={60} />
+
+// Reduce page size
+<EntryList pageSize={10} />
+
+// Optimize field rendering
+const optimizedFields = fields.filter(f => f.essential);
+```
+
+#### 4. Selection Issues
+
+**Symptoms**: Selection not working, events not firing
+**Causes**:
+
+- Event handler conflicts
+- State synchronization issues
+
+**Solutions**:
+
+```typescript
+// Debug selection state
+$: console.log('Selected entries:', selectedEntries);
+
+// Reset selection
+function resetSelection() {
+	selectedEntries = new Set();
+}
+```
+
+### Debug Mode
+
+Enable debug mode for detailed logging:
+
+```typescript
+export let debug = false;
+
+$: if (debug) {
+	console.log('EntryList Debug:', {
+		collection,
+		entries: entries.length,
+		selectedCount: selectedEntries.size,
+		cacheKey: currentCacheKey,
+		loading,
+		error
+	});
+}
+```
+
+### Performance Monitoring
+
+```typescript
+// Performance tracking
+let performanceMetrics = {
+	loadTime: 0,
+	renderTime: 0,
+	cacheHits: 0,
+	cacheMisses: 0
+};
+
+function trackPerformance(operation, duration) {
+	performanceMetrics[operation] = duration;
+
+	if (debug) {
+		console.log('Performance:', performanceMetrics);
+	}
+}
+```
+
+## Best Practices
+
+### 1. Configuration
+
+- Always define essential fields only
+- Use appropriate field types for optimal rendering
+- Configure permissions at the field level
+- Set reasonable page sizes (10-50 items)
+
+### 2. Performance
+
+- Enable caching for frequently accessed data
+- Use virtual scrolling for large datasets
+- Implement optimistic updates for better UX
+- Debounce filter inputs to reduce API calls
+
+### 3. User Experience
+
+- Provide loading indicators
+- Show meaningful error messages
+- Implement keyboard shortcuts
+- Ensure mobile responsiveness
+
+### 4. Data Management
+
+- Validate data before operations
+- Implement proper error handling
+- Use batch operations for multiple items
+- Maintain audit trails for important actions
+
+The EntryList component provides a robust foundation for data management interfaces with enterprise-level features and extensibility.

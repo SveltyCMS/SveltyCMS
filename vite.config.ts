@@ -273,11 +273,11 @@ export default defineConfig(async () => {
 									// Dynamically re-import updated roles & permissions using file URL and cache-busting
 									const rolesPath = pathToFileURL(resolve(process.cwd(), 'config', 'roles.ts')).href;
 									const { roles } = await import(`${rolesPath}?update=${Date.now()}`);
-									
+
 									// Update roles and permissions in the application
 									const { setLoadedRoles } = await import('./src/auth/types');
 									setLoadedRoles(roles);
-									
+
 									// Trigger full page reload
 									server.ws.send({ type: 'full-reload' });
 									console.log('Roles updated successfully');
@@ -340,6 +340,8 @@ export default defineConfig(async () => {
 
 		server: {
 			fs: { allow: ['static', '.'] } // Allow serving files from specific directories
+			// Temporarily disable HMR to test if it's causing loading flicker
+			// hmr: false // Uncomment this line to disable HMR for testing
 		},
 		resolve: {
 			alias: {

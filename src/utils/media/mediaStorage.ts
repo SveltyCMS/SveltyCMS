@@ -8,7 +8,6 @@ import { publicEnv } from '@root/config/public';
 import { error } from '@sveltejs/kit';
 import Path from 'path';
 import mime from 'mime-types';
-import crypto from 'crypto';
 import Sharp from 'sharp';
 import { setCache } from '@root/src/databases/redis';
 import type { MediaRemoteVideo, MediaAccess, ResizedImage } from './mediaModels';
@@ -16,6 +15,7 @@ import { MediaTypeEnum, Permission } from './mediaModels';
 import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
 import { sanitize } from '@utils/utils';
 import { dbAdapter } from '@src/databases/db';
+import crypto from 'crypto';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -41,9 +41,7 @@ async function getFs() {
 	return fs;
 }
 
-/**
- * Resizes an image using Sharp
- */
+// Resizes an image using Sharp
 export async function resizeImage(buffer: Buffer, width: number, height?: number): Promise<Sharp.Sharp> {
 	if (!import.meta.env.SSR) {
 		throw error(500, 'File operations can only be performed on the server');
@@ -54,9 +52,7 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 	});
 }
 
-/**
- * Saves a file to disk
- */
+// Saves a file to disk
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	try {
 		const fs = await getFs();
@@ -96,9 +92,7 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 	}
 }
 
-/**
- * Saves resized versions of an image
- */
+// Saves resized versions of an image
 export async function saveResizedImages(
 	buffer: Buffer,
 	hash: string,
@@ -188,9 +182,7 @@ export async function saveResizedImages(
 	return resizedImages;
 }
 
-/**
- * Deletes a file from storage
- */
+// Deletes a file from storage
 export async function deleteFile(url: string): Promise<void> {
 	const startTime = performance.now();
 
@@ -222,9 +214,7 @@ export async function deleteFile(url: string): Promise<void> {
 	}
 }
 
-/**
- * Retrieves a file from storage
- */
+// Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
 	const fs = await getFs();
 	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
@@ -247,9 +237,7 @@ export async function fileExists(url: string): Promise<boolean> {
 	}
 }
 
-/**
- * Moves a file to trash
- */
+// Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
 	// Remove leading slash and/or MEDIA_FOLDER prefix to get relative path within media folder
@@ -277,17 +265,14 @@ export async function moveMediaToTrash(url: string): Promise<void> {
 	logger.info('File moved to trash', { originalUrl: url, trashUrl: trashPath });
 }
 
-/**
- * Cleans up media directory
- */
+// Cleans up media directory
+
 export async function cleanMediaDirectory(): Promise<void> {
 	// Implementation for cleaning up unused files
 	logger.info('Media directory cleanup completed');
 }
 
-/**
- * Saves a remote media file to the database
- */
+// Saves a remote media file to the database
 export async function saveRemoteMedia(fileUrl: string, contentTypes: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
 		// Fetch the media file from the provided URL

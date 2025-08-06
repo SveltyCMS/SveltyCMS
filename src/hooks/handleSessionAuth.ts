@@ -14,9 +14,9 @@
  */
 
 import { building } from '$app/environment';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { auth, dbInitPromise } from '@src/databases/db';
-import type { User } from '@src/auth';
+import type { User } from '@src/auth/types';
 import { getCacheStore } from '@src/cacheStore/index.server';
 import { logger } from '@utils/logger.svelte';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -298,7 +298,9 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		await dbInitPromise;
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
 		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		const user = await getUserFromSessionId(session_id, authServiceReady, event.locals.tenantId);
+		const user = session_id
+			? await deduplicate(`session-${session_id}`, () => getUserFromSessionId(session_id, authServiceReady, event.locals.tenantId))
+			: null;
 		event.locals.user = user;
 		event.locals.permissions = user?.permissions || [];
 		event.locals.session_id = user ? session_id : undefined;

@@ -16,7 +16,7 @@
 <script lang="ts">
 	// Auth
 	import { roles as configRoles, initializeRoles } from '@root/config/roles';
-	import type { Role } from '@src/auth';
+	import type { Role } from '@src/auth/types';
 
 	let roles = $state<Role[]>([]);
 

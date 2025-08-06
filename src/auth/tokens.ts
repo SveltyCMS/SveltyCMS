@@ -14,10 +14,11 @@
  * - Integration with the auth database adapter
  */
 
-import type { Model, Token } from './types';
-import crypto from 'crypto';
+import type { Model } from 'mongoose';
+import type { Token } from './types';
 import { error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
+import { v4 as uuidv4 } from 'uuid';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -66,7 +67,8 @@ export async function createNewToken(
 			await TokenModel.deleteOne(query);
 		}
 
-		const token = crypto.randomBytes(32).toString('hex');
+		// Use uuidv4 for token generation - much simpler and safer
+		const token = uuidv4().replace(/-/g, ''); // Remove hyphens for a cleaner token
 		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
 		const tokenData: Partial<Token> = { user_id, token, email, expires: expiresAt };

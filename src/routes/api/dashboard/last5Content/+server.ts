@@ -12,7 +12,7 @@
  */
 
 import { error, json } from '@sveltejs/kit';
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
 
@@ -160,7 +160,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			const username = userLookup.get(userId?.toString()) || 'Unknown';
 
 			return {
-				id: entry._id?.toString() || entry.id || crypto.randomUUID(),
+				id: entry._id?.toString() || entry.id || uuidv4(),
 				title: entry.title || entry.name || entry.label || 'Untitled',
 				collection: entry.collectionName,
 				createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),

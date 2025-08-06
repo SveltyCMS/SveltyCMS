@@ -1,7 +1,6 @@
 /**
  * @file src/content/ContentManager.ts
- * @description Content Manager for SvelteCMS
- *
+ * @description Content management system core functionality
  * Features:
  * - Singleton pattern for centralized content management
  * - Category & collection loading, caching, and updates from folder structure
@@ -11,9 +10,34 @@
  * - Error handling
  */
 
-import { dbAdapter } from '@src/databases/db';
-import fs from 'fs/promises';
-import path from 'path';
+// Server-side only file system operations
+async function getFs() {
+	if (!import.meta.env.SSR) {
+		throw new Error('File operations can only be performed on the server');
+	}
+	const fs = await import('node:fs/promises');
+	return fs.default;
+}
+
+// Server-side only path operations
+async function getPath() {
+	if (!import.meta.env.SSR) {
+		throw new Error('Path operations can only be performed on the server');
+	}
+	const path = await import('node:path');
+	return path.default;
+}
+
+// Server-side only database adapter access
+async function getDbAdapter() {
+	if (!import.meta.env.SSR) {
+		throw new Error('Database operations can only be performed on the server');
+	}
+	const { dbAdapter } = await import('@src/databases/db');
+	return dbAdapter;
+}
+
+// Existing imports
 
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,7 +55,15 @@ import { ensureWidgetsInitialized } from '@src/widgets';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
-import { compile } from '../utils/compilation/compile';
+
+// Server-side only compilation function
+async function getCompile() {
+	if (!import.meta.env.SSR) {
+		throw new Error('Compilation can only be performed on the server');
+	}
+	const { compile } = await import('../utils/compilation/compile');
+	return compile;
+}
 
 interface CacheEntry<T> {
 	value: T;
@@ -74,11 +106,23 @@ class ContentManager {
 		return ContentManager.instance;
 	}
 
-	// Wait for initialization to complete
-	async waitForInitialization(): Promise<void> {
-		// if (this.dbInitPromise) {
-		//   await this.dbInitPromise;
-		// }
+	// Wait for any initialization dependencies (database, external services, etc.)
+	private async waitForInitialization(): Promise<void> {
+		try {
+			// Wait for database to be ready
+			if (typeof window === 'undefined') {
+				// Server-side: wait for database adapter
+				const dbAdapter = await getDbAdapter();
+				if (dbAdapter && typeof dbAdapter.waitForConnection === 'function') {
+					await dbAdapter.waitForConnection();
+				}
+			}
+			// Add any other initialization dependencies here
+			logger.debug('ContentManager dependencies ready');
+		} catch (error) {
+			logger.warn('Non-critical initialization dependency failed:', error);
+			// Don't throw - allow ContentManager to continue initializing
+		}
 	}
 
 	// Initialize the collection manager with performance optimizations
@@ -156,6 +200,7 @@ class ContentManager {
 			const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 			const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
+			const dbAdapter = await getDbAdapter();
 			if (!dbAdapter) {
 				logger.error('Database adapter not initialized during collection loading');
 				throw new Error('Database service unavailable');
@@ -185,7 +230,8 @@ class ContentManager {
 								return cachedSchema;
 							}
 
-							const content = await this.readFile(filePath);
+							const fs = await getFs();
+							const content = await fs.readFile(filePath, 'utf-8');
 							const moduleData = await processModule(content);
 
 							if (!moduleData?.schema) {
@@ -441,6 +487,8 @@ class ContentManager {
 
 	public async upsertContentNodes(nodes: ContentNodeOperation[]) {
 		try {
+			const fs = await getFs(); // ✅ Get fs properly
+			const dbAdapter = await getDbAdapter(); // Get dbAdapter dynamically
 			const newNodes = [];
 			const idSet = new Set<string>(nodes.map((node) => node.node._id));
 			const filteredNodes = this.contentStructure.filter((node) => !idSet.has(node._id));
@@ -457,6 +505,7 @@ class ContentManager {
 
 				if (operation.type === 'create') {
 					// create file/folder
+					const path = await getPath(); // Get path dynamically
 					const parent = this.contentNodeMap.get(operation.node.parentId ?? '') ?? null;
 					const newPath = path.join(parent?.path ?? '/', node.name);
 					await fs.mkdir(`${collectionPath}/${newPath}`, { recursive: true });
@@ -466,6 +515,7 @@ class ContentManager {
 				if (!oldNode) continue;
 				if (operation.type === 'rename') {
 					// rename file/folder
+					const path = await getPath(); // Get path dynamically
 
 					const newPath = path.join(oldNode.path.split('/').slice(0, -1).join('/'), node.name);
 					const fileName = node.nodeType === 'collection' ? `${collectionPath}/${newPath}.ts` : `${collectionPath}/${newPath}`;
@@ -493,6 +543,7 @@ class ContentManager {
 					const newParent = this.contentNodeMap.get(operation.node.parentId) ?? null;
 					if (!newParent) throw new Error('Parent not found');
 
+					const path = await getPath(); // Get path dynamically
 					const newPath = path.join(newParent.path, node.name);
 					const fileName = node.nodeType === 'collection' ? `${collectionPath}/${newPath}.ts` : `${collectionPath}/${newPath}`;
 					const oldFileName = node.nodeType === 'collection' ? `${collectionPath}/${oldNode.path}.ts` : `${collectionPath}/${oldNode.path}`;
@@ -509,6 +560,7 @@ class ContentManager {
 			}
 
 			this.contentStructure = [...filteredNodes, ...newNodes];
+			const compile = await getCompile();
 			await compile();
 			// await this.loadCollections()
 			return this.contentStructure;
@@ -521,6 +573,7 @@ class ContentManager {
 	// Create categories with Redis caching
 	private async updateContentStructure(): Promise<void> {
 		try {
+			const dbAdapter = await getDbAdapter();
 			if (!dbAdapter) {
 				logger.error('Database adapter not initialized during content structure update');
 				throw new Error('Database service unavailable');
@@ -706,7 +759,7 @@ class ContentManager {
 
 	// Get compiled Categories and Collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
-		if (!fs) throw new Error('File system operations are only available on the server');
+		const fs = await getFs(); // Use the safe fs function
 
 		const getAllFiles = async (dir: string): Promise<string[]> => {
 			const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -736,7 +789,7 @@ class ContentManager {
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
 		// Server-side file reading
-		if (!fs) throw new Error('File system operations are only available on the server');
+		const fs = await getFs(); // Use the safe fs function
 		try {
 			const content = await fs.readFile(filePath, 'utf-8');
 			return content;

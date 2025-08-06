@@ -39,22 +39,23 @@ export {
 	getUserRoles
 } from './permissions';
 
-// Export 2FA functionality
-export {
-	generateTOTPSecret,
-	getCurrentTOTPCode,
-	verifyTOTPCode,
-	generateQRCodeURL,
-	generateManualEntryDetails,
-	generateBackupCodes,
-	isValidTOTPSecret
-} from './totp';
+// Note: TOTP functions are server-only and should be imported from './totp' directly
+// to avoid bundling Node.js crypto module in client-side code.
+// Use: import { generateTOTPSecret, ... } from '@src/auth/totp';
 
-export { TwoFactorAuthService, createTwoFactorAuthService, getDefaultTwoFactorAuthService } from './twoFactorAuth';
+// Note: TwoFactorAuthService is server-only and should be imported from './twoFactorAuth' directly
+// to avoid bundling Node.js crypto module in client-side code.
+// Use: import { TwoFactorAuthService, ... } from '@src/auth/twoFactorAuth';
 
-export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuth';
+export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
 
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
+
+// Export safe constants
+export { SESSION_COOKIE_NAME, generateRandomToken, generateTokenWithExpiry } from './constants';
+
+// Import for internal use
+import { SESSION_COOKIE_NAME } from './constants';
 
 // Import argon2 and related constants
 let argon2: typeof import('argon2') | null = null;
@@ -71,8 +72,6 @@ const argon2Attributes = {
 	time: 3,
 	parallelism: 4
 };
-
-const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 
 // Main Auth class
 export class Auth {
@@ -399,21 +398,3 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 	const argon2Module = await import('argon2');
 	return argon2Module.verify(hash, password);
 }
-
-export function generateRandomToken(length: number = 32): string {
-	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-	let result = '';
-	for (let i = 0; i < length; i++) {
-		result += chars.charAt(Math.floor(Math.random() * chars.length));
-	}
-	return result;
-}
-
-export function generateTokenWithExpiry(expirationMinutes: number = 60): { token: string; expires: Date } {
-	return {
-		token: generateRandomToken(),
-		expires: new Date(Date.now() + expirationMinutes * 60 * 1000)
-	};
-}
-
-export const SESSION_COOKIE_NAME = 'auth_sessions';

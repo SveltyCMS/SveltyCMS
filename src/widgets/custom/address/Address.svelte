@@ -84,19 +84,19 @@
 	let debounceTimeout: number | undefined;
 	let listboxValue = $state(defaultCountry);
 	let searchQuery = $state('');
-	let filteredCountries = $state<Country[]>(countries as Country[]);
+	let filteredCountries = $state<Country[]>((countries as Country[]) || []);
 	let map = $state<MapboxMap | null>(null);
 	let mapContainer = $state<HTMLDivElement | undefined>();
 	let marker = $state<Marker | null>(null);
 
 	$effect(() => {
 		if (!searchQuery) {
-			filteredCountries = countries as Country[];
+			filteredCountries = (countries as Country[]) || [];
 			return;
 		}
 		const query = searchQuery.toLowerCase();
-		filteredCountries = (countries as Country[]).filter(
-			(country) => country.en.toLowerCase().includes(query) || String(country.id).toLowerCase().includes(query)
+		filteredCountries = ((countries as Country[]) || []).filter(
+			(country) => country && country.en && (country.en.toLowerCase().includes(query) || String(country.id).toLowerCase().includes(query))
 		);
 	});
 
@@ -379,19 +379,21 @@
 						</Autocomplete>
 						<ListBox rounded="rounded-none">
 							{#each filteredCountries as country}
-								<ListBoxItem
-									class="flex gap-2"
-									name="medium"
-									bind:value={country.en}
-									bind:group={listboxValue}
-									onchange={() => {
-										value.country = String(country.id);
-										validateInput();
-									}}
-								>
-									<span class="fi fi-{country.id} mt-1"></span>
-									{country.en} - <span class="mt-1 uppercase">{country.id}</span>
-								</ListBoxItem>
+								{#if country && country.en}
+									<ListBoxItem
+										class="flex gap-2"
+										name="medium"
+										bind:value={country.en}
+										bind:group={listboxValue}
+										onchange={() => {
+											value.country = String(country.id);
+											validateInput();
+										}}
+									>
+										<span class="fi fi-{country.id} mt-1"></span>
+										{country.en} - <span class="mt-1 uppercase">{country.id}</span>
+									</ListBoxItem>
+								{/if}
 							{/each}
 						</ListBox>
 					</div>

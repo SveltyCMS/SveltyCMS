@@ -15,7 +15,7 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model, Document } from 'mongoose';
 
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { error } from '@sveltejs/kit';
 
 // Types
@@ -61,7 +61,8 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		tenantId?: string;
 	}): Promise<string> {
 		try {
-			const token = crypto.randomBytes(32).toString('base64url'); // Generate a 44-character base64url token
+			// Use uuidv4 for token generation - much simpler and safer
+			const token = uuidv4().replace(/-/g, ''); // Remove hyphens for a cleaner 32-character token
 			const newToken = new this.TokenModel({
 				user_id: data.user_id,
 				tenantId: data.tenantId,

@@ -1158,7 +1158,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			mediaSchemas.forEach((schemaName) => {
 				this.modelSetup.setupModel(schemaName, mediaSchema);
 			});
-			logger.info('\x1b[34m$Media models\x1b[0m set up successfully.');
+			logger.info('\x1b[34mMedia models\x1b[0m set up successfully.');
 		},
 
 		files: {

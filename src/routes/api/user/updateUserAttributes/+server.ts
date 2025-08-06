@@ -24,7 +24,7 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { getCacheStore } from '@src/cacheStore/index.server';
 import { auth } from '@src/databases/db';
 

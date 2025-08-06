@@ -24,9 +24,9 @@ import { sequence } from '@sveltejs/kit/hooks';
 
 // Core authentication and database
 import { roles, initializeRoles } from '@root/config/roles';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import type { User } from '@src/auth';
+import type { User } from '@src/auth/types';
 
 // Dynamically import db stuff only when not building
 let dbModule, dbInitPromise;

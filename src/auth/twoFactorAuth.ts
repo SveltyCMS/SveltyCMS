@@ -26,29 +26,10 @@ import {
 } from './totp';
 import type { User } from './types';
 import type { authDBInterface } from './authDBInterface';
+import type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
 
-// 2FA Setup Response Interface
-export interface TwoFactorSetupResponse {
-	secret: string;
-	qrCodeURL: string;
-	manualEntryDetails: {
-		secret: string;
-		account: string;
-		issuer: string;
-		algorithm: string;
-		digits: number;
-		period: number;
-	};
-	backupCodes: string[];
-}
-
-// 2FA Verification Result Interface
-export interface TwoFactorVerificationResult {
-	success: boolean;
-	method?: 'totp' | 'backup';
-	message: string;
-	backupCodeUsed?: boolean;
-}
+// Re-export types for compatibility
+export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
 
 // Two-Factor Authentication Service
 export class TwoFactorAuthService {
@@ -68,8 +49,8 @@ export class TwoFactorAuthService {
 		try {
 			logger.info('Initiating 2FA setup', { userId, tenantId });
 
-			// Generate new TOTP secret
-			const secret = generateTOTPSecret();
+			// Generate new TOTP secret (now async)
+			const secret = await generateTOTPSecret();
 
 			// Generate QR code URL for authenticator apps
 			const qrCodeURL = generateQRCodeURL(secret, userEmail, this.serviceName);
@@ -77,8 +58,8 @@ export class TwoFactorAuthService {
 			// Generate manual entry details for apps that don't support QR codes
 			const manualEntryDetails = generateManualEntryDetails(secret, userEmail, this.serviceName);
 
-			// Generate backup codes
-			const backupCodes = generateBackupCodes(10);
+			// Generate backup codes (now async)
+			const backupCodes = await generateBackupCodes(10);
 
 			// Return setup information (don't save to DB yet)
 			const response: TwoFactorSetupResponse = {
@@ -110,14 +91,14 @@ export class TwoFactorAuthService {
 				throw new Error('Invalid TOTP secret format');
 			}
 
-			// Verify the TOTP code
-			if (!verifyTOTPCode(secret, verificationCode)) {
+			// Verify the TOTP code (now async)
+			if (!(await verifyTOTPCode(secret, verificationCode))) {
 				logger.warn('2FA setup failed - invalid verification code', { userId, tenantId });
 				return false;
 			}
 
-			// Hash backup codes for secure storage
-			const hashedBackupCodes = backupCodes.map((code) => hashBackupCode(code));
+			// Hash backup codes for secure storage (now async)
+			const hashedBackupCodes = await Promise.all(backupCodes.map((code) => hashBackupCode(code)));
 
 			// Update user with 2FA settings
 			const updateData: Partial<User> = {
@@ -169,8 +150,8 @@ export class TwoFactorAuthService {
 				};
 			}
 
-			// First try TOTP verification
-			if (user.totpSecret && verifyTOTPCode(user.totpSecret, code)) {
+			// First try TOTP verification (now async)
+			if (user.totpSecret && (await verifyTOTPCode(user.totpSecret, code))) {
 				// Update last verification time
 				await this.db.updateUserAttributes(
 					userId,
@@ -188,11 +169,11 @@ export class TwoFactorAuthService {
 				};
 			}
 
-			// Try backup code verification
+			// Try backup code verification (now async)
 			if (user.backupCodes && user.backupCodes.length > 0) {
 				for (let i = 0; i < user.backupCodes.length; i++) {
 					const hashedCode = user.backupCodes[i];
-					if (verifyBackupCode(code, hashedCode)) {
+					if (await verifyBackupCode(code, hashedCode)) {
 						// Remove used backup code
 						const updatedBackupCodes = [...user.backupCodes];
 						updatedBackupCodes.splice(i, 1);
@@ -277,9 +258,9 @@ export class TwoFactorAuthService {
 				throw new Error('2FA is not enabled for this user');
 			}
 
-			// Generate new backup codes
-			const newBackupCodes = generateBackupCodes(10);
-			const hashedBackupCodes = newBackupCodes.map((code) => hashBackupCode(code));
+			// Generate new backup codes (now async)
+			const newBackupCodes = await generateBackupCodes(10);
+			const hashedBackupCodes = await Promise.all(newBackupCodes.map((code) => hashBackupCode(code)));
 
 			// Update user with new backup codes
 			const result = await this.db.updateUserAttributes(
