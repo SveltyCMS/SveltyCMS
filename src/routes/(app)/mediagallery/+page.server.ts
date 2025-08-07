@@ -119,7 +119,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		for (const collection of mediaCollections) {
 			try {
-				const query: Record<string, string | null> = { folderId: folderId || null };
+				const query: Record<string, string | boolean | null> = {
+					folderId: folderId || null,
+					// Filter out deleted items
+					$or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
+				};
 				const result = await dbAdapter.crud.findMany(collection, query);
 
 				if (result.success && result.data) {
@@ -183,13 +187,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						throw new Error('Media folder configuration missing');
 					}
 
+					// Get thumbnail URL from database if available, otherwise construct one
+					let thumbnailUrl = '/static/Default_User.svg'; // Default fallback
+
+					if (item.thumbnails && typeof item.thumbnails === 'object') {
+						// Look for any thumbnail (avatar, small, medium, large, etc.)
+						const thumbnailKeys = Object.keys(item.thumbnails);
+						if (thumbnailKeys.length > 0) {
+							const firstThumbnail = item.thumbnails[thumbnailKeys[0] as keyof typeof item.thumbnails];
+							if (firstThumbnail && typeof firstThumbnail === 'object' && 'url' in firstThumbnail) {
+								thumbnailUrl = `/files/${firstThumbnail.url}`;
+							}
+						}
+					}
+
+					// If no thumbnail found in database, try to construct one
+					if (thumbnailUrl === '/static/Default_User.svg') {
+						thumbnailUrl = constructUrl('/global', item.hash!, filename, extension, 'images', 'thumbnail');
+					}
+
 					return {
 						...item,
 						path: item.path ?? 'global',
 						name: item.filename ?? 'unnamed-media',
 						url: constructUrl('/global', item.hash!, filename, extension, 'images', 'original'),
 						thumbnail: {
-							url: constructUrl('/global', item.hash!, filename, extension, 'images', 'thumbnail')
+							url: thumbnailUrl
 						}
 					};
 				} catch (err) {

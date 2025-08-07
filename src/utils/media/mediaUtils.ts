@@ -207,10 +207,10 @@ export function constructUrl(
 		}
 		return url;
 	} else {
-		// Only return the relative path for storage, not the full public URL
-		const url = `${urlPath}`;
+		// Use local files route for media serving
+		const url = `/files/${urlPath}`;
 		try {
-			logger.debug('Using local media folder URL', { url });
+			logger.debug('Using local files route URL', { url });
 		} catch (logError) {
 			logger.error('Failed to log debug info:', logError);
 		}

@@ -42,36 +42,44 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		if (folderId === 'root') {
 			// Root folder - get top-level folders and files, scoped by tenant
-			const folderQuery = { parentId: null, ...tenantFilter };
-			folders = await dbAdapter.findMany('system_virtual_folders', folderQuery);
+			const folderResult = await dbAdapter.systemVirtualFolder.getByParentId(null);
+			folders = folderResult.success ? folderResult.data || [] : [];
 
 			const fileQuery = { virtualFolderId: null, ...tenantFilter };
-			const [images, documents, audio, videos] = await Promise.all([
-				dbAdapter.findMany('media_images', fileQuery),
-				dbAdapter.findMany('media_documents', fileQuery),
-				dbAdapter.findMany('media_audio', fileQuery),
-				dbAdapter.findMany('media_videos', fileQuery)
+			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
+				dbAdapter.crud.findMany('media_images', fileQuery),
+				dbAdapter.crud.findMany('media_documents', fileQuery),
+				dbAdapter.crud.findMany('media_audio', fileQuery),
+				dbAdapter.crud.findMany('media_videos', fileQuery)
 			]);
+			const images = imagesResult.success ? imagesResult.data || [] : [];
+			const documents = documentsResult.success ? documentsResult.data || [] : [];
+			const audio = audioResult.success ? audioResult.data || [] : [];
+			const videos = videosResult.success ? videosResult.data || [] : [];
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
 			// Specific folder - ensure it belongs to the current tenant
-			const folderQuery = { _id: folderId, ...tenantFilter };
-			currentFolder = await dbAdapter.findOne('system_virtual_folders', folderQuery);
+			const folderResult = await dbAdapter.systemVirtualFolder.getById(folderId);
+			currentFolder = folderResult.success ? folderResult.data : null;
 
 			if (!currentFolder) {
 				throw error(404, 'Folder not found');
 			} // Get subfolders and files, scoped by tenant
 
-			const subfolderQuery = { parentId: folderId, ...tenantFilter };
-			folders = await dbAdapter.findMany('system_virtual_folders', subfolderQuery);
+			const subfolderResult = await dbAdapter.systemVirtualFolder.getByParentId(folderId);
+			folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
 			const fileQuery = { virtualFolderId: folderId, ...tenantFilter };
-			const [images, documents, audio, videos] = await Promise.all([
-				dbAdapter.findMany('media_images', fileQuery),
-				dbAdapter.findMany('media_documents', fileQuery),
-				dbAdapter.findMany('media_audio', fileQuery),
-				dbAdapter.findMany('media_videos', fileQuery)
+			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
+				dbAdapter.crud.findMany('media_images', fileQuery),
+				dbAdapter.crud.findMany('media_documents', fileQuery),
+				dbAdapter.crud.findMany('media_audio', fileQuery),
+				dbAdapter.crud.findMany('media_videos', fileQuery)
 			]);
+			const images = imagesResult.success ? imagesResult.data || [] : [];
+			const documents = documentsResult.success ? documentsResult.data || [] : [];
+			const audio = audioResult.success ? audioResult.data || [] : [];
+			const videos = videosResult.success ? videosResult.data || [] : [];
 			files = [...images, ...documents, ...audio, ...videos];
 		} // Process files with URL construction
 

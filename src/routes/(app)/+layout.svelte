@@ -237,7 +237,7 @@
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if !isDesktop}
+		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
 			<FloatingNav />
 		{/if}
 		<Toast />

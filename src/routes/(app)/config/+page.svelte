@@ -14,10 +14,28 @@ This version includes corrections for permission contexts and link typos.
 	import * as m from '@src/paraglide/messages';
 	import { onMount } from 'svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
+	import { toggleUIElement } from '@src/stores/UIStore.svelte';
+	import { goto } from '$app/navigation';
 
 	onMount(() => {
 		collection.set(null);
 	});
+
+	function handleInternalNavigation(href: string, target?: string) {
+		// Only handle internal links (not external ones with target="_blank")
+		if (target === '_blank') {
+			return; // Let the browser handle external links normally
+		}
+
+		// Hide sidebar on mobile before navigation
+		if (typeof window !== 'undefined' && window.innerWidth < 768) {
+			console.log('Mobile detected, hiding sidebar before navigation to:', href);
+			toggleUIElement('leftSidebar', 'hidden');
+		}
+
+		// Navigate to the route
+		goto(href);
+	}
 
 	// A single, data-driven array to define all configuration items.
 	const configItems = [
@@ -71,6 +89,7 @@ This version includes corrections for permission contexts and link typos.
 			icon: 'mdi:email-outline',
 			classes: 'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
 			iconColor: 'text-primary-600',
+			target: '_blank',
 			permission: {
 				contextId: 'system:admin',
 				requiredRole: 'admin',
@@ -171,28 +190,42 @@ This version includes corrections for permission contexts and link typos.
 
 			{#if usePermissionGuard}
 				<PermissionGuard config={item.permission}>
-					<a
-						href={item.href}
-						class="config-btn {item.classes}"
-						aria-label={item.label}
-						target={item.target || undefined}
-						rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
-					>
-						<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-						<p class="config-text">{item.label}</p>
-					</a>
+					{#if item.target === '_blank'}
+						<!-- External links use anchor tags -->
+						<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
+							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+							<p class="config-text">{item.label}</p>
+						</a>
+					{:else}
+						<!-- Internal links use buttons with click handlers -->
+						<button
+							type="button"
+							class="config-btn {item.classes}"
+							aria-label={item.label}
+							onclick={() => handleInternalNavigation(item.href, item.target)}
+						>
+							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+							<p class="config-text">{item.label}</p>
+						</button>
+					{/if}
 				</PermissionGuard>
-			{:else}
-				<a
-					href={item.href}
-					class="config-btn {item.classes}"
-					aria-label={item.label}
-					target={item.target || undefined}
-					rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
-				>
+			{:else if item.target === '_blank'}
+				<!-- External links use anchor tags -->
+				<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
 					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
 					<p class="config-text">{item.label}</p>
 				</a>
+			{:else}
+				<!-- Internal links use buttons with click handlers -->
+				<button
+					type="button"
+					class="config-btn {item.classes}"
+					aria-label={item.label}
+					onclick={() => handleInternalNavigation(item.href, item.target)}
+				>
+					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+					<p class="config-text">{item.label}</p>
+				</button>
 			{/if}
 		{/each}
 	</div>

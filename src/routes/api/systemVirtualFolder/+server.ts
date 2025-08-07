@@ -37,10 +37,27 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {}; // Fetch all system virtual folders for the tenant
+		// Check if dbAdapter is initialized
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database adapter not initialized');
+		}
 
-		const folders = await dbAdapter.findMany('system_virtual_folders', filter);
+		// Check if dbAdapter has systemVirtualFolder interface
+		if (!dbAdapter.systemVirtualFolder) {
+			logger.error('Database adapter systemVirtualFolder interface not available');
+			throw error(500, 'Database adapter systemVirtualFolder interface not available');
+		}
+
+		// --- MULTI-TENANCY: Scope the query by tenantId ---
+		const result = await dbAdapter.systemVirtualFolder.getAll();
+
+		if (!result.success) {
+			logger.error('Database query failed', { error: result.error });
+			throw error(500, result.error?.message || 'Database query failed');
+		}
+
+		const folders = result.data || [];
 
 		logger.debug(`Fetched ${folders.length} system virtual folders`, { tenantId });
 
@@ -84,7 +101,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			updatedAt: new Date().toISOString()
 		}; // Create the folder
 
-		const newFolder = await dbAdapter.create('system_virtual_folders', folderData);
+		const result = await dbAdapter.systemVirtualFolder.create(folderData);
+
+		if (!result.success) {
+			logger.error('Database insert failed', { error: result.error });
+			throw error(500, result.error?.message || 'Database insert failed');
+		}
+
+		const newFolder = result.data;
 
 		logger.info(`Created system virtual folder: ${folderData.name}`, { tenantId });
 

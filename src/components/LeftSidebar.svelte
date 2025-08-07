@@ -30,7 +30,7 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { isMobile, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { get } from 'svelte/store';
@@ -178,16 +178,30 @@
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
 
-	let handleUserClick = $derived(() => {
-		if (!page.url.href.includes('user')) {
-			mode.set('view');
-			// Only handle sidebar on mobile
-			if (get(screenSize) === 'SM') {
-				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
+	// Navigation handlers - simplified and more direct
+	function handleUserClick() {
+		if (page.url.pathname !== '/user') {
+			// Force hide sidebar first on mobile
+			if (typeof window !== 'undefined' && window.innerWidth < 768) {
+				console.log('Mobile detected, hiding sidebar before navigation');
+				toggleUIElement('leftSidebar', 'hidden');
 			}
+			mode.set('view');
 			goto('/user');
 		}
-	});
+	}
+
+	function handleConfigClick() {
+		if (page.url.pathname !== '/config') {
+			// Force hide sidebar first on mobile
+			if (typeof window !== 'undefined' && window.innerWidth < 768) {
+				console.log('Mobile detected, hiding sidebar before navigation');
+				toggleUIElement('leftSidebar', 'hidden');
+			}
+			mode.set('view');
+			goto('/config');
+		}
+	}
 
 	function handleSelectChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
@@ -297,7 +311,7 @@
 				</div>
 			</div>
 
-			<!-- Enhanced System Language Selector -->
+			<!-- System Language Selector -->
 			<div
 				class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
 				use:popup={SystemLanguageTooltip}
@@ -408,19 +422,21 @@
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
 				<button
 					use:popup={ConfigTooltip}
-					onclick={() => {
-						mode.set('view');
-						handleUILayoutToggle();
-						if (get(screenSize) === 'SM') {
-							toggleUIElement('leftSidebar', 'hidden');
+					onclick={(e) => {
+						handleConfigClick();
+						e.stopPropagation();
+					}}
+					onkeypress={(e) => {
+						e.stopPropagation();
+						if (e.key === 'Enter' || e.key === ' ') {
+							handleConfigClick();
+							e.preventDefault();
 						}
 					}}
 					aria-label="System Configuration"
 					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
 				>
-					<a href="/config" aria-label="System Configuration">
-						<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
-					</a>
+					<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
