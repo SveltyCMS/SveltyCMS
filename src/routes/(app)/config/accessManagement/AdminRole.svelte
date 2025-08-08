@@ -31,7 +31,7 @@ It provides functionality to:
 
 	let { roleData, setRoleData } = $props();
 
-	// Reactive state using Svelte 5 runes
+	// Reactive state 
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let currentAdminRole = $state<string | null>(null);

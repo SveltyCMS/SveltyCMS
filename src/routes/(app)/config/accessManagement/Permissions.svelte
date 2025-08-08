@@ -37,7 +37,7 @@ It provides the following functionality:
 
 	let { roleData, setRoleData, updateModifiedCount }: Props = $props();
 
-	// Reactive state using Svelte 5 runes
+	// Reactive state
 	let permissionsList = $state<Permission[]>([]);
 	let roles = $state<Role[]>([]);
 	let isLoading = $state(true);

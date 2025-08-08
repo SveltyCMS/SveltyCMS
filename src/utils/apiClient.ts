@@ -48,7 +48,6 @@ interface GetDataResponse {
 }
 
 // --- Core API Functions ---
-
 async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiResponse<T>> {
 	try {
 		const response = await fetch(endpoint, {
@@ -69,7 +68,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiR
 }
 
 // --- Entry Action Functions ---
-
 export function createEntry(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}`, {
 		method: 'POST',

@@ -267,7 +267,7 @@
 
 		systemPreferences.updateWidgets(data.pageData.user.id, updatedWidgets);
 	}
-	function handleDragStart(event: MouseEvent | TouchEvent, item: DashboardWidgetConfig, element: HTMLElement) {
+	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
 		if (!!(event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
 
@@ -291,15 +291,13 @@
 		document.body.appendChild(clone);
 		dragState.element = clone;
 
-		document.addEventListener('mousemove', handleDragMove);
-		document.addEventListener('mouseup', handleDragEnd, { once: true });
-		document.addEventListener('touchmove', handleDragMove, { passive: false });
-		document.addEventListener('touchend', handleDragEnd, { once: true });
+		// Use pointer events to cover mouse, touch, and pen with a passive move listener
+		document.addEventListener('pointermove', handleDragMove as EventListener, { passive: true });
+		document.addEventListener('pointerup', handleDragEnd as EventListener, { once: true });
 	}
 
-	function handleDragMove(event: MouseEvent | TouchEvent) {
+	function handleDragMove(event: MouseEvent | TouchEvent | PointerEvent) {
 		if (!dragState.isActive || !dragState.element) return;
-		event.preventDefault();
 
 		const coords = 'touches' in event ? event.touches[0] : event;
 		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
@@ -349,8 +347,7 @@
 		dropIndicator = null;
 		gridDropIndicator = null;
 
-		document.removeEventListener('mousemove', handleDragMove);
-		document.removeEventListener('touchmove', handleDragMove);
+		document.removeEventListener('pointermove', handleDragMove as EventListener);
 	}
 
 	onMount(() => {
@@ -447,8 +444,7 @@
 							style:grid-row="span {item.size.h}"
 							style:touch-action="manipulation"
 							animate:flip={{ duration: 300 }}
-							onmousedown={(event) => handleDragStart(event, item, event.currentTarget)}
-							ontouchstart={(event) => handleDragStart(event, item, event.currentTarget)}
+							onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
 						>
 							{#if SvelteComponent}
 								<SvelteComponent

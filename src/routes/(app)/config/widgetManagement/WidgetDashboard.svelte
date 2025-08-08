@@ -29,7 +29,7 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props using Svelte 5 runes
+	// Props
 	let { data }: { data: any } = $props();
 
 	let validationResult = $state<{ valid: number; invalid: number; warnings: string[] } | null>(null);

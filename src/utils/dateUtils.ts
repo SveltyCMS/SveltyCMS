@@ -9,19 +9,16 @@
  */
 
 import type { ISODateString } from '../databases/dbInterface';
+import { logger } from '@utils/logger.svelte';
 
-/**
- * Type guard for ISODateString
- */
+// Type guard for ISODateString
 export function isISODateString(value: unknown): value is ISODateString {
 	if (typeof value !== 'string') return false;
 	const date = new Date(value);
 	return !isNaN(date.getTime()) && date.toISOString() === value;
 }
 
-/**
- * Convert Date to ISODateString with validation
- */
+// Convert Date to ISODateString with validation
 export function dateToISODateString(date: Date): ISODateString {
 	const isoString = date.toISOString();
 	if (!isISODateString(isoString)) {
@@ -30,9 +27,7 @@ export function dateToISODateString(date: Date): ISODateString {
 	return isoString;
 }
 
-/**
- * Convert string to ISODateString with validation
- */
+// Convert string to ISODateString with validation
 export function stringToISODateString(dateString: string): ISODateString {
 	const date = new Date(dateString);
 	if (isNaN(date.getTime())) {
@@ -42,7 +37,7 @@ export function stringToISODateString(dateString: string): ISODateString {
 }
 
 /**
- * Validate and robustly normalize date input
+ * Validate and normalize date input
  * Accepts Date, ISODateString, number (timestamp in seconds or ms), or string
  */
 export function normalizeDateInput(dateInput: Date | ISODateString | number | string): ISODateString {
@@ -65,9 +60,7 @@ export function normalizeDateInput(dateInput: Date | ISODateString | number | st
 	return dateToISODateString(new Date());
 }
 
-/**
- * Current date as ISODateString
- */
+// Current date as ISODateString
 export function nowISODateString(): ISODateString {
 	return dateToISODateString(new Date());
 }
@@ -107,7 +100,7 @@ export function formatDisplayDate(
 
 		return new Intl.DateTimeFormat(locale, options).format(date);
 	} catch (error) {
-		console.error('Error formatting date:', error);
+		logger.error('Error formatting date:', error);
 		return 'Invalid Date';
 	}
 }
@@ -145,7 +138,7 @@ export function formatRelativeDate(dateInput: Date | number | string, locale: st
 
 		return formatter.format(-Math.floor(seconds / 31536000), 'year');
 	} catch (error) {
-		console.error('Error formatting relative date:', error);
+		logger.error('Error formatting relative date:', error);
 		return 'Invalid Date';
 	}
 }

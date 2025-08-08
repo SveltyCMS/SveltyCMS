@@ -31,7 +31,8 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
-	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
+	// Lazy-load FloatingPaths on desktop for performance
+	let FloatingPathsComponent = $state<any>(null);
 
 	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
@@ -42,7 +43,7 @@ Features:
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Screen size store
-	import { isMobile } from '@stores/screenSizeStore.svelte';
+	import { isDesktop, isTablet, isMobile, screenSize, screenWidth } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -178,7 +179,7 @@ Features:
 
 			// Trigger the toast
 			toastStore.trigger({
-				message: 'Wrong User or Password',
+				message: m.signin_wrong_user_or_password(),
 				// Provide any utility or variant background style:
 				background: 'variant-filled-error',
 				timeout: 4000,
@@ -510,6 +511,20 @@ Features:
 	const isHover = $derived(active === undefined || active === 1);
 
 	const baseClasses = 'hover relative flex items-center';
+
+	// Lazy-load FloatingPaths only when needed (desktop + active 0)
+	$effect(() => {
+		// track dependencies
+		const desktop = isDesktop.value;
+		const isActiveLogin = active === 0;
+		if (browser && desktop && isActiveLogin) {
+			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
+				FloatingPathsComponent = m.default;
+			});
+		} else {
+			FloatingPathsComponent = null;
+		}
+	});
 </script>
 
 <section
@@ -526,14 +541,12 @@ Features:
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if !isMobile.value}
-				<div class="absolute inset-0">
-					<FloatingPaths position={-1} background="white" />
-
-					<FloatingPaths position={1} background="white" />
+			{#if isDesktop.value && FloatingPathsComponent}
+				<div class="absolute inset-0 z-0">
+					<FloatingPathsComponent position={-1} background="white" />
+					<FloatingPathsComponent position={1} background="white" />
 				</div>
 			{/if}
-			>
 
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />
@@ -575,6 +588,7 @@ Features:
 							bind:this={formElement}
 							class="flex w-full flex-col gap-3"
 							class:hide={active !== 0}
+							inert={active !== 0}
 						>
 							<!-- Email field -->
 							<FloatingInput
@@ -582,6 +596,9 @@ Features:
 								name="email"
 								type="email"
 								tabindex={emailTabIndex}
+								autocomplete="username"
+								autocapitalize="none"
+								spellcheck={false}
 								bind:value={$form.email}
 								label={m.form_emailaddress()}
 								{...$constraints.email}
@@ -596,7 +613,7 @@ Features:
 								id="passwordsignIn"
 								name="password"
 								type="password"
-								autocomplete="on"
+								autocomplete="current-password"
 								tabindex={passwordTabIndex}
 								bind:value={$form.password}
 								{...$constraints.password}
@@ -616,7 +633,7 @@ Features:
 									{m.form_signin()}
 									<!-- Optimized loading indicators -->
 									{#if isSubmitting || isAuthenticating}
-										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
+										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
 									{/if}
 								</button>
 								<!-- OAuth Login -->
@@ -732,6 +749,7 @@ Features:
 							bind:this={formElement}
 							class="flex w-full flex-col gap-3"
 							class:hide={active !== 0}
+							inert={active !== 0}
 						>
 							<!-- Email field -->
 							<FloatingInput
@@ -739,6 +757,9 @@ Features:
 								name="email"
 								type="email"
 								tabindex={emailTabIndex}
+								autocomplete="email"
+								autocapitalize="none"
+								spellcheck={false}
 								bind:value={$forgotForm.email}
 								label={m.form_emailaddress()}
 								{...$forgotConstraints.email}
@@ -763,7 +784,7 @@ Features:
 									{m.form_resetpassword()}
 									<!-- Optimized loading indicators -->
 									{#if isSubmitting}
-										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
+										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
 									{/if}
 								</button>
 
@@ -792,6 +813,7 @@ Features:
 							bind:this={formElement}
 							class="flex w-full flex-col gap-3"
 							class:hide={active !== 0}
+							inert={active !== 0}
 						>
 							<!-- Hidden fields -->
 							<input type="hidden" name="email" bind:value={$resetForm.email} />
@@ -806,6 +828,7 @@ Features:
 								bind:value={$resetForm.password}
 								{...$resetConstraints.password}
 								{showPassword}
+								autocomplete="new-password"
 								label={m.form_password()}
 								icon="mdi:lock"
 								iconColor="black"
@@ -825,6 +848,7 @@ Features:
 								tabindex={confirmPasswordTabIndex}
 								bind:value={$resetForm.confirm_password}
 								{showPassword}
+								autocomplete="new-password"
 								label={m.form_confirmpassword()}
 								icon="mdi:lock"
 								iconColor="black"
@@ -866,7 +890,7 @@ Features:
 									{m.signin_savenewpassword()}
 									<!-- Optimized loading indicators -->
 									{#if isSubmitting}
-										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
+										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
 									{/if}
 								</button>
 
@@ -889,7 +913,7 @@ Features:
 					<button onclick={onClick} type="button" aria-label="Signup" class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500">
 						<p class="font-bold text-error-500">{m.signin_no_user()}</p>
 						<p>
-							Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.
+							{m.signin_signup_first_admin()}
 						</p>
 					</button>
 				{/if}

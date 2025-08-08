@@ -187,30 +187,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						throw new Error('Media folder configuration missing');
 					}
 
-					// Get thumbnail URL from database if available, otherwise construct one
-					let thumbnailUrl = '/static/Default_User.svg'; // Default fallback
-
-					if (item.thumbnails && typeof item.thumbnails === 'object') {
-						// Look for any thumbnail (avatar, small, medium, large, etc.)
-						const thumbnailKeys = Object.keys(item.thumbnails);
-						if (thumbnailKeys.length > 0) {
-							const firstThumbnail = item.thumbnails[thumbnailKeys[0] as keyof typeof item.thumbnails];
-							if (firstThumbnail && typeof firstThumbnail === 'object' && 'url' in firstThumbnail) {
-								thumbnailUrl = `/files/${firstThumbnail.url}`;
-							}
-						}
-					}
-
-					// If no thumbnail found in database, try to construct one
-					if (thumbnailUrl === '/static/Default_User.svg') {
-						thumbnailUrl = constructUrl('/global', item.hash!, filename, extension, 'images', 'thumbnail');
-					}
+					// Build thumbnail URL via helper (no hard-coded routes)
+					const effectivePath = (item as Record<string, string | undefined>).path ?? '/global';
+					const thumbnailUrl = constructUrl(effectivePath, item.hash!, filename, extension, 'images', 'thumbnail');
 
 					return {
 						...item,
 						path: item.path ?? 'global',
 						name: item.filename ?? 'unnamed-media',
-						url: constructUrl('/global', item.hash!, filename, extension, 'images', 'original'),
+						// Use the item's path if available when constructing the original URL
+						url: constructUrl((item.path ?? '/global') as string, item.hash!, filename, extension, 'images', 'original'),
 						thumbnail: {
 							url: thumbnailUrl
 						}

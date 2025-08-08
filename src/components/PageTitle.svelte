@@ -47,6 +47,8 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+
+	// Stores
 	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 

@@ -138,9 +138,11 @@ Key features:
 				<tbody>
 					{#each paginatedFiles as file (file._id)}
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<td class="w-10">
-								<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
-							</td>
+							<TableIcons
+								cellClass="w-10 text-center"
+								checked={selectedFiles.has(file.filename)}
+								onCheck={(checked) => handleSelection(file, checked)}
+							/>
 							<td>
 								{#if file?.filename && file?.path && file?.hash}
 									<img

@@ -24,7 +24,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	import { fade } from 'svelte/transition';
 	import { linear } from 'svelte/easing';
-	import { tick } from 'svelte';
+	import { tick, onMount, onDestroy } from 'svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -38,15 +38,24 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
+	// Config / UX constants
 	const buttonRadius = 25; // home button size
+	const EDGE_MARGIN = 12; // px gap from screen edges for the FAB
+	let navigation_info: Record<string, any> = {};
 	let showRoutes = false;
-	let center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+	// radial menu center (set on mount and when opening)
+	let center = { x: 0, y: 0 };
+
+	// Refs
 	let firstLine: SVGLineElement;
 	let firstCircle: HTMLDivElement;
 	const circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
 	let user: User = $page.data.user;
+
+	// Motion preferences
+	let prefersReducedMotion = false;
+	let MOTION_MS = 200;
 
 	// Endpoint definition with URL and icon only
 	let endpoints: {
@@ -86,6 +95,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			color: 'bg-pink-500'
 		},
 		{
+			// System Configuration
+			url: { external: false, path: `/config` },
+			icon: 'mynaui:config',
+			color: 'bg-surface-400'
+		},
+		{
 			// Marketplace
 			url: { external: true, path: `https://www.sveltycms.com` },
 			icon: 'icon-park-outline:shopping-bag',
@@ -97,7 +112,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			icon: 'mynaui:config',
 			color: 'bg-surface-400'
 		}
-		// {
+		//{
+
 		// 	// GlobalSearch
 		// 	url: { external: false, path: ``}, //this needs to change to alt+s
 		// 	icon: 'material-symbols:search-rounded',
@@ -109,17 +125,25 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		else return true;
 	});
 
-	export let buttonInfo: any;
+	export let buttonInfo: { x: number; y: number; radius: number } = { x: 0, y: 0, radius: buttonRadius };
 
-	// Adjust button position on window resize
-	window.onresize = async () => {
-		buttonInfo.x = window.innerWidth - buttonRadius * 3;
-		buttonInfo.y = window.innerHeight - buttonRadius * 3;
-		firstLine && firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
-		firstLine && firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
-		await tick();
-		firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-	};
+	// Adjust button position on window resize (mounted only)
+	async function handleResize() {
+		// keep button inside the viewport on resize
+		const minX = buttonRadius + EDGE_MARGIN;
+		const maxX = window.innerWidth - (buttonRadius + EDGE_MARGIN);
+		const minY = buttonRadius + EDGE_MARGIN;
+		const maxY = window.innerHeight - (buttonRadius + EDGE_MARGIN);
+		buttonInfo.x = Math.min(Math.max(buttonInfo.x, minX), maxX);
+		buttonInfo.y = Math.min(Math.max(buttonInfo.y, minY), maxY);
+		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+		if (firstLine && firstCircle) {
+			firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
+			firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
+			await tick();
+			firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+		}
+	}
 
 	function getBasePath(pathname: string) {
 		const params = Object.values($page.params);
@@ -130,31 +154,92 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		return params.length > 0 ? replaced : pathname;
 	}
 
-	// Set default button position to bottom-right of the screen
-	$: buttonInfo = {
-		x: window.innerWidth - buttonRadius * 3, // right corner, adjusted inward by button's diameter
-		y: window.innerHeight - buttonRadius * 3, // bottom corner, adjusted inward
-		radius: buttonRadius
-	};
+	// Button position is exported with a default; refined on mount
 
-	// Function to calculate endpoint coordinates and angles
-	function calculateEndpoint(index: number, totalEndpoints: number, radius: number) {
-		const angle = ((Math.PI * 2) / totalEndpoints) * (index + 1.25); // Adjust angle for centering
-		const x = center.x + radius * Math.cos(angle);
-		const y = center.y + radius * Math.sin(angle);
-		return { x, y, angle };
-	}
+	onMount(() => {
+		// read persisted navigation positions
+		try {
+			navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
+		} catch {
+			navigation_info = {};
+		}
+
+		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+		// motion preference
+		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		MOTION_MS = prefersReducedMotion ? 0 : 200;
+
+		// restore position for this page if available
+		const key = getBasePath($page.url.pathname);
+		const saved = navigation_info[key];
+		if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+			buttonInfo = { x: saved.x, y: saved.y, radius: buttonRadius };
+			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+		} else {
+			buttonInfo = {
+				x: window.innerWidth - (buttonRadius + EDGE_MARGIN),
+				y: window.innerHeight - (buttonRadius + EDGE_MARGIN),
+				radius: buttonRadius
+			};
+			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+		}
+
+		window.addEventListener('resize', handleResize, { passive: true });
+		window.addEventListener('keydown', onKeyDown);
+	});
+
+	onDestroy(() => {
+		window.removeEventListener('resize', handleResize);
+		window.removeEventListener('keydown', onKeyDown);
+	});
+
+	// Derived radius roughly matches the visual ring (~340px diameter => 170px radius)
+	const MENU_RADIUS = 160;
 
 	// Calculate endpoint positions and angles based on their index
-	$: endpoints = endpoints.map((endpoint, index) => ({
-		...endpoint,
-		...calculateEndpoint(index, endpoints.length, 140) // Adjust radius as needed
-	}));
+	$: endpointsWithPos = endpoints.map((endpoint, index) => {
+		const angle = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
+		const x = center.x + MENU_RADIUS * Math.cos(angle);
+		const y = center.y + MENU_RADIUS * Math.sin(angle);
+		return { ...endpoint, x, y, angle };
+	});
 
 	// Show the routes when the component is visible
+	function closeMenu() {
+		if (!showRoutes) return;
+		showRoutes = false;
+		try {
+			navigator.vibrate?.(5);
+		} catch {}
+		setTimeout(() => firstCircle?.focus?.(), 0);
+	}
+
+	async function toggleMenuOpen() {
+		if (!showRoutes) {
+			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+			await tick();
+			showRoutes = true;
+			try {
+				navigator.vibrate?.(10);
+			} catch {}
+			await tick();
+			circles[0]?.focus?.();
+		} else {
+			closeMenu();
+		}
+	}
+
+	function onKeyDown(e: KeyboardEvent) {
+		if (e.key === 'Escape') closeMenu();
+	}
+
 	function drag(node: HTMLDivElement) {
 		let moved = false;
 		let timeout: ReturnType<typeof setTimeout>;
+		let raf = 0;
+		let nextX = 0,
+			nextY = 0;
 		node.onpointerdown = (e) => {
 			timeout = setTimeout(() => {
 				const x = e.offsetX - node.offsetWidth / 2;
@@ -163,20 +248,29 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				node.setPointerCapture(e.pointerId);
 				node.onpointermove = (e) => {
 					moved = true;
-					buttonInfo = { ...buttonInfo, x: e.clientX - x, y: e.clientY - y };
-					firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
+					nextX = e.clientX - x;
+					nextY = e.clientY - y;
+					if (!raf) {
+						raf = requestAnimationFrame(() => {
+							buttonInfo = { ...buttonInfo, x: nextX, y: nextY };
+							if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+							raf = 0;
+						});
+					}
 				};
 			}, 60);
 		};
 		node.onpointerup = async (e) => {
-			if (!moved) {
-				showRoutes = !showRoutes;
-			}
+			if (!moved) await toggleMenuOpen();
 
 			timeout && clearTimeout(timeout);
 			moved = false;
 			node.onpointermove = null;
 			node.releasePointerCapture(e.pointerId);
+			if (raf) {
+				cancelAnimationFrame(raf);
+				raf = 0;
+			}
 
 			const distance = [
 				buttonInfo.x, //left
@@ -185,12 +279,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				window.innerHeight - buttonInfo.y //bottom
 			];
 
-			let promise: any;
+			let promise: Promise<void>;
 
 			switch (distance.indexOf(Math.min(...distance))) {
 				case 0:
 					{
-						promise = motion([buttonInfo.x], [buttonRadius], 200, async (t) => {
+						promise = motion([buttonInfo.x], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
 							buttonInfo.x = t[0];
 							await tick();
 							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
@@ -199,7 +293,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 					break;
 				case 1:
 					{
-						promise = motion([buttonInfo.x], [window.innerWidth - buttonRadius], 200, async (t) => {
+						promise = motion([buttonInfo.x], [window.innerWidth - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
 							buttonInfo.x = t[0];
 							await tick();
 							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
@@ -208,7 +302,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 					break;
 				case 2:
 					{
-						promise = motion([buttonInfo.y], [buttonRadius], 200, async (t) => {
+						promise = motion([buttonInfo.y], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
 							buttonInfo.y = t[0];
 							await tick();
 							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
@@ -217,7 +311,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 					break;
 				case 3:
 					{
-						promise = motion([buttonInfo.y], [window.innerHeight - buttonRadius], 200, async (t) => {
+						promise = motion([buttonInfo.y], [window.innerHeight - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
 							buttonInfo.y = t[0];
 							await tick();
 							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
@@ -304,10 +398,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 <!-- Show the routes when the component is visible -->
 {#if showRoutes}
-	<button out:keepAlive|local on:click|self={() => (showRoutes = false)} class=" fixed left-0 top-0 z-[9999999]">
+	<button out:keepAlive|local on:click|self={closeMenu} class=" fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
-			{#each endpoints.slice(1, endpoints.length) as endpoint}
+			{#each endpointsWithPos.slice(1, endpointsWithPos.length) as endpoint}
 				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
 			{/each}
 		</svg>
@@ -315,8 +409,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		<!-- Home button -->
 		<div
 			transition:fade
-			class="absolute left-1/2 top-1/4 -z-10 !h-[340px] !w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
-			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
+			class="absolute left-1/2 top-1/4 -z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+			style="top:{center.y}px;left:{center.x}px;width:{MENU_RADIUS * 2}px;height:{MENU_RADIUS *
+				2}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		></div>
 
 		<!-- Other endpoint buttons -->
@@ -348,7 +443,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			<iconify-icon width="32" style="color:white" icon="solar:home-bold"></iconify-icon>
 		</div>
 
-		{#each endpoints.slice(1, endpoints.length) as endpoint, index}
+		{#each endpointsWithPos.slice(1, endpointsWithPos.length) as endpoint, index}
 			<div
 				bind:this={circles[index + 1]}
 				typeof="button"
@@ -373,11 +468,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 {/if}
 
 <style lang="postcss">
-	div {
-		width: 100vw;
-		height: 100vh;
-	}
-
 	.circle {
 		position: fixed;
 		transform: translate(-50%, -50%);

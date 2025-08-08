@@ -2,6 +2,10 @@
 @files src/routes/(app)/config/collection/Board.svelte
 @component
 **Board component for managing nested collections**
+
+Features:
+- Drag and drop reordering of collections
+- Support for nested categories
 -->
 <script lang="ts">
 	// Component
@@ -141,7 +145,7 @@
 		{#each structureState as item (item.id)}
 			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
 				<Column
-					level={0} 
+					level={0}
 					{item}
 					children={item.children ?? []}
 					onNodeReorder={handleDndFinalize}
@@ -152,4 +156,3 @@
 		{/each}
 	</div>
 </div>
-

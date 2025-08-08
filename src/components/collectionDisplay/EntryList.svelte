@@ -1472,16 +1472,13 @@ Features:
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-							<div class="flex flex-col items-center">
-								<TableIcons
-									checked={SelectAll}
-									onCheck={(checked) => {
-										SelectAll = checked;
-									}}
-								/>
-							</div>
-						</td>
+						<TableIcons
+							cellClass={`w-10 ${hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+							checked={SelectAll}
+							onCheck={(checked) => {
+								SelectAll = checked;
+							}}
+						/>
 
 						{#each renderHeaders as header (header.id)}
 							<th
@@ -1520,14 +1517,13 @@ Features:
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
-								<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-									<TableIcons
-										checked={selectedMap[index]}
-										onCheck={(isChecked) => {
-											selectedMap[index] = isChecked;
-										}}
-									/>
-								</td>
+								<TableIcons
+									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+									checked={selectedMap[index]}
+									onCheck={(isChecked) => {
+										selectedMap[index] = isChecked;
+									}}
+								/>
 								{#if renderHeaders}
 									{#each renderHeaders as header (header.id)}
 										<td
@@ -1691,7 +1687,7 @@ Features:
 						return;
 					}
 					entryListPaginationSettings.currentPage = page;
-					// Direct call - no debouncing needed with Svelte 5 runes
+					// Direct call - no debouncing needed
 					refreshTableData(true);
 				}}
 				onUpdateRowsPerPage={(rows: number) => {
@@ -1700,7 +1696,7 @@ Features:
 					}
 					entryListPaginationSettings.rowsPerPage = rows;
 					entryListPaginationSettings.currentPage = 1;
-					// Direct call - no debouncing needed with Svelte 5 runes
+					// Direct call - no debouncing needed
 					refreshTableData(true);
 				}}
 			/>

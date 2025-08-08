@@ -1,6 +1,6 @@
 /**
  * @file src/stores/store.svelte.ts
- * @description Global state management using Svelte 5 runes
+ * @description Global state management
  */
 
 import { publicEnv } from '@root/config/public';
@@ -312,9 +312,7 @@ export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as 
 // Export indexer
 export const indexer = undefined;
 
-/**
- * Creates a reactive validation store using Svelte 5 runes.
- */
+// Creates a reactive validation store
 function createValidationStore() {
 	let errors = $state<ValidationErrors>({});
 	const isValid = $derived(() => Object.values(errors).every((error) => !error));

@@ -1,6 +1,7 @@
 /**
  * @file src/utils/memoryOptimizer.svelte.ts
- * @description Memory optimization utilities for Svelte 5
+ * @description Memory optimization utilities
+ *
  * Provides automatic cleanup and memory management helpers
  */
 
@@ -50,10 +51,7 @@ export function createMemoryEfficientStore<T>(initialValue: T) {
 	};
 }
 
-/**
- * Debounced effect for expensive operations
- * Automatically cleans up on component unmount
- */
+// Debounced effect for expensive operations,  Automatically cleans up on component unmount
 export function createDebouncedEffect(fn: () => void, dependencies: () => unknown[], delay = 300) {
 	let timeoutId: number | null = null;
 
@@ -79,9 +77,7 @@ export function createDebouncedEffect(fn: () => void, dependencies: () => unknow
 	});
 }
 
-/**
- * Throttled effect for high-frequency updates
- */
+// Throttled effect for high-frequency updates
 export function createThrottledEffect(fn: () => void, dependencies: () => unknown[], delay = 100) {
 	let lastRun = 0;
 	let timeoutId: number | null = null;
@@ -113,9 +109,7 @@ export function createThrottledEffect(fn: () => void, dependencies: () => unknow
 	});
 }
 
-/**
- * Resource cleanup manager for components
- */
+// Resource cleanup manager for components
 export function createResourceManager() {
 	const resources = new SvelteSet<() => void>();
 
@@ -137,9 +131,7 @@ export function createResourceManager() {
 	};
 }
 
-/**
- * Intersection observer with automatic cleanup
- */
+// Intersection observer with automatic cleanup
 export function createIntersectionObserver(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
 	let observer: IntersectionObserver | null = null;
 
@@ -171,9 +163,7 @@ export function createIntersectionObserver(callback: IntersectionObserverCallbac
 	};
 }
 
-/**
- * Efficient image lazy loading with Svelte 5
- */
+// Efficient image lazy loading
 export function createLazyImage(src: string, placeholder?: string) {
 	let loaded = $state(false);
 	let error = $state(false);

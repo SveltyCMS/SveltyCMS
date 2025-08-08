@@ -20,6 +20,7 @@
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
+
 	// Auth
 	import type { User } from '@src/auth/types';
 	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
@@ -31,10 +32,12 @@
 	import '@stores/store.svelte';
 	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
+
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
+
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
@@ -107,7 +110,7 @@
 					const res = await axios.put('/api/user/updateUserAttributes', data);
 					const t = {
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
-						background: 'gradient-tertiary',
+						background: 'gradient-primary',
 						timeout: 3000,
 						classes: 'border-1 !rounded-md'
 					};
@@ -220,15 +223,15 @@
 				<form>
 					<label>
 						{m.form_username()}:
-						<input bind:value={user.username} name="username" type="text" disabled class="input" />
+						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input" />
 					</label>
 					<label>
 						{m.form_email()}:
-						<input bind:value={user.email} name="email" type="email" disabled class="input" />
+						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input" />
 					</label>
 					<label>
 						{m.form_password()}:
-						<input bind:value={password} name="password" type="password" disabled class="input" />
+						<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
 					</label>
 
 					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">

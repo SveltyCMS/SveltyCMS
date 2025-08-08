@@ -731,6 +731,7 @@
 
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 							<TableIcons
+								cellClass="w-10 text-center"
 								checked={selectAll}
 								onCheck={(checked) => {
 									selectAll = checked;

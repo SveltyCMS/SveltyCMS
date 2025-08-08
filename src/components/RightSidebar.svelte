@@ -59,10 +59,8 @@ This component provides a streamlined interface for managing collection entries 
 	const handleCloneEntry = () => cloneCurrentEntry(modalStore, toastStore);
 	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, toastStore, isAdmin);
 
-	// --- Status Management using collection status directly (Svelte 5 runes) ---
+	// --- Status Management using collection status directly  ---
 	const isPublish = $derived(() => {
-		// Use ?? to ensure we get the collection default if entry status is undefined/null
-		//@debug collection, collectionValue
 		const status = collectionValue.value?.status ?? collection.value?.status ?? StatusTypes.unpublish;
 		return status === StatusTypes.publish;
 	});

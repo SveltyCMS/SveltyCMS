@@ -1,6 +1,7 @@
 /**
  * @file src/utils/collections-prefetch.ts
  * @description Collection data caching utilities for performance optimization
+ *
  * Gets first collection info and fetches/caches data during authentication for instant loading
  */
 
@@ -20,10 +21,7 @@ interface PrefetchedData {
 const prefetchCache = new Map<string, PrefetchedData>();
 const PREFETCH_CACHE_TTL = 30 * 1000; // 30 seconds cache for prefetched data
 
-/**
- * Get first collection info without fetching data
- * This runs when user switches to SignIn/SignUp to identify which collection is available
- */
+// Get first collection info without fetching data when user switches to SignIn/SignUp to identify which collection is available
 export async function getFirstCollectionInfo(language: string = 'en'): Promise<{ collectionId: string; name: string } | null> {
 	try {
 		// Get the first collection
@@ -46,10 +44,7 @@ export async function getFirstCollectionInfo(language: string = 'en'): Promise<{
 	}
 }
 
-/**
- * Fetch and cache first page of entries for a collection
- * This runs during authentication with proper auth context to populate the cache
- */
+// Fetch and cache first page of entries for a collection during authentication with proper auth context to populate the cache
 export async function fetchAndCacheCollectionData(language: string = 'en', fetch?: typeof globalThis.fetch, serverRequest?: Request): Promise<void> {
 	try {
 		// Get the first collection
@@ -157,10 +152,7 @@ export async function fetchAndCacheCollectionData(language: string = 'en', fetch
 	}
 }
 
-/**
- * Get cached collection data if available
- * This is called by EntryList to get immediate data from cache
- */
+// Get cached collection data if available called by EntryList to get immediate data from cache
 export function getCachedCollectionData(
 	collectionId: string,
 	language: string = 'en'
@@ -180,9 +172,7 @@ export function getCachedCollectionData(
 	return cached.data;
 }
 
-/**
- * Clear collection cache for a specific collection or all collections
- */
+// Clear collection cache for a specific collection or all collections
 export function clearCollectionCache(collectionId?: string, language?: string): void {
 	if (collectionId && language) {
 		const cacheKey = `${collectionId}_${language}`;
@@ -194,9 +184,7 @@ export function clearCollectionCache(collectionId?: string, language?: string): 
 	}
 }
 
-/**
- * Get cache statistics for debugging
- */
+// Get cache statistics for debugging
 export function getCollectionCacheStats(): {
 	size: number;
 	entries: Array<{ key: string; age: number; entryCount: number }>;

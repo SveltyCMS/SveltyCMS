@@ -19,7 +19,7 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props using Svelte 5's $props
+	// Props
 	let { onselect = () => {} } = $props<{
 		onselect?: (file: MediaImage) => void;
 	}>();
