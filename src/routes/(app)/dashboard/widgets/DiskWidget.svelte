@@ -38,7 +38,6 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
-	import { m } from '@src/paraglide/messages';
 
 	// Type definitions
 	interface DiskInfo {
@@ -58,7 +57,7 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
-		label = m.diskWidget_label(),
+		label = 'Disk Usage',
 		theme = 'light',
 		icon = 'mdi:harddisk',
 		widgetId = undefined,
@@ -149,7 +148,7 @@ This widget fetches and displays real-time disk usage data, including:
 					labels: ['Disk'],
 					datasets: [
 						{
-							label: m.diskWidget_usedLabel(),
+							label: 'Used',
 							data: [used],
 							backgroundColor: usedPercent > 85 ? 'rgba(239, 68, 68, 0.8)' : usedPercent > 70 ? 'rgba(245, 158, 11, 0.8)' : 'rgba(59, 130, 246, 0.8)',
 							borderRadius: 8,
@@ -158,7 +157,7 @@ This widget fetches and displays real-time disk usage data, including:
 							stack: 'disk'
 						},
 						{
-							label: m.diskWidget_freeLabel(),
+							label: 'Free',
 							data: [free],
 							backgroundColor: theme === 'dark' ? 'rgba(75, 85, 99, 0.4)' : 'rgba(229, 231, 235, 0.6)',
 							borderRadius: 8,
@@ -369,8 +368,8 @@ This widget fetches and displays real-time disk usage data, including:
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" aria-hidden="true"></div>
 				</div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{m.diskWidget_loading()}</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.diskWidget_pleaseWait()}</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading disk data</div>
+					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
 				</div>
 			</div>
 		{/if}

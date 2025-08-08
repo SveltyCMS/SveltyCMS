@@ -37,13 +37,12 @@ Features:
 	import { onDestroy } from 'svelte';
 	import { Chart, PieController, ArcElement, Tooltip } from 'chart.js';
 	import type { ChartConfiguration, Plugin } from 'chart.js';
-	import { m } from '@src/paraglide/messages';
 
 	Chart.register(PieController, ArcElement, Tooltip);
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
-		label = m.memoryWidget_label(),
+		label = 'Memory Usage',
 		theme = 'light',
 		icon = 'mdi:memory',
 		widgetId = undefined,

@@ -27,7 +27,6 @@
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { m } from '@src/paraglide/messages';
 
 	// Defines the structure for a single system message.
 	interface SystemMessage {
@@ -40,7 +39,7 @@
 	type FetchedData = SystemMessage[] | undefined;
 
 	let {
-		label = m.systemMessagesWidget_label(),
+		label = 'System Messages',
 		theme = 'light',
 		icon = 'mdi:message-alert-outline',
 		widgetId = undefined,
@@ -70,14 +69,15 @@
 								{new Date(message.timestamp).toLocaleString()}
 							</small>
 						</div>
-						<p class="mt-1 text-surface-700 dark:text-surface-300" aria-label={m.systemMessagesWidget_bodyAriaLabel()}>{message.body}</p>
+						<p class="mt-1 text-surface-700 dark:text-surface-300" aria-label="Message body">{message.body}</p>
 					</div>
 				{/each}
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<iconify-icon icon="mdi:alert-circle-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
-				<span>{m.systemMessagesWidget_noMessages()}</span>
+				<iconify-icon icon="mdi:alert-circle-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"
+				></iconify-icon>
+				<span>No system messages</span>
 			</div>
 		{/if}
 	{/snippet}

@@ -45,7 +45,7 @@ This widget fetches and displays the latest content items, including:
 	type FetchedData = ContentItem[] | undefined;
 
 	let {
-		label = m.last5ContentWidget_label(),
+		label = 'Last 5 Content',
 		theme = 'light',
 		icon = 'mdi:file-document-multiple-outline',
 		widgetId = undefined,

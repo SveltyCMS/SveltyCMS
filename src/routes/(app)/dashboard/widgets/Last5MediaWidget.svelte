@@ -42,7 +42,7 @@
 	type FetchedData = MediaFile[] | undefined;
 
 	let {
-		label = m.last5MediaWidget_label(),
+		label = 'Last 5 Media',
 		theme = 'light',
 		icon = 'mdi:image-multiple-outline',
 		widgetId = undefined,
@@ -112,7 +112,7 @@
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
 				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
-				<span>{m.last5MediaWidget_noFilesFound()}</span>
+				<span>No media files found</span>
 			</div>
 		{/if}
 	{/snippet}

@@ -32,7 +32,7 @@
 	import BaseWidget from '../BaseWidget.svelte';
 
 	let {
-		label = m.cpuWidget_label(),
+		label = 'CPU Usage',
 		theme = 'light',
 		icon = 'mdi:cpu-64-bit',
 		widgetId = undefined,
@@ -52,7 +52,6 @@
 	let currentData = $state<any>(undefined);
 	let chartInstance = $state<Chart | undefined>(undefined);
 	let chartCanvasElement = $state<HTMLCanvasElement | undefined>(undefined);
-	let _languageTag = $state(getLocale());
 
 	function updateChart(fetchedData: any) {
 		if (!chartCanvasElement) return;
@@ -291,7 +290,7 @@
 					<div class="relative h-full w-full">
 						<canvas
 							bind:this={chartCanvasElement}
-							aria-label={m.cpuWidget_chartAriaLabel()}
+							aria-label="CPU Usage Chart"
 							use:updateChartAction={fetchedData}
 							class="h-full w-full"
 							style="display: block; width: 100% !important; height: 100% !important;"
@@ -319,8 +318,8 @@
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
 				</div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{m.cpuWidget_loading()}</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.cpuWidget_pleaseWait()}</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading CPU data</div>
+					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
 				</div>
 			</div>
 		{/if}

@@ -42,7 +42,7 @@
 	}
 
 	let {
-		label = m.logsWidget_label(),
+		label = 'System Logs',
 		theme = 'light',
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
@@ -124,13 +124,13 @@
 	const dynamicEndpoint = $derived(`${endpoint}?${getQueryParams()}&_t=${triggerFetchFlag}`);
 
 	const logLevelOptions = [
-		{ value: 'all', label: m.logsWidget_allLevels() },
-		{ value: 'fatal', label: m.logsWidget_fatal() },
-		{ value: 'error', label: m.logsWidget_error() },
-		{ value: 'warn', label: m.logsWidget_warn() },
-		{ value: 'info', label: m.logsWidget_info() },
-		{ value: 'debug', label: m.logsWidget_debug() },
-		{ value: 'trace', label: m.logsWidget_trace() }
+		{ value: 'all', label: 'All Levels' },
+		{ value: 'fatal', label: 'Fatal' },
+		{ value: 'error', label: 'Error' },
+		{ value: 'warn', label: 'Warn' },
+		{ value: 'info', label: 'Info' },
+		{ value: 'debug', label: 'Debug' },
+		{ value: 'trace', label: 'Trace' }
 	];
 
 	const getLogLevelColor = (level: string) => {
@@ -199,7 +199,7 @@
 
 <BaseWidget {label} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
-		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label={m.logsWidget_controlsAriaLabel()}>
+		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
 			<div class="flex flex-1 gap-2">
 				<select
 					bind:value={filterLevel}
@@ -213,7 +213,7 @@
 				</select>
 				<input
 					type="text"
-					placeholder={m.logsWidget_searchPlaceholder()}
+					placeholder="Search logs..."
 					bind:value={searchText}
 					class="rounded border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-400 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
 					aria-label="Search logs"
@@ -275,7 +275,7 @@
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
 				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
-				<span>{m.logsWidget_noLogsFound()}</span>
+				<span>No logs found</span>
 			</div>
 		{/if}
 	{/snippet}

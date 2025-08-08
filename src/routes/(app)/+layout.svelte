@@ -259,7 +259,7 @@
 					<aside
 						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
 							? 'w-[220px]'
-							: 'w-fit'} relative z-10 border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
 					</aside>
@@ -302,7 +302,7 @@
 				<!-- Sidebar Right -->
 				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
 					<aside
-						class="z-10 max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
 						<RightSidebar />
 					</aside>
