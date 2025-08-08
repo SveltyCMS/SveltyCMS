@@ -6,7 +6,7 @@
  * - `user`: The authenticated user data.
  *
  * ### Features
- * - User authentication and authorization
+ * - User authentication and authorization (now tenant-aware)
  * - Proper typing for user data
  *
  */
@@ -17,6 +17,9 @@ import type { PageData as AppPageData } from './$types';
 // Auth
 import type { User } from '@root/src/auth';
 
+// Roles
+import { roles } from '@root/config/roles';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -25,22 +28,24 @@ let eventFetch: typeof globalThis.fetch;
 
 // Define what your load function expects for user data and email list data
 interface ExpectedPageData extends AppPageData {
-	user?: User | null;
-	// Properties from emailList (components, emails etc.)
+	user?: User | null; // Properties from emailList (components, emails etc.)
 	emails?: { name: string; path: string; [key: string]: unknown }[];
 	components?: Record<string, unknown>;
 	[key: string]: unknown; // Allow other properties from emailList
 }
 
 export async function load({ locals, fetch }: { locals: App.Locals; fetch: typeof globalThis.fetch }): Promise<ExpectedPageData> {
-	const userData = locals.user;
+	const { user: userData, tenantId, roles: tenantRoles } = locals; // Store the fetch function for use in actions
 
-	// Store the fetch function for use in actions
-	eventFetch = fetch;
+	eventFetch = fetch; // Permission check: only allow admins to view email previews
+	// Use tenant-specific roles from locals if available, otherwise fallback to global roles.
 
-	// Permission check: only allow admins to view email previews
-	if (!userData || !userData.isAdmin) {
-		logger.warn(`Unauthorized attempt to access email previews by user: ${userData?.username || 'Guest'}`);
+	const rolesToUse = tenantRoles && tenantRoles.length > 0 ? tenantRoles : roles;
+	const userRole = rolesToUse.find((role) => role._id === userData?.role);
+	const isAdmin = Boolean(userRole?.isAdmin);
+
+	if (!userData || !isAdmin) {
+		logger.warn(`Unauthorized attempt to access email previews by user: ${userData?.username || 'Guest'}`, { tenantId });
 	}
 
 	const emailListData = await emailList({ path: '/src/components/emails' });
@@ -52,8 +57,7 @@ export async function load({ locals, fetch }: { locals: App.Locals; fetch: typeo
 }
 
 export const actions = {
-	...createEmail,
-	// Use the API endpoint for sending emails with proper fetch handling
+	...createEmail, // Use the API endpoint for sending emails with proper fetch handling
 	...sendEmail({
 		customSendEmailFunction: async ({ /* from, */ to, subject /* html */ }) => {
 			// Extract template name from subject or use default
@@ -63,15 +67,13 @@ export const actions = {
 				recipientEmail: to,
 				subject,
 				templateName
-			});
+			}); // Ensure essential props have fallbacks for robust previewing
 
-			// Ensure essential props have fallbacks for robust previewing
 			const previewProps = {
 				username: 'Preview User',
 				email: to,
 				sitename: 'SveltyCMS (Preview)',
-				hostLink: 'http://localhost:5173'
-				// Add any other commonly required props with sensible defaults
+				hostLink: 'http://localhost:5173' // Add any other commonly required props with sensible defaults
 			};
 
 			try {

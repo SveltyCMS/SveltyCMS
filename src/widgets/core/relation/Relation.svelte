@@ -23,14 +23,14 @@
 
 	// Components
 	import DropDown from './DropDown.svelte';
-	import Fields from '@components/Fields.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
 
 	// Types
 	import type { FieldType } from '.';
 
 	// Utils
-	import { getData, saveFormData } from '@utils/data';
-	import { extractData, findById, getFieldName } from '@utils/utils';
+	import { createEntry, getData, updateEntry } from '@utils/apiClient';
+	import { extractData, getFieldName } from '@utils/utils';
 
 	// Valibot validation
 	import * as v from 'valibot';
@@ -74,7 +74,12 @@
 					data = await extractData(fieldsData);
 				} else if (entryMode === 'choose') {
 					if (typeof value === 'string') {
-						data = await findById(value, String(relationCollection?.name || ''));
+						const result = await getData({
+							collectionId: String(relationCollection?._id || ''),
+							filter: JSON.stringify({ _id: value }),
+							limit: 1
+						});
+						data = result.entryList[0];
 					} else {
 						data = value;
 					}
@@ -148,32 +153,28 @@
 
 	function save() {
 		expanded = false;
-		$saveFunction.reset();
+		saveFunction.value.reset();
 		validateInput();
 	}
 
 	export const WidgetData = async () => {
 		let relation_id = '';
-		if (!field) return;
+		if (!field || !relationCollection?._id) return;
+		const collectionId = relationCollection._id;
 
 		try {
 			if (entryMode === 'create') {
-				const result = await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'create'
-				});
-				relation_id = result[0]?._id || '';
+				const result = await createEntry(collectionId, fieldsData);
+				if (result.success && result.data) {
+					relation_id = (result.data as { _id: string })._id;
+				}
 			} else if (entryMode === 'choose') {
 				relation_id = selected?._id || '';
 			} else if (entryMode === 'edit' && relation_entry?._id) {
-				const result = await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'edit',
-					id: relation_entry._id
-				});
-				relation_id = result[0]?._id || '';
+				const result = await updateEntry(collectionId, relation_entry._id, { ...fieldsData, _id: relation_entry._id });
+				if (result.success && result.data) {
+					relation_id = (result.data as { _id: string })._id;
+				}
 			}
 
 			validateInput();

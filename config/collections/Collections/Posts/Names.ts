@@ -11,7 +11,7 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'fluent:rename-28-filled',
-	status: 'unpublished',
+	status: 'unpublish',
 	revision: true,
 	livePreview: true,
 

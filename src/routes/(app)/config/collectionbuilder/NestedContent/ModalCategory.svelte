@@ -24,20 +24,20 @@
 			regionFooter?: string;
 			buttonPositive?: string;
 		};
-		existingCategory?: Partial<CollectionData>;
+		existingCategory?: Partial<ContentNode>; // Use ContentNode for consistency
 	}
 
 	interface FormData {
 		newCategoryName: string;
 		newCategoryIcon: string;
-		id?: string;
+		id?: string; // Optional ID for existing categories
 	}
 
 	let { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
 
 	const modalStore = getModalStore();
 
-	// State variables
+	// State variables for form and UI
 	let formData = $state<FormData>({
 		newCategoryName: existingCategory.name ?? '',
 		newCategoryIcon: existingCategory.icon ?? ''
@@ -46,7 +46,10 @@
 	let formError = $state<string | null>(null);
 	let validationErrors = $state<Record<string, string>>({});
 
-	// Form validation
+	/**
+	 * Validates the form input fields.
+	 * @returns True if the form is valid, false otherwise.
+	 */
 	function validateForm(): boolean {
 		const errors: Record<string, string> = {};
 
@@ -64,12 +67,14 @@
 		return Object.keys(errors).length === 0;
 	}
 
-	// Submit handler
+	/**
+	 * Handles form submission. Validates, then sends data back via the modal's response callback.
+	 * @param event The form submission event.
+	 */
 	async function onFormSubmit(event: Event): Promise<void> {
-		console.log('Validated form');
-		event.preventDefault();
+		event.preventDefault(); // Prevent default form submission
 		if (!validateForm()) {
-			console.error('Failed to validate Form ', event);
+			console.error('Form validation failed.');
 			return;
 		}
 
@@ -78,95 +83,95 @@
 
 		try {
 			if ($modalStore[0]?.response) {
+				// If adding a new category, generate a UUID
 				if (!existingCategory._id) {
-					// Generate new ID for new categories
-					const newId = uuidv4().replace(/-/g, '');
-					$modalStore[0].response({ ...formData, _id: newId });
+					$modalStore[0].response(formData); // `+page.svelte` will assign ID
 				} else {
-					$modalStore[0].response(formData);
+					$modalStore[0].response(formData); // For editing, pass existing ID implied
 				}
 			}
-			modalStore.close();
+			modalStore.close(); // Close modal on success
 		} catch (error) {
-			console.error('Error submitting form:', error);
+			console.error('Error submitting category form:', error);
 			formError = error instanceof Error ? error.message : 'Error submitting form';
 		} finally {
 			isSubmitting = false;
 		}
 	}
 
-	// Delete handler
+	/**
+	 * Handles deletion of an existing category.
+	 * Requires confirmation and checks for child categories.
+	 */
 	async function deleteCategory(): Promise<void> {
-		if (!existingCategory.children || Object.keys(existingCategory.children).length === 0) {
-			const confirmModal: ModalSettings = {
-				type: 'confirm',
-				title: 'Please Confirm',
-				body: 'Are you sure you wish to delete this category?',
-				response: async ({ confirmed }: { confirmed: boolean }) => {
-					if (!confirmed) return;
-
-					isSubmitting = true;
-					formError = null;
-
-					try {
-						// Update local store
-						contentStructure.update((existingCategories) => {
-							const newCategories = { ...existingCategories };
-							if (existingCategory.name) {
-								Object.keys(newCategories).forEach((key) => {
-									if (newCategories[key].name === existingCategory.name) {
-										delete newCategories[key];
-									}
-								});
-							}
-							return newCategories;
-						});
-
-						// Persist to backend
-						const response = await fetch('/api/content-structure', {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json'
-							},
-							body: JSON.stringify({
-								action: 'deleteNodes',
-								items: [existingCategory]
-							})
-						});
-
-						if (!response.ok) {
-							throw new Error('Failed to save category changes');
-						}
-						const {
-							success,
-							contentStructure: newStructure,
-							error
-						}: {
-							success: boolean;
-							contentStructure: Record<string, ContentNode>;
-							error: string;
-						} = await response.json();
-						if (!success) {
-							throw new Error(error);
-						}
-						contentStructure.set(newStructure);
-					} catch (error) {
-						console.error('Error deleting category:', error);
-						formError = error instanceof Error ? error.message : 'Failed to delete category';
-					} finally {
-						isSubmitting = false;
-					}
-				}
-			};
-
-			modalStore.trigger(confirmModal);
-			modalStore.close();
-		} else {
-			formError = 'Cannot delete category with subcategories.';
+		// Prevent deletion if category has children (collections or subcategories)
+		// This check is a simplification; a more robust solution would determine if `existingCategory.children`
+		// holds any values based on your `ContentNode` definition or fetch it live.
+		// For now, assuming `existingCategory.children` refers to a property that exists if children are present.
+		if (existingCategory.nodeType === 'category' && contentStructure.value.some(node => node.parentId === existingCategory._id)) {
+			formError = 'Cannot delete category with nested items (collections or subcategories). Please move or delete them first.';
+			return;
 		}
+
+		const confirmModal: ModalSettings = {
+			type: 'confirm',
+			title: 'Please Confirm Deletion',
+			body: `Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`,
+			response: async ({ confirmed }: { confirmed: boolean }) => {
+				if (!confirmed) return; // User cancelled confirmation
+
+				isSubmitting = true;
+				formError = null;
+
+				try {
+					// Persist to backend
+					const response = await fetch('/api/content-structure', {
+						method: 'POST', // Use POST for actions that modify data
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							action: 'updateContentStructure', // Re-use updateContentStructure for deletion
+							items: [
+								{
+									type: 'delete', // Define a 'delete' operation type
+									node: existingCategory // Pass the node to be deleted
+								}
+							]
+						})
+					});
+
+					if (!response.ok) {
+						const errorResult = await response.json();
+						throw new Error(errorResult.error || 'Failed to delete category');
+					}
+					const {
+						success,
+						contentStructure: newStructure // API should return updated full structure
+					}: {
+						success: boolean;
+						contentStructure: ContentNode[];
+					} = await response.json();
+					if (!success) {
+						throw new Error('API reported failure to delete category.');
+					}
+
+					// Update the global content structure store after successful deletion
+					contentStructure.set(newStructure);
+					modalStore.close(); // Close modal after successful deletion
+				} catch (error) {
+					console.error('Error deleting category:', error);
+					formError = error instanceof Error ? error.message : 'Failed to delete category';
+				} finally {
+					isSubmitting = false;
+				}
+			}
+		};
+
+		modalStore.trigger(confirmModal);
 	}
 
-	// Base Classes
+	// Base Classes for Skeleton modal
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';

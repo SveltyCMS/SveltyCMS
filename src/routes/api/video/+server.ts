@@ -25,6 +25,8 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { tiktok, twitch, vimeo, youtube, type YoutubeData } from '@widgets/custom/remoteVideo/video';
 
+// Permission checking
+
 // Define types for each platform's response
 interface BaseVideoData {
 	videoTitle: string;
@@ -59,6 +61,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	logger.debug('Video info request received');
 
 	try {
+		// Authentication is handled by hooks.server.ts - user presence confirms access
+
 		const data = await request.formData();
 		const url = data.get('url');
 

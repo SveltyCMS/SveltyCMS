@@ -31,13 +31,14 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
+	// Lazy-load FloatingPaths for performance on desktop
+	let FloatingPathsComponent = $state<any>(null);
 	import SignupIcon from './icons/SignupIcon.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
-	import { isMobile } from '@stores/screenSizeStore.svelte';
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
 	// Props
 	const {
@@ -72,6 +73,8 @@ Features:
 	let response = $state<any>(undefined);
 	let formElement = $state<HTMLFormElement | null>(null);
 	let showPassword = $state(false);
+	let isSubmitting = $state(false);
+	let isRedirecting = $state(false);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -80,8 +83,8 @@ Features:
 	const confirmPasswordTabIndex = 4;
 	const tokenTabIndex = 5;
 
-	// Form setup with Svelte 5 optimizations
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
+	// Form setup
+	const { form, constraints, allErrors, errors, enhance } = superForm(FormSchemaSignUp, {
 		id: 'signup',
 		// Clear form on success.
 		resetForm: true,
@@ -95,13 +98,31 @@ Features:
 		onSubmit: ({ cancel }) => {
 			if ($allErrors.length > 0) {
 				cancel();
+				return;
 			}
+
+			// Set submitting state for better UX
+			isSubmitting = true;
 		},
 
 		onResult: ({ result, cancel }) => {
+			// Reset submitting state
+			isSubmitting = false;
+
 			if (result.type == 'redirect') {
+				// Set redirecting state for brief period
+				isRedirecting = true;
+
+				// Clear redirecting state after brief delay to allow redirect
+				setTimeout(() => {
+					isRedirecting = false;
+				}, 1000);
+
 				return;
 			}
+
+			// Reset redirecting state on non-redirect
+			isRedirecting = false;
 			cancel();
 
 			// add wiggle animation to form element
@@ -197,6 +218,19 @@ Features:
 	const isHover = $derived(active === undefined || active === 0);
 
 	const baseClasses = 'hover relative flex items-center overflow-y-auto';
+
+	// Lazy-load FloatingPaths only on desktop when SignUp is active
+	$effect(() => {
+		const desktop = isDesktop.value;
+		const isActiveSignUp = active === 1;
+		if (browser && desktop && isActiveSignUp) {
+			import('@root/src/components/system/FloatingPaths.svelte').then((m) => {
+				FloatingPathsComponent = m.default;
+			});
+		} else {
+			FloatingPathsComponent = null;
+		}
+	});
 </script>
 
 <section
@@ -212,10 +246,10 @@ Features:
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			{#if !isMobile.value}
+			{#if isDesktop.value && FloatingPathsComponent}
 				<div class="absolute inset-0">
-					<FloatingPaths position={1} background="dark" mirrorAnimation />
-					<FloatingPaths position={-1} background="dark" mirrorAnimation />
+					<FloatingPathsComponent position={1} background="dark" mirrorAnimation />
+					<FloatingPathsComponent position={-1} background="dark" mirrorAnimation />
 				</div>
 			{/if}
 			<!-- CSS Logo -->
@@ -254,7 +288,15 @@ Features:
 				</div>
 
 				<!-- <SuperDebug data={$form} display={dev} /> -->
-				<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active !== 1}>
+				<form
+					method="post"
+					action="?/signUp"
+					use:enhance
+					bind:this={formElement}
+					class="items flex flex-col gap-3"
+					class:hide={active !== 1}
+					inert={active !== 1}
+				>
 					<!-- Username field -->
 					<FloatingInput
 						id="usernamesignUp"
@@ -269,7 +311,7 @@ Features:
 						iconColor="white"
 						textColor="white"
 						inputClass="text-white"
-						autocomplete="on"
+						autocomplete="username"
 					/>
 					{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
@@ -280,6 +322,9 @@ Features:
 						type="email"
 						tabindex={emailTabIndex}
 						required
+						autocomplete="email"
+						autocapitalize="none"
+						spellcheck={false}
 						bind:value={$form.email}
 						label={m.form_emailaddress()}
 						{...$constraints.email}
@@ -287,7 +332,6 @@ Features:
 						iconColor="white"
 						textColor="white"
 						inputClass="text-white {isInviteFlow ? 'opacity-70' : ''}"
-						autocomplete="on"
 						disabled={isInviteFlow}
 					/>
 					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
@@ -314,7 +358,7 @@ Features:
 						textColor="white"
 						showPasswordBackgroundColor="dark"
 						inputClass="text-white"
-						autocomplete="on"
+						autocomplete="new-password"
 					/>
 					{#if $errors.password}
 						<span class="text-xs text-error-500">{$errors.password}</span>
@@ -336,7 +380,7 @@ Features:
 						textColor="white"
 						showPasswordBackgroundColor="dark"
 						inputClass="text-white"
-						autocomplete="on"
+						autocomplete="new-password"
 					/>
 					{#if $errors.confirm_password}
 						<span class="text-xs text-error-500">{$errors.confirm_password}</span>
@@ -361,7 +405,7 @@ Features:
 							textColor="white"
 							showPasswordBackgroundColor="dark"
 							inputClass="text-white"
-							autocomplete="off"
+							autocomplete="one-time-code"
 						/>
 						{#if $errors.token}
 							<span class="text-xs text-error-500">{$errors.token}</span>
@@ -387,7 +431,7 @@ Features:
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
-							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+							{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
 						</button>
 
 						<!-- Email + OAuth signin  -->
@@ -402,7 +446,7 @@ Features:
 									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
 								</span>
 								<!-- Loading indicators -->
-								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+								{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
 							</button>
 
 							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">

@@ -13,12 +13,10 @@ Features:
 import { publicEnv } from '@root/config/public';
 
 // Media
-//import { MediaService } from '@utils/media/MediaService';
-import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
-import { Permission } from '@utils/media/mediaModels';
+import type { MediaType } from '@utils/media/mediaModels';
 
-import { getFieldName, getGuiFields, get_elements_by_id, meta_data } from '@utils/utils';
-//import { dbAdapter } from '@src/databases/db';
+import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
+
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '@widgets/widgetManager.svelte';
 
@@ -29,18 +27,6 @@ import * as m from '@src/paraglide/messages';
 import { logger } from '@utils/logger.svelte';
 
 const WIDGET_NAME = 'MediaUpload' as const;
-
-// Extend meta_data type
-interface ExtendedMetaData {
-	media_files?: {
-		removed: string[];
-	};
-}
-
-// Type guard to ensure media has an ID
-function hasMediaId(media: MediaType): media is MediaType & { _id: string } {
-	return media._id !== undefined && typeof media._id === 'string';
-}
 
 // Type guard for string data
 function isValidString(data: unknown): data is string {
@@ -72,19 +58,6 @@ function ensureValidId(id: unknown): string {
 		throw new Error('Invalid ID provided');
 	}
 	return id;
-}
-
-// Helper function to get MediaService instance
-function getMediaService(): MediaService {
-	try {
-		const service = new MediaService(dbAdapter);
-		logger.info('MediaService initialized successfully');
-		return service;
-	} catch (err) {
-		const message = `Failed to initialize MediaService: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw new Error(message);
-	}
 }
 
 const widget = (params: Params & { widgetId?: string }) => {
@@ -167,7 +140,7 @@ widget.Description = m.widget_ImageUpload_description();
 widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof widget>) => {
 	try {
 		const _data = data.get();
-		const extendedMetaData = meta_data as unknown as ExtendedMetaData;
+		// const extendedMetaData = meta_data as unknown as ExtendedMetaData; // DISABLED: no longer used
 		const validId = ensureValidId(id);
 
 		switch (type) {
@@ -178,31 +151,9 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 			case 'POST':
 			case 'PATCH':
 				if (_data instanceof File) {
-					const mediaService = getMediaService();
-					const access: MediaAccess = {
-						userId: validId,
-						permissions: [Permission.Read, Permission.Write, Permission.Delete]
-					};
-
-					const savedMedia = await mediaService.saveMedia(_data, validId, access);
-					if (!hasMediaId(savedMedia)) {
-						throw new Error('Failed to get media ID from saved media');
-					}
-
-					data.update(savedMedia._id);
-
-					const removedFiles = extendedMetaData?.media_files?.removed;
-					if (Array.isArray(removedFiles)) {
-						const index = removedFiles.indexOf(savedMedia._id);
-						if (index !== -1) {
-							removedFiles.splice(index, 1);
-						}
-					}
-
-					if (dbAdapter) {
-						await dbAdapter.updateOne('media_files', { _id: savedMedia._id }, { $addToSet: { used_by: validId } });
-						logger.info(`Updated media file usage reference: ${savedMedia._id}`);
-					}
+					// TODO: Handle file upload via server action instead
+					logger.warn('MediaService usage disabled in mediaUpload widget for browser compatibility');
+					throw new Error('File upload should be handled via server action');
 				} else if (_data && typeof _data === 'object' && '_id' in _data) {
 					const mediaId = String(_data._id);
 					data.update(mediaId);
@@ -210,9 +161,9 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 				break;
 			case 'DELETE':
 				if (isValidString(_data)) {
-					const mediaService = getMediaService();
-					await mediaService.deleteMedia(_data);
-					logger.info(`Deleted media file: ${_data}`);
+					// TODO: Handle deletion via server action instead
+					logger.warn('MediaService deletion disabled in mediaUpload widget for browser compatibility');
+					throw new Error('Media deletion should be handled via server action');
 				} else if (dbAdapter) {
 					await dbAdapter.updateMany('media_files', {}, { $pull: { used_by: validId } });
 					logger.info('Removed all media file references');

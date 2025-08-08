@@ -44,6 +44,18 @@ export async function connectToMongoDB(): Promise<void> {
 		//     strict: true,
 		//     deprecationErrors: true
 		// }
+
+		// 		const optimizedConfig = {
+		// maxPoolSize: 10, // Maintain up to 10 socket connections
+		// serverSelectionTimeoutMS: 5000, // Keep trying for 5 seconds
+		// socketTimeoutMS: 45000, // Close connections after 45 seconds inactivity
+		// family: 4, // Use IPv4, skip IPv6
+		// bufferMaxEntries: 0, // Disable mongoose buffering
+		// bufferCommands: false, // Disable mongoose buffering
+		// maxIdleTimeMS: 30000, // Close connections after 30 seconds inactivity
+		// minPoolSize: 2, // Maintain at least 2 socket connections
+		// };
+		// 	};
 	};
 
 	// Mongoose Connection Event Handlers

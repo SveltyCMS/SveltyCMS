@@ -6,9 +6,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Permission checking
+
 // GET: Get a specific virtual folder by ID
 export const GET: RequestHandler = async ({ params }) => {
 	try {
+		// Authentication is handled by hooks.server.ts - user presence confirms access
+
 		const { folderId } = params;
 
 		// For fresh installations, return not found
@@ -35,6 +39,8 @@ export const GET: RequestHandler = async ({ params }) => {
 // PUT: Update a specific virtual folder
 export const PUT: RequestHandler = async ({ params, request }) => {
 	try {
+		// Authentication is handled by hooks.server.ts - user presence confirms access
+
 		const { folderId } = params;
 		const data = await request.json();
 
@@ -63,6 +69,8 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 // DELETE: Delete a specific virtual folder
 export const DELETE: RequestHandler = async ({ params }) => {
 	try {
+		// Authentication is handled by hooks.server.ts - user presence confirms access
+
 		const { folderId } = params;
 
 		// For now, just return a placeholder response

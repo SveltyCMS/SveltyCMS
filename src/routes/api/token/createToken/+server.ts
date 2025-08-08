@@ -2,26 +2,36 @@
  * @file: src/routes/api/user/createToken/+server.ts
  * @description: API endpoint for creating user registration tokens and sending invitation emails
  *
- * This module provides functionality to:
- * - Create new registration tokens for inviting users
+ * Thi		// Invalidate the admin cache for tokens so the UI refreshes immediately
+
+		invalidateAdminCache('tokens', tenantId); // Return success response
+
+		return json({
+			success: true,
+			message: emailSkipped 
+				? 'Token created successfully. Email sending skipped (development mode - configure SMTP settings to enable email).'
+				: 'Token created and email sent successfully.',
+			token: { value: token, expires: expires.toISOString() },
+			email_sent: !emailSkipped
+		});provides functionality to:
+ * - Create new registration tokens for inviting users, scoped to the current tenant.
  * - Handle token creation requests
  *
  * Features:
  * - **Defense in Depth**: Specific permission checking for token creation.
  * - Input validation using Valibot schemas.
- * - Safeguards against creating tokens for existing users or emails.
+ * - Safeguards against creating tokens for existing users or emails within the same tenant.
  * - Correct, environment-agnostic link generation for invitation emails.
  * - Error handling and logging.
  */
 
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
 
-// Auth and permission helpers
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+// Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles'; // Import static roles for fallback
+import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -39,48 +49,50 @@ import { getLocale } from '@src/paraglide/runtime';
 
 export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 	try {
-		// **SECURITY**: Add a specific permission check.
-		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		const { tenantId } = locals; // User and permissions are guaranteed by hooks
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to create an invitation token', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to create user tokens.');
-		}
+		// No permission checks needed - hooks already verified:
+		// 1. User is authenticated
+		// 2. User has correct role for 'api:token' endpoint
+		// 3. User belongs to correct tenant (if multi-tenant)
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
+		// Note: tenantId validation is handled by hooks in multi-tenant mode
+
 		const body = await request.json();
-		logger.debug('Received token creation request:', body);
+		logger.debug('Received token creation request:', { ...body, tenantId }); // Validate input using the Valibot schema
 
-		// Validate input using the Valibot schema
 		const validatedData = parse(addUserTokenSchema, body);
-		logger.debug('Validated data:', validatedData);
+		logger.debug('Validated data:', validatedData); // Initialize roles and validate the selected role
 
-		// Check if a user with this email already exists in the main user collection.
-		const existingUser = await auth.checkUser({ email: validatedData.email });
-		if (existingUser) {
-			logger.warn('Attempted to create token for an already existing user', { email: validatedData.email });
-			throw error(409, 'A user with this email address already exists.');
-		}
-
-		// Check if an invitation token already exists for this email.
-		const tokenAdapter = new TokenAdapter();
-		// Check if a token already exists for this email
-
-		const existingTokens = await tokenAdapter.getAllTokens({ email: validatedData.email });
-		if (existingTokens && existingTokens.length > 0) {
-			logger.warn('Attempted to create a token for an email that already has one', { email: validatedData.email });
-			throw error(409, 'An invitation token for this email already exists. Please delete the existing token first.');
-		}
-
-		// Find the role object to get its name for the email template
+		await initializeRoles();
 		const roleInfo = roles.find((r) => r._id === validatedData.role);
-		const roleName = roleInfo ? roleInfo.name : validatedData.role; // Fallback to role ID if not found
+		if (!roleInfo) {
+			throw error(400, 'Invalid role selected.');
+		}
 
-		// Define expiration times based on the schema's allowed values.
+		// --- MULTI-TENANCY: Scope checks to the current tenant ---
+		const checkCriteria: { email: string; tenantId?: string } = { email: validatedData.email };
+		if (privateEnv.MULTI_TENANT) {
+			checkCriteria.tenantId = tenantId;
+		} // Quick checks (fail fast)
+
+		const [existingUser, existingTokens] = await Promise.all([auth.checkUser(checkCriteria), auth.getAllTokens(checkCriteria)]);
+
+		if (existingUser) {
+			logger.warn('Attempted to create token for an already existing user in this tenant', { email: validatedData.email, tenantId });
+			throw error(409, 'A user with this email address already exists in this tenant.');
+		}
+
+		if (existingTokens && existingTokens.length > 0) {
+			logger.warn('Attempted to create a token for an email that already has one in this tenant', { email: validatedData.email, tenantId });
+			throw error(409, 'An invitation token for this email already exists in this tenant. Please delete the existing token first.');
+		} // Calculate expiration date
+
 		const expirationInSeconds: Record<string, number> = {
 			'2 hrs': 7200,
 			'12 hrs': 43200,
@@ -93,67 +105,78 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		if (!expiresInSeconds) {
 			throw error(400, 'Invalid expiration value provided.');
 		}
+		const expires = new Date(Date.now() + expiresInSeconds * 1000); // Create token with pre-generated user_id for when user actually registers
 
-		const expires = new Date(Date.now() + expiresInSeconds * 1000);
-
-		// Create a new token using the TokenAdapter
-		const token = await tokenAdapter.createToken({
-			user_id: uuidv4(), // Use uuidv4 to generate a unique user_id
-			email: validatedData.email.toLowerCase(), // Normalize email to lowercase
+		const token = await auth.db.createToken({
+			user_id: uuidv4(), // This will be used when the user actually registers
+			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId to the token
+			email: validatedData.email.toLowerCase(),
 			expires,
 			type: 'user-invite',
-			username: validatedData.username,
 			role: validatedData.role
 		});
 
 		if (!token) {
-			logger.error('Failed to create token for email', { email: validatedData.email });
+			logger.error('Failed to create token for email', { email: validatedData.email, tenantId });
 			throw error(500, 'Internal Server Error: Token creation failed.');
 		}
 
-		logger.info('Token created successfully', { email: validatedData.email });
+		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
 
-		// Generate a link to the login page with the invite token as a query parameter.
-		const origin = url.origin;
-		const inviteLink = `${origin}/login?invite_token=${token}`;
+		const inviteLink = `${url.origin}/login?invite_token=${token}`; // Send invitation email
 
-		// Send invitation email using the internal sendMail API.
-		const emailApiUrl = `${origin}/api/sendMail`;
-
-		// Send invitation email using the internal sendMail API.
-		const emailResponse = await fetch(emailApiUrl, {
+		const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-internal-call': 'true' // Mark as internal call to bypass auth
+			},
 			body: JSON.stringify({
-				recipientEmail: validatedData.email, // Changed from 'email' to 'recipientEmail'
+				recipientEmail: validatedData.email,
 				subject: 'Invitation to Register',
 				templateName: 'userToken',
 				props: {
-					username: '', // Will be filled by the user during signup
 					email: validatedData.email,
-					role: roleName, // Send user-friendly role name
-					token: token, // Include the raw token for fallback
-					tokenLink: inviteLink, // Pass the full magic link to the template
+					role: roleInfo.name, // Use the role name for display
+					token: token,
+					tokenLink: inviteLink,
 					expiresInLabel: validatedData.expiresIn,
 					languageTag: getLocale()
 				}
 			})
-		});
+		}); // Handle email sending response
 
-		// If sending the email fails, roll back by deleting the created token.
 		if (!emailResponse.ok) {
 			const emailError = await emailResponse.json();
-			logger.error('Failed to send invitation email, rolling back token creation.', { email: validatedData.email, error: emailError });
-			await tokenAdapter.consumeToken(token);
+			logger.error('Failed to send invitation email, rolling back token creation.', {
+				email: validatedData.email,
+				error: emailError
+			}); // Rollback: delete the created token
+			await auth.consumeToken(token);
 			throw error(500, emailError.message || 'Failed to send invitation email.');
 		}
 
-		logger.info('Token created and email sent successfully', { email: validatedData.email, role: roleName });
+		// Check if email was actually sent or skipped due to dummy config
+		const emailResult = await emailResponse.json();
+		const emailSkipped = emailResult.dev_mode === true;
 
-		// Invalidate the admin cache for tokens so the UI refreshes immediately
-		invalidateAdminCache('tokens');
+		if (emailSkipped) {
+			logger.info('Token created successfully - email sending skipped (development mode)', {
+				email: validatedData.email,
+				role: roleInfo.name,
+				tenantId,
+				config_status: 'dummy_email_config'
+			});
+		} else {
+			logger.info('Token created and email sent successfully', {
+				email: validatedData.email,
+				role: roleInfo.name,
+				tenantId
+			});
+		} // Invalidate the admin cache for tokens so the UI refreshes immediately
 
-		// Return success response
+		invalidateAdminCache('tokens', tenantId); // Return success response
+
 		return json({
 			success: true,
 			message: 'Token created and email sent successfully.',

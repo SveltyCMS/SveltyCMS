@@ -477,9 +477,43 @@ if (isServer && !building) {
 		}
 	};
 
+	// Enhanced signal handling to prevent TTY/readline issues
+	const handleSignal = (signal: string) => {
+		try {
+			cleanup();
+		} catch (error) {
+			// Silently ignore TTY-related errors during cleanup
+			if (error instanceof Error && error.code !== 'EIO') {
+				console.error(`Logger cleanup error on ${signal}:`, error);
+			}
+		}
+	};
+
 	process.on('exit', cleanup);
-	process.on('SIGINT', cleanup);
-	process.on('SIGTERM', cleanup);
+	process.on('SIGINT', () => handleSignal('SIGINT'));
+	process.on('SIGTERM', () => handleSignal('SIGTERM'));
+
+	// Handle uncaught exceptions to prevent TTY errors
+	process.on('uncaughtException', (error) => {
+		// Ignore TTY/readline EIO errors that commonly occur when stopping dev servers
+		if (error.code === 'EIO' && error.syscall === 'read') {
+			return;
+		}
+		// Also ignore Interface/ReadStream errors
+		if (error.message && error.message.includes('Interface instance')) {
+			return;
+		}
+		console.error('Uncaught exception in logger:', error);
+	});
+
+	// Handle unhandled promise rejections
+	process.on('unhandledRejection', (reason) => {
+		// Ignore TTY-related promise rejections
+		if (reason instanceof Error && reason.code === 'EIO') {
+			return;
+		}
+		console.error('Unhandled promise rejection in logger:', reason);
+	});
 
 	// Clean up any existing intervals from previous HMR cycles
 	// @ts-expect-error - Checking custom property for HMR cleanup

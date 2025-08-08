@@ -34,6 +34,8 @@ const config = {
 			'@api': './src/routes/api',
 			'@components': './src/components',
 			'@collections': './config/collections',
+			'@auth': './src/auth',
+			'@databases': './src/databases',
 			'@utils': './src/utils',
 			'@stores': './src/stores',
 			'@static': './static',

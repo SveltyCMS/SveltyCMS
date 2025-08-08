@@ -11,7 +11,7 @@ Features:
 
 <script lang="ts">
 	// Stores
-	import { mode, modifyEntry } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Props
 	const props = $props<{
@@ -25,55 +25,48 @@ Features:
 			}
 		>;
 		defaultButton?: string;
+		// Event handler props for decoupling
+		'on:create'?: () => void;
+		'on:delete'?: () => void;
+		'on:publish'?: () => void;
+		'on:unpublish'?: () => void;
+		'on:test'?: () => void;
 	}>();
 
-	// Default buttons object with conditional checks for modifyEntry
+	// The default functions now call the event handlers passed in as props.
 	const defaultButtons = {
 		Create: {
-			fn: () => {
-				mode.set('create');
-			},
+			fn: props['on:create'] || (() => mode.set('create')),
 			icon: 'gravity-ui:plus',
 			bg_color: '#15d515',
 			color: 'white'
 		},
 		Delete: {
-			fn: () => {
-				const modifyFunc = $modifyEntry;
-				if (modifyFunc) modifyFunc('deleted');
-			},
+			fn: props['on:delete'] || (() => console.warn('Delete handler not provided')),
 			icon: 'tdesign:delete-1',
 			bg_color: 'red',
 			color: 'white'
 		},
 		Publish: {
-			fn: () => {
-				const modifyFunc = $modifyEntry;
-				if (modifyFunc) modifyFunc('published');
-			},
+			fn: props['on:publish'] || (() => console.warn('Publish handler not provided')),
 			icon: '',
 			bg_color: 'lime',
 			color: 'white'
 		},
 		Unpublish: {
-			fn: () => {
-				const modifyFunc = $modifyEntry;
-				if (modifyFunc) modifyFunc('unpublished');
-			},
+			fn: props['on:unpublish'] || (() => console.warn('Unpublish handler not provided')),
 			icon: '',
 			bg_color: 'orange',
 			color: 'white'
 		},
 		Test: {
-			fn: () => {
-				const modifyFunc = $modifyEntry;
-				if (modifyFunc) modifyFunc('testing');
-			},
+			fn: props['on:test'] || (() => console.warn('Test handler not provided')),
 			icon: '',
 			bg_color: 'brown',
 			color: 'white'
 		}
 	};
+
 	let buttons = $state(props.buttons || defaultButtons);
 	let expanded = $state(false);
 

@@ -25,6 +25,8 @@ Features:
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { setSystemLanguage } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -34,6 +36,7 @@ Features:
 
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
+	const firstCollection = $state(data.firstCollection);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
@@ -91,8 +94,8 @@ Features:
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived(
-		Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES)
-			? [...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		Array.isArray(publicEnv.LOCALES)
+			? [...publicEnv.LOCALES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 			: ['en']
 	);
 
@@ -106,9 +109,7 @@ Features:
 
 	// Ensure a valid language is always used
 	const currentLanguage = $derived(
-		systemLanguage.value && Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value)
-			? systemLanguage.value
-			: 'en'
+		systemLanguage.value && Array.isArray(publicEnv.LOCALES) && publicEnv.LOCALES.includes(systemLanguage.value) ? systemLanguage.value : 'en'
 	);
 
 	// Package version
@@ -119,10 +120,10 @@ Features:
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			systemLanguage.set(lang as typeof $systemLanguage);
+			setSystemLanguage(lang as (typeof systemLanguage)['value']);
 			isDropdownOpen = false;
 			searchQuery = '';
-		}, 300);
+		}, 100); // Reduced delay for faster feedback
 	}
 
 	// Function to handle clicks outside of the language selector
@@ -240,6 +241,34 @@ Features:
 	function handleDropdownToggle() {
 		isDropdownOpen = !isDropdownOpen;
 	}
+
+	// Prefetch when active state changes to SignIn (0) or SignUp (1)
+	$effect(() => {
+		if (active !== undefined) {
+			console.log(`[DEBUG] Active state changed to: ${active}, triggering prefetch...`);
+
+			// Call prefetch action on the server
+			fetch('/login?/prefetch', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: new URLSearchParams({
+					lang: systemLanguage.value || 'en'
+				})
+			})
+				.then((response) => {
+					if (response.ok) {
+						console.log('[DEBUG] Prefetch action completed successfully');
+					} else {
+						console.log('[DEBUG] Prefetch action failed:', response.status);
+					}
+				})
+				.catch((err) => {
+					console.log('[DEBUG] Prefetch fetch error:', err);
+				});
+		}
+	});
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
@@ -301,7 +330,7 @@ Features:
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			{#if Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
+			{#if Array.isArray(publicEnv.LOCALES) && publicEnv.LOCALES.length > 5}
 				<div class="relative">
 					<!-- Current Language Display -->
 					<button
@@ -355,11 +384,11 @@ Features:
 				<select
 					bind:value={systemLanguage.value}
 					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
-					onchange={async (e: Event) => {
+					onchange={(e: Event) => {
 						const target = e.target as HTMLSelectElement;
 						if (target) {
 							const lang = target.value;
-							await handleLanguageSelection(lang);
+							handleLanguageSelection(lang);
 						}
 					}}
 				>
@@ -372,6 +401,17 @@ Features:
 
 		<!-- CMS Version -->
 		{#if !isDropdownOpen}
+			<!-- Collection Preview -->
+			{#if firstCollection && (active === 0 || active === 1)}
+				<div
+					class="absolute bottom-16 left-1/2 z-0 flex min-w-[200px] max-w-[300px] -translate-x-1/2 transform flex-col items-center gap-2 rounded-lg bg-gradient-to-r from-surface-50/10 to-[#242728]/10 p-3 text-center transition-opacity duration-300"
+					class:opacity-50={isTransitioning}
+				>
+					<div class="text-xs text-gray-300">After login, you'll go to:</div>
+					<div class="text-sm font-medium text-white">{firstCollection.name}</div>
+				</div>
+			{/if}
+
 			<a
 				href="https://github.com/SveltyCMS/SveltyCMS"
 				target="_blank"

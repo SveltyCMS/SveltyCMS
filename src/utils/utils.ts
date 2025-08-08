@@ -7,8 +7,7 @@
  * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
  * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
  * - Data manipulation and validation (extractData, deepCopy, validateValibot)
- * - Internationalization helpers (getTextDirection, updateTranslationProgress)
- * - Database operations (find, findById)
+ * - Internationalization helpers (getTextDirection)
  * - UI-related utilities (getGuiFields, motion)
  * - String manipulation (pascalToCamelCase, getEditDistance)
  * - And various other helper functions
@@ -23,16 +22,19 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import axios from 'axios';
-import * as v from 'valibot';
+
 import type { BaseIssue, BaseSchema } from 'valibot';
+import type { Field } from '@src/content/types';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, updateTranslationProgress as updateTranslationStore, contentLanguage } from '@stores/store.svelte';
+import { contentLanguage } from '@stores/store.svelte';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
+
+// Validation
+import * as v from 'valibot';
 
 export const config = {
 	headers: {
@@ -56,9 +58,9 @@ export function uniqueItems(items: Record<string, unknown>[], key: string): obje
 export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
 	const guiFields: Record<string, unknown> = {};
 	for (const key in GuiSchema) {
-		if (Array.isArray(fieldParams[key])) {
-			guiFields[key] = deepCopy(fieldParams[key]);
-		} else {
+		if (Object.prototype.hasOwnProperty.call(fieldParams, key) && Array.isArray(fieldParams[key])) {
+			guiFields[key] = deepCopy(fieldParams[key] as unknown[]);
+		} else if (Object.prototype.hasOwnProperty.call(fieldParams, key)) {
 			guiFields[key] = fieldParams[key];
 		}
 	}
@@ -69,7 +71,7 @@ export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Re
 export const obj2formData = (obj: Record<string, unknown>) => {
 	const formData = new FormData();
 
-	const transformValue = (key: string, value: unknown): string | Blob => {
+	const transformValue = (value: unknown): string | Blob => {
 		if (value instanceof Blob) {
 			return value;
 		} else if (typeof value === 'object' && value !== null) {
@@ -180,55 +182,6 @@ export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> =
 
 	return schema;
 };
-
-// Finds documents in collection that match query
-export async function find(query: object, contentTypes: string) {
-	if (!contentTypes) {
-		logger.warn('find called without a collection name');
-		return;
-	}
-	const _query = JSON.stringify(query);
-	try {
-		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with query: /x1b[34m${_query}\x1b[0m`);
-		const response = await axios.get(`/api/find?collection=${contentTypes}&query=${_query}`);
-		logger.debug(`Received response from /api/find for collection: /x1b[34m${contentTypes}\x1b[0m`);
-		return response.data;
-	} catch (err) {
-		logger.error(`Error in find function for collection /x1b[34m${contentTypes}/x1b[0m:`, err as LoggableValue);
-		if (axios.isAxiosError(err)) {
-			logger.error('Axios error details:', {
-				response: err.response?.data,
-				status: err.response?.status,
-				headers: err.response?.headers
-			});
-		}
-		throw err; // Re-throw the error after logging
-	}
-}
-
-// Finds document in collection with specified ID
-export async function findById(id: string, contentTypes: string) {
-	if (!id || !contentTypes) {
-		logger.warn(`findById called with invalid parameters. ID: /x1b[34m${id}\x1b[0m, Collection: /x1b[34m${contentTypes}\x1b[0m`);
-		return;
-	}
-	try {
-		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with ID: /x1b[34m${id}\x1b[0m`);
-		const response = await axios.get(`/api/find?collection=${contentTypes}&id=${id}`);
-		logger.debug(`Received response from /api/find for collection: ${contentTypes}\x1b[0m with ID: ${id}\x1b[0m`);
-		return response.data;
-	} catch (err) {
-		logger.error(`Error in findById function for collection /x1b[34m${contentTypes}\x1b[0m and ID /x1b[34m${id}\x1b[0m:`, err as LoggableValue);
-		if (axios.isAxiosError(err)) {
-			logger.error('Axios error details:', {
-				response: err.response?.data,
-				status: err.response?.status,
-				headers: err.response?.headers
-			});
-		}
-		throw err; // Re-throw the error after logging
-	}
-}
 
 // Returns field's database field name or label
 export function getFieldName(field: Field, rawName = false): string {
@@ -395,40 +348,6 @@ export function ReadableExpireIn(expiresIn: string) {
 	const minutesText = minutesDiff > 0 ? `${minutesDiff} minute${minutesDiff > 1 ? 's' : ''}` : '';
 
 	return `${daysText} ${hoursText} ${minutesText}`.trim();
-}
-
-export function updateTranslationProgress(data, field) {
-	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
-	const fieldName = getFieldName(field); // Get the unique field name
-
-	if (!fieldName || !field?.translated) {
-		return; // Exit if field name is invalid or field is not translatable
-	}
-	let current = translationProgress();
-	// Ensure 'show' property exists or initialize it
-	if (typeof current.show === 'undefined') {
-		current.show = false; // Or true, depending on desired initial state
-	}
-
-	for (const lang of languages) {
-		// Language entry is guaranteed to exist due to store initialization
-		// Determine if the field is considered "translated" for this language
-		const value = data?.[lang];
-		const isTranslated = value !== null && value !== undefined && value !== ''; // Basic check for non-empty
-
-		// Add or remove from the translated set based on the value
-		if (isTranslated) {
-			current[lang].translated.add(fieldName);
-		} else {
-			current[lang].translated.delete(fieldName);
-		}
-
-		// Ensure the 'total' set is managed elsewhere (e.g., in Fields.svelte)
-		// We no longer add to 'total' here.
-	}
-	// Make sure the progress is shown if there are translatable fields
-	current.show = Object.values(current).some((langData) => typeof langData === 'object' && langData.total instanceof Set && langData.total.size > 0);
-	updateTranslationStore(current);
 }
 
 // Get elements by ID
@@ -654,92 +573,6 @@ export const pascalToCamelCase = (str: string): string => {
 	if (!str) return str;
 	return str.charAt(0).toLowerCase() + str.slice(1);
 };
-
-// Collection name conflict checking types
-interface CollectionNameCheck {
-	exists: boolean;
-	suggestions?: string[];
-	conflictPath?: string;
-}
-
-export async function checkCollectionNameConflict(name: string, collectionsPath: string): Promise<CollectionNameCheck> {
-	try {
-		// Handle relative paths by joining with process.cwd()
-		const absolutePath = path.isAbsolute(collectionsPath) ? collectionsPath : path.join(process.cwd(), collectionsPath);
-
-		const files = await getAllCollectionFiles(absolutePath);
-		const existingNames = new Set<string>();
-		let conflictPath: string | undefined;
-
-		// Build set of existing names and check for conflict
-		for (const file of files) {
-			const fileName = path.basename(file, '.ts');
-			if (fileName === name) {
-				// Convert absolute path to relative for display
-				conflictPath = path.relative(process.cwd(), file);
-			}
-			existingNames.add(fileName);
-		}
-
-		if (conflictPath) {
-			// Generate suggestions if there's a conflict
-			const suggestions = generateNameSuggestions(name, existingNames);
-			return { exists: true, suggestions, conflictPath };
-		}
-
-		return { exists: false };
-	} catch (error) {
-		console.error('Error checking collection name:', error);
-		return { exists: false };
-	}
-}
-
-async function getAllCollectionFiles(dir: string): Promise<string[]> {
-	const files: string[] = [];
-	const entries = await fs.readdir(dir, { withFileTypes: true });
-
-	for (const entry of entries) {
-		const fullPath = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			files.push(...(await getAllCollectionFiles(fullPath)));
-		} else if (
-			entry.isFile() &&
-			entry.name.endsWith('.ts') &&
-			!entry.name.startsWith('_') &&
-			!['index.ts', 'types.ts', 'ContentManager.ts'].includes(entry.name)
-		) {
-			files.push(fullPath);
-		}
-	}
-
-	return files;
-}
-
-function generateNameSuggestions(name: string, existingNames: Set<string>): string[] {
-	const suggestions: string[] = [];
-
-	// Try adding numbers
-	let counter = 1;
-	while (suggestions.length < 3 && counter <= 99) {
-		const suggestion = `${name}${counter}`;
-		if (!existingNames.has(suggestion)) {
-			suggestions.push(suggestion);
-		}
-		counter++;
-	}
-
-	// Try adding prefixes/suffixes if we need more suggestions
-	const commonPrefixes = ['New', 'Alt', 'Copy'];
-	for (const prefix of commonPrefixes) {
-		if (suggestions.length >= 5) break;
-		const suggestion = `${prefix}${name}`;
-		if (!existingNames.has(suggestion)) {
-			suggestions.push(suggestion);
-		}
-	}
-
-	return suggestions;
-}
 
 // Type assertion helper - used for widget type assertions
 export function asAny<T>(value: unknown): T {

@@ -2,14 +2,14 @@
  * @file src/routes/(app)/config/collectionbuilder/+page.server.ts
  * @description Server-side logic for Collection Builder page authentication and authorization.
  *
- * Handles user authentication and role-based access control for the Collection Builder page.
- * Redirects unauthenticated users to the login page and restricts access based on user permissions.
- *
- * Responsibilities:
+ * #Features:
  * - Checks for authenticated user in locals (set by hooks.server.ts).
- * - Checks user permissions for collection builder access.
- * - Returns user data if authentication and authorization are successful.
- * - Handles cases of unauthenticated users or insufficient permissions.
+ * - Verifies user permissions for collection builder access (`config:collectionbuilder`).
+ * - Fetches initial content structure data from `contentManager`.
+ * - Determines user's admin status based on roles.
+ * - Redirects unauthenticated users to login.
+ * - Throws 403 error for insufficient permissions.
+ * - Returns user data and content structure for client-side rendering.
  */
 
 import { redirect, error } from '@sveltejs/kit';
@@ -35,22 +35,41 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection builder
+		logger.debug('Permission check details', {
+			userId: user._id,
+			userRole: user.role,
+			availableRoles: roles.length,
+			checkingPermission: 'config:collectionbuilder'
+		});
+
 		const hasCollectionBuilderPermission = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
 
 		if (!hasCollectionBuilderPermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection builder`;
-			logger.warn(message);
+			const userRole = roles.find((r) => r._id === user.role);
+			logger.warn('Permission denied for collection builder', {
+				userId: user._id,
+				userRole: user.role,
+				roleFound: !!userRole,
+				isAdmin: userRole?.isAdmin,
+				rolePermissions: userRole?.permissions?.length || 0
+			});
 			throw error(403, 'Insufficient permissions');
 		}
 
+		// Fetch the initial content structure
 		const { contentStructure } = await contentManager.getCollectionData();
 
-		// Return user data
+		// Determine admin status properly by checking role
+		const userRole = roles.find((role) => role._id === user.role);
+		const isAdmin = Boolean(userRole?.isAdmin);
+
+		// Return user data with proper admin status and the content structure
 		const { _id, ...rest } = user;
 		return {
 			user: {
 				id: _id.toString(),
-				...rest
+				...rest,
+				isAdmin // Add the properly calculated admin status
 			},
 			contentStructure
 		};

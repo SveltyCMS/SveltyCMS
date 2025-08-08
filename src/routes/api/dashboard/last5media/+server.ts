@@ -1,88 +1,114 @@
 /**
  * @file src/routes/api/dashboard/last5media/+server.ts
- * @description API endpoint for last 5 media files for dashboard widgets
+ * @description API endpoint for last 5 media files for dashboard widgets using database-agnostic adapter.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
+
+// Database
+// import { dbAdapter } from '@src/databases/db';
 
 // Auth
-import { roles } from '@root/config/roles';
-import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async ({ locals }) => {
-	try {
-		// Check if user has permission for dashboard access
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'access',
-			'system',
-			'dashboard',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+// Validation
+import * as v from 'valibot';
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to access last 5 media data', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to access media data.');
+// --- Types & Schemas ---
+
+const MediaItemSchema = v.object({
+	name: v.string(),
+	size: v.number(),
+	modified: v.date(),
+	type: v.string(),
+	url: v.string()
+});
+
+// --- API Handler ---
+
+export const GET: RequestHandler = async ({ locals }) => {
+	const dbAdapter = locals.dbAdapter;
+	const { user, tenantId } = locals;
+
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		logger.warn('Unauthorized attempt to access media data');
+		throw error(401, 'Unauthorized');
+	}
+
+	try {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		const limit = 5; // Fixed to 5 for this specific endpoint
+		if (!dbAdapter) {
+			logger.error('Database adapter not available');
+			throw error(500, 'Database connection unavailable');
+		}
 
-		try {
-			// Get media files from the mediaFiles directory
-			const mediaDir = path.join(process.cwd(), 'mediaFiles');
-			const files = await fs.readdir(mediaDir);
-
-			// Filter for image/video files and get file stats
-			const mediaFiles = [];
-			for (const file of files) {
-				try {
-					const filePath = path.join(mediaDir, file);
-					const stats = await fs.stat(filePath);
-					const ext = path.extname(file).toLowerCase();
-
-					// Only include common media file types
-					if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi'].includes(ext)) {
-						mediaFiles.push({
-							name: file,
-							size: stats.size,
-							modified: stats.mtime,
-							type: ext.startsWith('.') ? ext.slice(1) : ext,
-							url: `/mediaFiles/${file}`
-						});
-					}
-				} catch (fileError) {
-					logger.warn('Error reading file stats:', { file, error: fileError });
-				}
-			}
-
-			// Sort by modification date (newest first)
-			mediaFiles.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-
-			// Return only the last 5 media files
-			const last5Media = mediaFiles.slice(0, limit);
-
-			logger.info('Last 5 media files fetched successfully', {
-				count: last5Media.length,
-				requestedBy: locals.user?._id
-			});
-
-			return json(last5Media);
-		} catch (dirError) {
-			// If mediaFiles directory doesn't exist or can't be read, return empty array
-			logger.warn('Could not read media directory:', dirError);
+		// Check if media adapter is available
+		if (!dbAdapter.media || !dbAdapter.media.files || !dbAdapter.media.files.getByFolder) {
+			logger.warn('Media adapter not available, returning empty result');
 			return json([]);
 		}
+
+		// --- MULTI-TENANCY: Scope the query by tenantId ---
+		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+
+		// Use database-agnostic adapter to get recent media files
+		const result = await dbAdapter.media.files.getByFolder(undefined, {
+			page: 1,
+			pageSize: 5,
+			sortField: 'updatedAt',
+			sortDirection: 'desc',
+			filter
+		});
+
+		if (!result.success) {
+			logger.error('Failed to fetch media files from database', {
+				error: result.error,
+				requestedBy: user?._id,
+				tenantId
+			});
+			// Return empty array instead of throwing error for dashboard widgets
+			return json([]);
+		}
+
+		// Check if we have data and items
+		if (!result.data || !result.data.items || !Array.isArray(result.data.items)) {
+			logger.warn('No media items found or invalid response structure');
+			return json([]);
+		}
+
+		// Transform the data to match the expected format
+		const recentMedia = result.data.items.map((file) => ({
+			name: file.filename || file.name || 'Unknown',
+			size: file.size || 0,
+			modified: new Date(file.updatedAt || file.modified || new Date()),
+			type: (file.mimeType || file.type || 'unknown').split('/')[1] || 'unknown',
+			url: file.path || file.url || ''
+		}));
+
+		const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
+
+		logger.info('Recent media fetched successfully via database adapter', {
+			count: validatedData.length,
+			total: result.data.total,
+			requestedBy: user?._id,
+			tenantId
+		});
+
+		return json(validatedData);
 	} catch (err) {
-		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
-		logger.error('Error fetching last 5 media files:', { error: message, status });
-		throw error(status, message);
+		if (err instanceof v.ValiError) {
+			logger.error('Media data failed validation', { error: err.issues });
+			throw error(500, 'Internal Server Error: Could not prepare media data.');
+		}
+		logger.error('Error fetching recent media:', err);
+		throw error(500, 'An unexpected error occurred.');
 	}
 };

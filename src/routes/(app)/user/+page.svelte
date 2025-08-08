@@ -15,12 +15,15 @@
 -->
 
 <script lang="ts">
+	import { privateEnv } from '@root/config/private';
 	import { invalidateAll } from '$app/navigation';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
+
 	// Auth
 	import type { User } from '@src/auth/types';
+	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -29,10 +32,12 @@
 	import '@stores/store.svelte';
 	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
+
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
+
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
@@ -45,7 +50,7 @@
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
-	let { user: serverUser, isFirstUser } = $derived(data);
+	let { user: serverUser, isFirstUser, isMultiTenant } = $derived(data);
 
 	// Make user data reactive
 	let user = $derived<User>({
@@ -54,6 +59,7 @@
 		username: serverUser?.username ?? '',
 		role: serverUser?.role ?? '',
 		avatar: serverUser?.avatar ?? '/Default_User.svg',
+		tenantId: serverUser?.tenantId ?? '', // Add tenantId
 		permissions: []
 	});
 
@@ -80,16 +86,8 @@
 		}
 		collection.set(null);
 
-		// Initialize avatarSrc with user's actual avatar from database
-		// Use serverUser directly to avoid fallback values
-		if (serverUser?.avatar && serverUser.avatar !== '/Default_User.svg') {
-			avatarSrc.set(serverUser.avatar);
-			console.log('Avatar initialized from database:', serverUser.avatar);
-		} else {
-			// Set to default if no avatar in database
-			avatarSrc.set('/Default_User.svg');
-			console.log('Avatar set to default');
-		}
+		// Note: Avatar initialization is handled by the layout component
+		// to ensure consistent avatar state across the application
 	});
 
 	// Modal Trigger - User Form
@@ -112,7 +110,7 @@
 					const res = await axios.put('/api/user/updateUserAttributes', data);
 					const t = {
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
-						background: 'gradient-tertiary',
+						background: 'gradient-primary',
 						timeout: 3000,
 						classes: 'border-1 !rounded-md'
 					};
@@ -139,9 +137,10 @@
 			title: m.usermodaluser_settingtitle(),
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
-			response: async (r: { dataURL: string }) => {
+			response: async (r: any) => {
+				// Avatar is already updated by the ModalEditAvatar component
+				// No need to set avatarSrc here since the modal handles it
 				if (r) {
-					avatarSrc.set(r.dataURL);
 					const t = {
 						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
 						background: 'gradient-primary',
@@ -149,7 +148,7 @@
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
-					await invalidateAll(); // Reload the page data to get the updated user object
+					// invalidateAll is already called by the ModalEditAvatar component
 				}
 			}
 		};
@@ -188,7 +187,12 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar src={`${avatarSrc.value}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
+				<Avatar
+					src={avatarSrc.value && avatarSrc.value.startsWith('data:') ? avatarSrc.value : `${avatarSrc.value}?t=${Date.now()}`}
+					initials="AV"
+					rounded-none
+					class="w-32"
+				/>
 
 				<!-- Edit button -->
 				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
@@ -200,6 +204,12 @@
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
 					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
+				<!-- Tenant ID -->
+				{#if isMultiTenant}
+					<div class="gradient-primary badge w-full max-w-xs text-white">
+						Tenant ID:<span class="ml-2">{user?.tenantId || 'N/A'}</span>
+					</div>
+				{/if}
 				<!-- Permissions List -->
 				{#each user.permissions as permission}
 					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
@@ -213,15 +223,15 @@
 				<form>
 					<label>
 						{m.form_username()}:
-						<input bind:value={user.username} name="username" type="text" disabled class="input" />
+						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input" />
 					</label>
 					<label>
 						{m.form_email()}:
-						<input bind:value={user.email} name="email" type="email" disabled class="input" />
+						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input" />
 					</label>
 					<label>
 						{m.form_password()}:
-						<input bind:value={password} name="password" type="password" disabled class="input" />
+						<input bind:value={password} name="password" type="password" autocomplete="current-password" disabled class="input" />
 					</label>
 
 					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
@@ -246,6 +256,13 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if privateEnv.USE_2FA}
+		<!-- Two-Factor Authentication Section -->
+		<div class="wrapper2 mb-4">
+			<TwoFactorAuth {user} />
+		</div>
+	{/if}
 
 	<!-- Admin area -->
 	<PermissionGuard

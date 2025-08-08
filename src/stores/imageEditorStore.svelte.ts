@@ -1,6 +1,6 @@
 /**
  * @file src/stores/imageEditorStore.svelte.ts
- * @description Manages the image editor using Svelte 5 runes
+ * @description Manages the image editor
  *
  * This provides functionality to:
  * - Undo and redo actions in the image editor
@@ -29,7 +29,7 @@ export interface ImageEditorState {
 	stateHistory: string[];
 }
 
-// Create image editor store using Svelte 5 runes
+// Create image editor store
 function createImageEditorStore() {
 	// State using $state rune
 	const state = $state<ImageEditorState>({

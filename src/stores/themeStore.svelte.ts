@@ -1,6 +1,6 @@
 /**
  * @file src/stores/themeStore.svelte.ts
- * @description Theme management using Svelte 5 runes
+ * @description Theme management
  *
  * Features:
  * - Reactive theme state management with auto-refresh
@@ -12,7 +12,6 @@
 
 import { store } from '@utils/reactivity.svelte';
 import type { Theme } from '@src/databases/dbInterface';
-//import { dbAdapter } from '@src/databases/db';
 
 // Types
 interface ThemeState {

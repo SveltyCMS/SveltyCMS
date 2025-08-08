@@ -15,26 +15,32 @@
 -->
 
 <script lang="ts">
-	// Your selected theme:
+	// selected theme:
 	import '../../app.postcss';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
+	import { fade } from 'svelte/transition';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { publicEnv } from '@root/config/public';
 	import { onDestroy, onMount } from 'svelte';
+	import { publicEnv } from '@root/config/public';
+
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import { getTextDirection } from '@utils/utils';
+
 	// Stores
-	import { collections, contentStructure } from '@stores/collectionStore.svelte';
-	import { isMobile, screenSize } from '@stores/screenSizeStore.svelte';
+	import { contentStructure } from '@stores/collectionStore.svelte';
+	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -43,11 +49,12 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
+
 	// Skeleton
 	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
-	import type { ContentNode } from '@root/src/databases/dbInterface';
+	// import type { ContentNode } from '@root/src/databases/dbInterface';
 	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
@@ -56,30 +63,43 @@
 		children?: import('svelte').Snippet;
 		data: {
 			user: User;
-			contentStructure: ContentNode[];
-			contentLanguage: string;
-			systemLanguage: string;
+			contentStructure: any[]; // Changed from ContentNode[] to any[]
 		};
 	}
 
 	let { children, data }: Props = $props();
 
-	// State variables
-	let isLoading = $state(true);
-	let isCollectionsLoaded = $state(false);
-	let isNonCriticalDataLoaded = $state(false);
+	// --- State Management ---
+	globalLoadingStore.startLoading(loadingOperations.initialization); // Start initial loading immediately.
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Update collection loaded state when contentStructure or collections change
-	$effect(() => {
-		// Check if we have contentStructure data OR collections data
-		const hasContentStructure = contentStructure.value && contentStructure.value.length > 0;
-		const hasCollections = collections.value && Object.keys(collections.value).length > 0;
+	// A single derived value now controls the loading indicator's visibility.
+	let shouldShowLoading = $derived(globalLoadingStore.isLoading);
 
-		if (hasContentStructure || hasCollections) {
-			isCollectionsLoaded = true;
-			isLoading = false;
+	// A derived value to compute the loading text cleanly.
+	let loadingTopText = $derived(() => {
+		// Use the reason from the global store to set the text.
+		switch (globalLoadingStore.loadingReason) {
+			case loadingOperations.initialization:
+				return 'Initializing';
+			case loadingOperations.navigation:
+				return 'Navigating';
+			case loadingOperations.dataFetch:
+				return 'Loading data';
+			case loadingOperations.authentication:
+				return 'Authenticating';
+			case loadingOperations.formSubmission:
+				return 'Submitting';
+			default:
+				return 'Loading'; // Fallback text.
+		}
+	});
+
+	// Set isCollectionsLoaded to true once the initial data is available.
+	$effect(() => {
+		if (data.contentStructure && data.contentStructure.length > 0) {
+			globalLoadingStore.stopLoading(loadingOperations.initialization);
 		}
 	});
 
@@ -100,19 +120,10 @@
 		try {
 			//console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
-			isCollectionsLoaded = true;
-			isLoading = false;
 		} catch (error) {
 			console.error('Error loading collections:', error);
 			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
-			isLoading = false; // Stop loading even if there's an error
 		}
-	}
-
-	// Function to load non-critical data
-	async function loadNonCriticalData() {
-		await new Promise((resolve) => setTimeout(resolve, 2000));
-		isNonCriticalDataLoaded = true;
 	}
 
 	// Theme management
@@ -147,9 +158,10 @@
 		if (data.user) {
 			// Initialize avatar with user's avatar URL from database, fallback to default
 			if (data.user.avatar && data.user.avatar !== '/Default_User.svg') {
-				avatarSrc.set(data.user.avatar);
+				avatarSrc.value = data.user.avatar;
 			} else {
-				avatarSrc.set('/Default_User.svg');
+				avatarSrc.value = '/Default_User.svg';
+				// console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
 			}
 		}
 
@@ -158,7 +170,27 @@
 
 		// Initialize data
 		initializeCollections();
-		loadNonCriticalData();
+	});
+
+	// Navigation loading handlers
+	beforeNavigate(({ from, to }) => {
+		// Only show loading for actual page changes, not hash changes
+		if (from && to && from.route.id !== to.route.id) {
+			globalLoadingStore.startLoading(loadingOperations.navigation);
+		}
+	});
+
+	afterNavigate(() => {
+		// Stop navigation loading
+		globalLoadingStore.stopLoading(loadingOperations.navigation);
+
+		// Clear any stale loading operations after navigation
+		setTimeout(() => {
+			// Only clear if no other operations are running
+			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
+				globalLoadingStore.stopLoading(loadingOperations.navigation);
+			}
+		}, 100);
 	});
 
 	onDestroy(() => {
@@ -201,13 +233,11 @@
 
 {#if loadError}
 	<div class="text-error-500">An error occurred: {loadError.message}</div>
-{:else if !isCollectionsLoaded}
-	<div class="flex h-lvh items-center justify-center"><Loading /></div>
 {:else}
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if $isMobile}
+		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
 			<FloatingNav />
 		{/if}
 		<Toast />
@@ -236,29 +266,34 @@
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative z-0 w-full min-w-0 flex-1 overflow-y-auto">
+				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
-						<header class="sticky top-0 z-10 w-full"><HeaderEdit /></header>
+						<header class="sticky top-0 w-full"><HeaderEdit /></header>
 					{/if}
 
-					<!-- Router Slot -->
+					<!-- Router Slot & Scoped Loader -->
 					<div
 						role="main"
-						class="relative flex-grow {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG'
-							? 'mb-2'
-							: 'mb-16'}"
+						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
 					>
-						{#if isLoading}
-							<div class="flex h-screen items-center justify-center"><Loading /></div>
-						{:else}
-							{@render children?.()}
+						<!-- The loading component  -->
+						{#if shouldShowLoading}
+							<div transition:fade={{ duration: 200 }} class="variant-glass-surface absolute z-50 flex h-full w-full items-center justify-center">
+								<Loading
+									customTopText={loadingTopText()}
+									customBottomText={globalLoadingStore.loadingReason === loadingOperations.initialization ? 'Loading application...' : 'Please wait'}
+								/>
+							</div>
 						{/if}
+
+						<!-- The page content is rendered here. -->
+						{@render children?.()}
 					</div>
 
 					<!-- Page Footer (Mobile Nav) -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
-						<footer class="sticky bottom-0 z-20 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
+						<footer class="mt-auto w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}

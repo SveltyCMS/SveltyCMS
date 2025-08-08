@@ -1,6 +1,6 @@
 /**
  * @file src/utils/reactivity.svelte.ts
- * @description Advanced reactivity utilities for Svelte 5 runes
+ * @description Advanced reactivity utilities
  *
  * Provides:
  * - A custom reactive store implementation

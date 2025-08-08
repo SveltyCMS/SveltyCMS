@@ -1,6 +1,6 @@
 /**
- @file cli-installer/config/system.js
- @description Configuration prompts for the System section
+@file cli-installer/config/system.js
+@description Configuration prompts for the System section
 
  ### Features
  - Displays a note about the System configuration
@@ -11,13 +11,7 @@
 import { confirm, text, note, select, isCancel, multiselect, password } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title, cancelToMainMenu } from '../cli-installer.js';
-import crypto from 'crypto';
-
-// Generate JWT Secret
-function generateRandomJWTSecret(length = 64) {
-	// Increased default length for better security
-	return crypto.randomBytes(length).toString('hex');
-}
+import { generateRandomJWTSecret, generateRandom2FASecret } from '../utils/cryptoUtils.js';
 
 // Validate positive integer (using new error return)
 const validatePositiveInteger = (value, fieldName) => {
@@ -89,29 +83,36 @@ const validateSizeFormat = (value, fieldName) => {
 
 export async function configureSystem(privateConfigData = {}) {
 	// SveltyCMS Title
-	Title();
+	Title(); // Display a note about the System configuration
 
 	// Display a note about the System configuration
 	note(
 		`Configure essential system settings for your SveltyCMS installation:
   • Site name and branding
   • Development and production hostnames
+  • Multi-tenant support
   • Security settings (JWT, password strength)
-  • File upload limits and body size restrictions`,
+  • File upload limits and body size restrictions
+  • Data archiving and export features
+  • Logging configuration and retention
+  • Session management settings
+  • Seasonal theme options`,
 		pc.green('System Configuration:')
-	);
+	); // Display existing configuration (secrets hidden)
 
-	// Display existing configuration (secrets hidden)
 	if (privateConfigData.SITE_NAME) {
 		// Check if any system config exists
 		note(
 			`Site Name: ${pc.cyan(privateConfigData.SITE_NAME)}\n` +
 				`Dev Host: ${pc.cyan(privateConfigData.HOST_DEV)}\n` +
 				`Prod Host: ${pc.cyan(privateConfigData.HOST_PROD)}\n` +
+				`Multi-Tenancy Enabled: ${pc.cyan(privateConfigData.MULTI_TENANT ? 'Yes' : 'No')}\n` +
 				`Password Length: ${pc.cyan(privateConfigData.PASSWORD_LENGTH?.toString())}\n` +
 				`Body Size Limit: ${pc.cyan(formatBytesToSize(privateConfigData.BODY_SIZE_LIMIT) || 'Not set')}\n` +
 				`Max File Size: ${pc.cyan(formatBytesToSize(privateConfigData.MAX_FILE_SIZE) || 'Not set')}\n` +
-				`Enable Data Extraction?: ${pc.cyan(privateConfigData.EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` + // Adjusted display
+				`Enable Data Extraction?: ${pc.cyan(privateConfigData.EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` +
+				`Data Export Path: ${pc.cyan(privateConfigData.EXTRACT_DATA_PATH || 'Not set')}\n` +
+				`Use Archive on Delete: ${pc.cyan(privateConfigData.USE_ARCHIVE_ON_DELETE ? 'Yes' : 'No')}\n` +
 				`Log Levels: ${pc.cyan(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
 				`Log Retention Days: ${pc.cyan(privateConfigData.LOG_RETENTION_DAYS?.toString() || 'Not set')}\n` + // New display
 				`Log Rotation Size: ${pc.cyan(formatBytesToSize(privateConfigData.LOG_ROTATION_SIZE) || 'Not set')}\n` + // New display
@@ -120,7 +121,7 @@ export async function configureSystem(privateConfigData = {}) {
 				`DB Validation Probability: ${pc.cyan(privateConfigData.DB_VALIDATION_PROBABILITY)}\n` +
 				`Session Expiration (s): ${pc.cyan(privateConfigData.SESSION_EXPIRATION_SECONDS)}\n` +
 				`Enable Seasons: ${pc.cyan(privateConfigData.SEASONS ? 'Yes' : 'No')}\n` +
-				`Seasons Region: ${pc.cyan(privateConfigData.SEASONS_REGION || 'Not set')}`,
+				`Seasons Region: ${pc.cyan(privateConfigData.SEASON_REGION || 'Not set')}`,
 			//`JWT_SECRET_KEY: ${pc.red(privateConfigData.JWT_SECRET)}`, // Keep secret hidden
 			pc.cyan('Existing System Configuration (JWT Secret hidden):')
 		);
@@ -160,12 +161,20 @@ export async function configureSystem(privateConfigData = {}) {
 		placeholder: 'https://yourdomain.com',
 		initialValue: privateConfigData.HOST_PROD || 'https://sveltycms.com',
 		validate(value) {
-			if (!value || value.length === 0) return { message: `Domain name is required!` };
-			// Optional: Add URL validation
+			if (!value || value.length === 0) return { message: `Domain name is required!` }; // Optional: Add URL validation
 			return undefined;
 		}
 	});
 	if (isCancel(HOST_PROD)) {
+		cancelToMainMenu();
+		return;
+	}
+
+	const MULTI_TENANT = await confirm({
+		message: 'Enable multi-tenancy? (isolates data for different tenants)',
+		initialValue: privateConfigData.MULTI_TENANT || false
+	});
+	if (isCancel(MULTI_TENANT)) {
 		cancelToMainMenu();
 		return;
 	}
@@ -214,11 +223,37 @@ export async function configureSystem(privateConfigData = {}) {
 	}
 	const BODY_SIZE_LIMIT = parseSizeToBytes(BODY_SIZE_LIMIT_STRING);
 
-	const EXTRACT_DATA_PATH = await confirm({
-		message: 'Enable data extraction feature?', // Rephrased prompt
-		initialValue: privateConfigData.EXTRACT_DATA_PATH || false // Assuming boolean
+	const ENABLE_DATA_EXTRACTION = await confirm({
+		message: 'Enable data extraction feature (allows exporting all collection data)?',
+		initialValue: privateConfigData.EXTRACT_DATA_PATH ? true : false
 	});
-	if (isCancel(EXTRACT_DATA_PATH)) {
+	if (isCancel(ENABLE_DATA_EXTRACTION)) {
+		cancelToMainMenu();
+		return;
+	}
+
+	let EXTRACT_DATA_PATH;
+	if (ENABLE_DATA_EXTRACTION) {
+		EXTRACT_DATA_PATH = await text({
+			message: 'Enter the file path for data exports (relative to project root):',
+			placeholder: './config/exports/data.json',
+			initialValue: privateConfigData.EXTRACT_DATA_PATH || './config/exports/data.json',
+			validate(value) {
+				if (!value || value.length === 0) return { message: 'Data export path is required when extraction is enabled!' };
+				return undefined;
+			}
+		});
+		if (isCancel(EXTRACT_DATA_PATH)) {
+			cancelToMainMenu();
+			return;
+		}
+	}
+
+	const USE_ARCHIVE_ON_DELETE = await confirm({
+		message: 'Enable archiving on delete (recommended for data safety)?',
+		initialValue: privateConfigData.USE_ARCHIVE_ON_DELETE !== undefined ? privateConfigData.USE_ARCHIVE_ON_DELETE : true // Default to true
+	});
+	if (isCancel(USE_ARCHIVE_ON_DELETE)) {
 		cancelToMainMenu();
 		return;
 	}
@@ -227,15 +262,15 @@ export async function configureSystem(privateConfigData = {}) {
 	const LOG_LEVELS = await multiselect({
 		message: 'Select log levels to be outputted:',
 		options: [
-			{ value: 'fatal', label: 'Fatal' }, // Added fatal
-			{ value: 'error', label: 'Error' },
-			{ value: 'warn', label: 'Warn' },
-			{ value: 'info', label: 'Info' },
-			{ value: 'debug', label: 'Debug' },
-			{ value: 'trace', label: 'Trace' }, // Added trace
-			{ value: 'none', label: 'None' }
+			{ value: 'fatal', label: 'Fatal', hint: 'Critical system failures that require immediate attention' },
+			{ value: 'error', label: 'Error', hint: 'Application errors and exceptions that need investigation' },
+			{ value: 'warn', label: 'Warn', hint: 'Warning messages about potential issues or deprecated features' },
+			{ value: 'info', label: 'Info', hint: 'General informational messages about application flow' },
+			{ value: 'debug', label: 'Debug', hint: 'Detailed debugging information for development (verbose)' },
+			{ value: 'trace', label: 'Trace', hint: 'Most detailed tracing information for deep debugging (very verbose)' },
+			{ value: 'none', label: 'None', hint: 'No logger output will be generated (fastest performance)' }
 		],
-		initialValues: privateConfigData.LOG_LEVELS || ['info', 'warn', 'error'], // Sensible defaults
+		initialValues: privateConfigData.LOG_LEVELS || ['error'], // Default to error only
 		validate(value) {
 			if (value.length === 0) return { message: 'At least one log level must be selected (choose "none" to disable).' };
 			if (value.includes('none') && value.length > 1) return { message: 'Cannot select "None" with other log levels.' };
@@ -343,9 +378,9 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
-	let SEASONS_REGION;
+	let SEASON_REGION;
 	if (SEASONS) {
-		SEASONS_REGION = await select({
+		SEASON_REGION = await select({
 			message: 'Select a region for seasonal content:',
 			options: [
 				{
@@ -356,30 +391,128 @@ export async function configureSystem(privateConfigData = {}) {
 				{ value: 'South_Asia', label: 'South Asia', hint: 'Diwali' },
 				{ value: 'East_Asia', label: 'East Asia', hint: 'Chinese New Year' }
 			],
-			initialValue: privateConfigData.SEASONS_REGION || 'Western_Europe'
+			initialValue: privateConfigData.SEASON_REGION || 'Western_Europe'
 		});
-		if (isCancel(SEASONS_REGION)) {
+		if (isCancel(SEASON_REGION)) {
 			cancelToMainMenu();
 			return;
 		}
 	}
 
-	// Generate secret once if needed, use existing otherwise
+	// JWT Secret Key generation
 	const existingJwtSecret = privateConfigData.JWT_SECRET_KEY;
-	const generatedJwtSecret = existingJwtSecret || generateRandomJWTSecret();
+	const hasExistingSecret = existingJwtSecret && typeof existingJwtSecret === 'string' && existingJwtSecret.length >= 32;
 
-	const JWT_SECRET_KEY = await password({
-		message: 'Enter JWT secret key (used for signing tokens):',
-		initialValue: generatedJwtSecret, // Use existing or newly generated
-		validate(value) {
-			if (!value) return { message: `JWT secret key is required!` };
-			if (value.length < 32) return { message: `JWT secret should be at least 32 characters long for security.` };
-			return undefined;
-		}
+	const USE_GENERATED_JWT = await confirm({
+		message: hasExistingSecret ? 'Use existing JWT secret key?' : 'Generate a secure JWT secret key automatically?',
+		initialValue: true
 	});
-	if (isCancel(JWT_SECRET_KEY)) {
+	if (isCancel(USE_GENERATED_JWT)) {
 		cancelToMainMenu();
 		return;
+	}
+
+	let JWT_SECRET_KEY;
+	if (USE_GENERATED_JWT && hasExistingSecret) {
+		JWT_SECRET_KEY = existingJwtSecret;
+	} else if (USE_GENERATED_JWT) {
+		JWT_SECRET_KEY = generateRandomJWTSecret();
+		note(
+			`A secure JWT secret key has been generated automatically.\n` +
+				`Length: ${JWT_SECRET_KEY.length} characters\n` +
+				`This key will be used for signing authentication tokens.`,
+			pc.green('JWT Secret Generated:')
+		);
+	} else {
+		JWT_SECRET_KEY = await password({
+			message: 'Enter your custom JWT secret key (minimum 32 characters):',
+			placeholder: 'Enter a secure secret key...',
+			validate(value) {
+				if (!value) return { message: 'JWT secret key is required!' };
+				if (value.length < 32) return { message: 'JWT secret must be at least 32 characters long for security.' };
+				return undefined;
+			}
+		});
+		if (isCancel(JWT_SECRET_KEY)) {
+			cancelToMainMenu();
+			return;
+		}
+	}
+
+	// Two-Factor Authentication Configuration
+	const USE_2FA = await confirm({
+		message: 'Enable Two-Factor Authentication (2FA) for enhanced security?',
+		initialValue: privateConfigData.USE_2FA || false
+	});
+
+	if (isCancel(USE_2FA)) {
+		cancelToMainMenu();
+		return;
+	}
+
+	let TWO_FACTOR_AUTH_SECRET = null;
+	let TWO_FACTOR_AUTH_BACKUP_CODES_COUNT = 10;
+
+	if (USE_2FA) {
+		const existing2FASecret = privateConfigData.TWO_FACTOR_AUTH_SECRET;
+		const hasExisting2FASecret = existing2FASecret && typeof existing2FASecret === 'string' && existing2FASecret.length >= 16;
+
+		const USE_GENERATED_2FA_SECRET = await confirm({
+			message: hasExisting2FASecret ? 'Use existing 2FA secret key?' : 'Generate 2FA secret key automatically?',
+			initialValue: true
+		});
+
+		if (isCancel(USE_GENERATED_2FA_SECRET)) {
+			cancelToMainMenu();
+			return;
+		}
+
+		if (USE_GENERATED_2FA_SECRET && hasExisting2FASecret) {
+			TWO_FACTOR_AUTH_SECRET = existing2FASecret;
+		} else if (USE_GENERATED_2FA_SECRET) {
+			TWO_FACTOR_AUTH_SECRET = generateRandom2FASecret();
+			note(
+				`A secure 2FA secret key has been generated automatically.\n` +
+					`Length: ${TWO_FACTOR_AUTH_SECRET.length} characters\n` +
+					`This key will be used for generating 2FA tokens.`,
+				pc.green('2FA Secret Generated:')
+			);
+		} else {
+			TWO_FACTOR_AUTH_SECRET = await password({
+				message: 'Enter your custom 2FA secret key (minimum 16 characters):',
+				placeholder: 'Enter a secure 2FA secret key...',
+				validate(value) {
+					if (!value) return { message: '2FA secret key is required when 2FA is enabled!' };
+					if (value.length < 16) return { message: '2FA secret must be at least 16 characters long for security.' };
+					return undefined;
+				}
+			});
+			if (isCancel(TWO_FACTOR_AUTH_SECRET)) {
+				cancelToMainMenu();
+				return;
+			}
+		}
+
+		// Backup codes count
+		const backupCodesInput = await text({
+			message: 'Number of backup codes to generate for 2FA recovery (1-50):',
+			placeholder: '10',
+			initialValue: String(privateConfigData.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT || 10),
+			validate(value) {
+				const num = Number(value);
+				if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 50) {
+					return { message: 'Backup codes count must be an integer between 1 and 50.' };
+				}
+				return undefined;
+			}
+		});
+
+		if (isCancel(backupCodesInput)) {
+			cancelToMainMenu();
+			return;
+		}
+
+		TWO_FACTOR_AUTH_BACKUP_CODES_COUNT = Number(backupCodesInput);
 	}
 
 	// Summary (Secret hidden)
@@ -387,10 +520,13 @@ export async function configureSystem(privateConfigData = {}) {
 		`Site Name: ${pc.green(SITE_NAME)}\n` +
 			`Dev Host: ${pc.green(HOST_DEV)}\n` +
 			`Prod Host: ${pc.green(HOST_PROD)}\n` +
+			`Multi-Tenancy Enabled: ${pc.green(MULTI_TENANT ? 'Yes' : 'No')}\n` +
 			`Password Length: ${pc.green(PASSWORD_LENGTH)}\n` +
 			`Body Size Limit: ${pc.green(formatBytesToSize(BODY_SIZE_LIMIT) || 'Not set')}\n` +
 			`Max File Size: ${pc.green(formatBytesToSize(MAX_FILE_SIZE) || 'Not set')}\n` +
-			`Enable Data Extraction?: ${pc.green(EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` +
+			`Enable Data Extraction?: ${pc.green(ENABLE_DATA_EXTRACTION ? 'Yes' : 'No')}\n` +
+			`Data Export Path: ${pc.green(EXTRACT_DATA_PATH || 'Not Applicable')}\n` +
+			`Use Archive on Delete: ${pc.green(USE_ARCHIVE_ON_DELETE ? 'Yes' : 'No')}\n` +
 			`Log Levels: ${pc.green(LOG_LEVELS.join(', '))}\n` +
 			`Log Retention Days: ${pc.green(LOG_RETENTION_DAYS)}\n` + // New summary line
 			`Log Rotation Size: ${pc.green(formatBytesToSize(LOG_ROTATION_SIZE))}\n` + // New summary line
@@ -399,7 +535,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`DB Validation Probability: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
 			`Session Expiration (s): ${pc.green(SESSION_EXPIRATION_SECONDS)}\n` +
 			`Enable Seasons: ${pc.green(SEASONS ? 'Yes' : 'No')}\n` +
-			`Seasons Region: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not Applicable')}\n` +
+			`Seasons Region: ${pc.green(SEASONS && SEASON_REGION ? SEASON_REGION : 'Not Applicable')}\n` +
 			`JWT Secret Key: ${pc.green('[Set]')}`, // Keep secret hidden
 		pc.green('Review Your System Configuration:')
 	);
@@ -425,10 +561,12 @@ export async function configureSystem(privateConfigData = {}) {
 		SITE_NAME,
 		HOST_DEV,
 		HOST_PROD,
+		MULTI_TENANT,
 		PASSWORD_LENGTH: Number(PASSWORD_LENGTH),
 		BODY_SIZE_LIMIT, // Already in bytes
 		MAX_FILE_SIZE, // Already in bytes
 		EXTRACT_DATA_PATH,
+		USE_ARCHIVE_ON_DELETE,
 		LOG_LEVELS,
 		LOG_RETENTION_DAYS: Number(LOG_RETENTION_DAYS), // New: Pass as number
 		LOG_ROTATION_SIZE, // New: Pass as bytes
@@ -437,7 +575,10 @@ export async function configureSystem(privateConfigData = {}) {
 		DB_VALIDATION_PROBABILITY: Number(DB_VALIDATION_PROBABILITY),
 		SESSION_EXPIRATION_SECONDS: Number(SESSION_EXPIRATION_SECONDS),
 		SEASONS,
-		SEASONS_REGION: SEASONS ? SEASONS_REGION : undefined, // Only set region if seasons enabled
-		JWT_SECRET_KEY
+		SEASON_REGION: SEASONS ? SEASON_REGION : undefined, // Only set region if seasons enabled
+		JWT_SECRET_KEY,
+		USE_2FA,
+		TWO_FACTOR_AUTH_SECRET,
+		TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: USE_2FA ? Number(TWO_FACTOR_AUTH_BACKUP_CODES_COUNT) : undefined
 	};
 }

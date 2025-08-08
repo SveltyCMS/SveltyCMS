@@ -21,10 +21,11 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Config
+import { privateEnv } from '@root/config/private';
+
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -38,29 +39,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
 		const targetUserId = (formData.get('userId') as string) || locals.user._id; // Default to self if no userId provided
-		const isEditingSelf = locals.user._id === targetUserId;
-		let hasPermission = false;
 
-		if (isEditingSelf) {
-			// Users can always update their own avatar
-			hasPermission = true;
-		} else {
-			// To update another user's avatar, need admin permissions
-			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
-		}
+		// Role-based access is handled by hooks.server.ts
+		const isEditingSelf = targetUserId === locals.user._id;
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to update avatar', {
-				requestedBy: locals.user?._id,
-				targetUserId: targetUserId
-			});
-			throw error(403, "Forbidden: You do not have permission to update this user's avatar.");
-		}
-
-		// Ensure the authentication system is initialized
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
+		// In multi-tenant mode, ensure target user is in same tenant when editing others
+		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+			const tenantId = locals.tenantId;
+			const targetUser = await auth.getUserById(targetUserId, tenantId);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Admin attempted to update avatar for user outside their tenant', {
+					adminId: locals.user._id,
+					targetUserId,
+					tenantId
+				});
+				return json(
+					{
+						error: 'Forbidden: You can only update avatars for users within your own tenant.'
+					},
+					{ status: 403 }
+				);
+			}
 		}
 
 		const avatarFile = formData.get('avatar') as File | null;
@@ -71,14 +70,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate file type on the server as a secondary check
-		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 		if (!allowedTypes.includes(avatarFile.type)) {
 			logger.error('Invalid file type for avatar', {
 				userId: locals.user._id,
 				targetUserId,
 				fileType: avatarFile.type
 			});
-			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
+			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, WebP, and SVG are allowed.');
 		}
 
 		// Before saving a new avatar, move the old one to trash if it exists.
@@ -86,8 +85,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (currentUser && currentUser.avatar) {
 			try {
 				const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
-				await moveMediaToTrash(currentUser.avatar);
-				logger.info('Old avatar moved to trash', { userId: targetUserId, oldAvatar: currentUser.avatar });
+				// Clean the avatar path to remove any duplicate media folder prefixes
+				let avatarPath = currentUser.avatar;
+				if (avatarPath.startsWith('/')) {
+					avatarPath = avatarPath.substring(1);
+				}
+				if (avatarPath.startsWith('mediaFiles/')) {
+					avatarPath = avatarPath.substring('mediaFiles/'.length);
+				}
+				await moveMediaToTrash(avatarPath);
+				logger.info('Old avatar moved to trash', { userId: targetUserId, oldAvatar: avatarPath });
 			} catch (err) {
 				// Log the error but don't block the upload if moving the old file fails.
 				logger.warn('Failed to move old avatar to trash. Proceeding with new avatar upload.', { userId: targetUserId, error: err });
@@ -95,7 +102,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Save the new avatar image and update the user's profile
-		const avatarUrl = await saveAvatarImage(avatarFile);
+		const avatarUrl = await saveAvatarImage(avatarFile, targetUserId);
 		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl });
 
 		// Invalidate any cached session data to reflect the change immediately.

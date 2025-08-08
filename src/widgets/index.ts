@@ -1,7 +1,17 @@
 /**
  * @file src/widgets/index.ts
  * @description Widget Index - Main entry point for widget system
+ *
+ * @example
+ * import { widgets, initializeWidgets } from '@widgets/index';
+ *
+ * Features:
+ * - Widget registration and management
+ * - Widget initialization
+ * - Widget activation and deactivation
+ * - Widget configuration
  */
+
 import type { WidgetFunction, WidgetModule } from './types';
 import type { GuiSchema } from './core/group/types';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID generator for unique widget IDs
@@ -58,7 +68,9 @@ export async function initializeWidgets(): Promise<void> {
 
 	dbInitPromise = (async () => {
 		try {
-			logger.debug('Initializing widgets from index...');
+			const startTime = performance.now();
+			// logger.debug('Initializing widgets from index...');
+
 			// Load core and custom widgets
 			const coreWidgetModules = await import.meta.glob<WidgetModule>('./core/**/index.ts', {
 				eager: true
@@ -95,12 +107,18 @@ export async function initializeWidgets(): Promise<void> {
 
 					return { name, module, isCore: folderType === 'core', componentPath };
 				})
-				.filter((m): m is NonNullable<typeof m> => m !== null);
+				.filter((m): m is NonNullable<typeof m> => m !== null)
+				.sort((a, b) => {
+					// Load core widgets first, then custom widgets
+					if (a.isCore && !b.isCore) return -1;
+					if (!a.isCore && b.isCore) return 1;
+					return a.name.localeCompare(b.name); // Then alphabetically
+				});
 
 			const newWidgetFunctions = new Map<string, WidgetFunction>();
 			const loadedWidgetNames = new Set<string>();
 
-			// Fetch activation status from the database with fallback
+			// Load all widgets in order (core first, then custom)
 			for (const { name, module, isCore, componentPath } of validModules) {
 				try {
 					const widgetFn = createWidgetFunction(module, name);
@@ -138,7 +156,7 @@ export async function initializeWidgets(): Promise<void> {
 				logger.warn(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, activating all widgets`);
 			}
 
-			// Update widget functions store
+			// Update widget functions store with ALL widgets
 			widgetFunctions.set(newWidgetFunctions);
 			// Set active widgets based on database status
 			activeWidgetList.set(new Set(activeWidgets));
@@ -147,8 +165,12 @@ export async function initializeWidgets(): Promise<void> {
 			const coreWidgets = Array.from(newWidgetFunctions.values()).filter((w) => w.__isCore);
 			const customWidgets = Array.from(newWidgetFunctions.values()).filter((w) => !w.__isCore);
 
-			logger.info(`\x1b[34m${coreWidgets.length} core widgets\x1b[0m initialized: \x1b[34m${coreWidgets.map((w) => w.Name).join(', ')}\x1b[0m`);
-			logger.info(`\x1b[32m${customWidgets.length} custom widgets\x1b[0m initialized: \x1b[33m${customWidgets.map((w) => w.Name).join(', ')}\x1b[0m`);
+			const startupTime = performance.now() - startTime;
+			logger.info(`⚡ \x1b[34m${coreWidgets.length} core widgets\x1b[0m loaded: \x1b[34m${coreWidgets.map((w) => w.Name).join(', ')}\x1b[0m`);
+			if (customWidgets.length > 0) {
+				logger.info(`📦 \x1b[32m${customWidgets.length} custom widgets\x1b[0m loaded: \x1b[33m${customWidgets.map((w) => w.Name).join(', ')}\x1b[0m`);
+			}
+			logger.info(`🚀 All \x1b[32m${newWidgetFunctions.size} widgets\x1b[0m loaded Successfully in \x1b[32m${startupTime.toFixed(2)}ms\x1b[0m`);
 
 			initialized = true;
 		} catch (error) {
@@ -169,12 +191,10 @@ let widgetsInitialized = false;
 export async function ensureWidgetsInitialized() {
 	if (!widgetsInitialized) {
 		try {
-			logger.debug('Ensuring widgets initialized...');
 			await initializeWidgets();
 			// Make widgets available globally for eval context
 			globalThis.widgets = widgets;
 			widgetsInitialized = true;
-			logger.debug('Widgets initialized successfully');
 		} catch (error) {
 			logger.error('Failed to initialize widgets:', error);
 			throw error;

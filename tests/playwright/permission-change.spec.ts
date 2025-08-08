@@ -1,3 +1,11 @@
+/**
+ * @file tests/playwright/permission-change.spec.ts
+ * @description Playwright end-to-end test for permission management in SveltyCMS.
+ *   - Logs in as admin
+ *   - Navigates to Access Management
+ *   - Checks 2–3 permission checkboxes and saves
+ *   - Asserts success via URL and confirmation message
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Permission Management Flow', () => {

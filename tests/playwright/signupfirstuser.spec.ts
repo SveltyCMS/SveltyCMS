@@ -1,3 +1,11 @@
+/**
+ * @file tests/playwright/signupfirstuser.spec.ts
+ * @description Playwright end-to-end tests for first user signup and authentication flows in SveltyCMS.
+ *   - Loads homepage and login screen
+ *   - Verifies language selection updates UI
+ *   - Signs up the first user and checks validations
+ *   - Tests sign out, login, and forgot password flows
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe.configure({ timeout: 60000 }); // Set timeout for all tests

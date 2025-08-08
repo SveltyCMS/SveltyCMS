@@ -6,7 +6,14 @@ import { json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 
-export async function POST() {
+// Auth
+
+export async function POST({ locals }) {
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		return json({ success: false, message: 'Unauthorized' }, { status: 401 });
+	}
+
 	const configDir = path.join(process.cwd(), 'config');
 	const backupDir = path.join(configDir, 'backups');
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -26,9 +33,9 @@ export async function POST() {
 		await fs.copyFile(publicSrc, publicDest);
 
 		return json({ success: true, message: 'Backup created successfully.' });
-	} catch (error: any) {
+	} catch (error: unknown) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
 		console.error('Configuration backup failed:', error);
-		return json({ success: false, message: `Backup failed: ${error.message}` }, { status: 500 });
+		return json({ success: false, message: `Backup failed: ${errorMessage}` }, { status: 500 });
 	}
 }
-

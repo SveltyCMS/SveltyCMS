@@ -1,3 +1,11 @@
+/**
+ * @file tests/playwright/collection.spec.ts
+ * @description Playwright end-to-end test for the full collection and widget flow in SveltyCMS.
+ *   - Logs in as admin
+ *   - Creates a new collection
+ *   - Performs various collection actions (Published, Unpublished, etc.)
+ *   - Adds a widget to the dashboard and verifies navigation
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('Full Collection & Widget Flow', () => {

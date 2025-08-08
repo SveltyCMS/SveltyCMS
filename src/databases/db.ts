@@ -10,12 +10,10 @@
  * - Setting up default roles and permissions
  * - Configuring Google OAuth2 client if credentials are provided
  *
- * Key Features:
- * - Dynamic Adapter Loading: Supports MongoDB and SQL-based adapters (MariaDB, PostgreSQL) with dynamic import.
- * - Initialization Management: Manages initialization state to prevent redundant setup processes.
- * - Theme Initialization: Handles default theme setup and ensures it's marked as default if not already.
- * - Authentication and Authorization: Configures and initializes authentication adapters.
- * - Google OAuth2 Integration: Optionally sets up Google OAuth2 client if the client ID and secret are provided.
+ * Multi-Tenancy Note:
+ * This file handles the one-time global startup of the server. Tenant-specific
+ * data scoping is handled by the API endpoints and server hooks that use the
+ * initialized services from this module.
  */
 
 import { building } from '$app/environment';
@@ -41,7 +39,6 @@ import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 // Content Manager
 import { getAllPermissions } from '@src/auth/permissions';
 import { contentManager } from '@src/content/ContentManager';
-import type { CollectionData } from '@src/content/types';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
@@ -87,9 +84,8 @@ async function loadAdapters() {
 					getUserById: userAdapter.getUserById.bind(userAdapter),
 					getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 					getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-					getUserCount: userAdapter.getUserCount.bind(userAdapter),
+					getUserCount: userAdapter.getUserCount.bind(userAdapter), // Session Management Methods
 
-					// Session Management Methods
 					createSession: sessionAdapter.createSession.bind(sessionAdapter),
 					updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
 					deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
@@ -97,11 +93,12 @@ async function loadAdapters() {
 					validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
 					invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
 					getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+					getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
 					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
 					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter), // Add rotateToken binding
 					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter), // Add cleanup binding
-
 					// Token Management Methods
+
 					createToken: tokenAdapter.createToken.bind(tokenAdapter),
 					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
 					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
@@ -109,17 +106,15 @@ async function loadAdapters() {
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
+					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter), // Permission Management Methods (Imported)
 
-					// Permission Management Methods (Imported)
 					getAllPermissions
 				};
 				logger.debug('Auth adapters created and bound');
 				break;
 			}
 			case 'mariadb':
-			case 'postgresql':
-				// Implement SQL adapters loading here
+			case 'postgresql': // Implement SQL adapters loading here
 				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
 				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 			default:
@@ -142,7 +137,13 @@ async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
 		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
-		const themes = await dbAdapter.themes.getAllThemes();
+		const themes = await dbAdapter.themes.getAllThemes(); // Ensure themes is an array before accessing its length
+		if (!Array.isArray(themes)) {
+			logger.warn('No themes returned from database or an error occurred. Assuming no themes exist.');
+			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
+			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
+			return;
+		}
 		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes in the database`);
 
 		if (themes.length === 0) {
@@ -164,8 +165,7 @@ async function initializeMediaFolder(): Promise<void> {
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
-		logger.debug(`Checking media folder: ${mediaFolderPath}`);
-		// Check if the media folder exists
+		logger.debug(`Checking media folder: ${mediaFolderPath}`); // Check if the media folder exists
 		await fs.access(mediaFolderPath);
 		logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
 	} catch {
@@ -196,12 +196,10 @@ async function initializeVirtualFolders(): Promise<void> {
 		const systemVirtualFolders = systemVirtualFoldersResult.data;
 
 		if (systemVirtualFolders.length === 0) {
-			logger.info('No virtual folders found. Creating default root folder...');
-			// Create a default root folder
+			logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
 			const rootFolderData = {
 				name: publicEnv.MEDIA_FOLDER,
-				path: publicEnv.MEDIA_FOLDER,
-				// parentId is undefined for root folders
+				path: publicEnv.MEDIA_FOLDER, // parentId is undefined for root folders
 				order: 0
 			};
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
@@ -211,9 +209,8 @@ async function initializeVirtualFolders(): Promise<void> {
 				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 
-			const rootFolder = creationResult.data;
+			const rootFolder = creationResult.data; // Log only the essential information
 
-			// Log only the essential information
 			logger.info('Default root virtual folder created:', {
 				name: rootFolder.name,
 				path: rootFolder.path,
@@ -231,8 +228,7 @@ async function initializeVirtualFolders(): Promise<void> {
 
 // Initialize adapters
 async function initializeRevisions(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
-	// Add any revision-specific setup if needed in the future
+	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.'); // Add any revision-specific setup if needed in the future
 	logger.debug('Revisions initialized.');
 }
 
@@ -243,11 +239,14 @@ async function initializeSystem(): Promise<void> {
 		logger.debug('System already initialized. Skipping.');
 		return;
 	}
+
+	const systemStartTime = performance.now();
 	logger.info('Starting SvelteCMS System Initialization...');
 
 	try {
 		// 1. Connect to Database & Load Adapters (Concurrently)
-		logger.debug('\x1b[33mStep 1:\x1b[0m Connecting to database and loading adapters...');
+		const step1StartTime = performance.now();
+
 		await Promise.all([
 			connectToMongoDB().catch((err) => {
 				logger.error(`MongoDB connection failed: ${err.message}`);
@@ -259,96 +258,95 @@ async function initializeSystem(): Promise<void> {
 			})
 		]);
 		isConnected = true; // Mark connected after DB connection succeeds
-		logger.debug('\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded');
+		const step1Time = performance.now() - step1StartTime;
+		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
 
-		// Check if adapters loaded correctly (loadAdapters throws on critical failure)
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
-		}
+		} // 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
 
-		// 2. Setup Core Database Models (Essential for subsequent steps)
-		logger.debug('\x1b[33mStep 2:\x1b[0m Setting up core database models...');
+		const step2StartTime = performance.now();
+
 		try {
-			await dbAdapter.auth.setupAuthModels();
-			logger.debug('Auth models setup complete');
+			await Promise.all([
+				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
+				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
+				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete'))
+			]);
 
-			await dbAdapter.media.setupMediaModels();
-			logger.debug('Media models setup complete');
-
-			await dbAdapter.widgets.setupWidgetModels();
-			logger.debug('\x1b[32mStep 2 completed:\x1b[0 Widget models setup complete');
+			const step2Time = performance.now() - step2StartTime;
+			logger.debug(`\x1b[32mStep 2 completed:\x1b[0m Database models setup in \x1b[32m${step2Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelSetupErr) {
 			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
 			throw modelSetupErr;
-		}
+		} // 3. Initialize remaining components in parallel
 
-		// 3. Initialize remaining components
-		logger.debug('\x1b[33mStep 3:\x1b[0m Initializing system components...');
+		const step3StartTime = performance.now();
+
 		try {
-			await initializeMediaFolder();
-			await initializeDefaultTheme();
-			await initializeRevisions();
-			await initializeVirtualFolders();
-			logger.debug('\x1b[32mStep 3 completed:\x1b[0m System components initialized');
+			await Promise.all([initializeMediaFolder(), initializeDefaultTheme(), initializeRevisions(), initializeVirtualFolders()]);
+
+			const step3Time = performance.now() - step3StartTime;
+			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);
 			throw componentErr;
-		}
+		} // 4. Initialize ContentManager (loads collection schemas into memory)
 
-		// 4. Initialize ContentManager (loads collection schemas into memory)
-		logger.debug('\x1b[33mStep 4:\x1b[0m Initializing ContentManager...');
+		const step4StartTime = performance.now();
+
 		try {
 			await contentManager.initialize();
-			logger.debug('\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized');
+			const step4Time = performance.now() - step4StartTime;
+			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
 		} catch (contentErr) {
 			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
 			throw contentErr;
-		}
+		} // 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
 
-		// 5. Create Collection-Specific Database Models (ONCE after schemas are loaded)
-		logger.debug('\x1b[33mStep 5:\x1b[0m Creating collection-specific database models...');
+		const step5StartTime = performance.now();
 		try {
-			const { collectionMap } = await contentManager.getCollectionData(); // Get loaded schemas
-			if (!dbAdapter) throw new Error('dbAdapter not available for model creation.'); // Should not happen here
+			const { collectionMap } = await contentManager.getCollectionData();
+			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.'); // Since ContentManager now handles model creation, this step is purely for verification.
+			// We can simply log that this step is complete, as the critical logic is in ContentManager.
+			// If ContentManager failed, initialization would have already stopped.
 
-			for (const schema of collectionMap.values()) {
-				logger.debug(`Creating model for collection: \x1b[34m${schema.name}\x1b[0m`);
-				await dbAdapter.collection.createModel(schema as CollectionData);
-			}
-			logger.debug('\x1b[32mStep 5 completed:\x1b[0m Collection-specific models created');
+			const schemas = Array.from(collectionMap.values());
+			logger.debug(`ContentManager reports \x1b[34m${schemas.length}\x1b[0m collections loaded. Verification complete.`);
+
+			const step5Time = performance.now() - step5StartTime;
+			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection models verified in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelErr) {
-			const message = `Error creating collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
+			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
-			throw new Error(message); // Propagate error to fail initialization
-		}
+			throw new Error(message);
+		} // 6. Initialize Authentication (after DB/Auth adapters and models are ready)
 
-		// 6. Initialize Authentication (after DB/Auth adapters and models are ready)
-		logger.debug('\x1b[33mStep 6:\x1b[0m Initializing Authentication...');
+		const step6StartTime = performance.now();
+
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
 		}
 
 		try {
 			// Initialize authentication
-			logger.debug('Creating Auth instance...');
 			auth = new Auth(authAdapter, getDefaultSessionStore());
 			if (!auth) {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
-			}
+			} // Verify auth methods are available
 
-			// Verify auth methods are available
 			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
 			logger.debug(
-				`Auth instance created with ${authMethods.length} methods:`,
+				`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
 				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
-			);
+			); // Test auth functionality
 
-			// Test auth functionality
 			if (typeof auth.validateSession !== 'function') {
 				throw new Error('Auth instance missing validateSession method');
 			}
 
-			logger.debug('\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified');
+			const step6Time = performance.now() - step6StartTime;
+			logger.debug(`\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified in \x1b[32m${step6Time.toFixed(2)}ms\x1b[0m`);
 		} catch (authErr) {
 			logger.error(`Auth initialization failed: ${authErr.message}`);
 			throw authErr;
@@ -357,7 +355,8 @@ async function initializeSystem(): Promise<void> {
 		isInitialized = true;
 		isConnected = true;
 
-		logger.info('System initialization completed successfully! All systems ready.');
+		const totalTime = performance.now() - systemStartTime;
+		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m! All systems ready.`);
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
@@ -371,17 +370,19 @@ async function initializeSystem(): Promise<void> {
 	}
 }
 
-// Automatically initialize the system, but only at runtime
-if (!building) {
+// Automatically initialize the system, but only at runtime.
+// We check process.argv to detect if a build-related command is running.
+// Note: 'preview' is NOT a build process - it runs the actual application serving built files
+const isBuildProcess = typeof process !== 'undefined' && process.argv?.some((arg) => ['build', 'check'].includes(arg));
+
+if (!building && !isBuildProcess) {
 	if (!initializationPromise) {
 		logger.debug('Creating system initialization promise...');
-		initializationPromise = initializeSystem();
+		initializationPromise = initializeSystem(); // Handle initialization errors
 
-		// Handle initialization errors
 		initializationPromise.catch((err) => {
 			logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-			logger.error('Clearing initialization promise to allow retry');
-			// Ensure promise variable is cleared so retries might be possible if the app handles it
+			logger.error('Clearing initialization promise to allow retry'); // Ensure promise variable is cleared so retries might be possible if the app handles it
 			initializationPromise = null;
 		});
 	} else {

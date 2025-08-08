@@ -38,6 +38,10 @@ export const load: PageServerLoad = async (event) => {
 		const isFirstUser: boolean = event.locals.isFirstUser;
 		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
 
+		// Determine admin status properly by checking role
+		const userRole = roles.find((role) => role._id === user?.role);
+		const isAdmin = Boolean(userRole?.isAdmin);
+
 		// Get fresh user data from database to ensure we have the latest info
 		let freshUser: User | null = user;
 		if (user) {
@@ -56,18 +60,19 @@ export const load: PageServerLoad = async (event) => {
 		const addUserForm = await superValidate(event, valibot(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, valibot(changePasswordSchema));
 
-		// Prepare user object for return, ensuring _id is a string
+		// Prepare user object for return, ensuring _id is a string and including admin status
 		const safeUser = freshUser
 			? {
 					...freshUser,
 					_id: freshUser._id.toString(),
-					password: '[REDACTED]' // Ensure password is not sent to client
+					password: '[REDACTED]', // Ensure password is not sent to client
+					isAdmin // Add the properly calculated admin status
 				}
 			: null;
 
 		let adminData = null;
 
-		if (user?.isAdmin || hasManageUsersPermission) {
+		if (isAdmin || hasManageUsersPermission) {
 			const allUsers: User[] = event.locals?.allUsers ?? [];
 			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? event.locals?.allTokens ?? [];
 
@@ -91,7 +96,6 @@ export const load: PageServerLoad = async (event) => {
 				token: token.token || '',
 				blocked: false, // This needs to be calculated based on expiration or a specific field if available
 				email: token.email || '',
-				username: token.username || '', // Ensure username is passed
 				role: token.role || 'user', // Ensure role is passed
 				expires: token.expires ? new Date(token.expires).toISOString() : null,
 				createdAt: token.createdAt ? new Date(token.createdAt).toISOString() : null,
@@ -125,7 +129,7 @@ export const load: PageServerLoad = async (event) => {
 			manageUsersPermissionConfig,
 			adminData,
 			permissions: {
-				'config/adminArea': { hasPermission: user?.isAdmin || hasManageUsersPermission }
+				'config/adminArea': { hasPermission: isAdmin || hasManageUsersPermission }
 			}
 		};
 	} catch (err) {

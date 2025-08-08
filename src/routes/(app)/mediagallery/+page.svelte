@@ -46,6 +46,8 @@ It p			if (result.success) {
 
 	// Stores
 	import { mode } from '@src/stores/collectionStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 
 	// Utils & Media
 	import { config, toFormData } from '@utils/utils';
@@ -155,6 +157,16 @@ It p			if (result.success) {
 		return localStorage.getItem('GalleryUserPreference');
 	}
 
+	// Mobile navigation helper
+	function handleMobileNavigation(path: string) {
+		// Hide sidebar on mobile before navigation
+		if (typeof window !== 'undefined' && window.innerWidth < 768) {
+			console.log('Mobile detected, hiding sidebar before navigation to:', path);
+			toggleUIElement('leftSidebar', 'hidden');
+		}
+		goto(path);
+	}
+
 	// Initialize component with runes
 	$effect(() => {
 		mode.set('media');
@@ -167,13 +179,27 @@ It p			if (result.success) {
 		}
 
 		// Fetch all folders for navigation and breadcrumbs
-		fetchUpdatedSystemVirtualFolders().then((all) => {
-			allSystemVirtualFolders = all;
-			// If we are at the root, update `folders` to be the top-level folders from the full list.
-			if (!currentSystemVirtualFolder) {
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
-			}
-		});
+		fetchUpdatedSystemVirtualFolders()
+			.then((all) => {
+				allSystemVirtualFolders = all;
+				// If we are at the root, update `folders` to be the top-level folders from the full list.
+				if (!currentSystemVirtualFolder) {
+					systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
+				}
+			})
+			.catch((error) => {
+				console.error('Failed to load virtual folders in effect:', error);
+				// Use fallback data from server load if available
+				if (data && data.systemVirtualFolders) {
+					allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
+						...folder,
+						path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
+					}));
+					if (!currentSystemVirtualFolder) {
+						systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
+					}
+				}
+			});
 
 		if (data && data.media) {
 			files = data.media;
@@ -264,6 +290,7 @@ It p			if (result.success) {
 		}
 
 		isLoading = true;
+		globalLoadingStore.startLoading(loadingOperations.dataFetch);
 		try {
 			const parentId = currentSystemVirtualFolder?._id ?? null;
 			const requestBody = {
@@ -327,6 +354,7 @@ It p			if (result.success) {
 			});
 		} finally {
 			isLoading = false;
+			globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 		}
 	}
 
@@ -364,6 +392,7 @@ It p			if (result.success) {
 		if (isLoading || folderId === lastSystemFolderId) return;
 
 		isLoading = true;
+		globalLoadingStore.startLoading(loadingOperations.dataFetch);
 		lastSystemFolderId = folderId;
 
 		try {
@@ -396,6 +425,7 @@ It p			if (result.success) {
 			systemVirtualFolders = [];
 		} finally {
 			isLoading = false;
+			globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 		}
 	}
 
@@ -527,7 +557,7 @@ It p			if (result.success) {
 		</button>
 
 		<!-- Add Media -->
-		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
+		<button onclick={() => handleMobileNavigation('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
 			<iconify-icon icon="carbon:add-filled" width="24"></iconify-icon>
 			Add Media
 		</button>

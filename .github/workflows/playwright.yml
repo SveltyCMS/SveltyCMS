@@ -21,21 +21,28 @@ jobs:
       fail-fast: true
       matrix:
         mongodb-version: [latest]
-        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts', '/tests/playwright/oauth-signup-firstuser.spec.ts']
+        test-file:
+          [
+            '/tests/playwright/signupfirstuser.spec.ts',
+            '/tests/playwright/user.spec.ts',
+            '/tests/playwright/oauth-signup-firstuser.spec.ts',
+            '/tests/playwright/collection.spec.ts',
+            '/tests/playwright/language.spec.ts',
+            '/tests/playwright/login.spec.ts',
+            '/tests/playwright/permission-change.spec.ts',
+            '/tests/playwright/user-crud.spec.ts'
+          ]
 
     steps:
       - name: Git checkout
-        id: checkout
         uses: actions/checkout@v4
 
       - name: Setup Bun
-        id: setup-bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
       - name: Cache Bun dependencies and Playwright browsers
-        id: cache
         uses: actions/cache@v3
         with:
           path: |
@@ -47,7 +54,6 @@ jobs:
         continue-on-error: true
 
       - name: Start MongoDB v${{ matrix.mongodb-version }}
-        id: mongodb
         uses: supercharge/mongodb-github-action@1.10.0
         with:
           mongodb-version: ${{ matrix.mongodb-version }}
@@ -55,14 +61,12 @@ jobs:
           mongodb-password: admin
           mongodb-db: SveltyCMS
           mongodb-port: 27017
-        if: ${{ github.event_name != 'pull_request' }}
+        # CORRECTED: Removed the 'if' condition to ensure MongoDB runs for pull requests as well.
 
       - name: Install dependencies
-        id: install
         run: bun install
 
       - name: Install Playwright Browsers
-        id: install-playwright
         run: bunx playwright install --with-deps
 
       - name: Run local server
@@ -71,86 +75,102 @@ jobs:
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
+          # The loop for running tests in parallel is a good approach.
           for file in ${{ matrix.test-file }}; do
             bunx playwright test $file --workers 10 --output=test-results/playwright &
           done
           wait
         env:
-          privateEnv.DB_TYPE: 'mongodb'
-          privateEnv.DB_HOST: mongodb://localhost
-          privateEnv.DB_PORT: 27017
-          privateEnv.DB_NAME: SveltyCMS
-          privateEnv.DB_USER: admin
-          privateEnv.DB_PASSWORD: admin
-          privateEnv.DB_RETRY_DELAY: 1000
-          privateEnv.DB_RETRY_ATTEMPTS: 3
-          privateEnv.DB_POOL_SIZE: 5
+          # --- CORRECTED: Private Configuration ---
+          # Note: Prefixes like 'privateEnv.' are removed. All values are strings.
+          # The application code is expected to parse numbers, booleans, and JSON strings.
+          DB_TYPE: 'mongodb'
+          DB_HOST: 'localhost' # CORRECTED: Use 'localhost', not the full connection string URI
+          DB_PORT: '27017'
+          DB_NAME: 'SveltyCMS'
+          DB_USER: 'admin'
+          DB_PASSWORD: 'admin'
+          DB_RETRY_DELAY: '1000'
+          DB_RETRY_ATTEMPTS: '3'
+          DB_POOL_SIZE: '5'
+          MULTI_TENANT: 'false'
 
-          privateEnv.SMTP_HOST: ''
-          privateEnv.SMTP_PORT: ''
-          privateEnv.SMTP_EMAIL: 'test@example.com'
-          privateEnv.SMTP_PASSWORD: ''
-          privateEnv.SERVER_PORT: '4173'
+          SMTP_HOST: ''
+          SMTP_PORT: '587'
+          SMTP_EMAIL: ''
+          SMTP_PASSWORD: ''
+          SERVER_PORT: '4173'
 
-          privateEnv.USE_GOOGLE_OAUTH: 'true'
-          privateEnv.GOOGLE_CLIENT_ID: '123456789-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com'
-          privateEnv.GOOGLE_CLIENT_SECRET: 'GOCSPX-test_client_secret_for_github_actions'
+          # CORRECTED: Conditional validation for Google OAuth requires these if USE_GOOGLE_OAUTH is true.
+          USE_GOOGLE_OAUTH: 'true'
+          GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
+          GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
 
-          privateEnv.USE_REDIS: 'false'
-          privateEnv.REDIS_HOST: ''
-          privateEnv.REDIS_PORT: ''
-          privateEnv.REDIS_PASSWORD: ''
+          # CORRECTED: Set USE_REDIS to false, so other REDIS variables are not required.
+          USE_REDIS: 'false'
+          REDIS_HOST: ''
+          REDIS_PORT: ''
+          REDIS_PASSWORD: ''
 
-          privateEnv.SESSION_CLEANUP_INTERVAL: 60000
-          privateEnv.MAX_IN_MEMORY_SESSIONS: 100
-          privateEnv.DB_VALIDATION_PROBABILITY: 0.1
-          privateEnv.SESSION_EXPIRATION_SECONDS: 3600
+          SESSION_CLEANUP_INTERVAL: '60000'
+          MAX_IN_MEMORY_SESSIONS: '1000'
+          DB_VALIDATION_PROBABILITY: '0.1'
+          SESSION_EXPIRATION_SECONDS: '86400'
 
-          privateEnv.USE_MAPBOX: 'false'
-          privateEnv.MAPBOX_API_TOKEN: ''
-          privateEnv.SECRET_MAPBOX_API_TOKEN: ''
+          USE_MAPBOX: 'false'
+          MAPBOX_API_TOKEN: ''
+          SECRET_MAPBOX_API_TOKEN: ''
 
-          privateEnv.GOOGLE_API_KEY: ''
+          GOOGLE_API_KEY: ''
+          TWITCH_TOKEN: ''
+          USE_TIKTOK: 'false'
+          TIKTOK_TOKEN: ''
+          LLM_APIS: '{}'
 
-          privateEnv.TWITCH_TOKEN: ''
+          # CORRECTED: ROLES and PERMISSIONS must be non-empty JSON arrays.
+          ROLES: '["admin", "editor"]'
+          PERMISSIONS: '["create", "read", "update", "delete"]'
 
-          privateEnv.USE_TIKTOK: 'false'
-          privateEnv.TIKTOK_TOKEN: ''
+          # CORRECTED: JWT_SECRET_KEY must be at least 32 characters long.
+          JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
 
-          privateEnv.USE_OPEN_AI: 'false'
-          privateEnv.VITE_OPEN_AI_KEY: ''
+          USE_2FA: 'false'
+          TWO_FACTOR_AUTH_SECRET: ''
+          TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
 
-          privateEnv.ROLES: ''
-          privateEnv.PERMISSIONS: ''
+          # --- CORRECTED: Public Configuration ---
+          HOST_DEV: 'http://localhost:5173'
+          HOST_PROD: 'http://localhost:4173'
+          SITE_NAME: 'SveltyCMS Test Site'
+          PASSWORD_LENGTH: '8'
 
-          privateEnv.JWT_SECRET_KEY: 'testsecret'
+          # CORRECTED: DEFAULT_CONTENT_LANGUAGE must be in AVAILABLE_CONTENT_LANGUAGES
+          DEFAULT_CONTENT_LANGUAGE: 'en'
+          AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
+          # CORRECTED: Added missing required BASE_LOCALE and LOCALES
+          BASE_LOCALE: 'en'
+          LOCALES: '["en", "de"]'
 
-          publicEnv.HOST_DEV: http://localhost:5173
-          publicEnv.HOST_PROD: http://localhost:4173
+          MEDIA_FOLDER: 'ci-media-files'
+          # CORRECTED: Objects must be valid JSON strings.
+          MEDIA_OUTPUT_FORMAT_QUALITY: '{"format": "webp", "quality": 75}'
+          MEDIASERVER_URL: ''
+          IMAGE_SIZES: '{"thumbnail": 150, "card": 600}'
+          MAX_FILE_SIZE: '10485760'
+          BODY_SIZE_LIMIT: '104857600'
+          EXTRACT_DATA_PATH: ''
+          USE_ARCHIVE_ON_DELETE: 'true'
 
-          publicEnv.SITE_NAME: SveltyCMS
+          SEASONS: 'false'
+          SEASON_REGION: '' # Not needed if SEASONS is false
+          PKG_VERSION: 'ci-test-version'
 
-          publicEnv.PASSWORD_LENGTH: '8'
+          # CORRECTED: LOG_LEVELS must be a valid JSON array string.
+          LOG_LEVELS: '["info", "error", "warn"]'
+          LOG_RETENTION_DAYS: '7'
+          LOG_ROTATION_SIZE: '5242880' # 5MB
 
-          publicEnv.DEFAULT_CONTENT_LANGUAGE: 'en'
-          publicEnv.AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
-          publicEnv.DEFAULT_SYSTEM_LANGUAGE: 'en'
-          publicEnv.AVAILABLE_SYSTEM_LANGUAGES: '["en", "de"]'
-
-          publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
-          publicEnv.MEDIASERVER_URL: ''
-          publicEnv.MEDIA_FOLDER: mediaFiles
-
-          publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY: '{ "format": "avif", "quality": 80 }'
-          publicEnv.MAX_FILE_SIZE: '10485760'
-          publicEnv.BODY_SIZE_LIMIT: '104857600'
-
-          publicEnv.SEASONS: false
-          publicEnv.SEASON_REGION: 'Europe'
-          publicEnv.PKG: '{ VERSION: pkg.version }'
-
-          publicEnv.LOG_LEVELS: '["info", "error", "warn"]'
-          publicEnv.DEMO: 'true'
+          DEMO: 'true'
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -172,6 +192,15 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Start MongoDB # CORRECTED: Added MongoDB service to this job
+        uses: supercharge/mongodb-github-action@1.10.0
+        with:
+          mongodb-version: latest
+          mongodb-username: admin
+          mongodb-password: admin
+          mongodb-db: SveltyCMS
+          mongodb-port: 27017
+
       - name: Install dependencies
         run: bun install
 
@@ -179,6 +208,72 @@ jobs:
         run: |
           mkdir -p test-results/bun
           bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
+        env: # CORRECTED: Added the full environment configuration to this job as well.
+          # --- Private Configuration ---
+          DB_TYPE: 'mongodb'
+          DB_HOST: 'localhost'
+          DB_PORT: '27017'
+          DB_NAME: 'SveltyCMS'
+          DB_USER: 'admin'
+          DB_PASSWORD: 'admin'
+          DB_RETRY_DELAY: '1000'
+          DB_RETRY_ATTEMPTS: '3'
+          DB_POOL_SIZE: '5'
+          MULTI_TENANT: 'false'
+          SMTP_HOST: ''
+          SMTP_PORT: '587'
+          SMTP_EMAIL: ''
+          SMTP_PASSWORD: ''
+          SERVER_PORT: '4173'
+          USE_GOOGLE_OAUTH: 'true'
+          GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
+          GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
+          USE_REDIS: 'false'
+          REDIS_HOST: ''
+          REDIS_PORT: ''
+          REDIS_PASSWORD: ''
+          SESSION_CLEANUP_INTERVAL: '60000'
+          MAX_IN_MEMORY_SESSIONS: '1000'
+          DB_VALIDATION_PROBABILITY: '0.1'
+          SESSION_EXPIRATION_SECONDS: '86400'
+          USE_MAPBOX: 'false'
+          MAPBOX_API_TOKEN: ''
+          SECRET_MAPBOX_API_TOKEN: ''
+          GOOGLE_API_KEY: ''
+          TWITCH_TOKEN: ''
+          USE_TIKTOK: 'false'
+          TIKTOK_TOKEN: ''
+          LLM_APIS: '{}'
+          ROLES: '["admin", "editor"]'
+          PERMISSIONS: '["create", "read", "update", "delete"]'
+          JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
+          USE_2FA: 'false'
+          TWO_FACTOR_AUTH_SECRET: ''
+          TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
+          # --- Public Configuration ---
+          HOST_DEV: 'http://localhost:5173'
+          HOST_PROD: 'http://localhost:4173'
+          SITE_NAME: 'SveltyCMS Test Site'
+          PASSWORD_LENGTH: '8'
+          DEFAULT_CONTENT_LANGUAGE: 'en'
+          AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
+          BASE_LOCALE: 'en'
+          LOCALES: '["en", "de"]'
+          MEDIA_FOLDER: 'ci-media-files'
+          MEDIA_OUTPUT_FORMAT_QUALITY: '{"format": "webp", "quality": 75}'
+          MEDIASERVER_URL: ''
+          IMAGE_SIZES: '{"thumbnail": 150, "card": 600}'
+          MAX_FILE_SIZE: '10485760'
+          BODY_SIZE_LIMIT: '104857600'
+          EXTRACT_DATA_PATH: ''
+          USE_ARCHIVE_ON_DELETE: 'true'
+          SEASONS: 'false'
+          SEASON_REGION: ''
+          PKG_VERSION: 'ci-test-version'
+          LOG_LEVELS: '["info", "error", "warn"]'
+          LOG_RETENTION_DAYS: '7'
+          LOG_ROTATION_SIZE: '5242880'
+          DEMO: 'true'
 
       - uses: actions/upload-artifact@v4
         if: always()

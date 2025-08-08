@@ -9,17 +9,17 @@
  * Features:
  * - **Defense in Depth**: Specific permission check to ensure only authorized admins can create users.
  * - **Input Validation**: Uses a Valibot schema to validate and sanitize the incoming user data.
- * - Safeguards against creating duplicate users.
+ * - Safeguards against creating duplicate users within the same tenant.
  * - Comprehensive logging and secure error responses.
  */
+
+import { privateEnv } from '@root/config/private';
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { json, error, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles'; // Import static roles for fallback
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -36,13 +36,8 @@ const createUserSchema = object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		// **SECURITY**: Check for specific 'create:user:any' permission.
-		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
-
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to create a user directly', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to create users.');
-		}
+		const { user, tenantId } = locals; // Destructure user and tenantId from locals
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
@@ -50,26 +45,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const body = await request.json();
-
 		// Validate and sanitize the incoming user data.
 		const userData = parse(createUserSchema, body);
-		logger.debug('Received and validated request to create user', { email: userData.email, byUser: locals.user?._id });
-
-		// Check if a user with this email already exists to prevent duplicates.
-		const existingUser = await auth.checkUser({ email: userData.email });
+		logger.debug('Received and validated request to create user', { email: userData.email, byUser: user?._id, tenantId });
+		// Check if a user with this email already exists within the same tenant to prevent duplicates.
+		const userCheckCriteria: { email: string; tenantId?: string } = { email: userData.email };
+		if (privateEnv.MULTI_TENANT) {
+			userCheckCriteria.tenantId = tenantId;
+		}
+		const existingUser = await auth.checkUser(userCheckCriteria);
 		if (existingUser) {
-			logger.warn('Attempted to create a user that already exists', { email: userData.email });
-			throw error(409, 'A user with this email address already exists.'); // 409 Conflict
+			logger.warn('Attempted to create a user that already exists in this tenant', { email: userData.email, tenantId });
+			throw error(409, 'A user with this email address already exists in this tenant.'); // 409 Conflict
 		}
 
-		// Create the user using the validated and sanitized data.
+		// Create the user using the validated and sanitized data, including the tenantId.
 		const newUser = await auth.createUser({
 			...userData,
+			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
 			isRegistered: true, // Assuming direct creation means they are fully registered.
 			lastAuthMethod: 'password' // Or a default value.
 		});
-		logger.info('User created successfully via direct API call', { newUserId: newUser._id, createdBy: locals.user?._id });
-
+		logger.info('User created successfully via direct API call', { newUserId: newUser._id, createdBy: user?._id, tenantId });
 		// Return the newly created user data with a 201 Created status.
 		return json(newUser, { status: 201 });
 	} catch (err) {

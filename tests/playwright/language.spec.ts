@@ -1,3 +1,10 @@
+/**
+ * @file tests/playwright/language.spec.ts
+ * @description Playwright end-to-end test for changing the system language in SveltyCMS.
+ *   - Logs in as admin
+ *   - Iterates through language options (EN, FR, DE, ES)
+ *   - Selects each language from the dropdown and waits for UI update
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('System Language Change', () => {

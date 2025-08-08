@@ -13,18 +13,23 @@
 -->
 
 <script lang="ts">
+	// Import StatusTypes for centralized status management
+	import { StatusTypes } from '@src/content/types';
+
 	// Stores
 	import { storeListboxValue } from '@stores/store.svelte';
 
-	// Props declaration using proper Svelte 5 syntax
+	// Props
 	let {
 		checked = false,
 		iconStatus,
-		onCheck = () => {}
+		onCheck = () => {},
+		cellClass = ''
 	} = $props<{
 		checked?: boolean;
 		iconStatus?: string;
 		onCheck?: (isChecked: boolean) => void;
+		cellClass?: string; // optional classes applied to the root <td>
 	}>();
 
 	// Function to handle icon click and emit custom events
@@ -42,18 +47,18 @@
 	}
 </script>
 
-<td onclick={handleIconClick} class="!pl-[10px]">
+<td onclick={handleIconClick} class={`p-0 text-center align-middle ${cellClass}`}>
 	<button
 		onkeydown={handleKeydown}
 		onclick={handleIconClick}
 		aria-checked={checked ? 'true' : 'false'}
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"
-		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
-			{iconStatus === 'unpublished' ? 'border-yellow-500' : ''}
-			{iconStatus === 'published' ? 'border-primary-500' : ''}
-			{iconStatus === 'scheduled' ? 'border-pink-500' : ''}
-			{iconStatus === 'testing' ? 'border-red-500' : ''}
+		class="mx-auto flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
+			{iconStatus === StatusTypes.unpublish ? 'border-yellow-500' : ''}
+			{iconStatus === StatusTypes.publish ? 'border-primary-500' : ''}
+			{iconStatus === StatusTypes.schedule ? 'border-pink-500' : ''}
+			{iconStatus === StatusTypes.test ? 'border-red-500' : ''}
 			{iconStatus === undefined ? 'border-surface-800' : ''} 
 			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>

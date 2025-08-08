@@ -12,6 +12,7 @@ export enum PermissionAction {
 	READ = 'read', // Grants the ability to read or view a resource or record.
 	UPDATE = 'update', // Grants the ability to modify or update an existing resource or record.
 	DELETE = 'delete', // Grants the ability to remove or delete a resource or record.
+	WRITE = 'write', // Grants the ability to write or modify a resource or record.
 	MANAGE = 'manage', // Grants overarching control over a resource or area, typically used for admin purposes.
 	SHARE = 'share', // Grants the ability to share a resource or record with others, typically used for collaboration.
 	ACCESS = 'access', // Grants basic access to a resource or area, typically used for admin purposes.
@@ -21,7 +22,7 @@ export enum PermissionAction {
 // Permission Types
 export enum PermissionType {
 	COLLECTION = 'collection', // Collection-related permissions
-	USER = 'User', // User-related permissions
+	USER = 'user', // User-related permissions
 	CONFIGURATION = 'configuration', // Configuration-related permissions
 	SYSTEM = 'system', // System-wide permissions
 	API = 'api' // API-related permissions
@@ -31,6 +32,7 @@ export enum PermissionType {
 export interface User {
 	_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
+	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
 	password?: string; // Hashed password of the user
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
 	username?: string; // Username of the user
@@ -48,6 +50,9 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account (ISO date string)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
+	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
+	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
+	last2FAVerification?: Date; // Timestamp of last successful 2FA verification
 	permissions: string[]; // Set of permissions associated with the user
 	isAdmin?: boolean; // Is the user an admin
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
@@ -90,6 +95,7 @@ export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires (ISO date string)
+	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
 }
 
 // Token Interface

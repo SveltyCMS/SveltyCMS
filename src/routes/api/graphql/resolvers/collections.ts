@@ -3,10 +3,10 @@
  * @description Dynamic GraphQL schema and resolver generation for collections.
  *
  * This module provides functionality to:
- * - Dynamically register collection schemas based on the CMS configuration
+ * - Dynamically register collection schemas based on the CMS configuration for a specific tenant
  * - Generate GraphQL type definitions and resolvers for each collection
  * - Handle complex field types and nested structures
- * - Integrate with Redis for caching (if enabled)
+ * - Integrate with Redis for caching (if enabled), now tenant-aware
  *
  * Features:
  * - Dynamic schema generation based on widget configurations
@@ -22,20 +22,27 @@
 import widgets from '@widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
-import { dbAdapter } from '@src/databases/db';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { GraphQLFieldResolver } from 'graphql';
+import { privateEnv } from '@root/config/private';
 
 // Collection Manager
 import { contentManager } from '@src/content/ContentManager';
+import { modifyRequest } from '@api/collections/modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Permissions
+
+// Types
+import type { User } from '@src/auth/types';
 
 /**
  * Creates a clean GraphQL type name from collection info
  * Uses collection name + short UUID suffix for uniqueness and readability
  */
-function createCleanTypeName(collection: Collection): string {
+export function createCleanTypeName(collection: Collection): string {
 	// Get the last part of the collection name (after any slashes)
 	const baseName = collection.name.split('/').pop() || collection.name;
 	// Clean the name: remove spaces, special chars, and convert to PascalCase
@@ -95,24 +102,27 @@ interface CacheClient {
 	set(key: string, value: string, ex: string, duration: number): Promise<unknown>;
 }
 
-// Registers collection schemas dynamically
-export async function registerCollections() {
-	await contentManager.initialize();
-	const collections = contentManager.loadedCollections.filter((c: Collection) => {
-		if (!c._id) {
-			logger.error('Skipping collection with undefined ID:', c);
-			return false;
-		}
-		return true;
-	});
-	// logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
+// Registers collection schemas dynamically, now tenant-aware
+export async function registerCollections(tenantId?: string) {
+	await contentManager.initialize(tenantId);
+	const collectionData = await contentManager.getCollectionData(tenantId);
 
+	// Ensure collections exist and is an array
+	const collections = collectionData?.collections || [];
+
+	logger.debug(
+		`Collections loaded for GraphQL:`,
+		collections.map((c: Collection) => ({
+			name: c.name,
+			id: c._id,
+			cleanTypeName: createCleanTypeName(c)
+		}))
+	);
 	// Track all type names to detect duplicates
 	const typeIDs = new Set<string>();
 	const typeDefsSet = new Set<string>();
 	const resolvers: ResolverContext = { Query: {} };
 	const collectionSchemas: string[] = [];
-
 	// Create a mapping from collection names to clean type names for relation widgets
 	const collectionNameMapping = new Map<string, string>();
 	for (const collection of collections as Collection[]) {
@@ -121,18 +131,14 @@ export async function registerCollections() {
 	}
 
 	for (const collection of collections as Collection[]) {
-		logger.debug(`Processing collection: \x1b[34m${collection.name}\x1b[0m, _id: \x1b[34m${collection._id}\x1b[0m`);
 		const cleanTypeName = createCleanTypeName(collection);
-		logger.debug(`Clean type name: \x1b[34m${cleanTypeName}\x1b[0m`);
 		resolvers[cleanTypeName] = {};
+		// Start with type definition but no fields yet
 		let collectionSchema = `
             type ${cleanTypeName} {
-                _id: String
-                name: String
-                createdAt: String
-                updatedAt: String
         `;
 
+		// First, add all the collection-specific data fields
 		for (const field of collection.fields) {
 			const widget = widgets[field.widget.Name];
 			if (!widget || !widget.GraphqlSchema) {
@@ -142,17 +148,15 @@ export async function registerCollections() {
 
 			const schema = widget.GraphqlSchema({
 				field,
-				label: `${cleanTypeName}_${getFieldName(field)}`, // Make type ID unique with clean naming
+				label: `${cleanTypeName}_${getFieldName(field)}`,
 				collection,
-				collectionNameMapping // Pass the mapping for relation widgets
+				collectionNameMapping
 			}) as WidgetSchema | undefined;
 
 			if (!schema) {
 				logger.error(`No schema returned for widget: ${field.widget.Name}`);
 				continue;
 			}
-
-			// logger.debug(`Widget schema for ${field.widget.Name}:`, schema);
 
 			if (schema.resolver) {
 				deepmerge(resolvers, { [cleanTypeName]: schema.resolver });
@@ -170,18 +174,17 @@ export async function registerCollections() {
 				for (const _field of field.fields) {
 					const nestedSchema = widgets[_field.widget.Name]?.GraphqlSchema?.({
 						field: _field,
-						label: `${cleanTypeName}_${getFieldName(_field)}`, // Make nested type ID unique with clean naming
+						label: `${cleanTypeName}_${getFieldName(_field)}`,
 						collection,
-						collectionNameMapping // Pass the mapping for relation widgets
+						collectionNameMapping
 					});
 
 					if (nestedSchema) {
 						if (!typeIDs.has(nestedSchema.typeID)) {
 							typeIDs.add(nestedSchema.typeID);
 							typeDefsSet.add(nestedSchema.graphql);
-							logger.debug(`Added nested type: ${nestedSchema.typeID}`);
 						}
-						collectionSchema += `${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
+						collectionSchema += `                ${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
 						deepmerge(resolvers[cleanTypeName], {
 							[getFieldName(_field)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
 						});
@@ -190,17 +193,27 @@ export async function registerCollections() {
 					}
 				}
 			} else {
-				collectionSchema += `${getFieldName(field)}: ${schema.typeID}\n`;
+				collectionSchema += `                ${getFieldName(field)}: ${schema.typeID}\n`;
 				deepmerge(resolvers[cleanTypeName], {
 					[getFieldName(field)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
 				});
 			}
 		}
-		collectionSchemas.push(collectionSchema + '}\n');
+
+		// Then add the system/metadata fields at the end
+		collectionSchema += `
+                _id: String
+				status: String
+                createdAt: String
+                updatedAt: String
+                createdBy: String
+                updatedBy: String
+            }`;
+
+		collectionSchemas.push(collectionSchema + '\n');
 	}
 
 	const finalTypeDefs = Array.from(typeDefsSet).join('\n') + collectionSchemas.join('\n');
-	// logger.debug('Final GraphQL TypeDefs:', finalTypeDefs);
 
 	return {
 		typeDefs: finalTypeDefs,
@@ -210,8 +223,13 @@ export async function registerCollections() {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(cacheClient: CacheClient | null, privateEnv: { USE_REDIS?: boolean }) {
-	const { resolvers, collections } = await registerCollections();
+export async function collectionsResolvers(
+	dbAdapter: DatabaseAdapter,
+	cacheClient: CacheClient | null,
+	_privateEnv: { USE_REDIS?: boolean },
+	tenantId?: string
+) {
+	const { resolvers, collections } = await registerCollections(tenantId);
 
 	for (const collection of collections as Collection[]) {
 		if (!collection._id) {
@@ -220,53 +238,84 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 		}
 
 		const cleanTypeName = createCleanTypeName(collection);
-		// Add pagination to the resolver using clean type name
-		resolvers.Query[cleanTypeName] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
+		resolvers.Query[cleanTypeName] = async (
+			_: unknown,
+			args: { pagination: { page: number; limit: number } },
+			context: { user?: User; tenantId?: string }
+		) => {
+			if (!context.user) {
+				throw new Error('Authentication required');
+			}
+
+			if (privateEnv.MULTI_TENANT && context.tenantId !== tenantId) {
+				logger.error(`Resolver tenantId mismatch. Expected ${tenantId}, got ${context.tenantId}`);
+				throw new Error('Internal server error: Tenant context mismatch.');
+			}
+
+			// Access validation is handled by hooks
+			// The dbAdapter is now passed as an argument, so the check is for its presence.
 			if (!dbAdapter) {
-				logger.error('Database adapter is not initialized');
 				throw new Error('Database adapter is not initialized');
 			}
 
 			const { page = 1, limit = 50 } = args.pagination || {};
-			const skip = (page - 1) * limit;
-			//logger.debug(`Querying ${collection._id} with page: ${page}, limit: ${limit}, skip: ${skip}`);
 
 			try {
-				const cacheKey = `${collection._id}:${page}:${limit}`;
-				// Try to get from cache first
+				const cacheKey = `${context.tenantId || 'global'}:${collection._id}:${page}:${limit}`;
 				if (privateEnv.USE_REDIS && cacheClient) {
 					const cachedResult = await cacheClient.get(cacheKey);
 					if (cachedResult) {
-						logger.debug(`Cache hit for ${cacheKey}`);
 						return JSON.parse(cachedResult);
 					}
 				}
 
-				// Query database
-				const query = { status: { $ne: 'unpublished' } };
-				const options = { sort: { createdAt: -1 }, skip, limit };
-				const dbResult = await dbAdapter.crud.findMany(collection._id, query, options);
-				//logger.debug(`Database result for ${collection._id}:`, dbResult);
+				const query: { tenantId?: string } = {};
+				if (privateEnv.MULTI_TENANT && context.tenantId) {
+					query.tenantId = context.tenantId;
+				}
 
-				// Process dates
-				dbResult.forEach((doc: DocumentBase) => {
+				// Use query builder pattern consistent with REST API
+				const collectionName = `collection_${collection._id}`;
+				const queryBuilder = dbAdapter.queryBuilder(collectionName).where(query).paginate({ page, pageSize: limit });
+
+				const result = await queryBuilder.execute();
+
+				if (!result.success) {
+					throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
+				}
+
+				const resultArray = (Array.isArray(result.data) ? result.data : []) as DocumentBase[];
+
+				// Apply modifyRequest processing for consistency with REST API
+				if (resultArray.length > 0) {
 					try {
-						doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
-						doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
-					} catch (error) {
-						logger.warn(`Date conversion failed for document in ${collection._id}:`, error);
-						doc.createdAt = new Date().toISOString();
-						doc.updatedAt = doc.createdAt;
+						await modifyRequest({
+							data: resultArray,
+							fields: collection.fields,
+							collection: collection,
+							user: context.user!,
+							type: 'GET'
+						});
+					} catch (modifyError) {
+						logger.warn(`GraphQL modifyRequest failed for collection ${collection._id}`, {
+							error: modifyError instanceof Error ? modifyError.message : 'Unknown error',
+							userId: context.user?._id,
+							itemCount: resultArray.length
+						});
 					}
+				}
+
+				resultArray.forEach((doc: DocumentBase) => {
+					doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
+					doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
 				});
 
 				// Cache the result
 				if (privateEnv.USE_REDIS && cacheClient) {
-					await cacheClient.set(cacheKey, JSON.stringify(dbResult), 'EX', 60 * 60);
-					logger.debug(`Cache set for ${cacheKey}`);
+					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60);
 				}
 
-				return dbResult;
+				return resultArray;
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 				logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);
@@ -275,5 +324,5 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 		};
 	}
 
-	return resolvers.Query;
+	return resolvers;
 }

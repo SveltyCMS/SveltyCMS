@@ -1,3 +1,11 @@
+/**
+ * @file tests/playwright/login.spec.ts
+ * @description Playwright end-to-end test for the login and logout flow in SveltyCMS.
+ *   - Navigates to the login page
+ *   - Performs login with admin credentials
+ *   - Verifies successful navigation to the admin area
+ *   - Logs out and checks redirect to login page
+ */
 import { test, expect } from '@playwright/test';
 
 test('Login and logout flow', async ({ page }) => {

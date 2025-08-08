@@ -1,5 +1,9 @@
 <!--
-@file src/routes/(app)/dashboard/widgets/DiskWidget.svelte
+@file src/routes/	export const widgetMeta = {
+		name: 'Disk Usage',
+		icon: 'mdi:harddisk',
+		defaultSize: { w: 1, h: 2 }
+	};/dashboard/widgets/DiskWidget.svelte
 @component
 **A reusable widget component for displaying disk usage information with improved rendering and error handling**
 
@@ -18,25 +22,16 @@ This widget fetches and displays real-time disk usage data, including:
 ### Features:
 - Responsive doughnut chart visualization
 - Theme-aware rendering (light/dark mode support)
-- Real-time data updates
-- Customizable widget properties (size, position, etc.)
-- Improved error handling and data validation
-- Proper lifecycle management
-- Enhanced debugging and logging
 -->
-
-<script lang="ts">
+<script lang="ts" module>
 	export const widgetMeta = {
 		name: 'Disk Usage',
-		icon: 'mdi:harddisk',
-		defaultW: 1,
-		defaultH: 1,
-		validSizes: [
-			{ w: 1, h: 1 },
-			{ w: 2, h: 2 }
-		]
+		icon: 'mdi:disk',
+		defaultSize: { w: 1, h: 2 }
 	};
+</script>
 
+<script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Chart, BarController, BarElement, Tooltip, CategoryScale, LinearScale } from 'chart.js';
 	Chart.register(BarController, BarElement, Tooltip, CategoryScale, LinearScale);
@@ -45,50 +40,38 @@ This widget fetches and displays real-time disk usage data, including:
 	import BaseWidget from '../BaseWidget.svelte';
 	import { m } from '@src/paraglide/messages';
 
+	// Type definitions
+	interface DiskInfo {
+		totalGb: string | number;
+		usedGb: string | number;
+		freeGb: string | number;
+		usedPercentage: string | number;
+		mountPoint?: string;
+		filesystem?: string;
+	}
+
+	interface FetchedData {
+		diskInfo?: {
+			root?: DiskInfo;
+		};
+	}
+
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
 		label = m.diskWidget_label(),
 		theme = 'light',
 		icon = 'mdi:harddisk',
 		widgetId = undefined,
-
-		// New sizing props
-		currentSize = '1/4',
-		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		size = '1/4',
 		onSizeChange = (newSize) => {},
-
-		// Drag props
-		draggable = true,
-		onDragStart = (event, item, element) => {},
-
-		// Legacy props
-		gridCellWidth = 0,
-		ROW_HEIGHT = 0,
-		GAP_SIZE = 0,
-		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-
-		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		size?: '1/4' | '1/2' | '3/4' | 'full';
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// Drag props
-		draggable?: boolean;
-		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
-
-		// Legacy props
-		gridCellWidth?: number;
-		ROW_HEIGHT?: number;
-		GAP_SIZE?: number;
-		resizable?: boolean;
-		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -125,16 +108,26 @@ This widget fetches and displays real-time disk usage data, including:
 		}
 	});
 	$effect(() => {
-		if (!chartCanvas || !diskInfo) return;
+		if (!chartCanvas || !diskInfo) {
+			return;
+		}
+
 		const used = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : Number(diskInfo.usedGb) || 0;
 		const free = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : Number(diskInfo.freeGb) || 0;
 		const usedPercent = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : Number(diskInfo.usedPercentage) || 0;
 		const freePercent = 100 - usedPercent;
 
 		if (chart) {
-			chart.data.datasets[0].data = [used, free];
+			chart.data.datasets[0].data = [used];
+			chart.data.datasets[1].data = [free];
 			chart.update('none');
 		} else {
+			// Destroy any existing chart on this canvas first
+			const existingChart = Chart.getChart(chartCanvas);
+			if (existingChart) {
+				existingChart.destroy();
+			}
+
 			const diskBarLabelPlugin = {
 				id: 'diskBarLabelPlugin',
 				afterDatasetsDraw(chart) {
@@ -149,6 +142,7 @@ This widget fetches and displays real-time disk usage data, including:
 					ctx.restore();
 				}
 			};
+
 			chart = new Chart(chartCanvas, {
 				type: 'bar',
 				data: {
@@ -215,9 +209,9 @@ This widget fetches and displays real-time disk usage data, including:
 							display: false,
 							stacked: true
 						}
-					},
-					plugins: [diskBarLabelPlugin]
-				}
+					}
+				},
+				plugins: [diskBarLabelPlugin]
 			});
 		}
 	});
@@ -233,16 +227,8 @@ This widget fetches and displays real-time disk usage data, including:
 	pollInterval={10000}
 	{icon}
 	{widgetId}
-	{currentSize}
-	{availableSizes}
+	{size}
 	{onSizeChange}
-	{draggable}
-	{onDragStart}
-	{gridCellWidth}
-	{ROW_HEIGHT}
-	{GAP_SIZE}
-	{resizable}
-	{onResizeCommitted}
 	{onCloseRequest}
 >
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
@@ -256,106 +242,126 @@ This widget fetches and displays real-time disk usage data, including:
 			{@const usageLevel = usedPercentage > 85 ? 'high' : usedPercentage > 70 ? 'medium' : 'low'}
 
 			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Disk usage statistics">
-				<div class="flex items-center justify-between">
-					<div class="flex items-center space-x-3">
-						<div class="relative">
-							<div
-								class="flex h-12 w-12 items-center justify-center rounded-full {usageLevel === 'high'
-									? 'bg-red-100 dark:bg-red-900/30'
-									: usageLevel === 'medium'
-										? 'bg-orange-100 dark:bg-orange-900/30'
-										: 'bg-blue-100 dark:bg-blue-900/30'}"
-								aria-hidden="true"
-							>
-								<iconify-icon
-									icon="mdi:harddisk"
-									width="24"
-									class={usageLevel === 'high'
-										? 'text-red-600 dark:text-red-400'
+				<!-- First Canvas Section with Title and Status Info -->
+				<div class="flex-1 space-y-2">
+					<!-- Status Info with Color Circle -->
+					<div class="flex items-center justify-between px-2">
+						<div class="flex items-center space-x-2">
+							<div class="relative">
+								<div
+									class="h-3 w-3 rounded-full {usageLevel === 'high' ? 'bg-red-500' : usageLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
+								></div>
+								<div
+									class="absolute inset-0 h-3 w-3 rounded-full text-white dark:text-black {usageLevel === 'high'
+										? 'bg-red-500'
 										: usageLevel === 'medium'
-											? 'text-orange-600 dark:text-orange-400'
-											: 'text-blue-600 dark:text-blue-400'}
-									aria-label="Disk icon"
-								></iconify-icon>
+											? 'bg-yellow-500'
+											: 'bg-green-500'} animate-ping opacity-75"
+								></div>
 							</div>
+							<span class="text-sm font-bold">{usedPercentage.toFixed(1)}%</span>
+							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Used</span>
 						</div>
-						<div>
-							<div class="text-2xl font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}" aria-live="polite">
-								{usedPercentage.toFixed(1)}%
-							</div>
-							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.diskWidget_used()}</div>
+						<div class="flex gap-2 text-right">
+							<div class="text-sm font-semibold">{freePercentage.toFixed(1)}%</div>
+							<div class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Free</div>
 						</div>
 					</div>
-				</div>
+					<!-- Disk Usage Overview -->
+					<h3 class="text-center text-xs font-semibold">Disk Usage Overview:</h3>
 
-				{#if diskInfo}
-					<div class="relative flex-shrink-0" style="height: 48px; min-height: 40px; max-height: 60px; width: 100%;">
-						<canvas
-							bind:this={chartCanvas}
-							class="h-full w-full"
-							use:updateChartAction={fetchedData}
-							style="display: block; width: 100% !important; height: 100% !important;"
-							aria-label={m.diskWidget_chartAriaLabel()}
-						></canvas>
-					</div>
-				{/if}
-
-				<div class="flex-shrink-0 space-y-3 pb-6">
-					<div
-						class="relative h-6 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}"
-						aria-label={m.diskWidget_progressAriaLabel()}
-					>
+					{#if diskInfo}
+						<div class="relative flex-1" style="min-height: 50px; max-height: 65px; width: 100%;">
+							<canvas
+								bind:this={chartCanvas}
+								class="h-full w-full"
+								use:updateChartAction={fetchedData}
+								style="display: block; width: 100% !important; height: 100% !important;"
+								aria-label="Disk usage bar chart"
+							></canvas>
+						</div>
+					{:else}
 						<div
-							class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
-								? 'bg-gradient-to-r from-red-500 to-red-600'
-								: usageLevel === 'medium'
-									? 'bg-gradient-to-r from-orange-500 to-red-500'
-									: 'bg-gradient-to-r from-blue-500 to-blue-600'}"
-							style="width: {usedPercentage}%"
-							aria-valuenow={usedPercentage}
-							aria-valuemin="0"
-							aria-valuemax="100"
-							role="progressbar"
-						></div>
-						<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-							<span class="text-xs font-semibold text-white drop-shadow-sm">
-								{m.diskWidget_usedLabel()}: {usedGB.toFixed(1)} GB &nbsp;|&nbsp; {m.diskWidget_freeLabel()}: {freeGB.toFixed(1)} GB
-							</span>
-						</div>
-					</div>
-
-					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} mt-2 gap-3 pb-2 text-xs">
-						<div class="flex flex-col space-y-1">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.diskWidget_total()}</span>
-							<span class="font-semibold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{totalGB.toFixed(1)} GB</span>
-						</div>
-						<div class="flex flex-col space-y-1">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.diskWidget_used()}</span>
-							<span
-								class="font-semibold {usageLevel === 'high'
-									? 'text-red-600 dark:text-red-400'
-									: usageLevel === 'medium'
-										? 'text-orange-600 dark:text-orange-400'
-										: 'text-blue-600 dark:text-blue-400'}">{usedGB.toFixed(1)} GB</span
-							>
-						</div>
-						{#if currentSize !== '1/4'}
-							<div class="flex flex-col space-y-1">
-								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.diskWidget_free()}</span>
-								<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeGB.toFixed(1)} GB</span>
-							</div>
-						{/if}
-					</div>
-
-					{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
-						<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-1 px-2 pb-4">
-							<span>{m.diskWidget_mount()}: {diskInfo.mountPoint || '/'}</span>
-							{#if diskInfo.filesystem}
-								<span>{m.diskWidget_filesystem()}: {diskInfo.filesystem}</span>
-							{/if}
+							class="relative flex flex-1 items-center justify-center rounded-lg bg-gray-100"
+							style="min-height: 50px; max-height: 65px; width: 100%;"
+						>
+							<span class="text-xs text-gray-500">No disk data</span>
 						</div>
 					{/if}
 				</div>
+
+				<!-- Storage Details Canvas  -->
+				<div class="flex-1 space-y-2">
+					<h3 class="text-center text-xs font-semibold">Storage Details:</h3>
+					<div class="flex flex-1 flex-col space-y-3" style="min-height: 60px; max-height: 80px;">
+						<div
+							class="relative flex items-center overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}"
+							aria-label="Disk usage progress bar"
+							style="height: 24px; min-height: 24px;"
+						>
+							<div
+								class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
+									? 'bg-gradient-to-r from-red-500 to-red-600'
+									: usageLevel === 'medium'
+										? 'bg-gradient-to-r from-orange-500 to-red-500'
+										: 'bg-gradient-to-r from-blue-500 to-blue-600'}"
+								style="width: {usedPercentage}%"
+								aria-valuenow={usedPercentage}
+								aria-valuemin="0"
+								aria-valuemax="100"
+								role="progressbar"
+							></div>
+							<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+								<span class="text-xs font-semibold text-white drop-shadow-sm dark:text-black">
+									{usedGB.toFixed(1)} GB Used
+								</span>
+							</div>
+						</div>
+
+						<!-- Storage Statistics -->
+						<div class="grid {size === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} flex-1 gap-2 text-xs">
+							<!-- Total disk space -->
+							<div class="flex flex-col space-y-1 text-center">
+								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
+								<span class="text-sm font-semibold">{totalGB.toFixed(1)} GB</span>
+							</div>
+
+							<!-- Total used disk space -->
+							<div class="flex flex-col space-y-1 text-center">
+								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</span>
+								<span
+									class="text-sm font-semibold {usageLevel === 'high'
+										? 'text-red-600 dark:text-red-400'
+										: usageLevel === 'medium'
+											? 'text-orange-600 dark:text-orange-400'
+											: 'text-blue-600 dark:text-blue-400'}"
+								>
+									{usedGB.toFixed(1)} GB
+								</span>
+							</div>
+
+							{#if size !== '1/4'}
+								<div class="flex flex-col space-y-1 text-center">
+									<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
+									<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeGB.toFixed(1)} GB</span>
+								</div>
+							{/if}
+						</div>
+					</div>
+				</div>
+
+				{#if size === '1/2' || size === '3/4' || size === 'full'}
+					<div
+						class="flex justify-between text-xs {theme === 'dark'
+							? 'text-gray-400'
+							: 'text-gray-500'} border-t border-gray-200 pt-2 dark:border-gray-700"
+					>
+						<span>Mount: <span class="font-mono">{diskInfo.mountPoint || '/'}</span></span>
+						{#if diskInfo.filesystem}
+							<span>FS: <span class="font-mono">{diskInfo.filesystem}</span></span>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center space-y-3" role="status" aria-live="polite">
@@ -370,9 +376,3 @@ This widget fetches and displays real-time disk usage data, including:
 		{/if}
 	{/snippet}
 </BaseWidget>
-
-<style>
-	.flex-shrink-0.space-y-3 {
-		padding-bottom: 1.25rem; /* 20px for extra bottom padding */
-	}
-</style>

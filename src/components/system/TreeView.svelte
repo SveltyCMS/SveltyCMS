@@ -2,7 +2,7 @@
   @file src/routes/TreeView.svelte
   @component TreeView Component
 
-  @description A recursive, accessible tree view component built with Svelte 5 runes.
+  @description A recursive, accessible tree view component
   It supports expanding/collapsing nodes, keyboard navigation, and LTR/RTL layouts.
 
   @props
@@ -28,7 +28,7 @@
 		badge?: {
 			visible?: boolean;
 			count?: number;
-			status?: 'draft' | 'published' | 'archived';
+			status?: 'draft' | 'publish' | 'archive' | 'schedule' | 'delete' | 'clone' | 'test';
 			color?: string;
 		};
 		depth?: number; // Depth of the node in the tree

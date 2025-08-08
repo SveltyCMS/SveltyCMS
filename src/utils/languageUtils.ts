@@ -7,7 +7,6 @@
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { Locale } from '@src/paraglide/runtime';
 
 export function getLanguageName(tag: string, displayLocale?: string): string {
 	try {
@@ -23,32 +22,24 @@ export function getLanguageName(tag: string, displayLocale?: string): string {
 }
 
 /**
- * Gets both the native name and English name of a language
- * @param tag - The ISO 639-1 language code
- * @returns Object containing native name and English name
- */
-export function getLanguageNames(tag: string): { native: string; english: string } {
-	return {
-		native: getLanguageName(tag), // Get name in its native form
-		english: getLanguageName(tag, 'en') // Get name in English
-	};
-}
-
-/**
  * Sets a cookie with the given name, value, and expiration time in days.
+ * Ensures the cookie is set with SameSite=Lax and is Secure in production.
  * @param name - The name of the cookie.
  * @param value - The value of the cookie.
  * @param days - The number of days until the cookie expires.
  */
 export function setCookie(name: string, value: string, days: number): void {
-	if (name === 'systemLanguage' || name === 'contentLanguage') {
-		// Type assertion ensures value is a valid language tag
-		const lang = value as Locale;
-		logger.dev(`Setting language cookie: ${name}=${lang}`);
+	if (typeof document === 'undefined') {
+		return;
 	}
 
-	logger.dev(`Setting cookie: ${name}=${value}; expires in ${days} days`);
-	const expires = new Date(Date.now() + days * 864e5).toUTCString();
-	document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
-	logger.dev('Document cookie after setting:', document.cookie);
+	let cookieString = `${name}=${encodeURIComponent(value)}; path=/; max-age=${days * 24 * 60 * 60}; SameSite=Lax`;
+
+	// Ensure the 'Secure' attribute is added in production environments
+	if (process.env.NODE_ENV === 'production') {
+		cookieString += '; Secure';
+	}
+
+	document.cookie = cookieString;
+	logger.dev(`Cookie set: ${cookieString}`);
 }

@@ -3,7 +3,8 @@
 @component
 **Optimized table filter component for search, filter, and column controls in a CMS.**
 
-This component provides a lightweight, flexible interface for table filtering, using Svelte 5 runes for reactivity and bindable props for two-way data flow. It includes search, filter toggles, column visibility, and density controls, optimized for performance and reusability.
+This component provides a lightweight, flexible interface for table filtering.  
+It includes search, filter toggles, column visibility, and density controls, optimized for performance and reusability.
 
 @example
 <TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />

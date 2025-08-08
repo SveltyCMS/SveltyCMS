@@ -11,7 +11,7 @@ export const schema: Schema = {
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'bi:card-text',
-	status: 'published',
+	status: 'publish',
 	slug: 'posts',
 	description: 'Posts Collection',
 	revision: true,

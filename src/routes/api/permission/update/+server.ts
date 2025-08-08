@@ -2,27 +2,18 @@
  * @file src/routes/api/permission/update/+server.ts
  * @description API endpoint for updating permissions and roles in the CMS.
  *
+ * NOTE: This endpoint modifies a global configuration file and is NOT COMPATIBLE
+ * with multi-tenant mode. It will be disabled if MULTI_TENANT is true.
+ *
  * This module provides functionality to:
  * - Update roles and their associated permissions
  * - Validate and transform incoming roles/permissions data
  * - Handle authorization and access control
- *
- * Features:
- * - Dynamic permission and role updates
- * - Comprehensive data validation
- * - Error handling and logging
- * - Audit logging for changes
- *
- * Usage:
- * POST /api/permission/update
- * Body: JSON object with 'roles' array
- *
- * Note: This endpoint modifies crucial authorization settings.
- * Ensure proper access controls and input validation are in place.
  */
+import { privateEnv } from '@root/config/private';
 
 import type { RequestHandler } from './$types';
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import * as ts from 'typescript';
@@ -43,12 +34,18 @@ const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	// --- MULTI-TENANCY SECURITY BLOCK ---
+	// This endpoint modifies a global file and is fundamentally incompatible with multi-tenancy.
+	// It is disabled to prevent one tenant from overwriting the roles of all other tenants.
+	if (privateEnv.MULTI_TENANT) {
+		logger.error('CRITICAL: The permission/update API endpoint was called in multi-tenant mode. This operation is disabled for security reasons.');
+		throw error(501, 'This feature is not available in multi-tenant mode.');
+	}
+
+	// Authentication is handled by hooks.server.ts - user presence confirms access
+
 	// Authorization check
 	const user = locals.user;
-	if (!user) {
-		logger.warn('Unauthorized attempt to update permissions - no user');
-		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
-	}
 
 	// Check if user has admin role
 	const userRole = roles.find((role) => role._id === user.role);

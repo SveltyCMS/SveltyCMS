@@ -23,7 +23,6 @@
 	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar, clipboard, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
@@ -38,6 +37,7 @@
 		username: string;
 		email: string;
 		role: string;
+		tenantId?: string;
 		blocked: boolean;
 		avatar?: string;
 		activeSessions: number;
@@ -52,7 +52,7 @@
 		email: string;
 		role: string;
 		user_id: string;
-		username: string;
+		tenantId?: string;
 		blocked: boolean;
 		expires: Date;
 		createdAt: Date;
@@ -78,32 +78,50 @@
 	}
 
 	// Props
-	let { adminData, currentUser = null } = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null }>();
+	let {
+		adminData,
+		currentUser = null,
+		isMultiTenant = false
+	} = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean }>();
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
-	// Clipboard copy handler
-	function onClipboard(data: { action: string; response: any }) {
-		if (data.action === 'copy') {
-			toastStore.trigger({
-				message: 'User ID copied to clipboard',
-				background: 'variant-filled-success',
-				timeout: 2000,
-				classes: 'border-1 !rounded-md'
-			});
-		}
-	}
+	// Custom event handler for token updates from Multibutton
+	function handleTokenUpdate(event: CustomEvent<{ tokenIds: string[]; action: string }>) {
+		const { tokenIds, action } = event.detail;
 
-	// Table header definitions
+		if (adminData && adminData.tokens) {
+			let updated = false;
+			const updatedTokens = adminData.tokens.map((token: TokenData) => {
+				if (tokenIds.includes(token.token)) {
+					updated = true;
+					if (action === 'block') {
+						return { ...token, blocked: true };
+					} else if (action === 'unblock') {
+						return { ...token, blocked: false };
+					}
+				}
+				return token;
+			});
+
+			if (updated) {
+				adminData = {
+					...adminData,
+					tokens: updatedTokens
+				};
+			}
+		}
+	} // Table header definitions
 	const tableHeadersUser = [
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_avatar(), key: 'avatar' },
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.form_username(), key: 'username' },
 		{ label: m.form_role(), key: 'role' },
+		{ label: 'Tenant ID', key: 'tenantId' },
 		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_activesession(), key: 'activeSessions' },
 		{ label: m.adminarea_lastaccess(), key: 'lastAccess' },
@@ -114,8 +132,8 @@
 	const tableHeaderToken = [
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
-		{ label: m.form_username(), key: 'username' },
 		{ label: m.form_role(), key: 'role' },
+		{ label: 'Tenant ID', key: 'tenantId' },
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
@@ -167,33 +185,17 @@
 	let sorting = $state<SortingState>({ sortedBy: '', isSorted: 0 });
 
 	// Initialize displayTableHeaders with a safe default
-	let displayTableHeaders = $state<TableHeader[]>(
-		(() => {
-			const settings = localStorage.getItem('userPaginationSettings');
-			const parsed = settings ? JSON.parse(settings) : {};
-			return (
-				parsed.displayTableHeaders?.map((header: Partial<TableHeader>) => ({
-					...header,
-					id: crypto.randomUUID()
-				})) ??
-				tableHeadersUser.map((header) => ({
-					label: header.label,
-					key: header.key,
-					visible: true,
-					id: crypto.randomUUID()
-				}))
-			);
-		})()
-	);
+	let displayTableHeaders = $state<TableHeader[]>([]);
 
-	// Update displayTableHeaders when view changes
 	$effect(() => {
 		// Update displayTableHeaders when view changes
-		displayTableHeaders = (showUserList ? tableHeadersUser : tableHeaderToken).map((header) => ({
+		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
+		const relevantHeaders = isMultiTenant ? baseHeaders : baseHeaders.filter((h) => h.key !== 'tenantId');
+		displayTableHeaders = relevantHeaders.map((header) => ({
 			label: header.label,
 			key: header.key,
 			visible: true,
-			id: crypto.randomUUID()
+			id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 		}));
 
 		// Update selectedRows based on selectedMap
@@ -218,7 +220,7 @@
 								{#each adminData.tokens as token}
 									<li class="flex items-center justify-between border-b py-2">
 										<span class="truncate">{token.email}</span>
-										<span class="text-sm text-gray-500">Expires: {token.expires && token.expires !== null ? new Date(token.expires).toLocaleDateString() : 'Never'}</span>
+										<span class="text-sm text-gray-500">Expires: {token.expires && token.expires !== null ? new Date(token.expires).toLocaleString() : 'Never'}</span>
 									</li>
 								{/each}
 							</ul>
@@ -231,8 +233,7 @@
 					token: '',
 					email: '',
 					role: 'user',
-					expires: '',
-					username: ''
+					expires: ''
 				}
 			},
 			response: (result) => {
@@ -262,7 +263,6 @@
 					token: tokenData.token,
 					email: tokenData.email,
 					role: tokenData.role,
-					username: tokenData.username,
 					expires: convertDateToExpiresFormat(tokenData.expires)
 				}
 			},
@@ -283,7 +283,7 @@
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) return '7d'; // Default
+		if (!expiresDate) return '2 days'; // Default
 
 		const now = new Date();
 		const expires = new Date(expiresDate);
@@ -292,13 +292,40 @@
 		const diffDays = Math.ceil(diffHours / 24);
 
 		// Match the available options in ModalEditToken
-		if (diffHours <= 1) return '1h';
-		if (diffDays <= 1) return '1d';
-		if (diffDays <= 7) return '7d';
-		if (diffDays <= 30) return '30d';
-		if (diffDays <= 90) return '90d';
+		if (diffHours <= 2) return '2 hrs';
+		if (diffHours <= 12) return '12 hrs';
+		if (diffDays <= 2) return '2 days';
+		if (diffDays <= 7) return '1 week';
+		if (diffDays <= 14) return '2 weeks';
+		if (diffDays <= 30) return '1 month';
 
-		return '90d'; // Max available option
+		return '1 month'; // Max available option
+	}
+
+	// Helper function to calculate remaining time until expiration for display in table
+	function getRemainingTime(expiresDate: Date | string | null): string {
+		if (!expiresDate) return 'Never';
+
+		const now = new Date();
+		const expires = new Date(expiresDate);
+		const diffMs = expires.getTime() - now.getTime();
+
+		// If expired, return 'Expired'
+		if (diffMs <= 0) return 'Expired';
+
+		const diffMinutes = Math.floor(diffMs / (1000 * 60));
+		const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+		if (diffDays > 0) {
+			const remainingHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+			return remainingHours > 0 ? `${diffDays}d ${remainingHours}h` : `${diffDays}d`;
+		} else if (diffHours > 0) {
+			const remainingMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+			return remainingMinutes > 0 ? `${diffHours}h ${remainingMinutes}m` : `${diffHours}h`;
+		} else {
+			return `${diffMinutes}m`;
+		}
 	}
 
 	// Toggle user blocked status - always show confirmation modal (like Multibutton)
@@ -387,6 +414,88 @@
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 			toastStore.trigger({
 				message: `Failed to ${action} user: ${errorMessage}`,
+				background: 'variant-filled-error',
+				timeout: 5000,
+				classes: 'border-1 !rounded-md'
+			});
+		}
+	}
+
+	// Toggle token blocked status - similar to user blocking
+	async function toggleTokenBlocked(token: TokenData) {
+		if (!token.token) return;
+
+		const action = token.blocked ? 'unblock' : 'block';
+		const actionPastTense = token.blocked ? 'unblocked' : 'blocked';
+
+		// Show confirmation modal with enhanced styling using theme colors
+		const actionColor = token.blocked ? 'text-success-500' : 'text-error-500';
+		const actionWord = token.blocked ? 'Unblock' : 'Block';
+
+		const modalTitle = `Please Confirm Token <span class="${actionColor} font-bold">${actionWord}</span>`;
+		const modalBody = token.blocked
+			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`
+			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
+
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: modalTitle,
+			body: modalBody,
+			buttonTextConfirm: actionWord,
+			buttonTextCancel: 'Cancel',
+			// Custom button styling based on action
+			...(token.blocked
+				? { meta: { buttonConfirmClasses: 'variant-filled-warning' } }
+				: { meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' } }),
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					await performTokenBlockAction(token, action, actionPastTense);
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	async function performTokenBlockAction(token: TokenData, action: string, actionPastTense: string) {
+		try {
+			const response = await fetch('/api/token/batch', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					tokenIds: [token.token],
+					action: action
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				// Update the token in the data by creating a new adminData object to trigger reactivity
+				if (adminData) {
+					const updatedTokens = adminData.tokens.map((t: TokenData) => (t.token === token.token ? { ...t, blocked: !t.blocked } : t));
+
+					// Create a new adminData object to trigger reactivity
+					adminData = {
+						...adminData,
+						tokens: updatedTokens
+					};
+				}
+
+				toastStore.trigger({
+					message: `Token ${actionPastTense} successfully`,
+					background: 'variant-filled-success',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				});
+			} else {
+				throw new Error(result.message || `Failed to ${action} token`);
+			}
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			toastStore.trigger({
+				message: `Failed to ${action} token: ${errorMessage}`,
 				background: 'variant-filled-error',
 				timeout: 5000,
 				classes: 'border-1 !rounded-md'
@@ -504,15 +613,19 @@
 				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 			</button>
 
-			{#if showUsertoken}
-				<button
-					onclick={() => (showExpiredTokens = !showExpiredTokens)}
-					aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
-					class="gradient-secondary btn w-full text-white sm:max-w-xs"
-				>
-					<iconify-icon icon="material-symbols:schedule" color="white" width="18" class="mr-1"></iconify-icon>
-					<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
-				</button>
+			{#if showUsertoken && adminData?.tokens}
+				{@const now = new Date()}
+				{@const expiredTokens = adminData.tokens.filter((token: TokenData) => token.expires && new Date(token.expires) < now)}
+				{#if expiredTokens.length > 0}
+					<button
+						onclick={() => (showExpiredTokens = !showExpiredTokens)}
+						aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
+						class="gradient-secondary btn w-full text-white sm:max-w-xs"
+					>
+						<iconify-icon icon="material-symbols:schedule" color="white" width="18" class="mr-1"></iconify-icon>
+						<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
+					</button>
+				{/if}
 			{/if}
 		</PermissionGuard>
 
@@ -539,7 +652,13 @@
 			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={adminData?.users?.length || 0} {currentUser} />
+				<Multibutton
+					{selectedRows}
+					type={showUserList ? 'user' : 'token'}
+					totalUsers={adminData?.users?.length || 0}
+					{currentUser}
+					on:tokenUpdate={handleTokenUpdate}
+				/>
 			</div>
 		</div>
 
@@ -612,6 +731,7 @@
 
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 							<TableIcons
+								cellClass="w-10 text-center"
 								checked={selectAll}
 								onCheck={(checked) => {
 									selectAll = checked;
@@ -678,7 +798,17 @@
 													<Boolean value={!!row[header.key]} />
 												</button>
 											{:else}
-												<Boolean value={!!row[header.key]} />
+												<button
+													onclick={(event) => {
+														event.stopPropagation();
+														toggleTokenBlocked(row as TokenData);
+													}}
+													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
+													aria-label={row.blocked ? 'Click to unblock token' : 'Click to block token'}
+													title={row.blocked ? 'Click to unblock token' : 'Click to block token'}
+												>
+													<Boolean value={!!row[header.key]} />
+												</button>
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
@@ -718,10 +848,10 @@
 											{row[header.key] && row[header.key] !== null ? new Date(row[header.key]).toLocaleString() : '-'}
 										{:else if header.key === 'expires'}
 											{#if row[header.key] && row[header.key] !== null}
-												{@const expirationDate = new Date(row[header.key])}
-												{@const isTokenExpired = expirationDate < new Date()}
+												{@const isTokenExpired = new Date(row[header.key]) < new Date()}
+												{@const remainingTime = getRemainingTime(row[header.key])}
 												<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
-													{expirationDate.toLocaleDateString()}
+													{remainingTime}
 													{#if isTokenExpired}
 														<iconify-icon icon="material-symbols:warning" class="ml-1 text-error-500" width="16"></iconify-icon>
 													{/if}
@@ -742,15 +872,13 @@
 			</div>
 
 			<!-- Pagination  -->
-
-			<!-- FIX: Added mb-16 for margin-bottom on mobile and other screen sizes -->
-			<div class="mb-16 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
-					{currentPage}
+					bind:currentPage
+					bind:rowsPerPage
 					{pagesCount}
-					{rowsPerPage}
-					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
 					totalItems={filteredTableData.length}
+					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
 					onUpdatePage={(page) => {
 						currentPage = page;
 					}}

@@ -13,13 +13,13 @@
  * Usage:
  * GET /api/getTokensProvided
  * Returns: JSON object with boolean values for each service token
- *
- * Note: This endpoint does not require authentication as it only checks
- * for the presence of tokens, not their values.
+ * Requires: Admin authentication or system permissions
  */
 
 import { privateEnv } from '@root/config/private';
 import { json, type RequestHandler } from '@sveltejs/kit';
+
+// Permissions
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -31,6 +31,11 @@ interface TokenStatus {
 }
 
 export const GET: RequestHandler = async () => {
+	// No permission checks needed - hooks already verified:
+	// 1. User is authenticated
+	// 2. User has correct role for this API endpoint
+	// 3. User belongs to correct tenant (if multi-tenant)
+
 	logger.debug('Checking provided tokens...');
 
 	const tokensProvided: TokenStatus = {

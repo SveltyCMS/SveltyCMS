@@ -5,15 +5,9 @@
  ensuring they align with the validation schemas in `config/types.ts`.
  */
 
-import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-
-// Generate a random JWT secret key of specified length
-function generateRandomJWTSecret(length = 32) {
-	// Generate 32 bytes, which results in a 64-character hex string
-	return crypto.randomBytes(length).toString('hex');
-}
+import { generateRandomJWTSecret, generateRandom2FASecret } from './utils/cryptoUtils.js';
 
 // Helper to format values. It omits the line if the value is null or undefined.
 const formatLine = (key, value, isString = true) => {
@@ -35,6 +29,9 @@ export async function createOrUpdateConfigFile(configData) {
 	// Ensure JWT secret exists and is valid
 	const jwtSecret = configData?.JWT_SECRET_KEY && configData.JWT_SECRET_KEY.length >= 64 ? configData.JWT_SECRET_KEY : generateRandomJWTSecret();
 
+	// Generate 2FA secret if 2FA is enabled but no secret is provided
+	const twoFASecret = configData?.USE_2FA && !configData?.TWO_FACTOR_AUTH_SECRET ? generateRandom2FASecret() : configData?.TWO_FACTOR_AUTH_SECRET;
+
 	// Determine default port based on DB type
 	const defaultDbPort = configData?.DB_TYPE === 'mariadb' ? 3306 : 27017;
 
@@ -47,7 +44,7 @@ export async function createOrUpdateConfigFile(configData) {
  * PRIVATE configuration for the application
  */
 
-import { createPrivateConfig } from './types';
+import { createPrivateConfig } from './types.ts';
 
 export const privateEnv = createPrivateConfig({
     // --- Database Configuration ---
@@ -60,6 +57,7 @@ export const privateEnv = createPrivateConfig({
     ${formatLine('DB_RETRY_ATTEMPTS', configData?.DB_RETRY_ATTEMPTS, false)}
     ${formatLine('DB_RETRY_DELAY', configData?.DB_RETRY_DELAY, false)}
     ${formatLine('DB_POOL_SIZE', configData?.DB_POOL_SIZE, false)}
+    ${formatLine('MULTI_TENANT', configData?.MULTI_TENANT || false, false)}
 
     // --- SMTP Configuration ---
     ${formatLine('SMTP_HOST', configData?.SMTP_HOST)}
@@ -100,6 +98,11 @@ export const privateEnv = createPrivateConfig({
     // --- JWT Secret ---
     ${formatLine('JWT_SECRET_KEY', jwtSecret)}
 
+    // --- Two-Factor Authentication ---
+    ${formatLine('USE_2FA', configData?.USE_2FA || false, false)}
+    ${formatLine('TWO_FACTOR_AUTH_SECRET', twoFASecret)}
+    ${formatLine('TWO_FACTOR_AUTH_BACKUP_CODES_COUNT', configData?.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT || 10, false)}
+
     // --- Roles & Permissions ---
     ${formatArrayLine('ROLES', configData?.ROLES, ['admin', 'editor'])}
     ${formatArrayLine('PERMISSIONS', configData?.PERMISSIONS, ['manage', 'edit', 'create'])}
@@ -114,7 +117,7 @@ export const privateEnv = createPrivateConfig({
  * PUBLIC configuration for the application
  */
 
-import { createPublicConfig } from './types';
+import { createPublicConfig } from './types.ts';
 
 export const publicEnv = createPublicConfig({
     // --- Site Configuration ---
@@ -124,8 +127,8 @@ export const publicEnv = createPublicConfig({
     // --- Language Configuration ---
     ${formatLine('DEFAULT_CONTENT_LANGUAGE', configData?.DEFAULT_CONTENT_LANGUAGE || 'en')}
     ${formatArrayLine('AVAILABLE_CONTENT_LANGUAGES', configData?.AVAILABLE_CONTENT_LANGUAGES, ['en', 'de'])}
-    ${formatLine('DEFAULT_SYSTEM_LANGUAGE', configData?.DEFAULT_SYSTEM_LANGUAGE || 'en')}
-    ${formatArrayLine('AVAILABLE_SYSTEM_LANGUAGES', configData?.AVAILABLE_SYSTEM_LANGUAGES, ['en', 'de', 'fr', 'es'])}
+    ${formatLine('BASE_LOCALE', configData?.BASE_LOCALE || 'en')}
+    ${formatArrayLine('LOCALES', configData?.LOCALES, ['en', 'de', 'fr', 'es'])}
 
     // --- Media Configuration ---
     ${formatLine('MEDIA_FOLDER', configData?.MEDIA_FOLDER || 'mediaFiles')}
@@ -138,6 +141,7 @@ export const publicEnv = createPublicConfig({
     ${formatLine('MAX_FILE_SIZE', configData?.MAX_FILE_SIZE, false)}
     ${formatLine('BODY_SIZE_LIMIT', configData?.BODY_SIZE_LIMIT, false)}
     ${formatLine('EXTRACT_DATA_PATH', configData?.EXTRACT_DATA_PATH)}
+    ${formatLine('USE_ARCHIVE_ON_DELETE', configData?.USE_ARCHIVE_ON_DELETE || true, false)}
 
     // --- Host Configuration ---
     ${formatLine('HOST_DEV', configData?.HOST_DEV || 'http://localhost:5173')}

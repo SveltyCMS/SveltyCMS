@@ -1,9 +1,8 @@
 /**
- * @file src/routes/api/token/[tokenId]/+server.ts
- * @description API endpoint for updating an existing token.
+ * @file src/routes/api/token/[tokenId]/+se		// Authentication is handled by hooks.server.ts - user presence confirms accession API endpoint for updating an existing token.
  *
  * This module is responsible for:
- * - Updating an existing token's data (e.g., email, role, expiration).
+ * - Updating an existing token's data (e.g., email, role, expiration) within the current tenant.
  * - Requires 'update:token' permission.
  * - Adheres to the authDBInterface for database-agnostic operations.
  *
@@ -18,11 +17,13 @@
  */
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
 
 // Auth
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+// TODO: Remove once updateToken is added to database-agnostic interface
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // Validation
 import { object, any, parse, type ValiError } from 'valibot';
@@ -38,39 +39,47 @@ const editTokenSchema = object({
 });
 
 export const PUT: RequestHandler = async ({ request, params, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		const tokenId = params.tokenID;
 		if (!tokenId) {
 			throw error(400, 'Token ID is required in the URL path.');
 		}
-
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'update',
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
-
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to edit token ${tokenId}.`, { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to edit tokens.');
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const body = await request.json().catch(() => {
 			throw error(400, 'Invalid JSON in request body');
 		});
 		const { newTokenData } = parse(editTokenSchema, body);
 
-		const tokenAdapter = new TokenAdapter();
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
 
-		// FIX: Using the now-defined `updateToken` method from the interface
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			const tokenToUpdate = await auth.getTokenByValue(tokenId);
+			if (!tokenToUpdate || tokenToUpdate.tenantId !== tenantId) {
+				logger.warn('Attempt to edit a token belonging to another tenant.', {
+					adminId: user?._id,
+					adminTenantId: tenantId,
+					targetTokenId: tokenId,
+					targetTenantId: tokenToUpdate?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only edit tokens within your own tenant.');
+			}
+		} // TODO: Use database-agnostic interface once updateToken is implemented
+
+		const tokenAdapter = new TokenAdapter();
 		await tokenAdapter.updateToken(tokenId, newTokenData);
 
-		logger.info('Token updated successfully', { tokenId, updateData: newTokenData });
+		logger.info('Token updated successfully', { tokenId, updateData: newTokenData, tenantId }); // Invalidate the tokens cache so the UI updates immediately
 
-		// Invalidate the tokens cache so the UI updates immediately
-		invalidateAdminCache('tokens');
+		invalidateAdminCache('tokens', tenantId);
 
 		return json({ success: true, message: 'Token updated successfully.' });
 	} catch (err) {
@@ -94,32 +103,37 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		const tokenId = params.tokenID;
 		if (!tokenId) {
 			throw error(400, 'Token ID is required in the URL path.');
 		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'delete',
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
-
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to delete token ${tokenId}.`, { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to delete tokens.');
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			const tokenToDelete = await auth.getTokenByValue(tokenId);
+			if (!tokenToDelete || tokenToDelete.tenantId !== tenantId) {
+				logger.warn('Attempt to delete a token belonging to another tenant.', {
+					adminId: user?._id,
+					adminTenantId: tenantId,
+					targetTokenId: tokenId,
+					targetTenantId: tokenToDelete?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only delete tokens within your own tenant.');
+			}
 		}
 
 		const tokenAdapter = new TokenAdapter();
-		await tokenAdapter.deleteTokens([tokenId]);
+		await tokenAdapter.deleteTokens([tokenId]); // Invalidate the tokens cache so the deleted token disappears immediately from admin area
 
-		// Invalidate the tokens cache so the deleted token disappears immediately from admin area
-		invalidateAdminCache('tokens');
+		invalidateAdminCache('tokens', tenantId);
 
-		logger.info(`Token ${tokenId} deleted successfully`, { executedBy: locals.user?._id });
+		logger.info(`Token ${tokenId} deleted successfully`, { executedBy: user?._id, tenantId });
 
 		return json({ success: true, message: 'Token deleted successfully.' });
 	} catch (err) {

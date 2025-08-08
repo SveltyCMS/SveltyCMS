@@ -30,7 +30,7 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { isMobile, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { get } from 'svelte/store';
@@ -80,9 +80,7 @@
 	};
 
 	// Define language type based on available languages
-	type AvailableLanguage = typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES extends string[]
-		? (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number]
-		: string;
+	type AvailableLanguage = typeof publicEnv.LOCALES extends string[] ? (typeof publicEnv.LOCALES)[number] : string;
 
 	let _languageTag = $state(getLocale()); // Get the current language tag
 
@@ -93,7 +91,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...(publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(publicEnv.LOCALES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -131,7 +129,7 @@
 			console.log('Starting sign-out process...');
 
 			// Call the logout API endpoint
-			const response = await axios.post(
+			await axios.post(
 				'/api/user/logout',
 				{},
 				{
@@ -180,16 +178,30 @@
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
 
-	let handleUserClick = $derived(() => {
-		if (!page.url.href.includes('user')) {
-			mode.set('view');
-			// Only handle sidebar on mobile
-			if (get(screenSize) === 'SM') {
-				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
+	// Navigation handlers - simplified and more direct
+	function handleUserClick() {
+		if (page.url.pathname !== '/user') {
+			// Force hide sidebar first on mobile
+			if (typeof window !== 'undefined' && window.innerWidth < 768) {
+				console.log('Mobile detected, hiding sidebar before navigation');
+				toggleUIElement('leftSidebar', 'hidden');
 			}
+			mode.set('view');
 			goto('/user');
 		}
-	});
+	}
+
+	function handleConfigClick() {
+		if (page.url.pathname !== '/config') {
+			// Force hide sidebar first on mobile
+			if (typeof window !== 'undefined' && window.innerWidth < 768) {
+				console.log('Mobile detected, hiding sidebar before navigation');
+				toggleUIElement('leftSidebar', 'hidden');
+			}
+			mode.set('view');
+			goto('/config');
+		}
+	}
 
 	function handleSelectChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
@@ -275,7 +287,7 @@
 						src={avatarSrc.value && avatarSrc.value.startsWith('data:')
 							? avatarSrc.value
 							: avatarSrc.value
-								? `${avatarSrc.value}${avatarSrc.value.startsWith('/') ? '' : ''}?t=${Date.now()}`
+								? `${avatarSrc.value}?t=${Date.now()}`
 								: '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"
@@ -299,13 +311,13 @@
 				</div>
 			</div>
 
-			<!-- Enhanced System Language Selector -->
+			<!-- System Language Selector -->
 			<div
 				class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if (publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[]).length > 5}
+					{#if (publicEnv.LOCALES as string[]).length > 5}
 						<button
 							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'
@@ -410,19 +422,21 @@
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
 				<button
 					use:popup={ConfigTooltip}
-					onclick={() => {
-						mode.set('view');
-						handleUILayoutToggle();
-						if (get(screenSize) === 'SM') {
-							toggleUIElement('leftSidebar', 'hidden');
+					onclick={(e) => {
+						handleConfigClick();
+						e.stopPropagation();
+					}}
+					onkeypress={(e) => {
+						e.stopPropagation();
+						if (e.key === 'Enter' || e.key === ' ') {
+							handleConfigClick();
+							e.preventDefault();
 						}
 					}}
 					aria-label="System Configuration"
 					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
 				>
-					<a href="/config" aria-label="System Configuration">
-						<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
-					</a>
+					<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->

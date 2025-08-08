@@ -1,3 +1,11 @@
+/**
+ * @file user.spec.ts
+ * @description Playwright end-to-end tests for user profile and token management in SveltyCMS.
+ *   - Login user
+ *   - Edit and delete avatar
+ *   - Edit user details
+ *   - Manage registration tokens and user lists
+ */
 import { test, expect } from '@playwright/test';
 
 async function loginUser(page) {

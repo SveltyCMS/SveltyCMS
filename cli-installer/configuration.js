@@ -32,6 +32,65 @@ const REQUIRED_FIELDS = {
 	email: 'SMTP_HOST'
 };
 
+// Check if a configuration section has meaningful configuration
+function hasCustomConfiguration(sectionKey, configData) {
+	// Special cases for sections with specific logic
+	switch (sectionKey) {
+		case 'system': {
+			// System is configured if JWT secret exists or any critical system values are set
+			const hasJwtSecret = configData.JWT_SECRET_KEY && configData.JWT_SECRET_KEY.length >= 32;
+			const hasSiteName = configData.SITE_NAME && configData.SITE_NAME !== 'SveltyCMS';
+			const hasCustomHosts =
+				(configData.HOST_DEV && configData.HOST_DEV !== 'http://localhost:5173') ||
+				(configData.HOST_PROD && !configData.HOST_PROD.includes('example.com'));
+			const hasLogging = configData.LOG_LEVELS && configData.LOG_LEVELS.length > 0;
+			const hasArchiving = configData.USE_ARCHIVE_ON_DELETE !== undefined;
+			const hasDataExport = !!configData.EXTRACT_DATA_PATH;
+
+			return hasJwtSecret || hasSiteName || hasCustomHosts || hasLogging || hasArchiving || hasDataExport;
+		}
+
+		case 'redis':
+			// Redis is configured if USE_REDIS is enabled
+			return configData.USE_REDIS === true;
+
+		case 'google':
+			// Google is configured if OAuth is enabled or API key exists
+			return configData.USE_GOOGLE_OAUTH === true || !!configData.GOOGLE_API_KEY;
+
+		case 'mapbox':
+			// Mapbox is configured if enabled
+			return configData.USE_MAPBOX === true;
+
+		case 'tiktok':
+			// TikTok is configured if enabled
+			return configData.USE_TIKTOK === true;
+
+		case 'media':
+			// Media is configured if folder is set or file size limits are configured
+			return !!(configData.MEDIA_FOLDER || configData.MAX_FILE_SIZE || configData.BODY_SIZE_LIMIT);
+
+		case 'language': {
+			// Language is configured if non-default languages are set
+			const hasContentLang = configData.DEFAULT_CONTENT_LANGUAGE && configData.DEFAULT_CONTENT_LANGUAGE !== 'en';
+			const hasSystemLang = configData.DEFAULT_SYSTEM_LANGUAGE && configData.DEFAULT_SYSTEM_LANGUAGE !== 'en';
+			const hasAvailableLangs =
+				(configData.AVAILABLE_CONTENT_LANGUAGES && configData.AVAILABLE_CONTENT_LANGUAGES.length > 1) ||
+				(configData.AVAILABLE_SYSTEM_LANGUAGES && configData.AVAILABLE_SYSTEM_LANGUAGES.length > 1);
+
+			return hasContentLang || hasSystemLang || hasAvailableLangs;
+		}
+
+		case 'llm':
+			// LLM is configured if LLM_APIS object has any keys
+			return configData.LLM_APIS && Object.keys(configData.LLM_APIS).length > 0;
+
+		default:
+			// For other sections, return false as they're handled above
+			return false;
+	}
+}
+
 const CONFIG_PATHS = {
 	private: path.join(process.cwd(), 'config', 'private.ts'),
 	public: path.join(process.cwd(), 'config', 'public.ts')
@@ -67,11 +126,34 @@ async function readConfigFile(filePath) {
 // Function to parse the configuration file content to extract the environment variables
 function parseConfig(content) {
 	const env = {};
-	const regex = /(\w+):\s*'([^']*)'/g;
+
+	// Match string values: KEY: 'value'
+	const stringRegex = /(\w+):\s*'([^']*)'/g;
 	let match;
-	while ((match = regex.exec(content)) !== null) {
+	while ((match = stringRegex.exec(content)) !== null) {
 		env[match[1]] = match[2];
 	}
+
+	// Match boolean values: KEY: true/false
+	const boolRegex = /(\w+):\s*(true|false)/g;
+	while ((match = boolRegex.exec(content)) !== null) {
+		env[match[1]] = match[2] === 'true';
+	}
+
+	// Match number values: KEY: 123
+	const numberRegex = /(\w+):\s*(\d+)(?:\s*,|\s*}|\s*$)/g;
+	while ((match = numberRegex.exec(content)) !== null) {
+		env[match[1]] = parseInt(match[2], 10);
+	}
+
+	// Match array values: KEY: ["item1", "item2"]
+	const arrayRegex = /(\w+):\s*\[\s*([^\]]+)\s*\]/g;
+	while ((match = arrayRegex.exec(content)) !== null) {
+		// Parse array items (assuming string items for now)
+		const items = match[2].split(',').map((item) => item.trim().replace(/['"]/g, ''));
+		env[match[1]] = items;
+	}
+
 	return env;
 }
 
@@ -140,7 +222,9 @@ export const configurationPrompt = async () => {
 	Title();
 	note(
 		`${pc.green('Database')} and ${pc.green('Email')} configurations are required.
-Other configurations are optional but enhance functionality.`,
+Other configurations are optional but enhance functionality.
+
+${pc.gray('Legend:')} ${pc.green('Green = Configured')} | ${pc.gray('Gray = Default/Not Configured')}`,
 		pc.green('Configuration Menu:')
 	);
 
@@ -159,7 +243,9 @@ Other configurations are optional but enhance functionality.`,
 		Title();
 		note(
 			`${pc.green('Database')} and ${pc.green('Email')} configurations are required.
-Other configurations are optional but enhance functionality.`,
+Other configurations are optional but enhance functionality.
+
+${pc.gray('Legend:')} ${pc.green('Green = Configured')} | ${pc.gray('Gray = Default/Not Configured')}`,
 			pc.green('Configuration Menu:')
 		);
 
@@ -167,12 +253,27 @@ Other configurations are optional but enhance functionality.`,
 		const selectedOption = await select({
 			message: 'Configure SveltyCMS - Pick a Category (* Required)',
 			options: OPTIONS.map((option) => {
-				// Check if the option corresponds to a required field and if that field has data
-				const requiredFieldKey = option.value.toLowerCase();
-				const isRequiredAndSet = REQUIRED_FIELDS[requiredFieldKey] && configData[REQUIRED_FIELDS[requiredFieldKey]];
+				const optionKey = option.value.toLowerCase();
+				let isConfigured = false;
+				let labelColor = option.label; // Default color
+
+				if (option.required) {
+					// For required fields, check if the required field exists and has a value
+					const requiredField = REQUIRED_FIELDS[optionKey];
+					isConfigured = requiredField && configData[requiredField] && String(configData[requiredField]).trim() !== '';
+				} else if (optionKey !== 'exit') {
+					// For optional fields, check if they have custom configuration
+					isConfigured = hasCustomConfiguration(optionKey, configData);
+				}
+
+				// Apply green color if configured
+				if (isConfigured) {
+					labelColor = pc.green(option.label);
+				}
+
 				return {
 					...option,
-					label: isRequiredAndSet ? pc.green(option.label) : option.label // Mark green if required and set
+					label: labelColor
 				};
 			})
 		});

@@ -73,17 +73,11 @@
 	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
 	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
 
-	// Go to page - IMMEDIATE
-	let pageUpdateTimeout: number | undefined;
+	// Go to page - IMMEDIATE 
 	function goToPage(page: number) {
 		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
-			// Clear any existing timeout
-			if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
-			// Set a new timeout
-			pageUpdateTimeout = window.setTimeout(() => {
-				currentPage = page;
-				onUpdatePage?.(page);
-			}, 200); // 200ms debounce
+			currentPage = page;
+			onUpdatePage?.(page);
 		}
 	}
 

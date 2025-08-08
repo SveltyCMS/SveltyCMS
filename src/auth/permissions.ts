@@ -151,7 +151,7 @@ export function getPermissionConfig(configKey: string): PermissionConfig | null 
 		contextId: permission.contextId || permissionId,
 		name: permission.name,
 		action: permission.action,
-		contextType: permission.type,
+		contextType: permission.type || '',
 		description: permission.description
 	};
 }
@@ -232,8 +232,29 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		type: 'user',
 		name: 'Create User Token',
 		description: 'Create user registration tokens'
+	},
+	userManage: {
+		contextId: 'user:manage',
+		action: 'manage',
+		type: 'user',
+		name: 'User Management',
+		description: 'Manage user accounts and roles'
 	}
 };
 
 // Export permissions array for compatibility
 export const permissions = getAllPermissions();
+
+// Convenience functions for common operations
+export function checkPermissions(user: User, permissionIds: string[], roles: Role[]): boolean {
+	return permissionIds.every((permissionId) => hasPermissionWithRoles(user, permissionId, roles));
+}
+
+export function getUserRole(user: User, roles: Role[]): Role | undefined {
+	return roles.find((role) => role._id === user.role);
+}
+
+export function getUserRoles(user: User, roles: Role[]): Role[] {
+	const userRole = getUserRole(user, roles);
+	return userRole ? [userRole] : [];
+}

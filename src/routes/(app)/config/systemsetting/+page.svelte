@@ -126,13 +126,11 @@ ENHANCEMENTS:
 <!-- Page Title with Back Button -->
 <PageTitle name="System Settings" icon="uil:setting" showBackButton={true} backUrl="/config" />
 
-<div class="my-4">
-	<div class="alert variant-soft-warning text-center">
-		<iconify-icon icon="mdi:alert" class="text-2xl"></iconify-icon>
-		<div>
-			<p class="font-bold">Caution: For Administrators Only</p>
-			<p>Changes made here directly affect the server configuration and can cause instability if not done correctly.</p>
-		</div>
+<div class="alert variant-soft-warning mb-2 text-center">
+	<iconify-icon icon="mdi:alert" class="text-2xl"></iconify-icon>
+	<div class="flex-1">
+		<p class="font-bold">Caution: For Administrators Only</p>
+		<p>Changes made here directly affect the server configuration and can cause instability if not done correctly.</p>
 	</div>
 </div>
 

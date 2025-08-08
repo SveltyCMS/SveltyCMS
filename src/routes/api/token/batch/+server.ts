@@ -18,13 +18,16 @@
  * }
  */
 
+import { privateEnv } from '@root/config/private';
+
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+// TODO: Remove once blockTokens/unblockTokens are added to database-agnostic interface
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // Validation
 import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
@@ -42,42 +45,63 @@ const batchTokenActionSchema = object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		const { user, tenantId } = locals; // Destructure user and tenantId
 		const body = await request.json().catch(() => {
 			throw error(400, 'Invalid JSON in request body');
 		});
 		const { tokenIds, action } = parse(batchTokenActionSchema, body);
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
-		const hasPermission = hasPermissionByAction(locals.user, action, 'token', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
-
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to '${action}' tokens.`, { userId: locals.user?._id });
-			throw error(403, `Forbidden: You do not have permission to ${action} tokens.`);
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
 		}
 
-		const tokenAdapter = new TokenAdapter();
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			const tokenAdapter = new TokenAdapter();
+			const tokensToVerify = await tokenAdapter.getAllTokens({ token: { $in: tokenIds }, tenantId });
+			if (tokensToVerify.length !== tokenIds.length) {
+				logger.warn(`Attempt to act on tokens outside of tenant`, {
+					userId: user?._id,
+					tenantId,
+					requestedTokenIds: tokenIds
+				});
+				throw error(403, 'Forbidden: One or more tokens do not belong to your tenant or do not exist.');
+			}
+		}
+
 		let successMessage = '';
+		const tokenAdapter = new TokenAdapter(); // Re-use the adapter instance
 
 		switch (action) {
-			case 'delete':
+			case 'delete': {
+				// The adapter method needs to be tenant-aware internally
 				await tokenAdapter.deleteTokens(tokenIds);
 				successMessage = 'Tokens deleted successfully.';
 				break;
-			case 'block':
+			}
+			case 'block': {
 				await tokenAdapter.blockTokens(tokenIds);
 				successMessage = 'Tokens blocked successfully.';
 				break;
-			case 'unblock':
+			}
+			case 'unblock': {
 				await tokenAdapter.unblockTokens(tokenIds);
 				successMessage = 'Tokens unblocked successfully.';
 				break;
+			}
 		}
-
 		// Invalidate the tokens cache so changes appear immediately in admin area
-		invalidateAdminCache('tokens');
+		invalidateAdminCache('tokens', tenantId);
 
 		logger.info(`Batch token action '${action}' completed.`, {
 			affectedIds: tokenIds,
-			executedBy: locals.user?._id
+			executedBy: user?._id,
+			tenantId
 		});
 
 		return json({ success: true, message: successMessage });

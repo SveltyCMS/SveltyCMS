@@ -3,9 +3,8 @@
 @component
 **ThemeSwitcher component for toggling between light & dark themes**
 
-```tsx
+`@example
 <ThemeSwitcher />	
-```
 
 #### Props:
 - `theme` {object} - The current theme object from the theme store

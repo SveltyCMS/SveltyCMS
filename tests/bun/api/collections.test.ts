@@ -62,16 +62,16 @@ describe('Collections & Content API Endpoints', () => {
 		});
 	};
 
-	testAuthenticatedGetEndpoint('/api/getCollection/Posts', 200); // Assuming 'Posts' collection exists in test setup
+	testAuthenticatedGetEndpoint('/api/collections', 200); // Modern collections list endpoint
 	testAuthenticatedGetEndpoint('/api/content-structure');
 	testAuthenticatedGetEndpoint('/api/exportData');
 
-	describe('POST /api/find', () => {
+	describe('POST /api/search', () => {
 		it('should find content with a valid search query', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/find`, {
+			const response = await fetch(`${API_BASE_URL}/api/search`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-				body: JSON.stringify({ collection: 'Posts', query: {} })
+				body: JSON.stringify({ query: 'test', collections: [] })
 			});
 			const result = await response.json();
 			expect(response.status).toBe(200);
@@ -79,77 +79,48 @@ describe('Collections & Content API Endpoints', () => {
 		});
 
 		it('should fail without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/find`, {
+			const response = await fetch(`${API_BASE_URL}/api/search`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ collection: 'Posts', query: {} })
+				body: JSON.stringify({ query: 'test', collections: [] })
 			});
 			expect(response.status).toBe(401);
 		});
 
-		it('should fail with an invalid collection name', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/find`, {
+		it('should handle empty search query', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/search`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-				body: JSON.stringify({ collection: 'InvalidCollection', query: {} })
+				body: JSON.stringify({ query: '', collections: [] })
 			});
-			expect(response.status).toBe(400);
+			expect(response.status).toBe(200);
 		});
 	});
 
-	describe('POST /api/query', () => {
-		const testQueryOperation = async (body: object) => {
-			return fetch(`${API_BASE_URL}/api/query`, {
-				method: 'POST',
+	describe('RESTful Collection Operations', () => {
+		const testCollectionId = '23d772dd3783492a9115ee9ea6bc6185'; // Using a valid collection ID
+
+		const testCollectionOperation = async (collectionId: string, body: object, method = 'POST') => {
+			return fetch(`${API_BASE_URL}/api/collections/${collectionId}`, {
+				method,
 				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
 				body: JSON.stringify(body)
 			});
 		};
 
-		it('should handle an insert operation', async () => {
-			const response = await testQueryOperation({
-				operation: 'insert',
-				collection: 'Posts',
-				data: { title: 'Test Post', content: 'Test content' }
+		it('should handle creating a new entry', async () => {
+			const response = await testCollectionOperation(testCollectionId, {
+				title: 'Test Post',
+				content: 'Test content'
 			});
 			const result = await response.json();
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
 		});
 
-		it('should handle an update operation', async () => {
-			// First, insert a post to update
-			await testQueryOperation({
-				operation: 'insert',
-				collection: 'Posts',
-				data: { title: 'Original Title' }
-			});
-
-			// Now, update it
-			const response = await testQueryOperation({
-				operation: 'update',
-				collection: 'Posts',
-				query: { title: 'Original Title' },
-				data: { content: 'Updated content' }
-			});
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should handle a delete operation', async () => {
-			// First, insert a post to delete
-			await testQueryOperation({
-				operation: 'insert',
-				collection: 'Posts',
-				data: { title: 'To Be Deleted' }
-			});
-
-			// Now, delete it
-			const response = await testQueryOperation({
-				operation: 'delete',
-				collection: 'Posts',
-				query: { title: 'To Be Deleted' }
+		it('should get collection entries', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/collections/${testCollectionId}?page=1&pageSize=10`, {
+				headers: { Authorization: `Bearer ${authToken}` }
 			});
 			const result = await response.json();
 			expect(response.status).toBe(200);
@@ -157,40 +128,40 @@ describe('Collections & Content API Endpoints', () => {
 		});
 
 		it('should fail without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
+			const response = await fetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ operation: 'find', collection: 'Posts' })
+				body: JSON.stringify({ title: 'Test Post' })
 			});
 			expect(response.status).toBe(401);
 		});
 
-		it('should fail with an invalid operation', async () => {
-			const response = await testQueryOperation({
-				operation: 'invalid-operation',
-				collection: 'Posts'
+		it('should fail with invalid collection ID', async () => {
+			const response = await testCollectionOperation('invalid-collection-id', {
+				title: 'Test Post'
 			});
-			expect(response.status).toBe(400);
+			expect(response.status).toBe(404);
 		});
 	});
 
-	describe('POST /api/compile', () => {
-		it('should compile all collections with admin authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/compile`, {
+	describe('POST /api/content-structure (recompile)', () => {
+		it('should recompile all collections with admin authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/content-structure`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-				body: JSON.stringify({}) // No specific collections means compile all
+				body: JSON.stringify({ action: 'recompile' })
 			});
 			const result = await response.json();
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
+			expect(result.message).toBe('Collections recompiled successfully');
 		});
 
 		it('should fail without authentication', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/compile`, {
+			const response = await fetch(`${API_BASE_URL}/api/content-structure`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({})
+				body: JSON.stringify({ action: 'recompile' })
 			});
 			expect(response.status).toBe(401);
 		});

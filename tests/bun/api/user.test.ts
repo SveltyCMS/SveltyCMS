@@ -8,12 +8,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import {
-	cleanupTestDatabase,
-	cleanupTestEnvironment,
-	initializeTestEnvironment,
-	testFixtures
-} from '../helpers/testSetup';
+import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
 

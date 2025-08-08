@@ -17,7 +17,7 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
-	import { updateTranslationProgress, getFieldName } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 	import { onMount, onDestroy } from 'svelte';
 
 	// Stores
@@ -45,10 +45,8 @@
 	// Computed values
 	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
-	// Update translation progress when data or field changes
-	$effect(() => {
-		updateTranslationProgress(_data, field);
-	});
+	// Translation progress is now handled by the Fields.svelte component
+	// No need for individual widget components to update it
 
 	// Create validation schema for radio
 	const radioSchema = pipe(string(), nonEmpty('Selection is required'));

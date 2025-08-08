@@ -11,7 +11,9 @@
 
 import { store } from '@utils/reactivity.svelte';
 import type { Schema } from '@src/content/types';
-import type { ContentNode } from '../databases/dbInterface';
+import { StatusTypes } from '@src/content/types';
+import type { ContentNode } from '../databases/types';
+import { SvelteMap } from 'svelte/reactivity';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
@@ -23,18 +25,11 @@ interface Widget {
 }
 
 // Status map for various collection states
-export const statusMap = {
-	deleted: 'deleted',
-	published: 'published',
-	unpublished: 'unpublished',
-	scheduled: 'scheduled',
-	cloned: 'cloned',
-	testing: 'testing'
-} as const;
+export const statusMap = StatusTypes;
 
 // Create reactive stores
 export const collections = store<{ [uuid: string]: Schema }>({});
-export const collectionsById = store<Map<string, Schema>>(new Map());
+export const collectionsById = store<SvelteMap<string, Schema>>(new SvelteMap());
 export const currentCollectionId = store<string | null>(null);
 
 // Keep existing stores
@@ -53,7 +48,8 @@ export const collectionValue = {
 		collectionValueState = newValue;
 	},
 	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
-		collectionValueState = fn(collectionValueState);
+		const newValue = fn(collectionValueState);
+		collectionValueState = newValue;
 	}
 };
 
@@ -67,7 +63,8 @@ export const mode = {
 		modeState = newMode;
 	},
 	update: (fn: (value: ModeType) => ModeType) => {
-		modeState = fn(modeState);
+		const newMode = fn(modeState);
+		modeState = newMode;
 	}
 };
 

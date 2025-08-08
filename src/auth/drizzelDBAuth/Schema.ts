@@ -42,6 +42,9 @@ export const users = sqliteTable('users', {
 	resetToken: text('reset_token'),
 	lockoutUntil: integer('lockout_until', { mode: 'timestamp' }),
 	is2FAEnabled: integer('is_2fa_enabled', { mode: 'boolean' }).default(false),
+	totpSecret: text('totp_secret'),
+	backupCodes: text('backup_codes'), // JSON array of hashed backup codes
+	last2FAVerification: integer('last_2fa_verification', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 });

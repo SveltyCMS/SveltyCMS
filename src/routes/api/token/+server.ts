@@ -4,8 +4,8 @@
  *
  * This module is responsible for:
  * - Creating a new token with a specified role and expiration.
- * - Associating the token with a user ID and email.
- * - Requires 'create:token' permission.
+ * - Associating the token with a user ID and email within the current tenant.
+ * - Requires 'system:write' permission.
  *
  * @usage
  * POST /api/token
@@ -17,19 +17,19 @@
  * "expiresInLabel": "7d"
  * }
  */
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
+
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
 
 // Cache invalidation
 import { invalidateAdminCache } from '@src/hooks.server';
 
 // Validation
-import { object, string, number, parse, type ValiError, minLength } from 'valibot';
+import { object, string, number, parse, minLength } from 'valibot';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -42,56 +42,105 @@ const createTokenSchema = object({
 	expiresInLabel: string()
 });
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	try {
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+export const POST: RequestHandler = async (event) => {
+	const { request, locals } = event;
+	const { tenantId } = locals; // User and permissions are guaranteed by hooks
 
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to create a token.`, { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to create tokens.');
-		}
+	try {
+		// No permission checks needed - hooks already verified:
+		// 1. User is authenticated
+		// 2. User has correct role for 'api:token' endpoint
+		// 3. User belongs to correct tenant (if multi-tenant)
 
 		const body = await request.json();
-		const tokenData = parse(createTokenSchema, body);
 
-		const tokenAdapter = new TokenAdapter();
+		let tokenData;
+		try {
+			tokenData = parse(createTokenSchema, body);
+		} catch (err) {
+			if (err.name === 'ValiError') {
+				const validationErrors = err.issues?.map((issue) => `${issue.path?.join('.')}: ${issue.message}`) || ['Invalid data'];
+				logger.warn(`Token creation validation failed`, {
+					userId: user?._id,
+					validationErrors,
+					providedFields: Object.keys(body || {})
+				});
+				throw error(400, 'Validation Error: ' + validationErrors.join(', '));
+			}
+			throw err;
+		}
+
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
+
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			// Verify the target user belongs to the same tenant as the admin creating the token.
+			const targetUser = await auth.getUserById(tokenData.user_id);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Attempt to create a token for a user in another tenant.', {
+					adminId: user?._id,
+					adminTenantId: tenantId,
+					targetUserId: tokenData.user_id,
+					targetTenantId: targetUser?.tenantId
+				});
+				throw error(403, 'Forbidden: You can only create tokens for users within your own tenant.');
+			}
+		}
+
 		const expiresAt = new Date(Date.now() + tokenData.expiresIn * 60 * 60 * 1000);
 
-		const token = await tokenAdapter.createToken({
+		logger.debug(`Creating token for user`, {
+			targetUserId: tokenData.user_id,
+			targetEmail: tokenData.email,
+			role: tokenData.role,
+			expiresIn: tokenData.expiresIn,
+			createdBy: user?._id,
+			tenantId
+		});
+
+		const token = await auth.createToken({
 			user_id: tokenData.user_id,
+			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
 			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
 			expires: expiresAt,
 			type: 'registration' // Or another appropriate type
 		});
-
 		// Invalidate the tokens cache so the new token appears immediately in admin area
-		invalidateAdminCache('tokens');
+		invalidateAdminCache('tokens', tenantId);
 
-		logger.info(`Token created successfully`, { token, executedBy: locals.user?._id });
+		const responseData = {
+			success: true,
+			token: { value: token, expires: expiresAt.toISOString() }
+		};
 
-		return json({ success: true, token: { value: token, expires: expiresAt.toISOString() } }, { status: 201 });
-	} catch (err) {
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
-			logger.warn('Invalid input for create token API:', { issues });
-			throw error(400, `Invalid input: ${issues}`);
-		}
-		const httpError = err as HttpError;
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || 'An unexpected error occurred.';
-		logger.error('Error in create token API:', {
-			error: message,
-			stack: err instanceof Error ? err.stack : undefined,
-			userId: locals.user?._id,
-			status
+		logger.info(`Token created successfully`, {
+			tokenId: token,
+			targetUserId: tokenData.user_id,
+			targetEmail: tokenData.email,
+			role: tokenData.role,
+			expiresAt: expiresAt.toISOString(),
+			createdBy: user?._id,
+			tenantId
 		});
-		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
+
+		return json(responseData, { status: 201 });
+	} catch (err) {
+		if (err.status) {
+			// Re-throw SvelteKit errors (they're already logged)
+			throw err;
+		}
+
+		logger.error(`Unexpected error in token creation endpoint`, {
+			userId: locals.user?._id,
+			error: err.message,
+			stack: err.stack
+		});
+		throw error(500, 'Failed to create token: ' + err.message);
 	}
 };

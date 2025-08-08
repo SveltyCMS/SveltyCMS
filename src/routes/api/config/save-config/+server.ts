@@ -1,6 +1,9 @@
 /**
  * @file src/routes/api/save-config/+server.ts
- * @description API endpoint to safely save configuration changes.
+ * @description API endpoint to s	} catch (error: unknown) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.error('Configuration save failed:', error);
+		return json({ success: false, message: `Save failed: ${errorMessage}` }, { status: 500 });ly save configuration changes.
  *
  * This is a full implementation that reads the current config,
  * merges the changes from the GUI, and then rewrites the .ts file,
@@ -10,6 +13,8 @@ import { json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL } from 'url';
+
+// Auth
 
 // Helper to get a fresh, non-cached module
 async function importFresh(modulePath) {
@@ -52,7 +57,12 @@ export const ${configObjectName} = ${createConfigFunctionName}({
 	return content;
 }
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		return json({ success: false, message: 'Unauthorized' }, { status: 401 });
+	}
+
 	const { configData, isPrivate } = await request.json();
 	const configDir = path.join(process.cwd(), 'config');
 	const filePath = path.join(configDir, isPrivate ? 'private.ts' : 'public.ts');
@@ -75,10 +85,9 @@ export async function POST({ request }) {
 
 		console.log(`Successfully updated configuration file: ${filePath}`);
 		return json({ success: true, message: 'Configuration saved successfully.' });
-
-	} catch (error: any) {
+	} catch (error: unknown) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
 		console.error(`Error saving configuration to ${filePath}:`, error);
-		return json({ success: false, message: `Failed to save config: ${error.message}` }, { status: 500 });
+		return json({ success: false, message: `Failed to save config: ${errorMessage}` }, { status: 500 });
 	}
 }
-

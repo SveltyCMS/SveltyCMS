@@ -25,7 +25,8 @@ Key features:
 <script lang="ts">
 	// Utils
 	import { formatBytes } from '@utils/utils';
-	import { getMediaUrl } from '@utils/media/mediaUtils';
+	import { getMediaUrlSafe } from '@utils/media/mediaUtils';
+	import { publicEnv } from '@root/config/public';
 	import type { MediaBase, MediaTypeEnum } from '@utils/media/mediaModels';
 
 	// Components
@@ -137,13 +138,15 @@ Key features:
 				<tbody>
 					{#each paginatedFiles as file (file._id)}
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<td class="w-10">
-								<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
-							</td>
+							<TableIcons
+								cellClass="w-10 text-center"
+								checked={selectedFiles.has(file.filename)}
+								onCheck={(checked) => handleSelection(file, checked)}
+							/>
 							<td>
 								{#if file?.filename && file?.path && file?.hash}
 									<img
-										src={getMediaUrl(file, 'thumbnail')}
+										src={getMediaUrlSafe(file, 'thumbnail')}
 										alt={`Thumbnail for ${file.filename}`}
 										class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
 										onerror={(e: Event) => {
@@ -190,11 +193,11 @@ Key features:
 				class=" bg-surface-100-800-token sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 py-2 md:flex-row md:justify-between md:p-4"
 			>
 				<TablePagination
-					{currentPage}
+					bind:currentPage
+					bind:rowsPerPage
 					{pagesCount}
-					{rowsPerPage}
-					rowsPerPageOptions={[5, 10, 25, 50, 100]}
 					totalItems={filteredFiles.length}
+					rowsPerPageOptions={[5, 10, 25, 50, 100]}
 					onUpdatePage={(page) => {
 						currentPage = page;
 					}}

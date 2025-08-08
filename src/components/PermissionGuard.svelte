@@ -61,33 +61,17 @@ Features:
 	let loading = $state(false);
 	let user = $derived(page.data.user as User | undefined);
 	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
+	let isAdmin = $derived(page.data.isAdmin as boolean | undefined);
 	let permissionData = $derived(
 		config?.contextId
 			? permissions[config.contextId] || { hasPermission: false, isRateLimited: false }
 			: { hasPermission: false, isRateLimited: false }
 	);
-	let isAdmin = $derived(user?.role?.toLowerCase() === 'admin');
-	let hasPermission = $derived(isAdmin || permissionData.hasPermission);
+	let hasPermission = $derived(!!isAdmin || permissionData.hasPermission);
 	let isRateLimited = $derived(permissionData.isRateLimited);
 
 	// Final determination if content should be shown
 	let shouldShowContent = $derived(!!config && hasPermission && !isRateLimited && !loading);
-
-	// $effect(() => {
-	// 	if (import.meta.env.DEV) {
-	// 		console.debug('PermissionGuard Debug Info:', {
-	// 			user,
-	// 			config,
-	// 			permissions,
-	// 			permissionData,
-	// 			isAdmin,
-	// 			hasPermission,
-	// 			isRateLimited,
-	// 			shouldShowContent,
-	// 			loading
-	// 		});
-	// 	}
-	// });
 </script>
 
 {#if shouldShowContent}

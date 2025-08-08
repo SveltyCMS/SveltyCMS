@@ -12,7 +12,6 @@ delete endpoint, resolving the "Unexpected token" browser error.
 - `user_id` {string} - User ID (default: '')
 - `email` {string} - Associated email (default: '')
 - `role` {string} - Token role (default: 'user')
-- `username` {string} - Username (default: '')
 - `expires` {string} - Expiration date (default: '2 days')
 
 -->
@@ -43,19 +42,10 @@ delete endpoint, resolving the "Unexpected token" browser error.
 		user_id: string;
 		email: string;
 		role: string;
-		username: string;
 		expires: string;
 	}
 
-	let {
-		parent = { regionFooter: 'modal-footer p-4' },
-		token = '',
-		user_id = '',
-		email = '',
-		role = 'user',
-		username = '',
-		expires = ''
-	}: Props = $props();
+	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', user_id = '', email = '', role = 'user', expires = '' }: Props = $props();
 
 	// Form Data with format conversion
 	function convertLegacyFormat(expires: string): string {
@@ -88,23 +78,18 @@ delete endpoint, resolving the "Unexpected token" browser error.
 
 	const formData = $state({
 		user_id, // Add user_id to state
-		username,
 		email,
 		token,
 		role: role || 'user',
 		expires: !expires || expires === '' ? '2 days' : convertLegacyFormat(expires) // Force '2 days' for empty/undefined expires
 	});
-	const errorStatus = $state({ username: { status: false, msg: '' }, email: { status: false, msg: '' } });
+	const errorStatus = $state({ email: { status: false, msg: '' } });
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 
 		if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
 			errorStatus.email = { status: true, msg: 'A valid email is required' };
-			return;
-		}
-		if (!formData.username) {
-			errorStatus.username = { status: true, msg: 'Username is required' };
 			return;
 		}
 
@@ -118,13 +103,11 @@ delete endpoint, resolving the "Unexpected token" browser error.
 						newTokenData: {
 							email: formData.email,
 							role: formData.role,
-							username: formData.username, // Add username to edit payload
 							expiresInHours: convertExpiresToHours(formData.expires)
 						}
 					}
 				: {
 						email: formData.email,
-						username: formData.username,
 						role: formData.role,
 						expiresIn: formData.expires // Send the API format directly
 					};
@@ -245,46 +228,6 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				{/if}
 			</div>
 
-			<!-- Username field -->
-			<div class="group relative z-0 mb-6 w-full">
-				<div class="flex items-center gap-2">
-					<div class="flex-1">
-						<FloatingInput
-							type="text"
-							name="username"
-							label={m.modaledit_tokenusername()}
-							bind:value={formData.username}
-							onkeydown={() => (errorStatus.username.status = false)}
-							required
-							icon="mdi:user-circle"
-						/>
-					</div>
-					<button
-						type="button"
-						onclick={() => {
-							if (!formData.email) {
-								errorStatus.email = { status: true, msg: 'Enter email first' };
-								return;
-							}
-							// Generate username from email, replacing invalid characters with an empty string
-							const base = formData.email.split('@')[0].replace(/[^a-z0-9]/gi, '');
-							const suffix = Math.floor(1000 + Math.random() * 9000);
-							formData.username = `${base}${suffix}`.toLowerCase();
-						}}
-						class="variant-ghost-secondary btn"
-						title="Generate username from email"
-					>
-						<iconify-icon icon="mdi:auto-fix" width="20"></iconify-icon>
-						<span class="sr-only">Auto generate username</span>
-					</button>
-				</div>
-				{#if errorStatus.username.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.username.msg}
-					</div>
-				{/if}
-			</div>
-
 			<!-- Token field (hidden but still submitted with form) -->
 			<input bind:value={formData.token} type="hidden" name="token" />
 
@@ -309,6 +252,8 @@ delete endpoint, resolving the "Unexpected token" browser error.
 										<span class="capitalize">{r.name}</span>
 									</button>
 								{/each}
+							{:else}
+								<div class="text-sm text-gray-500">No roles available. Check console for debug info.</div>
 							{/if}
 						</div>
 					</div>

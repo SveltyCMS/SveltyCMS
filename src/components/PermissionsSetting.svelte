@@ -17,7 +17,6 @@ Features:
 -->
 
 <script lang="ts">
-	import { roles } from '@root/config/roles';
 	import type { Role } from '@src/auth/types';
 	import { PermissionAction } from '@src/auth/types';
 	// Skeleton
@@ -31,18 +30,18 @@ Features:
 		onUpdate?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
 	}
 
-	let { permissions = {}, onUpdate = () => {} }: Props = $props();
+	let { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
 
 	// Local state
 	let error: string | null = $state(null);
 	let searchQuery = $state('');
 
 	// Convert permissions object to include all roles with default values
-	function initializePermissions() {
-		const initializedPermissions = { ...permissions };
+	function initializePermissions(currentPermissions: Record<string, any>, availableRoles: Role[]) {
+		const initializedPermissions = { ...currentPermissions };
 
-		// Ensure all roles have entries
-		roles.forEach((role) => {
+		// Ensure all roles from the prop have entries
+		availableRoles.forEach((role) => {
 			if (!initializedPermissions[role._id]) {
 				initializedPermissions[role._id] = {
 					create: true,
@@ -60,9 +59,13 @@ Features:
 		return initializedPermissions;
 	}
 
-	let permissionsState = $state(initializePermissions());
+	let permissionsState = $state(initializePermissions(permissions, roles));
 
-	// Function to toggle permission
+	// Re-initialize when props change
+	$effect(() => {
+		permissionsState = initializePermissions(permissions, roles);
+	}); // Function to toggle permission
+
 	function togglePermission(roleId: string, action: PermissionAction) {
 		if (!permissionsState[roleId]) {
 			permissionsState[roleId] = {} as Record<PermissionAction, boolean>;
