@@ -145,7 +145,57 @@ export const avatarSrc = {
 		return _avatarSrc;
 	},
 	set value(newValue: string) {
-		_avatarSrc = newValue;
+		// Normalize avatar URL so it consistently uses the /files route in prod builds
+		try {
+			if (!newValue) {
+				_avatarSrc = '/Default_User.svg';
+				return;
+			}
+
+			// data URI or absolute http(s) URLs are used as-is
+			if (newValue.startsWith('data:') || /^https?:\/\//i.test(newValue)) {
+				_avatarSrc = newValue;
+				return;
+			}
+
+			const MEDIA_FOLDER = publicEnv?.MEDIA_FOLDER || 'mediaFiles';
+
+			// Strip any leading origin or duplicate slashes (defensive)
+			let url = newValue.replace(/^https?:\/\/[^/]+/i, '');
+
+			// Ensure no leading double slashes
+			url = url.replace(/^\/+/, '/');
+
+			// If already using /files, leave as-is
+			if (url.startsWith('/files/')) {
+				_avatarSrc = url;
+				return;
+			}
+
+			// Remove leading slash for uniform checks below
+			const trimmed = url.startsWith('/') ? url.slice(1) : url;
+
+			// Cases:
+			// - mediaFiles/avatars/...
+			// - avatars/...
+			// - mediaFiles/mediaFiles/avatars/... (defensive)
+			if (trimmed.startsWith(`${MEDIA_FOLDER}/`)) {
+				const rest = trimmed.slice(MEDIA_FOLDER.length + 1); // after media folder/
+				_avatarSrc = `/files/${rest}`;
+				return;
+			}
+
+			if (trimmed.startsWith('avatars/')) {
+				_avatarSrc = `/files/${trimmed}`;
+				return;
+			}
+
+			// Fallback: if it looks like a relative media path, prefix /files/
+			// Otherwise, keep as-is
+			_avatarSrc = trimmed ? `/files/${trimmed}` : '/Default_User.svg';
+		} catch {
+			_avatarSrc = newValue || '/Default_User.svg';
+		}
 	}
 };
 
