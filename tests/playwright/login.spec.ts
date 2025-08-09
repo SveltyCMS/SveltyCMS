@@ -7,10 +7,10 @@
  *   - Logs out and checks redirect to login page
  */
 import { test, expect } from '@playwright/test';
-
+test.setTimeout(120000); // 60 seconds
 test('Login and logout flow', async ({ page }) => {
 	// Set a higher timeout for this test (optional)
-	test.setTimeout(120000); // 60 seconds
+	
 
 	// Go to login page
 	await page.goto('http://localhost:5173/login');

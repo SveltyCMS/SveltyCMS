@@ -16,7 +16,7 @@
 	"typescript.validate.enable": false,
 	"javascript.validate.enable": false,
 	"[typescript]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode"
+		"editor.defaultFormatter": "vscode.typescript-language-features"
 	},
 	// Prevent auto-removal of imports/unused variables
 	"typescript.preferences.organizeImports": "off",
