@@ -261,7 +261,7 @@ export function registerContentStructureDiscriminators() {
 		}
 
 		discriminatorsRegistered = true;
-		logger.info('CONTENT_STRUCTURE_DISCRIMINATORS_REGISTERED_SUCCESS');
+		logger.debug('CONTENT_STRUCTURE_DISCRIMINATORS_REGISTERED_SUCCESS');
 	} catch (error) {
 		logger.error('CONTENT_STRUCTURE_DISCRIMINATOR_REGISTRATION_ERROR', error);
 		throw error;

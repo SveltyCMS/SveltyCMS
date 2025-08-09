@@ -11,12 +11,12 @@
  */
 
 import { hasApiPermission } from '@src/auth/apiPermissions';
-import { getCacheStore } from '@src/cacheStore/index.server';
-import { logger } from '@utils/logger.svelte';
+import { cacheService } from '@src/databases/CacheService';
 import { error, type Handle } from '@sveltejs/kit';
+import { logger } from '@utils/logger.svelte';
 
-// Cache TTL for API responses
-const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Cache TTL for API responses (centralized)
+import { API_CACHE_TTL_S } from '@src/databases/CacheService';
 
 // Health metrics for monitoring
 let healthMetrics = {
@@ -47,8 +47,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			return resolve(event);
 		}
 
-		const cacheStore = getCacheStore();
-		const now = Date.now();
+		// no-op
 
 		// Check if user role has permission to access this API endpoint
 		if (!hasApiPermission(locals.user.role, apiEndpoint)) {
@@ -67,17 +66,17 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 		// Handle GET requests with tenant-aware caching
 		if (event.request.method === 'GET') {
-			const cacheKey = `api:${apiEndpoint}:${locals.user._id}:${locals.tenantId || 'global'}:${url.search}`;
+			// Tenant-aware key via CacheService tenant prefixing
+			const baseKey = `api:${apiEndpoint}:${locals.user._id}:${url.search}`;
 
 			try {
-				const cached = await cacheStore.get<{
+				const cached = await cacheService.get<{
 					data: unknown;
-					timestamp: number;
 					headers: Record<string, string>;
-				}>(cacheKey);
+				}>(baseKey, locals.tenantId);
 
-				if (cached && now - cached.timestamp < API_CACHE_TTL) {
-					logger.debug(`Cache hit for API GET \x1b[34m${cacheKey}\x1b[0m`);
+				if (cached) {
+					logger.debug(`Cache hit for API GET \x1b[34m${baseKey}\x1b[0m (tenant: ${locals.tenantId || 'global'})`);
 					healthMetrics.cache.hits++;
 					return new Response(JSON.stringify(cached.data), {
 						status: 200,
@@ -85,7 +84,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 					});
 				}
 			} catch (cacheGetError) {
-				logger.warn(`Error fetching from API cache for \x1b[31m${cacheKey}\x1b[0m: ${cacheGetError.message}`);
+				logger.warn(`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${cacheGetError.message}`);
 			}
 
 			const response = await resolve(event);
@@ -100,14 +99,14 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			if (response.ok) {
 				try {
 					const responseBody = await response.json();
-					await cacheStore.set(
-						cacheKey,
+					await cacheService.set(
+						baseKey,
 						{
 							data: responseBody,
-							timestamp: now,
 							headers: Object.fromEntries(response.headers)
 						},
-						new Date(now + API_CACHE_TTL)
+						API_CACHE_TTL_S,
+						locals.tenantId
 					);
 					healthMetrics.cache.misses++;
 
@@ -134,18 +133,16 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		const response = await resolve(event);
 
 		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method) && response.ok) {
-			const baseCacheKey = `api:${apiEndpoint}:${locals.user._id}:${locals.tenantId || 'global'}`;
+			const baseKey = `api:${apiEndpoint}:${locals.user._id}`;
 			try {
-				// Try to delete pattern-based cache keys if supported
-				if (typeof cacheStore.deletePattern === 'function') {
-					await cacheStore.deletePattern(`${baseCacheKey}:*`);
-				}
-				await cacheStore.delete(baseCacheKey);
+				// Clear tenant-scoped keys for this endpoint/user
+				await cacheService.clearByPattern(`${baseKey}:*`, locals.tenantId);
+				await cacheService.delete(baseKey, locals.tenantId);
 				logger.debug(
-					`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[32m${event.request.method}\x1b[0m request`
+					`Invalidated API cache for keys starting with \x1b[34m${baseKey}:*\x1b[0m (tenant: ${locals.tenantId || 'global'}) after \x1b[32m${event.request.method}\x1b[0m request`
 				);
 			} catch (err) {
-				logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
+				logger.error(`Failed to invalidate API cache for ${baseKey}: ${err.message}`);
 			}
 		}
 		return response;
@@ -159,18 +156,16 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
  * Helper function to invalidate API cache with tenant awareness
  */
 export const invalidateApiCache = async (apiEndpoint: string, userId: string, tenantId?: string): Promise<void> => {
-	const cacheStore = getCacheStore();
-	const basePattern = `api:${apiEndpoint}:${userId}:${tenantId || 'global'}`;
-	logger.debug(`Attempting to invalidate API cache for pattern \x1b[33m${basePattern}:*\x1b[0m and exact key \x1b[33m${basePattern}\x1b[0m`);
+	const baseKey = `api:${apiEndpoint}:${userId}`;
+	logger.debug(
+		`Attempting to invalidate API cache for pattern \x1b[33m${baseKey}:*\x1b[0m (tenant: ${tenantId || 'global'}) and exact key \x1b[33m${baseKey}\x1b[0m`
+	);
 
 	try {
-		// Try to delete pattern-based cache keys if supported
-		if (typeof cacheStore.deletePattern === 'function') {
-			await cacheStore.deletePattern(`${basePattern}:*`);
-		}
-		await cacheStore.delete(basePattern);
+		await cacheService.clearByPattern(`${baseKey}:*`, tenantId);
+		await cacheService.delete(baseKey, tenantId);
 	} catch (e) {
-		logger.error(`Error during explicit API cache invalidation for \x1b[31m${basePattern}\x1b[0m: ${e.message}`);
+		logger.error(`Error during explicit API cache invalidation for \x1b[31m${baseKey}\x1b[0m: ${e.message}`);
 	}
 };
 

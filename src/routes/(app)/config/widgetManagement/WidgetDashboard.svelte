@@ -24,7 +24,7 @@ Features:
 		canDisableWidget,
 		getWidgetDependencies
 	} from '@stores/widgetStore.svelte';
-	import { logger } from '@utils/logger.svelte';
+	
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -100,7 +100,7 @@ Features:
 			await loadAnalysisData();
 			await loadInstalledWidgets();
 		} catch (error) {
-			logger.error('Failed to initialize widget dashboard:', error);
+			console.error('Failed to initialize widget dashboard:', error);
 		}
 	});
 
@@ -110,10 +110,10 @@ Features:
 			if (response.ok) {
 				const data = await response.json();
 				// The activeWidgets store will be updated through the widget store actions
-				logger.info('Active widgets loaded:', data.widgets);
+				console.info('Active widgets loaded:', data.widgets);
 			}
 		} catch (error) {
-			logger.error('Failed to load active widgets:', error);
+			console.error('Failed to load active widgets:', error);
 		}
 	}
 
@@ -125,7 +125,7 @@ Features:
 			// Validate collections against current widget state
 			validationResult = await widgetStoreActions.validateCollectionsAgainstWidgets(tenantId);
 		} catch (error) {
-			logger.error('Failed to load analysis data:', error);
+			console.error('Failed to load analysis data:', error);
 		}
 	}
 
@@ -136,7 +136,7 @@ Features:
 				installedWidgets = await response.json();
 			}
 		} catch (error) {
-			logger.error('Failed to load installed widgets:', error);
+			console.error('Failed to load installed widgets:', error);
 		}
 	}
 
@@ -155,7 +155,7 @@ Features:
 			// Reload analysis data after status change
 			await loadAnalysisData();
 		} catch (error) {
-			logger.error(`Failed to toggle widget ${widgetName}:`, error);
+			console.error(`Failed to toggle widget ${widgetName}:`, error);
 			alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
@@ -170,7 +170,7 @@ Features:
 			await widgetStoreActions.bulkActivateWidgets(requiredWidgets, tenantId);
 			await loadAnalysisData();
 		} catch (error) {
-			logger.error('Failed to bulk activate required widgets:', error);
+			console.error('Failed to bulk activate required widgets:', error);
 			alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
@@ -205,7 +205,7 @@ Features:
 				throw new Error(error);
 			}
 		} catch (error) {
-			logger.error(`Failed to uninstall widget ${widgetName}:`, error);
+			console.error(`Failed to uninstall widget ${widgetName}:`, error);
 			alert(`Error uninstalling widget: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}

@@ -50,7 +50,7 @@
 
 	// Stores
 	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
 	interface Props {
 		name: string;
@@ -149,7 +149,7 @@
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', screenSize() === 'LG' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon"
 			>

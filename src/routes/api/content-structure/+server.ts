@@ -11,9 +11,9 @@
  * Handles creation, updates (including reordering and parent changes), and deletion of content nodes.
  * Utilizes Redis caching for performance, now tenant-aware.
  */
-import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 import { privateEnv } from '@root/config/private';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 import type { ContentNodeOperation } from '@root/src/content/types';
 
@@ -22,7 +22,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
 
 // Redis
-import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
+import { cacheService } from '@src/databases/CacheService';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -45,9 +45,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const action = url.searchParams.get('action');
 		logger.debug('GET request received', { action, tenantId }); // Try to get from Redis cache first
 
-		if (!browser && isRedisEnabled()) {
+		if (!browser) {
 			const cacheKey = `api:content-structure:${tenantId || 'global'}:${action || 'default'}`;
-			const cached = await getCache(cacheKey);
+			const cached = await cacheService.get(cacheKey);
 			if (cached) {
 				logger.debug('Returning cached data from Redis', { action, tenantId });
 				return json(cached);
@@ -65,9 +65,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 					contentStructure: contentNodes
 				}; // Cache the response if Redis is enabled
 
-				if (!browser && isRedisEnabled()) {
+				if (!browser) {
 					const cacheKey = `api:content-structure:${tenantId || 'global'}:${action}`;
-					await setCache(cacheKey, response, CACHE_TTL);
+					await cacheService.set(cacheKey, response, CACHE_TTL);
 				}
 
 				return json({ data: response });
@@ -88,9 +88,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				throw error(400, 'Invalid action');
 		} // Cache in Redis if available
 
-		if (!browser && isRedisEnabled()) {
+		if (!browser) {
 			const cacheKey = `api:content-structure:${tenantId || 'global'}:${action || 'default'}`;
-			await setCache(cacheKey, response, CACHE_TTL);
+			await cacheService.set(cacheKey, response, CACHE_TTL);
 		}
 		return json(response);
 	} catch (err) {
@@ -127,9 +127,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 				const updatedContentStructure = await contentManager.upsertContentNodes(items, tenantId);
 
-				if (!browser && isRedisEnabled()) {
+				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
-					await clearCache(cachePattern);
+					await cacheService.clearByPattern(cachePattern);
 					logger.debug('Cleared content-structure cache after update.', { tenantId });
 				}
 
@@ -141,9 +141,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				});
 			}
 			case 'recompile': {
-				if (!browser && isRedisEnabled()) {
+				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
-					await clearCache(cachePattern);
+					await cacheService.clearByPattern(cachePattern);
 					logger.debug('Cleared all content-structure related caches.', { tenantId });
 				}
 
@@ -186,9 +186,9 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		const updatedNode = await dbAdapter.updateContentStructure(_id, updates, tenantId);
 		if (!updatedNode) throw error(404, 'Node not found'); // Invalidate cache after a single node update
 
-		if (!browser && isRedisEnabled()) {
+		if (!browser) {
 			const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
-			await clearCache(cachePattern);
+			await cacheService.clearByPattern(cachePattern);
 			logger.debug(`Cleared content-structure cache after PUT update for node ${_id}.`, { tenantId });
 		}
 

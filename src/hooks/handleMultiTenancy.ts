@@ -13,6 +13,7 @@
 import { privateEnv } from '@root/config/private';
 import { error, type Handle } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
+import { getTenantIdFromHostname } from './utils/tenant';
 
 /**
  * Identifies a tenant based on the request hostname.
@@ -21,18 +22,7 @@ import { logger } from '@utils/logger.svelte';
  * @param hostname The hostname from the request URL.
  * @returns The tenant ID or null if not a tenant-specific domain.
  */
-const getTenantIdFromHostname = (hostname: string): string | null => {
-	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
-		return 'default'; // A default tenant for local development
-	}
-	const parts = hostname.split('.');
-	// Assuming a structure like `tenant-name.your-domain.com`
-	if (parts.length > 2 && !['www', 'app', 'api'].includes(parts[0])) {
-		return parts[0];
-	}
-	// This could return a default tenant ID for the main domain if desired
-	return null;
-};
+// shared getTenantIdFromHostname imported
 
 export const handleMultiTenancy: Handle = async ({ event, resolve }) => {
 	if (privateEnv.MULTI_TENANT) {

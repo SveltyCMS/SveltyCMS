@@ -275,7 +275,7 @@
 					<!-- Router Slot & Scoped Loader -->
 					<div
 						role="main"
-						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
+						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value ? 'mb-2' : 'mb-16'}"
 					>
 						<!-- The loading component  -->
 						{#if shouldShowLoading}

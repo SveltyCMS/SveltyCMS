@@ -13,20 +13,21 @@
  * - Multi-tenant aware operations
  */
 
+// System Logger
 import { logger } from '@utils/logger.svelte';
-import {
-	generateTOTPSecret,
-	generateQRCodeURL,
-	generateManualEntryDetails,
-	verifyTOTPCode,
-	generateBackupCodes,
-	hashBackupCode,
-	verifyBackupCode,
-	isValidTOTPSecret
-} from './totp';
-import type { User } from './types';
 import type { authDBInterface } from './authDBInterface';
+import {
+	generateBackupCodes,
+	generateManualEntryDetails,
+	generateQRCodeURL,
+	generateTOTPSecret,
+	hashBackupCode,
+	isValidTOTPSecret,
+	verifyBackupCode,
+	verifyTOTPCode
+} from './totp';
 import type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
+import type { User } from './types';
 
 // Re-export types for compatibility
 export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
