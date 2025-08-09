@@ -14,17 +14,16 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import { roles, initializeRoles } from '@root/config/roles';
+import { initializeRoles, roles } from '@root/config/roles';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { auth } from '@src/databases/db';
 import type { User } from '@src/auth/types';
-import { getCacheStore } from '@src/cacheStore/index.server';
+import { cacheService } from '@src/databases/CacheService';
+import { auth } from '@src/databases/db';
+import { error, redirect, type Handle } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
-import { redirect, error, type Handle } from '@sveltejs/kit';
 
-// --- Caches and TTLs (Consider centralizing these) ---
-const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
-const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
+// --- Caches and TTLs (centralized) ---
+import { USER_COUNT_CACHE_TTL_MS, USER_COUNT_CACHE_TTL_S, USER_PERM_CACHE_TTL_MS, USER_PERM_CACHE_TTL_S } from '@src/databases/CacheService';
 
 // Performance Caches - Consider moving to WeakMap for better memory management
 let userCountCache: { count: number; timestamp: number } | null = null;
@@ -42,12 +41,11 @@ const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 // Optimized user count getter with caching and deduplication (now tenant-aware)
 const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	const cacheStore = getCacheStore(); // Get distributed cache instance
+	const cacheKeyBase = 'userCount';
 	// Try distributed cache first
 	try {
-		const cached = await cacheStore.get<{ count: number; timestamp: number }>(cacheKey);
-		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL) {
+		const cached = await cacheService.get<{ count: number; timestamp: number }>(cacheKeyBase, tenantId);
+		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
 			// Also update local cache for very fast subsequent access on the same instance
 			userCountCache = cached;
 			return cached.count;
@@ -55,7 +53,7 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 	} catch (err) {
 		logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
 	} // Return local cached value if still valid (fallback)
-	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL) {
+	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
 		return userCountCache.count;
 	} // Use deduplication for expensive database operations
 	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
@@ -78,7 +76,7 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 		if (userCount >= 0) {
 			const dataToCache = { count: userCount, timestamp: now };
 			try {
-				await cacheStore.set(cacheKey, dataToCache, new Date(now + USER_COUNT_CACHE_TTL));
+				await cacheService.set(cacheKeyBase, dataToCache, USER_COUNT_CACHE_TTL_S, tenantId);
 			} catch (err) {
 				logger.error(`Failed to write user count to distributed cache: ${err.message}`);
 			}
@@ -92,20 +90,19 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 // Optimized admin data loading with caching (now tenant-aware)
 const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: string): Promise<unknown> => {
 	const now = Date.now();
-	const distributedCacheStore = getCacheStore(); // Assuming Redis
-	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `adminData:tenant:${tenantId}:${cacheKey}` : `adminData:${cacheKey}`;
+	const distributedCacheKeyBase = `adminData:${cacheKey}`;
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`; // Separate key for in-memory cache
 	// 1. Try in-memory cache first (fastest)
 	const memCached = adminDataCache.get(inMemoryCacheKey);
-	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL) {
+	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL_MS) {
 		return memCached.data;
 	}
 	// 2. Try distributed cache (e.g., Redis)
 	if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 		// Only cache specific keys in Redis
 		try {
-			const redisCached = await distributedCacheStore.get<{ unknown; timestamp: number }>(distributedCacheKey);
-			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL) {
+			const redisCached = await cacheService.get<{ data: unknown; timestamp: number }>(distributedCacheKeyBase, tenantId);
+			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL_MS) {
 				adminDataCache.set(inMemoryCacheKey, redisCached); // Populate in-memory cache
 				return redisCached.data;
 			}
@@ -134,7 +131,7 @@ const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: strin
 				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now }); // Cache in distributed store
 				if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 					try {
-						await distributedCacheStore.set(distributedCacheKey, { data, timestamp: now }, new Date(now + USER_PERM_CACHE_TTL));
+						await cacheService.set(distributedCacheKeyBase, { data, timestamp: now }, USER_PERM_CACHE_TTL_S, tenantId);
 					} catch (err) {
 						logger.error(`Failed to write admin data (${cacheKey}) to distributed cache: ${err.message}`);
 					}
@@ -254,22 +251,20 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 // Helper function to invalidate admin data cache - exported for use in API endpoints
 export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
-	const distributedCacheStore = getCacheStore();
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-	const distributedCacheKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${cacheKey}`;
+	const distributedCacheKey = `adminData:${cacheKey}`;
 	if (cacheKey) {
-		adminDataCache.delete(inMemoryCacheKey); // Invalidate local cache
-		distributedCacheStore
-			.delete(distributedCacheKey)
+		adminDataCache.delete(inMemoryCacheKey);
+		cacheService
+			.delete(distributedCacheKey, tenantId)
 			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[31m${cacheKey}\x1b[0m: ${err.message}`));
 		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
 	} else {
-		adminDataCache.clear(); // Clear all local caches
-		// For distributed cache, you'd need a pattern-based deletion or iterate if you have a known set of keys
-		// Note: If your cache store supports pattern deletion, use it here
+		adminDataCache.clear();
 		['roles', 'users', 'tokens'].forEach((key) => {
-			const distKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${key}`;
-			distributedCacheStore.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
+			cacheService
+				.delete(`adminData:${key}`, tenantId)
+				.catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
 		});
 		logger.debug('All admin cache cleared');
 	}
@@ -278,8 +273,7 @@ export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', te
 // Helper function to invalidate user count cache - exported for use after user creation/deletion
 export const invalidateUserCountCache = (tenantId?: string): void => {
 	userCountCache = null; // Invalidate local cache
-	const distributedCacheStore = getCacheStore();
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	distributedCacheStore.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
+	const cacheKey = 'userCount';
+	cacheService.delete(cacheKey, tenantId).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
 	logger.debug('User count cache invalidated');
 };

@@ -19,11 +19,11 @@
 
 import { building } from '$app/environment';
 import { privateEnv } from '@root/config/private';
-import { redirect, error, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
 // Core authentication and database
-import { roles, initializeRoles } from '@root/config/roles';
+import { initializeRoles, roles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import type { User } from '@src/auth/types';
@@ -40,37 +40,35 @@ if (!building) {
 // Stores (removed unused imports)
 
 // Cache
-import { getCacheStore } from '@src/cacheStore/index.server';
+import { cacheService } from '@src/databases/CacheService';
+import { sessionCache, sessionMetrics, getUserFromSessionId as sharedGetUserFromSessionId } from '@src/hooks/utils/session';
+import { getTenantIdFromHostname } from '@src/hooks/utils/tenant';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Import middleware modules
-import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
-import { handleRateLimit } from './hooks/handleRateLimit';
 import { addSecurityHeaders } from './hooks/addSecurityHeaders';
-import { handleLocale } from './hooks/handleLocale';
 import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleLocale } from './hooks/handleLocale';
+import { handleRateLimit } from './hooks/handleRateLimit';
+import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
 
-// Cache TTLs
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const SESSION_TTL = CACHE_TTL; // Align session TTL with cache TTL
-const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
-const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
+// Cache TTLs (centralized)
+import {
+	SESSION_CACHE_TTL_MS as CACHE_TTL_MS,
+	USER_COUNT_CACHE_TTL_MS,
+	USER_COUNT_CACHE_TTL_S,
+	USER_PERM_CACHE_TTL_MS,
+	USER_PERM_CACHE_TTL_S
+} from '@src/databases/CacheService';
+const SESSION_TTL = CACHE_TTL_MS;
 
 // Performance Caches - Optimized for memory management
 let userCountCache: { count: number; timestamp: number } | null = null;
 const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 
-// Session Metrics - WeakMap for automatic cleanup when sessions are garbage collected
-const sessionMetrics = {
-	lastActivity: new Map<string, number>(),
-	activeExtensions: new Map<string, number>(),
-	rotationAttempts: new Map<string, number>()
-};
-
-// Session and Permission Caches
-const sessionCache = new Map<string, { user: User; timestamp: number }>();
+// Session metrics and cache imported from shared session utils
 
 // Request deduplication for expensive operations
 const pendingOperations = new Map<string, Promise<unknown>>();
@@ -89,55 +87,7 @@ async function deduplicate<T>(key: string, operation: () => Promise<T>): Promise
 	return promise;
 }
 
-// Simple circuit breaker for database operations
-class CircuitBreaker {
-	private failures = 0;
-	private lastFailTime = 0;
-	private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
-
-	constructor(
-		private maxFailures = 5,
-		private timeout = 60000 // 1 minute
-	) {}
-
-	async execute<T>(operation: () => Promise<T>, fallback?: () => T): Promise<T> {
-		if (this.state === 'OPEN') {
-			if (Date.now() - this.lastFailTime > this.timeout) {
-				this.state = 'HALF_OPEN';
-			} else {
-				if (fallback) return fallback();
-				throw new Error('Circuit breaker is OPEN');
-			}
-		}
-
-		try {
-			const result = await operation();
-			this.onSuccess();
-			return result;
-		} catch (error) {
-			this.onFailure();
-			if (fallback) return fallback();
-			throw error;
-		}
-	}
-
-	private onSuccess() {
-		this.failures = 0;
-		this.state = 'CLOSED';
-	}
-
-	private onFailure() {
-		this.failures++;
-		this.lastFailTime = Date.now();
-		if (this.failures >= this.maxFailures) {
-			this.state = 'OPEN';
-		}
-	}
-}
-
-// Circuit breakers for different operations
-const authCircuitBreaker = new CircuitBreaker(3, 30000); // 3 failures, 30 second timeout
-const cacheCircuitBreaker = new CircuitBreaker(5, 10000); // 5 failures, 10 second timeout
+// Circuit breaker logic is handled where needed; not used directly here after refactor
 
 // Health metrics for monitoring
 const healthMetrics = {
@@ -195,18 +145,6 @@ const getClientIp = (event: RequestEvent): string => {
  * In a real-world application, this would query a database of tenants.
  * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
  */
-const getTenantIdFromHostname = (hostname: string): string | null => {
-	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
-		return 'default'; // A default tenant for local development
-	}
-	const parts = hostname.split('.');
-	// Assuming a structure like `tenant-name.your-domain.com`
-	if (parts.length > 2 && !['www', 'app', 'api'].includes(parts[0])) {
-		return parts[0];
-	}
-	// This could return a default tenant ID for the main domain if desired
-	return null;
-};
 
 // Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {
@@ -221,23 +159,19 @@ const getPerformanceEmoji = (responseTime: number): string => {
 const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
 	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	const cacheStore = getCacheStore();
-
-	// Try distributed cache first (if Redis is enabled)
-	if (privateEnv.USE_REDIS) {
-		try {
-			const cached = await cacheStore.get<{ count: number; timestamp: number }>(cacheKey);
-			if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL) {
-				userCountCache = cached;
-				return cached.count;
-			}
-		} catch (err) {
-			logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
+	// Try distributed cache first
+	try {
+		const cached = await cacheService.get<{ count: number; timestamp: number }>(cacheKey, tenantId);
+		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
+			userCountCache = cached;
+			return cached.count;
 		}
+	} catch (err) {
+		logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
 	}
 
 	// Return local cached value if still valid (fallback)
-	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL) {
+	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
 		return userCountCache.count;
 	}
 
@@ -264,12 +198,10 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 		if (userCount >= 0) {
 			const dataToCache = { count: userCount, timestamp: now };
 
-			if (privateEnv.USE_REDIS) {
-				try {
-					await cacheStore.set(cacheKey, dataToCache, new Date(now + USER_COUNT_CACHE_TTL));
-				} catch (err) {
-					logger.error(`Failed to write user count to distributed cache: ${err.message}`);
-				}
+			try {
+				await cacheService.set(cacheKey, dataToCache, USER_COUNT_CACHE_TTL_S, tenantId);
+			} catch (err) {
+				logger.error(`Failed to write user count to distributed cache: ${err.message}`);
 			}
 
 			userCountCache = dataToCache;
@@ -280,117 +212,26 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 };
 
 // Get user from session ID with optimized caching (now tenant-aware)
-const getUserFromSessionId = async (session_id: string | undefined, authServiceReady: boolean = false, tenantId?: string): Promise<User | null> => {
-	if (!session_id) return null;
-
-	const cacheStore = getCacheStore();
-	const now = Date.now();
-	const canUseCache = authServiceReady || dbModule.auth !== null;
-
-	const validateUserTenant = (user: User): User | null => {
-		if (privateEnv.MULTI_TENANT && user.tenantId !== tenantId) {
-			logger.warn(
-				`Session user's tenant ('\x1b[34m${user.tenantId}\x1b[0m') does not match request tenant ('\x1b[34m${tenantId}\x1b[0m'). Access denied.`
-			);
-			return null;
-		}
-		return user;
-	};
-
-	// Check in-memory cache first
-	const memCached = sessionCache.get(session_id);
-	if (memCached && now - memCached.timestamp < CACHE_TTL && canUseCache) {
-		const validUser = validateUserTenant(memCached.user);
-		if (!validUser) return null;
-
-		// Extend session in cache proactively on every hit
-		const sessionData = { user: memCached.user, timestamp: now };
-		sessionCache.set(session_id, sessionData);
-
-		if (privateEnv.USE_REDIS) {
-			cacheStore
-				.set(session_id, sessionData, new Date(now + CACHE_TTL))
-				.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		}
-
-		sessionMetrics.lastActivity.set(session_id, now);
-		return memCached.user;
-	}
-
-	// Try Redis cache only if enabled and auth service is ready
-	if (canUseCache && privateEnv.USE_REDIS) {
-		try {
-			const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
-			if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
-				const validUser = validateUserTenant(redisCached.user);
-				if (!validUser) return null;
-
-				sessionCache.set(session_id, redisCached);
-				sessionMetrics.lastActivity.set(session_id, now);
-				return redisCached.user;
-			}
-		} catch (cacheError) {
-			logger.error(`Error reading from session cache store for \x1b[34m${session_id}\x1b[0m: ${cacheError.message}`);
-		}
-	}
-
-	// Validate session in database only if auth service is ready
-	if (!authServiceReady || !dbModule.auth) {
-		logger.debug(`Auth service not ready, skipping session validation for \x1b[34m${session_id}\x1b[0m`);
-		return null;
-	}
-
-	try {
-		// Use circuit breaker for database auth operations
-		let user = await authCircuitBreaker.execute(
-			() => dbModule.auth.validateSession(session_id),
-			() => null
-		);
-
-		if (user) {
-			user = validateUserTenant(user);
-		}
-
-		if (user) {
-			const sessionData = { user, timestamp: now };
-			sessionCache.set(session_id, sessionData);
-
-			// Use circuit breaker for cache operations too
-			if (privateEnv.USE_REDIS) {
-				await cacheCircuitBreaker.execute(
-					() => cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL)),
-					() => {} // Fallback to no-op if cache circuit is open
-				);
-			}
-
-			sessionMetrics.lastActivity.set(session_id, now);
-			return user;
-		}
-		logger.warn(`Session validation returned no user for \x1b[34m${session_id}\x1b[0m`);
-	} catch (dbError) {
-		logger.error(`Session validation DB error for \x1b[34m${session_id}\x1b[0m: ${dbError.message}`);
-	}
-	return null;
-};
+const getUserFromSessionId = (session_id: string | undefined, authServiceReady: boolean = false, tenantId?: string) =>
+	sharedGetUserFromSessionId(session_id, authServiceReady, tenantId, dbModule.auth);
 
 // Optimized admin data loading with caching (now tenant-aware)
 const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?: string): Promise<unknown> => {
 	const now = Date.now();
-	const distributedCacheStore = getCacheStore();
-	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `adminData:tenant:${tenantId}:${cacheKey}` : `adminData:${cacheKey}`;
+	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
 
 	// 1. Try in-memory cache first (fastest)
 	const memCached = adminDataCache.get(inMemoryCacheKey);
-	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL) {
+	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL_MS) {
 		return memCached.data;
 	}
 
 	// 2. Try distributed cache (e.g., Redis) if enabled
-	if (privateEnv.USE_REDIS && (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens')) {
+	if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 		try {
-			const redisCached = await distributedCacheStore.get<{ data: unknown; timestamp: number }>(distributedCacheKey);
-			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL) {
+			const redisCached = await cacheService.get<{ data: unknown; timestamp: number }>(distributedCacheKey);
+			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL_MS) {
 				adminDataCache.set(inMemoryCacheKey, redisCached);
 				return redisCached.data;
 			}
@@ -421,9 +262,9 @@ const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?
 				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now });
 
 				// Cache in distributed store if enabled
-				if (privateEnv.USE_REDIS && (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens')) {
+				if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 					try {
-						await distributedCacheStore.set(distributedCacheKey, { data, timestamp: now }, new Date(now + USER_PERM_CACHE_TTL));
+						await cacheService.set(distributedCacheKey, { data, timestamp: now }, USER_PERM_CACHE_TTL_S);
 					} catch (err) {
 						logger.error(`Failed to write admin data (\x1b[34m${cacheKey}\x1b[0m) to distributed cache: ${err.message}`);
 					}
@@ -667,37 +508,29 @@ export const handle: Handle = sequence(...buildMiddlewareSequence());
 export const getHealthMetrics = () => ({ ...healthMetrics });
 
 export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
-	const distributedCacheStore = getCacheStore();
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-	const distributedCacheKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${cacheKey}`;
+	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
 
 	if (cacheKey) {
 		adminDataCache.delete(inMemoryCacheKey);
-		if (privateEnv.USE_REDIS) {
-			distributedCacheStore
-				.delete(distributedCacheKey)
-				.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[34m${cacheKey}\x1b[0m: ${err.message}`));
-		}
+		cacheService
+			.delete(distributedCacheKey)
+			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[34m${cacheKey}\x1b[0m: ${err.message}`));
 		logger.debug(`Admin cache invalidated for: \x1b[34m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
 	} else {
 		adminDataCache.clear();
-		if (privateEnv.USE_REDIS) {
-			['roles', 'users', 'tokens'].forEach((key) => {
-				const distKey = `adminData:${privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:` : ''}${key}`;
-				distributedCacheStore.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
-			});
-		}
+		['roles', 'users', 'tokens'].forEach((key) => {
+			const distKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${key}` : `adminData:${key}`;
+			cacheService.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
+		});
 		logger.debug('All admin cache cleared');
 	}
 };
 
 export const invalidateUserCountCache = (tenantId?: string): void => {
 	userCountCache = null;
-	if (privateEnv.USE_REDIS) {
-		const distributedCacheStore = getCacheStore();
-		const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-		distributedCacheStore.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
-	}
+	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
+	cacheService.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
 	logger.debug('User count cache invalidated');
 };
 

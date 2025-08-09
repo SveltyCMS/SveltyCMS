@@ -50,7 +50,7 @@
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode, statusMap } from '@src/stores/collectionStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, headerActionButton, tabSet, validationStore } from '@stores/store.svelte';
 
@@ -160,7 +160,7 @@
 	// Disable toggle when RightSidebar is active (desktop) or in edit mode if not primary
 	const shouldDisableStatusToggle = $derived(
 		(mode.value === 'create' && uiStateManager.isRightSidebarVisible.value) ||
-			(mode.value === 'edit' && uiStateManager.isRightSidebarVisible.value && screenSize.value === 'LG') ||
+			(mode.value === 'edit' && uiStateManager.isRightSidebarVisible.value && isDesktop.value) ||
 			isLoading
 	);
 	$effect(() => {
@@ -254,7 +254,7 @@
 		console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
 
 		await saveEntry(dataToSave, toastStore);
-		toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
 
 	// function to undo the changes made by handleButtonClick
@@ -265,7 +265,7 @@
 			collectionValue.set({});
 		}
 		mode.set('view');
-		toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
 
 	function handleReload() {
@@ -348,7 +348,7 @@
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>

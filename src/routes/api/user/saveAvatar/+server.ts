@@ -31,8 +31,8 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Media storage
+import { cacheService } from '@src/databases/CacheService';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
-import { getCacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -109,8 +109,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const session_id = locals.session_id;
 		if (session_id) {
 			const user = await auth.validateSession(session_id);
-			const cacheStore = getCacheStore();
-			await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+			await cacheService.set(session_id, { user, timestamp: Date.now() }, 3600);
 		}
 
 		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl });

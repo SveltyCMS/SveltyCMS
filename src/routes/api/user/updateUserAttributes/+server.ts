@@ -25,7 +25,7 @@ import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
-import { getCacheStore } from '@src/cacheStore/index.server';
+import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 
 // System Logger
@@ -125,9 +125,8 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			const sessionId = cookies.get(SESSION_COOKIE_NAME);
 			if (sessionId) {
 				try {
-					const cacheStore = getCacheStore();
 					// The session will be re-validated on the next request, so we can just delete the old cache entry.
-					await cacheStore.delete(sessionId);
+					await cacheService.delete(sessionId);
 					logger.debug(`Session cache invalidated for self-updated user ${userIdToUpdate}`);
 				} catch (cacheError) {
 					logger.warn(`Failed to invalidate session cache during self-update: ${cacheError}`);

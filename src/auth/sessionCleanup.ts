@@ -19,8 +19,9 @@
  */
 
 import { auth } from '@src/databases/db';
-import { logger } from '@utils/logger.svelte';
+// System Logger
 import { cleanupSessionMetrics } from '@src/hooks.server';
+import { logger } from '@utils/logger.svelte';
 
 // Cleanup configuration
 const CLEANUP_INTERVAL = 15 * 60 * 1000; // 15 minutes

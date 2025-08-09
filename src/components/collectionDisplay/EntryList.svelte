@@ -39,7 +39,7 @@ Features:
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
@@ -260,6 +260,7 @@ Features:
 		systemLanguage: systemLanguage.value,
 		mode: mode.value,
 		collection: collection.value,
+		// Keep screenSize available if needed elsewhere; no separate $derived required
 		screenSize: screenSize.value
 	}));
 
@@ -268,7 +269,6 @@ Features:
 	const currentSystemLanguage = $derived(currentStates.systemLanguage);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
-	const currentScreenSize = $derived(currentStates.screenSize);
 
 	// Computed loading states - simplified for better UX
 	let isLoading = $derived(loadingState === 'loading');
@@ -1289,7 +1289,7 @@ Features:
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'LG' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>

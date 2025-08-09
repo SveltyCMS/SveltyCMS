@@ -19,16 +19,16 @@
  * Used by the main GraphQL setup to generate collection-specific schemas and resolvers
  */
 
-import widgets from '@widgets';
-import { getFieldName } from '@utils/utils';
-import deepmerge from 'deepmerge';
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
-import type { GraphQLFieldResolver } from 'graphql';
 import { privateEnv } from '@root/config/private';
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import { getFieldName } from '@utils/utils';
+import widgets from '@widgets';
+import deepmerge from 'deepmerge';
+import type { GraphQLFieldResolver } from 'graphql';
 
 // Collection Manager
-import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
+import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -98,8 +98,8 @@ interface ResolverContext {
 
 // Define a generic cache interface instead of depending on Redis
 interface CacheClient {
-	get(key: string): Promise<string | null>;
-	set(key: string, value: string, ex: string, duration: number): Promise<unknown>;
+	get(key: string, tenantId?: string): Promise<string | null>;
+	set(key: string, value: string, ex: string, duration: number, tenantId?: string): Promise<unknown>;
 }
 
 // Registers collection schemas dynamically, now tenant-aware
@@ -261,9 +261,9 @@ export async function collectionsResolvers(
 			const { page = 1, limit = 50 } = args.pagination || {};
 
 			try {
-				const cacheKey = `${context.tenantId || 'global'}:${collection._id}:${page}:${limit}`;
+				const cacheKey = `collections:${collection._id}:${page}:${limit}`;
 				if (privateEnv.USE_REDIS && cacheClient) {
-					const cachedResult = await cacheClient.get(cacheKey);
+					const cachedResult = await cacheClient.get(cacheKey, context.tenantId);
 					if (cachedResult) {
 						return JSON.parse(cachedResult);
 					}
@@ -312,7 +312,7 @@ export async function collectionsResolvers(
 
 				// Cache the result
 				if (privateEnv.USE_REDIS && cacheClient) {
-					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60);
+					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60, context.tenantId);
 				}
 
 				return resultArray;

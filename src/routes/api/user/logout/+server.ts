@@ -19,7 +19,7 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 // Auth
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
-import { getCacheStore } from '@src/cacheStore/index.server';
+import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -64,8 +64,7 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 			await auth.destroySession(session_id); // Also clear the session from cache
 
 			try {
-				const cacheStore = getCacheStore();
-				await cacheStore.delete(session_id);
+				await cacheService.delete(session_id);
 			} catch (cacheError) {
 				logger.warn(`Failed to clear session cache: ${cacheError}`);
 			}
