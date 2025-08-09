@@ -223,7 +223,7 @@
 		<div class="gap flex justify-start">
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
+				onclick={() => toggleUIElement('leftSidebar', 'full')}
 				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
