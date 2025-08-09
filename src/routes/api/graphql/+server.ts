@@ -9,19 +9,19 @@
  * - Access management permission definition and checking
  */
 
+import { building } from '$app/environment';
 import { privateEnv } from '@root/config/private';
 import type { RequestEvent } from '@sveltejs/kit';
-import { building } from '$app/environment';
 
 // GraphQL Yoga
-import { createSchema, createYoga } from 'graphql-yoga';
-import { registerCollections, collectionsResolvers, createCleanTypeName } from './resolvers/collections';
-import { userTypeDefs, userResolvers } from './resolvers/users';
-import { mediaTypeDefs, mediaResolvers } from './resolvers/media';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import { createSchema, createYoga } from 'graphql-yoga';
+import { collectionsResolvers, createCleanTypeName, registerCollections } from './resolvers/collections';
+import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
+import { userResolvers, userTypeDefs } from './resolvers/users';
 
-// Redis
-import { createClient } from 'redis';
+// Unified Cache Service
+import { cacheService } from '@src/databases/CacheService';
 
 // Auth / Permission
 import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
@@ -47,44 +47,27 @@ if (!building) {
 	registerPermission(accessManagementPermission);
 }
 
-// Initialize Redis client if needed
-let redisClient: ReturnType<typeof createClient> | null = null;
-
-// Create a cache client adapter that matches our CacheClient interface
-const cacheClient =
-	privateEnv.USE_REDIS === true
-		? {
-				get: async (key: string) => redisClient?.get(key) || null,
-				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
+// Create a cache client adapter compatible with the expected interface in resolvers
+const cacheClient = privateEnv.USE_REDIS
+	? {
+			get: async (key: string, tenantId?: string) => {
+				try {
+					// Namespace GraphQL caches and include tenant when provided
+					return await cacheService.get<string>(`graphql:${key}`, tenantId);
+				} catch (err) {
+					logger.debug('GraphQL cache get failed, continuing without cache', err);
+					return null;
+				}
+			},
+			set: async (key: string, value: string, _ex: string, duration: number, tenantId?: string) => {
+				try {
+					await cacheService.set(`graphql:${key}`, value, duration, tenantId);
+				} catch (err) {
+					logger.debug('GraphQL cache set failed, continuing without cache', err);
+				}
 			}
-		: null;
-
-if (!building && privateEnv.USE_REDIS === true) {
-	logger.info('Initializing Redis client');
-	// Create Redis client
-	redisClient = createClient({
-		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
-		password: privateEnv.REDIS_PASSWORD
-	});
-	// Connect to Redis
-	redisClient.on('error', (err: Error) => {
-		logger.error('Redis error: ', err);
-	});
-
-	redisClient.connect().catch((err) => logger.error('Redis connection error: ', err));
-}
-
-// Ensure Redis client is properly disconnected on shutdown
-async function cleanupRedis() {
-	if (redisClient) {
-		try {
-			await redisClient.quit();
-			logger.info('Redis client disconnected gracefully');
-		} catch (err) {
-			logger.error('Error disconnecting Redis client: ', err);
 		}
-	}
-}
+	: null;
 
 // Setup GraphQL schema and resolvers
 async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
@@ -237,12 +220,6 @@ const handler = async (event: RequestEvent) => {
 				headers: { 'Content-Type': 'application/json' }
 			}
 		);
-	}
-
-	// Ensure Redis is disconnected when the server shuts down
-	if (!building && typeof process !== 'undefined') {
-		process.on('SIGINT', cleanupRedis);
-		process.on('SIGTERM', cleanupRedis);
 	}
 
 	try {

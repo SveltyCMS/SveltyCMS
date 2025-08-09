@@ -3,18 +3,18 @@
  * @description Provides a service class for media operations.
  */
 
-import mime from 'mime-types';
 import { error } from '@sveltejs/kit';
+import mime from 'mime-types';
 import Path from 'path';
 
 // Database Interface
 import type { DatabaseId, dbInterface, ISODateString, MediaItem } from '@src/databases/dbInterface';
 
 // Media
-import type { MediaType, MediaBase, MediaAccess } from './mediaModels';
+import type { MediaAccess, MediaBase, MediaType } from './mediaModels';
 import { MediaTypeEnum } from './mediaModels';
+import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
 import { saveFileToDisk, saveResizedImages } from './mediaStorage';
-import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
 import { validateMediaFile } from './mediaUtils';
 
 // Permission Management
@@ -24,7 +24,7 @@ import { validateUserPermission as checkMediaAccess } from '@src/auth/permission
 import { logger } from '@utils/logger.svelte';
 
 // Media Cache
-import { mediaCache } from '@src/databases/mediaCache';
+import { cacheService } from '@src/databases/CacheService';
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
@@ -262,7 +262,7 @@ export class MediaService {
 
 			// Cache the saved media
 			if (savedMedia) {
-				await mediaCache.set(mediaId, savedMedia);
+				await cacheService.set(`media:${mediaId}`, savedMedia, 3600);
 			} else {
 				logger.warn('Saved media not found in database', { mediaId });
 			}
@@ -319,7 +319,7 @@ export class MediaService {
 		try {
 			await this.db.updateOne('media_collection', { _id: this.db.convertId(id) }, updates);
 			// Invalidate cache
-			await mediaCache.delete(id);
+			await cacheService.delete(`media:${id}`);
 			logger.info('Media updated successfully', { id });
 		} catch (err) {
 			const message = `Error updating media: ${err instanceof Error ? err.message : String(err)}`;
@@ -339,7 +339,7 @@ export class MediaService {
 		try {
 			await this.db.deleteOne('media_collection', { _id: this.db.convertId(id) });
 			// Remove from cache
-			await mediaCache.delete(id);
+			await cacheService.delete(`media:${id}`);
 			logger.info('Media deleted successfully', { id });
 		} catch (err) {
 			const message = `Error deleting media: ${err instanceof Error ? err.message : String(err)}`;
@@ -363,7 +363,7 @@ export class MediaService {
 		try {
 			await this.db.updateOne('media_collection', { _id: this.db.convertId(id) }, { access });
 			// Invalidate cache
-			await mediaCache.delete(id);
+			await cacheService.delete(`media:${id}`);
 			logger.info('Media access updated successfully', { id, access });
 		} catch (err) {
 			const message = `Error setting media access: ${err instanceof Error ? err.message : String(err)}`;
@@ -390,7 +390,7 @@ export class MediaService {
 
 		try {
 			// Check cache first
-			const cachedMedia = await mediaCache.get(id);
+			const cachedMedia = await cacheService.get<MediaType>(`media:${id}`);
 			if (cachedMedia) {
 				logger.info('Media retrieved from cache', { id });
 				return cachedMedia;
@@ -409,7 +409,7 @@ export class MediaService {
 			}
 
 			// Cache the media for future requests
-			await mediaCache.set(id, media);
+			await cacheService.set(`media:${id}`, media, 3600);
 
 			return media;
 		} catch (err) {
@@ -436,7 +436,7 @@ export class MediaService {
 			});
 			await this.db.deleteMany('media_collection', { _id: { $in: convertedIds } });
 			// Remove from cache
-			await Promise.all(ids.map((id) => mediaCache.delete(id)));
+			await Promise.all(ids.map((id) => cacheService.delete(`media:${id}`)));
 			logger.info('Bulk media deletion successful', { count: ids.length });
 		} catch (err) {
 			const message = `Error in bulk delete media: ${err instanceof Error ? err.message : String(err)}`;

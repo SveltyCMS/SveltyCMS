@@ -30,7 +30,7 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';
-	import { isMobile, screenSize } from '@stores/screenSizeStore.svelte';
+	import { isDesktop, isMobile, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { get } from 'svelte/store';
@@ -240,7 +240,8 @@
 	<button
 		type="button"
 		onclick={() => {
-			const newState = uiStateManager.uiState.value.leftSidebar === 'full' ? 'collapsed' : 'full';
+			const current = uiStateManager.uiState.value.leftSidebar;
+			const newState = current === 'full' ? 'collapsed' : 'full';
 			toggleUIElement('leftSidebar', newState);
 			userPreferredState.set(newState);
 		}}

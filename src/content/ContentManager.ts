@@ -37,24 +37,22 @@ async function getDbAdapter() {
 	return dbAdapter;
 }
 
-// Existing imports
-
+import { ensureWidgetsInitialized } from '@src/widgets';
 import { v4 as uuidv4 } from 'uuid';
+import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
 
 // Config
 import { privateEnv } from '@root/config/private';
 
 // Types
-import type { Schema, ContentTypes, Category, CollectionData, ContentNodeOperation } from './types';
 import type { ContentNode } from '@src/databases/dbInterface'; // Commented out unused import
+import type { Category, CollectionData, ContentNodeOperation, ContentTypes, Schema } from './types';
 
-// Redis
-import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
-import { ensureWidgetsInitialized } from '@src/widgets';
+// Cache
+import { cacheService } from '@src/databases/CacheService';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
 
 // Server-side only compilation function
 async function getCompile() {
@@ -71,8 +69,8 @@ interface CacheEntry<T> {
 }
 
 // Constants
+import { REDIS_TTL_S as REDIS_TTL } from '@src/databases/CacheService';
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-const REDIS_TTL = 300; // 5 minutes in seconds for Redis
 const MAX_CACHE_SIZE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -135,10 +133,11 @@ class ContentManager {
 		try {
 			// Check if we have cached collections in Redis first
 			let collections: Schema[] | null = null;
-			if (isRedisEnabled()) {
+			try {
 				try {
-					const cacheKey = tenantId ? `cms:tenant:${tenantId}:all_collections` : 'cms:all_collections';
-					collections = await getCache<Schema[]>(cacheKey);
+					await cacheService.initialize();
+					const cacheKey = tenantId ? `cms:all_collections` : 'cms:all_collections';
+					collections = await cacheService.get<Schema[]>(cacheKey, tenantId);
 					if (collections && collections.length > 0) {
 						logger.debug(`Loaded ${collections.length} collections from Redis cache`);
 
@@ -158,8 +157,10 @@ class ContentManager {
 						return;
 					}
 				} catch (cacheErr) {
-					logger.debug('Redis cache miss or error, proceeding with file loading:', cacheErr);
+					logger.debug('Cache miss or error, proceeding with file loading:', cacheErr);
 				}
+			} catch {
+				// ignore cache init errors
 			}
 
 			// If no cache, run full initialization in parallel
@@ -317,10 +318,7 @@ class ContentManager {
 			}
 
 			// Cache in Redis if available
-			if (isRedisEnabled()) {
-				const cacheKey = tenantId ? `cms:tenant:${tenantId}:all_collections` : 'cms:all_collections';
-				await setCache(cacheKey, collections, REDIS_TTL);
-			}
+			await cacheService.set(tenantId ? `cms:all_collections` : 'cms:all_collections', collections, REDIS_TTL, tenantId);
 
 			this.loadedCollections = collections;
 			const totalTime = performance.now() - loadStartTime;
@@ -339,13 +337,10 @@ class ContentManager {
 	async updateCollections(recompile: boolean = false, tenantId?: string): Promise<void> {
 		try {
 			if (recompile) {
-				// Clear both memory and Redis caches - use tenant-specific cache key
+				// Clear both memory and distributed caches
 				this.collectionCache.clear();
 				this.fileHashCache.clear();
-				if (isRedisEnabled()) {
-					const cacheKey = tenantId ? `cms:tenant:${tenantId}:all_collections` : 'cms:all_collections';
-					await clearCache(cacheKey);
-				}
+				await cacheService.delete('cms:all_collections', tenantId);
 			}
 			await this.loadCollections(tenantId);
 			await this.updateContentStructure();
@@ -652,9 +647,7 @@ class ContentManager {
 			}
 
 			// Cache in Redis if available
-			if (isRedisEnabled()) {
-				await setCache('cms:categories', categoryNodes, REDIS_TTL);
-			}
+			await cacheService.set('cms:categories', categoryNodes, REDIS_TTL);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('Failed to create categories', { error: errorMessage });
@@ -666,8 +659,8 @@ class ContentManager {
 	// Cache management methods with Redis support
 	private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
 		// Try Redis first if available
-		if (isRedisEnabled()) {
-			const redisValue = await getCache<T>(`cms:${key}`);
+		try {
+			const redisValue = await cacheService.get<T>(`cms:${key}`);
 			if (redisValue) {
 				// Update local cache
 				cache.set(key, {
@@ -676,6 +669,8 @@ class ContentManager {
 				});
 				return redisValue;
 			}
+		} catch {
+			// ignore cache errors
 		}
 		// Fallback to memory cache
 		const entry = cache.get(key);
@@ -689,9 +684,7 @@ class ContentManager {
 
 	private async setCacheValue<T>(key: string, value: T, cache: Map<string, CacheEntry<T>>): Promise<void> {
 		// Set in Redis if available
-		if (isRedisEnabled()) {
-			await setCache(`cms:${key}`, value, REDIS_TTL);
-		}
+		await cacheService.set(`cms:${key}`, value, REDIS_TTL);
 		// Set in memory cache
 		cache.set(key, {
 			value,
@@ -702,9 +695,7 @@ class ContentManager {
 
 	private async clearCacheValue(key: string): Promise<void> {
 		// Clear from Redis if available
-		if (isRedisEnabled()) {
-			await clearCache(`cms:${key}`);
-		}
+		await cacheService.delete(`cms:${key}`);
 		// Clear from all memory caches
 		this.collectionCache.delete(key);
 		// this.categoryCache.delete(key);
@@ -719,12 +710,10 @@ class ContentManager {
 				.slice(0, cache.size - MAX_CACHE_SIZE);
 
 			// Clear associated Redis cache if enabled
-			if (isRedisEnabled()) {
-				const keysToClear = entriesToRemove.map(([key]) => `cms:${key}`);
-				clearCache(keysToClear).catch((err) => {
-					logger.warn('Failed to clear Redis cache entries:', err);
-				});
-			}
+			const keysToClear = entriesToRemove.map(([key]) => `cms:${key}`);
+			cacheService.delete(keysToClear).catch((err) => {
+				logger.warn('Failed to clear cache entries:', err);
+			});
 
 			// Remove from memory cache
 			entriesToRemove.forEach(([key]) => cache.delete(key));
@@ -860,4 +849,4 @@ function normalizePath(p: string): string {
 export const contentManager = ContentManager.getInstance();
 
 // Export types
-export type { Schema, ContentTypes, Category, CollectionData };
+export type { Category, CollectionData, ContentTypes, Schema };
