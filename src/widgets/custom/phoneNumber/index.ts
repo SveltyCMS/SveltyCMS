@@ -3,7 +3,7 @@
 @description - PhoneNumber index file.
 */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 

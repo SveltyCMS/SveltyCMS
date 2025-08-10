@@ -13,16 +13,17 @@
  * server-side logic for handling file uploads.
  */
 
-import { publicEnv } from '@root/config/public';
+// Use DB-backed public settings with safe fallbacks
+import { publicEnv } from '@src/utils/configMigration';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
-import mime from 'mime-types';
-import { saveImage, saveDocument, saveAudio, saveVideo } from '@utils/media/mediaProcessing';
-import { constructUrl } from '@utils/media/mediaUtils';
 import type { SystemVirtualFolder } from '@root/src/databases/dbInterface';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
+import { saveAudio, saveDocument, saveImage, saveVideo } from '@utils/media/mediaProcessing';
+import { constructUrl } from '@utils/media/mediaUtils';
+import mime from 'mime-types';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
@@ -178,9 +179,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					const extension = mime.extension(item.mimeType!) || '';
 					const filename = item.filename!.replace(`.${extension}`, '');
 
-					if (!publicEnv.MEDIA_FOLDER) {
-						logger.error('Media folder configuration missing');
-						throw new Error('Media folder configuration missing');
+					// MEDIA_FOLDER may not be eagerly available; use a safe default
+					const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+					if (!mediaFolder) {
+						logger.warn('MEDIA_FOLDER not set; proceeding with defaults');
 					}
 
 					return {

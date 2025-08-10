@@ -3,7 +3,6 @@
  * @description Handles media processing operations such as metadata extraction and thumbnail generation.
  */
 
-import { publicEnv } from '@root/config/public';
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
 import { Buffer } from 'buffer';

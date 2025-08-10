@@ -3,7 +3,6 @@
 @description - checkbox index file.
 */
 
-import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 

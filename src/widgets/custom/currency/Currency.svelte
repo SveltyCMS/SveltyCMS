@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/currency/Currency.svelte
 @component
 **Currency widget component to display currency field**
@@ -18,7 +18,7 @@
 	import { run, preventDefault } from 'svelte/legacy';
 
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
@@ -37,7 +37,7 @@
 	const fieldName = getFieldName(field);
 
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const _language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 

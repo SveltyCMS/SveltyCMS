@@ -1,5 +1,5 @@
-<!-- 
-@file src/components/LeftSidebar.svelte 
+<!--
+@file src/components/LeftSidebar.svelte
 
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { publicEnv } from '@root/config/public';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 	import axios from 'axios';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
@@ -80,7 +80,7 @@
 	};
 
 	// Define language type based on available languages
-	type AvailableLanguage = typeof publicEnv.LOCALES extends string[] ? (typeof publicEnv.LOCALES)[number] : string;
+	type AvailableLanguage = string;
 
 	let _languageTag = $state(getLocale()); // Get the current language tag
 
@@ -91,7 +91,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...(publicEnv.LOCALES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(getGlobalSetting('LOCALES') as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -303,7 +303,7 @@
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if (publicEnv.LOCALES as string[]).length > 5}
+					{#if availableLanguages.length > 5}
 						<button
 							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'

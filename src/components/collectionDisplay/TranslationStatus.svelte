@@ -1,5 +1,5 @@
-<!-- 
- @file src/components/TranslationStatus.svelte 
+<!--
+ @file src/components/TranslationStatus.svelte
  @component
  **Translation status component for displaying translation progress per language in a progress bar with percentage.**
 
@@ -18,7 +18,6 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress, updateTranslationProgress } from '@stores/store.svelte';
@@ -28,18 +27,14 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Local state management with runes
 	let isOpen = $state(false);
 	let completionTotals = $state({ total: 0, translated: 0 });
 	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
 	let availableLanguages = $derived.by<Locale[]>(() => {
-		if (publicEnv && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)) {
-			return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
-		} else {
-			// console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
-			return [];
-		}
+		return getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') as Locale[];
 	});
 
 	// Track initialization

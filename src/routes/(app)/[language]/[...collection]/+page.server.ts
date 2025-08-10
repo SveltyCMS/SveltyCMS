@@ -14,7 +14,6 @@
  * and logging, providing a secure and user-friendly experience.
  */
 
-import { publicEnv } from '@root/config/public';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -22,20 +21,27 @@ import type { PageServerLoad } from './$types';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { getGlobalSetting } from '@src/stores/globalSettings';
+import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const { user, theme } = locals;
 	const { language, collection } = params;
 
+	// Get available content languages from global settings
+	const availableContentLanguages = getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+	
+	// Get site name from global settings
+	const siteName = getGlobalSetting('SITE_NAME') || 'SveltyCMS';
+
 	// User's preferred language from session
 	const userSystemLanguage = user?.systemLanguage;
 
 	// If the user has a preferred language and it differs from the language in the URL,
 	// redirect to the same page with the preferred language.
-	if (userSystemLanguage && userSystemLanguage !== language && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(userSystemLanguage)) {
+	if (userSystemLanguage && userSystemLanguage !== language && availableContentLanguages.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
 		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
 		throw redirect(302, newPath);
@@ -47,7 +53,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const contentLanguage = language;
 
 	// ensure language exist :
-	if (!contentLanguage || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(contentLanguage) || !collection) {
+	if (!contentLanguage || !availableContentLanguages.includes(contentLanguage) || !collection) {
 		const message = 'The language parameter is missing.';
 		logger.warn(message);
 		throw error(404, message);
@@ -116,6 +122,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			username: user.username,
 			role: user.role,
 			avatar: user.avatar
-		}
+		},
+		siteName // Pass the site name to the client
 	};
 };

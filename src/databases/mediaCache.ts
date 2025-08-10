@@ -8,7 +8,7 @@
  * The system uses Date objects for expiration times and includes error handling and logging.
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/utils/configMigration';
 import { browser } from '$app/environment';
 import type { MediaType } from '@utils/media/mediaModels';
 import type { RedisClientType } from 'redis';

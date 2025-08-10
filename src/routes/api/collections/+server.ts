@@ -34,50 +34,52 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const includeStats = url.searchParams.get('includeStats') === 'true';
 
 		// Get all collections from ContentManager
-		const { collections: allCollections } = await contentManager.getCollectionData();
+		const { collectionMap } = await contentManager.getCollectionData();
 
 		const accessibleCollections = [];
 
 		// Filter collections based on user permissions
-		for (const [collectionId, collection] of Object.entries(allCollections)) {
-			const hasReadAccess = hasCollectionPermission(locals.user, 'read', collection);
-			const hasWriteAccess = hasCollectionPermission(locals.user, 'write', collection);
+		if (collectionMap) {
+			for (const [collectionId, collection] of Object.entries(collectionMap)) {
+				const hasReadAccess = hasCollectionPermission(locals.user, 'read', collection);
+				const hasWriteAccess = hasCollectionPermission(locals.user, 'write', collection);
 
-			if (hasReadAccess || hasWriteAccess) {
-				const collectionInfo = {
-					id: collection._id,
-					name: collection.name,
-					label: collection.label || collection.name,
-					description: collection.description,
-					icon: collection.icon,
-					path: collection.path,
-					permissions: {
-						read: hasReadAccess,
-						write: hasWriteAccess
+				if (hasReadAccess || hasWriteAccess) {
+					const collectionInfo = {
+						id: collection._id,
+						name: collection.name,
+						label: collection.label || collection.name,
+						description: collection.description,
+						icon: collection.icon,
+						path: collection.path,
+						permissions: {
+							read: hasReadAccess,
+							write: hasWriteAccess
+						}
+					};
+
+					// Include fields if requested
+					if (includeFields) {
+						collectionInfo.fields = collection.fields;
 					}
-				};
 
-				// Include fields if requested
-				if (includeFields) {
-					collectionInfo.fields = collection.fields;
-				}
-
-				// Include stats if requested and user has read access
-				if (includeStats && hasReadAccess) {
-					try {
-						// You can add collection statistics here if your DB adapter supports it
-						// For now, just add placeholder
-						collectionInfo.stats = {
-							totalEntries: 0,
-							publishedEntries: 0,
-							draftEntries: 0
-						};
-					} catch (statsError) {
-						logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
+					// Include stats if requested and user has read access
+					if (includeStats && hasReadAccess) {
+						try {
+							// You can add collection statistics here if your DB adapter supports it
+							// For now, just add placeholder
+							collectionInfo.stats = {
+								totalEntries: 0,
+								publishedEntries: 0,
+								draftEntries: 0
+							};
+						} catch (statsError) {
+							logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
+						}
 					}
-				}
 
-				accessibleCollections.push(collectionInfo);
+					accessibleCollections.push(collectionInfo);
+				}
 			}
 		}
 

@@ -121,4 +121,30 @@ SveltyCMS is designed with security as a core principle:
 
 ---
 
+# SveltyCMS Configuration (2025+)
+
+## Dynamic Settings
+- All runtime settings are now stored in the database and managed via the admin GUI or API endpoints.
+- Static config files are only used for database connection and startup secrets (e.g., JWT).
+
+## Import/Export
+- Use `/api/settings/export` (GET) to export a snapshot of all settings.
+- Use `/api/settings/import` (POST) to restore settings from a snapshot.
+- The CLI installer provides commands for import/export via `settingsImportExport.js`.
+
+## Legacy Config
+- Old static config files and CLI prompts for runtime settings have been removed.
+- Backup/restore now operates on dynamic settings, not static files.
+
+## Migration Steps
+1. Update DB model/service for dynamic settings.
+2. Minimize static config to DB/secrets only.
+3. Refactor app startup to load settings from DB.
+4. Replace all static config usage in codebase.
+5. Implement import/export endpoints.
+6. Refactor GUI editor to use new API.
+7. Update CLI installer for minimal config and import/export.
+8. Clean up legacy code and docs.
+9. Test migration and new flows.
+
 **New to SveltyCMS?** Start with [First Steps](./User_Guide/00_Getting_Started/First_Steps.md) for users or [Installation](./Dev_Guide/00_Installation/README.md) for developers.

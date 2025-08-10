@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/forgottenPassword.svelte
 @component
 **forgottenPassword Email component to reset password**
@@ -6,7 +6,8 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -34,19 +35,19 @@
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Reset your password for {publicEnv.SITE_NAME}</title>
+		<title>Reset your password for {getGlobalSetting('SITE_NAME')}</title>
 	</Head>
 
-	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
+	<Preview preview="Reset your password for {getPublicSetting('SITE_NAME') || 'SveltyCMS'}" />
 
 	<Body>
 		<Container style={{ fontSize: '16px' }}>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+				<Link href={dev ? getPublicSetting('HOST_DEV') : getPublicSetting('HOST_PROD')}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${publicEnv.SITE_NAME} logo`}
+						alt={`${getPublicSetting('SITE_NAME') || 'SveltyCMS'} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
@@ -62,7 +63,7 @@
 
 				<Text style={{ fontSize: '16px' }}>
 					You have requested to <strong>reset your password</strong> to get access to
-					<strong>{publicEnv.SITE_NAME}.</strong>
+					<strong>{getPublicSetting('SITE_NAME') || 'SveltyCMS'}.</strong>
 				</Text>
 
 				<!-- Token Information Box -->

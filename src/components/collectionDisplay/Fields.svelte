@@ -22,7 +22,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { untrack } from 'svelte';
-	import { publicEnv } from '@root/config/public';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 	import { getFieldName, updateTranslationProgress } from '@utils/utils';
 	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 

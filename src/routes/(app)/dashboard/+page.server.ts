@@ -16,10 +16,16 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
+// Auth
+import { initializeRoles, roles } from '@root/src/auth/index';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
+	// Initialize roles
+	await initializeRoles();
+
 	// Check if user is authenticated
 	const user = locals.user;
 
@@ -30,13 +36,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	logger.debug(`User authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
 
+	// Determine admin status properly by checking role
+	const userRole = roles.find((role) => role._id === user.role);
+	const isAdmin = Boolean(userRole?.isAdmin);
+
 	const { _id, ...rest } = user;
 
-	// Return user data with proper typing
+	// Return user data with proper typing including admin status
 	return {
 		user: {
 			id: _id.toString(),
-			...rest
+			...rest,
+			isAdmin
 		}
 	};
 };

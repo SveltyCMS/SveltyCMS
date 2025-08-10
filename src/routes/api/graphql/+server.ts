@@ -9,7 +9,7 @@
  * - Access management permission definition and checking
  */
 
-import { privateEnv } from '@root/config/private';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import { building } from '$app/environment';
@@ -70,19 +70,19 @@ let redisClient: ReturnType<typeof createClient> | null = null;
 
 // Create a cache client adapter that matches our CacheClient interface
 const cacheClient =
-	privateEnv.USE_REDIS === true
+	getGlobalSetting<boolean>('USE_REDIS') === true
 		? {
 				get: async (key: string) => redisClient?.get(key) || null,
 				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
 			}
 		: null;
 
-if (!building && privateEnv.USE_REDIS === true) {
+if (!building && getGlobalSetting<boolean>('USE_REDIS') === true) {
 	logger.info('Initializing Redis client');
 	// Create Redis client
 	redisClient = createClient({
-		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
-		password: privateEnv.REDIS_PASSWORD
+		url: `redis://${getGlobalSetting<string>('REDIS_HOST')}:${getGlobalSetting<string>('REDIS_PORT')}`,
+		password: getGlobalSetting<string>('REDIS_PASSWORD')
 	});
 
 	// Connect to Redis
@@ -117,11 +117,11 @@ async function setupGraphQL() {
                 page: Int = 1
                 limit: Int = 50
             }
-            
+
             ${collectionsTypeDefs}
             ${userTypeDefs()}
             ${mediaTypeDefs()}
-            
+
             type AccessManagementPermission {
                 contextId: String!
                 name: String!
@@ -129,7 +129,7 @@ async function setupGraphQL() {
                 contextType: String!
                 description: String
             }
-            
+
             type Query {
                 ${Object.values(collections)
 									.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
@@ -146,7 +146,7 @@ async function setupGraphQL() {
 
 		//logger.debug('Generated GraphQL Schema:', typeDefs);
 
-		const collectionsResolversObj = await collectionsResolvers(cacheClient, privateEnv);
+		const collectionsResolversObj = await collectionsResolvers(cacheClient, { USE_REDIS: getGlobalSetting<boolean>('USE_REDIS') });
 		// logger.debug('Collections resolvers keys:', Object.keys(collectionsResolversObj));
 
 		const resolvers = {

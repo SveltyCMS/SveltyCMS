@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/config/systemsetting/+page.svelte
 @description Main page for system settings.
 
@@ -29,29 +29,27 @@ ENHANCEMENTS:
 		};
 
 		try {
-			// Step 1: Back up the current configuration
-			toast('Backing up current configuration...', 'variant-filled-secondary');
-			const backupResponse = await fetch('/api/config/backup', { method: 'POST' });
-
-			if (!backupResponse.ok) {
-				const backupResult = await backupResponse.json();
-				throw new Error(backupResult.message || 'Failed to create configuration backup.');
+			// Step 1: Export current settings for backup (optional, can be shown to user)
+			toast('Exporting current settings...', 'variant-filled-secondary');
+			const exportResponse = await fetch('/api/settings/export');
+			if (!exportResponse.ok) {
+				const exportResult = await exportResponse.json();
+				throw new Error(exportResult.message || 'Failed to export current settings.');
 			}
-			toast('Backup successful!', 'variant-filled-success');
+			toast('Settings export successful!', 'variant-filled-success');
 
-			// Step 2: Save the new configuration
-			toast('Saving new configuration...', 'variant-filled-secondary');
-			const saveResponse = await fetch('/api/save-config', {
+			// Step 2: Import new settings
+			toast('Saving new settings...', 'variant-filled-secondary');
+			const importResponse = await fetch('/api/settings/import', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ configData, isPrivate })
+				body: JSON.stringify({ settings: configData, isPrivate })
 			});
-
-			if (!saveResponse.ok) {
-				const saveResult = await saveResponse.json();
-				throw new Error(saveResult.message || 'Failed to save configuration.');
+			if (!importResponse.ok) {
+				const importResult = await importResponse.json();
+				throw new Error(importResult.message || 'Failed to import new settings.');
 			}
-			toast('Configuration saved successfully!', 'variant-filled-success');
+			toast('Settings saved successfully!', 'variant-filled-success');
 
 			// Step 3: Trigger server restart
 			await triggerRestart();

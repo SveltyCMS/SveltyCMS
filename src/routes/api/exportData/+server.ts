@@ -29,7 +29,7 @@ import path from 'path';
 import { error } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 
 // Database adapter for collection queries
 import { dbAdapter } from '@src/databases/db';

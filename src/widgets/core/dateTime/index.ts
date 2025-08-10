@@ -3,7 +3,6 @@
 @description - dateTime index file.
 */
 
-import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 

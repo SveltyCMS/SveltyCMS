@@ -12,7 +12,7 @@
  * - Status-based access control for non-admin users
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Database
@@ -32,8 +32,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		// Fetch all system virtual folders
-		const folders = await dbAdapter.getAll('system_virtual_folders');
+		if (!dbAdapter?.systemVirtualFolder) {
+			throw error(500, 'Virtual folder adapter not available');
+		}
+
+		// Fetch all system virtual folders via adapter API
+		const vfResult = await dbAdapter.systemVirtualFolder.getAll();
+		if (!vfResult.success) {
+			const details = vfResult.error instanceof Error ? vfResult.error.message : String(vfResult.error);
+			throw error(500, `Failed to fetch system virtual folders: ${details}`);
+		}
+		const folders = vfResult.data;
 
 		logger.debug(`Fetched ${folders.length} system virtual folders`);
 
@@ -74,8 +83,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			updatedAt: new Date().toISOString()
 		};
 
-		// Create the folder
-		const newFolder = await dbAdapter.create('system_virtual_folders', folderData);
+		if (!dbAdapter?.systemVirtualFolder) {
+			throw error(500, 'Virtual folder adapter not available');
+		}
+
+		// Create the folder via adapter
+		const createRes = await dbAdapter.systemVirtualFolder.create(folderData as any);
+		if (!createRes.success) {
+			const details = createRes.error instanceof Error ? createRes.error.message : String(createRes.error);
+			throw error(500, `Failed to create system virtual folder: ${details}`);
+		}
+		const newFolder = createRes.data;
 
 		logger.info(`Created system virtual folder: ${folderData.name}`);
 

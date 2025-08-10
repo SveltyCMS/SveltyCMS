@@ -23,13 +23,14 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Config
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { storeListboxValue } from '@stores/store.svelte';
 	import { page } from '$app/stores';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -149,7 +150,7 @@
 
 	// Enhanced Delete Modal with colorful styling and admin options
 	function openDeleteModal(): void {
-		const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const isArchiving = getGlobalSetting('USE_ARCHIVE_ON_DELETE');
 
 		// Check if all selected entries are already archived
 		const allEntriesArchived = selectedStatuses.length > 0 && selectedStatuses.every((status) => status === 'archive');

@@ -3,7 +3,18 @@
  * @description API endpoint for rendering and sending emails using Svelte templates and Nodemailer.
  *
  * This module provides functionality to:
- * - Receive a request to send an email based on a template.
+ * - Receive a reques	// 3. Configure Nodemailer Transporter
+	const smtpPort = Number(getGlobalSetting<string>('SMTP_PORT'));
+	const secureConnection = smtpPort === 465;
+
+	const transporter = nodemailer.createTransporter({
+		host: getGlobalSetting<string>('SMTP_HOST'),
+		port: smtpPort,
+		secure: secureConnection,
+		auth: {
+			user: getGlobalSetting<string>('SMTP_EMAIL'),
+			pass: getGlobalSetting<string>('SMTP_PASSWORD')
+		}, email based on a template.
  * - Render email content using Svelte components and svelte-email-tailwind.
  * - Send emails using Nodemailer with SMTP configuration from environment variables.
  * - Support multiple email templates and dynamic props.
@@ -35,7 +46,7 @@ import type { RequestHandler } from './$types';
 import type { ComponentType } from 'svelte';
 
 // Environment variables for SMTP configuration
-import { privateEnv } from '@root/config/private';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Permissions
 import { checkApiPermission } from '@api/permissions';
@@ -187,9 +198,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
 
-	// Validate SMTP configuration from privateEnv
-	const requiredSmtpVars: (keyof typeof privateEnv)[] = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
-	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
+	// Validate SMTP configuration from database settings
+	const requiredSmtpVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
+	const missingVars = requiredSmtpVars.filter((varName) => !getGlobalSetting<string>(varName));
 
 	if (missingVars.length > 0) {
 		logger.error('SMTP configuration is incomplete in /api/sendMail. Missing variables:', { missingVars });
@@ -246,8 +257,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// 4. Define Mail Options
 	const mailOptions: Mail.Options = {
 		from: {
-			name: props?.sitename || privateEnv.SMTP_FROM_NAME || 'SveltyCMS',
-			address: privateEnv.SMTP_EMAIL!
+			name: props?.sitename || getGlobalSetting<string>('SMTP_FROM_NAME') || 'SveltyCMS',
+			address: getGlobalSetting<string>('SMTP_EMAIL')!
 		},
 		to: recipientEmail,
 		subject: subject,

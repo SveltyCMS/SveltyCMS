@@ -1,6 +1,6 @@
-<!-- 
-@file src/routes/(app)/mediagallery/+page.svelte 
-@component 
+<!--
+@file src/routes/(app)/mediagallery/+page.svelte
+@component
 **This page is used to display the media gallery page**
 
 This page displays a collection of media files, such as images, documents, audio, and video.
@@ -10,16 +10,16 @@ It p			if (result.success) {
 				// Update current view
 				const parent = currentSystemVirtualFolder?._id ?? null;
 				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
-				
+
 				// Dispatch event to notify Collections component
 				const event = new CustomEvent('folderCreated', {
-					detail: { 
+					detail: {
 						folder: result.folder,
 						parentId: parentId
 					}
 				});
 				document.dispatchEvent(event);
-				
+
 				toastStore.trigger({
 					message: 'Folder created successfully!',
 					background: 'variant-filled-success',
@@ -32,7 +32,7 @@ It p			if (result.success) {
 - `media` {MediaBase[]} - An array of media files to be displayed.
 
 ### Events:
-- `mediaDeleted` - Emitted when a media file is deleted.	
+- `mediaDeleted` - Emitted when a media file is deleted.
 
 ### Features:
 - Displays a collection of media files based on the specified media type.
@@ -51,7 +51,7 @@ It p			if (result.success) {
 	// Utils & Media
 	import { config, toFormData } from '@utils/utils';
 	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';

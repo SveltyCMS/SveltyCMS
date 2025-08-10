@@ -3,7 +3,7 @@
  * @description Server-side endpoint to fetch system logs with filtering and pagination.
  */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

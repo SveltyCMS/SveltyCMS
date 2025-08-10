@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/core/dateTime/DateTime.svelte
 @component
 **DateTime widget component to display datetime field**
@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores

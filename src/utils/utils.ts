@@ -21,7 +21,7 @@
  * @exports numerous utility functions and constants
  */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 
 import type { BaseIssue, BaseSchema } from 'valibot';
 import type { Field } from '@src/content/types';
@@ -128,7 +128,7 @@ export function sanitize(str: string) {
 }
 
 // Get the environment variables for image sizes
-const env_sizes = publicEnv.IMAGE_SIZES;
+const env_sizes = getPublicSetting('IMAGE_SIZES') || {};
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Takes an object and recursively parses any values that can be converted to JSON
@@ -351,7 +351,7 @@ export function ReadableExpireIn(expiresIn: string) {
 }
 
 export function updateTranslationProgress(data: unknown, field: unknown) {
-	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
+	const languages = getPublicSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
 	const fieldName = getFieldName(field); // Get the unique field name
 
 	if (!fieldName || !field?.translated) {

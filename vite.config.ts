@@ -8,118 +8,90 @@
  * compilation tasks, sets up environment variables, and defines alias paths for the project.
  */
 
-import Path from 'path';
-import { resolve } from 'path';
-import { readFileSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
-import { purgeCss } from 'vite-plugin-tailwind-purgecss';
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import svelteEmailTailwind from 'svelte-email-tailwind/vite';
-import { compile } from './src/utils/compilation/compile';
-import { generateContentTypes } from './src/content/vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { existsSync, readFileSync } from 'fs';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { builtinModules } from 'module';
-
-// Validation
-import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types.ts';
+import Path, { resolve } from 'path';
+import svelteEmailTailwind from 'svelte-email-tailwind/vite';
+import { defineConfig } from 'vite';
+import { purgeCss } from 'vite-plugin-tailwind-purgecss';
+import { generateContentTypes } from './src/content/vite';
+import { compile } from './src/utils/compilation/compile';
 
 export default defineConfig(async () => {
-	// Config file paths
-	const configDir = resolve(process.cwd(), 'config');
-	const privateConfigPath = resolve(configDir, 'private.ts');
-	const publicConfigPath = resolve(configDir, 'public.ts');
-	const configPaths = [
-		{ path: privateConfigPath, name: 'config/private.ts' },
-		{ path: publicConfigPath, name: 'config/public.ts' }
-	];
-
-	// Check if config files exist
-	const missingConfigs = configPaths.filter((config) => !existsSync(config.path));
-	if (missingConfigs.length > 0) {
-		console.error('\n❌ Configuration files missing:');
-		missingConfigs.forEach((config) => {
-			console.error(`  - ${config.name}`);
-		});
-		console.error('\n💡 Running installer to generate missing configuration files...');
-		try {
-			execSync('bun run installer', { stdio: 'inherit' });
-
-			// Immediately check if config files were actually created
-			const stillMissingAfterInstall = configPaths.filter((config) => !existsSync(config.path));
-			if (stillMissingAfterInstall.length > 0) {
-				console.error('\n❌ Configuration files were not created by the installer:');
-				stillMissingAfterInstall.forEach((config) => {
-					console.error(`  - ${config.name}`);
-				});
-				console.error('\n💡 This usually happens when the installer is cancelled or fails.');
-				console.error('Please run `bun run installer` manually to complete the setup.');
-				console.error('👋 Exiting Vite configuration gracefully...');
-				process.exit(0); // Exit gracefully instead of crashing
-			}
-
-			console.log('✅ Installer completed successfully.');
-		} catch (e) {
-			console.error('❌ Error running the installer:', e);
-			console.error('Please run `bun run installer` manually to generate config files.');
-			console.error('👋 Exiting Vite configuration gracefully...');
-			process.exit(0); // Exit gracefully instead of crashing
-		}
-	}
-
-	// Import configs only after ensuring they exist
-	let actualPublicConfig, actualPrivateConfig;
-	try {
-		// Double-check that files still exist before importing
-		if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
-			console.error('\n❌ Config files are missing after installer check.');
-			console.error('This usually means the installer was cancelled or failed.');
-			console.error('Please run `bun run installer` manually to complete the setup.');
-			console.error('👋 Exiting Vite configuration gracefully...');
-			process.exit(0); // Exit gracefully
-		}
-
-		// Use dynamic import to avoid cache issues
-		const publicModule = await import(publicConfigPath);
-		const privateModule = await import(privateConfigPath);
-		actualPublicConfig = publicModule.publicEnv;
-		actualPrivateConfig = privateModule.privateEnv;
-	} catch (importError) {
-		console.error('\n❌ Failed to import config files after installer.');
-		console.error('This usually means the installer was cancelled or the files are malformed.');
-		console.error('Please run `bun run installer` manually to recreate the config files.');
-		console.error('👋 Exiting Vite configuration gracefully...');
-		console.error('\nError details:', importError);
-		process.exit(0); // Exit gracefully instead of crashing
-	}
-
-	// Validate configs
-	try {
-		validateConfig(publicConfigSchema, actualPublicConfig, 'Public Config (config/public.ts)');
-		validateConfig(privateConfigSchema, actualPrivateConfig, 'Private Config (config/private.ts)');
-	} catch (validationError) {
-		console.error('\n❌ Config validation failed.');
-		console.error(validationError);
-		process.exit(1);
-	}
-
-	// If validation passes, start the app
 	const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+
+	// First-run guard: DB settings live in database; only bare-minimum private.ts for bootstrap
+	// Copies template if needed, opens setup wizard, exits early with minimal plugins
+	const useColor = process.stdout.isTTY && process.env.TERM && process.env.TERM !== 'dumb';
+	const LOG_PREFIX = useColor ? '\x1b[36m[SETUP]\x1b[0m' : '[SETUP]';
+
+	let isSetupComplete = false;
+	try {
+		const { checkSetup } = await import('./cli-installer/check-setup.js');
+		isSetupComplete = checkSetup();
+		console.log(`${LOG_PREFIX} Detected setup status: ${isSetupComplete ? 'complete' : 'incomplete'}`);
+	} catch (setupError) {
+		console.warn(`${LOG_PREFIX} Unable to determine setup status (will assume incomplete):`, (setupError as Error).message);
+		console.log(`${LOG_PREFIX} Visit http://localhost:5173/setup to complete initial configuration.`);
+	}
+
+	if (!isSetupComplete) {
+		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
+
+		const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
+		const templatePath = Path.posix.join(process.cwd(), 'templates/private.template.ts');
+
+		// Ensure template‑based private config (never synthesize dynamically here)
+		if (!existsSync(privateConfigPath)) {
+			const fs = await import('fs/promises');
+			const configDir = Path.posix.join(process.cwd(), 'config');
+			if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
+			try {
+				if (existsSync(templatePath)) {
+					await fs.copyFile(templatePath, privateConfigPath);
+					console.log(`${LOG_PREFIX} Created initial private config from template -> config/private.ts`);
+				} else {
+					console.error(`${LOG_PREFIX} \x1b[31mTemplate missing:\x1b[0m templates/private.template.ts`);
+					throw new Error('private.template.ts missing');
+				}
+			} catch (e) {
+				console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
+			}
+		} else {
+			console.log(`${LOG_PREFIX} Existing private config detected – no copy needed.`);
+		}
+
+		// Open setup wizard after a brief delay (non-blocking)
+		setTimeout(async () => {
+			try {
+				const open = (await import('open')).default;
+				console.log(`${LOG_PREFIX} Opening setup wizard in default browser...`);
+				await open('http://localhost:5173/setup');
+			} catch {
+				console.log(`${LOG_PREFIX} Manual navigation required: http://localhost:5173/setup`);
+			}
+		}, 1500);
+
+		return {
+			plugins: [sveltekit()],
+			server: { fs: { allow: ['static', '.'] } },
+			define: {
+				__VERSION__: JSON.stringify(pkg.version),
+				SUPERFORMS_LEGACY: true,
+				global: 'globalThis'
+			}
+		};
+	}
+
+	console.log(`${LOG_PREFIX} Setup complete – proceeding with full development environment initialization.\n`);
+
 	const userCollections = Path.posix.join(process.cwd(), 'config/collections');
 	const compiledCollections = Path.posix.join(process.cwd(), 'compiledCollections');
 
 	let compileTimeout: NodeJS.Timeout;
-	// Helper function for non-blocking validation during development
-	function tryValidateConfig(privateConfig: unknown, publicConfig: unknown): boolean {
-		try {
-			validateConfig(publicConfigSchema, publicConfig, 'Public Config');
-			validateConfig(privateConfigSchema, privateConfig, 'Private Config');
-			return true;
-		} catch {
-			return false;
-		}
-	}
 
 	return {
 		plugins: [
@@ -141,7 +113,6 @@ export default defineConfig(async () => {
 
 					return () => {
 						server.watcher.on('all', async (event, file) => {
-							// Monitor changes in config/collections/**/*.ts and **/*.js
 							if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
 								console.log(`📁 Collection file event: \x1b[33m${event}\x1b[0m - \x1b[34m${file}\x1b[0m`);
 
@@ -151,7 +122,6 @@ export default defineConfig(async () => {
 										const currentTime = Date.now();
 										console.log(`⚡ Processing collection change: \x1b[33m${event}\x1b[0m for \x1b[34m${file}\x1b[0m`);
 
-										// Rename detection logic
 										if (event === 'unlink' || event === 'unlinkDir') {
 											lastUnlinkFile = file;
 											lastUnlinkTime = currentTime;
@@ -163,11 +133,9 @@ export default defineConfig(async () => {
 											}
 										}
 
-										// Run compilation with cleanup
 										await compile({ userCollections, compiledCollections });
 										console.log('\x1b[32m✅ Compilation and cleanup successful!\x1b[0m\n');
 
-										// Generate types for add/change events
 										if (event === 'add' || event === 'change') {
 											try {
 												await generateContentTypes(server);
@@ -177,13 +145,12 @@ export default defineConfig(async () => {
 											}
 										}
 
-										// Trigger content-structure sync
+										// Mock POST to /api/content-structure to trigger sync
 										{
 											const maxRetries = 3;
 											let retryCount = 0;
 											const syncContentStructure = async () => {
 												try {
-													// Mock request
 													const req = {
 														method: 'POST',
 														url: '/api/content-structure',
@@ -196,7 +163,6 @@ export default defineConfig(async () => {
 														}
 													};
 
-													// Mock response
 													const res = {
 														writeHead: () => {},
 														setHeader: () => {},
@@ -225,60 +191,21 @@ export default defineConfig(async () => {
 											await syncContentStructure();
 										}
 
-										// Notify client to reload collections
-										server.ws.send({
-											type: 'custom',
-											event: 'collections-updated',
-											data: {}
-										});
+										// (Removed WS event 'collections-updated' - no active listeners)
 									} catch (error) {
 										console.error(`❌ Error processing collection file ${event}:`, error);
 									}
 								}, 50);
 							}
 
-							// Handle config file changes with re-validation
-							if (file.includes('config/private.ts') || file.includes('config/public.ts')) {
-								console.log(`⚙️  Config file changed: \x1b[34m${file}\x1b[0m`);
-								console.log('🔍 Re-validating configuration...');
-
-								try {
-									// Clear module cache and re-import configs
-									delete require.cache[require.resolve('./config/private')];
-									delete require.cache[require.resolve('./config/public')];
-
-									const { privateEnv: newPrivateConfig } = await import('./config/private');
-									const { publicEnv: newPublicConfig } = await import('./config/public');
-
-									// Re-validate configurations
-									const validationPassed = tryValidateConfig(newPrivateConfig, newPublicConfig);
-
-									if (!validationPassed) {
-										console.error('❌ Configuration validation failed after changes.');
-										console.error('Please fix the errors and save the file again.');
-									} else {
-										console.log('✅ Configuration re-validated successfully!');
-										// Trigger full page reload for config changes
-										server.ws.send({ type: 'full-reload' });
-									}
-								} catch (error) {
-									console.error('❌ Error re-validating configuration:', error);
-								}
-							}
-
-							// Handle roles file changes
 							if (file.startsWith(Path.posix.join(process.cwd(), 'config/roles.ts'))) {
 								console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
 
 								try {
-									// Clear module cache to force re-import
 									const rolesPath = `file://${Path.posix.resolve(process.cwd(), 'config', 'roles.ts')}`;
-									// Dynamically reimport updated roles & permissions
 									const { roles } = await import(rolesPath + `?update=${Date.now()}`);
-									// Update roles and permissions in the application
 									const { setLoadedRoles } = await import('./src/auth/types');
 									setLoadedRoles(roles);
-									// Trigger full page reload
 									server.ws.send({ type: 'full-reload' });
 									console.log('Roles updated successfully');
 								} catch (error) {
@@ -291,28 +218,25 @@ export default defineConfig(async () => {
 				config() {
 					return {
 						define: {
-							'import.meta.env.root': JSON.stringify(Path.posix.join('/', process.cwd().replace(Path.parse(process.cwd()).root, ''))),
-							'import.meta.env.userCollectionsPath': JSON.stringify(userCollections),
-							'import.meta.env.compiledCollectionsPath': JSON.stringify(compiledCollections)
+							'import.meta.env.userCollectionsPath': JSON.stringify(userCollections)
 						}
 					};
 				},
 				enforce: 'post'
 			},
-			purgeCss(), // Purge unused Tailwind CSS classes
+			purgeCss(),
 			paraglideVitePlugin({
-				project: './project.inlang', // Path to your inlang project settings
-				outdir: './src/paraglide', // This is where you specify the output directory
-				strategy: ['cookie', 'baseLocale'] // Changed to use cookie-based routing
+				project: './project.inlang',
+				outdir: './src/paraglide',
+				strategy: ['cookie', 'baseLocale']
 			}),
 			svelteEmailTailwind({
-				pathToEmailFolder: './src/components/emails' // defaults to '/src/lib/emails'
+				pathToEmailFolder: './src/components/emails'
 			})
 		],
 
-		// Build configuration to support top-level await and modern JavaScript features
 		build: {
-			target: 'esnext', // Support latest JavaScript features including top-level await
+			target: 'esnext',
 			minify: 'esbuild',
 			sourcemap: true,
 			rollupOptions: {
@@ -320,17 +244,14 @@ export default defineConfig(async () => {
 					...builtinModules,
 					...builtinModules.map((m) => `node:${m}`),
 					'typescript',
-					// Additional modules that should not be bundled
 					'ts-node',
 					'ts-loader',
 					'@typescript-eslint/parser',
 					'@typescript-eslint/eslint-plugin'
 				]
-				// The conflicting `output.manualChunks` option has been removed.
 			}
 		},
 
-		// ESBuild configuration to ensure consistency
 		esbuild: {
 			target: 'esnext',
 			supported: {
@@ -339,7 +260,7 @@ export default defineConfig(async () => {
 		},
 
 		server: {
-			fs: { allow: ['static', '.'] } // Allow serving files from specific directories
+			fs: { allow: ['static', '.'] }
 		},
 		resolve: {
 			alias: {
@@ -353,9 +274,8 @@ export default defineConfig(async () => {
 			}
 		},
 		define: {
-			__VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
-			SUPERFORMS_LEGACY: true, // Legacy flag for SuperForms (if needed)
-			// ES Module polyfills for Node.js globals
+			__VERSION__: JSON.stringify(pkg.version),
+			SUPERFORMS_LEGACY: true,
 			global: 'globalThis'
 		},
 		optimizeDeps: {

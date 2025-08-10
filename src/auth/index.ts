@@ -16,7 +16,6 @@
  */
 
 import { dev } from '$app/environment';
-import { privateEnv } from '@root/config/private';
 import { error } from '@sveltejs/kit';
 
 import type { authDBInterface } from './authDBInterface';
@@ -28,39 +27,29 @@ import { corePermissions } from './corePermissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Password utilities
+import { hashPassword, verifyPassword } from '@utils/password';
+
+// Import global settings service for DB-based configuration
+import { getGlobalSetting } from '@src/stores/globalSettings';
+
 export {
-	hasPermissionWithRoles as hasPermission,
-	hasPermissionByAction,
+	checkPermissions,
 	getRolePermissionsWithRoles as checkRolePermissions,
-	isAdminRoleWithRoles,
-	validateUserPermission,
-	registerPermission,
 	getAllPermissions,
 	getPermissionById,
 	getPermissionConfig,
+	getUserRole,
+	getUserRoles,
+	hasPermissionWithRoles as hasPermission,
+	hasPermissionByAction,
+	isAdminRoleWithRoles,
 	permissionConfigs,
 	permissions,
-	checkPermissions,
-	getUserRole,
-	getUserRoles
+	registerPermission,
+	validateUserPermission
 } from './permissions';
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
-
-// Import argon2 and related constants
-let argon2: typeof import('argon2') | null = null;
-if (typeof window === 'undefined') {
-	try {
-		argon2 = await import('argon2');
-	} catch {
-		logger.warn('Argon2 not available in this environment');
-	}
-}
-
-const argon2Attributes = {
-	memory: 65536,
-	time: 3,
-	parallelism: 4
-};
 
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 
@@ -174,16 +163,10 @@ export class Auth {
 			// Normalize email to lowercase
 			const normalizedEmail = email.toLowerCase();
 
-			// Hash the password
+			// Hash the password using centralized utility
 			let hashedPassword: string | undefined;
 			if (!oauth && password !== undefined) {
-				if (!argon2) {
-					throw error(500, 'Argon2 is not available in this environment');
-				}
-				hashedPassword = await argon2.hash(password, {
-					...argon2Attributes,
-					type: argon2.argon2id
-				});
+				hashedPassword = await hashPassword(password);
 			}
 
 			logger.debug('Creating user', { email: normalizedEmail });
@@ -271,7 +254,7 @@ export class Auth {
 	// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
-		expires = new Date(Date.now() + (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000),
+		expires = new Date(Date.now() + (getGlobalSetting<number>('SESSION_EXPIRATION_SECONDS') ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000),
 		isExtended = false
 	}: {
 		user_id: string;
@@ -502,10 +485,13 @@ export class Auth {
 			const user = await this.getUserByEmail(email);
 			if (!user || !user.password) return null;
 
-			// Verify password (assuming argon2 is used)
-			const argon2 = await import('argon2');
-			const isValid = await argon2.verify(user.password, password);
-			if (!isValid) return null;
+			// Verify password using centralized utility
+			const isValid = await verifyPassword(user.password, password);
+
+			if (!isValid) {
+				logger.warn(`Password verification failed for user: ${email}`);
+				return null;
+			}
 
 			// Create session
 			const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -562,14 +548,8 @@ export class Auth {
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User> {
 		try {
 			if (attributes.password && typeof window === 'undefined') {
-				if (!argon2) {
-					throw error(500, 'Argon2 is not available in this environment');
-				}
-				// Hash the password with argon2
-				attributes.password = await argon2.hash(attributes.password, {
-					...argon2Attributes,
-					type: argon2.argon2id
-				});
+				// Hash the password using centralized utility
+				attributes.password = await hashPassword(attributes.password);
 			}
 			if (attributes.email === null) {
 				attributes.email = undefined;
@@ -618,9 +598,8 @@ export class Auth {
 				return { status: false, message: 'User not found' };
 			}
 
-			// Hash password
-			const argon2 = await import('argon2');
-			const hashedPassword = await argon2.hash(password);
+			// Hash password using centralized utility
+			const hashedPassword = await hashPassword(password);
 
 			await this.updateUser(user._id, { password: hashedPassword });
 			return { status: true };
@@ -642,29 +621,6 @@ export function hasRole(user: User, roleName: string): boolean {
 }
 
 // Helper functions for backwards compatibility
-export async function hashPassword(password: string): Promise<string> {
-	if (typeof window !== 'undefined') {
-		throw new Error('Password hashing is only available on the server');
-	}
-
-	const argon2Module = await import('argon2');
-	return argon2Module.hash(password, {
-		memory: 65536,
-		time: 3,
-		parallelism: 4,
-		type: argon2Module.argon2id
-	});
-}
-
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-	if (typeof window !== 'undefined') {
-		throw new Error('Password verification is only available on the server');
-	}
-
-	const argon2Module = await import('argon2');
-	return argon2Module.verify(hash, password);
-}
-
 export function generateRandomToken(length: number = 32): string {
 	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 	let result = '';

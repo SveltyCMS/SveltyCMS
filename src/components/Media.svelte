@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/Media.svelte
 @component
 **Media component with accessibility updates and button nesting resolved**
@@ -14,7 +14,7 @@
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { debounce } from '@utils/utils';
 	import axios from 'axios';
-	import { publicEnv } from '@root/config/public';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -28,7 +28,7 @@
 	let files = $state<MediaImage[]>([]);
 	let search = $state('');
 	let showInfo = $state<boolean[]>([]);
-	let thumbnailSizes = $state<(keyof typeof publicEnv.IMAGE_SIZES)[]>(['sm', 'md', 'lg']);
+	let thumbnailSizes = $state<string[]>(['sm', 'md', 'lg']); // Use string[] instead of keyof typeof publicEnv.IMAGE_SIZES
 
 	// Create a separate state updater function
 	function updateShowInfo() {

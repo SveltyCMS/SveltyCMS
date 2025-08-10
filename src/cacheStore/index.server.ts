@@ -7,13 +7,13 @@
  * - Dynamic cache store selection based on environment configuration
  * - Access to the cache store instance for other modules
  */
-import { privateEnv } from '@root/config/private';
 import { InMemorySessionStore, RedisSessionStore } from '@src/auth/sessionStore';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 export const getCacheStore = () => {
 	if (!global.cacheStore) {
 		// Initialize cache to be used
-		global.cacheStore = privateEnv.USE_REDIS ? new RedisSessionStore() : new InMemorySessionStore();
+		global.cacheStore = getGlobalSetting('USE_REDIS') ? new RedisSessionStore() : new InMemorySessionStore();
 	}
 	return global.cacheStore;
 };

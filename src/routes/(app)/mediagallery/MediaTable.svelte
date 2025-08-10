@@ -26,7 +26,7 @@ Key features:
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import { getMediaUrlSafe } from '@utils/media/mediaUtils';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import type { MediaBase, MediaTypeEnum } from '@utils/media/mediaModels';
 
 	// Components

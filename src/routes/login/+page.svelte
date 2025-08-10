@@ -13,7 +13,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { publicEnv } from '@src/utils/configMigration';
 	import type { PageData } from './$types';
 
 	// Components

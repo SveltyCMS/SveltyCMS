@@ -186,6 +186,7 @@ export interface SystemPreferences extends BaseEntity {
 	value: unknown; // The value of the preference (can be any type)
 	scope: 'user' | 'system' | 'widget'; // The scope of the preference
 	userId?: DatabaseId; // The user ID if the scope is 'user'
+	visibility: 'public' | 'private'; // Visibility of the preference
 }
 
 /** Query Support Types **/

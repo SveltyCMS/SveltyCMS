@@ -92,14 +92,14 @@ UI FIXES:
 	onMount(async () => {
 		isLoading = true;
 		try {
-			const response = await fetch('/api/config/load');
+			const response = await fetch('/api/settings/export');
 			if (!response.ok) {
-				throw new Error('Failed to fetch server configuration.');
+				throw new Error('Failed to fetch server settings snapshot.');
 			}
-			const { data: serverConfig } = await response.json();
+			const { settings } = await response.json();
 
-			const configSource = isPrivate ? serverConfig.privateConfigCategories : serverConfig.publicConfigCategories;
-			const actualConfig = isPrivate ? serverConfig.privateEnv : serverConfig.publicEnv;
+			const configSource = isPrivate ? settings.privateConfigCategories : settings.publicConfigCategories;
+			const actualConfig = isPrivate ? settings.privateEnv : settings.publicEnv;
 			const structure = configSource[configCategory]?.fields;
 
 			if (!structure) {

@@ -1,48 +1,17 @@
 /**
  * @file src/databases/redis.ts
- * @description Redis client initialization and caching operations for the CMS.
- *
- * This module provides functionality for:
- * - Initializing and managing a Redis client connection
- * - Caching and retrieving data using Redis
- * - Handling session caching specifically for user sessions
- * - Error handling and logging for all Redis operations
- * - Connection management with retry mechanisms
- * - Optional data compression for large cached values
- * - Graceful shutdown of the Redis connection
- *
- * Features:
- * - Conditional Redis initialization based on configuration
- * - Generic caching operations (get, set, clear)
- * - Session-specific caching operations
- * - Centralized configuration management
- * - Improved error handling and logging for consistency
- * - Connection management with retries for reliability
- * - Type safety for Redis client
- * - Optional data compression/decompression
- * - Graceful connection closure
- * - CMS-specific caching utilities
- *
- * Usage:
- * This module is used throughout the application for caching purposes,
- * particularly for improving the performance of frequently accessed data
- * managing user sessions, and caching CMS-specific content.
+ * @description Redis cache implementation for SveltyCMS
  */
 
-// Import necessary modules
-import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
-
-// Auth
-import type { User } from '@src/auth/types';
-
-// Redis
-import type { RedisClientType } from 'redis';
-let redisClient: RedisClientType | null = null;
-
-// System logger
 import { logger } from '@utils/logger.svelte';
+
+// Import config from database settings
+import { getGlobalSetting } from '@src/stores/globalSettings';
+
+// Redis client instance
+let redisClient: any = null;
 
 // Redis configuration interface
 interface RedisConfig {
@@ -56,9 +25,9 @@ interface RedisConfig {
 
 // Centralized Redis configuration
 const redisConfig: RedisConfig = {
-	url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
-	password: privateEnv.REDIS_PASSWORD || undefined,
-	useRedis: privateEnv.USE_REDIS,
+	url: `redis://${getGlobalSetting<string>('REDIS_HOST') || 'localhost'}:${getGlobalSetting<string>('REDIS_PORT') || 6379}`,
+	password: getGlobalSetting<string>('REDIS_PASSWORD') || undefined,
+	useRedis: getGlobalSetting<boolean>('USE_REDIS') || false,
 	retryAttempts: 3,
 	retryDelay: 2000, // 2 seconds
 	defaultTTL: 3600 // 1 hour default TTL

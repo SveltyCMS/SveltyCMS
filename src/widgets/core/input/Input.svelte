@@ -19,7 +19,7 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import type { FieldType } from '.';
 
 	// Utils
@@ -53,7 +53,15 @@
 	const fieldName = getFieldName(field);
 
 	// Language handling
-	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
+	let _defaultLanguage = $state('');
+	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : _defaultLanguage.toLowerCase());
+
+	// Load default language
+	$effect(async () => {
+		if (!field?.translated) {
+			_defaultLanguage = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+		}
+	});
 
 	// Character count
 	let count = $derived(value[_language]?.length ?? 0);

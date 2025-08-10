@@ -3,36 +3,38 @@
  * @description: Defines Valibot schemas for various forms used in the application.
  *
  * @requires valibot - For schema definition and validation
- * @requires @root/config/public - For accessing public environment variables
+ * @requires @src/stores/globalSettings - For accessing settings from database
  * @requires @src/paraglide/messages - For internationalized error messages
  */
 
-import { publicEnv } from '@root/config/public';
 import {
-	string,
 	boolean,
-	optional,
-	minLength,
-	maxLength,
-	email as emailValidator,
-	regex,
-	object,
-	pipe,
-	forward,
-	partialCheck,
-	type InferInput,
-	nullable,
-	transform,
-	strictObject,
 	check,
+	email as emailValidator,
+	forward,
+	maxLength,
+	minLength,
+	nullable,
+	object,
+	optional,
+	partialCheck,
+	picklist,
+	pipe,
+	regex,
+	strictObject,
+	string,
+	transform,
 	trim,
-	picklist
+	type InferInput
 } from 'valibot';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
+// Global Settings
+import { getPublicSetting } from '@src/stores/globalSettings';
+
+const MIN_PPASSWORD_LENGTH = getPublicSetting('PASSWORD_LENGTH') || 8;
 
 // --- Reusable Username Schemas ---
 const usernameSchema = pipe(
@@ -153,6 +155,17 @@ export const addUserSchema = object({
 	role: string()
 });
 
+// Setup Admin User Schema
+export const setupAdminSchema = pipe(
+	strictObject({
+		username: usernameSchema,
+		email: emailSchema,
+		password: passwordSchema,
+		confirmPassword: confirmPasswordSchema
+	}),
+	check((input) => input.password === input.confirmPassword, m.formSchemas_Passwordmatch())
+);
+
 // Type Exports
 export type LoginFormSchema = InferInput<typeof loginFormSchema>;
 export type ForgotFormSchema = InferInput<typeof forgotFormSchema>;
@@ -160,6 +173,7 @@ export type ResetFormSchema = InferInput<typeof resetFormSchema>;
 export type SignUpFormSchema = InferInput<typeof signUpFormSchema>;
 export type SignUpOAuthFormSchema = InferInput<typeof signUpOAuthFormSchema>;
 export type AddUserTokenSchema = InferInput<typeof addUserTokenSchema>;
-export type ChangePasswordSchemaType = InferInput<typeof changePasswordSchema>; //  Export type
+export type ChangePasswordSchemaType = InferInput<typeof changePasswordSchema>;
 export type WidgetEmailSchema = InferInput<typeof widgetEmailSchema>;
 export type AddUserSchema = InferInput<typeof addUserSchema>;
+export type SetupAdminSchema = InferInput<typeof setupAdminSchema>;

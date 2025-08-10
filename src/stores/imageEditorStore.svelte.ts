@@ -10,6 +10,7 @@
  */
 
 import type Konva from 'konva';
+import { writable } from 'svelte/store';
 
 // Types
 export interface EditAction {
@@ -177,3 +178,6 @@ function createImageEditorStore() {
 
 // Create and export the store instance
 export const imageEditorStore = createImageEditorStore();
+
+// Export a dedicated writable store for saveEditedImage flag used by the page
+export const saveEditedImage = writable<boolean>(false);

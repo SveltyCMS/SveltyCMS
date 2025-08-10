@@ -21,6 +21,7 @@ export const systemPreferencesSchema = new Schema<SystemPreferences>(
 		value: { type: Schema.Types.Mixed }, // Value of the preference, can be any type
 		scope: { type: String, enum: ['user', 'system', 'widget'], default: 'system' }, // Scope of the preference
 		userId: { type: String, ref: 'auth_users', required: false }, // Optional userId for user-scoped preferences
+		visibility: { type: String, enum: ['public', 'private'], default: 'private' }, // Visibility of the preference
 		preferences: { type: Schema.Types.Mixed }, // <-- Add this line to allow saving preferences
 		createdAt: { type: Date, default: Date.now },
 		updatedAt: { type: Date, default: Date.now }
@@ -33,24 +34,25 @@ export const systemPreferencesSchema = new Schema<SystemPreferences>(
 );
 
 // Indexes
-systemPreferencesSchema.index({ key: 1, scope: 1, userId: 1 }, { unique: true }); // Unique index for key, scope, userId
+systemPreferencesSchema.index({ key: 1, scope: 1, userId: 1, visibility: 1 }, { unique: false }); // Add visibility to index
+systemPreferencesSchema.index({ visibility: 1 }); // Index for visibility queries
 systemPreferencesSchema.index({ scope: 1, userId: 1 }); // Index for scope and userId queries
 systemPreferencesSchema.index({ scope: 1 }); // Index for scope-based queries
 
 // Static methods
 systemPreferencesSchema.statics = {
-	//Get preference by key and scope
-	async getPreferenceByKeyScope(key: string, scope: string, userId?: string): Promise<DatabaseResult<SystemPreferences | null>> {
+	//Get preference by key, scope, and visibility
+	async getPreferenceByKeyScopeVisibility(key: string, scope: string, visibility: string, userId?: string): Promise<DatabaseResult<SystemPreferences | null>> {
 		try {
-			const query: FilterQuery<SystemPreferences> = { key, scope };
+			const query: FilterQuery<SystemPreferences> = { key, scope, visibility };
 			if (scope === 'user' && userId) {
 				query.userId = userId;
 			}
 			const preferenceResult = (await this.findOne(query).lean().exec()) as SystemPreferences | null;
 			if (!preferenceResult) {
-				return { success: true, data: null }; // Explicitly return null for "not found" case
+				return { success: true, data: null };
 			}
-			logger.debug(`Retrieved system preference by key: ${key}, scope: ${scope}, userId: ${userId || 'system'}`);
+			logger.debug(`Retrieved system preference by key: ${key}, scope: ${scope}, visibility: ${visibility}, userId: ${userId || 'system'}`);
 			return { success: true, data: preferenceResult };
 		} catch (error) {
 			logger.error(`Error retrieving system preference: ${error.message}`);
@@ -83,15 +85,15 @@ systemPreferencesSchema.statics = {
 		}
 	},
 
-	// Set a preference value
-	async setPreference(key: string, value: unknown, scope: string, userId?: string): Promise<DatabaseResult<void>> {
+	// Set a preference value with visibility
+	async setPreference(key: string, value: unknown, scope: string, visibility: string, userId?: string): Promise<DatabaseResult<void>> {
 		try {
-			const query: FilterQuery<SystemPreferences> = { key, scope };
+			const query: FilterQuery<SystemPreferences> = { key, scope, visibility };
 			if (scope === 'user' && userId) {
 				query.userId = userId;
 			}
-			await this.updateOne(query, { $set: { value } }, { upsert: true }).exec();
-			logger.debug(`Set system preference for key: ${key}, scope: ${scope}, userId: ${userId || 'system'}`);
+			await this.updateOne(query, { $set: { value, visibility } }, { upsert: true }).exec();
+			logger.debug(`Set system preference for key: ${key}, scope: ${scope}, visibility: ${visibility}, userId: ${userId || 'system'}`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error setting system preference: ${error.message}`);

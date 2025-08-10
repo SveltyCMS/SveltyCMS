@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/number/Number.svelte
 @component
 **Number widget component that allows users to enter a number**
@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store.svelte';

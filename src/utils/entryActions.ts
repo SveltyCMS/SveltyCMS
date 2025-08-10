@@ -6,7 +6,6 @@
 import type { StatusType } from '@src/content/types';
 import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
 import type { ModalStore, ToastStore } from '@skeletonlabs/skeleton';
-import { publicEnv } from '@root/config/public';
 import { batchUpdateEntries, batchDeleteEntries, createClones, updateEntry, createEntry, invalidateCollectionCache } from './apiClient';
 import * as m from '@src/paraglide/messages';
 

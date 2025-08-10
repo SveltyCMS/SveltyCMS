@@ -8,11 +8,11 @@
  * - Redirects to the first collection with the correct language
  * - Throws an error if there are no collections *
  */
-import { publicEnv } from '@root/config/public';
+import { getPublicSettings } from '@src/stores/globalSettings';
 
-import { redirect, error } from '@sveltejs/kit';
-import { dbInitPromise } from '@src/databases/db';
 import { contentManager } from '@root/src/content/ContentManager';
+import { dbInitPromise } from '@src/databases/db';
+import { error, redirect } from '@sveltejs/kit';
 
 import type { PageServerLoad } from './$types';
 
@@ -23,6 +23,34 @@ import { roles } from '@root/config/roles';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
+	// Get settings once at the beginning
+	const settings = getPublicSettings();
+
+	try {
+		// Check if system is configured
+		const setupCompleted = settings.SETUP_COMPLETED;
+		const siteName = settings.SITE_NAME;
+		const isConfigured = setupCompleted || (siteName && siteName !== 'SveltyCMS');
+
+		logger.debug('Setup check:', { setupCompleted, siteName, isConfigured });
+
+		// If not configured, redirect to setup
+		if (!isConfigured) {
+			logger.debug('System not configured, redirecting to setup');
+			throw redirect(302, '/setup');
+		}
+	} catch (error) {
+		// If there's an error checking setup status, assume setup is needed
+		if (error instanceof Error && error.message.includes('redirect')) {
+			throw error; // Re-throw redirect errors
+		}
+
+		// For other errors (like during server restart), give a brief moment and redirect to setup
+		logger.error('Error checking setup status, redirecting to setup:', error);
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+		throw redirect(302, '/setup');
+	}
+
 	// Unauthenticated users should be redirected to the login page
 	if (!locals.user) {
 		logger.debug('User is not authenticated, redirecting to login');
@@ -61,7 +89,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				// Determine the redirect language based on user preference or system default
 				const contentLanguageCookie = url.searchParams.get('contentLanguage');
 				const userLanguage = locals.user?.systemLanguage;
-				const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				const redirectLanguage = contentLanguageCookie || userLanguage || settings.DEFAULT_CONTENT_LANGUAGE || 'en';
 				redirectUrl = `/${redirectLanguage}${firstCollection.path}`;
 			} else {
 				// Fallback: Get content structure
@@ -78,7 +106,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						const firstCollectionNode = sortedCollections[0];
 						const contentLanguageCookie = url.searchParams.get('contentLanguage');
 						const userLanguage = locals.user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+						const redirectLanguage = contentLanguageCookie || userLanguage || settings.DEFAULT_CONTENT_LANGUAGE || 'en';
 						const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
 						redirectUrl = `/${redirectLanguage}${collectionPath}`;
 					}
@@ -93,7 +121,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					.then(({ prefetchFirstCollectionData }) => {
 						const contentLanguageCookie = url.searchParams.get('contentLanguage');
 						const userLanguage = locals.user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+						const redirectLanguage = contentLanguageCookie || userLanguage || settings.DEFAULT_CONTENT_LANGUAGE || 'en';
 						prefetchFirstCollectionData(redirectLanguage, fetch).catch((err) => {
 							logger.debug('Prefetch failed during root redirect:', err);
 						});
@@ -110,6 +138,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		if (typeof err === 'object' && err !== null && 'status' in err) {
 			throw err;
 		}
+
+		// If database initialization failed, redirect to setup
+		if (err instanceof Error && (err.message.includes('MongoDB connection failed') || err.message.includes('Database'))) {
+			logger.error('Database initialization failed, redirecting to setup:', err.message);
+			throw redirect(302, '/setup');
+		}
+
 		// Log other unexpected errors
 		console.error('err', err); // Keep console.error for visibility during dev
 		logger.error('Unexpected error in root page load function', err);

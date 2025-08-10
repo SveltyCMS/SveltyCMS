@@ -2,10 +2,10 @@
 @file src/components/system/icons/Seasons.svelte
 @component Seasons Component
 
-@description 
+@description
 Dynamically displays seasonal greetings and festival-based UI decorations based on the configured `publicEnv.SEASON_REGION`. Supports regional celebrations for Western Europe, East Asia, and South Asia, with conditional rendering of festive messages and animations.
 
-@features 
+@features
 - Regional support: Western Europe, East Asia, South Asia.
 - Detects and highlights key festivals such as:
   - **Western Europe**: New Year, Valentine's Day, Easter, May Day, Halloween, Christmas.
@@ -17,8 +17,9 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { Confetti } from 'svelte-confetti';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -131,8 +132,8 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	const isNavratri = Math.abs(date.getTime() - navratri.getTime()) < 9 * 24 * 60 * 60 * 1000; // 9 days
 </script>
 
-{#if publicEnv.SEASONS === true}
-	{#if publicEnv.SEASON_REGION === 'Western_Europe'}
+{#if getGlobalSetting('SEASONS') === true}
+	{#if getGlobalSetting('SEASON_REGION') === 'Western_Europe'}
 		{#if isNewYear && date.getMonth() !== 11}
 			<!-- New Year -->
 			<div class="-translate-y-1/2> absolute -top-28 left-1/2 z-10 -translate-x-1/2">
@@ -198,7 +199,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 	{/if}
 
-	{#if publicEnv.SEASON_REGION === 'East_Asia'}
+	{#if getGlobalSetting('SEASON_REGION') === 'East_Asia'}
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
@@ -236,7 +237,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 	{/if}
 
-	{#if publicEnv.SEASON_REGION === 'South_Asia'}
+	{#if getGlobalSetting('SEASON_REGION') === 'South_Asia'}
 		{#if isDiwali}
 			<!-- Diwali -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">

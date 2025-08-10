@@ -8,8 +8,7 @@
  */
 
 import { dev } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
@@ -20,12 +19,12 @@ function getOAuthRedirectUri(): string {
 	// Use SvelteKit's built-in environment detection
 	if (dev) {
 		logger.debug('🔧 Development mode detected - using development host');
-		return `${publicEnv.HOST_DEV}/login/oauth`;
+		return `${getGlobalSetting('HOST_DEV')}/login/oauth`;
 	}
 
 	// For production builds, use the production host
 	logger.debug('🚀 Production mode detected - using production host');
-	return `${publicEnv.HOST_PROD}/login/oauth`;
+	return `${getGlobalSetting('HOST_PROD')}/login/oauth`;
 }
 
 // Google OAuth
@@ -33,7 +32,7 @@ let googleAuthClient: OAuth2Client | null = null;
 
 // Initialize Google OAuth client with ID, secret, and redirect URL
 async function googleAuth(): Promise<OAuth2Client | null> {
-	if (!privateEnv.GOOGLE_CLIENT_ID || !privateEnv.GOOGLE_CLIENT_SECRET) {
+	if (!getGlobalSetting('GOOGLE_CLIENT_ID') || !getGlobalSetting('GOOGLE_CLIENT_SECRET')) {
 		logger.warn('Google client ID and secret are not provided. OAuth unavailable.');
 		return null;
 	}
@@ -45,7 +44,7 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 			const redirectUri = getOAuthRedirectUri();
 			logger.debug(`Using OAuth redirect URI: \x1b[34m${redirectUri}\x1b[0m`);
 
-			googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
+			googleAuthClient = new google.auth.OAuth2(getGlobalSetting('GOOGLE_CLIENT_ID'), getGlobalSetting('GOOGLE_CLIENT_SECRET'), redirectUri);
 		}
 
 		return googleAuthClient;

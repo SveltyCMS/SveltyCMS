@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/login/components/SignUp.svelte
 @component
 **SignUp component with optional OAuth support**
@@ -13,7 +13,7 @@ Features:
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { privateEnv } from '@root/config/private';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	import type { PageData } from '../$types';
 
@@ -403,7 +403,7 @@ Features:
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !privateEnv.USE_GOOGLE_OAUTH || !showOAuth}
+					{#if !getGlobalSetting<boolean>('USE_GOOGLE_OAUTH') || !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}

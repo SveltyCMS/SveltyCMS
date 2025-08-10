@@ -3,7 +3,7 @@
  * @description API endpoint for specific system virtual folder operations
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Database
@@ -34,7 +34,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		if (folderId === 'root') {
 			// Root folder - get top-level folders and files
-			folders = await dbAdapter.getAll('system_virtual_folders', { parentId: null });
+			if (!dbAdapter?.systemVirtualFolder) {
+				throw error(500, 'Virtual folder adapter not available');
+			}
+			const vfRes = await dbAdapter.systemVirtualFolder.getByParentId(null);
+			if (!vfRes.success) {
+				const details = vfRes.error instanceof Error ? vfRes.error.message : String(vfRes.error);
+				throw error(500, `Failed to fetch virtual folders: ${details}`);
+			}
+			folders = vfRes.data ?? [];
 
 			// Get media files in root
 			const [images, documents, audio, videos] = await Promise.all([
@@ -47,14 +55,23 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
 			// Specific folder
-			currentFolder = await dbAdapter.getOneById('system_virtual_folders', folderId);
+			if (!dbAdapter?.systemVirtualFolder) {
+				throw error(500, 'Virtual folder adapter not available');
+			}
+			const byId = await dbAdapter.systemVirtualFolder.getById(folderId);
+			if (!byId.success) {
+				const details = byId.error instanceof Error ? byId.error.message : String(byId.error);
+				throw error(500, `Failed to fetch folder: ${details}`);
+			}
+			currentFolder = byId.data;
 
 			if (!currentFolder) {
 				throw error(404, 'Folder not found');
 			}
 
 			// Get subfolders
-			folders = await dbAdapter.getAll('system_virtual_folders', { parentId: folderId });
+			const vfChildren = await dbAdapter.systemVirtualFolder.getByParentId(folderId);
+			folders = vfChildren.success ? (vfChildren.data ?? []) : [];
 
 			// Get media files in this folder
 			const [images, documents, audio, videos] = await Promise.all([

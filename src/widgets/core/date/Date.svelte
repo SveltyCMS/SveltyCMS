@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/core/date/Date.svelte
 @component
 **Date widget component to display date field**
@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
@@ -37,9 +37,14 @@
 	value = collectionValue.value[fieldName] || value;
 
 	const _data = $state<Record<string, string>>(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let _language = $state('');
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
+
+	// Load default language
+	$effect(async () => {
+		_language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+	});
 
 	export const WidgetData = async () => _data;
 

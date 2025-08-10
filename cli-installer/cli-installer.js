@@ -8,9 +8,9 @@
 - Handles user input
 */
 
+import { intro, outro } from '@clack/prompts';
 import fs from 'fs';
 import path from 'path';
-import { intro, outro } from '@clack/prompts';
 import pc from 'picocolors';
 
 // Components
@@ -18,6 +18,9 @@ import { backupRestorePrompt } from './backupRestore.js';
 import { configurationPrompt } from './configuration.js';
 import { startOrInstallPrompt } from './startOrInstallPrompt.js';
 import { startProcess } from './startProcess.js';
+
+// Add import/export commands for settings
+import { exportSettings, importSettings } from './settingsImportExport.js';
 
 // Utility function for consistent note formatting (without terminal tip)
 export const createConfigNote = (message) => {
@@ -83,6 +86,10 @@ export async function main() {
 			}
 		} else if (projectStart === 'start') {
 			await startProcess();
+		} else if (projectStart === 'export') {
+			await exportSettings();
+		} else if (projectStart === 'import') {
+			await importSettings();
 		}
 	} catch (error) {
 		// Handle different types of errors

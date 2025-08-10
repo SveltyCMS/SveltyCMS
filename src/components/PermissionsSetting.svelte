@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/PermissionsSetting.svelte
 @component
 **Enhanced Permissions Setting Component for managing widget field permissions**
@@ -17,7 +17,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { roles } from '@root/config/roles';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 	import type { Role } from '@src/auth/types';
 	import { PermissionAction } from '@src/auth/types';
 	// Skeleton
@@ -42,7 +42,7 @@ Features:
 		const initializedPermissions = { ...permissions };
 
 		// Ensure all roles have entries
-		roles.forEach((role) => {
+		getGlobalSetting('ROLES').forEach((role) => {
 			if (!initializedPermissions[role._id]) {
 				initializedPermissions[role._id] = {
 					create: true,
@@ -69,7 +69,7 @@ Features:
 		}
 
 		// Don't allow modifying admin permissions
-		const role = roles.find((r) => r._id === roleId);
+		const role = getGlobalSetting('ROLES').find((r) => r._id === roleId);
 		if (role?.isAdmin) {
 			showToast('Cannot modify permissions for admin role', 'warning');
 			return;
@@ -111,7 +111,7 @@ Features:
 	}
 
 	// Filter roles based on search
-	let filteredRoles = $derived(roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
+	let filteredRoles = $derived(getGlobalSetting('ROLES').filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Icons for different permission actions
 	const actionIcons: Record<PermissionAction, string> = {

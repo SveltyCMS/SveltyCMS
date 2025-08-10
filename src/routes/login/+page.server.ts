@@ -13,11 +13,11 @@
  * - Proper typing for user data
  */
 
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { getGlobalSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/utils/configMigration';
 
 import { dev } from '$app/environment';
-import { redirect, fail, type Actions, type Cookies } from '@sveltejs/kit';
+import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Rate Limiter
@@ -27,21 +27,20 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { invalidateUserCountCache } from '@src/hooks.server';
 
 // Superforms
-import { superValidate } from 'sveltekit-superforms/server';
+import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { message } from 'sveltekit-superforms/server';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { message, superValidate } from 'sveltekit-superforms/server';
 
 // Auth
-import { auth, dbInitPromise } from '@src/databases/db';
 import { generateGoogleAuthUrl, googleAuth } from '@src/auth/googleAuth';
-import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
+import { auth, dbInitPromise } from '@src/databases/db';
+import { google } from 'googleapis';
 
 // Stores
-import { get } from 'svelte/store';
-import { systemLanguage } from '@stores/store.svelte';
 import type { Locale } from '@src/paraglide/runtime';
+import { systemLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';
@@ -52,14 +51,14 @@ import { logger } from '@utils/logger.svelte';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
-import { getFirstCollectionInfo, fetchAndCacheCollectionData } from '@utils/collections-prefetch';
+import { fetchAndCacheCollectionData, getFirstCollectionInfo } from '@utils/collections-prefetch';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY,
+		secret: getGlobalSetting<string>('JWT_SECRET_KEY'),
 		rate: [50, 'm'], // 50 requests per minute per cookie
 		preflight: true
 	}
@@ -151,7 +150,7 @@ async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promis
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
-	if (!privateEnv.USE_GOOGLE_OAUTH) {
+	if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) {
 		return false;
 	}
 
@@ -317,7 +316,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
-		if (privateEnv.USE_GOOGLE_OAUTH && code) {
+		if (getGlobalSetting<boolean>('USE_GOOGLE_OAUTH') && code) {
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
@@ -545,8 +544,8 @@ export const actions: Actions = {
 	signUp: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -766,7 +765,7 @@ export const actions: Actions = {
 			logger.debug(`Sign-up OAuth form invalid: ${form.message}`);
 			return fail(400, { form });
 		}
-		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { form, message: 'Too many requests.' });
 		}
@@ -775,7 +774,7 @@ export const actions: Actions = {
 	},
 
 	signInOAuth: async (event) => {
-		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
@@ -791,8 +790,8 @@ export const actions: Actions = {
 	signIn: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -860,8 +859,8 @@ export const actions: Actions = {
 	forgotPW: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -936,8 +935,8 @@ export const actions: Actions = {
 	resetPW: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {

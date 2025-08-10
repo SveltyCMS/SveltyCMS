@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/+page.svelte
 @component
 **This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings.**
@@ -136,6 +136,19 @@ This version includes corrections for permission contexts and link typos.
 			permission: {
 				// FIX: Changed from 'system:settings' to 'config:settings' to match +page.server.ts
 				contextId: 'config:settings',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			}
+		},
+		{
+			id: 'importExport',
+			href: '/config/import-export',
+			label: 'Import & Export',
+			icon: 'mdi:database-import',
+			classes: 'variant-ghost-warning dark:text-white',
+			permission: {
+				contextId: 'config:importExport',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'system'

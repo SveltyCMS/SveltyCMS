@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/SiteName.svelte
 @component
 **SiteName component for displaying the site name**
@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { page } from '$app/stores';
 
 	interface Props {
 		char?: string | null;
@@ -19,20 +19,16 @@
 
 	let { char = null }: Props = $props();
 
-	const siteName = publicEnv.SITE_NAME;
+	// Get site name from page data (loaded by layout.server.ts)
+	const siteName = $derived($page.data.settings?.SITE_NAME || 'SveltyCMS');
 	const targetSiteName = 'SveltyCMS';
 
-	let mainPart = $state(siteName);
-	let lastPart = $state('');
-
-	if (siteName === targetSiteName) {
-		mainPart = siteName.slice(0, -3); // Get everything except the last character
-		lastPart = siteName.slice(-3); // Get only the last CMS characters
-	}
+	const mainPart = $derived(siteName === targetSiteName ? siteName.slice(0, -3) : siteName);
+	const lastPart = $derived(siteName === targetSiteName ? siteName.slice(-3) : '');
 </script>
 
 {#if char !== null}
-	<span class="font-bold">
+	<span class="text-left font-bold">
 		{#if siteName === targetSiteName && mainPart.includes(char)}
 			{char}
 		{:else if siteName === targetSiteName && lastPart.includes(char)}
@@ -42,7 +38,7 @@
 		{/if}
 	</span>
 {:else}
-	<span class="font-bold">
+	<span class="text-left font-bold">
 		{#if siteName === targetSiteName}
 			{mainPart}<span class="text-primary-500">{lastPart}</span>
 		{:else}

@@ -12,9 +12,10 @@
  * - Fetches and returns the content structure for the website
  */
 
-import type { LayoutServerLoad } from './$types';
 import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
+import { getGlobalSetting } from '@src/stores/globalSettings';
+import type { LayoutServerLoad } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -22,6 +23,8 @@ import { logger } from '@utils/logger.svelte';
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const { theme, user } = locals;
+	// Get site name from database settings
+	const siteName = getGlobalSetting('SITE_NAME') || 'SveltyCMS';
 
 	try {
 		await contentManager.initialize();
@@ -53,7 +56,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		return {
 			theme: theme || DEFAULT_THEME,
 			contentStructure: contentStructure,
-			user: freshUser
+			user: freshUser,
+			settings: {
+				SITE_NAME: siteName
+			}
 		};
 	} catch (error) {
 		console.error('Failed to load layout data:', error);
@@ -64,7 +70,10 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			theme: theme || DEFAULT_THEME,
 			user,
 			contentStructure: [],
-			error: 'Failed to load collection data'
+			error: 'Failed to load collection data',
+			settings: {
+				SITE_NAME: siteName
+			}
 		};
 	}
 };

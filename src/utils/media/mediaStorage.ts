@@ -4,30 +4,30 @@
  * This module handles all file system operations and media processing.
  */
 
-import { publicEnv } from '@root/config/public';
-import { error } from '@sveltejs/kit';
-import Path from 'path';
-import mime from 'mime-types';
-import crypto from 'crypto';
-import Sharp from 'sharp';
 import { setCache } from '@root/src/databases/redis';
-import type { MediaRemoteVideo, MediaAccess, ResizedImage } from './mediaModels';
-import { MediaTypeEnum, Permission } from './mediaModels';
-import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
-import { sanitize } from '@utils/utils';
 import { dbAdapter } from '@src/databases/db';
+import { error } from '@sveltejs/kit';
+import { sanitize } from '@utils/utils';
+import crypto from 'crypto';
+import mime from 'mime-types';
+import Path from 'path';
+import Sharp from 'sharp';
+import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
+import { MediaTypeEnum, Permission } from './mediaModels';
+import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Image sizes configuration
-type ImageSizesType = typeof publicEnv.IMAGE_SIZES & {
+const defaultImageSizes = { sm: 600, md: 900, lg: 1200 };
+type ImageSizesType = typeof defaultImageSizes & {
 	original: 0;
 	thumbnail: 200;
 };
 
 const SIZES: ImageSizesType = {
-	...publicEnv.IMAGE_SIZES,
+	...(publicEnv.IMAGE_SIZES || defaultImageSizes),
 	original: 0,
 	thumbnail: 200
 } as const;

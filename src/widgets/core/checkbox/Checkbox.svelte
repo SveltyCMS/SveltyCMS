@@ -11,13 +11,13 @@
 - `value`: any
 
 ### Features
-- Translatable	
+- Translatable
 -->
 
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores

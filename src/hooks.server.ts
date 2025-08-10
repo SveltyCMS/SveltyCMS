@@ -15,18 +15,18 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
 import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
 // Stores
+import { enableSetupMode, getGlobalSetting, loadGlobalSettings } from '@src/stores/globalSettings';
 import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { roles, initializeRoles } from '@root/config/roles';
+import { initializeRoles, roles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
@@ -56,35 +56,47 @@ const sessionMetrics = {
 	rotationAttempts: new Map<string, number>()
 };
 
-// Initialize rate limiters
-const limiter = new RateLimiter({
-	IP: [300, 'h'], // 300 requests per hour per IP
-	IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
-	cookie: {
-		name: 'ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY as string,
-		rate: [500, 'm'], // 500 requests per minute per cookie
-		preflight: true
-	}
-});
+// Rate limiters will be initialized after global settings are loaded
+let limiter: RateLimiter;
+let refreshLimiter: RateLimiter;
+let apiLimiter: RateLimiter;
 
-// Stricter rate limiter for token refresh operations
-const refreshLimiter = new RateLimiter({
-	IP: [10, 'm'], // 10 requests per minute per IP
-	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
-	cookie: {
-		name: 'refreshlimit',
-		secret: privateEnv.JWT_SECRET_KEY as string,
-		rate: [10, 'm'], // 10 requests per minute per cookie
-		preflight: true
+// Initialize rate limiters after global settings are available
+function initializeRateLimiters() {
+	if (!limiter) {
+		limiter = new RateLimiter({
+			IP: [300, 'h'], // 300 requests per hour per IP
+			IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
+			cookie: {
+				name: 'ratelimit',
+				secret: getGlobalSetting('JWT_SECRET_KEY'),
+				rate: [500, 'm'], // 500 requests per minute per cookie
+				preflight: true
+			}
+		});
 	}
-});
 
-// Get a stricter rate limiter for API requests
-const apiLimiter = new RateLimiter({
-	IP: [500, 'm'], // 500 requests per minute per IP
-	IPUA: [200, 'm'] // 200 requests per minute per IP+User-Agent
-});
+	if (!refreshLimiter) {
+		refreshLimiter = new RateLimiter({
+			IP: [10, 'm'], // 10 requests per minute per IP
+			IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
+			cookie: {
+				name: 'refreshlimit',
+				secret: getGlobalSetting('JWT_SECRET_KEY'),
+				rate: [10, 'm'], // 10 requests per minute per cookie
+				preflight: true
+			}
+		});
+	}
+
+	if (!apiLimiter) {
+		// Get a stricter rate limiter for API requests
+		apiLimiter = new RateLimiter({
+			IP: [500, 'm'], // 500 requests per minute per IP
+			IPUA: [200, 'm'] // 200 requests per minute per IP+User-Agent
+		});
+	}
+}
 
 // Check if a given pathname is a static asset
 const isStaticAsset = (pathname: string): boolean =>
@@ -102,7 +114,7 @@ const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login'
 
 // Check if the route is public or an OAuth route
 const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup'];
 	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
 };
 
@@ -482,6 +494,11 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
+	// Skip rate limiting if limiters aren't initialized yet (e.g., during startup)
+	if (!limiter || !apiLimiter) {
+		return resolve(event);
+	}
+
 	const currentLimiter = event.url.pathname.startsWith('/api/') ? apiLimiter : limiter;
 	if (await currentLimiter.isLimited(event)) {
 		logger.warn(`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, endpoint: \x1b[34m${event.url.pathname}\x1b[0m`);
@@ -528,7 +545,9 @@ async function handleSessionRotation(
 			lastRefreshAttempt.set(session_id, now);
 			sessionMetrics.rotationAttempts.set(session_id, (sessionMetrics.rotationAttempts.get(session_id) || 0) + 1);
 
-			if (await refreshLimiter.isLimited(event)) {
+			// Skip rate limiting if refreshLimiter isn't initialized yet
+			const rateLimited = refreshLimiter ? await refreshLimiter.isLimited(event) : false;
+			if (rateLimited) {
 				logger.warn(`Refresh rate limit exceeded for user \x1b[34m${user._id}\x1b[0m, IP: \x1b[34m${getClientIp(event)}\x1b[0m`);
 			} else {
 				try {
@@ -703,8 +722,17 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			}
 
 			if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-				logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
-				throw redirect(302, '/');
+				// Check if setup is completed before redirecting from setup page
+				const isSetupRoute = url.pathname.startsWith('/setup');
+				const setupCompleted = getGlobalSetting('SETUP_COMPLETED');
+
+				if (isSetupRoute && !setupCompleted) {
+					// Allow access to setup page if setup is not completed
+					logger.debug(`Setup not completed, allowing access to setup page: \x1b[34m${url.pathname}\x1b[0m`);
+				} else {
+					logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
+					throw redirect(302, '/');
+				}
 			}
 		} else {
 			logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
@@ -730,12 +758,19 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		// Provide a generic, safe error message to the client
 		if (url.pathname.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Internal Server Error', message: 'An unexpected server error occurred.' }), {
-				status: 500,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({
+					error: 'Internal Server Error',
+					message: err instanceof Error ? err.message : 'An unexpected server error occurred.',
+					details: err instanceof Error ? err.stack : undefined
+				}),
+				{
+					status: 500,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			);
 		}
-		throw error(500, 'An unexpected error occurred. Please try again later.');
+		throw error(500, err instanceof Error ? err.message : 'An unexpected error occurred. Please try again later.');
 	}
 };
 
@@ -798,3 +833,58 @@ export const cleanupSessionMetrics = (): void => {
 		logger.info(`Cleaned up metrics for ${cleanedCount} stale sessions.`);
 	}
 };
+
+// Load global settings from DB at server startup
+
+// Enable setup mode initially to prevent startup errors
+enableSetupMode();
+
+// Only try to load settings if not in build mode
+if (!building) {
+	let shouldAttemptDbLoad = true;
+	try {
+		const { privateEnv } = await import('@root/config/private');
+		const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
+		const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
+		if (dbHostEmpty || dbNameEmpty) {
+			console.log('ℹ️ DB credentials not provided yet (DB_HOST / DB_NAME empty) – staying in setup mode, skipping settings load.');
+			shouldAttemptDbLoad = false;
+		}
+	} catch {
+		// File missing or import error; remain in setup mode and skip DB load.
+		shouldAttemptDbLoad = false;
+	}
+
+	if (shouldAttemptDbLoad) {
+		try {
+			await loadGlobalSettings();
+			initializeRateLimiters();
+			console.log('✅ Settings loaded from database');
+		} catch (error) {
+			console.log('⚠️ Database not configured yet, using setup mode:', error.message);
+			enableSetupMode();
+			shouldAttemptDbLoad = false;
+		}
+	}
+
+	// Check if we need to seed default settings (if database is empty)
+	try {
+		if (shouldAttemptDbLoad) {
+			const siteName = getGlobalSetting('SITE_NAME');
+			if (!siteName) {
+				console.log('🌱 No settings found in database. Seeding default settings...');
+				try {
+					const { seedDefaultSettings } = await import('@src/databases/seedSettings');
+					await seedDefaultSettings();
+					await loadGlobalSettings(); // Reload settings after seeding
+					initializeRateLimiters(); // Re-initialize rate limiters after seeding
+					console.log('✅ Default settings seeded successfully');
+				} catch (error) {
+					console.error('❌ Failed to seed default settings:', error);
+				}
+			}
+		}
+	} catch (error) {
+		console.log('⚠️ Could not check for seeding, continuing in setup mode:', error.message);
+	}
+}

@@ -14,7 +14,7 @@
  * - Robust error handling and logging.
  */
 
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
@@ -22,6 +22,9 @@ import { auth } from '@src/databases/db';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
+
+// Password utility
+import { verifyPassword } from '@utils/password';
 
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 	// The main try...catch block is for unexpected server errors (e.g., DB connection fails).
@@ -59,8 +62,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 			throw error(403, 'Your account has been suspended. Please contact support.');
 		}
 
-		const argon2 = await import('argon2');
-		const isValidPassword = await argon2.verify(user.password, password);
+		const isValidPassword = await verifyPassword(user.password, password);
 
 		if (!isValidPassword) {
 			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, { userId: user._id });

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/seo/Seo.svelte
 @component
 **SEO widget for managing meta title, description, and robots meta tags**
@@ -17,7 +17,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
@@ -53,7 +53,14 @@
 
 	// State variables
 	let _data = $state(mode.value === 'create' ? {} : value);
-	let _language = $state(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _language = $state(field?.translated ? $contentLanguage : '');
+
+	// Load default language if needed
+	$effect(async () => {
+		if (!field?.translated && !_language) {
+			_language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+		}
+	});
 	let title = $state('');
 	let description = $state('');
 	let robotsMeta = $state('index, follow');

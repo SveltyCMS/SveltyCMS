@@ -15,13 +15,24 @@
  */
 
 import { browser, building } from '$app/environment';
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
+
+// Safe getter that handles when settings aren't loaded yet
+function safeGetPublicSetting<T>(key: string, defaultValue: T): T {
+	try {
+		const value = getPublicSetting<T>(key);
+		return value !== undefined ? value : defaultValue;
+	} catch {
+		// Settings not loaded yet, return default
+		return defaultValue;
+	}
+}
 
 // Check if running on the server
 const isServer = !browser;
 
 // Type Definitions
-type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
+type LogLevel = string; // Use string instead of relying on publicEnv at compile time
 
 // Define a type for loggable values
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
@@ -66,10 +77,10 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 };
 
 // Configuration with defaults using $state
-// Defaults are aligned with publicEnv for consistency, but can be overridden
+// Defaults are aligned with database settings for consistency, but can be overridden
 const config = $state({
-	logRotationSize: publicEnv.LOG_ROTATION_SIZE || 5 * 1024 * 1024, // 5MB
-	logRetentionDays: publicEnv.LOG_RETENTION_DAYS || 2, // Default to 2 days
+	logRotationSize: safeGetPublicSetting('LOG_ROTATION_SIZE', 5 * 1024 * 1024), // 5MB
+	logRetentionDays: safeGetPublicSetting('LOG_RETENTION_DAYS', 2), // Default to 2 days
 	logDirectory: 'logs',
 	logFileName: 'app.log',
 	errorTrackingEnabled: false,
@@ -95,11 +106,12 @@ const state = $state({
 
 // Helper Functions
 const isLogLevelEnabled = (level: LogLevel): boolean => {
-	// Ensure publicEnv.LOG_LEVELS is properly initialized and includes the level
-	if (!publicEnv.LOG_LEVELS || !Array.isArray(publicEnv.LOG_LEVELS)) {
+	// Get log levels from database settings, with fallback to default levels
+	const logLevels = safeGetPublicSetting('LOG_LEVELS', ['error', 'warn', 'info', 'debug']);
+	if (!Array.isArray(logLevels)) {
 		return false; // Or handle as an error/default to a safe level
 	}
-	return publicEnv.LOG_LEVELS.includes(level);
+	return logLevels.includes(level);
 };
 
 // Format timestamp in gray color

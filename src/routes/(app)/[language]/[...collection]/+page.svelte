@@ -1,15 +1,16 @@
-<!-- 
-@file src/routes/(app)/[language]/[collection]/+page.svelte  
+<!--
+@file src/routes/(app)/[language]/[collection]/+page.svelte
 @component
 **This component handles the content and logic for a specific page within the application**
 
 ## Features:
-It dynamically fetches and displays data based on the current language and collection route parameters. 
+It dynamically fetches and displays data based on the current language and collection route parameters.
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Types
 	import type { User } from '@src/auth/types';
@@ -34,6 +35,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			collection: Schema & { module: string | undefined };
 			contentLanguage: string;
 			user: User;
+			siteName: string;
 		};
 	}
 
@@ -93,9 +95,10 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		// Only set language from URL if user hasn't initiated a language change
 		if (!userInitiatedLanguageChange) {
-			if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
+			const availableContentLanguages = getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+			if (!(availableContentLanguages as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
 				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
-				if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
+				if (!contentLanguage.value || !(availableContentLanguages as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
 					console.log('[PAGE DEBUG] Setting invalid language fallback to en');
 					contentLanguage.set('en');
 				}
@@ -118,7 +121,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 </script>
 
 <svelte:head>
-	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - Your Site Title</title>
+	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - {data.siteName}</title>
 	<meta name="description" content={`View and manage entries for ${collection.value?.name?.toString()}.`} />
 </svelte:head>
 <div class="content h-full">

@@ -67,6 +67,11 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
 
 // Check if a user has permission by action and type
 export function hasPermissionByAction(user: User, action: string, type: string, contextId?: string, userRoles?: Role[]): boolean {
+	// If user is null, they don't have any permissions
+	if (!user) {
+		return false;
+	}
+
 	let roles: Role[] = userRoles || []; // If no roles provided, try to get them from a global location
 	if (!userRoles) {
 		try {

@@ -7,7 +7,6 @@
 import { contentManager } from '@root/src/content/ContentManager';
 import { logger } from '@utils/logger.svelte';
 import { dev } from '$app/environment';
-import { publicEnv } from '@root/config/public';
 
 interface PrefetchedData {
 	collectionId: string;

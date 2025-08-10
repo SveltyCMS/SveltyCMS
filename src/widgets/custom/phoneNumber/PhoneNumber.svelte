@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/phoneNumber/PhoneNumber.svelte
 @component
 **PhoneNumber widget component that allows users to enter a phone number**
@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/address/Address.svelte
 @component
 **Address widget**
@@ -17,7 +17,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { privateEnv } from '@root/config/private';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
@@ -45,8 +45,8 @@
 	import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 
 	// Initialize Mapbox
-	const mapboxToken = privateEnv.MAPBOX_API_TOKEN;
-	const isMapboxEnabled = privateEnv.USE_MAPBOX && mapboxToken;
+	const mapboxToken = getGlobalSetting<string>('MAPBOX_API_TOKEN');
+	const isMapboxEnabled = getGlobalSetting<boolean>('USE_MAPBOX') && mapboxToken;
 
 	interface Props {
 		field?: Field;

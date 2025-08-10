@@ -19,8 +19,25 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/utils/configMigration';
+
+// Handle private config that might not exist during setup
+let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// Function to load private config when needed
+async function loadPrivateConfig() {
+	if (privateEnv) return privateEnv;
+
+	try {
+		const module = await import('@root/config/private');
+		privateEnv = module.privateEnv;
+		return privateEnv;
+	} catch {
+		// Private config doesn't exist during setup - this is expected
+		console.log('Private config not found during setup - this is expected during initial setup');
+		return null;
+	}
+}
 
 // MongoDB
 import { connectToMongoDB } from './mongodb/dbconnect';
@@ -63,10 +80,20 @@ async function loadAdapters() {
 		logger.debug('Adapters already loaded, skipping');
 		return;
 	}
-	logger.debug(`🔌 Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+
+	// Load private config when needed
+	const config = await loadPrivateConfig();
+
+	// If private config doesn't exist yet (during setup), we can't load adapters
+	if (!config || !config.DB_TYPE) {
+		logger.debug('Private config not available yet - skipping adapter loading during setup');
+		return;
+	}
+
+	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
 
 	try {
-		switch (privateEnv.DB_TYPE) {
+		switch (config.DB_TYPE) {
 			case 'mongodb': {
 				logger.debug('Importing MongoDB adapter...');
 				const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
@@ -119,11 +146,11 @@ async function loadAdapters() {
 			case 'mariadb':
 			case 'postgresql':
 				// Implement SQL adapters loading here
-				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+				logger.error(`SQL adapter loading not yet implemented for ${config.DB_TYPE}`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 			default:
-				logger.error(`Unknown DB_TYPE: ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+				logger.error(`Unknown DB_TYPE: ${config.DB_TYPE}`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 		}
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');
@@ -389,19 +416,32 @@ async function initializeSystem(): Promise<void> {
 	}
 }
 
-// Automatically initialize the system, but only at runtime
+// Automatically initialize the system, but only at runtime and when config is available
 if (!building) {
 	if (!initializationPromise) {
-		logger.debug('Creating system initialization promise...');
-		initializationPromise = initializeSystem();
+		// Check if config is available asynchronously
+		loadPrivateConfig()
+			.then((config) => {
+				if (config && config.DB_TYPE && config.DB_HOST && config.DB_HOST.trim() !== '') {
+					logger.debug('Creating system initialization promise...');
+					initializationPromise = initializeSystem();
 
-		// Handle initialization errors
-		initializationPromise.catch((err) => {
-			logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-			logger.error('Clearing initialization promise to allow retry');
-			// Ensure promise variable is cleared so retries might be possible if the app handles it
-			initializationPromise = null;
-		});
+					// Handle initialization errors
+					initializationPromise.catch((err) => {
+						logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
+						logger.error('Clearing initialization promise to allow retry');
+						// Ensure promise variable is cleared so retries might be possible if the app handles it
+						initializationPromise = null;
+					});
+				} else {
+					logger.debug('Private config not available - skipping system initialization during setup');
+					initializationPromise = Promise.resolve();
+				}
+			})
+			.catch(() => {
+				logger.debug('Failed to load private config - skipping system initialization during setup');
+				initializationPromise = Promise.resolve();
+			});
 	} else {
 		logger.debug('Initialization promise already exists');
 	}

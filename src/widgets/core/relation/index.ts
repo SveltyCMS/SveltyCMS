@@ -3,7 +3,7 @@
 @description - Relation widget index file.
 */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 
@@ -22,7 +22,8 @@ const widget = (params: Params & { widgetId?: string }) => {
 	if (!params.display) {
 		display = async ({ data, contentLanguage }) => {
 			data = data ? data : {}; // Ensure data is not undefined
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+			const defaultLanguage = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[defaultLanguage] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {
