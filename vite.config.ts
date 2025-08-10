@@ -29,12 +29,28 @@ import { publicConfigSchema, privateConfigSchema, validateConfig } from './confi
 export default defineConfig(async () => {
 	// Config file paths
 	const configDir = resolve(process.cwd(), 'config');
-	const privateConfigPath = resolve(configDir, 'private.ts');
-	const publicConfigPath = resolve(configDir, 'public.ts');
-	const configPaths = [
-		{ path: privateConfigPath, name: 'config/private.ts' },
-		{ path: publicConfigPath, name: 'config/public.ts' }
-	];
+
+	// Support multiple extensions for config files (.ts, .mjs, .js, .cjs)
+	const resolveExistingFile = (baseName: string): { path: string; name: string } => {
+		const candidates = [
+			`${baseName}.ts`,
+			`${baseName}.mjs`,
+			`${baseName}.js`,
+			`${baseName}.cjs`
+		];
+		for (const rel of candidates) {
+			const abs = resolve(configDir, rel.replace(/^.*\//, ''));
+			if (existsSync(abs)) return { path: abs, name: `config/${rel.split('/').pop()}` };
+		}
+		// Default to .ts path (for messaging) if none found
+		return { path: resolve(configDir, `${baseName.split('/').pop()}.ts`), name: `config/${baseName.split('/').pop()}.ts` } as { path: string; name: string };
+	};
+
+	const privateResolved = resolveExistingFile('private');
+	const publicResolved = resolveExistingFile('public');
+	const privateConfigPath = privateResolved.path;
+	const publicConfigPath = publicResolved.path;
+	const configPaths = [privateResolved, publicResolved];
 
 	// Check if config files exist
 	const missingConfigs = configPaths.filter((config) => !existsSync(config.path));
@@ -239,7 +255,7 @@ export default defineConfig(async () => {
 							}
 
 							// Handle config file changes with re-validation
-							if (file.includes('config/private.ts') || file.includes('config/public.ts')) {
+							if (file.includes('config/private') || file.includes('config/public')) {
 								console.log(`⚙️  Config file changed: \x1b[34m${file}\x1b[0m`);
 								console.log('🔍 Re-validating configuration...');
 
