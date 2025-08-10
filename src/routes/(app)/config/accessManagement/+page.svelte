@@ -146,21 +146,21 @@
 		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
 			<Tab bind:group={currentTab} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
+					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" ></iconify-icon>
 					<span class={currentTab === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tab>
 
 			<Tab bind:group={currentTab} name="roles" value={1}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white" />
+					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
 					<span class={currentTab === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tab>
 
 			<Tab bind:group={currentTab} name="admin" value={2}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white" />
+					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
 					<span class={currentTab === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 				</div>
 			</Tab>

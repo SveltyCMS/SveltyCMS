@@ -34,6 +34,18 @@
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import { createEventDispatcher } from 'svelte';
+	import { invalidateCollectionCache, batchUpdateEntries, updateEntryStatus, createEntry } from '@src/utils/apiClient';
+	import { publicEnv } from '@root/config/public';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// Get store instances
+	const toastStore = getToastStore();
+	const modalStore = getModalStore();
+
+	// Modal types import
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 
 	// Stores
 	import { page } from '$app/state';
@@ -46,9 +58,6 @@
 	import type { User } from '@src/auth/types';
 	import type { StatusType } from '@src/content/types';
 	let user = $derived(page.data.user as User);
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	interface ScheduleResponse {
 		date: string;
@@ -75,9 +84,7 @@
 	let createdAtDate = $state<string>(
 		typeof collectionValue.value?.createdAt === 'number' ? new Date(collectionValue.value.createdAt * 1000).toISOString().slice(0, 16) : ''
 	);
-	let saveLayerStore = $state<() => Promise<void>>(async () => {});
 	let showMore = $state<boolean>(false);
-	let next = $state<() => Promise<void>>(() => Promise.resolve());
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
@@ -127,10 +134,6 @@
 		}
 	});
 
-	$effect(() => {
-		next = saveLayerStore;
-	});
-
 	// Save form data with validation
 	async function saveData() {
 		if (!validationStore.isValid) {
@@ -169,6 +172,226 @@
 
 	function handleReload() {
 		mode.set('edit'); // Keeps it in edit mode, maybe just re-renders
+	}
+
+	// Delete confirmation modal
+	function openDeleteModal(): void {
+		const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm <span class="text-error-500 font-bold">${isArchiving ? 'Archiving' : 'Deletion'}</span>`,
+			body: isArchiving
+				? `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> this entry? Archived items can be restored later.`
+				: `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> this entry? This action will remove the entry from the system.`,
+			buttonTextConfirm: isArchiving ? 'Archive' : 'Delete',
+			buttonTextCancel: 'Cancel',
+			meta: {
+				buttonConfirmClasses: isArchiving ? 'bg-warning-500 hover:bg-warning-600 text-white' : 'bg-error-500 hover:bg-error-600 text-white'
+			},
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					const entry = collectionValue.value;
+					const coll = collection.value;
+					if (!entry?._id || !coll?._id) {
+						toastStore.trigger({
+							message: 'No entry or collection selected.',
+							background: 'variant-filled-warning'
+						});
+						return;
+					}
+
+					try {
+						const targetStatus = isArchiving ? StatusTypes.archive : StatusTypes.delete;
+						const result = await batchUpdateEntries(coll._id, {
+							ids: [entry._id],
+							status: targetStatus
+						});
+
+						if (result.success) {
+							toastStore.trigger({
+								message: isArchiving ? 'Entry archived successfully.' : 'Entry deleted successfully.',
+								background: 'variant-filled-success'
+							});
+							mode.set('view');
+							collectionValue.set({});
+							invalidateCollectionCache(coll._id);
+						} else {
+							toastStore.trigger({
+								message: result.error || `Failed to ${isArchiving ? 'archive' : 'delete'} entry`,
+								background: 'variant-filled-error'
+							});
+						}
+					} catch (e) {
+						toastStore.trigger({
+							message: `Error ${isArchiving ? 'archiving' : 'deleting'} entry: ${(e as Error).message}`,
+							background: 'variant-filled-error'
+						});
+					}
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Publish confirmation modal
+	function openPublishModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
+			body: `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`,
+			buttonTextConfirm: 'Publish',
+			buttonTextCancel: 'Cancel',
+			meta: {
+				buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white'
+			},
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					const entry = collectionValue.value;
+					const coll = collection.value;
+					if (!entry?._id || !coll?._id) {
+						toastStore.trigger({
+							message: 'No entry or collection selected.',
+							background: 'variant-filled-warning'
+						});
+						return;
+					}
+
+					try {
+						const result = await updateEntryStatus(coll._id, entry._id, StatusTypes.publish);
+						if (result.success) {
+							collectionValue.update((cv) => ({ ...cv, status: StatusTypes.publish }));
+							toastStore.trigger({
+								message: 'Entry published successfully.',
+								background: 'variant-filled-success'
+							});
+						} else {
+							toastStore.trigger({
+								message: result.error || 'Failed to publish entry',
+								background: 'variant-filled-error'
+							});
+						}
+					} catch (e) {
+						toastStore.trigger({
+							message: `Error publishing entry: ${(e as Error).message}`,
+							background: 'variant-filled-error'
+						});
+					}
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Unpublish confirmation modal
+	function openUnpublishModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
+			body: `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`,
+			buttonTextConfirm: 'Unpublish',
+			buttonTextCancel: 'Cancel',
+			meta: {
+				buttonConfirmClasses: 'bg-yellow-500 hover:bg-yellow-600 text-white'
+			},
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					const entry = collectionValue.value;
+					const coll = collection.value;
+					if (!entry?._id || !coll?._id) {
+						toastStore.trigger({
+							message: 'No entry or collection selected.',
+							background: 'variant-filled-warning'
+						});
+						return;
+					}
+
+					try {
+						const result = await updateEntryStatus(coll._id, entry._id, StatusTypes.unpublish);
+						if (result.success) {
+							collectionValue.update((cv) => ({ ...cv, status: StatusTypes.unpublish }));
+							toastStore.trigger({
+								message: 'Entry unpublished successfully.',
+								background: 'variant-filled-success'
+							});
+						} else {
+							toastStore.trigger({
+								message: result.error || 'Failed to unpublish entry',
+								background: 'variant-filled-error'
+							});
+						}
+					} catch (e) {
+						toastStore.trigger({
+							message: `Error unpublishing entry: ${(e as Error).message}`,
+							background: 'variant-filled-error'
+						});
+					}
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Clone confirmation modal
+	function openCloneModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm <span class="text-secondary-500 font-bold">Cloning</span>`,
+			body: `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> this entry? This will create a duplicate copy.`,
+			buttonTextConfirm: 'Clone',
+			buttonTextCancel: 'Cancel',
+			meta: {
+				buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white'
+			},
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					const entry = collectionValue.value;
+					const coll = collection.value;
+					if (!entry || !coll?._id) {
+						toastStore.trigger({
+							message: 'No entry or collection selected.',
+							background: 'variant-filled-warning'
+						});
+						return;
+					}
+
+					try {
+						// Create a deep copy of the entry with all its data
+						const clonedPayload = JSON.parse(JSON.stringify(entry));
+
+						// Remove unique identifiers and timestamps
+						delete clonedPayload._id;
+						delete clonedPayload.createdAt;
+						delete clonedPayload.updatedAt;
+
+						// Set clone status and reference to original
+						clonedPayload.status = StatusTypes.clone;
+						clonedPayload.clonedFrom = entry._id;
+
+						const result = await createEntry(coll._id, clonedPayload);
+						if (result.success) {
+							toastStore.trigger({
+								message: 'Entry cloned successfully.',
+								background: 'variant-filled-success'
+							});
+							invalidateCollectionCache(coll._id);
+							mode.set('view');
+						} else {
+							toastStore.trigger({
+								message: result.error || 'Failed to clone entry',
+								background: 'variant-filled-error'
+							});
+						}
+					} catch (e) {
+						toastStore.trigger({
+							message: `Error cloning entry: ${(e as Error).message}`,
+							background: 'variant-filled-error'
+						});
+					}
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
 	}
 </script>
 
@@ -212,10 +435,18 @@
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		{#if screenSize.value === 'MD' || screenSize.value === 'SM' || screenSize.value === 'XS'}
 			{#if showMore}
-				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
-					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
-					<span class="hidden lg:block">{m.button_next()}</span>
-				</button>
+				{#if ['edit', 'create'].includes(mode.value)}
+					<button
+						type="button"
+						onclick={saveData}
+						aria-label="Save"
+						class="variant-filled-tertiary btn-icon dark:variant-filled-primary"
+						disabled={!validationStore.isValid || collection.value?.permissions?.[user.role]?.write === false}
+					>
+						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+						<span class="hidden lg:block">{m.button_save()}</span>
+					</button>
+				{/if}
 
 				<button
 					type="button"
@@ -269,7 +500,7 @@
 			<div class="flex flex-col items-center justify-center">
 				<button
 					type="button"
-					onclick={deleteCurrentEntry}
+					onclick={openDeleteModal}
 					disabled={collection.value?.permissions?.[user.role]?.delete === false}
 					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
 					aria-label="Delete entry"
@@ -283,7 +514,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => setEntryStatus(StatusTypes.publish)}
+							onclick={openPublishModal}
 							disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
@@ -307,7 +538,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => setEntryStatus(StatusTypes.unpublish)}
+							onclick={openUnpublishModal}
 							disabled={!collection.value?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"
@@ -320,7 +551,7 @@
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						onclick={cloneCurrentEntry}
+						onclick={openCloneModal}
 						disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 						aria-label="Clone entry"
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"

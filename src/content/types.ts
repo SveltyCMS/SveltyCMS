@@ -26,7 +26,8 @@ export const StatusTypes = {
 	unpublish: 'unpublish',
 	schedule: 'schedule',
 	clone: 'clone',
-	test: 'test'
+	test: 'test',
+	delete: 'delete'
 } as const;
 
 export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];

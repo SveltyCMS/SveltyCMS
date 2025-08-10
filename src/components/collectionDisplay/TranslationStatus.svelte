@@ -263,11 +263,6 @@
 
 	// Derived value to track current language for debugging
 	const currentLanguage = $derived(contentLanguage.value);
-
-	// Debug effect to track language changes
-	// $effect(() => {
-	// 	console.log('[TranslationStatus] Current language updated to:', currentLanguage);
-	// });
 </script>
 
 {#if mode.value === 'view'}
@@ -290,11 +285,11 @@
 	<!-- Edit mode with translation progress -->
 	<div class="relative mt-1 inline-block text-left">
 		<!-- Button and Overall Progress -->
-		<div class="transition-all duration-200 hover:scale-[1.02]">
+		<div>
 			<button
 				type="button"
 				onclick={toggleDropdown}
-				class="variant-outline-surface btn flex items-center p-1.5 transition-all duration-200 hover:shadow-md active:scale-95"
+				class="variant-outline-surface btn flex items-center p-1.5"
 				aria-haspopup="true"
 				aria-expanded={isOpen}
 				aria-controls="translation-menu"

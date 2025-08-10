@@ -149,7 +149,7 @@
 	function addNewWidget(componentName: keyof typeof widgetComponentRegistry) {
 		const componentInfo = widgetComponentRegistry[componentName];
 		const newItem: DashboardWidgetConfig = {
-			id: crypto.randomUUID(),
+			id: `widget-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`,
 			component: componentName,
 			label: componentInfo.name,
 			icon: componentInfo.icon,

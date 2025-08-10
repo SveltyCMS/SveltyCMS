@@ -54,6 +54,14 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 
 		collection.set(data.collection);
+
+		// Initialize collectionValue with language keys
+		const initialValue: Record<string, any> = {
+			_id: collectionValue.value?._id,
+			slug: collectionValue.value?.slug
+		};
+		collectionValue.set(initialValue);
+
 		mode.set('view'); // Set mode to view to render EntryList
 		isLoading = false;
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
@@ -66,11 +74,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 	});
 
-	// Track if language was set by user to avoid overriding user selection
-	let userInitiatedLanguageChange = $state(false);
-	let lastUrlLanguage = $state(data.contentLanguage);
-
-	// Listen for user-initiated language changes
 	$effect(() => {
 		const handleLanguageChange = (event: CustomEvent) => {
 			// console.log('[PAGE DEBUG] User-initiated language change detected:', event.detail.language);

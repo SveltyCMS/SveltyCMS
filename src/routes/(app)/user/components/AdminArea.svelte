@@ -185,13 +185,13 @@
 			return (
 				parsed.displayTableHeaders?.map((header: Partial<TableHeader>) => ({
 					...header,
-					id: crypto.randomUUID()
+					id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 				})) ??
 				tableHeadersUser.map((header) => ({
 					label: header.label,
 					key: header.key,
 					visible: true,
-					id: crypto.randomUUID()
+					id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 				}))
 			);
 		})()
@@ -204,7 +204,7 @@
 			label: header.label,
 			key: header.key,
 			visible: true,
-			id: crypto.randomUUID()
+			id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 		}));
 
 		// Update selectedRows based on selectedMap
@@ -882,7 +882,7 @@
 			<!-- Pagination  -->
 
 			<!-- FIX: Added mb-16 for margin-bottom on mobile and other screen sizes -->
-			<div class="mb-16 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
 					{currentPage}
 					{pagesCount}

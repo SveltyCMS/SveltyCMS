@@ -62,7 +62,6 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			}
 		};
 	} catch (error) {
-		console.error('Failed to load layout data:', error);
 		logger.error('Failed to load layout data:', error);
 
 		// Return fallback data

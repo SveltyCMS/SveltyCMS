@@ -7,95 +7,111 @@
 	// Component
 	import Column from './Column.svelte';
 
-	// Store
-
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
 	import { constructNestedStructure } from '@root/src/content/utils';
 	import type { DndItem } from './types';
-	// import { setDebugMode } from 'svelte-dnd-action';
-	// setDebugMode(true);
 
 	interface Props {
-		contentNodes: ContentNode[];
-		addOperation: (newNode: ContentNode) => void;
+		contentNodes: ContentNode[]; // Flat list of all content nodes from the parent
+		onNodeUpdate: (updatedNodes: ContentNode[]) => void; // Callback to inform parent of structural changes
 		onEditCategory: (category: ContentNode) => void;
 	}
 
-	let { contentNodes = $bindable([]), addOperation, onEditCategory }: Props = $props();
+	let { contentNodes = $bindable([]), onNodeUpdate, onEditCategory }: Props = $props();
 
-	// let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
-	//
-	// // State variables
-	// let structuredItems = $derived<DndItem[]>(createStructuredItems(nestedNodes));
-
+	// Derived state: Transforms the flat `contentNodes` into a nested structure suitable for `dndzone`.
+	// This structure includes `id` and `children` properties required by `svelte-dnd-action`.
 	let structureState = $derived(createStructuredItems(constructNestedStructure(contentNodes)));
 
+	// UI state for drag operations
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
 
-	// Convert contentNodes to format needed for dnd-actions
+	/**
+	 * Converts a list of `NestedContentNode`s into `DndItem`s suitable for `svelte-dnd-action`.
+	 * Recursively processes children to maintain the nested structure.
+	 * @param nodes The nested content nodes.
+	 * @returns An array of `DndItem`s.
+	 */
 	function createStructuredItems(nodes: NestedContentNode[]): DndItem[] {
-		return nodes.map((node) => ({
+		return nodes.map((node, index) => ({
 			...node,
+			id: node._id, // `svelte-dnd-action` requires an `id` property
 			children: createStructuredItems(node.children ?? []),
-			id: node._id,
-			isCategory: node.nodeType === 'category'
+			isCategory: node.nodeType === 'category',
+			order: index // Assign order based on current visual position
 		}));
 	}
 
+	/**
+	 * Flattens a nested `DndItem` array back into a flat `ContentNode` array.
+	 * This is crucial for saving to a flat database structure.
+	 * It ensures `parentId` and `order` properties are correctly set for all nodes.
+	 * @param dndItems The array of `DndItem`s (can be top-level or children).
+	 * @param parentId The `_id` of the parent for the current set of items (undefined for top-level).
+	 * @returns A flattened array of `ContentNode`s.
+	 */
+	function flattenNodes(dndItems: DndItem[], parentId: DatabaseId | undefined = undefined): ContentNode[] {
+		let flatNodes: ContentNode[] = [];
+		dndItems.forEach((dndItem, index) => {
+			// Destructure to separate dnd-specific props from ContentNode props
+			const { id, children, isCategory, ...rest } = dndItem;
+			const contentNode: ContentNode = {
+				_id: id as DatabaseId,
+				parentId: parentId, // Set the current parentId
+				order: index, // Set the order based on its position in the current list
+				...rest
+			};
+			flatNodes.push(contentNode);
+
+			// Recursively flatten children if they exist
+			if (children && children.length > 0) {
+				flatNodes = flatNodes.concat(flattenNodes(children, id as DatabaseId));
+			}
+		});
+		return flatNodes;
+	}
+
+	/**
+	 * Handles the `consider` event from `dndzone`. Updates the local `structureState`
+	 * immediately for visual feedback during drag.
+	 * @param e CustomEvent from `dndzone` containing drag details.
+	 */
 	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
 		isDragging = true;
 		try {
-			const items = e.detail.items;
-			const uniqueItems = Array.from(new Map(items.map((item) => [item._id, item])).values());
-			structureState = uniqueItems;
-
-			// const newConfig = convertToConfig(e.detail.items);
-			// contentStructure.set(newConfig);
+			// `e.detail.items` contains the items in their *potential* new order/location
+			structureState = e.detail.items;
 			dragError = null;
 		} catch (error) {
-			console.error('Error handling DnD consider:', error);
+			console.error('Error handling DnD consider in Board:', error);
 			dragError = error instanceof Error ? error.message : 'Error handling drag operation';
 		}
 	}
 
+	/**
+	 * Handles the `finalize` event from `dndzone`. This is where the actual state update occurs
+	 * after a drag operation is completed.
+	 * @param e CustomEvent from `dndzone` containing drag details.
+	 */
 	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
+		isDragging = false;
 		try {
-			console.log('Main Finalize', e);
+			// `e.detail.items` contains the items in their *final* new order/location within this zone.
+			const newOrderedItems = e.detail.items;
 
-			const eventType = e.detail.info.trigger;
-			if (eventType === 'droppedIntoAnother') {
-				const itemRemoved = e.detail.info.id;
-				// contentNodes = contentNodes.filter((item) => item._id !== itemRemoved);
-			} else if (eventType === 'droppedIntoZone') {
-				const itemAdded = e.detail.info.id;
-				handleUpdate(itemAdded, undefined);
-			}
+			// Flatten the entire potentially nested structure to update parentId and order for ALL affected nodes.
+			const newFlatContentNodes = flattenNodes(newOrderedItems);
 
+			// Propagate the complete updated flat list of nodes back to the parent component (`+page.svelte`).
+			onNodeUpdate(newFlatContentNodes);
 			dragError = null;
 		} catch (error) {
-			console.error('Error handling DnD finalize:', error);
+			console.error('Error handling DnD finalize in Board:', error);
 			dragError = error instanceof Error ? error.message : 'Error finalizing drag operation';
-		} finally {
-			isDragging = false;
-		}
-	}
-
-	function handleUpdate(itemId: string, parentId: string | undefined) {
-		try {
-			const currentNode = contentNodes.find((node) => node._id === itemId);
-			if (!currentNode) return;
-			currentNode.parentId = parentId;
-			addOperation(currentNode);
-
-			console.log('Board updating items', contentNodes);
-			dragError = null;
-		} catch (error) {
-			console.error('Error handling update:', error);
-			dragError = error instanceof Error ? error.message : 'Error updating items';
 		}
 	}
 
@@ -111,10 +127,10 @@
 
 	<div
 		use:dndzone={{
-			items: structureState,
-			dropTargetStyle: { outline: 'rgba(0, 255, 102, 0.7) solid 2px' },
-			flipDurationMs,
-			centreDraggedOnCursor: true
+			items: structureState, // Items for the current dnd zone
+			dropTargetStyle: { outline: 'rgba(0, 255, 102, 0.7) solid 2px' }, // Visual cue for valid drop target
+			flipDurationMs, // Animation duration
+			centreDraggedOnCursor: true // Dragged item centers on cursor
 		}}
 		onconsider={handleDndConsider}
 		onfinalize={handleDndFinalize}
@@ -124,8 +140,16 @@
 	>
 		{#each structureState as item (item.id)}
 			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
-				<Column level={0} {item} children={item.children ?? []} onUpdate={handleUpdate} isCategory={item.nodeType === 'category'} {onEditCategory} />
+				<Column
+					level={0} 
+					{item}
+					children={item.children ?? []}
+					onNodeReorder={handleDndFinalize}
+					isCategory={item.nodeType === 'category'}
+					{onEditCategory}
+				/>
 			</div>
 		{/each}
 	</div>
 </div>
+

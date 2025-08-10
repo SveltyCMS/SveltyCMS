@@ -3,9 +3,9 @@
  * @description This configuration file defines the Vite setup for a SvelteKit project.
  * It includes checks & validation for required configuration files (private.ts and public.ts),
  * a custom plugin for dynamic collection handling (compilation, type generation, hot reloading),
- * dynamic role and permission handling with hot reloading, Tailwind CSS purging,
+ * dynamic role and permission handling with hot reloading, Tailwind CSS purging
  * and Paraglide integration for internationalization. The configuration also initializes
- * compilation tasks, sets up environment variables, and defines alias paths for the project.
+ * compilation tasks, sets up environment variables, and defines alias paths for the project
  */
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';

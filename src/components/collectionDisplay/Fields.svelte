@@ -48,9 +48,18 @@
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { widgetFunctions } from '@src/widgets';
+	import { widgetFunctions, ensureWidgetsInitialized } from '@src/widgets';
+	import { onMount } from 'svelte';
 
-	// Props
+	// Dynamic import of all widget components using Vite's glob import
+	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
+		eager: true
+	});
+
+	// Initialize widgets on mount
+	onMount(async () => {
+		await ensureWidgetsInitialized();
+	}); // Props
 	let { fields = undefined } = $props<{
 		fields?: NonNullable<typeof collection.value>['fields'];
 	}>();
@@ -59,8 +68,7 @@
 	let apiUrl = $state('');
 	let isLoading = $state(true);
 	let localTabSet = $state(0);
-
-	// Revisions State
+	let currentEntryId = $state<any>(null); // Revisions State
 	let revisionsMeta = $state<any[]>([]);
 	let isRevisionsLoading = $state(false);
 	let selectedRevisionId = $state('');
@@ -104,7 +112,8 @@
 			const safeField = ensureFieldProperties(field);
 			const fieldName = getFieldName(safeField, false);
 			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
-				tempCollectionValue[fieldName] = {};
+				// Initialize with proper default value based on field type
+				tempCollectionValue[fieldName] = field.translated ? {} : '';
 			}
 		}
 		return tempCollectionValue;
@@ -237,11 +246,21 @@
 		isLoading = false;
 	});
 
-	// Initialize form data snapshot on first load or when collection changes (from old working code)
+	// Initialize form data when the entry changes or fields become available
 	$effect(() => {
-		if (!isFormDataInitialized && collectionValue.value) {
+		if (!isFormDataInitialized && collectionValue.value && derivedFields.length > 0) {
 			formDataSnapshot = { ...collectionValue.value };
-			currentCollectionValue = { ...defaultCollectionValue };
+			// Ensure all fields have proper initial values
+			const initialValue = { ...defaultCollectionValue };
+			// Double-check that all derived fields have values
+			for (const field of derivedFields) {
+				const safeField = ensureFieldProperties(field);
+				const fieldName = getFieldName(safeField, false);
+				if (initialValue[fieldName] === undefined) {
+					initialValue[fieldName] = field.translated ? {} : '';
+				}
+			}
+			currentCollectionValue = initialValue;
 			isFormDataInitialized = true;
 		}
 	});
@@ -345,82 +364,70 @@
 			{#if localTabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-					<!-- Debug info -->
-					{#if dev}
-						<div class="mb-4 bg-yellow-100 p-2 text-xs dark:bg-yellow-900">
-							<p>Debug Info:</p>
-							<p>derivedFields: {derivedFields.length}</p>
-							<p>filteredFields: {filteredFields.length}</p>
-							<p>fieldsFromModule: {fieldsFromModule.length}</p>
-							<p>isFormDataInitialized: {isFormDataInitialized}</p>
-							<p>user.roles: {user?.roles}</p>
-							<p>user.role: {user?.role}</p>
-							<p>collection.name: {collection.value?.name}</p>
-							<p>collection.fields: {collection.value?.fields?.length || 'undefined'}</p>
-							<p>fields prop: {fields?.length || 'undefined'}</p>
-							<p>processedCollection: {processedCollection ? 'loaded' : 'not loaded'}</p>
-							<p>collection object keys: {collection.value ? Object.keys(collection.value).join(', ') : 'no collection'}</p>
-							{#if processedCollection}
-								<p>processedCollection fields: {JSON.stringify(processedCollection.fields?.slice(0, 2), null, 2)}</p>
-							{/if}
+					{#if isFormDataInitialized}
+						<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+							{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+								{#if rawField.widget}
+									{@const field = ensureFieldProperties(rawField)}
+									<div
+										class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
+										style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+									>
+										<!-- Widget label -->
+										<div class="flex justify-between px-[5px] text-start">
+											<p class="inline-block font-semibold capitalize">
+												{field.label || field.db_fieldName}
+												{#if field.required}<span class="text-error-500">*</span>{/if}
+											</p>
+
+											<div class="flex gap-2">
+												{#if field.translated}
+													<div class="flex items-center gap-1 px-2">
+														<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"></iconify-icon>
+														<div class="text-xs font-normal text-error-500">
+															{contentLanguage.value?.toUpperCase() ?? 'EN'}
+														</div>
+														<!-- Display translation progress -->
+														<div class="text-xs font-normal">
+															({Math.round(
+																translationProgress.value[contentLanguage.value]?.translated.has(
+																	`${String(collection.value?.name)}.${getFieldName(field)}`
+																)
+																	? 100
+																	: 0
+															)}%)
+														</div>
+													</div>
+												{/if}
+
+												{#if field.icon}
+													<iconify-icon icon={field.icon} color="dark" width="22"></iconify-icon>
+												{/if}
+											</div>
+										</div>
+
+										<!-- Widget Input -->
+										{#if field.widget}
+											{@const widgetName = field.widget.Name}
+											{@const widgetPath = widgetFunctions().get(widgetName)?.componentPath}
+											{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
+
+											{#if WidgetComponent}
+												{@const fieldName = getFieldName(field, false)}
+												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} />
+											{:else}
+												<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+											{/if}
+										{/if}
+									</div>
+								{/if}
+							{/each}
+						</div>
+					{:else}
+						<div class="flex justify-center p-4">
+							<Loading />
 						</div>
 					{/if}
-
-					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
-							{#if rawField.widget}
-								{@const field = ensureFieldProperties(rawField)}
-								<div
-									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
-									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
-								>
-									<!-- Widget label -->
-									<div class="flex justify-between px-[5px] text-start">
-										<p class="inline-block font-semibold capitalize">
-											{field.label || field.db_fieldName}
-											{#if field.required}<span class="text-error-500">*</span>{/if}
-										</p>
-
-										<div class="flex gap-2">
-											{#if field.translated}
-												<div class="flex items-center gap-1 px-2">
-													<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"></iconify-icon>
-													<div class="text-xs font-normal text-error-500">
-														{contentLanguage.value?.toUpperCase() ?? 'EN'}
-													</div>
-													<!-- Display translation progress -->
-													<div class="text-xs font-normal">
-														({Math.round(
-															translationProgress.value[contentLanguage.value]?.translated.has(
-																`${String(collection.value?.name)}.${getFieldName(field)}`
-															)
-																? 100
-																: 0
-														)}%)
-													</div>
-												</div>
-											{/if}
-
-											{#if field.icon}
-												<iconify-icon icon={field.icon} color="dark" width="22"></iconify-icon>
-											{/if}
-										</div>
-									</div>
-
-									<!-- Widget Input -->
-									{#if field.widget}
-										{@const widgetName = field.widget.Name}
-										{@const WidgetComponent = widgetFunctions().get(widgetName)?.component}
-										{#if WidgetComponent}
-											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[getFieldName(field, false)]} />
-										{:else}
-											<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
-										{/if}
-									{/if}
-								</div>
-							{/if}
-						{/each}
-					</div>
 				</div>
 			{:else if localTabSet === 1}
 				<div class="p-4">
