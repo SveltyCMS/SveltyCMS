@@ -64,11 +64,22 @@ jobs:
         # svelte-kit sync ensures .svelte-kit/tsconfig.json exists before build
         run: bunx svelte-kit sync
 
-      - name: Run local server
-        run: bun run build && bun run preview &
+      - name: Build SvelteKit server
+        run: bunx svelte-kit build
+
+      - name: Start preview server (port 4173)
+        run: |
+          bunx svelte-kit preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          echo $! > preview.pid
 
       - name: Wait for server to be ready
-        run: bunx wait-on http://localhost:4173 -t 120000
+        run: bunx wait-on http://127.0.0.1:4173 -t 180000
+
+      - name: Show preview logs (on failure)
+        if: failure()
+        run: |
+          echo "--- preview.log (last 400 lines) ---"
+          tail -n 400 preview.log || true
 
       - name: Run Playwright tests
         run: |

@@ -23,10 +23,12 @@ const DB_TIMEOUT = 5000; // 5 seconds timeout for server selection
  * Connect to the MongoDB database with retry logic.
  */
 export async function connectToMongoDB(): Promise<void> {
+	const hasScheme = privateEnv.DB_HOST.startsWith('mongodb://') || privateEnv.DB_HOST.startsWith('mongodb+srv://');
 	const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
+	const hostWithScheme = hasScheme ? privateEnv.DB_HOST : `mongodb://${privateEnv.DB_HOST}`;
 	const connectionString = isAtlas
-		? `${privateEnv.DB_HOST}/${privateEnv.DB_NAME}`
-		: `${privateEnv.DB_HOST}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
+		? `${hostWithScheme}/${privateEnv.DB_NAME}`
+		: `${hostWithScheme}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
 
 	const options: ConnectOptions = {
 		authSource: isAtlas ? undefined : 'admin',
