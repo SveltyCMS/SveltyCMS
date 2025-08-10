@@ -8,23 +8,22 @@
  * compilation tasks, sets up environment variables, and defines alias paths for the project
  */
 
-import Path from 'path';
-import { resolve } from 'path';
-import { readFileSync, existsSync } from 'fs';
-import { execSync } from 'child_process';
-import { pathToFileURL } from 'url'; // Import pathToFileURL
-import { purgeCss } from 'vite-plugin-tailwind-purgecss';
-import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import svelteEmailTailwind from 'svelte-email-tailwind/vite';
-import { compile } from './src/utils/compilation/compile';
-import { generateContentTypes } from './src/content/vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { builtinModules } from 'module';
+import Path, { resolve } from 'path';
+import svelteEmailTailwind from 'svelte-email-tailwind/vite';
+import { pathToFileURL } from 'url'; // Import pathToFileURL
+import { defineConfig } from 'vite';
+import { purgeCss } from 'vite-plugin-tailwind-purgecss';
+import { generateContentTypes } from './src/content/vite';
+import { compile } from './src/utils/compilation/compile';
 
 // Validation
-import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types.ts';
+import { privateConfigSchema, publicConfigSchema, validateConfig } from './config/types.ts';
 
 export default defineConfig(async () => {
 	// Config file paths
@@ -32,18 +31,16 @@ export default defineConfig(async () => {
 
 	// Support multiple extensions for config files (.ts, .mjs, .js, .cjs)
 	const resolveExistingFile = (baseName: string): { path: string; name: string } => {
-		const candidates = [
-			`${baseName}.ts`,
-			`${baseName}.mjs`,
-			`${baseName}.js`,
-			`${baseName}.cjs`
-		];
+		const candidates = [`${baseName}.ts`, `${baseName}.mjs`, `${baseName}.js`, `${baseName}.cjs`];
 		for (const rel of candidates) {
 			const abs = resolve(configDir, rel.replace(/^.*\//, ''));
 			if (existsSync(abs)) return { path: abs, name: `config/${rel.split('/').pop()}` };
 		}
 		// Default to .ts path (for messaging) if none found
-		return { path: resolve(configDir, `${baseName.split('/').pop()}.ts`), name: `config/${baseName.split('/').pop()}.ts` } as { path: string; name: string };
+		return { path: resolve(configDir, `${baseName.split('/').pop()}.ts`), name: `config/${baseName.split('/').pop()}.ts` } as {
+			path: string;
+			name: string;
+		};
 	};
 
 	const privateResolved = resolveExistingFile('private');
