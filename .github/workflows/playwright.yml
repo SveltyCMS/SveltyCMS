@@ -56,8 +56,13 @@ jobs:
       - name: Use test config files
         run: |
           mkdir -p config
-          cp tests/ci-config/public.ts config/public.ts
-          cp tests/ci-config/private.ts config/private.ts
+          # Prefer JS/ESM configs to avoid TS import issues in Node during Vite config load
+          if [ -f tests/ci-config/public.mjs ]; then cp tests/ci-config/public.mjs config/public.mjs; else cp tests/ci-config/public.ts config/public.ts; fi
+          if [ -f tests/ci-config/private.mjs ]; then cp tests/ci-config/private.mjs config/private.mjs; else cp tests/ci-config/private.ts config/private.ts; fi
+
+      - name: Generate SvelteKit files
+        # svelte-kit sync ensures .svelte-kit/tsconfig.json exists before build
+        run: bunx svelte-kit sync
 
       - name: Run local server
         run: bun run build && bun run preview &
