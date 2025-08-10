@@ -110,7 +110,9 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		await auth.updateUserAttributes(targetUserId, { avatar: null }, tenantId);
 		logger.info('User avatar attribute removed from profile.', { userId: targetUserId, removedBy: currentUser._id, tenantId });
 
-		return json({ success: true, message: 'Avatar removed successfully' });
+		// Return normalized default avatar to update UI and allow client refresh
+		const defaultUrl = '/Default_User.svg';
+		return json({ success: true, message: 'Avatar removed successfully', avatarUrl: defaultUrl });
 	} catch (err) {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;

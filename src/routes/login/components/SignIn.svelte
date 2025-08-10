@@ -35,8 +35,7 @@ Features:
 	let FloatingPathsComponent = $state<any>(null);
 
 	// Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import { showToast } from '@utils/toast';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -135,14 +134,7 @@ Features:
 				isAuthenticating = true;
 
 				// Trigger the toast
-				toastStore.trigger({
-					message: m.signin_signinsuccess(),
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: 1500, // Reduced timeout for faster UX
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(m.signin_signinsuccess(), 'success');
 
 				// Clear authenticating state immediately for faster navigation
 				setTimeout(() => {
@@ -161,12 +153,7 @@ Features:
 				globalLoadingStore.stopLoading(loadingOperations.authentication);
 
 				// Show 2FA required message
-				toastStore.trigger({
-					message: m.twofa_verify_title(),
-					background: 'variant-filled-warning',
-					timeout: 3000,
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(m.twofa_verify_title(), 'warning');
 
 				cancel();
 				return;
@@ -178,14 +165,7 @@ Features:
 			cancel();
 
 			// Trigger the toast
-			toastStore.trigger({
-				message: m.signin_wrong_user_or_password(),
-				// Provide any utility or variant background style:
-				background: 'variant-filled-error',
-				timeout: 4000,
-				// Add your custom classes here:
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(m.signin_wrong_user_or_password(), 'error');
 
 			// add wiggle animation to form element
 			formElement?.classList.add('wiggle');
@@ -241,14 +221,7 @@ Features:
 				});
 
 				// Trigger the toast
-				toastStore.trigger({
-					message: errorMessages,
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: 4000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(errorMessages, 'info');
 
 				return;
 			}
@@ -258,12 +231,7 @@ Features:
 				if (result.data && result.data.userExists === false) {
 					// User doesn't exist - show error toast and don't navigate to reset form
 					PWreset = false;
-					toastStore.trigger({
-						message: 'No account found with this email address.',
-						background: 'variant-filled-error',
-						timeout: 4000,
-						classes: 'border-1 !rounded-md'
-					});
+					showToast('No account found with this email address.', 'error');
 
 					// Add wiggle animation to form element
 					formElement?.classList.add('wiggle');
@@ -274,12 +242,7 @@ Features:
 				} else if (result.data && result.data.userExists === true) {
 					// User exists and email should have been sent
 					PWreset = true;
-					toastStore.trigger({
-						message: m.signin_forgottontoast(),
-						background: 'variant-filled-primary',
-						timeout: 4000,
-						classes: 'border-1 !rounded-md'
-					});
+					showToast(m.signin_forgottontoast(), 'success');
 					return;
 				} else {
 					// Legacy fallback or other success scenarios
@@ -292,12 +255,7 @@ Features:
 						return;
 					} else {
 						PWreset = true;
-						toastStore.trigger({
-							message: m.signin_forgottontoast(),
-							background: 'variant-filled-primary',
-							timeout: 4000,
-							classes: 'border-1 !rounded-md'
-						});
+						showToast(m.signin_forgottontoast(), 'success');
 						return;
 					}
 				}
@@ -348,14 +306,7 @@ Features:
 
 			if (result.type === 'success' || result.type === 'redirect') {
 				// Trigger the Reset toast
-				toastStore.trigger({
-					message: m.signin_restpasswordtoast(),
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: result.type === 'redirect' ? 3000 : 4000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(m.signin_restpasswordtoast(), 'success');
 
 				if (result.type === 'redirect') return;
 			}
@@ -373,22 +324,12 @@ Features:
 		if (!twoFACode.trim() || isVerifying2FA) return;
 
 		if (!useBackupCode && twoFACode.length !== 6) {
-			toastStore.trigger({
-				message: m.twofa_error_invalid_code(),
-				background: 'variant-filled-error',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(m.twofa_error_invalid_code(), 'error');
 			return;
 		}
 
 		if (useBackupCode && twoFACode.length < 8) {
-			toastStore.trigger({
-				message: 'Invalid backup code format',
-				background: 'variant-filled-error',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast('Invalid backup code format', 'error');
 			return;
 		}
 
@@ -407,12 +348,7 @@ Features:
 			// Parse response
 			if (response.ok) {
 				// Success - redirect will be handled by SvelteKit
-				toastStore.trigger({
-					message: m.twofa_success_verified(),
-					background: 'variant-filled-success',
-					timeout: 2000,
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(m.twofa_success_verified(), 'success');
 
 				// The server will redirect on successful verification
 				window.location.reload();
@@ -421,12 +357,7 @@ Features:
 				throw new Error(errorData.message || m.twofa_error_invalid_code());
 			}
 		} catch (error) {
-			toastStore.trigger({
-				message: error instanceof Error ? error.message : m.twofa_error_invalid_code(),
-				background: 'variant-filled-error',
-				timeout: 4000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(error instanceof Error ? error.message : m.twofa_error_invalid_code(), 'error');
 		} finally {
 			isVerifying2FA = false;
 		}

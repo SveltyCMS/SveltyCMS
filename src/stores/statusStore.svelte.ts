@@ -10,11 +10,12 @@
  * - Centralized status toggle actions
  */
 
-import { StatusTypes } from '@src/content/types';
+import type { ToastStore } from '@skeletonlabs/skeleton';
 import type { StatusType } from '@src/content/types';
+import { StatusTypes } from '@src/content/types';
 import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
-import type { ToastStore } from '@skeletonlabs/skeleton';
+import { showToast } from '@utils/toast';
 
 // Status state management
 const statusState = $state<{
@@ -27,9 +28,7 @@ const statusState = $state<{
 	isLoading: false
 });
 
-/**
- * Get the initial status based on mode and collection/entry data
- */
+// Get the initial status based on mode and collection/entry data
 function getInitialStatus(): boolean {
 	const cv = collectionValue.value;
 	const collectionStatus = collection.value?.status;
@@ -45,16 +44,12 @@ function getInitialStatus(): boolean {
 	}
 }
 
-/**
- * Derived status that updates when collection/entry data changes
- */
+// Derived status that updates when collection/entry data changes
 const derivedStatus = $derived(() => {
 	return getInitialStatus();
 });
 
-/**
- * Centralized status store
- */
+// Centralized status store
 export const statusStore = {
 	// Getters
 	get isPublish() {
@@ -71,9 +66,7 @@ export const statusStore = {
 	},
 
 	// Actions
-	/**
-	 * Initialize or reset status based on collection/entry data
-	 */
+	// Initialize or reset status based on collection/entry data
 	initializeStatus() {
 		const initialStatus = getInitialStatus();
 		console.log('[StatusStore] Initializing status:', {
@@ -88,9 +81,7 @@ export const statusStore = {
 		statusState.isLoading = false;
 	},
 
-	/**
-	 * Sync status with derived status (only if user hasn't manually toggled)
-	 */
+	// Sync status with derived status (only if user hasn't manually toggled)
 	syncWithDerived() {
 		const currentDerived = derivedStatus;
 		if (!statusState.hasUserToggled && statusState.isPublish !== currentDerived) {
@@ -104,10 +95,8 @@ export const statusStore = {
 		}
 	},
 
-	/**
-	 * Handle user status toggle
-	 */
-	async toggleStatus(newValue: boolean, toastStore: ToastStore, componentName: string): Promise<boolean> {
+	// Handle user status toggle
+	async toggleStatus(newValue: boolean, _toastStore: ToastStore, componentName: string): Promise<boolean> {
 		if (newValue === statusState.isPublish || statusState.isLoading) {
 			console.log(`[StatusStore] Toggle skipped from ${componentName}`, {
 				newValue,
@@ -134,10 +123,7 @@ export const statusStore = {
 					// Update the collection value store
 					collectionValue.update((current) => ({ ...current, status: newStatus }));
 
-					toastStore.trigger({
-						message: newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.',
-						background: 'variant-filled-success'
-					});
+					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
 					console.log(`[StatusStore] API update successful from ${componentName}`);
 					return true;
@@ -146,10 +132,7 @@ export const statusStore = {
 					statusState.isPublish = previousValue;
 					statusState.hasUserToggled = false;
 
-					toastStore.trigger({
-						message: result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`,
-						background: 'variant-filled-error'
-					});
+					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
 
 					console.error(`[StatusStore] API update failed from ${componentName}:`, result.error);
 					return false;
@@ -166,10 +149,7 @@ export const statusStore = {
 			statusState.hasUserToggled = false;
 
 			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
-			toastStore.trigger({
-				message: errorMessage,
-				background: 'variant-filled-error'
-			});
+			showToast(errorMessage, 'error');
 
 			console.error(`[StatusStore] Toggle error from ${componentName}:`, e);
 			return false;
@@ -178,24 +158,18 @@ export const statusStore = {
 		}
 	},
 
-	/**
-	 * Get current status for saving
-	 */
+	// Get current status for saving
 	getStatusForSave(): StatusType {
 		return statusState.isPublish ? StatusTypes.publish : StatusTypes.unpublish;
 	},
 
-	/**
-	 * Reset user toggle flag (used when switching entries/modes)
-	 */
+	// Reset user toggle flag (used when switching entries/modes)
 	resetUserToggled() {
 		statusState.hasUserToggled = false;
 		console.log('[StatusStore] Reset user toggled flag');
 	},
 
-	/**
-	 * Force set status (for external updates like scheduling)
-	 */
+	// Force set status (for external updates like scheduling)
 	setStatus(isPublish: boolean, hasUserToggled = true) {
 		statusState.isPublish = isPublish;
 		statusState.hasUserToggled = hasUserToggled;

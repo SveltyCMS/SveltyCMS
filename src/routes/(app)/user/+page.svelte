@@ -40,13 +40,12 @@
 
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@skeletonlabs/skeleton';
+	import { showModal, showConfirm } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
-
-	const toastStore = getToastStore();
-	const modalStore = getModalStore();
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
@@ -108,13 +107,7 @@
 				if (r) {
 					const data = { user_id: user._id, newUserData: r };
 					const res = await axios.put('/api/user/updateUserAttributes', data);
-					const t = {
-						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
-						background: 'gradient-primary',
-						timeout: 3000,
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
+					showToast('<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated', 'success');
 
 					if (res.status === 200) {
 						await invalidateAll();
@@ -122,7 +115,7 @@
 				}
 			}
 		};
-		modalStore.trigger(d);
+		showModal(d);
 	}
 
 	// Modal Trigger - Edit Avatar
@@ -141,28 +134,21 @@
 				// Avatar is already updated by the ModalEditAvatar component
 				// No need to set avatarSrc here since the modal handles it
 				if (r) {
-					const t = {
-						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-						background: 'gradient-primary',
-						timeout: 3000,
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
+					showToast('<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated', 'success');
 					// invalidateAll is already called by the ModalEditAvatar component
 				}
 			}
 		};
-		modalStore.trigger(d);
+		showModal(d);
 	}
 
 	// Modal Confirm
 	function modalConfirm(): void {
-		const d: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: m.usermodalconfirmtitle(),
 			body: m.usermodalconfirmbody(),
-			response: async (r: boolean) => {
-				if (!r) return;
+			confirmText: m.usermodalconfirmdeleteuser(),
+			onConfirm: async () => {
 				const res = await fetch(`/api/user/deleteUsers`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -171,11 +157,8 @@
 				if (res.status === 200) {
 					await invalidateAll();
 				}
-			},
-			buttonTextCancel: m.button_cancel(),
-			buttonTextConfirm: m.usermodalconfirmdeleteuser()
-		};
-		modalStore.trigger(d);
+			}
+		});
 	}
 </script>
 

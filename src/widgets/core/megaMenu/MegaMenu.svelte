@@ -53,7 +53,7 @@
 	const fieldName = getFieldName(field);
 
 	// Hide translation progress initially
-	translationProgress.update((current) => ({ ...current, show: false }));
+	translationProgress.value = { ...translationProgress.value, show: false };
 
 	// Export widget data function
 	export const WidgetData = async () => _data;

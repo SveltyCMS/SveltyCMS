@@ -3,18 +3,17 @@
  * @description Centralized modal configuration utility for consistent modal behavior
  *
  * Features:
- * * Standardized modal configurations
- * * Type-safe modal settings
- * * Consistent styling and behavior
- * * Localization support
- * * Action-specific modal templates
+ * - Standardized modal configurations
+ * - Type-safe modal settings
+ * - Consistent styling and behavior
+ * - Localization support
+ * - Action-specific modal templates
  */
 
-import { writable } from 'svelte/store';
 import type { ModalSettings } from '@skeletonlabs/skeleton';
-import { toastStore } from '@skeletonlabs/skeleton';
-import { currentLanguage } from '@src/messages/store';
 import { m } from '@src/messages/messages';
+import { showToast } from '@utils/toast';
+import { writable } from 'svelte/store';
 
 // Modal themes and configurations
 export interface ModalTheme {
@@ -46,9 +45,7 @@ export const DEFAULT_THEMES: Record<string, ModalTheme> = {
 // Store for managing modal state
 export const modalConfigStore = writable<ModalSettings | null>(null);
 
-/**
- * Creates a standardized confirmation modal
- */
+// Creates a standardized confirmation modal
 export function createConfirmModal(config: ActionModalConfig, onConfirm: () => void, onCancel?: () => void): ModalSettings {
 	const theme = config.theme || DEFAULT_THEMES.default;
 
@@ -77,12 +74,10 @@ export function createConfirmModal(config: ActionModalConfig, onConfirm: () => v
 	};
 }
 
-/**
- * Creates a deletion confirmation modal with enhanced warnings
- */
-export function createDeleteModal(itemType: string, itemName: string, onConfirm: () => void, isAdmin = false): ModalSettings {
-	const isBatch = typeof itemName === 'object';
-	const count = isBatch ? (itemName as any).length : 1;
+// Creates a deletion confirmation modal with enhanced warnings
+export function createDeleteModal(itemType: string, itemName: string | string[], onConfirm: () => void, isAdmin = false): ModalSettings {
+	const isBatch = Array.isArray(itemName);
+	const count = isBatch ? itemName.length : 1;
 
 	const title = count > 1 ? m.get('modal.delete.title.batch', { count, type: itemType }) : m.get('modal.delete.title.single', { type: itemType });
 
@@ -114,12 +109,10 @@ export function createDeleteModal(itemType: string, itemName: string, onConfirm:
 	);
 }
 
-/**
- * Creates an archive confirmation modal
- */
-export function createArchiveModal(itemType: string, itemName: string, onConfirm: () => void): ModalSettings {
-	const isBatch = typeof itemName === 'object';
-	const count = isBatch ? (itemName as any).length : 1;
+// Creates an archive confirmation modal
+export function createArchiveModal(itemType: string, itemName: string | string[], onConfirm: () => void): ModalSettings {
+	const isBatch = Array.isArray(itemName);
+	const count = isBatch ? itemName.length : 1;
 
 	const title = count > 1 ? m.get('modal.archive.title.batch', { count, type: itemType }) : m.get('modal.archive.title.single', { type: itemType });
 
@@ -140,9 +133,7 @@ export function createArchiveModal(itemType: string, itemName: string, onConfirm
 	);
 }
 
-/**
- * Creates a status change confirmation modal
- */
+// Creates a status change confirmation modal
 export function createStatusModal(fromStatus: string, toStatus: string, itemType: string, itemName: string, onConfirm: () => void): ModalSettings {
 	const title = m.get('modal.status.title', { from: fromStatus, to: toStatus });
 	const body = m.get('modal.status.body', { name: itemName, type: itemType, status: toStatus });
@@ -161,9 +152,7 @@ export function createStatusModal(fromStatus: string, toStatus: string, itemType
 	);
 }
 
-/**
- * Creates a scheduling confirmation modal with date picker
- */
+// Creates a scheduling confirmation modal with date picker
 export function createScheduleModal(itemType: string, itemName: string, onConfirm: (scheduledDate: Date) => void): ModalSettings {
 	return {
 		type: 'component',
@@ -182,9 +171,7 @@ export function createScheduleModal(itemType: string, itemName: string, onConfir
 	};
 }
 
-/**
- * Creates a batch operation selection modal
- */
+// Creates a batch operation selection modal
 export function createBatchModal(
 	selectedCount: number,
 	itemType: string,
@@ -209,9 +196,7 @@ export function createBatchModal(
 	};
 }
 
-/**
- * Helper function to get status-specific icons
- */
+// Helper function to get status-specific icons
 function getStatusIcon(status: string): string {
 	const iconMap: Record<string, string> = {
 		published: 'fa-check-circle',
@@ -226,25 +211,15 @@ function getStatusIcon(status: string): string {
 	return iconMap[status] || 'fa-info-circle';
 }
 
-/**
- * Utility to show success toast after modal actions
- */
+// Utility to show success toast after modal actions
 export function showActionToast(action: string, itemType: string, count = 1, success = true) {
 	const messageKey = success ? `toast.${action}.success${count > 1 ? '.batch' : ''}` : `toast.${action}.error${count > 1 ? '.batch' : ''}`;
 
-	const background = success ? 'variant-filled-success' : 'variant-filled-error';
-
-	toastStore.trigger({
-		message: m.get(messageKey, { count, type: itemType }),
-		background,
-		timeout: success ? 3000 : 5000,
-		hideDismiss: false
-	});
+	const type = success ? 'success' : ('error' as const);
+	showToast(m.get(messageKey, { count, type: itemType }), type);
 }
 
-/**
- * Validates if an action is available for current user permissions
- */
+// Validates if an action is available for current user permissions
 export function isActionAllowed(action: string, userRole: string, isAdmin: boolean): boolean {
 	const adminOnlyActions = ['delete', 'batch-delete'];
 	const editorActions = ['publish', 'unpublish', 'archive', 'schedule'];

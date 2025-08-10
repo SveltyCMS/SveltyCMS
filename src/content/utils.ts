@@ -17,9 +17,12 @@
  */
 
 import type { ContentNode, NestedContentNode } from '../databases/dbInterface';
-import { logger } from '../utils/logger.svelte';
-import type { MinimalContentNode, Schema } from './types';
+
 import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from '@src/widgets';
+import type { MinimalContentNode, Schema } from './types';
+
+// System Logger
+import { logger } from '../utils/logger.svelte';
 
 export function constructNestedStructure(contentStructure: ContentNode[]): NestedContentNode[] {
 	const nodeMap = new Map<string, NestedContentNode>();

@@ -13,10 +13,8 @@
 <script lang="ts">
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	let { value } = $props<{
-		value: boolean; // The boolean value to display
-	}>();
+	// Boolean badge for tables
+	export let value: boolean = false;
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->

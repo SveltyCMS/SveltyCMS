@@ -31,6 +31,7 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Media storage
+import { publicEnv } from '@root/config/public';
 import { cacheService } from '@src/databases/CacheService';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
@@ -38,7 +39,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
-		const targetUserId = (formData.get('userId') as string) || locals.user._id; // Default to self if no userId provided
+		const targetUserId = (formData.get('userId') as string) || (formData.get('user_id') as string) || locals.user._id; // Default to self if no userId provided
 
 		// Role-based access is handled by hooks.server.ts
 		const isEditingSelf = targetUserId === locals.user._id;
@@ -70,7 +71,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate file type on the server as a secondary check
-		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'];
 		if (!allowedTypes.includes(avatarFile.type)) {
 			logger.error('Invalid file type for avatar', {
 				userId: locals.user._id,
@@ -103,7 +104,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Save the new avatar image and update the user's profile
 		const avatarUrl = await saveAvatarImage(avatarFile, targetUserId);
-		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl });
+
+		// Persist DB with raw media path (typically /mediaFiles/avatars/..)
+		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
+
+		// Normalize URL for client consumption to route through /files
+		const mediaFolder = publicEnv?.MEDIA_FOLDER || 'mediaFiles';
+		const normalizedAvatarUrl = avatarUrl.replace(/^https?:\/\/[^/]+/i, '').replace(new RegExp(`^\\/?(?:${mediaFolder}|mediaFiles)\\/`), '/files/');
 
 		// Invalidate any cached session data to reflect the change immediately.
 		const session_id = locals.session_id;
@@ -112,12 +119,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			await cacheService.set(session_id, { user, timestamp: Date.now() }, 3600);
 		}
 
-		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl });
+		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl: normalizedAvatarUrl });
 
 		return json({
 			success: true,
 			message: 'Avatar saved successfully',
-			avatarUrl
+			avatarUrl: normalizedAvatarUrl
 		});
 	} catch (err) {
 		const httpError = err as HttpError;

@@ -16,31 +16,37 @@ ENHANCEMENTS:
 
 	// Skeleton
 	import ModalEditSystem from './ModalEditSystem.svelte';
-	import { getToastStore, getModalStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import { showModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
-	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// --- ENHANCED SAVE PROCESS ---
 	async function saveConfig(configData: { [key: string]: any }, isPrivate: boolean) {
 		const toast = (message: string, background: string) => {
-			toastStore.trigger({ message, background } as ToastSettings);
+			// Map legacy backgrounds to showToast types via our adapter where possible
+			if (background?.includes('success') || background === 'gradient-success') showToast(message, 'success');
+			else if (background?.includes('error') || background === 'gradient-error') showToast(message, 'error');
+			else if (background?.includes('warning') || background === 'gradient-warning' || background === 'variant-filled-warning')
+				showToast(message, 'warning');
+			else showToast(message, 'info');
 		};
 
 		try {
 			// Step 1: Back up the current configuration
-			toast('Backing up current configuration...', 'variant-filled-secondary');
+			toast('Backing up current configuration...', 'gradient-tertiary');
 			const backupResponse = await fetch('/api/config/backup', { method: 'POST' });
 
 			if (!backupResponse.ok) {
 				const backupResult = await backupResponse.json();
 				throw new Error(backupResult.message || 'Failed to create configuration backup.');
 			}
-			toast('Backup successful!', 'variant-filled-success');
+			toast('Backup successful!', 'gradient-primary');
 
 			// Step 2: Save the new configuration
-			toast('Saving new configuration...', 'variant-filled-secondary');
+			toast('Saving new configuration...', 'gradient-tertiary');
 			const saveResponse = await fetch('/api/save-config', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -51,33 +57,37 @@ ENHANCEMENTS:
 				const saveResult = await saveResponse.json();
 				throw new Error(saveResult.message || 'Failed to save configuration.');
 			}
-			toast('Configuration saved successfully!', 'variant-filled-success');
+			toast('Configuration saved successfully!', 'gradient-primary');
 
 			// Step 3: Trigger server restart
 			await triggerRestart();
 		} catch (error: any) {
 			console.error('Error in save process:', error);
-			toast(error.message, 'variant-filled-error');
+			toast(error.message, 'gradient-error');
 		}
 	}
 
 	async function triggerRestart() {
 		const toast = (message: string, background: string) => {
-			toastStore.trigger({ message, background } as ToastSettings);
+			if (background?.includes('success') || background === 'gradient-success') showToast(message, 'success');
+			else if (background?.includes('error') || background === 'gradient-error') showToast(message, 'error');
+			else if (background?.includes('warning') || background === 'gradient-warning' || background === 'variant-filled-warning')
+				showToast(message, 'warning');
+			else showToast(message, 'info');
 		};
 		try {
-			toast('Triggering server restart...', 'variant-filled-secondary');
+			toast('Triggering server restart...', 'gradient-tertiary');
 			const response = await fetch('/api/restart', { method: 'POST' });
 			const result = await response.json();
 
 			if (result.success) {
-				toast('Server restart triggered successfully!', 'variant-filled-success');
+				toast('Server restart triggered successfully!', 'gradient-primary');
 			} else {
 				throw new Error('Failed to trigger server restart.');
 			}
 		} catch (error: any) {
 			console.error('Error triggering server restart:', error);
-			toast(error.message, 'variant-filled-error');
+			toast(error.message, 'gradient-error');
 		}
 	}
 
@@ -104,7 +114,7 @@ ENHANCEMENTS:
 			title,
 			component: modalComponent
 		};
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	const categories = [

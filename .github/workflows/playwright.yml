@@ -17,22 +17,6 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: true
-      matrix:
-        mongodb-version: [latest]
-        test-file:
-          [
-            '/tests/playwright/signupfirstuser.spec.ts',
-            '/tests/playwright/user.spec.ts',
-            '/tests/playwright/oauth-signup-firstuser.spec.ts',
-            '/tests/playwright/collection.spec.ts',
-            '/tests/playwright/language.spec.ts',
-            '/tests/playwright/login.spec.ts',
-            '/tests/playwright/permission-change.spec.ts',
-            '/tests/playwright/user-crud.spec.ts'
-          ]
-
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -53,15 +37,15 @@ jobs:
             ${{ runner.OS }}-bun-playwright-
         continue-on-error: true
 
-      - name: Start MongoDB v${{ matrix.mongodb-version }}
+      - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
         with:
-          mongodb-version: ${{ matrix.mongodb-version }}
+          mongodb-version: latest
           mongodb-username: admin
           mongodb-password: admin
           mongodb-db: SveltyCMS
           mongodb-port: 27017
-        # CORRECTED: Removed the 'if' condition to ensure MongoDB runs for pull requests as well.
+        # Ensure MongoDB runs for PRs as well
 
       - name: Install dependencies
         run: bun install
@@ -69,17 +53,16 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
 
+      - name: Generate config from ENV (non-interactive)
+        run: bun run gen:config
+
       - name: Run local server
         run: bun run build && bun run preview &
 
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
-          # The loop for running tests in parallel is a good approach.
-          for file in ${{ matrix.test-file }}; do
-            bunx playwright test $file --workers 10 --output=test-results/playwright &
-          done
-          wait
+          bunx playwright test tests/playwright --workers 8 --output=test-results/playwright
         env:
           # --- CORRECTED: Private Configuration ---
           # Note: Prefixes like 'privateEnv.' are removed. All values are strings.
@@ -192,7 +175,7 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Start MongoDB # CORRECTED: Added MongoDB service to this job
+      - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
         with:
           mongodb-version: latest
@@ -204,11 +187,14 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Generate config from ENV (non-interactive)
+        run: bun run gen:config
+
       - name: Run Bun tests
         run: |
           mkdir -p test-results/bun
-          bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
-        env: # CORRECTED: Added the full environment configuration to this job as well.
+          bun test tests/bun > test-results/bun/test-results.txt
+        env: # Full environment configuration for tests
           # --- Private Configuration ---
           DB_TYPE: 'mongodb'
           DB_HOST: 'localhost'

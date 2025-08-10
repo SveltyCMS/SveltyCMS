@@ -68,8 +68,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					return userResult.success ? userResult.data : null;
 				})
 			);
-			
-			if (userChecks.some(user => user === null)) {
+
+			if (userChecks.some((user) => user === null)) {
 				logger.warn(`Attempt to act on users outside of tenant or non-existent users`, {
 					userId: user?._id,
 					tenantId,

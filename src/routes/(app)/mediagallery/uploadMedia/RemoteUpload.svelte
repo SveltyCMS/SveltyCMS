@@ -17,10 +17,9 @@
 -->
 
 <script lang="ts">
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 
 	let remoteUrls: string[] = $state([]);
-	const toastStore = getToastStore();
 
 	function handleRemoteUrlInput(event: Event) {
 		const target = event.target as HTMLTextAreaElement | null;
@@ -31,10 +30,7 @@
 
 	async function uploadRemoteUrls() {
 		if (remoteUrls.length === 0) {
-			toastStore.trigger({
-				message: 'No URLs entered for upload',
-				background: 'variant-filled-warning'
-			});
+			showToast('No URLs entered for upload', 'warning');
 			return;
 		}
 
@@ -54,20 +50,14 @@
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'URLs uploaded successfully',
-					background: 'variant-filled-success'
-				});
+				showToast('URLs uploaded successfully', 'success');
 				remoteUrls = []; // Clear the remote URLs array after successful upload
 			} else {
 				throw Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
 			console.error('Error uploading URLs:', error);
-			toastStore.trigger({
-				message: 'Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error'),
-				background: 'variant-filled-error'
-			});
+			showToast('Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
 		}
 	}
 </script>

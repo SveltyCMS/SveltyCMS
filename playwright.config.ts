@@ -78,6 +78,7 @@ export default defineConfig({
 		command: process.env.CI ? 'bun run build && bun run preview' : 'bun run dev',
 		port: process.env.CI ? 4173 : 5173,
 		timeout: 240000, // Timeout in milliseconds
-		reuseExistingServer: !process.env.CI
+		// In CI we start the preview server in the workflow; reuse it here
+		reuseExistingServer: true
 	}
 });

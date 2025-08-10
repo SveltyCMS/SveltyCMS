@@ -9,6 +9,7 @@
 	"scripts": {
 		"-- INSTALLER -----------------------------------------": "",
 		"installer": "node cli-installer/cli-installer.js",
+        "gen:config": "node scripts/generate-config.js",
 		"-- DEVELOP -------------------------------------------": "",
 		"dev": "vite dev",
 		"devv": "LAUNCH_EDITOR='code' vite --open",

@@ -240,29 +240,61 @@ export async function fileExists(url: string): Promise<boolean> {
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	// Remove leading slash and/or MEDIA_FOLDER prefix to get relative path within media folder
-	let relativeUrl = url;
+	const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
 
-	// Remove leading slash if present
-	if (relativeUrl.startsWith('/')) {
-		relativeUrl = relativeUrl.substring(1);
+	// Normalize various possible forms:
+	// - /files/avatars/...
+	// - /mediaFiles/avatars/...
+	// - mediaFiles/avatars/...
+	// - avatars/...
+	let input = (url || '').toString();
+	// Strip origin
+	input = input.replace(/^https?:\/\/[^/]+/i, '');
+	// Remove leading slashes
+	input = input.replace(/^\/+/, '');
+	// Map files/ to media folder space
+	if (input.startsWith('files/')) {
+		input = input.slice('files/'.length);
+	}
+	// Remove media folder prefix if present
+	if (input.startsWith(`${mediaFolder}/`)) {
+		input = input.slice(mediaFolder.length + 1);
 	}
 
-	// Remove MEDIA_FOLDER prefix if present (after removing leading slash)
-	const mediaFolderPrefix = `${publicEnv.MEDIA_FOLDER}/`;
-	if (relativeUrl.startsWith(mediaFolderPrefix)) {
-		relativeUrl = relativeUrl.substring(mediaFolderPrefix.length);
+	// Guard: invalid or empty path
+	if (!input || input.endsWith('/')) {
+		logger.warn('moveMediaToTrash called with invalid path; skipping', { url, normalized: input });
+		return;
 	}
 
-	const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, relativeUrl);
-	const trashPath = Path.join(publicEnv.MEDIA_FOLDER, '.trash', Path.basename(relativeUrl));
+	const sourceAbs = Path.join(process.cwd(), mediaFolder, input);
+	const trashAbs = Path.join(process.cwd(), mediaFolder, '.trash', input); // preserve subdirs
 
-	// Create trash directory if it doesn't exist
-	await fs.promises.mkdir(Path.dirname(trashPath), { recursive: true });
+	// Ensure trash dir exists
+	await fs.promises.mkdir(Path.dirname(trashAbs), { recursive: true });
 
-	// Move file to trash
-	await fs.promises.rename(sourcePath, trashPath);
-	logger.info('File moved to trash', { originalUrl: url, trashUrl: trashPath });
+	try {
+		const stat = await fs.promises.stat(sourceAbs).catch(() => null);
+		if (!stat) {
+			logger.warn('Source file not found for trash; skipping', { sourceAbs });
+			return;
+		}
+		if (!stat.isFile()) {
+			// Do not attempt to trash directories
+			logger.warn('Source path is not a file; skipping', { sourceAbs });
+			return;
+		}
+		await fs.promises.rename(sourceAbs, trashAbs);
+		logger.info('File moved to trash', { originalUrl: url, trashUrl: trashAbs });
+	} catch (err) {
+		const code = err && typeof err === 'object' && 'code' in err ? (err as { code?: string }).code : undefined;
+		if (code === 'ENOENT') {
+			logger.warn('File not found during trash operation; skipping', { sourceAbs });
+			return;
+		}
+		// Re-throw for upstream handling for unexpected errors
+		throw err;
+	}
 }
 
 // Cleans up media directory

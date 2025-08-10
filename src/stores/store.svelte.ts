@@ -4,8 +4,9 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { store } from '@utils/reactivity.svelte';
 import type { Locale } from '@src/paraglide/runtime';
+import { store } from '@utils/reactivity.svelte';
+import { SvelteSet } from 'svelte/reactivity';
 
 // --- Helper Functions & Interfaces ---
 
@@ -158,6 +159,12 @@ export const avatarSrc = {
 				return;
 			}
 
+			// Default static avatar should never go through /files
+			if (/^\/?Default_User\.svg$/i.test(newValue)) {
+				_avatarSrc = '/Default_User.svg';
+				return;
+			}
+
 			const MEDIA_FOLDER = publicEnv?.MEDIA_FOLDER || 'mediaFiles';
 
 			// Strip any leading origin or duplicate slashes (defensive)
@@ -165,6 +172,12 @@ export const avatarSrc = {
 
 			// Ensure no leading double slashes
 			url = url.replace(/^\/+/, '/');
+
+			// Guard against invalid bare /files URL which would 400 the files endpoint
+			if (url === '/files' || url === '/files/') {
+				_avatarSrc = '/Default_User.svg';
+				return;
+			}
 
 			// If already using /files, leave as-is
 			if (url.startsWith('/files/')) {
@@ -174,6 +187,18 @@ export const avatarSrc = {
 
 			// Remove leading slash for uniform checks below
 			const trimmed = url.startsWith('/') ? url.slice(1) : url;
+
+			// Additional guard for "files" without a path
+			if (trimmed === 'files') {
+				_avatarSrc = '/Default_User.svg';
+				return;
+			}
+
+			// Respect explicit static/ paths (leave as root path)
+			if (trimmed.startsWith('static/')) {
+				_avatarSrc = `/${trimmed}`;
+				return;
+			}
 
 			// Cases:
 			// - mediaFiles/avatars/...
@@ -192,7 +217,7 @@ export const avatarSrc = {
 
 			// Fallback: if it looks like a relative media path, prefix /files/
 			// Otherwise, keep as-is
-			_avatarSrc = trimmed ? `/files/${trimmed}` : '/Default_User.svg';
+			_avatarSrc = trimmed ? (trimmed.endsWith('.svg') ? `/${trimmed}` : `/files/${trimmed}`) : '/Default_User.svg';
 		} catch {
 			_avatarSrc = newValue || '/Default_User.svg';
 		}
@@ -249,6 +274,51 @@ export function updateTranslationStatusOpen(value: boolean) {
 	_translationStatusOpen = value;
 }
 
+// --- Small helper: rune-backed store that also behaves like a Svelte store ---
+function createRuneBackedStore<T>(initial: T) {
+	let state = $state<T>(initial);
+	const subscribers = new SvelteSet<(v: T) => void>();
+	const notify = () => {
+		for (const fn of subscribers) {
+			try {
+				fn(state);
+			} catch {
+				// noop: subscriber errors shouldn't break notifications
+			}
+		}
+	};
+	return {
+		// Rune-style value access
+		get value() {
+			return state;
+		},
+		set value(v: T) {
+			state = v;
+			notify();
+		},
+		// Svelte store API for backward compatibility
+		set(v: T) {
+			state = v;
+			notify();
+		},
+		update(fn: (v: T) => T) {
+			state = fn(state);
+			notify();
+		},
+		subscribe(run: (v: T) => void) {
+			subscribers.add(run);
+			try {
+				run(state);
+			} catch {
+				// noop on initial call
+			}
+			return () => {
+				subscribers.delete(run);
+			};
+		}
+	} as const;
+}
+
 // --- Legacy Svelte 3/4 Stores (for compatibility) ---
 
 // Get initial values from cookies or use defaults (with error handling for server-side)
@@ -277,8 +347,9 @@ export const saveFunction = store<SaveFunction>({
 	fn: () => {},
 	reset: () => {}
 });
-export const saveLayerStore = store(async () => {});
-export const shouldShowNextButton = store(false);
+// Switch to rune-backed values while preserving store API
+export const saveLayerStore = createRuneBackedStore<() => Promise<void>>(async () => {});
+export const shouldShowNextButton = createRuneBackedStore(false);
 export const validationErrors = store<ValidationErrors>({});
 
 // Update cookies when language stores change

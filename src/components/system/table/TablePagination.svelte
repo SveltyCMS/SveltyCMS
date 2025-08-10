@@ -73,7 +73,7 @@
 	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
 	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
 
-	// Go to page - IMMEDIATE 
+	// Go to page - IMMEDIATE
 	function goToPage(page: number) {
 		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
 			currentPage = page;

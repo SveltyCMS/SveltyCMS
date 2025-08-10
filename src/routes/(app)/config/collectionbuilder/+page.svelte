@@ -40,7 +40,9 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
+	import { showModal } from '@utils/modalUtils';
 	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
 
 	interface CategoryModalResponse {
@@ -69,9 +71,6 @@
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
-	const toastStore = getToastStore();
-	const modalStore = getModalStore();
-
 	/**
 	 * Opens the modal for adding or editing a category.
 	 * @param existingCategory Optional ContentNode if editing an existing category.
@@ -98,7 +97,6 @@
 					} else {
 						addNewCategory(response);
 					}
-					modalStore.close();
 				} catch (error) {
 					console.error('Error handling category modal response:', error);
 					showToast('Error updating categories', 'error');
@@ -106,7 +104,7 @@
 			}
 		};
 
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	/**
@@ -244,25 +242,6 @@
 			fields: []
 		});
 		goto('/config/collectionbuilder/new');
-	}
-
-	/**
-	 * Displays a toast notification.
-	 * @param message The message to display.
-	 * @param type The type of toast (success, info, error).
-	 */
-	function showToast(message: string, type: 'success' | 'info' | 'error' = 'info'): void {
-		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message: message,
-			background: backgrounds[type],
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		});
 	}
 </script>
 
