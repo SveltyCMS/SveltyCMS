@@ -43,21 +43,22 @@ This component provides a streamlined interface for managing collection entries 
 	// Utils & Components
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
+	import { showScheduleModal } from '@utils/modalUtils';
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
 
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	const { user } = page.data;
 	const isAdmin = page.data.isAdmin || false;
 
 	// --- Wrapper functions for event handlers ---
-	const handleCloneEntry = () => cloneCurrentEntry(modalStore, toastStore);
-	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, toastStore, isAdmin);
+	const handleCloneEntry = () => cloneCurrentEntry();
+	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, isAdmin);
 
 	// --- Status Management using collection status directly  ---
 	const isPublish = $derived(() => {
@@ -87,18 +88,12 @@ This component provides a streamlined interface for managing collection entries 
 					// Update the collection value store
 					collectionValue.update((current) => ({ ...current, status: newStatus }));
 
-					toastStore.trigger({
-						message: newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.',
-						background: 'variant-filled-success'
-					});
+					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
 					console.log('[RightSidebar] API update successful');
 					return true;
 				} else {
-					toastStore.trigger({
-						message: result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`,
-						background: 'variant-filled-error'
-					});
+					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
 
 					console.error('[RightSidebar] API update failed:', result.error);
 					return false;
@@ -111,10 +106,7 @@ This component provides a streamlined interface for managing collection entries 
 			}
 		} catch (e) {
 			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
-			toastStore.trigger({
-				message: errorMessage,
-				background: 'variant-filled-error'
-			});
+			showToast(errorMessage, 'error');
 
 			console.error('[RightSidebar] Toggle error:', e);
 			return false;
@@ -167,36 +159,25 @@ This component provides a streamlined interface for managing collection entries 
 	});
 
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = { ref: ScheduleModal };
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: m.scheduler_title(),
-			body: m.scheduler_body(),
-			component: modalComponent,
-			response: (r: { date: string; action: string } | boolean) => {
-				if (typeof r === 'object' && r.date) {
-					schedule = r.date;
-					if (r.action === 'schedule') {
-						collectionValue.update((cv) => ({
-							...cv,
-							status: StatusTypes.schedule,
-							_scheduled: new Date(r.date).getTime()
-						}));
-						console.log('[RightSidebar] Entry scheduled');
-					}
+		showScheduleModal({
+			onSchedule: (date: Date, action: string) => {
+				schedule = date.toISOString();
+				if (action === 'schedule') {
+					collectionValue.update((cv) => ({
+						...cv,
+						status: StatusTypes.schedule,
+						_scheduled: date.getTime()
+					}));
+					console.log('[RightSidebar] Entry scheduled');
 				}
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
 	async function saveData() {
 		if (!validationStore.isValid) {
 			console.warn('[RightSidebar] Save blocked due to validation errors.');
-			toastStore.trigger({
-				message: m.validation_fix_before_save(),
-				background: 'variant-filled-error'
-			});
+			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
 		const dataToSave = { ...collectionValue.value };

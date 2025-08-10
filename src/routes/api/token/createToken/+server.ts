@@ -25,13 +25,13 @@
  * - Error handling and logging.
  */
 
-import { json, error, type HttpError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
+import { error, json, type HttpError } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Auth (Database Agnostic)
+import { initializeRoles, roles } from '@root/config/roles';
 import { auth } from '@src/databases/db';
-import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -41,8 +41,8 @@ import { invalidateAdminCache } from '@src/hooks.server';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';
-import { parse, type ValiError } from 'valibot';
 import { v4 as uuidv4 } from 'uuid';
+import { parse, type ValiError } from 'valibot';
 
 // ParaglideJS
 import { getLocale } from '@src/paraglide/runtime';
@@ -148,12 +148,18 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		if (!emailResponse.ok) {
 			const emailError = await emailResponse.json();
-			logger.error('Failed to send invitation email, rolling back token creation.', {
+			logger.error('Failed to send invitation email. Keeping token for manual/alternate delivery.', {
 				email: validatedData.email,
 				error: emailError
-			}); // Rollback: delete the created token
-			await auth.consumeToken(token);
-			throw error(500, emailError.message || 'Failed to send invitation email.');
+			});
+			// Do NOT consume token here; return token so admin can deliver link manually in dev
+			return json({
+				success: true,
+				message: emailError.message || 'Invitation email could not be sent (dev mode). Token preserved for manual delivery.',
+				token: { value: token, expires: expires.toISOString() },
+				email_sent: false,
+				dev_mode: true
+			});
 		}
 
 		// Check if email was actually sent or skipped due to dummy config
@@ -166,6 +172,15 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 				role: roleInfo.name,
 				tenantId,
 				config_status: 'dummy_email_config'
+			});
+			// Return token so it can be delivered manually in dev
+			invalidateAdminCache('tokens', tenantId);
+			return json({
+				success: true,
+				message: 'Token created; email sending skipped (development mode).',
+				token: { value: token, expires: expires.toISOString() },
+				email_sent: false,
+				dev_mode: true
 			});
 		} else {
 			logger.info('Token created and email sent successfully', {
@@ -180,7 +195,8 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		return json({
 			success: true,
 			message: 'Token created and email sent successfully.',
-			token: { value: token, expires: expires.toISOString() }
+			token: { value: token, expires: expires.toISOString() },
+			email_sent: true
 		});
 	} catch (err) {
 		if (err.name === 'ValiError') {

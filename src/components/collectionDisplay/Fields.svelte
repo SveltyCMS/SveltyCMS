@@ -46,8 +46,9 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard, getToastStore, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import { CodeBlock, Tab, TabGroup, clipboard, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
+	import { showConfirm } from '@utils/modalUtils';
 	const modalStore = getModalStore();
 
 	// Components
@@ -222,7 +223,7 @@
 			if (result.success) {
 				revisionsMeta = result.data || [];
 			} else {
-				toastStore.trigger({ message: `Error: ${result.error}`, background: 'variant-filled-error' });
+				showToast(`Error: ${result.error}`, 'error');
 			}
 		} finally {
 			isRevisionsLoading = false;
@@ -252,7 +253,7 @@
 			}
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-			toastStore.trigger({ message: `Error loading revision diff: ${errorMessage}`, background: 'variant-filled-error' });
+			showToast(`Error loading revision diff: ${errorMessage}`, 'error');
 		} finally {
 			isRevisionDetailLoading = false;
 		}
@@ -260,22 +261,17 @@
 
 	function handleRevert() {
 		if (!selectedRevisionData) return;
-
-		const modal: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: 'Confirm Revert',
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
-					collectionValue.set(revertData);
-					toastStore.trigger({ message: 'Content reverted. Please save your changes.', background: 'variant-filled-success' });
-					localTabSet = 0;
-				}
-			},
-			buttonTextConfirm: 'Revert'
-		};
-		modalStore.trigger(modal);
+			confirmText: 'Revert',
+			onConfirm: () => {
+				const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
+				collectionValue.set(revertData);
+				showToast('Content reverted. Please save your changes.', 'info');
+				localTabSet = 0;
+			}
+		});
 	}
 
 	// --- Effects ---

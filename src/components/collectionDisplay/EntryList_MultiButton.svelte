@@ -33,6 +33,7 @@
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
+	import { showStatusChangeConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -86,19 +87,11 @@
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = { ref: ScheduleModal };
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
-			component: modalComponent,
-			response: (r: { date: string; action: string } | undefined) => {
-				if (r) {
-					schedule(r.date, r.action);
-				}
+		showScheduleModal({
+			onSchedule: (date: Date, action: string) => {
+				schedule(date.toISOString(), action);
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
 	// his function only calls the event handlers that the parent component (`EntryList.svelte`) listens for
@@ -154,65 +147,28 @@
 
 	// Enhanced Publish Modal with colorful styling
 	function openPublishModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`
-					: `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will make all selected entries visible to the public.`,
-			buttonTextConfirm: 'Publish',
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white' },
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					publish();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		showStatusChangeConfirm({
+			status: StatusTypes.publish,
+			count: selectedCount,
+			onConfirm: () => publish()
+		});
 	}
 
 	// Enhanced Unpublish Modal with colorful styling
 	function openUnpublishModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`
-					: `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will hide all selected entries from the public.`,
-			buttonTextConfirm: 'Unpublish',
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					unpublish();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		showStatusChangeConfirm({
+			status: StatusTypes.unpublish,
+			count: selectedCount,
+			onConfirm: () => unpublish()
+		});
 	}
 
 	// Enhanced Clone Modal with colorful styling
 	function openCloneModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-secondary-500 font-bold">Cloning</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> this entry? This will create a duplicate copy.`
-					: `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will create duplicate copies of all selected entries.`,
-			buttonTextConfirm: 'Clone',
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white' },
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					clone();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		showCloneModal({
+			count: selectedCount,
+			onConfirm: () => clone()
+		});
 	}
 
 	// Dynamic buttonMap based on configuration and user role

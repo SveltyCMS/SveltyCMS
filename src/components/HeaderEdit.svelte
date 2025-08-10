@@ -26,22 +26,24 @@
  - Cancel and reload functionality for editing mode
  - Full dark mode support with theme-based styling
 -->
+
 <script lang="ts">
 	import { saveEntry, deleteCurrentEntry } from '@utils/entryActions'; // Import centralized delete function
 	// Types
 	import { StatusTypes } from '@src/content/types';
 	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
+	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
 	import Toggles from './system/inputs/Toggles.svelte';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import { invalidateCollectionCache, batchUpdateEntries, updateEntryStatus, createEntry } from '@src/utils/apiClient';
 	import { publicEnv } from '@root/config/public';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Get store instances
-	const toastStore = getToastStore();
+	// Get store instance
 	const modalStore = getModalStore();
 
 	// Modal types import
@@ -121,18 +123,12 @@
 					// Update the collection value store
 					collectionValue.update((current) => ({ ...current, status: newStatus }));
 
-					toastStore.trigger({
-						message: newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.',
-						background: 'variant-filled-success'
-					});
+					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
 					console.log('[HeaderEdit] API update successful');
 					return true;
 				} else {
-					toastStore.trigger({
-						message: result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`,
-						background: 'variant-filled-error'
-					});
+					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
 
 					console.error('[HeaderEdit] API update failed:', result.error);
 					return false;
@@ -145,10 +141,7 @@
 			}
 		} catch (e) {
 			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
-			toastStore.trigger({
-				message: errorMessage,
-				background: 'variant-filled-error'
-			});
+			showToast(errorMessage, 'error');
 
 			console.error('[HeaderEdit] Toggle error:', e);
 			return false;
@@ -178,28 +171,19 @@
 		}
 	}); // Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = { ref: ScheduleModal };
-
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: m.scheduler_title(),
-			body: m.scheduler_body(),
-			component: modalComponent,
-			response: (r: ScheduleResponse | boolean) => {
-				if (typeof r === 'object' && 'date' in r) {
-					schedule = r.date;
-					if (r.action === 'schedule') {
-						collectionValue.update((cv) => ({
-							...cv,
-							status: StatusTypes.schedule,
-							_scheduled: new Date(r.date).getTime()
-						}));
-						console.log('[HeaderEdit] Entry scheduled');
-					}
+		showScheduleModal({
+			onSchedule: (date: Date, action: string) => {
+				schedule = date.toISOString();
+				if (action === 'schedule') {
+					collectionValue.update((cv) => ({
+						...cv,
+						status: StatusTypes.schedule,
+						_scheduled: date.getTime()
+					}));
+					console.log('[HeaderEdit] Entry scheduled');
 				}
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
 	$effect(() => {
@@ -227,10 +211,7 @@
 	async function saveData() {
 		if (!validationStore.isValid) {
 			console.warn('[HeaderEdit] Save blocked due to validation errors.');
-			toastStore.trigger({
-				message: m.validation_fix_before_save(),
-				background: 'variant-filled-error'
-			});
+			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
 
@@ -253,7 +234,7 @@
 
 		console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
 
-		await saveEntry(dataToSave, toastStore);
+		await saveEntry(dataToSave);
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
 
@@ -274,69 +255,42 @@
 
 	// Delete confirmation modal - use centralized function
 	function openDeleteModal(): void {
-		deleteCurrentEntry(modalStore, toastStore, isAdmin);
+		deleteCurrentEntry(modalStore, isAdmin);
 	}
 
 	// Clone confirmation modal
 	function openCloneModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-secondary-500 font-bold">Cloning</span>`,
-			body: `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> this entry? This will create a duplicate copy.`,
-			buttonTextConfirm: 'Clone',
-			buttonTextCancel: 'Cancel',
-			meta: {
-				buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white'
-			},
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					const entry = collectionValue.value;
-					const coll = collection.value;
-					if (!entry || !coll?._id) {
-						toastStore.trigger({
-							message: 'No entry or collection selected.',
-							background: 'variant-filled-warning'
-						});
-						return;
+		showCloneModal({
+			count: 1,
+			onConfirm: async () => {
+				const entry = collectionValue.value;
+				const coll = collection.value;
+				if (!entry || !coll?._id) {
+					showToast('No entry or collection selected.', 'warning');
+					return;
+				}
+				try {
+					const clonedPayload = JSON.parse(JSON.stringify(entry));
+					// Remove unique identifiers and timestamps
+					delete clonedPayload._id;
+					delete clonedPayload.createdAt;
+					delete clonedPayload.updatedAt;
+					// Set clone status and reference to original
+					clonedPayload.status = StatusTypes.clone;
+					clonedPayload.clonedFrom = entry._id;
+					const result = await createEntry(coll._id, clonedPayload);
+					if (result.success) {
+						showToast('Entry cloned successfully.', 'success');
+						invalidateCollectionCache(coll._id);
+						mode.set('view');
+					} else {
+						showToast(result.error || 'Failed to clone entry', 'error');
 					}
-
-					try {
-						// Create a deep copy of the entry with all its data
-						const clonedPayload = JSON.parse(JSON.stringify(entry));
-
-						// Remove unique identifiers and timestamps
-						delete clonedPayload._id;
-						delete clonedPayload.createdAt;
-						delete clonedPayload.updatedAt;
-
-						// Set clone status and reference to original
-						clonedPayload.status = StatusTypes.clone;
-						clonedPayload.clonedFrom = entry._id;
-
-						const result = await createEntry(coll._id, clonedPayload);
-						if (result.success) {
-							toastStore.trigger({
-								message: 'Entry cloned successfully.',
-								background: 'variant-filled-success'
-							});
-							invalidateCollectionCache(coll._id);
-							mode.set('view');
-						} else {
-							toastStore.trigger({
-								message: result.error || 'Failed to clone entry',
-								background: 'variant-filled-error'
-							});
-						}
-					} catch (e) {
-						toastStore.trigger({
-							message: `Error cloning entry: ${(e as Error).message}`,
-							background: 'variant-filled-error'
-						});
-					}
+				} catch (e) {
+					showToast(`Error cloning entry: ${(e as Error).message}`, 'error');
 				}
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 </script>
 

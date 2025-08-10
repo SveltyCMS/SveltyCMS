@@ -28,9 +28,8 @@ It provides the following functionality:
 	import RoleModal from './RoleModal.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalSettings, type PopupSettings, popup } from '@skeletonlabs/skeleton';
-
-	const toastStore = getToastStore();
+	import { getModalStore, type ModalSettings, type PopupSettings, popup } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	const modalStore = getModalStore();
 
 	// Svelte DND-actions
@@ -163,21 +162,6 @@ It provides the following functionality:
 			updateModifiedCount(modifiedRoles.size);
 		}
 	};
-
-	// Show corresponding Toast messages
-	function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
-		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message: message,
-			background: backgrounds[type],
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		});
-	}
 
 	const deleteSelectedRoles = async () => {
 		for (const roleId of selectedRoles) {

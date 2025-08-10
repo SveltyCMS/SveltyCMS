@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/ModalEditForm.svelte
+@file src/routes/(app)/user/components/ModalEditForm.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
 
@@ -19,7 +19,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { page } from '$app/state';
 	// Skeleton & Stores
 	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -62,7 +63,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 	// Store initialization
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	// Form Data Initialization
 	const formData = $state({
@@ -88,7 +88,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
 	const showDeleteButton = hasDeletePermission && !isOwnProfile && !isFirstUser;
 
-	function onFormSubmit(event: SubmitEvent): void {
+	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 
 		// Validate password fields if they are filled
@@ -143,11 +143,17 @@ Efficiently manages user data updates with validation, role selection, and delet
 			submitData.confirmPassword = formData.confirmPassword;
 		}
 
-		// Access the current modal from the store
-		if ($modalStore[0]?.response) {
-			$modalStore[0].response(submitData);
+		// Access the current modal from the store and await response to avoid unhandled promise warnings
+		try {
+			if ($modalStore[0]?.response) {
+				await Promise.resolve($modalStore[0].response(submitData));
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			showToast(`<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}`, 'error');
+		} finally {
+			modalStore.close();
 		}
-		modalStore.close();
 	}
 
 	async function deleteUser() {
@@ -169,21 +175,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			// Use the success message from the API response
 			const successMessage = data.message || 'User deleted successfully.';
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:check" width="24"/> ${successMessage}`,
-				background: 'variant-filled-success',
-				timeout: 3000
-			});
+			showToast(`<iconify-icon icon=\"mdi:check\" width=\"24\"/> ${successMessage}`, 'success');
 
 			await invalidateAll();
 			modalStore.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}`,
-				background: 'variant-filled-error',
-				timeout: 5000
-			});
+			showToast(`<iconify-icon icon=\"mdi:alert-circle\" width=\"24\"/> ${message}`, 'error');
 		}
 	}
 

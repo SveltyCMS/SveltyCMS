@@ -1,9 +1,10 @@
 /**
  * @file src/utils/modalUtils.ts
  * @description Centralized utility functions for creating consistent modal configurations
+ *
  */
 
-import type { ModalSettings } from '@skeletonlabs/skeleton';
+import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
 import * as m from '@src/paraglide/messages';
 
 export interface ConfirmModalOptions {
@@ -22,9 +23,25 @@ export interface ScheduleModalOptions {
 	onSchedule?: (date: Date, action: string) => void | Promise<void>;
 }
 
-/**
- * Creates a standardized confirmation modal configuration
- */
+// Global modal store reference, to be initialized from a Svelte component (e.g., root layout)
+let modalStoreRef: ModalStore | null = null;
+
+// Initialize the global modal store reference from within a component's initialization
+export function setGlobalModalStore(store?: ModalStore): void {
+	modalStoreRef = store ?? getModalStore();
+}
+
+// Triggers a modal using the initialized global modal store
+export function showModal(settings: ModalSettings): void {
+	if (!modalStoreRef) {
+		// Avoid throwing hard errors in production; log a warning for debugging
+		console.warn('[modalUtils] Modal store not initialized. Call setGlobalModalStore(getModalStore()) in a root component.');
+		return;
+	}
+	modalStoreRef.trigger(settings);
+}
+
+// Creates a standardized confirmation modal configuration
 export function createConfirmModal(options: ConfirmModalOptions): ModalSettings {
 	return {
 		type: 'confirm',
@@ -46,9 +63,12 @@ export function createConfirmModal(options: ConfirmModalOptions): ModalSettings 
 	};
 }
 
-/**
- * Creates a delete confirmation modal
- */
+// Convenience: open a confirm modal using the global store
+export function showConfirm(options: ConfirmModalOptions): void {
+	showModal(createConfirmModal(options));
+}
+
+// Creates a delete confirmation modal
 export function createDeleteModal(options: {
 	isArchive?: boolean;
 	count?: number;
@@ -73,9 +93,17 @@ export function createDeleteModal(options: {
 	});
 }
 
-/**
- * Creates a status change confirmation modal
- */
+// Convenience: open a delete/archive confirm modal using the global store
+export function showDeleteConfirm(options: {
+	isArchive?: boolean;
+	count?: number;
+	onConfirm: () => void | Promise<void>;
+	onCancel?: () => void;
+}): void {
+	showModal(createDeleteModal(options));
+}
+
+// Creates a status change confirmation modal
 export function createStatusChangeModal(options: {
 	status: string;
 	count?: number;
@@ -112,9 +140,17 @@ export function createStatusChangeModal(options: {
 	});
 }
 
-/**
- * Creates a schedule modal configuration using the existing ScheduleModal component
- */
+// Convenience: open a status change confirm modal using the global store
+export function showStatusChangeConfirm(options: {
+	status: string;
+	count?: number;
+	onConfirm: () => void | Promise<void>;
+	onCancel?: () => void;
+}): void {
+	showModal(createStatusChangeModal(options));
+}
+
+// Creates a schedule modal configuration using the existing ScheduleModal component
 export function createScheduleModal(options: ScheduleModalOptions = {}): ModalSettings {
 	return {
 		type: 'component',
@@ -131,9 +167,12 @@ export function createScheduleModal(options: ScheduleModalOptions = {}): ModalSe
 	};
 }
 
-/**
- * Creates a clone confirmation modal
- */
+// Convenience: open a schedule modal using the global store
+export function showScheduleModal(options: ScheduleModalOptions = {}): void {
+	showModal(createScheduleModal(options));
+}
+
+// Creates a clone confirmation modal
 export function createCloneModal(options: { count?: number; onConfirm: () => void | Promise<void>; onCancel?: () => void }): ModalSettings {
 	const { count = 1, onConfirm, onCancel } = options;
 	const entryText = count === 1 ? 'entry' : 'entries';
@@ -148,4 +187,9 @@ export function createCloneModal(options: { count?: number; onConfirm: () => voi
 		onConfirm,
 		onCancel
 	});
+}
+
+// Convenience: open a clone confirm modal using the global store
+export function showCloneModal(options: { count?: number; onConfirm: () => void | Promise<void>; onCancel?: () => void }): void {
+	showModal(createCloneModal(options));
 }

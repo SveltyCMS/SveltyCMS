@@ -5,6 +5,7 @@
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { debounce } from '@utils/utils';
 
 	// Stores
@@ -25,7 +26,9 @@
 	import * as m from '@src/paraglide/messages';
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, clipboard, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
+	import { showModal, showConfirm } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@root/src/auth/types';
 	import { dndzone } from 'svelte-dnd-action';
@@ -84,8 +87,6 @@
 		isMultiTenant = false
 	} = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean }>();
 
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
@@ -169,8 +170,7 @@
 			}
 		}
 	});
-	let filteredTableData = $state<(UserData | TokenData)[]>([]);
-	let selectedRows = $state<(UserData | TokenData)[]>([]);
+	// Derived rows to display and selection will be defined below
 	let density = $state(
 		(() => {
 			const settings = localStorage.getItem('userPaginationSettings');
@@ -178,7 +178,7 @@
 		})()
 	);
 	let selectAllColumns = $state(true);
-	let pagesCount = $state(1);
+	// pagesCount becomes derived below
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
 	let filters = $state<{ [key: string]: string }>({});
@@ -197,11 +197,6 @@
 			visible: true,
 			id: `header-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`
 		}));
-
-		// Update selectedRows based on selectedMap
-		selectedRows = Object.entries(selectedMap)
-			.filter(([_, isSelected]) => isSelected)
-			.map(([index]) => filteredTableData[parseInt(index)]);
 	});
 
 	// Modal for token editing
@@ -237,18 +232,18 @@
 				}
 			},
 			response: (result) => {
+				// On success, switch to the token table view
+				if (result && result.success) {
+					showUsertoken = true;
+					showUserList = false;
+					return;
+				}
 				if (result?.success === false) {
-					const t = {
-						message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${result.error || 'Failed to send email'}`,
-						background: 'variant-filled-error',
-						timeout: 5000,
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
+					showToast(result.error || 'Failed to send email', 'error');
 				}
 			}
 		};
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	// Function to edit a specific token
@@ -267,18 +262,18 @@
 				}
 			},
 			response: (result) => {
+				// On success, keep focus on tokens view
+				if (result && result.success) {
+					showUsertoken = true;
+					showUserList = false;
+					return;
+				}
 				if (result?.success === false) {
-					const t = {
-						message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${result.error || 'Failed to update token'}`,
-						background: 'variant-filled-error',
-						timeout: 5000,
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
+					showToast(result.error || 'Failed to update token', 'error');
 				}
 			}
 		};
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
@@ -300,6 +295,23 @@
 		if (diffDays <= 30) return '1 month';
 
 		return '1 month'; // Max available option
+	}
+
+	// Normalize media URLs for table display to avoid requesting bare /files
+	function normalizeMediaUrl(url: string | null | undefined): string {
+		if (!url) return '/Default_User.svg';
+		try {
+			if (url.startsWith('data:') || /^https?:\/\//i.test(url)) return url;
+			if (url === '/files' || url === '/files/') return '/Default_User.svg';
+			if (url.startsWith('/files/')) return url;
+			// Allow direct svg in static
+			if (/^\/?[^\s?]+\.svg$/i.test(url)) return url.startsWith('/') ? url : `/${url}`;
+			// Fallback: prefix media-ish paths with /files/
+			const trimmed = url.startsWith('/') ? url.slice(1) : url;
+			return `/files/${trimmed}`;
+		} catch {
+			return '/Default_User.svg';
+		}
 	}
 
 	// Helper function to calculate remaining time until expiration for display in table
@@ -334,12 +346,7 @@
 
 		// Prevent admins from blocking themselves
 		if (currentUser && user._id === currentUser._id) {
-			toastStore.trigger({
-				message: 'You cannot block your own account',
-				background: 'variant-filled-warning',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast('You cannot block your own account', 'warning');
 			return;
 		}
 
@@ -355,23 +362,15 @@
 			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`
 			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
 
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: modalTitle,
 			body: modalBody,
-			buttonTextConfirm: actionWord,
-			buttonTextCancel: 'Cancel',
-			// Custom button styling based on action
-			...(user.blocked
-				? { meta: { buttonConfirmClasses: 'variant-filled-warning' } }
-				: { meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' } }),
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					await performBlockAction(user, action, actionPastTense);
-				}
+			confirmText: actionWord,
+			confirmClasses: user.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
+			onConfirm: async () => {
+				await performBlockAction(user, action, actionPastTense);
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
 	async function performBlockAction(user: UserData, action: string, actionPastTense: string) {
@@ -401,23 +400,13 @@
 					};
 				}
 
-				toastStore.trigger({
-					message: `User ${actionPastTense} successfully`,
-					background: 'variant-filled-success',
-					timeout: 3000,
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(`User ${actionPastTense} successfully`, 'success');
 			} else {
 				throw new Error(result.message || `Failed to ${action} user`);
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			toastStore.trigger({
-				message: `Failed to ${action} user: ${errorMessage}`,
-				background: 'variant-filled-error',
-				timeout: 5000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(`Failed to ${action} user: ${errorMessage}`, 'error');
 		}
 	}
 
@@ -437,23 +426,15 @@
 			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`
 			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
 
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: modalTitle,
 			body: modalBody,
-			buttonTextConfirm: actionWord,
-			buttonTextCancel: 'Cancel',
-			// Custom button styling based on action
-			...(token.blocked
-				? { meta: { buttonConfirmClasses: 'variant-filled-warning' } }
-				: { meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' } }),
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					await performTokenBlockAction(token, action, actionPastTense);
-				}
+			confirmText: actionWord,
+			confirmClasses: token.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
+			onConfirm: async () => {
+				await performTokenBlockAction(token, action, actionPastTense);
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
 	async function performTokenBlockAction(token: TokenData, action: string, actionPastTense: string) {
@@ -483,23 +464,13 @@
 					};
 				}
 
-				toastStore.trigger({
-					message: `Token ${actionPastTense} successfully`,
-					background: 'variant-filled-success',
-					timeout: 3000,
-					classes: 'border-1 !rounded-md'
-				});
+				showToast(`Token ${actionPastTense} successfully`, 'success');
 			} else {
 				throw new Error(result.message || `Failed to ${action} token`);
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			toastStore.trigger({
-				message: `Failed to ${action} token: ${errorMessage}`,
-				background: 'variant-filled-error',
-				timeout: 5000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(`Failed to ${action} token: ${errorMessage}`, 'error');
 		}
 	}
 
@@ -516,52 +487,79 @@
 	function toggleUserList() {
 		showUserList = !showUserList;
 		if (showUsertoken) showUsertoken = false;
-		refreshTableData();
 	}
 
 	function toggleUserToken() {
 		showUsertoken = !showUsertoken;
 		showUserList = false;
-		refreshTableData();
 	}
 
-	// Refresh table data with current filters and sorting
-	function refreshTableData() {
-		// Apply filters and sorting to tableData
-		if (!tableData) return;
-		let filtered = [...tableData];
+	// --- DERIVED STATE: filter, sort, paginate ---
+	let filteredAndSortedData = $derived.by<(UserData | TokenData)[]>(() => {
+		let filtered = tableData;
 
-		// Apply global search if value exists
-		if (globalSearchValue) {
-			filtered = filtered.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(globalSearchValue.toLowerCase())));
+		// Global search
+		const searchLower = (globalSearchValue || '').toLowerCase();
+		if (searchLower) {
+			filtered = filtered.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(searchLower)));
 		}
 
-		// Apply column filters
-		Object.entries(filters).forEach(([key, value]) => {
+		// Column filters
+		for (const [key, value] of Object.entries(filters)) {
 			if (value) {
-				filtered = filtered.filter((row) => String(row[key]).toLowerCase().includes(value.toLowerCase()));
+				const v = value.toLowerCase();
+				filtered = filtered.filter((row) =>
+					String((row as any)[key])
+						.toLowerCase()
+						.includes(v)
+				);
 			}
-		});
+		}
 
-		// Apply sorting
+		// Sorting
 		if (sorting.sortedBy && sorting.isSorted !== 0) {
-			filtered.sort((a, b) => {
-				const aValue = String(a[sorting.sortedBy]).toLowerCase();
-				const bValue = String(b[sorting.sortedBy]).toLowerCase();
-				return sorting.isSorted === 1 ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+			const { sortedBy, isSorted } = sorting;
+			filtered = [...filtered].sort((a: any, b: any) => {
+				const aValue = String(a?.[sortedBy] ?? '').toLowerCase();
+				const bValue = String(b?.[sortedBy] ?? '').toLowerCase();
+				return isSorted === 1 ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
 			});
 		}
 
-		// Apply pagination
+		return filtered;
+	});
+
+	let paginatedData = $derived.by<(UserData | TokenData)[]>(() => {
 		const start = (currentPage - 1) * rowsPerPage;
 		const end = start + rowsPerPage;
-		filteredTableData = filtered.slice(start, end);
-		pagesCount = Math.ceil(filtered.length / rowsPerPage) || 1;
-		if (currentPage > pagesCount) currentPage = pagesCount;
-	}
+		return filteredAndSortedData.slice(start, end);
+	});
 
+	let pagesCount = $derived.by<number>(() => Math.ceil(filteredAndSortedData.length / rowsPerPage) || 1);
+
+	let selectedRows = $derived.by<(UserData | TokenData)[]>(
+		() =>
+			Object.entries(selectedMap)
+				.filter(([_, isSelected]) => isSelected)
+				.map(([index]) => paginatedData[parseInt(index)])
+				.filter(Boolean) as (UserData | TokenData)[]
+	);
+
+	// Reset selection and page when the data source changes
 	$effect(() => {
-		refreshTableData();
+		tableData; // track dependency
+		untrack(() => {
+			selectedMap = {};
+			selectAll = false;
+			currentPage = 1;
+		});
+	});
+
+	// Keep current page in bounds when page count shrinks
+	$effect(() => {
+		if (currentPage > pagesCount) {
+			currentPage = pagesCount;
+		}
 	});
 
 	function handleCheckboxChange() {
@@ -735,7 +733,7 @@
 								checked={selectAll}
 								onCheck={(checked) => {
 									selectAll = checked;
-									for (let i = 0; i < filteredTableData.length; i++) {
+									for (let i = 0; i < paginatedData.length; i++) {
 										selectedMap[i] = checked;
 									}
 								}}
@@ -766,7 +764,7 @@
 					</thead>
 
 					<tbody>
-						{#each filteredTableData as row, index}
+						{#each paginatedData as row, index}
 							{@const isExpired = showUsertoken && row.expires && new Date(row.expires) < new Date()}
 							<tr
 								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
@@ -812,10 +810,7 @@
 											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
-											<Avatar
-												src={currentUser && row._id === currentUser._id ? avatarSrc.value : (row[header.key] ?? '/Default_User.svg')}
-												width="w-8"
-											/>
+											<Avatar src={currentUser && row._id === currentUser._id ? avatarSrc.value : normalizeMediaUrl(row[header.key])} width="w-8" />
 										{:else if header.key === 'role'}
 											<Role value={row[header.key]} />
 										{:else if header.key === '_id'}
@@ -827,6 +822,10 @@
 													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
+													onclick={(event) => {
+														event.stopPropagation();
+														showToast('User ID copied to clipboard', 'success');
+													}}
 												>
 													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
 												</button>
@@ -840,6 +839,10 @@
 													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
 													aria-label="Copy Token"
 													title="Copy Token to clipboard"
+													onclick={(event) => {
+														event.stopPropagation();
+														showToast('Token copied to clipboard', 'success');
+													}}
 												>
 													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
 												</button>
@@ -877,7 +880,7 @@
 					bind:currentPage
 					bind:rowsPerPage
 					{pagesCount}
-					totalItems={filteredTableData.length}
+					totalItems={filteredAndSortedData.length}
 					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
 					onUpdatePage={(page) => {
 						currentPage = page;

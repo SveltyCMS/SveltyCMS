@@ -23,6 +23,7 @@
 
 	import { fade } from 'svelte/transition';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
 	import { publicEnv } from '@root/config/public';
@@ -51,7 +52,9 @@
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Skeleton
-	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
+	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { setGlobalModalStore } from '@utils/modalUtils';
+	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	// import type { ContentNode } from '@root/src/databases/dbInterface';
@@ -68,6 +71,9 @@
 	}
 
 	let { children, data }: Props = $props();
+	// Initialize global modal store during component setup
+	setGlobalModalStore(getModalStore());
+	setGlobalToastStore(getToastStore());
 
 	// --- State Management ---
 	globalLoadingStore.startLoading(loadingOperations.initialization); // Start initial loading immediately.
@@ -96,10 +102,19 @@
 		}
 	});
 
-	// Set isCollectionsLoaded to true once the initial data is available.
+	// Stop initialization loader once server provided contentStructure (even if empty)
 	$effect(() => {
-		if (data.contentStructure && data.contentStructure.length > 0) {
+		if (Array.isArray(data.contentStructure)) {
 			globalLoadingStore.stopLoading(loadingOperations.initialization);
+		}
+	});
+
+	// Keep contentStructure store in sync with server data across navigations
+	$effect(() => {
+		// Defer store updates to the next microtask to avoid UpdatedAtError during reactive batch updates
+		const defer = (fn: () => void) => (typeof queueMicrotask === 'function' ? queueMicrotask(fn) : Promise.resolve().then(fn));
+		if (Array.isArray(data.contentStructure)) {
+			defer(() => contentStructure.set(data.contentStructure));
 		}
 	});
 
@@ -161,15 +176,34 @@
 				avatarSrc.value = data.user.avatar;
 			} else {
 				avatarSrc.value = '/Default_User.svg';
-				// console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
 			}
 		}
 
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
 
-		// Initialize data
-		initializeCollections();
+		// Initialize data (deferred to next microtask)
+		queueMicrotask(() => initializeCollections());
+
+		// Fallback: if collections are empty after hydration, fetch from API
+		if (browser) {
+			setTimeout(async () => {
+				try {
+					if (!Array.isArray(contentStructure.value) || contentStructure.value.length === 0) {
+						const res = await fetch('/api/content-structure?action=getContentStructure', { credentials: 'include' });
+						if (res.ok) {
+							const json = await res.json();
+							const nodes = json?.contentNodes || json?.data?.contentStructure || [];
+							if (Array.isArray(nodes)) {
+								contentStructure.set(nodes);
+							}
+						}
+					}
+				} catch (err) {
+					console.warn('Fallback fetch for contentStructure failed:', err);
+				}
+			}, 0);
+		}
 	});
 
 	// Navigation loading handlers

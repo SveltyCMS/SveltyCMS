@@ -26,6 +26,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { showToast } from '@utils/toast';
 
 	interface Props {
 		parent: {
@@ -216,6 +217,7 @@
 		if (files.length === 0) {
 			// Optionally show a message to the user
 			console.warn('No files selected for upload.');
+			showToast('No files selected for upload.', 'warning');
 			// You might want to set a warning message state here instead of just logging
 			duplicateWarning = 'No files selected for upload.'; // Reuse existing warning state for simplicity
 			return; // Stop the submission
@@ -232,6 +234,7 @@
 			// Keep the modal open and display an error message
 			// You might want a dedicated error state instead of reusing duplicateWarning
 			duplicateWarning = `Upload failed: ${error instanceof Error ? error.message : String(error)}`;
+			showToast(duplicateWarning, 'error');
 		}
 	};
 
