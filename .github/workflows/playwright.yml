@@ -53,217 +53,35 @@ jobs:
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
 
-      - name: Generate config from ENV (non-interactive)
-        run: bun run gen:config
+      - name: Use test config files
+        run: |
+          mkdir -p config
+          cp tests/ci-config/public.ts config/public.ts
+          cp tests/ci-config/private.ts config/private.ts
 
       - name: Run local server
         run: bun run build && bun run preview &
+
+      - name: Wait for server to be ready
+        run: bunx wait-on http://localhost:4173 -t 120000
 
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
           bunx playwright test tests/playwright --workers 8 --output=test-results/playwright
+
+      - name: Run Bun tests (after server is up)
         env:
-          # --- CORRECTED: Private Configuration ---
-          # Note: Prefixes like 'privateEnv.' are removed. All values are strings.
-          # The application code is expected to parse numbers, booleans, and JSON strings.
-          DB_TYPE: 'mongodb'
-          DB_HOST: 'localhost' # CORRECTED: Use 'localhost', not the full connection string URI
-          DB_PORT: '27017'
-          DB_NAME: 'SveltyCMS'
-          DB_USER: 'admin'
-          DB_PASSWORD: 'admin'
-          DB_RETRY_DELAY: '1000'
-          DB_RETRY_ATTEMPTS: '3'
-          DB_POOL_SIZE: '5'
-          MULTI_TENANT: 'false'
-
-          SMTP_HOST: ''
-          SMTP_PORT: '587'
-          SMTP_EMAIL: ''
-          SMTP_PASSWORD: ''
-          SERVER_PORT: '4173'
-
-          # CORRECTED: Conditional validation for Google OAuth requires these if USE_GOOGLE_OAUTH is true.
-          USE_GOOGLE_OAUTH: 'true'
-          GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
-          GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
-
-          # CORRECTED: Set USE_REDIS to false, so other REDIS variables are not required.
-          USE_REDIS: 'false'
-          REDIS_HOST: ''
-          REDIS_PORT: ''
-          REDIS_PASSWORD: ''
-
-          SESSION_CLEANUP_INTERVAL: '60000'
-          MAX_IN_MEMORY_SESSIONS: '1000'
-          DB_VALIDATION_PROBABILITY: '0.1'
-          SESSION_EXPIRATION_SECONDS: '86400'
-
-          USE_MAPBOX: 'false'
-          MAPBOX_API_TOKEN: ''
-          SECRET_MAPBOX_API_TOKEN: ''
-
-          GOOGLE_API_KEY: ''
-          TWITCH_TOKEN: ''
-          USE_TIKTOK: 'false'
-          TIKTOK_TOKEN: ''
-          LLM_APIS: '{}'
-
-          # CORRECTED: ROLES and PERMISSIONS must be non-empty JSON arrays.
-          ROLES: '["admin", "editor"]'
-          PERMISSIONS: '["create", "read", "update", "delete"]'
-
-          # CORRECTED: JWT_SECRET_KEY must be at least 32 characters long.
-          JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
-
-          USE_2FA: 'false'
-          TWO_FACTOR_AUTH_SECRET: ''
-          TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
-
-          # --- CORRECTED: Public Configuration ---
-          HOST_DEV: 'http://localhost:5173'
-          HOST_PROD: 'http://localhost:4173'
-          SITE_NAME: 'SveltyCMS Test Site'
-          PASSWORD_LENGTH: '8'
-
-          # CORRECTED: DEFAULT_CONTENT_LANGUAGE must be in AVAILABLE_CONTENT_LANGUAGES
-          DEFAULT_CONTENT_LANGUAGE: 'en'
-          AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
-          # CORRECTED: Added missing required BASE_LOCALE and LOCALES
-          BASE_LOCALE: 'en'
-          LOCALES: '["en", "de"]'
-
-          MEDIA_FOLDER: 'ci-media-files'
-          # CORRECTED: Objects must be valid JSON strings.
-          MEDIA_OUTPUT_FORMAT_QUALITY: '{"format": "webp", "quality": 75}'
-          MEDIASERVER_URL: ''
-          IMAGE_SIZES: '{"thumbnail": 150, "card": 600}'
-          MAX_FILE_SIZE: '10485760'
-          BODY_SIZE_LIMIT: '104857600'
-          EXTRACT_DATA_PATH: ''
-          USE_ARCHIVE_ON_DELETE: 'true'
-
-          SEASONS: 'false'
-          SEASON_REGION: '' # Not needed if SEASONS is false
-          PKG_VERSION: 'ci-test-version'
-
-          # CORRECTED: LOG_LEVELS must be a valid JSON array string.
-          LOG_LEVELS: '["info", "error", "warn"]'
-          LOG_RETENTION_DAYS: '7'
-          LOG_ROTATION_SIZE: '5242880' # 5MB
-
-          DEMO: 'true'
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-test-results
-          path: test-results/playwright/
-          retention-days: 30
-
-  bun-tests:
-    name: SveltyCMS Bun Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Git checkout
-        uses: actions/checkout@v4
-
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.10.0
-        with:
-          mongodb-version: latest
-          mongodb-username: admin
-          mongodb-password: admin
-          mongodb-db: SveltyCMS
-          mongodb-port: 27017
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Generate config from ENV (non-interactive)
-        run: bun run gen:config
-
-      - name: Run Bun tests
+          API_BASE_URL: http://localhost:4173
         run: |
           mkdir -p test-results/bun
           bun test tests/bun > test-results/bun/test-results.txt
-        env: # Full environment configuration for tests
-          # --- Private Configuration ---
-          DB_TYPE: 'mongodb'
-          DB_HOST: 'localhost'
-          DB_PORT: '27017'
-          DB_NAME: 'SveltyCMS'
-          DB_USER: 'admin'
-          DB_PASSWORD: 'admin'
-          DB_RETRY_DELAY: '1000'
-          DB_RETRY_ATTEMPTS: '3'
-          DB_POOL_SIZE: '5'
-          MULTI_TENANT: 'false'
-          SMTP_HOST: ''
-          SMTP_PORT: '587'
-          SMTP_EMAIL: ''
-          SMTP_PASSWORD: ''
-          SERVER_PORT: '4173'
-          USE_GOOGLE_OAUTH: 'true'
-          GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
-          GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
-          USE_REDIS: 'false'
-          REDIS_HOST: ''
-          REDIS_PORT: ''
-          REDIS_PASSWORD: ''
-          SESSION_CLEANUP_INTERVAL: '60000'
-          MAX_IN_MEMORY_SESSIONS: '1000'
-          DB_VALIDATION_PROBABILITY: '0.1'
-          SESSION_EXPIRATION_SECONDS: '86400'
-          USE_MAPBOX: 'false'
-          MAPBOX_API_TOKEN: ''
-          SECRET_MAPBOX_API_TOKEN: ''
-          GOOGLE_API_KEY: ''
-          TWITCH_TOKEN: ''
-          USE_TIKTOK: 'false'
-          TIKTOK_TOKEN: ''
-          LLM_APIS: '{}'
-          ROLES: '["admin", "editor"]'
-          PERMISSIONS: '["create", "read", "update", "delete"]'
-          JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
-          USE_2FA: 'false'
-          TWO_FACTOR_AUTH_SECRET: ''
-          TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
-          # --- Public Configuration ---
-          HOST_DEV: 'http://localhost:5173'
-          HOST_PROD: 'http://localhost:4173'
-          SITE_NAME: 'SveltyCMS Test Site'
-          PASSWORD_LENGTH: '8'
-          DEFAULT_CONTENT_LANGUAGE: 'en'
-          AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
-          BASE_LOCALE: 'en'
-          LOCALES: '["en", "de"]'
-          MEDIA_FOLDER: 'ci-media-files'
-          MEDIA_OUTPUT_FORMAT_QUALITY: '{"format": "webp", "quality": 75}'
-          MEDIASERVER_URL: ''
-          IMAGE_SIZES: '{"thumbnail": 150, "card": 600}'
-          MAX_FILE_SIZE: '10485760'
-          BODY_SIZE_LIMIT: '104857600'
-          EXTRACT_DATA_PATH: ''
-          USE_ARCHIVE_ON_DELETE: 'true'
-          SEASONS: 'false'
-          SEASON_REGION: ''
-          PKG_VERSION: 'ci-test-version'
-          LOG_LEVELS: '["info", "error", "warn"]'
-          LOG_RETENTION_DAYS: '7'
-          LOG_ROTATION_SIZE: '5242880'
-          DEMO: 'true'
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bun-test-results
-          path: test-results/bun/
+          name: test-results
+          path: |
+            test-results/playwright/
+            test-results/bun/
           retention-days: 30
