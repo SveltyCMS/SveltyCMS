@@ -17,11 +17,11 @@ UI FIXES:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore, popup, getToastStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, popup } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 
 	// Stores
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	// State
 	let formData = $state<{ [key: string]: any }>({});
@@ -52,17 +52,14 @@ UI FIXES:
 	// --- Live Connection Test ---
 	async function testConnection() {
 		isTesting = true;
-		const toast = (message: string, background: string) => {
-			toastStore.trigger({ message, background, autohide: false, timeout: 5000 } as ToastSettings);
-		};
-		toast('Testing connection...', 'variant-filled-secondary');
+		showToast('Testing connection...', 'info');
 
 		try {
 			let testEndpoint = '';
 			if (configCategory === 'database') {
 				testEndpoint = '/api/config/test-db';
 			} else {
-				toast('No test available for this category.', 'variant-filled-warning');
+				showToast('No test available for this category.', 'warning');
 				isTesting = false;
 				return;
 			}
@@ -79,10 +76,10 @@ UI FIXES:
 				throw new Error(result.message || 'Connection test failed.');
 			}
 
-			toast('Connection successful!', 'variant-filled-success');
+			showToast('Connection successful!', 'success');
 		} catch (error: any) {
 			console.error('Connection test error:', error);
-			toast(error.message, 'variant-filled-error');
+			showToast(error.message, 'error');
 		} finally {
 			isTesting = false;
 		}
@@ -126,7 +123,7 @@ UI FIXES:
 			);
 		} catch (error: any) {
 			console.error('Failed to initialize modal:', error);
-			toastStore.trigger({ message: error.message, background: 'variant-filled-error' } as ToastSettings);
+			showToast(error.message, 'error');
 			parent.onClose();
 		} finally {
 			isLoading = false;

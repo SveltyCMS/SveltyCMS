@@ -24,7 +24,6 @@ Features:
 		canDisableWidget,
 		getWidgetDependencies
 	} from '@stores/widgetStore.svelte';
-	
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

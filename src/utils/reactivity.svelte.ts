@@ -9,6 +9,7 @@
  */
 
 import { untrack } from 'svelte';
+import { SvelteSet } from 'svelte/reactivity';
 
 // Enhanced reactive store interface
 interface Store<T> {
@@ -25,26 +26,44 @@ export function store<T>(initialValue?: T): Store<T> {
 	let value = $state(initialValue) as T; // Reactive state for the value
 	const reactiveStore = (() => value) as Store<T>; // Callable store instance
 
+	// Maintain a subscriber set to fully mimic Svelte store behavior
+	const subscribers = new SvelteSet<(v: T) => void>();
+	const notify = () => {
+		for (const run of subscribers) {
+			try {
+				run(value);
+			} catch {
+				// Swallow subscriber errors to avoid breaking notification loop
+			}
+		}
+	};
+
 	// Update the store's value using a transformation function
 	reactiveStore.update = (fn) => {
 		value = fn(value);
+		notify();
 	};
 
 	// Directly set a new value
 	reactiveStore.set = (newValue: T) => {
 		if (value !== newValue) {
 			value = newValue;
+			notify();
 		}
 	};
 
 	// Subscribe to value changes and manage lifecycle
 	reactiveStore.subscribe = (subscriber) => {
-		return $effect.root(() => {
-			track(
-				() => subscriber(value), // Execute the subscriber with the current value
-				() => value // Track dependencies for reactivity
-			);
-		});
+		subscribers.add(subscriber);
+		// Call immediately with current value (Svelte convention)
+		try {
+			subscriber(value);
+		} catch {
+			// ignore first-call subscriber errors
+		}
+		return () => {
+			subscribers.delete(subscriber);
+		};
 	};
 
 	// Force reactivity trigger by modifying the value temporarily
@@ -52,6 +71,7 @@ export function store<T>(initialValue?: T): Store<T> {
 		const current = value;
 		value = null as unknown as T;
 		value = current;
+		notify();
 	};
 
 	// Define getter and setter for `value` property

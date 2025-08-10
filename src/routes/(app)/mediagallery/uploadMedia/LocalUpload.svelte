@@ -21,7 +21,8 @@
 -->
 
 <script lang="ts">
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { showModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
@@ -29,9 +30,6 @@
 	let files = $state<File[]>([]);
 	let input: HTMLInputElement | null = $state(null);
 	let dropZone: HTMLDivElement | null = $state(null);
-
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	function modalAddMedia(): void {
 		const modalComponent: ModalComponent = {
@@ -52,7 +50,7 @@
 				}
 			}
 		};
-		modalStore.trigger(d);
+		showModal(d);
 	}
 
 	function handleFileDrop(e: DragEvent) {
@@ -108,10 +106,7 @@
 	// This is the main upload logic triggered after modal confirmation
 	async function uploadFiles() {
 		if (files.length === 0) {
-			toastStore.trigger({
-				message: 'No files selected for upload',
-				background: 'variant-filled-warning'
-			});
+			showToast('No files selected for upload', 'warning');
 			return;
 		}
 
@@ -140,10 +135,7 @@
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Files uploaded successfully',
-					background: 'variant-filled-success'
-				});
+				showToast('Files uploaded successfully', 'success');
 				files = []; // Clear the files array after successful upload
 				// Navigate back to media gallery after successful upload
 				goto('/mediagallery', { invalidateAll: true }); // Invalidate data on navigation
@@ -152,10 +144,7 @@
 			}
 		} catch (error) {
 			console.error('Error uploading files:', error);
-			toastStore.trigger({
-				message: 'Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error'),
-				background: 'variant-filled-error'
-			});
+			showToast('Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
 		}
 	}
 </script>

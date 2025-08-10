@@ -31,8 +31,8 @@
  */
 
 import { json, error as svelteKitError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import type { ComponentType } from 'svelte';
+import type { RequestHandler } from './$types';
 
 // Environment variables for SMTP configuration
 import { privateEnv } from '@root/config/private';
@@ -184,6 +184,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: 'Email sending skipped due to incomplete SMTP configuration',
 			dev_mode: true,
 			missing_config: missingVars
+		});
+	}
+
+	// If SMTP host is a known dummy/placeholder, skip sending in dev-friendly way
+	const dummyHost = String(privateEnv.SMTP_HOST || '').toLowerCase();
+	if (/dummy|example|\.invalid$/.test(dummyHost)) {
+		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: privateEnv.SMTP_HOST, tenantId });
+		return json({
+			success: true,
+			message: 'Email sending skipped due to dummy SMTP host (development mode).',
+			dev_mode: true,
+			dummy_host: privateEnv.SMTP_HOST
 		});
 	}
 	// Enhance props with languageTag if your templates expect it

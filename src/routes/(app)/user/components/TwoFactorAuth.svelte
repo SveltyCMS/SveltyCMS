@@ -40,13 +40,14 @@ This component provides a user interface for managing 2FA settings:
 
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { showModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 
 	// Props
 	let { user } = $props<{ user: User }>();
 
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	// State
 	let isLoading = $state(false);
@@ -57,22 +58,10 @@ This component provides a user interface for managing 2FA settings:
 
 	// Show success toast
 	function showSuccessToast(message: string) {
-		toastStore.trigger({
-			message: `<iconify-icon icon="mdi:check-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}`,
-			background: 'variant-filled-success',
-			timeout: 4000,
-			classes: 'border-1 !rounded-md'
-		});
+		showToast(`<iconify-icon icon=\"mdi:check-circle\" color=\"white\" width=\"24\" class=\"mr-2\"></iconify-icon>${message}`, 'success');
 	}
-
-	// Show error toast
 	function showErrorToast(message: string) {
-		toastStore.trigger({
-			message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}`,
-			background: 'variant-filled-error',
-			timeout: 5000,
-			classes: 'border-1 !rounded-md'
-		});
+		showToast(`<iconify-icon icon=\"mdi:alert-circle\" color=\"white\" width=\"24\" class=\"mr-2\"></iconify-icon>${message}`, 'error');
 	}
 
 	// Setup 2FA - Show QR code modal
@@ -115,7 +104,7 @@ This component provides a user interface for managing 2FA settings:
 				}
 			};
 
-			modalStore.trigger(modalSettings);
+			showModal(modalSettings);
 		} catch (error) {
 			console.error('2FA setup error:', error);
 			showErrorToast(error instanceof Error ? error.message : m.twofa_error_setup_failed());
@@ -170,7 +159,7 @@ This component provides a user interface for managing 2FA settings:
 			}
 		};
 
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	// Generate new backup codes

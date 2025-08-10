@@ -1,0 +1,169 @@
+name: SveltyCMS CI
+
+on:
+  push:
+    branches:
+      - main
+      - next
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Run All Tests
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    # 1. Centralized ENV Block: All environment variables are defined once for the entire job.
+    # This prevents duplication and makes maintenance easier.
+    env:
+      # --- Private Configuration ---
+      DB_TYPE: 'mongodb'
+      DB_HOST: 'localhost'
+      DB_PORT: '27017'
+      DB_NAME: 'SveltyCMS'
+      DB_USER: 'admin'
+      DB_PASSWORD: 'admin'
+      DB_RETRY_DELAY: '1000'
+      DB_RETRY_ATTEMPTS: '3'
+      DB_POOL_SIZE: '5'
+      MULTI_TENANT: 'false'
+      SMTP_HOST: ''
+      SMTP_PORT: '587'
+      SMTP_EMAIL: ''
+      SMTP_PASSWORD: ''
+      SERVER_PORT: '4173'
+      USE_GOOGLE_OAUTH: 'true'
+      GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
+      GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
+      USE_REDIS: 'false'
+      REDIS_HOST: ''
+      REDIS_PORT: ''
+      REDIS_PASSWORD: ''
+      SESSION_CLEANUP_INTERVAL: '60000'
+      MAX_IN_MEMORY_SESSIONS: '1000'
+      DB_VALIDATION_PROBABILITY: '0.1'
+      SESSION_EXPIRATION_SECONDS: '86400'
+      USE_MAPBOX: 'false'
+      MAPBOX_API_TOKEN: ''
+      SECRET_MAPBOX_API_TOKEN: ''
+      GOOGLE_API_KEY: ''
+      TWITCH_TOKEN: ''
+      USE_TIKTOK: 'false'
+      TIKTOK_TOKEN: ''
+      LLM_APIS: '{}'
+      # Using multiline strings for cleaner JSON
+      ROLES: |
+        ["admin", "editor"]
+      PERMISSIONS: |
+        ["create", "read", "update", "delete"]
+      JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
+      USE_2FA: 'false'
+      TWO_FACTOR_AUTH_SECRET: ''
+      TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
+
+      # --- Public Configuration ---
+      HOST_DEV: 'http://localhost:5173'
+      HOST_PROD: 'http://localhost:4173'
+      SITE_NAME: 'SveltyCMS Test Site'
+      PASSWORD_LENGTH: '8'
+      DEFAULT_CONTENT_LANGUAGE: 'en'
+      AVAILABLE_CONTENT_LANGUAGES: |
+        ["en", "de", "es"]
+      BASE_LOCALE: 'en'
+      LOCALES: |
+        ["en", "de"]
+      MEDIA_FOLDER: 'ci-media-files'
+      MEDIA_OUTPUT_FORMAT_QUALITY: |
+        {"format": "webp", "quality": 75}
+      MEDIASERVER_URL: ''
+      IMAGE_SIZES: |
+        {"thumbnail": 150, "card": 600}
+      MAX_FILE_SIZE: '10485760'
+      BODY_SIZE_LIMIT: '104857600'
+      EXTRACT_DATA_PATH: ''
+      USE_ARCHIVE_ON_DELETE: 'true'
+      SEASONS: 'false'
+      SEASON_REGION: ''
+      PKG_VERSION: 'ci-test-version'
+      LOG_LEVELS: |
+        ["info", "error", "warn"]
+      LOG_RETENTION_DAYS: '7'
+      LOG_ROTATION_SIZE: '5242880' # 5MB
+      DEMO: 'true'
+
+      # --- CI Specific ---
+      # Set a base URL for Playwright to avoid hardcoding localhost URLs in tests
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:4173
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Bun & Playwright dependencies
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: |
+            ~/.bun/install/cache
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-bun-playwright-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-playwright-
+
+      - name: Start MongoDB Service
+        uses: supercharge/mongodb-github-action@1.10.0
+        with:
+          mongodb-version: latest
+          mongodb-username: ${{ env.DB_USER }}
+          mongodb-password: ${{ env.DB_PASSWORD }}
+          mongodb-db: ${{ env.DB_NAME }}
+          mongodb-port: ${{ env.DB_PORT }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate config from ENV (non-interactive)
+        run: bun run gen:config
+
+      - name: Install Playwright Browsers
+        # Only run this step if the cache was not hit
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps
+
+      - name: Build SvelteKit App
+        run: bun run build
+
+      - name: Start Preview Server in Background
+        run: bun run preview &
+
+      - name: Wait for Server to be Ready
+        run: bunx wait-on ${{ env.PLAYWRIGHT_TEST_BASE_URL }} -t 60000
+
+      # 2. Simplified Test Execution: No matrix needed. Both runners will discover tests.
+      - name: Run Playwright Tests
+        run: bunx playwright test tests/playwright/ --output=test-results/playwright
+
+      - name: Run Bun Tests
+        env:
+          API_BASE_URL: ${{ env.PLAYWRIGHT_TEST_BASE_URL }}
+        run: |
+          mkdir -p test-results
+          bun test tests/bun/ --reporter=dot > test-results/bun-results.txt
+
+      # 3. Consolidated Artifact Uploads
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-artifacts
+          path: |
+            test-results/
+            ci-media-files/
+          retention-days: 30

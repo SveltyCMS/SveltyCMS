@@ -25,7 +25,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Skeleton
 	import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore, ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton';
+	import { ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton';
+	import { showModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
 
@@ -70,26 +72,33 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		storeListboxValue.set(listboxValue);
 	});
 
+	// Normalize selection to a safe array
+	let safeSelectedRows = $derived<Array<UserData | TokenData>>(
+		Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<UserData | TokenData>) : []
+	);
+
 	// Derived values
-	let isDisabled = $derived(selectedRows.length === 0);
-	let isMultipleSelected = $derived(selectedRows.length > 1);
+	let isDisabled = $derived(safeSelectedRows.length === 0);
+	let isMultipleSelected = $derived(safeSelectedRows.length > 1);
 
 	// Smart state detection for block/unblock actions
 	let blockState = $derived(() => {
-		if (selectedRows.length === 0) return null;
+		if (safeSelectedRows.length === 0) return null;
 
 		if (type === 'user') {
-			const users = selectedRows as UserData[];
-			const blockedCount = users.filter((user) => user.blocked).length;
-			const unblockedCount = users.filter((user) => !user.blocked).length;
+			const users = (safeSelectedRows as (UserData | undefined)[]).filter(Boolean) as UserData[];
+			if (users.length === 0) return null;
+			const blockedCount = users.filter((user) => !!user && user.blocked).length;
+			const unblockedCount = users.filter((user) => !!user && !user.blocked).length;
 
 			if (blockedCount === users.length) return 'all-blocked';
 			if (unblockedCount === users.length) return 'all-unblocked';
 			return 'mixed';
 		} else {
-			const tokens = selectedRows as TokenData[];
-			const blockedCount = tokens.filter((token) => token.blocked).length;
-			const unblockedCount = tokens.filter((token) => !token.blocked).length;
+			const tokens = (safeSelectedRows as (TokenData | undefined)[]).filter(Boolean) as TokenData[];
+			if (tokens.length === 0) return null;
+			const blockedCount = tokens.filter((token) => !!token && token.blocked).length;
+			const unblockedCount = tokens.filter((token) => !!token && !token.blocked).length;
 
 			if (blockedCount === tokens.length) return 'all-blocked';
 			if (unblockedCount === tokens.length) return 'all-unblocked';
@@ -100,7 +109,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	// Available actions based on current state
 	let availableActions = $derived(() => {
 		const baseActions: ActionType[] = ['edit', 'delete'];
-		const currentBlockState = blockState();
+		const currentBlockState = blockState;
 
 		if (currentBlockState === 'all-blocked') {
 			return [...baseActions, 'unblock'];
@@ -113,16 +122,22 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		return baseActions;
 	});
 
+	// Always provide an array for the template to iterate over
+	let filteredActions = $derived(() => {
+		const actions = Array.isArray(availableActions) ? availableActions : [];
+		return actions.filter((action) => action !== listboxValue);
+	});
+
 	// Auto-adjust listboxValue when selection changes
 	$effect(() => {
-		if (selectedRows.length > 0 && !availableActions().includes(listboxValue)) {
-			const currentBlockState = blockState();
+		if (safeSelectedRows.length > 0 && !availableActions.includes(listboxValue)) {
+			const currentBlockState = blockState;
 			// If current action is not available, switch to the most appropriate one
 			if (currentBlockState === 'all-blocked' && listboxValue === 'block') {
 				listboxValue = 'unblock';
 			} else if (currentBlockState === 'all-unblocked' && listboxValue === 'unblock') {
 				listboxValue = 'block';
-			} else if (!availableActions().includes(listboxValue)) {
+			} else if (!availableActions.includes(listboxValue)) {
 				listboxValue = 'edit'; // Default fallback
 			}
 		}
@@ -133,12 +148,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		type === 'user' &&
 			listboxValue === 'delete' &&
 			(totalUsers <= 1 ||
-				(currentUser && selectedRows.length === 1 && (selectedRows[0] as UserData)._id === currentUser._id && totalUsers === 1) ||
-				selectedRows.length >= totalUsers)
+				(currentUser && safeSelectedRows.length === 1 && (safeSelectedRows[0] as UserData)._id === currentUser._id && totalUsers === 1) ||
+				safeSelectedRows.length >= totalUsers)
 	);
 
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+	// Use showToast for notifications
 	const dispatch = createEventDispatcher();
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
@@ -180,7 +194,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				if (type === 'user') {
 					return '/api/user/updateUserAttributes';
 				} else {
-					const token = (selectedRows[0] as TokenData)?.token;
+					const token = (safeSelectedRows[0] as TokenData)?.token;
 					if (!token) {
 						throw new Error('No token selected for editing');
 					}
@@ -299,40 +313,31 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		user_id?: string;
 	}
 
-	function showToast(message: string, isError = false, background = 'gradient-primary') {
-		toastStore.trigger({
-			message: `<iconify-icon icon="${isError ? 'mdi:alert' : 'mdi:check-outline'}" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
-			background: isError ? 'gradient-error' : background,
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		});
-	}
-
 	async function handleAction(action: ActionType) {
 		if (isDisabled) {
-			showToast(`Please select ${type}(s) to ${action}`, true);
+			showToast(`Please select ${type}(s) to ${action}`, 'error');
 			return;
 		}
 
 		// Check if delete is disabled for users
 		if (action === 'delete' && isDeleteDisabled) {
-			showToast('Cannot delete the last user in the system', true);
+			showToast('Cannot delete the last user in the system', 'error');
 			return;
 		}
 
 		if (action === 'edit' && isMultipleSelected) {
-			showToast(`Please select only one ${type} to edit`, true);
+			showToast(`Please select only one ${type} to edit`, 'error');
 			return;
 		}
 
 		// Check if action is available (shouldn't happen with smart UI, but good safeguard)
-		if (!availableActions().includes(action)) {
-			const currentBlockState = blockState();
+		if (!availableActions.includes(action)) {
+			const currentBlockState = blockState;
 			if (currentBlockState === 'all-blocked' && action === 'block') {
-				showToast('All selected items are already blocked', true);
+				showToast('All selected items are already blocked', 'warning');
 				return;
 			} else if (currentBlockState === 'all-unblocked' && action === 'unblock') {
-				showToast('All selected items are already unblocked', true);
+				showToast('All selected items are already unblocked', 'warning');
 				return;
 			}
 		}
@@ -341,7 +346,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (action === 'edit' && type === 'token') {
 			const tokenData = selectedRows[0] as TokenData;
 			if (!tokenData?.token) {
-				showToast('Invalid token data selected', true);
+				showToast('Invalid token data selected', 'error');
 				return;
 			}
 		}
@@ -356,17 +361,17 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						type === 'user'
 							? {
 									isGivenData: true,
-									username: (selectedRows[0] as UserData).username,
-									email: selectedRows[0].email,
-									role: selectedRows[0].role,
-									user_id: (selectedRows[0] as UserData)._id
+									username: (safeSelectedRows[0] as UserData).username,
+									email: safeSelectedRows[0].email,
+									role: safeSelectedRows[0].role,
+									user_id: (safeSelectedRows[0] as UserData)._id
 								}
 							: {
-									token: (selectedRows[0] as TokenData).token,
-									email: selectedRows[0].email,
-									role: selectedRows[0].role,
-									user_id: (selectedRows[0] as TokenData).user_id,
-									expires: convertDateToExpiresFormat((selectedRows[0] as TokenData).expires)
+									token: (safeSelectedRows[0] as TokenData).token,
+									email: safeSelectedRows[0].email,
+									role: safeSelectedRows[0].role,
+									user_id: (safeSelectedRows[0] as TokenData).user_id,
+									expires: convertDateToExpiresFormat((safeSelectedRows[0] as TokenData).expires)
 								},
 					slot: '<p>Edit Form</p>'
 				} as ModalComponent)
@@ -402,7 +407,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						// Handle edit operations (single item only)
 						if (type === 'user') {
 							body = JSON.stringify({
-								user_id: (selectedRows[0] as UserData)._id,
+								user_id: (safeSelectedRows[0] as UserData)._id,
 								newUserData: r as ModalResponse
 							});
 						} else {
@@ -415,13 +420,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						// Handle batch operations (delete, block, unblock)
 						if (type === 'user') {
 							body = JSON.stringify({
-								userIds: selectedRows.map((row: UserData | TokenData) => (row as UserData)._id),
+								userIds: safeSelectedRows.map((row: UserData | TokenData) => (row as UserData)._id),
 								action: action
 							});
 						} else {
 							// Token batch operations
 							body = JSON.stringify({
-								tokenIds: selectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
+								tokenIds: safeSelectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
 								action: action
 							});
 						}
@@ -472,12 +477,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						}
 					}
 
-					showToast(toastMessage, false, config.toastBackground);
+					showToast(toastMessage, 'success');
 
 					// Dispatch token update event for parent component to handle local state updates
 					if (type === 'token' && (action === 'block' || action === 'unblock')) {
 						dispatch('tokenUpdate', {
-							tokenIds: selectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
+							tokenIds: safeSelectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
 							action: action
 						});
 					}
@@ -486,12 +491,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				} catch (error) {
 					console.error(`Error during action '${action}' for type '${type}':`, error);
 					const errorMessage = error instanceof Error ? error.message : `An unknown error occurred.`;
-					showToast(errorMessage, true);
+					showToast(errorMessage, 'error');
 				}
 			}
 		};
 
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	let buttonConfig = $derived({
@@ -534,7 +539,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 <!-- Dropdown/Listbox -->
 <div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
-		{#each availableActions().filter((action) => action !== listboxValue) as action}
+		{#each filteredActions as action}
 			{@const actionKey = action as ActionType}
 			<ListBoxItem
 				bind:group={listboxValue}

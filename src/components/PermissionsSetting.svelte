@@ -19,10 +19,9 @@ Features:
 <script lang="ts">
 	import type { Role } from '@src/auth/types';
 	import { PermissionAction } from '@src/auth/types';
-	// Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
 
-	const toastStore = getToastStore();
+	// Skeleton
+	import { showToast } from '@utils/toast';
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
@@ -97,20 +96,6 @@ Features:
 		);
 
 		onUpdate(cleanedPermissions);
-	}
-
-	// Show toast messages
-	function showToast(message: string, type: 'success' | 'warning' | 'error') {
-		const backgrounds = {
-			success: 'variant-filled-success',
-			warning: 'variant-filled-warning',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message,
-			background: backgrounds[type],
-			timeout: 3000
-		});
 	}
 
 	// Filter roles based on search

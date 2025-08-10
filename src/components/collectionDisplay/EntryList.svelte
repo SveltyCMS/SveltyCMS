@@ -25,6 +25,8 @@ Features:
 </script>
 
 <script lang="ts">
+	import { page } from '$app/stores';
+
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
@@ -58,12 +60,8 @@ Features:
 	import Loading from '@components/Loading.svelte';
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import { page } from '$app/stores';
-
-	// Initialize stores for modal  & toast
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+	import { showToast } from '@utils/toast';
+	import { showStatusChangeConfirm, showDeleteConfirm } from '@utils/modalUtils';
 
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
@@ -634,7 +632,7 @@ Features:
 					};
 				} else {
 					// Don't clear existing data on error, just show error toast
-					toastStore.trigger({ message: result.error || 'Failed to load data.', background: 'variant-filled-error' });
+					showToast(result.error || 'Failed to load data.', 'error');
 					// Still mark as having attempted initial load to prevent infinite loading
 					if (!collectionState.hasInitialLoad) {
 						collectionState = {
@@ -660,10 +658,7 @@ Features:
 				}
 			} catch (error) {
 				console.error('Error refreshing table data:', error);
-				toastStore.trigger({
-					message: (error as Error).message || 'An unexpected error occurred while fetching data.',
-					background: 'variant-filled-error'
-				});
+				showToast((error as Error).message || 'An unexpected error occurred while fetching data.', 'error');
 				// Preserve existing data on network errors
 				if (!collectionState.hasInitialLoad) {
 					collectionState = {
@@ -931,21 +926,17 @@ Features:
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
-			toastStore.trigger({ message: 'No entries selected' });
+			showToast('No entries selected', 'warning');
 			return;
 		}
 
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: 'Confirm Status Change',
-			body: `Are you sure you want to update ${selectedIds.length} entries to "${status}"?`,
-			response: async (r) => {
-				if (r) {
-					await setEntriesStatus(selectedIds, status as StatusType, onActionSuccess, toastStore);
-				}
+		showStatusChangeConfirm({
+			status: String(status ?? ''),
+			count: selectedIds.length,
+			onConfirm: async () => {
+				await setEntriesStatus(selectedIds, status as StatusType, onActionSuccess);
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	});
 
 	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
@@ -1031,13 +1022,13 @@ Features:
 	};
 
 	// Handlers that call the centralized action functions
-	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
-	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
-	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess, toastStore);
+	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
+	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
+	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
-			toastStore.trigger({ message: 'No entries selected' });
+			showToast('No entries selected', 'warning');
 			return;
 		}
 
@@ -1049,74 +1040,56 @@ Features:
 		const actionVerb = willDelete ? 'delete' : 'archive';
 		const actionColor = willDelete ? 'error' : 'warning';
 
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-${actionColor}-500 font-bold">${actionName}</span>`,
-			body: willDelete
-				? `Are you sure you want to <span class="text-${actionColor}-500 font-semibold">${actionVerb}</span> ${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'}? This action will remove ${selectedIds.length === 1 ? 'it' : 'them'} from the system.`
-				: `Are you sure you want to <span class="text-${actionColor}-500 font-semibold">${actionVerb}</span> ${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'}? Archived items can be restored later.`,
-			buttonTextConfirm: actionName,
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: `bg-${actionColor}-500 hover:bg-${actionColor}-600 text-white` },
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					try {
-						if (willDelete) {
-							// Use batch delete API with fallback to individual deletes
-							try {
-								const collId = collection.value?._id;
-								if (collId) {
-									const result = await batchDeleteEntries(collId, selectedIds);
-									if (result.success) {
-										toastStore.trigger({
-											message: `${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`,
-											background: 'variant-filled-success'
-										});
-									} else {
-										throw new Error('Batch delete failed');
-									}
+		showDeleteConfirm({
+			isArchive: !willDelete,
+			count: selectedIds.length,
+			onConfirm: async () => {
+				try {
+					if (willDelete) {
+						// Use batch delete API with fallback to individual deletes
+						try {
+							const collId = collection.value?._id;
+							if (collId) {
+								const result = await batchDeleteEntries(collId, selectedIds);
+								if (result.success) {
+									showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
+								} else {
+									throw new Error('Batch delete failed');
 								}
-							} catch (batchError) {
-								// Fallback to individual deletes
-								console.warn('Batch delete failed, using individual deletes:', batchError);
-								await Promise.all(
-									selectedIds.map((entryId) => {
-										const collId = collection.value?._id;
-										if (collId) {
-											return deleteEntry(collId, entryId);
-										}
-										return Promise.resolve();
-									})
-								);
-								toastStore.trigger({
-									message: `${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`,
-									background: 'variant-filled-success'
-								});
 							}
-						} else {
-							// Archive entries - setEntriesStatus already shows toast, so don't duplicate
-							await setEntriesStatus(selectedIds, StatusTypes.archive, () => {}, toastStore);
+						} catch (batchError) {
+							// Fallback to individual deletes
+							console.warn('Batch delete failed, using individual deletes:', batchError);
+							await Promise.all(
+								selectedIds.map((entryId) => {
+									const collId = collection.value?._id;
+									if (collId) {
+										return deleteEntry(collId, entryId);
+									}
+									return Promise.resolve();
+								})
+							);
+							showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
 						}
-						onActionSuccess();
-					} catch (error) {
-						toastStore.trigger({
-							message: `Failed to ${actionVerb} entries: ${(error as Error).message}`,
-							background: 'variant-filled-error'
-						});
+					} else {
+						// Archive entries - setEntriesStatus already shows toast, so don't duplicate
+						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
 					}
+					onActionSuccess();
+				} catch (error) {
+					showToast(`Failed to ${actionVerb} entries: ${(error as Error).message}`, 'error');
 				}
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	};
-	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess, toastStore);
+	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess);
 
 	// FIX: Schedule handler now correctly processes date and calls the action
 	const onSchedule = (date: string, action: string) => {
 		const payload = { _scheduled: new Date(date).getTime() };
 		// The `action` variable from the modal can be used here if your backend
 		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
-		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, toastStore, payload);
+		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, payload);
 	};
 
 	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
@@ -1135,10 +1108,10 @@ Features:
 
 	// Direct action functions for MultiButton (bypass modals)
 	async function executePublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
+		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
 	}
 	async function executeUnpublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
+		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
 	}
 	async function executeSchedule() {
 		// This needs a modal to select a date, so direct execution is not simple.
@@ -1146,7 +1119,7 @@ Features:
 		legacyOnSchedule();
 	}
 	async function executeTest() {
-		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess, toastStore);
+		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess);
 	}
 
 	// Helper function to execute status changes without modals
@@ -1184,14 +1157,11 @@ Features:
 				}
 			} else {
 				// Archive entries
-				await setEntriesStatus(selectedIds, StatusTypes.archive, () => {}, toastStore);
+				await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
 			}
 			onActionSuccess();
 		} catch (error) {
-			toastStore.trigger({
-				message: `Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`,
-				background: 'variant-filled-error'
-			});
+			showToast(`Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`, 'error');
 		}
 	}
 	// Legacy onClone function - now calls centralized action
@@ -1575,47 +1545,26 @@ Features:
 													};
 
 													const statusInfo = getStatusColor(nextStatus);
-													const modalSettings: ModalSettings = {
-														type: 'confirm',
-														title: `Please Confirm <span class="text-${statusInfo.color}-500 font-bold">${statusInfo.name}</span>`,
-														body: `Are you sure you want to <span class="text-${statusInfo.color}-500 font-semibold">change</span> this entry status to <span class="text-${statusInfo.color}-500 font-semibold">${nextStatus}</span>?`,
-														buttonTextConfirm: nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1),
-														buttonTextCancel: 'Cancel',
-														meta: {
-															buttonConfirmClasses: `bg-${statusInfo.color}-500 hover:bg-${statusInfo.color}-600 text-white`
-														},
-														response: async (confirmed: boolean) => {
-															if (confirmed) {
-																try {
-																	const collId = collection.value?._id;
-																	if (!collId) return;
-
-																	// Use single entry update API
-																	const result = await updateEntryStatus(collId, entry._id, nextStatus);
-																	if (result.success) {
-																		toastStore.trigger({
-																			message: `Entry status updated to ${nextStatus}`,
-																			background: 'variant-filled-success'
-																		});
-																		// Refresh the table data
-																		onActionSuccess();
-																	} else {
-																		toastStore.trigger({
-																			message: result.error || 'Failed to update entry status',
-																			background: 'variant-filled-error'
-																		});
-																	}
-																} catch (error) {
-																	console.error('Error updating entry status:', error);
-																	toastStore.trigger({
-																		message: 'An error occurred while updating entry status',
-																		background: 'variant-filled-error'
-																	});
+													showStatusChangeConfirm({
+														status: String(nextStatus),
+														count: 1,
+														onConfirm: async () => {
+															try {
+																const collId = collection.value?._id;
+																if (!collId) return;
+																const result = await updateEntryStatus(collId, entry._id, String(nextStatus));
+																if (result.success) {
+																	showToast(`Entry status updated to ${nextStatus}`, 'success');
+																	onActionSuccess();
+																} else {
+																	showToast(result.error || 'Failed to update entry status', 'error');
 																}
+															} catch (error) {
+																console.error('Error updating entry status:', error);
+																showToast('An error occurred while updating entry status', 'error');
 															}
 														}
-													};
-													modalStore.trigger(modalSettings);
+													});
 												} else {
 													const entryList = rawData?.items || [];
 													const originalEntry = entryList.find((e) => e._id === entry._id);
@@ -1635,11 +1584,7 @@ Features:
 																...current,
 																status: StatusTypes.unpublish
 															})); // Show user feedback about the status change
-															toastStore.trigger({
-																message: 'Entry moved to draft mode for editing. Republish when ready.',
-																background: 'variant-filled-warning',
-																timeout: 4000
-															});
+															showToast('Entry moved to draft mode for editing. Republish when ready.', 'warning');
 														}
 
 														// Trigger UI layout change to show edit interface
@@ -1649,7 +1594,9 @@ Features:
 											}}
 										>
 											{#if header.name === 'status'}
-												<Status value={entry.status || entry.raw_status || 'draft'} />
+												<div class="flex w-full items-center justify-center">
+													<Status value={entry.status || entry.raw_status || 'draft'} />
+												</div>
 											{:else if header.name === 'createdAt' || header.name === 'updatedAt'}
 												<div class="flex flex-col text-xs">
 													<div class="font-semibold">
