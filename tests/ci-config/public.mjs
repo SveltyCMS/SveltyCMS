@@ -2,35 +2,35 @@
 // Copied to config/public.mjs by GitHub Actions before build
 
 export const publicEnv = {
-  // --- Host Configuration ---
-  HOST_DEV: 'http://localhost:5173',
-  HOST_PROD: 'http://localhost:4173',
+	// --- Host Configuration ---
+	HOST_DEV: 'http://localhost:5173',
+	HOST_PROD: 'http://localhost:4173',
 
-  // --- Site Configuration ---
-  SITE_NAME: 'SveltyCMS Test Site',
-  PASSWORD_LENGTH: 8,
+	// --- Site Configuration ---
+	SITE_NAME: 'SveltyCMS Test Site',
+	PASSWORD_LENGTH: 8,
 
-  // --- Language Configuration ---
-  DEFAULT_CONTENT_LANGUAGE: 'en',
-  AVAILABLE_CONTENT_LANGUAGES: ['en', 'de'],
-  BASE_LOCALE: 'en',
-  LOCALES: ['en', 'de'],
+	// --- Language Configuration ---
+	DEFAULT_CONTENT_LANGUAGE: 'en',
+	AVAILABLE_CONTENT_LANGUAGES: ['en', 'de'],
+	BASE_LOCALE: 'en',
+	LOCALES: ['en', 'de'],
 
-  // --- Media Configuration ---
-  MEDIA_FOLDER: 'ci-media-files',
-  MEDIA_OUTPUT_FORMAT_QUALITY: { format: 'avif', quality: 60 },
-  IMAGE_SIZES: { thumbnail: 150, card: 600 },
-  USE_ARCHIVE_ON_DELETE: true,
+	// --- Media Configuration ---
+	MEDIA_FOLDER: 'ci-media-files',
+	MEDIA_OUTPUT_FORMAT_QUALITY: { format: 'avif', quality: 60 },
+	IMAGE_SIZES: { thumbnail: 150, card: 600 },
+	USE_ARCHIVE_ON_DELETE: true,
 
-  // --- Logging ---
-  LOG_LEVELS: ['info', 'warn', 'error'],
-  LOG_RETENTION_DAYS: 7,
-  LOG_ROTATION_SIZE: 5 * 1024 * 1024, // 5MB
+	// --- Logging ---
+	LOG_LEVELS: ['info', 'warn', 'error'],
+	LOG_RETENTION_DAYS: 7,
+	LOG_ROTATION_SIZE: 5 * 1024 * 1024, // 5MB
 
-  // --- Theming ---
-  SEASONS: false,
-  // SEASON_REGION: 'Global',
+	// --- Theming ---
+	SEASONS: false,
+	// SEASON_REGION: 'Global',
 
-  // --- Demo Mode ---
-  DEMO: false
+	// --- Demo Mode ---
+	DEMO: false
 };
