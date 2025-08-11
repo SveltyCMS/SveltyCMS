@@ -821,48 +821,9 @@ Features:
 		if (currentMode === 'view') {
 			untrack(() => {
 				meta_data.clear();
-				// Handle unsaved draft creation when exiting create mode
+				// Only clear the collection value, do not auto-save draft
 				const currentValue = collectionValue.value;
 				if (currentValue && Object.keys(currentValue).length > 0) {
-					// Check if we have unsaved data from create mode that should be saved as draft
-					const hasUnsavedData = Object.entries(currentValue).some(([key, value]) => {
-						// Ignore system fields when checking for content
-						if (key.startsWith('_') || key === 'createdAt' || key === 'updatedAt' || key === 'createdBy' || key === 'updatedBy') {
-							return false;
-						}
-						// Check if field has meaningful content
-						if (value && typeof value === 'object' && !Array.isArray(value)) {
-							// For translated fields, check if any language has content
-							return Object.values(value).some((v) => v !== null && v !== '' && v !== undefined);
-						}
-						// For simple fields, check if not empty
-						return value !== null && value !== '' && value !== undefined;
-					});
-
-					// If there's unsaved content and no _id (new entry), save as draft
-					if (hasUnsavedData && !currentValue._id) {
-						// Use collection's default status instead of hardcoded 'draft'
-						const defaultStatus = collection.value?.status || 'draft';
-						const draftEntry = { ...currentValue, status: defaultStatus };
-						// Save as draft silently
-						untrack(async () => {
-							const collId = collection.value?._id;
-							if (collId) {
-								try {
-									const result = await createEntry(collId, draftEntry);
-									if (result.success) {
-										// Don't show toast for auto-draft save to avoid confusion
-										invalidateCollectionCache(collId);
-									}
-								} catch (error) {
-									// Silently handle errors for auto-draft saves
-									console.warn('Auto-draft save failed:', error);
-								}
-							}
-						});
-					}
-
-					// Clear the collection value
 					collectionValue.set({});
 				}
 				// Refresh data when returning to view mode (after save/edit)

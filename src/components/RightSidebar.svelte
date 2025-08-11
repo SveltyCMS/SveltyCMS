@@ -24,9 +24,6 @@ This component provides a streamlined interface for managing collection entries 
 -->
 
 <script lang="ts">
-	// Svelte debug for collection and collectionValue
-	//@ts-ignore
-	//@debug collection, collectionValue
 	// Correctly import the new, direct action handlers
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
 
@@ -36,6 +33,8 @@ This component provides a streamlined interface for managing collection entries 
 	// Stores
 	import { page } from '$app/state';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
+	// Subscribe to shouldShowNextButton store for use in markup (runes mode)
+	let shouldShowNextButtonValue = $derived(shouldShowNextButton);
 	import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
 	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
@@ -70,13 +69,17 @@ This component provides a streamlined interface for managing collection entries 
 	// Handle toggle changes - update collection status directly
 	async function handleStatusToggle(newValue: boolean) {
 		if (newValue === isPublish || isLoading) {
-			console.log('[RightSidebar] Toggle skipped', { newValue, isPublish, isLoading });
+			if (process.env.NODE_ENV !== 'production') {
+				console.log('[RightSidebar] Toggle skipped', { newValue, isPublish, isLoading });
+			}
 			return false;
 		}
 
 		isLoading = true;
 		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
-		console.log('[RightSidebar] Status toggle clicked - updating to:', newStatus);
+		if (process.env.NODE_ENV !== 'production') {
+			console.log('[RightSidebar] Status toggle clicked - updating to:', newStatus);
+		}
 
 		try {
 			// If entry exists, update via API
@@ -90,7 +93,9 @@ This component provides a streamlined interface for managing collection entries 
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
-					console.log('[RightSidebar] API update successful');
+					if (process.env.NODE_ENV !== 'production') {
+						console.log('[RightSidebar] API update successful');
+					}
 					return true;
 				} else {
 					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
@@ -101,7 +106,9 @@ This component provides a streamlined interface for managing collection entries 
 			} else {
 				// New entry - just update local state
 				collectionValue.update((current) => ({ ...current, status: newStatus }));
-				console.log('[RightSidebar] Local update for new entry');
+				if (process.env.NODE_ENV !== 'production') {
+					console.log('[RightSidebar] Local update for new entry');
+				}
 				return true;
 			}
 		} catch (e) {
@@ -168,13 +175,16 @@ This component provides a streamlined interface for managing collection entries 
 						status: StatusTypes.schedule,
 						_scheduled: date.getTime()
 					}));
-					console.log('[RightSidebar] Entry scheduled');
+					if (process.env.NODE_ENV !== 'production') {
+						console.log('[RightSidebar] Entry scheduled');
+					}
 				}
 			}
 		});
 	}
 
-	async function saveData() {
+	// Shared save logic for HeaderEdit and RightSidebar
+	function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
 			console.warn('[RightSidebar] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
@@ -196,10 +206,15 @@ This component provides a streamlined interface for managing collection entries 
 			dataToSave.createdBy = user?.username ?? 'system';
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
-
-		console.log('[RightSidebar] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
-		await saveEntry(dataToSave, toastStore);
+		if (process.env.NODE_ENV !== 'production') {
+			console.log('[RightSidebar] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
+		}
+		saveEntry(dataToSave);
 		handleUILayoutToggle();
+	}
+
+	async function saveData() {
+		prepareAndSaveEntry();
 	}
 
 	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
@@ -210,12 +225,13 @@ This component provides a streamlined interface for managing collection entries 
 
 {#if showSidebar}
 	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
-		{#if $shouldShowNextButton && mode.value === 'create'}
+		{#if shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
 			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
-		{:else}
+		{/if}
+		{#if !(shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
 			<header class="flex flex-col items-center justify-center gap-3">
 				<button
 					type="button"

@@ -54,7 +54,10 @@
 	import { collection, collectionValue, mode, statusMap } from '@src/stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
-	import { contentLanguage, headerActionButton, tabSet, validationStore } from '@stores/store.svelte';
+	import { contentLanguage, headerActionButton, tabSet, validationStore, shouldShowNextButton } from '@stores/store.svelte';
+
+	// Subscribe to shouldShowNextButton store for use in markup (runes mode)
+	let shouldShowNextButtonValue = $derived(shouldShowNextButton);
 
 	// Types
 	import type { User } from '@src/auth/types';
@@ -207,14 +210,13 @@
 
 	// Status Store Effects removed: statusStore is not used, use local status logic only
 
-	// Save form data with validation
-	async function saveData() {
+	// Shared save logic for HeaderEdit and RightSidebar
+	function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
 			console.warn('[HeaderEdit] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
-
 		const dataToSave = { ...collectionValue.value };
 
 		// Status rules: Schedule takes precedence, otherwise use current collection status
@@ -225,18 +227,26 @@
 			dataToSave.status = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
 			delete dataToSave._scheduled;
 		}
-
-		// Set metadata for all saves
 		if (mode.value === 'create') {
 			dataToSave.createdBy = user?.username ?? 'system';
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
-
-		console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
-
-		await saveEntry(dataToSave);
+		if (process.env.NODE_ENV !== 'production') {
+			console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
+		}
+		saveEntry(dataToSave);
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
+
+	// Save form data with validation
+	async function saveData() {
+		prepareAndSaveEntry();
+	}
+
+	// Permission and UI derived values
+	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
+	const canCreate = $derived(collection.value?.permissions?.[user.role]?.create !== false);
+	const canDelete = $derived(collection.value?.permissions?.[user.role]?.delete !== false);
 
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
@@ -309,24 +319,29 @@
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
-
-		{#if collection.value}
-			<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
-				{#if collection.value.icon}
-					<div class="flex items-center justify-center">
-						<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
-					</div>
-				{/if}
-				{#if collection.value.name}
-					<div class="ml-2 flex flex-col text-left font-bold">
-						<div class="text-sm uppercase">
-							{mode.value}:
-						</div>
-						<div class="text-sm capitalize">
-							<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
-						</div>
-					</div>
-				{/if}
+		<button
+			type="button"
+			onclick={saveData}
+			aria-label="Save"
+			class={`btn-icon mt-1 ${
+				!validationStore.isValid || !canWrite
+					? 'variant-filled-surface cursor-not-allowed opacity-50'
+					: 'variant-ghost-surface hover:variant-filled-surface'
+			}`}
+			disabled={!validationStore.isValid || !canWrite}
+		>
+			<div class="flex items-center justify-center">
+				<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
+			</div>
+		</button>
+		{#if collection.value.name}
+			<div class="ml-2 flex flex-col text-left font-bold">
+				<div class="text-sm uppercase">
+					{mode.value}:
+				</div>
+				<div class="text-sm capitalize">
+					<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
+				</div>
 			</div>
 		{/if}
 	</div>
@@ -339,8 +354,8 @@
 						type="button"
 						onclick={saveData}
 						aria-label="Save"
-						class="variant-filled-tertiary btn-icon dark:variant-filled-primary"
-						disabled={!validationStore.isValid || collection.value?.permissions?.[user.role]?.write === false}
+						class={`variant-filled-tertiary btn-icon dark:variant-filled-primary ` + (!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
+						disabled={!validationStore.isValid || !canWrite}
 					>
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 						<span class="hidden lg:block">{m.button_save()}</span>
@@ -361,15 +376,23 @@
 				</div>
 
 				{#if ['edit', 'create'].includes(mode.value)}
-					<button
-						type="button"
-						onclick={saveData}
-						disabled={collection.value?.permissions?.[user.role]?.write === false}
-						class="variant-filled-tertiary btn-icon dark:variant-filled-primary lg:hidden"
-						aria-label="Save entry"
-					>
-						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
-					</button>
+					{#if shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
+						<button type="button" onclick={next} class="variant-filled-primary btn-icon dark:variant-filled-primary lg:hidden" aria-label="Next">
+							<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
+						</button>
+					{/if}
+					{#if !(shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
+						<button
+							type="button"
+							onclick={saveData}
+							class={`variant-filled-tertiary btn-icon dark:variant-filled-primary lg:hidden ` +
+								(!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
+							aria-label="Save entry"
+							disabled={!validationStore.isValid || !canWrite}
+						>
+							<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+						</button>
+					{/if}
 				{/if}
 				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
@@ -414,7 +437,7 @@
 				<button
 					type="button"
 					onclick={openDeleteModal}
-					disabled={collection.value?.permissions?.[user.role]?.delete === false}
+					disabled={!canDelete}
 					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
 					aria-label="Delete entry"
 				>
@@ -428,7 +451,7 @@
 					<button
 						type="button"
 						onclick={openScheduleModal}
-						disabled={!collection.value?.permissions?.[user.role]?.write}
+						disabled={!canWrite}
 						class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
 						aria-label="Schedule entry"
 					>

@@ -9,11 +9,18 @@
  * 	- TypeScript support with custom Collection type
  */
 
-import { store } from '@utils/reactivity.svelte';
 import type { Schema } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
-import type { ContentNode } from '../databases/types';
+import { store } from '@utils/reactivity.svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import type { ContentNode } from '../databases/types';
+
+// Helper: Initialize collectionValue status if missing
+function ensureCollectionValueStatus() {
+	if (collectionValueState && !('status' in collectionValueState)) {
+		collectionValueState.status = collection.value?.status ?? StatusTypes.unpublish;
+	}
+}
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
@@ -42,14 +49,17 @@ export const collection = store<Schema | null>({} as Schema);
 let collectionValueState = $state<Record<string, unknown>>({});
 export const collectionValue = {
 	get value() {
+		ensureCollectionValueStatus();
 		return collectionValueState;
 	},
 	set: (newValue: Record<string, unknown>) => {
 		collectionValueState = newValue;
+		ensureCollectionValueStatus();
 	},
 	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
 		const newValue = fn(collectionValueState);
 		collectionValueState = newValue;
+		ensureCollectionValueStatus();
 	}
 };
 
