@@ -75,14 +75,14 @@
 		children: v.optional(v.array(v.any()))
 	});
 
-	// Memoized current fields to prevent unnecessary recalculations
+	// Memoized current fields to prevent unnecessary errors and recalculations
 	let currentFields = $derived.by(() => {
+		if (!field.fields || !Array.isArray(field.fields)) return [];
 		const fieldsAtDepth = field.fields[depth];
-		if (!fieldsAtDepth) return [];
-
+		if (!fieldsAtDepth || !Array.isArray(fieldsAtDepth)) return [];
 		return fieldsAtDepth.map((f) => ({
 			...f,
-			type: f.widget.Name,
+			type: f.widget?.Name,
 			config: f.widget
 		})) as Field[];
 	});
