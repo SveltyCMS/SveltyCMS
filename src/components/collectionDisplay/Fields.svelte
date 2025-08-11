@@ -32,7 +32,7 @@
 	const collectionName = $derived(page.params?.collection);
 
 	// Stores
-	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 
 	// Config
@@ -54,7 +54,8 @@
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import { widgetFunctions, ensureWidgetsInitialized } from '@src/widgets';
-	import { onMount } from 'svelte'; // Dynamic import of all widget components using Vite's glob import
+	import { onMount } from 'svelte';
+	import { validationStore } from '@stores/store.svelte';
 
 	// Dynamic import of all widget components using Vite's glob import
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -64,7 +65,8 @@
 	// Initialize widgets on mount
 	onMount(async () => {
 		await ensureWidgetsInitialized();
-	}); // Props
+	});
+
 	let { fields = undefined } = $props<{
 		fields?: NonNullable<typeof collection.value>['fields'];
 	}>();
@@ -84,7 +86,8 @@
 
 	let processedCollection = $state<any>(null);
 	let fieldsFromModule = $state<any[]>([]);
-	// Process collection module to get actual fields
+
+	// --- Let widgets handle their own validation - no duplicate validation here ---
 
 	$effect(() => {
 		if (collection.value && (collection.value as any)?.module && !processedCollection) {
@@ -446,7 +449,20 @@
 
 											{#if WidgetComponent}
 												{@const fieldName = getFieldName(field, false)}
-												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+												{@const shouldValidateOnMount = field.required && mode.value === 'create'}
+												<!-- Debug validation mount -->
+												{#if process.env.NODE_ENV !== 'production' && shouldValidateOnMount}
+													<div style="font-size:0.7em;color:#0a0;">
+														Validating on mount: {field.label || fieldName} (required: {field.required}, mode: {mode.value}, fieldName: {fieldName})
+													</div>
+												{/if}
+												<WidgetComponent
+													{field}
+													WidgetData={{}}
+													bind:value={currentCollectionValue[fieldName]}
+													{tenantId}
+													validateOnMount={shouldValidateOnMount}
+												/>
 											{:else}
 												<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 											{/if}

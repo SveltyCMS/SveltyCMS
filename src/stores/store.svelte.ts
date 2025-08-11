@@ -437,30 +437,75 @@ export const indexer = undefined;
 function createValidationStore() {
 	let errors = $state<ValidationErrors>({});
 	const isValid = $derived(() => Object.values(errors).every((error) => !error));
+	const subscribers = new SvelteSet<(value: { errors: ValidationErrors; isValid: boolean }) => void>();
+
+	const notify = () => {
+		const current = { errors: { ...errors }, isValid: isValid() }; // Call the derived function
+		for (const fn of subscribers) {
+			try {
+				fn(current);
+			} catch {
+				// noop: subscriber errors shouldn't break notifications
+			}
+		}
+	};
 
 	return {
+		_lastLoggedState: undefined as string | undefined,
 		get errors() {
 			return errors;
 		},
 		get isValid() {
-			return isValid;
+			const valid = isValid(); // Call the derived function to get the boolean value
+			const errorKeys = Object.keys(errors);
+			const hasErrors = errorKeys.length > 0;
+			if (process.env.NODE_ENV !== 'production') {
+				// Only log if there's a change in state to reduce spam
+				const currentState = `${valid}-${hasErrors}-${errorKeys.join(',')}`;
+				if (!this._lastLoggedState || this._lastLoggedState !== currentState) {
+					console.log(`[ValidationStore] isValid check: valid=${valid}, hasErrors=${hasErrors}, errors keys:`, errorKeys);
+					this._lastLoggedState = currentState;
+				}
+			}
+			return valid;
 		},
 		setError: (fieldName: string, errorMessage: string | null) => {
+			if (process.env.NODE_ENV !== 'production') {
+				console.log(`[ValidationStore] Setting error for ${fieldName}:`, errorMessage);
+			}
 			errors[fieldName] = errorMessage;
+			notify();
 		},
 		clearError: (fieldName: string) => {
+			if (process.env.NODE_ENV !== 'production') {
+				console.log(`[ValidationStore] Clearing error for ${fieldName}`);
+			}
 			if (fieldName in errors) {
 				delete errors[fieldName];
+				notify();
 			}
 		},
 		clearAllErrors: () => {
 			errors = {};
+			notify();
 		},
 		getError: (fieldName: string): string | null => {
 			return errors[fieldName] || null;
 		},
 		hasError: (fieldName: string): boolean => {
 			return !!errors[fieldName];
+		},
+		// Svelte store contract
+		subscribe: (run: (value: { errors: ValidationErrors; isValid: boolean }) => void) => {
+			subscribers.add(run);
+			try {
+				run({ errors: { ...errors }, isValid: isValid() }); // Call the derived function
+			} catch {
+				// noop on initial call
+			}
+			return () => {
+				subscribers.delete(run);
+			};
 		}
 	};
 }
