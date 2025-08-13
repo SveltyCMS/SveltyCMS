@@ -6,7 +6,6 @@ Features:
 - File input 
 - Multiple file input
 - Drag and drop
-
 -->
 
 <script lang="ts">

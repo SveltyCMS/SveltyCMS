@@ -21,7 +21,7 @@ file src/components/system/buttons/Button.svelte
 -->
 
 <script lang="ts">
-	// Define props using Svelte 5's $props
+	//Props
 	const {
 		size = 'md', // Default size
 		variant = 'primary', // Default variant
@@ -32,7 +32,7 @@ file src/components/system/buttons/Button.svelte
 		disabled = false, // Disabled state
 		labelledBy, //ARIA labelledBy
 		describedBy, //ARIA describedBy
-		children, // Snippet for default slot content (Svelte 5)
+		children, // Snippet for default slot content
 		...rest // Capture all other props
 	} = $props<{
 		size?: 'sm' | 'md' | 'lg' | 'xl'; // Button size options
@@ -44,7 +44,7 @@ file src/components/system/buttons/Button.svelte
 		disabled?: boolean; // Disabled state
 		labelledBy?: string; //ARIA labelledBy
 		describedBy?: string; //ARIA describedBy
-		children?: () => any; // Snippet for default slot content (Svelte 5)
+		children?: () => any; // Snippet for default slot content
 	}>();
 
 	// Dynamically compute button classes

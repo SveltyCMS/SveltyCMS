@@ -120,7 +120,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		for (const collection of mediaCollections) {
 			try {
-				const query: Record<string, string | null> = { folderId: folderId || null };
+				const query: Record<string, string | boolean | null> = {
+					folderId: folderId || null,
+					// Filter out deleted items
+					$or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
+				};
 				const result = await dbAdapter.crud.findMany(collection, query);
 
 				if (result.success && result.data) {
@@ -185,13 +189,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						logger.warn('MEDIA_FOLDER not set; proceeding with defaults');
 					}
 
+					// Build thumbnail URL via helper (no hard-coded routes)
+					const effectivePath = (item as Record<string, string | undefined>).path ?? '/global';
+					const thumbnailUrl = constructUrl(effectivePath, item.hash!, filename, extension, 'images', 'thumbnail');
+
 					return {
 						...item,
 						path: item.path ?? 'global',
 						name: item.filename ?? 'unnamed-media',
-						url: constructUrl('/global', item.hash!, filename, extension, 'images', 'original'),
+						// Use the item's path if available when constructing the original URL
+						url: constructUrl((item.path ?? '/global') as string, item.hash!, filename, extension, 'images', 'original'),
 						thumbnail: {
-							url: constructUrl('/global', item.hash!, filename, extension, 'images', 'thumbnail')
+							url: thumbnailUrl
 						}
 					};
 				} catch (err) {

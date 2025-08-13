@@ -35,6 +35,7 @@ import { logger } from '@utils/logger.svelte';
 export const SessionSchema = new Schema(
 	{
 		user_id: { type: String, required: true, index: true }, // User identifier
+		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy
 		expires: { type: Date, required: true, index: true }, // Expiry timestamp
 		rotated: { type: Boolean, default: false, index: true }, // Flag to mark rotated sessions
 		rotatedTo: { type: String, index: true } // ID of the new session this was rotated to
@@ -72,7 +73,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	}
 
 	// Create a new session
-	async createSession(sessionData: { user_id: string; expires: Date }, options: { invalidateOthers?: boolean } = {}): Promise<Session> {
+	async createSession(
+		sessionData: { user_id: string; expires: Date; tenantId?: string },
+		options: { invalidateOthers?: boolean } = {}
+	): Promise<Session> {
 		try {
 			// Only invalidate all sessions if not explicitly skipped
 			if (options.invalidateOthers !== false) {
@@ -110,13 +114,15 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			const newSession = await this.createSession(
 				{
 					user_id: oldSession.user_id,
-					expires
+					expires,
+					tenantId: oldSession.tenantId
 				},
 				{ invalidateOthers: false }
 			);
 
 			// Instead of immediately deleting old session, extend it for 5 minutes grace period
 			// This prevents race conditions where cached references to old session cause failures
+
 			const graceExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes grace period
 			await this.SessionModel.findByIdAndUpdate(oldToken, {
 				expires: graceExpiry,
@@ -232,18 +238,40 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	}
 
 	// Get active sessions for a user (enhanced to show rotation status)
-	async getActiveSessions(user_id: string): Promise<Session[]> {
+	async getActiveSessions(user_id: string): Promise<{ success: boolean; data: Session[]; error?: string }> {
 		try {
 			const sessions = await this.SessionModel.find({
 				user_id,
 				expires: { $gt: new Date() }
 			}).lean();
 			logger.debug('Active sessions retrieved for user', { user_id, count: sessions.length });
-			return sessions.map(this.formatSession);
+			return { success: true, data: sessions.map((session) => this.formatSession(session)) };
 		} catch (err) {
 			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return { success: false, data: [], error: message };
+		}
+	}
+
+	// Get all active sessions for all users (for online users widget)
+	async getAllActiveSessions(tenantId?: string): Promise<{ success: boolean; data: Session[]; error?: string }> {
+		try {
+			const query: Record<string, unknown> = {
+				expires: { $gt: new Date() }
+			};
+
+			// If multi-tenant mode, filter by tenantId
+			if (tenantId) {
+				query.tenantId = tenantId;
+			}
+
+			const sessions = await this.SessionModel.find(query).lean();
+			logger.debug('All active sessions retrieved', { count: sessions.length, tenantId });
+			return { success: true, data: sessions.map((session) => this.formatSession(session)) };
+		} catch (err) {
+			const message = `Error in SessionAdapter.getAllActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			return { success: false, data: [], error: message };
 		}
 	}
 

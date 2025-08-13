@@ -39,13 +39,13 @@ const createUIStores = () => {
 
 	// Tailored default state based on screen size and mode
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
-		// Mobile behavior (<768px)
+		// Mobile behavior (<768px) - Always hide sidebar on mobile to show FloatingNav
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {
-				leftSidebar: 'hidden',
+				leftSidebar: 'hidden', // ALWAYS hidden on mobile regardless of mode
 				rightSidebar: 'hidden',
 				pageheader: isViewMode ? 'hidden' : 'full',
-				pagefooter: isViewMode ? 'hidden' : 'full',
+				pagefooter: isViewMode ? 'hidden' : 'full', // Show pagefooter on mobile when editing (Fields.svelte needs it)
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -57,7 +57,7 @@ const createUIStores = () => {
 				leftSidebar: isViewMode ? 'collapsed' : 'hidden',
 				rightSidebar: 'hidden',
 				pageheader: isViewMode ? 'hidden' : 'full',
-				pagefooter: isViewMode ? 'hidden' : 'full',
+				pagefooter: isViewMode ? 'hidden' : 'full', // Show pagefooter on tablet when editing too
 				header: 'hidden',
 				footer: 'hidden'
 			};
@@ -97,6 +97,8 @@ const createUIStores = () => {
 	// Optimized layout handler with immediate response and smart diffing
 	const isUpdating = store(false);
 	let lastMode = mode.value; // Track last mode value
+	// Prevent updateLayout from overriding recent manual sidebar toggles (layout resize triggers)
+	let manualOverrideUntil = 0;
 
 	function updateLayout() {
 		if (isUpdating.value) return;
@@ -108,8 +110,15 @@ const createUIStores = () => {
 			const isViewMode = lastMode === 'view' || lastMode === 'media';
 			const newState = getDefaultState(currentSize, isViewMode);
 
-			// Only update if state actually changes
+			// If within manual override window, preserve current sidebar states
+			const now = Date.now();
 			const prevState = uiState.value;
+			if (now < manualOverrideUntil) {
+				newState.leftSidebar = prevState.leftSidebar;
+				newState.rightSidebar = prevState.rightSidebar;
+			}
+
+			// Only update if state actually changes
 			const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== prevState[key as keyof UIState]);
 			if (isDifferent) {
 				requestAnimationFrame(() => {
@@ -153,6 +162,10 @@ const createUIStores = () => {
 	// Toggle individual UI element visibility
 	function toggleUIElement(element: keyof UIState, state: UIVisibility) {
 		batchUpdate({ [element]: state });
+		// Activate manual override briefly to avoid resize-driven resets
+		if (element === 'leftSidebar' || element === 'rightSidebar') {
+			manualOverrideUntil = Date.now() + 600; // ~0.6s window
+		}
 	}
 
 	// Lazy initialization

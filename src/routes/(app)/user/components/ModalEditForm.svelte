@@ -1,5 +1,5 @@
 <!-- 
-@file src/components/ModalEditForm.svelte
+@file src/routes/(app)/user/components/ModalEditForm.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
 
@@ -19,7 +19,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { page } from '$app/state';
 	// Skeleton & Stores
 	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -62,7 +63,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 	// Store initialization
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	// Form Data Initialization
 	const formData = $state({
@@ -88,7 +88,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
 	const showDeleteButton = hasDeletePermission && !isOwnProfile && !isFirstUser;
 
-	function onFormSubmit(event: SubmitEvent): void {
+	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 
 		// Validate password fields if they are filled
@@ -115,7 +115,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		if (formData.username !== originalData.username) {
 			changes.push('username');
 		}
-		if (formData.role !== originalData.role) {
+		if (!isOwnProfile && formData.role !== originalData.role) {
 			const oldRole = roles?.find((r: any) => r._id === originalData.role)?.name || originalData.role;
 			const newRole = roles?.find((r: any) => r._id === formData.role)?.name || formData.role;
 			changes.push(`role (${oldRole} → ${newRole})`);
@@ -129,9 +129,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 			user_id: formData.user_id,
 			username: formData.username,
 			email: formData.email,
-			role: formData.role,
 			_changes: changes // Include changes for the response handler
 		};
+
+		// Only include role if user is not editing their own profile
+		if (!isOwnProfile) {
+			submitData.role = formData.role;
+		}
 
 		// Only include password fields if they're not empty
 		if (formData.password && formData.password.trim() !== '') {
@@ -139,11 +143,17 @@ Efficiently manages user data updates with validation, role selection, and delet
 			submitData.confirmPassword = formData.confirmPassword;
 		}
 
-		// Access the current modal from the store
-		if ($modalStore[0]?.response) {
-			$modalStore[0].response(submitData);
+		// Access the current modal from the store and await response to avoid unhandled promise warnings
+		try {
+			if ($modalStore[0]?.response) {
+				await Promise.resolve($modalStore[0].response(submitData));
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			showToast(`<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}`, 'error');
+		} finally {
+			modalStore.close();
 		}
-		modalStore.close();
 	}
 
 	async function deleteUser() {
@@ -165,21 +175,13 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			// Use the success message from the API response
 			const successMessage = data.message || 'User deleted successfully.';
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:check" width="24"/> ${successMessage}`,
-				background: 'variant-filled-success',
-				timeout: 3000
-			});
+			showToast(`<iconify-icon icon=\"mdi:check\" width=\"24\"/> ${successMessage}`, 'success');
 
 			await invalidateAll();
 			modalStore.close();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}`,
-				background: 'variant-filled-error',
-				timeout: 5000
-			});
+			showToast(`<iconify-icon icon=\"mdi:alert-circle\" width=\"24\"/> ${message}`, 'error');
 		}
 	}
 
@@ -286,27 +288,46 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 			<!-- Role Select -->
 			<PermissionGuard config={modaleEditFormConfig} silent={true}>
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
-					<div class="flex-auto">
-						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-							{#if roles && roles.length > 0}
-								{#each roles as r}
-									<button
-										type="button"
-										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										onclick={() => (formData.role = r._id)}
-									>
-										{#if formData.role === r._id}
-											<span><iconify-icon icon="fa:check"></iconify-icon></span>
-										{/if}
-										<span class="capitalize">{r.name}</span>
-									</button>
-								{/each}
-							{/if}
+				{#if !isOwnProfile}
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+						<div class="flex-auto">
+							<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+								{#if roles && roles.length > 0}
+									{#each roles as r}
+										<button
+											type="button"
+											class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+											onclick={() => (formData.role = r._id)}
+										>
+											{#if formData.role === r._id}
+												<span><iconify-icon icon="fa:check"></iconify-icon></span>
+											{/if}
+											<span class="capitalize">{r.name}</span>
+										</button>
+									{/each}
+								{/if}
+							</div>
 						</div>
 					</div>
-				</div>
+				{:else}
+					<div class="flex flex-col gap-2 sm:flex-row">
+						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+						<div class="flex-auto">
+							<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+								<div class="flex items-center">
+									<iconify-icon icon="mdi:information" width="16" class="mr-2 flex-shrink-0"></iconify-icon>
+									<div>
+										<strong>Current Role:</strong>
+										{roles?.find((r: any) => r._id === formData.role)?.name || formData.role}
+										<br />
+										<em>You cannot change your own role for security reasons.</em>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</PermissionGuard>
 		</form>
 		<footer class="modal-footer {parent.regionFooter} flex {showDeleteButton ? 'justify-between' : 'justify-end'}">

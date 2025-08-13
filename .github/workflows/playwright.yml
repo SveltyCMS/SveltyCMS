@@ -17,35 +17,16 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: true
-      matrix:
-        mongodb-version: [latest]
-        test-file:
-          [
-            '/tests/playwright/signupfirstuser.spec.ts',
-            '/tests/playwright/user.spec.ts',
-            '/tests/playwright/oauth-signup-firstuser.spec.ts',
-            '/tests/playwright/collection.spec.ts',
-            '/tests/playwright/language.spec.ts',
-            '/tests/playwright/login.spec.ts',
-            '/tests/playwright/permission-change.spec.ts',
-            '/tests/playwright/user-crud.spec.ts'
-          ]
-
     steps:
       - name: Git checkout
-        id: checkout
         uses: actions/checkout@v4
 
       - name: Setup Bun
-        id: setup-bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
       - name: Cache Bun dependencies and Playwright browsers
-        id: cache
         uses: actions/cache@v3
         with:
           path: |
@@ -56,143 +37,67 @@ jobs:
             ${{ runner.OS }}-bun-playwright-
         continue-on-error: true
 
-      - name: Start MongoDB v${{ matrix.mongodb-version }}
-        id: mongodb
+      - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
         with:
-          mongodb-version: ${{ matrix.mongodb-version }}
+          mongodb-version: latest
           mongodb-username: admin
           mongodb-password: admin
           mongodb-db: SveltyCMS
           mongodb-port: 27017
-        if: ${{ github.event_name != 'pull_request' }}
+        # Ensure MongoDB runs for PRs as well
 
       - name: Install dependencies
-        id: install
         run: bun install
 
       - name: Install Playwright Browsers
-        id: install-playwright
         run: bunx playwright install --with-deps
 
-      - name: Run local server
-        run: bun run build && bun run preview &
+      - name: Use test config files
+        run: |
+          mkdir -p config
+          # Prefer JS/ESM configs to avoid TS import issues in Node during Vite config load
+          if [ -f tests/ci-config/public.mjs ]; then cp tests/ci-config/public.mjs config/public.mjs; else cp tests/ci-config/public.ts config/public.ts; fi
+          if [ -f tests/ci-config/private.mjs ]; then cp tests/ci-config/private.mjs config/private.mjs; else cp tests/ci-config/private.ts config/private.ts; fi
+
+      - name: Generate SvelteKit files
+        # svelte-kit sync ensures .svelte-kit/tsconfig.json exists before build
+        run: bunx svelte-kit sync
+
+      - name: Build SvelteKit server
+        run: bunx svelte-kit build
+
+      - name: Start preview server (port 4173)
+        run: |
+          bunx svelte-kit preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          echo $! > preview.pid
+
+      - name: Wait for server to be ready
+        run: bunx wait-on http://127.0.0.1:4173 -t 180000
+
+      - name: Show preview logs (on failure)
+        if: failure()
+        run: |
+          echo "--- preview.log (last 400 lines) ---"
+          tail -n 400 preview.log || true
 
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
-          for file in ${{ matrix.test-file }}; do
-            bunx playwright test $file --workers 10 --output=test-results/playwright &
-          done
-          wait
+          bunx playwright test tests/playwright --workers 8 --output=test-results/playwright
+
+      - name: Run Bun tests (after server is up)
         env:
-          privateEnv.DB_TYPE: 'mongodb'
-          privateEnv.DB_HOST: mongodb://localhost
-          privateEnv.DB_PORT: 27017
-          privateEnv.DB_NAME: SveltyCMS
-          privateEnv.DB_USER: admin
-          privateEnv.DB_PASSWORD: admin
-          privateEnv.DB_RETRY_DELAY: 1000
-          privateEnv.DB_RETRY_ATTEMPTS: 3
-          privateEnv.DB_POOL_SIZE: 5
-
-          privateEnv.SMTP_HOST: ''
-          privateEnv.SMTP_PORT: ''
-          privateEnv.SMTP_EMAIL: 'test@example.com'
-          privateEnv.SMTP_PASSWORD: ''
-          privateEnv.SERVER_PORT: '4173'
-
-          privateEnv.USE_GOOGLE_OAUTH: 'true'
-          privateEnv.GOOGLE_CLIENT_ID: '123456789-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com'
-          privateEnv.GOOGLE_CLIENT_SECRET: 'GOCSPX-test_client_secret_for_github_actions'
-
-          privateEnv.USE_REDIS: 'false'
-          privateEnv.REDIS_HOST: ''
-          privateEnv.REDIS_PORT: ''
-          privateEnv.REDIS_PASSWORD: ''
-
-          privateEnv.SESSION_CLEANUP_INTERVAL: 60000
-          privateEnv.MAX_IN_MEMORY_SESSIONS: 100
-          privateEnv.DB_VALIDATION_PROBABILITY: 0.1
-          privateEnv.SESSION_EXPIRATION_SECONDS: 3600
-
-          privateEnv.USE_MAPBOX: 'false'
-          privateEnv.MAPBOX_API_TOKEN: ''
-          privateEnv.SECRET_MAPBOX_API_TOKEN: ''
-
-          privateEnv.GOOGLE_API_KEY: ''
-
-          privateEnv.TWITCH_TOKEN: ''
-
-          privateEnv.USE_TIKTOK: 'false'
-          privateEnv.TIKTOK_TOKEN: ''
-
-          privateEnv.USE_OPEN_AI: 'false'
-          privateEnv.VITE_OPEN_AI_KEY: ''
-
-          privateEnv.ROLES: ''
-          privateEnv.PERMISSIONS: ''
-
-          privateEnv.JWT_SECRET_KEY: 'testsecret'
-
-          publicEnv.HOST_DEV: http://localhost:5173
-          publicEnv.HOST_PROD: http://localhost:4173
-
-          publicEnv.SITE_NAME: SveltyCMS
-
-          publicEnv.PASSWORD_LENGTH: '8'
-
-          publicEnv.DEFAULT_CONTENT_LANGUAGE: 'en'
-          publicEnv.AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
-          publicEnv.DEFAULT_SYSTEM_LANGUAGE: 'en'
-          publicEnv.AVAILABLE_SYSTEM_LANGUAGES: '["en", "de"]'
-
-          publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
-          publicEnv.MEDIASERVER_URL: ''
-          publicEnv.MEDIA_FOLDER: mediaFiles
-
-          publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY: '{ "format": "avif", "quality": 80 }'
-          publicEnv.MAX_FILE_SIZE: '10485760'
-          publicEnv.BODY_SIZE_LIMIT: '104857600'
-
-          publicEnv.SEASONS: false
-          publicEnv.SEASON_REGION: 'Europe'
-          publicEnv.PKG: '{ VERSION: pkg.version }'
-
-          publicEnv.LOG_LEVELS: '["info", "error", "warn"]'
-          publicEnv.DEMO: 'true'
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-test-results
-          path: test-results/playwright/
-          retention-days: 30
-
-  bun-tests:
-    name: SveltyCMS Bun Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Git checkout
-        uses: actions/checkout@v4
-
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Run Bun tests
+          API_BASE_URL: http://localhost:4173
         run: |
           mkdir -p test-results/bun
-          bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
+          bun test tests/bun > test-results/bun/test-results.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bun-test-results
-          path: test-results/bun/
+          name: test-results
+          path: |
+            test-results/playwright/
+            test-results/bun/
           retention-days: 30

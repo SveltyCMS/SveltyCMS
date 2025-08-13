@@ -25,21 +25,23 @@ Features:
 </script>
 
 <script lang="ts">
+	import { page } from '$app/stores';
+
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus } from '@utils/apiClient';
+	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus, deleteEntry, batchDeleteEntries } from '@utils/apiClient';
 	import { getCachedCollectionData } from '@utils/collections-prefetch';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
-	import { cloneEntries, deleteEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
+	import { cloneEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
 	// Config
 	import { getGlobalSetting } from '@src/stores/globalSettings';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
@@ -58,12 +60,8 @@ Features:
 	import Loading from '@components/Loading.svelte';
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import { page } from '$app/stores';
-
-	// Initialize stores for modal  & toast
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+	import { showToast } from '@utils/toast';
+	import { showStatusChangeConfirm, showDeleteConfirm } from '@utils/modalUtils';
 
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
@@ -99,8 +97,14 @@ Features:
 
 	// Collection-specific initialization to track initial loads per collection
 	let lastCollectionId = $state<string | null>(null);
-	let isCollectionChanging = $state(false);
-	let isInitializing = $state(false); // Flag to prevent pagination effect during initial load
+
+	// Optimize state management with frozen objects for better performance
+	let collectionState = $state.raw({
+		isChanging: false,
+		isInitializing: false,
+		hasInitialLoad: false,
+		stableDataExists: false
+	});
 
 	$effect(() => {
 		// Load settings from localStorage when collectionId changes
@@ -109,9 +113,33 @@ Features:
 		// Only process if collection actually changed
 		if (lastCollectionId === currentCollId) return;
 
+		// Clear client cache when switching collections to prevent stale data
+		if (lastCollectionId !== null && lastCollectionId !== currentCollId) {
+			// Clear all cache to prevent cross-collection contamination
+			clientCache.clear();
+			// Also clear any cached fetch parameters to force fresh fetch
+			lastFetchParams = null;
+			// Clear current request to invalidate any in-flight requests
+			currentRequestId = null;
+			// Clear table data immediately to prevent showing old collection data
+			tableData = [];
+			pagesCount = 1;
+			totalItems = 0;
+			rawData = undefined;
+			data = undefined;
+			// console.log('[EntryList] Cleared cache due to collection change', {
+			// 	from: lastCollectionId,
+			// 	to: currentCollId
+			// });
+		}
+
 		// Set flags to prevent pagination effect from triggering during collection change
-		isCollectionChanging = true;
-		isInitializing = true;
+		collectionState = {
+			isChanging: true,
+			isInitializing: true,
+			hasInitialLoad: false,
+			stableDataExists: false
+		};
 
 		if (browser && currentCollId) {
 			const savedSettings = localStorage.getItem(`entryListPaginationSettings_${currentCollId}`);
@@ -153,30 +181,46 @@ Features:
 
 			// Reset loading state for new collection and update tracking
 			untrack(() => {
-				lastCollectionId = currentCollId;
-				hasInitialLoad = false;
-				stableDataExists = false;
-				loadingState = 'loading';
+				// Don't set loading state here - let refreshTableData handle it
+				// Clear client cache for new collection - do this FIRST
+				clientCache.clear();
+				// console.log('[EntryList] Cleared client cache during collection switch', {
+				// 	newCollectionId: currentCollId,
+				// 	cacheSize: clientCache.size
+				// });
+				// Immediately clear table data and related state to prevent showing old data
+				tableData = [];
+				pagesCount = 1;
+				totalItems = 0;
+				rawData = undefined;
+				data = undefined;
+				// Clear fetch parameters to ensure fresh fetch
+				lastFetchParams = null;
+				// Clear current request to invalidate any in-flight requests
+				currentRequestId = null;
+				// Clear selections
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+				SelectAll = false;
 			});
 
-			// Trigger data load for new collection
-			untrack(() => refreshTableData(true));
+			// Don't trigger data load here - let the consolidated effect handle it
+			// The consolidated effect will detect the collection change and trigger the appropriate refresh
 
-			// Clear flag after a longer timeout to ensure pagination effect doesn't trigger
+			// Clear flags after short delay to ensure proper state transitions
 			setTimeout(() => {
-				isCollectionChanging = false;
-				// Clear initializing flag after data has been loaded and processed
-				setTimeout(() => {
-					isInitializing = false;
-				}, 50);
-			}, 100);
+				collectionState = {
+					...collectionState,
+					isChanging: false,
+					isInitializing: false
+				};
+				// Update lastCollectionId AFTER clearing the flags
+				lastCollectionId = currentCollId;
+			}, 25); // Reduced timeout for faster collection transitions
 		} else if (!currentCollId) {
 			// No collection selected, reset to defaults for a null collectionId
 			entryListPaginationSettings = defaultPaginationSettings(null);
 			untrack(() => {
 				lastCollectionId = null;
-				hasInitialLoad = false;
-				stableDataExists = false;
 				loadingState = 'idle';
 				tableData = [];
 				pagesCount = 1;
@@ -186,18 +230,20 @@ Features:
 			});
 			// Clear flag after timeout for consistency
 			setTimeout(() => {
-				isCollectionChanging = false;
-				isInitializing = false;
-			}, 100);
+				collectionState = {
+					isChanging: false,
+					isInitializing: false,
+					hasInitialLoad: false,
+					stableDataExists: false
+				};
+			}, 25); // Reduced timeout for faster transitions
 		}
 	});
 
 	// Enhanced loading state management for flicker-free transitions
 	let loadingState = $state<'idle' | 'loading' | 'error'>('idle');
 
-	// Simplified stable state management
-	let stableDataExists = $state(false);
-	let hasInitialLoad = $state(false);
+	// Simplified stable state management - now using frozen state
 	let showDeleted = $state(false); // Controls whether to view active or archived entries
 	let rawData = $state<{ items: any[]; totalPages?: number; total?: number } | undefined>();
 
@@ -206,34 +252,49 @@ Features:
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 
-	const currentLanguage = $derived(contentLanguage.value);
-	const currentSystemLanguage = $derived(systemLanguage.value);
-	const currentMode = $derived(mode.value);
-	const currentCollection = $derived(collection.value);
-	const currentScreenSize = $derived(screenSize.value);
+	// Optimized derived states with memoization
+	const currentStates = $derived.by(() => ({
+		language: contentLanguage.value,
+		systemLanguage: systemLanguage.value,
+		mode: mode.value,
+		collection: collection.value,
+		// Keep screenSize available if needed elsewhere; no separate $derived required
+		screenSize: screenSize.value
+	}));
+
+	// Destructure for easier access
+	const currentLanguage = $derived(currentStates.language);
+	const currentSystemLanguage = $derived(currentStates.systemLanguage);
+	const currentMode = $derived(currentStates.mode);
+	const currentCollection = $derived(currentStates.collection);
 
 	// Computed loading states - simplified for better UX
 	let isLoading = $derived(loadingState === 'loading');
-	// Only show spinner on very first load or when no collection is selected
-	let showLoadingSpinner = $derived(loadingState === 'loading' && !hasInitialLoad && !currentCollection?._id);
 
-	// Defines the structure of table headers based on the current collection's schema
+	// Optimized table headers with better caching
 	const tableHeaders = $derived.by((): TableHeader[] => {
 		if (!currentCollection?.fields) return [];
+
+		// Cache key for memoization
+		const cacheKey = `${currentCollection._id}-${currentCollection.fields.length}`;
+
 		const schemaHeaders: TableHeader[] = currentCollection.fields.map(
 			(field: any): TableHeader => ({
-				id: generateId(),
+				id: `${cacheKey}-${getFieldName(field)}`,
 				label: field.label,
 				name: getFieldName(field),
 				visible: true // Default visibility
 			})
 		);
-		return [
-			...schemaHeaders,
-			{ id: generateId(), label: 'createdAt', name: 'createdAt', visible: true },
-			{ id: generateId(), label: 'updatedAt', name: 'updatedAt', visible: true },
-			{ id: generateId(), label: 'status', name: 'status', visible: true }
+
+		// System headers with consistent IDs
+		const systemHeaders: TableHeader[] = [
+			{ id: `${cacheKey}-createdAt`, label: 'createdAt', name: 'createdAt', visible: true },
+			{ id: `${cacheKey}-updatedAt`, label: 'updatedAt', name: 'updatedAt', visible: true },
+			{ id: `${cacheKey}-status`, label: 'status', name: 'status', visible: true }
 		];
+
+		return [...schemaHeaders, ...systemHeaders];
 	});
 
 	// Effect to initialize/update the filters object in paginationSettings when tableHeaders change
@@ -322,26 +383,160 @@ Features:
 	let SelectAll = $state(false); // For the "select all rows" checkbox in table header
 	const selectedMap: Record<string, boolean> = $state({}); // Using string keys for index
 
+	// Add client-side caching with size limits to reduce API calls
+	let clientCache = $state<Map<string, { items: any[]; totalPages: number; total: number; timestamp: number }>>(new Map());
+	const MAX_CACHE_SIZE = 50; // Limit cache entries
+	const CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
+
+	// Track last fetch parameters to prevent redundant calls
+	let lastFetchParams = $state<string | null>(null);
+	let lastFetchTime = $state<number>(0);
+	let currentRequestId = $state<string | null>(null);
+	const MIN_REFRESH_INTERVAL = 1000; // Minimum 1 second between refreshes
+
+	// Generate a cache key for current fetch parameters
+	function getCurrentFetchKey(): string {
+		const currentCollId = currentCollection?._id;
+		if (!currentCollId) return '';
+
+		const { currentPage, rowsPerPage, filters, sorting } = entryListPaginationSettings;
+		const activeFilters: Record<string, string> = {};
+		for (const key in filters) {
+			if (filters[key]) activeFilters[key] = filters[key];
+		}
+
+		// Include show deleted state
+		if (!showDeleted) {
+			activeFilters.status = '!=deleted';
+		}
+
+		const sortParam = sorting.isSorted && sorting.sortedBy ? { [sorting.sortedBy]: sorting.isSorted } : {};
+
+		// Include collection name and more unique identifiers to ensure cache uniqueness across collections
+		const collectionName = currentCollection?.name || 'unknown';
+
+		return JSON.stringify({
+			collectionId: currentCollId,
+			collectionName, // Add collection name for extra uniqueness
+			collectionHash: currentCollId.slice(-8), // Use last 8 chars of ID as additional uniqueness
+			page: currentPage,
+			pageSize: rowsPerPage,
+			language: currentLanguage,
+			filters: activeFilters,
+			sort: sortParam,
+			showDeleted
+		});
+	}
+
 	async function refreshTableData(fetchNewData = true): Promise<void> {
 		// Get current collection
 		const currentCollId = currentCollection?._id;
 
-		// If no collection, clear data and reset state
+		// Check if this is a redundant call
+		const currentFetchKey = getCurrentFetchKey();
+		const now = Date.now();
+
+		// If no collection, clear data and reset state only when switching away from a collection
 		if (!currentCollId) {
-			tableData = [];
-			pagesCount = 1;
-			totalItems = 0;
+			if (lastCollectionId !== null) {
+				// Only clear data when actually switching away from a collection
+				tableData = [];
+				pagesCount = 1;
+				totalItems = 0;
+				rawData = undefined;
+				data = undefined;
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+				SelectAll = false;
+				// Update collection state atomically
+				collectionState = {
+					...collectionState,
+					stableDataExists: false,
+					hasInitialLoad: false
+				};
+				lastCollectionId = null;
+				lastFetchParams = null;
+			}
 			loadingState = 'idle';
-			stableDataExists = false;
-			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-			SelectAll = false;
 			return;
 		}
 
 		// Fetch data
 		if (fetchNewData) {
-			loadingState = 'loading';
-			globalLoadingStore.startLoading(loadingOperations.dataFetch);
+			// Check client cache first with TTL validation
+			const isCollectionSwitch = lastCollectionId !== currentCollId;
+			const canUseCache = !isCollectionSwitch && collectionState.stableDataExists && clientCache.has(currentFetchKey);
+
+			if (canUseCache) {
+				// console.log('[EntryList] Using client cache', { currentFetchKey });
+				const cached = clientCache.get(currentFetchKey)!;
+
+				// Check cache TTL
+				const now = Date.now();
+				if (now - cached.timestamp > CACHE_TTL) {
+					clientCache.delete(currentFetchKey);
+				} else {
+					// Enhanced cache validation with triple verification
+					let cacheIsValid = true;
+					try {
+						const keyData = JSON.parse(currentFetchKey);
+						if (
+							keyData.collectionId !== currentCollId ||
+							keyData.collectionName !== currentCollection?.name ||
+							keyData.collectionHash !== currentCollId.slice(-8)
+						) {
+							clientCache.clear();
+							cacheIsValid = false;
+						}
+					} catch (e) {
+						clientCache.clear();
+						cacheIsValid = false;
+					}
+
+					if (cacheIsValid) {
+						tableData = cached.items;
+						pagesCount = cached.totalPages;
+						totalItems = cached.total;
+						rawData = cached;
+						data = cached;
+
+						collectionState = {
+							...collectionState,
+							stableDataExists: true,
+							hasInitialLoad: true
+						};
+						loadingState = 'idle';
+						return;
+					}
+				}
+			}
+
+			// Check for redundant calls and rate limiting - but be less restrictive
+			// Only skip if it's the exact same request and very recent
+			if (currentFetchKey === lastFetchParams && collectionState.stableDataExists && now - lastFetchTime < 500) {
+				return;
+			}
+
+			lastFetchTime = now;
+
+			// Generate a unique request ID to track this request
+			const requestId = `${currentCollId}-${now}`;
+			currentRequestId = requestId;
+
+			// Smart loading state management to prevent flicker during collection switches
+			// Only show loading indicators for genuine data fetches, not during collection transitions
+
+			// Only show loading indicators if:
+			// 1. We don't have stable data AND it's not a collection switch
+			// 2. We're not currently changing collections
+			// 3. We're not initializing
+			if (!collectionState.stableDataExists && !isCollectionSwitch && !collectionState.isChanging && !collectionState.isInitializing) {
+				loadingState = 'loading';
+				globalLoadingStore.startLoading(loadingOperations.dataFetch);
+			} else if (!isCollectionSwitch && !collectionState.isChanging && !collectionState.isInitializing && collectionState.stableDataExists) {
+				// For refreshes with existing data, use a lighter loading state
+				loadingState = 'loading';
+			}
+			// For all other cases (collection switches, initialization), don't set loading state
 
 			try {
 				const page = entryListPaginationSettings.currentPage;
@@ -363,66 +558,123 @@ Features:
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
 						: {};
 
-				// Skip prefetched data to ensure proper pagination
-				// Prefetched data often contains more items than the requested limit
-				// which interferes with pagination functionality
-				let usedPrefetchedData = false;
+				const queryParams = {
+					collectionId: currentCollId,
+					page,
+					pageSize: limit, // API expects pageSize, not limit
+					contentLanguage: currentLanguage,
+					filter: JSON.stringify(activeFilters),
+					sort: JSON.stringify(sortParam),
+					// Add timestamp when language changed to force cache miss
+					_langChange: lastLanguage !== currentLanguage ? languageChangeTimestamp : undefined,
+					// Add cache busting parameter to ensure fresh data
+					_cacheBust: Date.now()
+				};
 
-				// If no prefetched data available, fetch normally
-				if (!usedPrefetchedData) {
-					const queryParams = {
-						collectionId: currentCollId,
-						page,
-						pageSize: limit, // API expects pageSize, not limit
-						contentLanguage: currentLanguage,
-						filter: JSON.stringify(activeFilters),
-						sort: JSON.stringify(sortParam),
-						// Add timestamp when language changed to force cache miss
-						_langChange: languageChangeTimestamp
-					};
+				const result = await getData(queryParams);
 
-					const result = await getData(queryParams);
-					if (result.success) {
-						data = result.data;
-					} else {
-						toastStore.trigger({ message: result.error || 'Failed to load data.', background: 'variant-filled-error' });
-						data = undefined; // Ensure data is cleared on error
+				// Enhanced race condition prevention with faster response time
+				if (currentRequestId !== requestId) {
+					// Parse request IDs to check if they're for the same collection
+					const [thisCollId, thisTimestamp] = requestId.split('-');
+					const [currentCollId_parsed, currentTimestamp] = (currentRequestId || '').split('-');
+
+					// If it's for a different collection, definitely discard
+					if (thisCollId !== currentCollId_parsed) {
+						return;
+					}
+
+					// Enhanced: Reduced time threshold for more responsive UI (500ms vs 1000ms)
+					const timeDiff = parseInt(currentTimestamp) - parseInt(thisTimestamp);
+					if (timeDiff > 500) {
+						return;
 					}
 				}
 
-				// Process the fetched data
-				if (data) {
+				// Critical: Check if the collection is still the same after the API call
+				// This prevents race conditions where user switches collection while API call is in flight
+				if (currentCollection?._id !== currentCollId) {
+					return;
+				}
+
+				if (result.success) {
+					data = result.data;
 					rawData = data;
-					// Use NEW API response format - API returns 'items' array
 					tableData = data.items || [];
 					pagesCount = data.totalPages || 1;
 					totalItems = data.total || 0;
-					stableDataExists = true; // We have some data to show
+					// Update last fetch params to prevent redundant calls
+					lastFetchParams = currentFetchKey;
+					// Cache management with size limits and TTL
+					const now = Date.now();
+					const cachedEntry = { items: tableData, totalPages: pagesCount, total: totalItems, timestamp: now };
+
+					// Clean expired entries
+					for (const [key, value] of clientCache.entries()) {
+						if (now - value.timestamp > CACHE_TTL) {
+							clientCache.delete(key);
+						}
+					}
+
+					// Enforce cache size limit (LRU-style)
+					if (clientCache.size >= MAX_CACHE_SIZE) {
+						const oldestKey = clientCache.keys().next().value;
+						if (oldestKey) clientCache.delete(oldestKey);
+					}
+
+					clientCache.set(currentFetchKey, cachedEntry);
+
+					// Update collection state atomically
+					collectionState = {
+						...collectionState,
+						stableDataExists: true,
+						hasInitialLoad: true
+					};
 				} else {
-					// Handle case where data fetch failed or returned nothing
-					rawData = undefined;
-					tableData = [];
-					pagesCount = 1;
-					totalItems = 0;
+					// Don't clear existing data on error, just show error toast
+					showToast(result.error || 'Failed to load data.', 'error');
+					// Still mark as having attempted initial load to prevent infinite loading
+					if (!collectionState.hasInitialLoad) {
+						collectionState = {
+							...collectionState,
+							hasInitialLoad: true
+						};
+					}
+					// Smart retry for empty data with rate limiting
+					if (tableData.length === 0 && !lastFetchParams) {
+						const retryKey = `retry_${currentCollId}_${now}`;
+						const lastRetry = clientCache.get('lastRetryTime');
+						const retryInterval = 5000; // 5 seconds between retries
+
+						if (!lastRetry || now - lastRetry > retryInterval) {
+							clientCache.set('lastRetryTime', now);
+							setTimeout(() => {
+								if (currentCollection?._id === currentCollId && tableData.length === 0) {
+									refreshTableData(true);
+								}
+							}, 3000);
+						}
+					}
 				}
 			} catch (error) {
 				console.error('Error refreshing table data:', error);
-				toastStore.trigger({
-					message: (error as Error).message || 'An unexpected error occurred while fetching data.',
-					background: 'variant-filled-error'
-				});
-				loadingState = 'error';
-				tableData = [];
-				pagesCount = 1;
-				totalItems = 0;
+				showToast((error as Error).message || 'An unexpected error occurred while fetching data.', 'error');
+				// Preserve existing data on network errors
+				if (!collectionState.hasInitialLoad) {
+					collectionState = {
+						...collectionState,
+						hasInitialLoad: true
+					};
+				}
 			} finally {
 				loadingState = 'idle';
-				globalLoadingStore.stopLoading(loadingOperations.dataFetch);
-				hasInitialLoad = true; // Mark that the initial load attempt has completed
+				// Always stop loading regardless of how we set it
+				if (globalLoadingStore.isLoadingReason(loadingOperations.dataFetch)) {
+					globalLoadingStore.stopLoading(loadingOperations.dataFetch);
+				}
 			}
 		}
 	}
-
 	function savePaginationSettings() {
 		const currentCollId = currentCollection?._id;
 		if (!browser || !currentCollId) return;
@@ -444,48 +696,103 @@ Features:
 		savePaginationSettings();
 	});
 
-	// Debounce utility for filter and refresh
-	const filterDebounce = debounceUtil(300);
-	const refreshDebounce = debounceUtil(200);
-
+	// Listen for global cache clear events with cache warming
 	$effect(() => {
-		// Debounced data refresh when pagination/filter settings change (but NOT for collection changes)
-		// Track only the variables that should trigger a refresh for the SAME collection
-		const collectionId = currentCollection?._id;
-		// Track pagination settings that should trigger refresh
-		const currentPage = entryListPaginationSettings.currentPage;
-		const rowsPerPage = entryListPaginationSettings.rowsPerPage;
-		const filters = entryListPaginationSettings.filters;
-		const sorting = entryListPaginationSettings.sorting;
-		// Track language changes that should trigger refresh
+		const handleCacheClear = (event: CustomEvent) => {
+			// Smart cache clearing - preserve some entries if switching collections
+			if (event.detail?.reason === 'collection-switch') {
+				// Keep cache for previous collection for potential back-navigation
+				const currentCollId = currentCollection?._id;
+				const keysToKeep = [];
+
+				for (const [key] of clientCache.entries()) {
+					try {
+						const keyData = JSON.parse(key);
+						// Keep cache for current collection and one previous
+						if (keyData.collectionId === currentCollId || keysToKeep.length < 5) {
+							keysToKeep.push(key);
+						}
+					} catch (e) {
+						// Invalid key, will be cleared
+					}
+				}
+
+				// Clear cache but preserve strategic entries
+				const entriesToKeep = new Map();
+				keysToKeep.forEach((key) => {
+					if (clientCache.has(key)) {
+						entriesToKeep.set(key, clientCache.get(key));
+					}
+				});
+
+				clientCache.clear();
+				entriesToKeep.forEach((value, key) => {
+					clientCache.set(key, value);
+				});
+			} else {
+				// Full cache clear for other reasons
+				clientCache.clear();
+			}
+
+			// Only clear fetch params if it's a collection switch
+			if (event.detail?.reason === 'collection-switch') {
+				lastFetchParams = null;
+			} else {
+				lastFetchParams = null;
+			}
+		};
+
+		document.addEventListener('clearEntryListCache', handleCacheClear as EventListener);
+
+		return () => {
+			document.removeEventListener('clearEntryListCache', handleCacheClear as EventListener);
+		};
+	});
+
+	// Debounce utility for filter and refresh with smart timing
+	const filterDebounce = debounceUtil(300);
+	const refreshDebounce = debounceUtil(100); // Reduced debounce for better responsiveness
+
+	// Consolidated effect that handles all refresh scenarios efficiently
+	$effect(() => {
+		// Track all dependencies that should trigger a refresh
+		const currentCollId = currentCollection?._id;
+		const { currentPage, rowsPerPage, filters, sorting } = entryListPaginationSettings;
 		const language = currentLanguage;
+		const mode = currentMode;
+		const currentFetchKey = getCurrentFetchKey();
 
-		// Read the tracked variables to ensure they're tracked
-		(void collectionId, currentPage, rowsPerPage, filters, sorting, language);
+		// Determine what type of refresh is needed
+		const isCollectionSwitch = lastCollectionId !== currentCollId;
+		const isValidForRefresh = currentCollId && !collectionState.isChanging && !collectionState.isInitializing && mode !== 'create' && mode !== 'edit';
 
-		if (!collectionId) {
-			// No collection selected, already handled above
-			return;
+		// Only proceed if we have a valid state for refresh
+		if (isValidForRefresh) {
+			// For collection switches, trigger the initial load
+			if (isCollectionSwitch) {
+				refreshDebounce(() => refreshTableData(true));
+				return;
+			}
+
+			// Additional check: don't refresh if we're still in a transitional state
+			if (collectionState.isChanging || collectionState.isInitializing) {
+				return;
+			}
+
+			// Refresh if:
+			// 1. We don't have initial load yet (first load for collection)
+			// 2. We have stable data and fetch key changed (pagination/filter changes)
+			if (!collectionState.hasInitialLoad || (collectionState.hasInitialLoad && currentFetchKey !== lastFetchParams)) {
+				if (!collectionState.hasInitialLoad) {
+					refreshDebounce(() => refreshTableData(true));
+				} else {
+					refreshDebounce(() => refreshTableData(true));
+				}
+			}
 		}
-
-		// Skip if we're in the middle of a collection change or initializing
-		if (isCollectionChanging || isInitializing) {
-			return;
-		}
-
-		// Do not refresh data when in create or edit mode
-		if (currentMode === 'create' || currentMode === 'edit') {
-			return;
-		}
-
-		// Only refresh if this is for the same collection AND we've completed initial load
-		// Also ensure this isn't the initial setup after collection change
-		if (lastCollectionId === collectionId && hasInitialLoad && stableDataExists) {
-			refreshDebounce(() => {
-				untrack(() => refreshTableData(true));
-			});
-		} else {
-		}
+	}); // Simplified debug effect to track only significant loading changes
+	$effect(() => {
+		const isLoading = globalLoadingStore.isLoadingReason(loadingOperations.dataFetch);
 	});
 
 	// Handle language changes specifically for cache invalidation
@@ -500,6 +807,8 @@ Features:
 		if (collectionId && lastLanguage !== null && lastLanguage !== language) {
 			// console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
 			invalidateCollectionCache(collectionId);
+			// Clear client cache on language change to ensure fresh data
+			clientCache.clear();
 			// Update timestamp to force cache miss
 			languageChangeTimestamp = Date.now();
 		}
@@ -512,53 +821,14 @@ Features:
 		if (currentMode === 'view') {
 			untrack(() => {
 				meta_data.clear();
-				// Handle unsaved draft creation when exiting create mode
+				// Only clear the collection value, do not auto-save draft
 				const currentValue = collectionValue.value;
 				if (currentValue && Object.keys(currentValue).length > 0) {
-					// Check if we have unsaved data from create mode that should be saved as draft
-					const hasUnsavedData = Object.entries(currentValue).some(([key, value]) => {
-						// Ignore system fields when checking for content
-						if (key.startsWith('_') || key === 'createdAt' || key === 'updatedAt' || key === 'createdBy' || key === 'updatedBy') {
-							return false;
-						}
-						// Check if field has meaningful content
-						if (value && typeof value === 'object' && !Array.isArray(value)) {
-							// For translated fields, check if any language has content
-							return Object.values(value).some((v) => v !== null && v !== '' && v !== undefined);
-						}
-						// For simple fields, check if not empty
-						return value !== null && value !== '' && value !== undefined;
-					});
-
-					// If there's unsaved content and no _id (new entry), save as draft
-					if (hasUnsavedData && !currentValue._id) {
-						// Use collection's default status instead of hardcoded 'draft'
-						const defaultStatus = collection.value?.status || 'draft';
-						const draftEntry = { ...currentValue, status: defaultStatus };
-						// Save as draft silently
-						untrack(async () => {
-							const collId = collection.value?._id;
-							if (collId) {
-								try {
-									const result = await createEntry(collId, draftEntry);
-									if (result.success) {
-										// Don't show toast for auto-draft save to avoid confusion
-										invalidateCollectionCache(collId);
-									}
-								} catch (error) {
-									// Silently handle errors for auto-draft saves
-									console.warn('Auto-draft save failed:', error);
-								}
-							}
-						});
-					}
-
-					// Clear the collection value
 					collectionValue.set({});
 				}
 				// Refresh data when returning to view mode (after save/edit)
 				const currentCollId = collection.value?._id;
-				if (currentCollId && hasInitialLoad) {
+				if (currentCollId && collectionState.hasInitialLoad) {
 					invalidateCollectionCache(currentCollId);
 					refreshTableData(true);
 				}
@@ -574,28 +844,40 @@ Features:
 		}
 	});
 
+	// Optimized selection processing with batch updates
 	function process_selectAllRows(selectAllState: boolean) {
 		if (!Array.isArray(tableData)) return;
-		tableData.forEach((_entry, index) => {
-			selectedMap[index.toString()] = selectAllState;
+
+		// Batch update selections for better performance
+		untrack(() => {
+			if (selectAllState) {
+				tableData.forEach((_entry, index) => {
+					selectedMap[index.toString()] = true;
+				});
+			} else {
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+			}
 		});
 	}
+
 	$effect(() => {
 		process_selectAllRows(SelectAll);
 	});
 
-	// Track selection state without changing mode automatically
-	let hasSelections = $derived(Object.values(selectedMap).some((isSelected) => isSelected));
+	// Optimized selection tracking with memoization
+	let hasSelections = $derived.by(() => {
+		return Object.values(selectedMap).some((isSelected) => isSelected);
+	});
 
-	// Get the statuses of currently selected entries
-	let selectedEntriesStatuses = $derived(() => {
+	// Get the statuses of currently selected entries with better performance
+	let selectedEntriesStatuses = $derived.by(() => {
 		const statuses: string[] = [];
-		for (const [index, isSelected] of Object.entries(selectedMap)) {
-			if (isSelected) {
-				const entry = tableData[Number(index)];
-				if (entry?.status) {
-					statuses.push(entry.status.toLowerCase());
-				}
+		const selectedEntries = Object.entries(selectedMap).filter(([, isSelected]) => isSelected);
+
+		for (const [index] of selectedEntries) {
+			const entry = tableData[Number(index)];
+			if (entry?.status) {
+				statuses.push(entry.status.toLowerCase());
 			}
 		}
 		return statuses;
@@ -605,26 +887,27 @@ Features:
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
-			toastStore.trigger({ message: 'No entries selected' });
+			showToast('No entries selected', 'warning');
 			return;
 		}
 
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: 'Confirm Status Change',
-			body: `Are you sure you want to update ${selectedIds.length} entries to "${status}"?`,
-			response: async (r) => {
-				if (r) {
-					await setEntriesStatus(selectedIds, status as StatusType, onActionSuccess, toastStore);
-				}
+		showStatusChangeConfirm({
+			status: String(status ?? ''),
+			count: selectedIds.length,
+			onConfirm: async () => {
+				await setEntriesStatus(selectedIds, status as StatusType, onActionSuccess);
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	});
 
 	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		return pathSegments?.slice(0, -1).join('>') || '';
+		// Remove the first segment if it matches the current system language
+		const segments = pathSegments?.slice() ?? [];
+		if (segments.length > 0 && segments[0].toLowerCase() === currentSystemLanguage?.toLowerCase()) {
+			segments.shift();
+		}
+		return segments.slice(0, -1).join('>') || '';
 	});
 
 	// --- Actions ---
@@ -639,7 +922,6 @@ Features:
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => {
 				const selectedId = tableData[Number(index)]._id;
-				// Use NEW API response format - API returns 'items' array
 				const entryList = rawData?.items || [];
 				return entryList.find((rawEntry) => rawEntry._id === selectedId);
 			})
@@ -650,10 +932,23 @@ Features:
 		const currentCollId = collection.value?._id;
 		if (currentCollId) {
 			invalidateCollectionCache(currentCollId);
+			// Clear client cache to ensure fresh data
+			clientCache.clear();
+			// Clear selections
+			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+			SelectAll = false;
+			// Reset to page 1 to avoid empty pages after deletions
+			entryListPaginationSettings.currentPage = 1;
 			// Force a refresh by resetting state and fetching new data
 			untrack(() => {
-				hasInitialLoad = false;
-				stableDataExists = false;
+				// Reset collection state for fresh data
+				collectionState = {
+					...collectionState,
+					hasInitialLoad: false,
+					stableDataExists: false
+				};
+				// Add timestamp to force fresh data fetch
+				languageChangeTimestamp = Date.now();
 				refreshTableData(true);
 			});
 		}
@@ -670,8 +965,11 @@ Features:
 				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
 			}
 		}
-		// Don't set status here - let it be set when user saves
-		// This allows draft status only when user exits without saving
+		// Set the default status from collection schema for new entries
+		// This ensures new entries use the collection's intended default status
+		if (collection.value?.status) {
+			newEntry.status = collection.value.status;
+		}
 
 		// Set the new entry data FIRST
 		collectionValue.set(newEntry);
@@ -685,18 +983,74 @@ Features:
 	};
 
 	// Handlers that call the centralized action functions
-	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
-	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
-	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess, toastStore);
-	const onDelete = (isPermanent = false) => deleteEntries(getSelectedIds(), isPermanent || showDeleted, onActionSuccess, modalStore, toastStore);
-	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess, toastStore);
+	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
+	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
+	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess);
+	const onDelete = (isPermanent = false) => {
+		const selectedIds = getSelectedIds();
+		if (!selectedIds.length) {
+			showToast('No entries selected', 'warning');
+			return;
+		}
+
+		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const isForArchived = showDeleted || isPermanent;
+		const willDelete = !useArchiving || isForArchived;
+
+		const actionName = willDelete ? 'Delete' : 'Archive';
+		const actionVerb = willDelete ? 'delete' : 'archive';
+		const actionColor = willDelete ? 'error' : 'warning';
+
+		showDeleteConfirm({
+			isArchive: !willDelete,
+			count: selectedIds.length,
+			onConfirm: async () => {
+				try {
+					if (willDelete) {
+						// Use batch delete API with fallback to individual deletes
+						try {
+							const collId = collection.value?._id;
+							if (collId) {
+								const result = await batchDeleteEntries(collId, selectedIds);
+								if (result.success) {
+									showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
+								} else {
+									throw new Error('Batch delete failed');
+								}
+							}
+						} catch (batchError) {
+							// Fallback to individual deletes
+							console.warn('Batch delete failed, using individual deletes:', batchError);
+							await Promise.all(
+								selectedIds.map((entryId) => {
+									const collId = collection.value?._id;
+									if (collId) {
+										return deleteEntry(collId, entryId);
+									}
+									return Promise.resolve();
+								})
+							);
+							showToast(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`, 'success');
+						}
+					} else {
+						// Archive entries - setEntriesStatus already shows toast, so don't duplicate
+						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
+					}
+					onActionSuccess();
+				} catch (error) {
+					showToast(`Failed to ${actionVerb} entries: ${(error as Error).message}`, 'error');
+				}
+			}
+		});
+	};
+	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess);
 
 	// FIX: Schedule handler now correctly processes date and calls the action
 	const onSchedule = (date: string, action: string) => {
 		const payload = { _scheduled: new Date(date).getTime() };
 		// The `action` variable from the modal can be used here if your backend
 		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
-		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, toastStore, payload);
+		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, payload);
 	};
 
 	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
@@ -715,10 +1069,10 @@ Features:
 
 	// Direct action functions for MultiButton (bypass modals)
 	async function executePublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
+		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
 	}
 	async function executeUnpublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
+		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
 	}
 	async function executeSchedule() {
 		// This needs a modal to select a date, so direct execution is not simple.
@@ -726,23 +1080,97 @@ Features:
 		legacyOnSchedule();
 	}
 	async function executeTest() {
-		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess, toastStore);
+		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess);
 	}
 
 	// Helper function to execute status changes without modals
 	async function executeDelete() {
-		await deleteEntries(getSelectedIds(), showDeleted, onActionSuccess, toastStore);
+		const selectedIds = getSelectedIds();
+		if (!selectedIds.length) return;
+
+		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const isForArchived = showDeleted;
+		const willDelete = !useArchiving || isForArchived;
+
+		try {
+			if (willDelete) {
+				// Use batch delete API with fallback to individual deletes
+				try {
+					const collId = collection.value?._id;
+					if (collId) {
+						const result = await batchDeleteEntries(collId, selectedIds);
+						if (!result.success) {
+							throw new Error('Batch delete failed');
+						}
+					}
+				} catch (batchError) {
+					// Fallback to individual deletes
+					console.warn('Batch delete failed, using individual deletes:', batchError);
+					await Promise.all(
+						selectedIds.map((entryId) => {
+							const collId = collection.value?._id;
+							if (collId) {
+								return deleteEntry(collId, entryId);
+							}
+							return Promise.resolve();
+						})
+					);
+				}
+			} else {
+				// Archive entries
+				await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
+			}
+			onActionSuccess();
+		} catch (error) {
+			showToast(`Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`, 'error');
+		}
 	}
 	// Legacy onClone function - now calls centralized action
 	function legacyOnClone() {
 		onClone();
 	}
 
-	// Show content as soon as we have a collection, even if still loading
-	let shouldShowContent = $derived(currentCollection?._id && (hasInitialLoad || loadingState === 'loading'));
+	// Show content as soon as we have a collection, with improved logic to prevent flicker
+	let shouldShowContent = $derived(
+		currentCollection?._id &&
+			!collectionState.isChanging &&
+			(collectionState.hasInitialLoad || (loadingState === 'loading' && collectionState.stableDataExists))
+	);
 	let renderHeaders = $derived(visibleTableHeaders);
-	let shouldShowTable = $derived(shouldShowContent && tableData.length > 0 && !isLoading && renderHeaders?.length > 0);
-	let shouldShowNoDataMessage = $derived(shouldShowContent && !isLoading && tableData.length === 0);
+	let shouldShowTable = $derived(shouldShowContent && tableData.length > 0 && !collectionState.isChanging && renderHeaders?.length > 0);
+	let shouldShowNoDataMessage = $derived(
+		shouldShowContent &&
+			!isLoading &&
+			tableData.length === 0 &&
+			collectionState.hasInitialLoad &&
+			!collectionState.isChanging &&
+			collectionState.stableDataExists
+	);
+
+	// More stable loading states that don't flicker
+	let isActuallyLoading = $derived(
+		loadingState === 'loading' && !collectionState.stableDataExists && !collectionState.isChanging && !collectionState.isInitializing
+	);
+
+	// Only show main loading when we truly have no data and are loading
+	let shouldShowLoadingMessage = $derived(
+		isActuallyLoading &&
+			!collectionState.hasInitialLoad &&
+			currentCollection?._id &&
+			!collectionState.isChanging && // Don't show during collection transitions
+			!collectionState.isInitializing // Don't show during initialization
+	);
+
+	// Show a subtle refreshing indicator only for data updates (not collection switches)
+	let shouldShowRefreshingIndicator = $derived(
+		loadingState === 'loading' &&
+			collectionState.hasInitialLoad &&
+			collectionState.stableDataExists &&
+			tableData?.length > 0 &&
+			!collectionState.isChanging && // Don't show during collection transitions
+			!collectionState.isInitializing && // Don't show during initialization
+			lastFetchParams !== getCurrentFetchKey() // Only show when fetch parameters changed
+	);
 
 	// Use regular visibleTableHeaders - no need for complex transition logic
 	let tableColspan = $derived((renderHeaders?.length ?? 0) + 1);
@@ -780,8 +1208,8 @@ Features:
 </script>
 
 <!--Table -->
-{#if showLoadingSpinner}
-	<Loading />
+{#if shouldShowLoadingMessage}
+	<Loading customTopText="Loading Data" customBottomText="Please wait..." />
 {:else if shouldShowContent}
 	<!-- Header -->
 	<div class="mb-2 flex justify-between dark:text-white">
@@ -792,7 +1220,7 @@ Features:
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'LG' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -910,9 +1338,8 @@ Features:
 		</div>
 	{/if}
 
-	{#if isLoading && hasInitialLoad && tableData?.length === 0}
-		<div class="py-4 text-center text-sm text-gray-500">Loading data...</div>
-	{:else if isLoading && hasInitialLoad}
+	<!-- Loading state when refreshing existing data -->
+	{#if shouldShowRefreshingIndicator}
 		<div class="py-2 text-center text-xs text-gray-400">Refreshing...</div>
 	{/if}
 
@@ -976,16 +1403,13 @@ Features:
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-							<div class="flex flex-col items-center">
-								<TableIcons
-									checked={SelectAll}
-									onCheck={(checked) => {
-										SelectAll = checked;
-									}}
-								/>
-							</div>
-						</td>
+						<TableIcons
+							cellClass={`w-10 ${hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+							checked={SelectAll}
+							onCheck={(checked) => {
+								SelectAll = checked;
+							}}
+						/>
 
 						{#each renderHeaders as header (header.id)}
 							<th
@@ -1024,14 +1448,13 @@ Features:
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
-								<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
-									<TableIcons
-										checked={selectedMap[index]}
-										onCheck={(isChecked) => {
-											selectedMap[index] = isChecked;
-										}}
-									/>
-								</td>
+								<TableIcons
+									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
+									checked={selectedMap[index]}
+									onCheck={(isChecked) => {
+										selectedMap[index] = isChecked;
+									}}
+								/>
 								{#if renderHeaders}
 									{#each renderHeaders as header (header.id)}
 										<td
@@ -1083,49 +1506,27 @@ Features:
 													};
 
 													const statusInfo = getStatusColor(nextStatus);
-													const modalSettings: ModalSettings = {
-														type: 'confirm',
-														title: `Please Confirm <span class="text-${statusInfo.color}-500 font-bold">${statusInfo.name}</span>`,
-														body: `Are you sure you want to <span class="text-${statusInfo.color}-500 font-semibold">change</span> this entry status to <span class="text-${statusInfo.color}-500 font-semibold">${nextStatus}</span>?`,
-														buttonTextConfirm: nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1),
-														buttonTextCancel: 'Cancel',
-														meta: {
-															buttonConfirmClasses: `bg-${statusInfo.color}-500 hover:bg-${statusInfo.color}-600 text-white`
-														},
-														response: async (confirmed: boolean) => {
-															if (confirmed) {
-																try {
-																	const collId = collection.value?._id;
-																	if (!collId) return;
-
-																	// Use single entry update API
-																	const result = await updateEntryStatus(collId, entry._id, nextStatus);
-																	if (result.success) {
-																		toastStore.trigger({
-																			message: `Entry status updated to ${nextStatus}`,
-																			background: 'variant-filled-success'
-																		});
-																		// Refresh the table data
-																		onActionSuccess();
-																	} else {
-																		toastStore.trigger({
-																			message: result.error || 'Failed to update entry status',
-																			background: 'variant-filled-error'
-																		});
-																	}
-																} catch (error) {
-																	console.error('Error updating entry status:', error);
-																	toastStore.trigger({
-																		message: 'An error occurred while updating entry status',
-																		background: 'variant-filled-error'
-																	});
+													showStatusChangeConfirm({
+														status: String(nextStatus),
+														count: 1,
+														onConfirm: async () => {
+															try {
+																const collId = collection.value?._id;
+																if (!collId) return;
+																const result = await updateEntryStatus(collId, entry._id, String(nextStatus));
+																if (result.success) {
+																	showToast(`Entry status updated to ${nextStatus}`, 'success');
+																	onActionSuccess();
+																} else {
+																	showToast(result.error || 'Failed to update entry status', 'error');
 																}
+															} catch (error) {
+																console.error('Error updating entry status:', error);
+																showToast('An error occurred while updating entry status', 'error');
 															}
 														}
-													};
-													modalStore.trigger(modalSettings);
+													});
 												} else {
-													// Use NEW API response format - API returns 'items' array
 													const entryList = rawData?.items || [];
 													const originalEntry = entryList.find((e) => e._id === entry._id);
 													if (originalEntry) {
@@ -1144,11 +1545,7 @@ Features:
 																...current,
 																status: StatusTypes.unpublish
 															})); // Show user feedback about the status change
-															toastStore.trigger({
-																message: 'Entry moved to draft mode for editing. Republish when ready.',
-																background: 'variant-filled-warning',
-																timeout: 4000
-															});
+															showToast('Entry moved to draft mode for editing. Republish when ready.', 'warning');
 														}
 
 														// Trigger UI layout change to show edit interface
@@ -1158,7 +1555,9 @@ Features:
 											}}
 										>
 											{#if header.name === 'status'}
-												<Status value={entry.status || entry.raw_status || 'draft'} />
+												<div class="flex w-full items-center justify-center">
+													<Status value={entry.status || entry.raw_status || 'draft'} />
+												</div>
 											{:else if header.name === 'createdAt' || header.name === 'updatedAt'}
 												<div class="flex flex-col text-xs">
 													<div class="font-semibold">
@@ -1192,21 +1591,20 @@ Features:
 				{pagesCount}
 				{totalItems}
 				onUpdatePage={(page: number) => {
-					if (isCollectionChanging || isInitializing) {
-						// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
+					if (collectionState.isChanging || collectionState.isInitializing) {
 						return;
 					}
 					entryListPaginationSettings.currentPage = page;
+					// Direct call - no debouncing needed
 					refreshTableData(true);
 				}}
 				onUpdateRowsPerPage={(rows: number) => {
-					if (isCollectionChanging || isInitializing) {
-						// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
+					if (collectionState.isChanging || collectionState.isInitializing) {
 						return;
 					}
-					//console.log('Rows per page updated to:', rows);
 					entryListPaginationSettings.rowsPerPage = rows;
 					entryListPaginationSettings.currentPage = 1;
+					// Direct call - no debouncing needed
 					refreshTableData(true);
 				}}
 			/>

@@ -17,14 +17,14 @@ delete endpoint, resolving the "Unexpected token" browser error.
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 
 	// Skeleton & Stores
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+	import { showToast } from '@utils/toast';
 
 	// Component
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -119,23 +119,17 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				throw new Error(responseData.message || 'Operation failed');
 			}
 
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} successfully`,
-				background: 'gradient-tertiary',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(
+				`<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} successfully`,
+				'success'
+			);
 
-			modalStore.close();
+			// Return a success payload so parent components can react (e.g., switch views)
+			modalStore.close({ success: true, action: isEditMode ? 'edit' : 'create' });
 			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
-				background: 'variant-filled-error',
-				timeout: 5000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`, 'error');
 		}
 	}
 
@@ -153,23 +147,14 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				throw new Error(data.message || 'Failed to delete token');
 			}
 
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_user_deleted()}`,
-				background: 'gradient-tertiary',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			});
-			modalStore.close();
+			showToast(`<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_user_deleted()}`, 'success');
+			// Return success so parent can update UI
+			modalStore.close({ success: true, action: 'delete' });
 			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.
-			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:alert-circle" width="24" class="mr-1"></iconify-icon> ${message}`,
-				background: 'variant-filled-error',
-				timeout: 5000,
-				classes: 'border-1 !rounded-md'
-			});
+			showToast(`<iconify-icon icon="mdi:alert-circle" width="24" class="mr-1"></iconify-icon> ${message}`, 'error');
 		}
 	}
 

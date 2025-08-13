@@ -1,7 +1,6 @@
 /**
  * @file src/content/ContentManager.ts
- * @description Content Manager for SvelteCMS
- *
+ * @description Content management system core functionality
  * Features:
  * - Singleton pattern for centralized content management
  * - Category & collection loading, caching, and updates from folder structure
@@ -11,24 +10,58 @@
  * - Error handling
  */
 
-import { dbAdapter } from '@src/databases/db';
-import fs from 'fs/promises';
-import path from 'path';
+// Server-side only file system operations
+async function getFs() {
+	if (!import.meta.env.SSR) {
+		throw new Error('File operations can only be performed on the server');
+	}
+	const fs = await import('node:fs/promises');
+	return fs.default;
+}
 
+// Server-side only path operations
+async function getPath() {
+	if (!import.meta.env.SSR) {
+		throw new Error('Path operations can only be performed on the server');
+	}
+	const path = await import('node:path');
+	return path.default;
+}
+
+// Server-side only database adapter access
+async function getDbAdapter() {
+	if (!import.meta.env.SSR) {
+		throw new Error('Database operations can only be performed on the server');
+	}
+	const { dbAdapter } = await import('@src/databases/db');
+	return dbAdapter;
+}
+
+import { ensureWidgetsInitialized } from '@src/widgets';
 import { v4 as uuidv4 } from 'uuid';
+import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
+
+// Config
+import { privateEnv } from '@root/config/private';
 
 // Types
-import type { Schema, ContentTypes, Category, CollectionData, ContentNodeOperation } from './types';
 import type { ContentNode } from '@src/databases/dbInterface'; // Commented out unused import
+import type { Category, CollectionData, ContentNodeOperation, ContentTypes, Schema } from './types';
 
-// Redis
-import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
-import { ensureWidgetsInitialized } from '@src/widgets';
+// Cache
+import { cacheService } from '@src/databases/CacheService';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
-import { compile } from '../utils/compilation/compile';
+
+// Server-side only compilation function
+async function getCompile() {
+	if (!import.meta.env.SSR) {
+		throw new Error('Compilation can only be performed on the server');
+	}
+	const { compile } = await import('../utils/compilation/compile');
+	return compile;
+}
 
 interface CacheEntry<T> {
 	value: T;
@@ -36,8 +69,8 @@ interface CacheEntry<T> {
 }
 
 // Constants
+import { REDIS_TTL_S as REDIS_TTL } from '@src/databases/CacheService';
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
-const REDIS_TTL = 300; // 5 minutes in seconds for Redis
 const MAX_CACHE_SIZE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
@@ -71,26 +104,40 @@ class ContentManager {
 		return ContentManager.instance;
 	}
 
-	// Wait for initialization to complete
-	async waitForInitialization(): Promise<void> {
-		// if (this.dbInitPromise) {
-		//   await this.dbInitPromise;
-		// }
+	// Wait for any initialization dependencies (database, external services, etc.)
+	private async waitForInitialization(): Promise<void> {
+		try {
+			// Wait for database to be ready
+			if (typeof window === 'undefined') {
+				// Server-side: wait for database adapter
+				const dbAdapter = await getDbAdapter();
+				if (dbAdapter && typeof dbAdapter.waitForConnection === 'function') {
+					await dbAdapter.waitForConnection();
+				}
+			}
+			// Add any other initialization dependencies here
+			logger.debug('ContentManager dependencies ready');
+		} catch (error) {
+			logger.warn('Non-critical initialization dependency failed:', error);
+			// Don't throw - allow ContentManager to continue initializing
+		}
 	}
 
 	// Initialize the collection manager with performance optimizations
-	public async initialize(): Promise<void> {
+	public async initialize(tenantId?: string): Promise<void> {
 		if (this.initialized) return;
 
 		const initStartTime = performance.now();
-		logger.debug('Initializing ContentManager...');
+		logger.debug('Initializing ContentManager...', { tenantId });
 
 		try {
 			// Check if we have cached collections in Redis first
 			let collections: Schema[] | null = null;
-			if (isRedisEnabled()) {
+			try {
 				try {
-					collections = await getCache<Schema[]>('cms:all_collections');
+					await cacheService.initialize();
+					const cacheKey = tenantId ? `cms:all_collections` : 'cms:all_collections';
+					collections = await cacheService.get<Schema[]>(cacheKey, tenantId);
 					if (collections && collections.length > 0) {
 						logger.debug(`Loaded ${collections.length} collections from Redis cache`);
 
@@ -110,8 +157,10 @@ class ContentManager {
 						return;
 					}
 				} catch (cacheErr) {
-					logger.debug('Redis cache miss or error, proceeding with file loading:', cacheErr);
+					logger.debug('Cache miss or error, proceeding with file loading:', cacheErr);
 				}
+			} catch {
+				// ignore cache init errors
 			}
 
 			// If no cache, run full initialization in parallel
@@ -121,7 +170,7 @@ class ContentManager {
 			]);
 
 			// Load collections with optimized batching
-			await this.updateCollections(true);
+			await this.updateCollections(true, tenantId);
 
 			const totalTime = performance.now() - initStartTime;
 			logger.info(`📦 ContentManager fully initialized in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m`);
@@ -133,17 +182,18 @@ class ContentManager {
 		}
 	}
 
-	public async getCollectionData() {
+	public async getCollectionData(tenantId?: string) {
 		if (!this.initialized) {
-			await this.initialize();
+			await this.initialize(tenantId);
 		}
 		return {
+			collections: this.loadedCollections,
 			collectionMap: this.collectionMapId,
 			contentStructure: this.contentStructure
 		};
 	}
 	// Load collections with optimized batching and caching
-	private async loadCollections(): Promise<Schema[]> {
+	private async loadCollections(tenantId?: string): Promise<Schema[]> {
 		try {
 			const loadStartTime = performance.now();
 			// Server-side collection loading
@@ -151,6 +201,7 @@ class ContentManager {
 			const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 			const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
+			const dbAdapter = await getDbAdapter();
 			if (!dbAdapter) {
 				logger.error('Database adapter not initialized during collection loading');
 				throw new Error('Database service unavailable');
@@ -180,7 +231,8 @@ class ContentManager {
 								return cachedSchema;
 							}
 
-							const content = await this.readFile(filePath);
+							const fs = await getFs();
+							const content = await fs.readFile(filePath, 'utf-8');
 							const moduleData = await processModule(content);
 
 							if (!moduleData?.schema) {
@@ -236,11 +288,17 @@ class ContentManager {
 						}
 
 						try {
+							// In multi-tenant mode, pass tenant context to model creation
 							const model = await dbAdapter.collection.createModel(schema as CollectionData);
 							if (!model) {
 								logger.error(`Database model creation failed for ${schema.name} ${schema.path}`);
 								throw new Error('Model creation failed');
 							} else {
+								// In multi-tenant mode, log tenant context for this collection
+								if (privateEnv.MULTI_TENANT && tenantId) {
+									logger.debug(`Collection ${schema.name} loaded for tenant ${tenantId}`);
+								}
+
 								if (!this.firstCollection) this.firstCollection = schema;
 								collections.push(schema);
 								this.collectionMapId.set(schema._id, schema);
@@ -260,9 +318,7 @@ class ContentManager {
 			}
 
 			// Cache in Redis if available
-			if (isRedisEnabled()) {
-				await setCache('cms:all_collections', collections, REDIS_TTL);
-			}
+			await cacheService.set(tenantId ? `cms:all_collections` : 'cms:all_collections', collections, REDIS_TTL, tenantId);
 
 			this.loadedCollections = collections;
 			const totalTime = performance.now() - loadStartTime;
@@ -278,17 +334,15 @@ class ContentManager {
 	}
 
 	// Update collections
-	async updateCollections(recompile: boolean = false): Promise<void> {
+	async updateCollections(recompile: boolean = false, tenantId?: string): Promise<void> {
 		try {
 			if (recompile) {
-				// Clear both memory and Redis caches
+				// Clear both memory and distributed caches
 				this.collectionCache.clear();
 				this.fileHashCache.clear();
-				if (isRedisEnabled()) {
-					await clearCache('cms:all_collections');
-				}
+				await cacheService.delete('cms:all_collections', tenantId);
 			}
-			await this.loadCollections();
+			await this.loadCollections(tenantId);
 			await this.updateContentStructure();
 			logger.info('Collections updated successfully');
 			// Convert category array to record structure
@@ -299,17 +353,34 @@ class ContentManager {
 		}
 	}
 
-	public getCollectionById(id: string): Schema | null {
+	public getCollectionById(id: string, tenantId?: string): Schema | null {
 		try {
 			if (!this.initialized) {
 				logger.error('Content Manager not initialized');
 				return null;
 			}
+
+			// In multi-tenant mode, ensure tenantId is provided
+			if (privateEnv.MULTI_TENANT && !tenantId) {
+				logger.error('TenantId is required in multi-tenant mode');
+				return null;
+			}
+
 			const collection = this.collectionMapId.get(id);
 			if (!collection) {
 				logger.error(`Content with id: ${id} not found`);
 				return null;
 			}
+
+			// In multi-tenant mode, verify collection belongs to the tenant
+			// This would typically involve checking collection metadata or database records
+			// For now, we log the tenant context for proper multi-tenant implementation
+			if (privateEnv.MULTI_TENANT && tenantId) {
+				logger.debug(`Accessing collection ${id} for tenant ${tenantId}`);
+				// TODO: Implement actual tenant validation logic here
+				// This could involve checking collection.tenantId or querying database
+			}
+
 			return collection;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -362,11 +433,11 @@ class ContentManager {
 		}
 	}
 
-	public async getCollection(identifier: string): Promise<(Schema & { module: string | undefined }) | null> {
+	public async getCollection(identifier: string, tenantId?: string): Promise<(Schema & { module: string | undefined }) | null> {
 		try {
 			if (!this.initialized) {
-				logger.error('Content Manager not initialized');
-				return null;
+				logger.debug('Content Manager not initialized, initializing...');
+				await this.initialize(tenantId);
 			}
 
 			// Try to resolve as UUID first
@@ -411,6 +482,8 @@ class ContentManager {
 
 	public async upsertContentNodes(nodes: ContentNodeOperation[]) {
 		try {
+			const fs = await getFs(); // ✅ Get fs properly
+			const dbAdapter = await getDbAdapter(); // Get dbAdapter dynamically
 			const newNodes = [];
 			const idSet = new Set<string>(nodes.map((node) => node.node._id));
 			const filteredNodes = this.contentStructure.filter((node) => !idSet.has(node._id));
@@ -427,6 +500,7 @@ class ContentManager {
 
 				if (operation.type === 'create') {
 					// create file/folder
+					const path = await getPath(); // Get path dynamically
 					const parent = this.contentNodeMap.get(operation.node.parentId ?? '') ?? null;
 					const newPath = path.join(parent?.path ?? '/', node.name);
 					await fs.mkdir(`${collectionPath}/${newPath}`, { recursive: true });
@@ -436,6 +510,7 @@ class ContentManager {
 				if (!oldNode) continue;
 				if (operation.type === 'rename') {
 					// rename file/folder
+					const path = await getPath(); // Get path dynamically
 
 					const newPath = path.join(oldNode.path.split('/').slice(0, -1).join('/'), node.name);
 					const fileName = node.nodeType === 'collection' ? `${collectionPath}/${newPath}.ts` : `${collectionPath}/${newPath}`;
@@ -463,6 +538,7 @@ class ContentManager {
 					const newParent = this.contentNodeMap.get(operation.node.parentId) ?? null;
 					if (!newParent) throw new Error('Parent not found');
 
+					const path = await getPath(); // Get path dynamically
 					const newPath = path.join(newParent.path, node.name);
 					const fileName = node.nodeType === 'collection' ? `${collectionPath}/${newPath}.ts` : `${collectionPath}/${newPath}`;
 					const oldFileName = node.nodeType === 'collection' ? `${collectionPath}/${oldNode.path}.ts` : `${collectionPath}/${oldNode.path}`;
@@ -479,6 +555,7 @@ class ContentManager {
 			}
 
 			this.contentStructure = [...filteredNodes, ...newNodes];
+			const compile = await getCompile();
 			await compile();
 			// await this.loadCollections()
 			return this.contentStructure;
@@ -491,6 +568,7 @@ class ContentManager {
 	// Create categories with Redis caching
 	private async updateContentStructure(): Promise<void> {
 		try {
+			const dbAdapter = await getDbAdapter();
 			if (!dbAdapter) {
 				logger.error('Database adapter not initialized during content structure update');
 				throw new Error('Database service unavailable');
@@ -569,9 +647,7 @@ class ContentManager {
 			}
 
 			// Cache in Redis if available
-			if (isRedisEnabled()) {
-				await setCache('cms:categories', categoryNodes, REDIS_TTL);
-			}
+			await cacheService.set('cms:categories', categoryNodes, REDIS_TTL);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('Failed to create categories', { error: errorMessage });
@@ -583,8 +659,8 @@ class ContentManager {
 	// Cache management methods with Redis support
 	private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
 		// Try Redis first if available
-		if (isRedisEnabled()) {
-			const redisValue = await getCache<T>(`cms:${key}`);
+		try {
+			const redisValue = await cacheService.get<T>(`cms:${key}`);
 			if (redisValue) {
 				// Update local cache
 				cache.set(key, {
@@ -593,6 +669,8 @@ class ContentManager {
 				});
 				return redisValue;
 			}
+		} catch {
+			// ignore cache errors
 		}
 		// Fallback to memory cache
 		const entry = cache.get(key);
@@ -606,9 +684,7 @@ class ContentManager {
 
 	private async setCacheValue<T>(key: string, value: T, cache: Map<string, CacheEntry<T>>): Promise<void> {
 		// Set in Redis if available
-		if (isRedisEnabled()) {
-			await setCache(`cms:${key}`, value, REDIS_TTL);
-		}
+		await cacheService.set(`cms:${key}`, value, REDIS_TTL);
 		// Set in memory cache
 		cache.set(key, {
 			value,
@@ -619,9 +695,7 @@ class ContentManager {
 
 	private async clearCacheValue(key: string): Promise<void> {
 		// Clear from Redis if available
-		if (isRedisEnabled()) {
-			await clearCache(`cms:${key}`);
-		}
+		await cacheService.delete(`cms:${key}`);
 		// Clear from all memory caches
 		this.collectionCache.delete(key);
 		// this.categoryCache.delete(key);
@@ -636,12 +710,10 @@ class ContentManager {
 				.slice(0, cache.size - MAX_CACHE_SIZE);
 
 			// Clear associated Redis cache if enabled
-			if (isRedisEnabled()) {
-				const keysToClear = entriesToRemove.map(([key]) => `cms:${key}`);
-				clearCache(keysToClear).catch((err) => {
-					logger.warn('Failed to clear Redis cache entries:', err);
-				});
-			}
+			const keysToClear = entriesToRemove.map(([key]) => `cms:${key}`);
+			cacheService.delete(keysToClear).catch((err) => {
+				logger.warn('Failed to clear cache entries:', err);
+			});
 
 			// Remove from memory cache
 			entriesToRemove.forEach(([key]) => cache.delete(key));
@@ -676,7 +748,7 @@ class ContentManager {
 
 	// Get compiled Categories and Collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
-		if (!fs) throw new Error('File system operations are only available on the server');
+		const fs = await getFs(); // Use the safe fs function
 
 		const getAllFiles = async (dir: string): Promise<string[]> => {
 			const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -706,7 +778,7 @@ class ContentManager {
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
 		// Server-side file reading
-		if (!fs) throw new Error('File system operations are only available on the server');
+		const fs = await getFs(); // Use the safe fs function
 		try {
 			const content = await fs.readFile(filePath, 'utf-8');
 			return content;
@@ -777,4 +849,4 @@ function normalizePath(p: string): string {
 export const contentManager = ContentManager.getInstance();
 
 // Export types
-export type { Schema, ContentTypes, Category, CollectionData };
+export type { Category, CollectionData, ContentTypes, Schema };

@@ -5,17 +5,17 @@
  * @example: GET /api/search?q=searchterm&collections=posts,pages&limit=10
  *
  * Features:
- *    * Cross-collection search functionality
- *    * Full-text search capabilities
- *    * Advanced filtering and sorting
- *    * Permission-aware results
- *    * Performance optimized with QueryBuilder
+ * * Cross-collection search functionality, scoped to the current tenant
+ * * Full-text search capabilities
+ * * Advanced filtering and sorting
+ * * Permission-aware results
+ * * Performance optimized with QueryBuilder
  */
+import { privateEnv } from '@root/config/private';
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { hasCollectionPermission } from '@api/permissions';
 import { roles } from '@root/config/roles';
 
 // Databases & Api
@@ -29,13 +29,17 @@ import { logger } from '@utils/logger.svelte';
 // GET: Advanced search across collections
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const start = performance.now();
+	const { user, tenantId } = locals;
 
-	if (!locals.user) {
+	if (!user) {
 		throw error(401, 'Unauthorized');
 	}
 
 	try {
-		// Parse query parameters
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		} // Parse query parameters
+
 		const searchQuery = url.searchParams.get('q') || '';
 		const collectionsParam = url.searchParams.get('collections');
 		const page = Number(url.searchParams.get('page') ?? 1);
@@ -44,20 +48,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc';
 		const filterParam = url.searchParams.get('filter');
 		const statusFilter = url.searchParams.get('status');
-
 		// Parse collections to search
 		let collectionsToSearch: string[] = [];
 		if (collectionsParam) {
 			collectionsToSearch = collectionsParam.split(',').map((c) => c.trim());
 		} else {
-			// If no collections specified, search all accessible collections
-			const { collections: allCollections } = await contentManager.getCollectionData();
-			collectionsToSearch = Object.keys(allCollections).filter((collectionId) => {
-				const collection = allCollections[collectionId];
-				return hasCollectionPermission(locals.user, 'read', collection);
-			});
+			// If no collections specified, search all collections within the tenant (hooks already validated access)
+			const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
+			collectionsToSearch = Object.keys(allCollections);
 		}
-
 		// Parse additional filters
 		let additionalFilter = {};
 		if (filterParam) {
@@ -68,33 +67,33 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			}
 		}
 
+		// --- MULTI-TENANCY: Scope all filters by tenantId ---
+		const baseFilter: { status?: string; tenantId?: string } = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		if (additionalFilter) {
+			Object.assign(baseFilter, additionalFilter);
+		}
 		// Add status filtering for non-admin users
-		const userRole = roles.find((role) => role._id === locals.user.role);
+		const userRole = roles.find((role) => role._id === user.role);
 		const isAdmin = userRole?.isAdmin === true;
 		if (!isAdmin) {
-			additionalFilter = { ...additionalFilter, status: statusFilter || 'published' };
+			baseFilter.status = statusFilter || 'published';
 		} else if (statusFilter) {
-			additionalFilter = { ...additionalFilter, status: statusFilter };
+			baseFilter.status = statusFilter;
 		}
 
 		const searchResults = [];
 		let totalResults = 0;
-
 		// Search across all specified collections
 		for (const collectionId of collectionsToSearch) {
-			const collection = contentManager.getCollectionById(collectionId);
+			const collection = await contentManager.getCollectionById(collectionId, tenantId);
 			if (!collection) continue;
-
-			// Check permissions
-			if (!hasCollectionPermission(locals.user, 'read', collection)) continue;
 
 			try {
 				// Build search filter
-				let searchFilter = { ...additionalFilter };
+				let searchFilter = { ...baseFilter };
 
 				if (searchQuery) {
 					// Create text search filter
-					// This assumes your database supports text search - adjust as needed
 					searchFilter = {
 						...searchFilter,
 						$or: [
@@ -117,7 +116,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 				if (result.success && result.data) {
 					const items = Array.isArray(result.data.items) ? result.data.items : Array.isArray(result.data) ? result.data : [];
-
 					// Apply modifyRequest for widget processing
 					if (items.length > 0) {
 						try {
@@ -125,14 +123,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 								data: items,
 								fields: collection.fields,
 								collection,
-								user: locals.user,
-								type: 'GET'
+								user,
+								type: 'GET',
+								tenantId
 							});
 						} catch (modifyError) {
 							logger.warn(`ModifyRequest failed for collection ${collectionId}: ${modifyError.message}`);
 						}
 					}
-
 					// Add collection context to results
 					const processedItems = items.map((item) => ({
 						...item,
@@ -150,7 +148,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				logger.warn(`Search failed for collection ${collectionId}: ${collectionError.message}`);
 			}
 		}
-
 		// Sort combined results
 		if (sortField && searchResults.length > 0) {
 			searchResults.sort((a, b) => {
@@ -162,13 +159,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				return 0;
 			});
 		}
-
 		// Apply pagination to combined results
 		const startIndex = (page - 1) * limit;
 		const paginatedResults = searchResults.slice(startIndex, startIndex + limit);
 
 		const duration = performance.now() - start;
-		logger.info(`Search completed: ${paginatedResults.length}/${totalResults} results in ${duration.toFixed(2)}ms`);
+		logger.info(`Search completed: ${paginatedResults.length}/${totalResults} results in ${duration.toFixed(2)}ms`, { tenantId });
 
 		return json({
 			success: true,

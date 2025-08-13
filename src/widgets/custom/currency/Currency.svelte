@@ -37,7 +37,11 @@
 	const fieldName = getFieldName(field);
 
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+	import { onMount } from 'svelte';
+	let _language: string = '';
+	onMount(async () => {
+		_language = await getPublicSetting('DEFAULT_CONTENT_LANGUAGE');
+	});
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 

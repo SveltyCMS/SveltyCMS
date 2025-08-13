@@ -5,12 +5,12 @@
 
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Database
-import { dbAdapter } from '@src/databases/db';
+// import { dbAdapter } from '@src/databases/db';
 
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -31,50 +31,66 @@ const MediaItemSchema = v.object({
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'dashboard',
-		action: 'read'
-	});
+	const dbAdapter = locals.dbAdapter;
+	const { user, tenantId } = locals;
 
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to access media data', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	// Authentication is handled by hooks.server.ts
+	if (!user) {
+		logger.warn('Unauthorized attempt to access media data');
+		throw error(401, 'Unauthorized');
 	}
 
 	try {
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
+
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
 			throw error(500, 'Database connection unavailable');
 		}
+
+		// Check if media adapter is available
+		if (!dbAdapter.media || !dbAdapter.media.files || !dbAdapter.media.files.getByFolder) {
+			logger.warn('Media adapter not available, returning empty result');
+			return json([]);
+		}
+
+		// --- MULTI-TENANCY: Scope the query by tenantId ---
+		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
 
 		// Use database-agnostic adapter to get recent media files
 		const result = await dbAdapter.media.files.getByFolder(undefined, {
 			page: 1,
 			pageSize: 5,
 			sortField: 'updatedAt',
-			sortDirection: 'desc'
+			sortDirection: 'desc',
+			filter
 		});
 
 		if (!result.success) {
 			logger.error('Failed to fetch media files from database', {
 				error: result.error,
-				requestedBy: locals.user?._id
+				requestedBy: user?._id,
+				tenantId
 			});
 			// Return empty array instead of throwing error for dashboard widgets
 			return json([]);
 		}
 
+		// Check if we have data and items
+		if (!result.data || !result.data.items || !Array.isArray(result.data.items)) {
+			logger.warn('No media items found or invalid response structure');
+			return json([]);
+		}
+
 		// Transform the data to match the expected format
 		const recentMedia = result.data.items.map((file) => ({
-			name: file.filename,
-			size: file.size,
-			modified: new Date(file.updatedAt),
-			type: file.mimeType.split('/')[1] || 'unknown',
-			url: file.path
+			name: file.filename || file.name || 'Unknown',
+			size: file.size || 0,
+			modified: new Date(file.updatedAt || file.modified || new Date()),
+			type: (file.mimeType || file.type || 'unknown').split('/')[1] || 'unknown',
+			url: file.path || file.url || ''
 		}));
 
 		const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
@@ -82,7 +98,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		logger.info('Recent media fetched successfully via database adapter', {
 			count: validatedData.length,
 			total: result.data.total,
-			requestedBy: locals.user?._id
+			requestedBy: user?._id,
+			tenantId
 		});
 
 		return json(validatedData);

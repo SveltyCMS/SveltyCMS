@@ -1,6 +1,12 @@
 /**
  * @file src/auth/mongoDBAuth/userAdapter.ts
- * @description MongoDB adapter for user-related operations.
+ * @d	resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
+	resetToken: String, // Token for resetting the user's password, optional field
+	lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
+	is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
+	totpSecret: String, // TOTP secret for 2FA (base32 encoded), optional field
+	backupCodes: [String], // Array of hashed backup codes for 2FA recovery, optional field
+	last2FAVerification: { type: Date } // Timestamp of last successful 2FA verification, optional fieldiption MongoDB adapter for user-related operations.
  *
  * This module provides functionality to:
  * - Create, update, delete, and retrieve users
@@ -37,6 +43,7 @@ import { logger } from '@utils/logger.svelte';
 export const UserSchema = new Schema(
 	{
 		email: { type: String, required: true, unique: true }, // User's email, required field
+		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy, indexed for performance
 		password: { type: String }, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field
 		permissions: [{ type: String }], // User-specific permissions as names, optional field
@@ -118,18 +125,23 @@ export class UserAdapter implements Partial<authDBInterface> {
 	}
 
 	// Edit a user
-	async updateUserAttributes(user_id: string, userData: Partial<User>): Promise<User> {
+	async updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<User> {
 		try {
-			const user = await this.UserModel.findByIdAndUpdate(user_id, userData, { new: true }).lean();
+			const filter: Record<string, unknown> = { _id: user_id };
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			const user = await this.UserModel.findOneAndUpdate(filter, userData, { new: true }).lean();
 			if (!user) {
-				throw error(404, `User not found for ID: \x1b[34m${user_id}\x1b[0m`);
+				throw error(404, `User not found for ID: \x1b[34m${user_id}\x1b[0m ${tenantId ? `in tenant: ${tenantId}` : ''}`);
 			}
 			user._id = user._id.toString();
-			logger.debug(`User attributes updated: \x1b[34m${user_id}\x1b[0m`);
+			logger.debug(`User attributes updated: \x1b[34m${user_id}\x1b[0m`, { tenantId });
 			return user as User;
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id, tenantId });
 			throw error(500, message);
 		}
 	}
@@ -326,98 +338,135 @@ export class UserAdapter implements Partial<authDBInterface> {
 	}
 
 	// Block multiple users
-	async blockUsers(userIds: string[]): Promise<void> {
+	async blockUsers(userIds: string[], tenantId?: string): Promise<void> {
 		try {
-			await this.UserModel.updateMany(
-				{ _id: { $in: userIds } },
-				{
-					blocked: true,
-					lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
-				}
-			);
-			logger.info(`Users blocked: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+			const filter: Record<string, unknown> = { _id: { $in: userIds } };
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			await this.UserModel.updateMany(filter, {
+				blocked: true,
+				lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
+			});
+			logger.info(`Users blocked: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
 		} catch (err) {
 			const message = `Error in UserAdapter.blockUsers: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { userIds });
+			logger.error(message, { userIds, tenantId });
 			throw error(500, message);
 		}
 	}
 
 	// Unblock multiple users
-	async unblockUsers(userIds: string[]): Promise<void> {
+	async unblockUsers(userIds: string[], tenantId?: string): Promise<void> {
 		try {
-			await this.UserModel.updateMany(
-				{ _id: { $in: userIds } },
-				{
-					blocked: false,
-					lockoutUntil: null // Clear lockoutUntil
-				}
-			);
-			logger.info(`Users unblocked: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+			const filter: Record<string, unknown> = { _id: { $in: userIds } };
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			await this.UserModel.updateMany(filter, {
+				blocked: false,
+				lockoutUntil: null // Clear lockoutUntil
+			});
+			logger.info(`Users unblocked: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
 		} catch (err) {
 			const message = `Error in UserAdapter.unblockUsers: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { userIds });
+			logger.error(message, { userIds, tenantId });
 			throw error(500, message);
 		}
 	}
 
 	// Delete a user
-	async deleteUser(user_id: string): Promise<void> {
+	async deleteUser(user_id: string, tenantId?: string): Promise<void> {
 		try {
-			await this.UserModel.findByIdAndDelete(user_id);
-			logger.info(`User deleted: \x1b[34m${user_id}\x1b[0m`);
+			const filter: Record<string, unknown> = { _id: user_id };
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			await this.UserModel.findOneAndDelete(filter);
+			logger.info(`User deleted: \x1b[34m${user_id}\x1b[0m`, { tenantId });
 		} catch (err) {
 			const message = `Error in UserAdapter.deleteUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, { user_id, tenantId });
 			throw error(500, message);
 		}
 	}
 
 	// Delete multiple users
-	async deleteUsers(userIds: string[]): Promise<void> {
+	async deleteUsers(userIds: string[], tenantId?: string): Promise<void> {
 		try {
-			await this.UserModel.deleteMany({ _id: { $in: userIds } });
-			logger.info(`Users deleted: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+			const filter: Record<string, unknown> = { _id: { $in: userIds } };
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			await this.UserModel.deleteMany(filter);
+			logger.info(`Users deleted: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
 		} catch (err) {
 			const message = `Error in UserAdapter.deleteUsers: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { userIds });
+			logger.error(message, { userIds, tenantId });
 			throw error(500, message);
 		}
 	}
 
 	// Get a user by ID
-	async getUserById(user_id: string): Promise<User | null> {
+	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
 		try {
-			const user = await this.UserModel.findById(user_id).lean();
+			const filter: Record<string, unknown> = { _id: user_id };
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by ID: \x1b[34m${user_id}\x1b[0m`);
+				logger.debug(`User retrieved by ID: \x1b[34m${user_id}\x1b[0m`, {
+					tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+				});
 				return user as User;
 			} else {
 				return null;
 			}
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserById: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
+			logger.error(message, {
+				user_id,
+				tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+			});
 			throw error(500, message);
 		}
-	}
-
-	// Get a user by email
-	async getUserByEmail(email: string): Promise<User | null> {
+	} // Get a user by email
+	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
 		try {
-			const normalizedEmail = email.toLowerCase();
-			const user = await this.UserModel.findOne({ email: normalizedEmail }).lean();
+			if (!criteria.email || typeof criteria.email !== 'string') {
+				logger.error('getUserByEmail called with invalid email:', { email: criteria.email, tenantId: criteria.tenantId });
+				return null;
+			}
+			const normalizedEmail = criteria.email.toLowerCase();
+			const filter: Record<string, unknown> = { email: normalizedEmail };
+			if (criteria.tenantId) {
+				filter.tenantId = criteria.tenantId;
+			}
+
+			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by email:`, { email: normalizedEmail });
+				logger.debug(`User retrieved by email:`, {
+					email: normalizedEmail,
+					tenantId: criteria.tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+				});
 				return user as User;
 			} else {
 				return null;
 			}
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { email });
+			logger.error(message, {
+				email: criteria.email,
+				tenantId: criteria.tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
+			});
 			throw error(500, message);
 		}
 	}

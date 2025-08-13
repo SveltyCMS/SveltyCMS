@@ -141,10 +141,8 @@ export async function loadGlobalSettings(): Promise<void> {
  * If not loaded, throws an error.
  */
 export function getSetting(key: string): SystemPreferences | undefined {
-	if (!cacheLoaded) throw new Error('Global settings cache not loaded. Call loadGlobalSettings() at startup.');
-
-	if (setupMode) {
-		// Return a mock setting object for setup mode
+	// If cache is not loaded, fallback to setupModeDefaults
+	if (!cacheLoaded || setupMode) {
 		return {
 			_id: key,
 			key,

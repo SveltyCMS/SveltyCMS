@@ -104,7 +104,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 				stack: new Error().stack
 			});
 		} catch (logError) {
-			console.error('Failed to log error:', logError);
+			logger.error('Failed to log error:', logError);
 		}
 		throw new Error(message);
 	}
@@ -135,7 +135,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 				stack: new Error().stack
 			});
 		} catch (logError) {
-			console.error('Failed to log error:', logError);
+			logger.error('Failed to log error:', logError);
 		}
 		throw new Error(message);
 	}
@@ -170,7 +170,7 @@ export function constructUrl(
 				stack: new Error().stack
 			});
 		} catch (logError) {
-			console.error('Failed to log error:', logError);
+			logger.error('Failed to log error:', logError);
 		}
 		throw new Error(message);
 	}
@@ -212,11 +212,10 @@ export function constructUrl(
 		}
 		return url;
 	} else {
-		// Build a public URL relative to static media root when no media server
-		const base = (publicEnv.MEDIA_FOLDER || 'mediaFiles').replace(/^\.\/?/, '').replace(/\\/g, '/');
-		const url = `/${base}/${urlPath}`.replace(/\/+/g, '/');
+		// Use local files route for media serving
+		const url = `/files/${urlPath}`;
 		try {
-			logger.debug('Using local media folder URL', { url });
+			logger.debug('Using local files route URL', { url });
 		} catch (logError) {
 			logger.error('Failed to log debug info:', logError);
 		}
@@ -245,7 +244,7 @@ export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: k
 	}
 }
 
-// Safe version for use in reactive contexts (Svelte 5 derived expressions)
+// Safe version for use in reactive contexts
 export function getMediaUrlSafe(mediaItem: MediaBase, contentTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
 	try {
 		if (!mediaItem?.path || !mediaItem?.hash || !mediaItem?.filename) {
@@ -315,7 +314,7 @@ export function validateMediaFile(
 					maxSizeBytes
 				});
 			} catch (logError) {
-				console.error('Failed to log warning:', logError);
+				logger.error('Failed to log warning:', logError);
 			}
 			return {
 				isValid: false,
@@ -340,7 +339,7 @@ export function validateMediaFile(
 				stack: new Error().stack
 			});
 		} catch (logError) {
-			console.error('Failed to log error:', logError);
+			logger.error('Failed to log error:', logError);
 		}
 		return {
 			isValid: false,

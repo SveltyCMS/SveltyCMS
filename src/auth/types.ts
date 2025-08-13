@@ -32,6 +32,7 @@ export enum PermissionType {
 export interface User {
 	_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
+	tenantId?: string; // Identifier for the tenant the user belongs to (in multi-tenant mode)
 	password?: string; // Hashed password of the user
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
 	username?: string; // Username of the user
@@ -49,6 +50,9 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account (ISO date string)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
+	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
+	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
+	last2FAVerification?: Date; // Timestamp of last successful 2FA verification
 	permissions: string[]; // Set of permissions associated with the user
 	isAdmin?: boolean; // Is the user an admin
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
@@ -91,6 +95,7 @@ export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires (ISO date string)
+	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
 }
 
 // Token Interface

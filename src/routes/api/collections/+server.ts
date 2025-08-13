@@ -5,17 +5,17 @@
  * @example: GET /api/collections
  *
  * Features:
- *    * Lists all collections accessible to the current user
- *    * Filters collections based on user permissions
- *    * Provides collection metadata and configuration
- *    * Replaces /api/getCollections endpoint
+ * * Lists all collections accessible to the current user within their tenant
+ * * Filters collections based on user permissions
+ * * Provides collection metadata and configuration
+ * * Replaces /api/getCollections endpoint
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -23,68 +23,62 @@ import { logger } from '@utils/logger.svelte';
 // GET: Lists all collections accessible to the user
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const start = performance.now();
+	const { tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
-	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+	// In multi-tenant mode, a tenantId is required.
+	if (privateEnv.MULTI_TENANT && !tenantId) {
+		logger.error('List collections attempt failed: Tenant ID is missing in a multi-tenant setup.');
+		throw error(400, 'Could not identify the tenant for this request.');
 	}
 
 	try {
 		// Get query parameters
 		const includeFields = url.searchParams.get('includeFields') === 'true';
-		const includeStats = url.searchParams.get('includeStats') === 'true';
+		const includeStats = url.searchParams.get('includeStats') === 'true'; // Get all collections from ContentManager, scoped by tenantId
 
-		// Get all collections from ContentManager
-		const { collectionMap } = await contentManager.getCollectionData();
+		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
 
-		const accessibleCollections = [];
+		const accessibleCollections = []; // All collections are accessible since hooks handle authorization
 
-		// Filter collections based on user permissions
-		if (collectionMap) {
-			for (const [collectionId, collection] of Object.entries(collectionMap)) {
-				const hasReadAccess = hasCollectionPermission(locals.user, 'read', collection);
-				const hasWriteAccess = hasCollectionPermission(locals.user, 'write', collection);
+		for (const [collectionId, collection] of Object.entries(allCollections)) {
+			const collectionInfo = {
+				id: collection._id,
+				name: collection.name,
+				label: collection.label || collection.name,
+				description: collection.description,
+				icon: collection.icon,
+				path: collection.path,
+				permissions: {
+					read: true, // User already authorized by hooks
+					write: true // User already authorized by hooks
+				}
+			};
 
-				if (hasReadAccess || hasWriteAccess) {
-					const collectionInfo = {
-						id: collection._id,
-						name: collection.name,
-						label: collection.label || collection.name,
-						description: collection.description,
-						icon: collection.icon,
-						path: collection.path,
-						permissions: {
-							read: hasReadAccess,
-							write: hasWriteAccess
-						}
+			// Include fields if requested
+			if (includeFields) {
+				collectionInfo.fields = collection.fields;
+			}
+
+			// Include stats if requested (user already authorized by hooks)
+			if (includeStats) {
+				try {
+					// You can add collection statistics here if your DB adapter supports it
+					// For now, just add placeholder
+					collectionInfo.stats = {
+						totalEntries: 0,
+						publishedEntries: 0,
+						draftEntries: 0
 					};
-
-					// Include fields if requested
-					if (includeFields) {
-						collectionInfo.fields = collection.fields;
-					}
-
-					// Include stats if requested and user has read access
-					if (includeStats && hasReadAccess) {
-						try {
-							// You can add collection statistics here if your DB adapter supports it
-							// For now, just add placeholder
-							collectionInfo.stats = {
-								totalEntries: 0,
-								publishedEntries: 0,
-								draftEntries: 0
-							};
-						} catch (statsError) {
-							logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
-						}
-					}
-
-					accessibleCollections.push(collectionInfo);
+				} catch (statsError) {
+					logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
 				}
 			}
+
+			accessibleCollections.push(collectionInfo);
 		}
 
 		const duration = performance.now() - start;
-		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms`);
+		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId}`);
 
 		return json({
 			success: true,

@@ -21,10 +21,12 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
+	import { fade } from 'svelte/transition';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
-	import { beforeNavigate, afterNavigate } from '$app/navigation';
-	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { onDestroy, onMount } from 'svelte';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -34,7 +36,7 @@
 	import { getTextDirection } from '@utils/utils';
 
 	// Stores
-	import { collections, contentStructure } from '@stores/collectionStore.svelte';
+	import { contentStructure } from '@stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
@@ -49,14 +51,13 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
-	// Widgets
-	import { initializeWidgets } from '@src/widgets';
-
 	// Skeleton
-	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
+	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { setGlobalModalStore } from '@utils/modalUtils';
+	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
-	import type { ContentNode } from '@root/src/databases/dbInterface';
+	// import type { ContentNode } from '@root/src/databases/dbInterface';
 	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
@@ -65,27 +66,55 @@
 		children?: import('svelte').Snippet;
 		data: {
 			user: User;
-			contentStructure: ContentNode[];
-			settings: {
-				SITE_NAME: string;
-			};
+			contentStructure: any[]; // Changed from ContentNode[] to any[]
 		};
 	}
 
 	let { children, data }: Props = $props();
+	// Initialize global modal store during component setup
+	setGlobalModalStore(getModalStore());
+	setGlobalToastStore(getToastStore());
 
-	// State variables
-	let isCollectionsLoaded = $state(false);
+	// --- State Management ---
+	globalLoadingStore.startLoading(loadingOperations.initialization); // Start initial loading immediately.
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Derived state for showing loading
-	let shouldShowLoading = $derived(!isCollectionsLoaded || globalLoadingStore.isLoading);
+	// A single derived value now controls the loading indicator's visibility.
+	let shouldShowLoading = $derived(globalLoadingStore.isLoading);
 
-	// Set isCollectionsLoaded to true once the initial data is available.
+	// A derived value to compute the loading text cleanly.
+	let loadingTopText = $derived(() => {
+		// Use the reason from the global store to set the text.
+		switch (globalLoadingStore.loadingReason) {
+			case loadingOperations.initialization:
+				return 'Initializing';
+			case loadingOperations.navigation:
+				return 'Navigating';
+			case loadingOperations.dataFetch:
+				return 'Loading data';
+			case loadingOperations.authentication:
+				return 'Authenticating';
+			case loadingOperations.formSubmission:
+				return 'Submitting';
+			default:
+				return 'Loading'; // Fallback text.
+		}
+	});
+
+	// Stop initialization loader once server provided contentStructure (even if empty)
 	$effect(() => {
-		if (data.contentStructure && data.contentStructure.length > 0) {
-			isCollectionsLoaded = true;
+		if (Array.isArray(data.contentStructure)) {
+			globalLoadingStore.stopLoading(loadingOperations.initialization);
+		}
+	});
+
+	// Keep contentStructure store in sync with server data across navigations
+	$effect(() => {
+		// Defer store updates to the next microtask to avoid UpdatedAtError during reactive batch updates
+		const defer = (fn: () => void) => (typeof queueMicrotask === 'function' ? queueMicrotask(fn) : Promise.resolve().then(fn));
+		if (Array.isArray(data.contentStructure)) {
+			defer(() => contentStructure.set(data.contentStructure));
 		}
 	});
 
@@ -144,18 +173,37 @@
 		if (data.user) {
 			// Initialize avatar with user's avatar URL from database, fallback to default
 			if (data.user.avatar && data.user.avatar !== '/Default_User.svg') {
-				avatarSrc.set(data.user.avatar);
+				avatarSrc.value = data.user.avatar;
 			} else {
-				avatarSrc.set('/Default_User.svg');
-				console.log('Layout: Avatar set to default, user avatar was:', data.user.avatar);
+				avatarSrc.value = '/Default_User.svg';
 			}
 		}
 
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
 
-		// Initialize data
-		initializeCollections();
+		// Initialize data (deferred to next microtask)
+		queueMicrotask(() => initializeCollections());
+
+		// Fallback: if collections are empty after hydration, fetch from API
+		if (browser) {
+			setTimeout(async () => {
+				try {
+					if (!Array.isArray(contentStructure.value) || contentStructure.value.length === 0) {
+						const res = await fetch('/api/content-structure?action=getContentStructure', { credentials: 'include' });
+						if (res.ok) {
+							const json = await res.json();
+							const nodes = json?.contentNodes || json?.data?.contentStructure || [];
+							if (Array.isArray(nodes)) {
+								contentStructure.set(nodes);
+							}
+						}
+					}
+				} catch (err) {
+					console.warn('Fallback fetch for contentStructure failed:', err);
+				}
+			}, 0);
+		}
 	});
 
 	// Navigation loading handlers
@@ -226,25 +274,7 @@
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if shouldShowLoading}
-			<Loading
-				customTopText={!isCollectionsLoaded
-					? 'Initializing'
-					: globalLoadingStore.loadingReason === loadingOperations.navigation
-						? 'Navigating'
-						: globalLoadingStore.loadingReason === loadingOperations.dataFetch
-							? 'Loading data'
-							: globalLoadingStore.loadingReason === loadingOperations.authentication
-								? 'Authenticating'
-								: globalLoadingStore.loadingReason === loadingOperations.initialization
-									? 'Initializing'
-									: globalLoadingStore.loadingReason === loadingOperations.formSubmission
-										? 'Submitting'
-										: 'Loading'}
-				customBottomText={!isCollectionsLoaded ? 'Loading application...' : 'Please wait'}
-			/>
-		{/if}
-		{#if !isDesktop}
+		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
 			<FloatingNav />
 		{/if}
 		<Toast />
@@ -279,11 +309,22 @@
 						<header class="sticky top-0 w-full"><HeaderEdit /></header>
 					{/if}
 
-					<!-- Router Slot -->
+					<!-- Router Slot & Scoped Loader -->
 					<div
 						role="main"
-						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
+						class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value ? 'mb-2' : 'mb-16'}"
 					>
+						<!-- The loading component  -->
+						{#if shouldShowLoading}
+							<div transition:fade={{ duration: 200 }} class="variant-glass-surface absolute z-50 flex h-full w-full items-center justify-center">
+								<Loading
+									customTopText={loadingTopText()}
+									customBottomText={globalLoadingStore.loadingReason === loadingOperations.initialization ? 'Loading application...' : 'Please wait'}
+								/>
+							</div>
+						{/if}
+
+						<!-- The page content is rendered here. -->
 						{@render children?.()}
 					</div>
 

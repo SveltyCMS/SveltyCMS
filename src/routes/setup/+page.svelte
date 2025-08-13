@@ -217,10 +217,20 @@
 	}
 
 	async function completeSetup() {
+		// Debug: Log admin email before submitting
+		console.log('Submitting setup with admin email:', adminUser.email);
 		if (!validateStep(2)) return;
 
 		isLoading = true;
 		errorMessage = '';
+
+		// Validate admin email before submitting
+		if (!adminUser.email || typeof adminUser.email !== 'string' || !adminUser.email.trim() || !adminUser.email.includes('@')) {
+			errorMessage = 'Admin email is required and must be valid.';
+			validationErrors.email = 'Please enter a valid email address.';
+			isLoading = false;
+			return;
+		}
 
 		try {
 			const response = await fetch('/api/setup/complete', {

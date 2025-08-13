@@ -2,29 +2,31 @@
  * @file src/routes/api/index/search/+server.ts
  * @description API endpoint for searching across collections
  *
- * This module handles searching across all collections:
+ * This module handles searching across all collections for the current tenant:
  * - Performs full-text search across multiple collections
  * - Supports pagination and filtering
  * - Uses database-agnostic interface
  *
  * Features:
- * - Cross-collection search
+ * - Cross-collection, tenant-aware search
  * - Pagination support
  * - Permission checking
  * - Enhanced error handling
  */
+import { privateEnv } from '@root/config/private';
 
+// Database
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		// Wait for database initialization
 		await dbInitPromise;
@@ -33,45 +35,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (!dbAdapter) {
 			throw error(500, 'Database adapter not initialized');
 		}
-		const collections = await dbAdapter.getCollectionModels();
 
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
+
+		const collections = await dbAdapter.getCollectionModels(tenantId);
 		// Parse request body
 		const body = await request.json();
 		const { query, page = 1, limit = 10 } = body;
-
 		// Validate query
 		if (!query || typeof query !== 'string') {
-			logger.warn('Invalid search query');
+			logger.warn('Invalid search query', { tenantId });
 			throw error(400, 'Invalid search query');
 		}
-
-		// Check API permissions using centralized system
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'search',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to access search API', {
-				userId: locals.user?._id,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-		}
-
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 		// Perform search across all collections
 		const results = [];
 		const skip = (page - 1) * limit;
 
 		for (const [collectionName, collection] of collections) {
-			// For now, if user has general search access, they can search all collections
 			// TODO: Add collection-specific search permissions if needed
 
-			// Perform search on collection
+			// Perform search on collection, scoped by tenant
 			const searchResults = await collection.search({
 				query,
 				skip,
-				limit
+				limit,
+				tenantId
 			});
 
 			if (searchResults.length > 0) {
@@ -81,6 +72,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				});
 			}
 		}
+
+		logger.info('Search completed successfully', { tenantId, query, user: user?._id });
 
 		return new Response(
 			JSON.stringify({
@@ -96,7 +89,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error';
-		logger.error('Search error:', { error: message });
+		logger.error('Search error:', { error: message, tenantId });
 		throw error(500, `Search failed: ${message}`);
 	}
 };

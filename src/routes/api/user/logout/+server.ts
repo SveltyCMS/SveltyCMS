@@ -18,29 +18,25 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 // Auth
-import { SESSION_COOKIE_NAME } from '@root/src/auth';
-import { getCacheStore } from '@src/cacheStore/index.server';
+import { SESSION_COOKIE_NAME } from '@src/auth/constants';
+import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
+	const { user, session_id, tenantId } = locals;
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized.');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
+		} // Check if a user session actually exists for this request.
 
-		// Use the session ID from `locals` which is reliably populated by the hook.
-		const session_id = locals.session_id;
-
-		// Check if a user session actually exists for this request.
-		if (session_id && locals.user) {
+		if (session_id && user) {
 			// Revoke Google OAuth Token
-			// The `googleRefreshToken` would have been stored during the OAuth login flow.
-			if (locals.user.googleRefreshToken) {
+			if (user.googleRefreshToken) {
 				try {
-					const refreshToken = locals.user.googleRefreshToken;
+					const refreshToken = user.googleRefreshToken;
 					const response = await fetch(`https://oauth2.googleapis.com/revoke?token=${refreshToken}`, {
 						method: 'POST',
 						headers: {
@@ -49,56 +45,50 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 					});
 
 					if (response.ok) {
-						logger.info('Successfully revoked Google OAuth token for user', { userId: locals.user._id });
-						// Optional: Clear the refresh token from the database so it can't be used again.
-						await auth.updateUserAttributes(locals.user._id, { googleRefreshToken: null });
+						logger.info('Successfully revoked Google OAuth token for user', { userId: user._id, tenantId }); // Clear the refresh token from the database, scoped by tenant.
+						await auth.updateUserAttributes(user._id, { googleRefreshToken: null }, tenantId);
 					} else {
 						const errorBody = await response.json();
 						logger.warn('Failed to revoke Google OAuth token. It may have already been revoked.', {
-							userId: locals.user._id,
+							userId: user._id,
+							tenantId,
 							error: errorBody
 						});
 					}
 				} catch (revokeError) {
 					// Log the error but don't block the local logout process.
-					logger.error('Error while trying to revoke Google OAuth token', { userId: locals.user._id, error: revokeError });
+					logger.error('Error while trying to revoke Google OAuth token', { userId: user._id, error: revokeError, tenantId });
 				}
-			}
-			// --- END NEW LOGIC ---
+			} // Destroy the session on the server-side (database, cache, etc.).
 
-			// Destroy the session on the server-side (database, cache, etc.).
-			await auth.destroySession(session_id);
+			await auth.destroySession(session_id); // Also clear the session from cache
 
-			// Also clear the session from cache
 			try {
-				const cacheStore = getCacheStore();
-				await cacheStore.delete(session_id);
-				logger.debug(`Session cache cleared for session: ${session_id}`);
+				await cacheService.delete(session_id);
 			} catch (cacheError) {
 				logger.warn(`Failed to clear session cache: ${cacheError}`);
 			}
 
 			logger.info('Session destroyed for user', {
-				email: locals.user.email,
-				sessionId: session_id
+				email: user.email,
+				sessionId: session_id,
+				tenantId
 			});
 		} else {
 			// If there's no session, there's nothing to destroy, but we can still log it.
 			logger.warn('Logout endpoint was called, but no active session was found.');
-		}
+		} // Clear the session cookie from the client's browser.
 
-		// Clear the session cookie from the client's browser.
 		cookies.delete(SESSION_COOKIE_NAME, {
 			path: '/',
 			httpOnly: true,
 			secure: false, // Set to true in production with HTTPS
 			sameSite: 'lax'
-		});
-		logger.debug(`Session cookie deleted from client: ${SESSION_COOKIE_NAME}`);
+		}); // Clear the user from `locals` for the remainder of the current request lifecycle.
 
-		// Clear the user from `locals` for the remainder of the current request lifecycle.
 		locals.user = null;
 		locals.session_id = undefined;
+		locals.tenantId = undefined;
 
 		return json({ success: true, message: 'You have been logged out successfully.' });
 	} catch (err) {
@@ -111,10 +101,10 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 			error: message,
 			stack: err instanceof Error ? err.stack : undefined,
 			userId: locals.user?._id,
+			tenantId: locals.tenantId,
 			status
-		});
+		}); // Even if an error occurs, we still try to clear the cookie as a failsafe.
 
-		// Even if an error occurs, we still try to clear the cookie as a failsafe.
 		try {
 			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		} catch (cookieError) {

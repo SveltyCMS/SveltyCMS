@@ -3,7 +3,18 @@
 @component
 **This component displays a collection with nested items support**
 
+Features:	
+- Collection Name
+- Collection Icon
+- Collection Description
+- Collection Status
+- Collection Slug
+- Collection Description
+- Collection Permissions
+- Collection Fields
+- Collection Categories
 -->
+
 <script lang="ts">
 	import Column from './Column.svelte'; // Recursive import for nested columns
 	import { goto } from '$app/navigation';
@@ -122,9 +133,7 @@
 		}
 	}
 
-	/**
-	 * Handles click on a category item, opening the edit category modal.
-	 */
+	// Handles click on a category item, opening the edit category modal.
 	function handleCategoryEdit() {
 		onEditCategory(item);
 	}
@@ -176,9 +185,12 @@
 					<Column
 						item={child}
 						children={child.children ?? []}
-						level={level + 1} 
+						level={level + 1}
 						isCategory={child.nodeType === 'category'}
-						onNodeReorder={onNodeReorder}  `onNodeReorder` callback down
+						{onNodeReorder}
+						`onNodeReorder`
+						callback
+						down
 						{onEditCategory}
 					/>
 				</div>

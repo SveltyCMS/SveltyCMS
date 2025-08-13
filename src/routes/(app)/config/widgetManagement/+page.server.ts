@@ -43,13 +43,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
-		// Return user data
+		// Get tenant information for multi-tenant widget management
+		const tenantId = user.tenantId || 'default-tenant';
+
+		// Load installed widgets for this tenant
+		const installedWidgets: string[] = [];
+		try {
+			// TODO: Implement database query to get installed widgets for tenant
+			// installedWidgets = await getInstalledWidgets(tenantId);
+		} catch (error) {
+			logger.warn(`Failed to load installed widgets for tenant ${tenantId}:`, error);
+		}
+
+		// Return user data and widget management context
 		const { _id, ...rest } = user;
 		return {
 			user: {
 				_id: _id.toString(),
 				...rest
-			}
+			},
+			tenantId,
+			installedWidgets,
+			// Additional context for widget management
+			canInstallWidgets: hasPermissionWithRoles(user, 'config:widgetInstall', roles),
+			canUninstallWidgets: hasPermissionWithRoles(user, 'config:widgetUninstall', roles),
+			canManageMarketplace: hasPermissionWithRoles(user, 'config:marketplace', roles)
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

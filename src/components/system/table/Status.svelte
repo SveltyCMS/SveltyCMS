@@ -43,7 +43,7 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 								? 'variant-ghost text-surface-900-50-token'
 								: value === StatusTypes.archive
 									? 'bg-surface-600 text-white'
-									: 'badge'} rounded text-center"
+									: 'badge'}"
 	title={`Status: ${value}`}
 >
 	{#if value === StatusTypes.publish}

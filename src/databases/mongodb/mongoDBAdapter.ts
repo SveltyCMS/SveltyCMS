@@ -35,6 +35,7 @@ import type { SystemPreferences } from '@stores/systemPreferences.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Types
+import type { Layout } from '@config/dashboard.types';
 import type { CollectionConfig } from '@src/content/types';
 import type { MediaType } from '@utils/media/mediaModels';
 import type { ContentStructureNode as ContentNode } from './models/contentStructure';
@@ -1157,7 +1158,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			mediaSchemas.forEach((schemaName) => {
 				this.modelSetup.setupModel(schemaName, mediaSchema);
 			});
-			logger.info('\x1b[34m$Media models\x1b[0m set up successfully.');
+			logger.info('\x1b[34mMedia models\x1b[0m set up successfully.');
 		},
 
 		files: {
@@ -1176,6 +1177,166 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						}
 					};
 				}
+			},
+
+			getByFolder: async (folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
+				try {
+					// Use system_media collection for media files
+					const MediaModel = mongoose.models['system_media'];
+					if (!MediaModel) {
+						return {
+							success: false,
+							error: {
+								code: 'MODEL_NOT_FOUND',
+								message: 'Media model not initialized'
+							}
+						};
+					}
+
+					// Build query - if folderId is undefined, get all files, otherwise filter by folderId
+					const query = folderId ? { folderId } : {};
+
+					// Apply additional filters if provided
+					if (options?.filter) {
+						Object.assign(query, options.filter);
+					}
+
+					// Apply pagination
+					const page = options?.page || 1;
+					const pageSize = options?.pageSize || 10;
+					const skip = (page - 1) * pageSize;
+
+					// Build sort criteria
+					const sortField = options?.sortField || 'createdAt';
+					const sortDirection = options?.sortDirection === 'asc' ? 1 : -1;
+					const sort = { [sortField]: sortDirection };
+
+					// Execute query with pagination
+					const [items, total] = await Promise.all([
+						MediaModel.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
+						MediaModel.countDocuments(query).exec()
+					]);
+
+					// Calculate pagination metadata
+					const totalPages = Math.ceil(total / pageSize);
+
+					return {
+						success: true,
+						data: {
+							items: items as MediaItem[],
+							total,
+							totalPages,
+							currentPage: page,
+							pageSize
+						}
+					};
+				} catch (error) {
+					logger.error('Error in getByFolder:', error as LoggableValue);
+					return {
+						success: false,
+						error: {
+							code: 'GET_BY_FOLDER_ERROR',
+							message: 'Failed to fetch media files',
+							details: error
+						}
+					};
+				}
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			uploadMany: async (_files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'uploadMany method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			delete: async (_fileId: DatabaseId): Promise<DatabaseResult<void>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'delete method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			deleteMany: async (_fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'deleteMany method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			search: async (_query: string, _options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'search method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			getMetadata: async (_fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'getMetadata method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			updateMetadata: async (_fileId: DatabaseId, _metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>> => {
+				// Placeholder implementation - can be implemented later if need
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'updateMetadata method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			move: async (_fileIds: DatabaseId[], _targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'move method not yet implemented'
+					}
+				};
+			},
+
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			duplicate: async (_fileId: DatabaseId, _newName?: string): Promise<DatabaseResult<MediaItem>> => {
+				// Placeholder implementation - can be implemented later if needed
+				return {
+					success: false,
+					error: {
+						code: 'NOT_IMPLEMENTED',
+						message: 'duplicate method not yet implemented'
+					}
+				};
 			}
 		},
 
@@ -1398,26 +1559,57 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	//  System Preferences Management
 	systemPreferences = {
-		// Set user preferences
-		setUserPreferences: async (userId: string, preferences: SystemPreferences): Promise<void> => {
+		// Set user preferences for a specific layout
+		setUserPreferences: async (userId: string, layoutId: string, layout: Layout): Promise<void> => {
 			try {
-				const query = { key: 'dashboard', scope: 'user', userId };
-				await SystemPreferencesModel.updateOne(query, { $set: { preferences } }, { upsert: true });
+				await SystemPreferencesModel.setPreference(userId, layoutId, layout);
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save user preferences');
 			}
 		},
 
-		// Get system preferences for a user
-		getSystemPreferences: async (userId: string): Promise<SystemPreferences | null> => {
+		// Get system preferences for a user, specifically a single layout
+		getSystemPreferences: async (userId: string, layoutId: string): Promise<Layout | null> => {
 			try {
-				const query = { key: 'dashboard', scope: 'user', userId };
-
-				const doc = await SystemPreferencesModel.findOne(query).lean().exec();
-
-				return doc?.preferences ?? null;
+				const result = await SystemPreferencesModel.getPreferenceByLayout(userId, layoutId);
+				if (result.success) {
+					return result.data;
+				}
+				return null;
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_LOAD_ERROR', 'Failed to load user preferences');
+			}
+		},
+
+		// Get the state for a single widget within a layout
+		getWidgetState: async <T>(userId: string, layoutId: string, widgetId: string): Promise<T | null> => {
+			try {
+				const layout = await this.systemPreferences.getSystemPreferences(userId, layoutId);
+				// The model uses `preferences` for the widget array
+				return (layout?.preferences?.find((w) => w.id === widgetId)?.settings as T) ?? null;
+			} catch (error) {
+				throw createDatabaseError(error, 'WIDGET_STATE_LOAD_ERROR', 'Failed to load widget state');
+			}
+		},
+
+		// Set the state for a single widget within a layout
+		setWidgetState: async (userId: string, layoutId: string, widgetId: string, state: unknown): Promise<void> => {
+			try {
+				const query = {
+					userId,
+					layoutId,
+					'layout.preferences.id': widgetId
+				};
+				const update = {
+					$set: { 'layout.preferences.$.settings': state }
+				};
+				const result = await SystemPreferencesModel.updateOne(query, update);
+
+				if (result.matchedCount === 0) {
+					logger.warn(`Widget with id ${widgetId} not found in layout ${layoutId} for user ${userId}. State was not set.`);
+				}
+			} catch (error) {
+				throw createDatabaseError(error, 'WIDGET_STATE_SAVE_ERROR', 'Failed to save widget state');
 			}
 		},
 
@@ -1443,7 +1635,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Clear all preferences for a user
 		clearSystemPreferences: async (userId: string): Promise<void> => {
 			try {
-				await SystemPreferencesModel.deleteOne({ userId }).exec();
+				await SystemPreferencesModel.deletePreferencesByUser(userId);
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', 'Failed to clear preferences');
 			}

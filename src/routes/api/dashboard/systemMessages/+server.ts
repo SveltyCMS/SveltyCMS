@@ -10,12 +10,11 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -77,18 +76,10 @@ async function readLastLines(filePath: string, maxLines: number): Promise<string
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	// Check dashboard permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'dashboard',
-		action: 'read'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to access system messages', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	// Authentication is handled by hooks.server.ts
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to access system messages');
+		throw error(401, 'Unauthorized');
 	}
 
 	try {
@@ -105,7 +96,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				const [, timestamp, level, message] = match;
 				const lowerLevel = level.toLowerCase();
 				return {
-					id: crypto.randomUUID(),
+					id: uuidv4(),
 					title: `${level.toUpperCase()} Message`,
 					message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
 					level: lowerLevel,
@@ -117,7 +108,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		if (messages.length === 0) {
 			messages.push({
-				id: crypto.randomUUID(),
+				id: uuidv4(),
 				title: 'System Status',
 				message: 'System is running normally. No recent critical messages.',
 				level: 'info',

@@ -5,7 +5,7 @@
 
 import { getPublicSetting } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+import { type Params, GraphqlSchema, GuiSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -24,7 +24,7 @@ const widget = (params: Params & { widgetId?: string }) => {
 			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
 			// Return the data for the default content language or a message indicating no data entry
-			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+			return data[getPublicSetting('DEFAULT_CONTENT_LANGUAGE')] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {

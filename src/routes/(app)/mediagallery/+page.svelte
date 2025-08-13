@@ -25,6 +25,8 @@ It p			if (result.success) {
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
+
+				showToast('Folder created successfully!', 'success');
 			} else {er-friendly interface for searching, filtering, and navigating through media files.
 
 ### Props:
@@ -47,6 +49,7 @@ It p			if (result.success) {
 	// Stores
 	import { mode } from '@src/stores/collectionStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 
 	// Utils & Media
 	import { config, toFormData } from '@utils/utils';
@@ -60,8 +63,8 @@ It p			if (result.success) {
 	import MediaTable from './MediaTable.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	const modalStore = getModalStore();
 
 	// Loading state
@@ -156,6 +159,16 @@ It p			if (result.success) {
 		return localStorage.getItem('GalleryUserPreference');
 	}
 
+	// Mobile navigation helper
+	function handleMobileNavigation(path: string) {
+		// Hide sidebar on mobile before navigation
+		if (typeof window !== 'undefined' && window.innerWidth < 768) {
+			console.log('Mobile detected, hiding sidebar before navigation to:', path);
+			toggleUIElement('leftSidebar', 'hidden');
+		}
+		goto(path);
+	}
+
 	// Initialize component with runes
 	$effect(() => {
 		mode.set('media');
@@ -168,13 +181,27 @@ It p			if (result.success) {
 		}
 
 		// Fetch all folders for navigation and breadcrumbs
-		fetchUpdatedSystemVirtualFolders().then((all) => {
-			allSystemVirtualFolders = all;
-			// If we are at the root, update `folders` to be the top-level folders from the full list.
-			if (!currentSystemVirtualFolder) {
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
-			}
-		});
+		fetchUpdatedSystemVirtualFolders()
+			.then((all) => {
+				allSystemVirtualFolders = all;
+				// If we are at the root, update `folders` to be the top-level folders from the full list.
+				if (!currentSystemVirtualFolder) {
+					systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
+				}
+			})
+			.catch((error) => {
+				console.error('Failed to load virtual folders in effect:', error);
+				// Use fallback data from server load if available
+				if (data && data.systemVirtualFolders) {
+					allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
+						...folder,
+						path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
+					}));
+					if (!currentSystemVirtualFolder) {
+						systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
+					}
+				}
+			});
 
 		if (data && data.media) {
 			files = data.media;
@@ -236,31 +263,19 @@ It p			if (result.success) {
 
 		// Validate folder name
 		if (!folderName.trim()) {
-			toastStore.trigger({
-				message: 'Folder name cannot be empty',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Folder name cannot be empty', 'error');
 			return;
 		}
 
 		// Check for invalid characters
 		if (/[\\/:"*?<>|]/.test(folderName)) {
-			toastStore.trigger({
-				message: 'Folder name contains invalid characters (\\ / : * ? " < > |)',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Folder name contains invalid characters (\\ / : * ? " < > |)', 'error');
 			return;
 		}
 
 		// Check length
 		if (folderName.length > 50) {
-			toastStore.trigger({
-				message: 'Folder name must be 50 characters or less',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Folder name must be 50 characters or less', 'error');
 			return;
 		}
 
@@ -304,11 +319,7 @@ It p			if (result.success) {
 				document.dispatchEvent(event);
 				console.log('Folder created event dispatched:', event.detail);
 
-				toastStore.trigger({
-					message: 'Folder created successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
+				showToast('Folder created successfully', 'success');
 			} else {
 				throw new Error(result.error || 'Failed to create folder');
 			}
@@ -322,11 +333,7 @@ It p			if (result.success) {
 					errorMessage = 'Invalid folder name';
 				}
 			}
-			toastStore.trigger({
-				message: errorMessage,
-				background: 'variant-filled-error',
-				timeout: 5000 // Longer timeout for errors
-			});
+			showToast(errorMessage, 'error');
 		} finally {
 			isLoading = false;
 			globalLoadingStore.stopLoading(loadingOperations.dataFetch);
@@ -349,11 +356,7 @@ It p			if (result.success) {
 			}
 		} catch (error) {
 			console.error('Error fetching updated folders:', error);
-			toastStore.trigger({
-				message: 'Failed to fetch folders',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Failed to fetch folders', 'error');
 			return [];
 		}
 	}
@@ -391,11 +394,7 @@ It p			if (result.success) {
 					errorMessage = 'Network error - please check your connection';
 				}
 			}
-			toastStore.trigger({
-				message: errorMessage,
-				background: 'variant-filled-error',
-				timeout: 5000
-			});
+			showToast(errorMessage, 'error');
 			files = [];
 			systemVirtualFolders = [];
 		} finally {
@@ -421,11 +420,7 @@ It p			if (result.success) {
 			await fetchMediaFiles();
 		} catch (error) {
 			console.error('Error opening folder:', error);
-			toastStore.trigger({
-				message: 'Failed to open folder',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Failed to open folder', 'error');
 		}
 	}
 
@@ -475,22 +470,14 @@ It p			if (result.success) {
 			});
 			const result = response.data;
 			if (result?.success) {
-				toastStore.trigger({
-					message: 'Media deleted successfully.',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
+				showToast('Media deleted successfully.', 'success');
 				await fetchMediaFiles();
 			} else {
 				throw new Error(result.error || 'Failed to delete media');
 			}
 		} catch (error) {
 			console.error('Error deleting media: ', error);
-			toastStore.trigger({
-				message: 'Error deleting media',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Error deleting media', 'error');
 		}
 	}
 
@@ -532,7 +519,7 @@ It p			if (result.success) {
 		</button>
 
 		<!-- Add Media -->
-		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
+		<button onclick={() => handleMobileNavigation('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
 			<iconify-icon icon="carbon:add-filled" width="24"></iconify-icon>
 			Add Media
 		</button>

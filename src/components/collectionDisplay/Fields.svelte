@@ -20,20 +20,24 @@
 -->
 
 <script lang="ts">
-	import { dev } from '$app/environment';
 	import { untrack } from 'svelte';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-	import { getFieldName, updateTranslationProgress } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 
 	// Auth & Page data
-	import { page } from '$app/stores';
+
+	import { page } from '$app/state';
 	const user = $derived(page.data?.user);
-	const collectionName = $derived(page.params?.contentTypes);
+	const tenantId = $derived(page.data?.tenantId); // Get tenantId for multi-tenancy
+	const collectionName = $derived(page.params?.collection);
 
 	// Stores
-	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
+
+	// Config
+	import { getPublicSetting } from '@src/stores/globalSettings';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// Content processing
 	import { processModule } from '@src/content/utils';
@@ -42,14 +46,16 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard, getToastStore, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import { CodeBlock, Tab, TabGroup, clipboard, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
+	import { showConfirm } from '@utils/modalUtils';
 	const modalStore = getModalStore();
 
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import { widgetFunctions, ensureWidgetsInitialized } from '@src/widgets';
 	import { onMount } from 'svelte';
+	import { validationStore } from '@stores/store.svelte';
 
 	// Dynamic import of all widget components using Vite's glob import
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -59,7 +65,8 @@
 	// Initialize widgets on mount
 	onMount(async () => {
 		await ensureWidgetsInitialized();
-	}); // Props
+	});
+
 	let { fields = undefined } = $props<{
 		fields?: NonNullable<typeof collection.value>['fields'];
 	}>();
@@ -68,44 +75,47 @@
 	let apiUrl = $state('');
 	let isLoading = $state(true);
 	let localTabSet = $state(0);
-	let currentEntryId = $state<any>(null); // Revisions State
+	// Revisions State
 	let revisionsMeta = $state<any[]>([]);
 	let isRevisionsLoading = $state(false);
 	let selectedRevisionId = $state('');
 	let selectedRevisionData = $state<Record<string, any> | null>(null);
 	let isRevisionDetailLoading = $state(false);
 	let diffObject = $state<Record<string, any> | null>(null);
-
 	// Processed collection with evaluated fields (fixes the missing fields issue)
+
 	let processedCollection = $state<any>(null);
 	let fieldsFromModule = $state<any[]>([]);
 
-	// Process collection module to get actual fields
-	$effect(async () => {
-		if (collection.value?.module && !processedCollection) {
-			try {
-				const processed = await processModule(collection.value.module);
-				if (processed?.schema?.fields) {
-					processedCollection = processed.schema;
-					fieldsFromModule = processed.schema.fields;
+	// --- Let widgets handle their own validation - no duplicate validation here ---
+
+	$effect(() => {
+		if (collection.value && (collection.value as any)?.module && !processedCollection) {
+			untrack(async () => {
+				try {
+					const processed = await processModule((collection.value as any).module);
+					if (processed?.schema?.fields) {
+						processedCollection = processed.schema;
+						fieldsFromModule = processed.schema.fields;
+					}
+				} catch (error) {
+					console.error('Failed to process collection module:', error);
 				}
-			} catch (error) {
-				console.error('Failed to process collection module:', error);
-			}
+			});
 		}
 	});
-
 	// Derived state for fields - combines all possible field sources
-	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
 
+	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
 	// Persistent form data that survives tab switches (from old working code)
+
 	let formDataSnapshot = $state<Record<string, any>>({});
 	let isFormDataInitialized = $state(false);
-
 	// Use a single local state for form data, initialized from the global store
-	let currentCollectionValue = $state<Record<string, any>>({});
 
+	let currentCollectionValue = $state<Record<string, any>>({});
 	// Reactive function to get default collection value
+
 	let defaultCollectionValue = $derived.by(() => {
 		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
 		for (const field of derivedFields) {
@@ -118,15 +128,8 @@
 		}
 		return tempCollectionValue;
 	});
-
-	// Simple function to sync changes when needed
-	function syncToGlobalStore() {
-		if (currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
-			collectionValue.set({ ...currentCollectionValue });
-		}
-	}
-
 	// Ensure fields have required properties
+
 	function ensureFieldProperties(field: any) {
 		if (!field) return null;
 		return {
@@ -136,35 +139,68 @@
 			permissions: field.permissions || {}
 		};
 	}
-
 	// Filter fields based on user permissions
+
 	let filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
-			.filter((field) => {
+			.filter((field: any) => {
 				// Always show fields if no permissions are set or user is admin
 				if (!field.permissions) return true;
-				if (user?.roles === 'admin' || user?.role === 'admin') return true;
+				if (page.data?.isAdmin) return true; // Check specific role permissions
 
-				// Check specific role permissions
-				const userRole = user?.role || user?.roles;
+				const userRole = user?.role;
 				if (!userRole) return true; // Show all fields if no role defined
 
 				const rolePermissions = field.permissions[userRole];
 				return !rolePermissions || rolePermissions.read !== false;
 			})
-	);
+	); // Update translation progress when data changes
 
-	// Update translation progress when data changes
 	$effect(() => {
-		if (!collection.value?.fields) return;
-		for (const field of collection.value.fields) {
-			updateTranslationProgress(collectionValue.value, field);
+		const currentCollectionValue = collectionValue.value;
+		const fields = collection.value?.fields;
+
+		if (!fields || !currentCollectionValue) return;
+
+		// This is the logic from the deleted `updateTranslationProgress` function,
+		// now correctly placed within a component's effect.
+		const progress = { ...translationProgress.value }; // Create a mutable copy
+		let hasUpdates = false;
+
+		for (const field of fields) {
+			if (field.translated) {
+				const fieldName = `${collection.value.name}.${getFieldName(field)}`;
+				const dbFieldName = getFieldName(field, false);
+				const fieldValue = currentCollectionValue[dbFieldName];
+
+				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
+					if (!progress[lang]) continue;
+					const langValue = fieldValue?.[lang];
+					const isTranslated =
+						langValue !== null && langValue !== undefined && (typeof langValue === 'string' ? langValue.trim() !== '' : Boolean(langValue));
+
+					const wasTranslated = progress[lang]!.translated.has(fieldName);
+
+					if (isTranslated && !wasTranslated) {
+						progress[lang]!.translated.add(fieldName);
+						hasUpdates = true;
+					} else if (!isTranslated && wasTranslated) {
+						progress[lang]!.translated.delete(fieldName);
+						hasUpdates = true;
+					}
+				}
+			}
+		}
+
+		if (hasUpdates) {
+			// Correctly update the rune by assigning to its .value
+			translationProgress.value = progress;
 		}
 	});
 
-	// Update the main collection value store when form data changes (debounced) - from old working code
+	// Update the main collection value store when form data changes (debounced)
 	let updateTimeout: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
@@ -184,11 +220,13 @@
 		if (!collection.value?._id || !collectionValue.value?._id) return;
 		isRevisionsLoading = true;
 		try {
-			const result = await getRevisions(collection.value._id, collectionValue.value._id, { metaOnly: true });
+			const collectionId = String(collection.value._id);
+			const entryId = String(collectionValue.value._id);
+			const result = await getRevisions(collectionId, entryId, { metaOnly: true });
 			if (result.success) {
 				revisionsMeta = result.data || [];
 			} else {
-				toastStore.trigger({ message: `Error: ${result.error}`, background: 'variant-filled-error' });
+				showToast(`Error: ${result.error}`, 'error');
 			}
 		} finally {
 			isRevisionsLoading = false;
@@ -201,21 +239,24 @@
 		diffObject = null;
 		selectedRevisionData = null;
 		try {
+			const collectionId = String(collection.value._id);
+			const entryId = String(collectionValue.value._id);
 			const result = await getRevisionDiff({
-				collectionId: collection.value._id,
-				entryId: collectionValue.value._id,
+				collectionId: collectionId,
+				entryId: entryId,
 				revisionId: revisionId,
 				currentData: collectionValue.value
 			});
 
-			if (result.success) {
+			if (result.success && result.data) {
 				diffObject = result.data.diff;
 				selectedRevisionData = result.data.revisionData;
 			} else {
 				throw new Error(result.error || 'Failed to fetch revision diff.');
 			}
 		} catch (error) {
-			toastStore.trigger({ message: `Error loading revision diff: ${error.message}`, background: 'variant-filled-error' });
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+			showToast(`Error loading revision diff: ${errorMessage}`, 'error');
 		} finally {
 			isRevisionDetailLoading = false;
 		}
@@ -223,22 +264,17 @@
 
 	function handleRevert() {
 		if (!selectedRevisionData) return;
-
-		const modal: ModalSettings = {
-			type: 'confirm',
+		showConfirm({
 			title: 'Confirm Revert',
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
-					collectionValue.set(revertData);
-					toastStore.trigger({ message: 'Content reverted. Please save your changes.', background: 'variant-filled-success' });
-					localTabSet = 0;
-				}
-			},
-			buttonTextConfirm: 'Revert'
-		};
-		modalStore.trigger(modal);
+			confirmText: 'Revert',
+			onConfirm: () => {
+				const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
+				collectionValue.set(revertData);
+				showToast('Content reverted. Please save your changes.', 'info');
+				localTabSet = 0;
+			}
+		});
 	}
 
 	// --- Effects ---
@@ -263,14 +299,14 @@
 			currentCollectionValue = initialValue;
 			isFormDataInitialized = true;
 		}
-	});
+	}); // Form data persistence across tab switches
 
 	// Form data persistence across tab switches (from old working code)
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue) {
 			// Only sync when on edit tab to avoid unnecessary updates
 			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
-		} else if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
+		} else if (localTabSet !== 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
 			// Merge snapshot data back into currentCollectionValue when returning to edit tab
 			const updatedValue = { ...currentCollectionValue };
 			for (const field of derivedFields) {
@@ -336,8 +372,7 @@
 			<Tab bind:group={localTabSet} name="revisions" value={1}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					{m.applayout_version()}
-					<span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
+					{m.applayout_version()} <span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
 				</div>
 			</Tab>
 		{/if}
@@ -351,11 +386,11 @@
 			</Tab>
 		{/if}
 
-		{#if user?.roles === 'admin'}
+		{#if user?.isAdmin}
 			<Tab bind:group={localTabSet} name="api" value={3}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					API
+					                    API
 				</div>
 			</Tab>
 		{/if}
@@ -414,7 +449,20 @@
 
 											{#if WidgetComponent}
 												{@const fieldName = getFieldName(field, false)}
-												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} />
+												{@const shouldValidateOnMount = field.required && mode.value === 'create'}
+												<!-- Debug validation mount -->
+												{#if process.env.NODE_ENV !== 'production' && shouldValidateOnMount}
+													<div style="font-size:0.7em;color:#0a0;">
+														Validating on mount: {field.label || fieldName} (required: {field.required}, mode: {mode.value}, fieldName: {fieldName})
+													</div>
+												{/if}
+												<WidgetComponent
+													{field}
+													WidgetData={{}}
+													bind:value={currentCollectionValue[fieldName]}
+													{tenantId}
+													validateOnMount={shouldValidateOnMount}
+												/>
 											{:else}
 												<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 											{/if}

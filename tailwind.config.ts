@@ -33,21 +33,16 @@ const config = {
 	theme: {
 		extend: {
 			screens: {
-				//----------------- min-width------------------------------------------------
-				xs: '360px', // => @media (min-width: 360px) { ... }
-				sm: '567px', // => @media (min-width: 576px) { ... }
-				md: '768px', // => @media (min-width: 768px) { ... }
-				lg: '992px', // => @media (min-width: 992px) { ... }
-				xl: '1200px', // => @media (min-width: 1200px) { ... }
-				'2xl': '1536px', // => @media (min-width: 1536px) { ... }
+				// Custom breakpoints (Tailwind defaults: sm:640px, md:768px, lg:1024px, xl:1280px, 2xl:1536px)
+				xs: '360px', // => @media (min-width: 360px) { ... } - Custom extra small breakpoint
 
-				//----------------- max-width------------------------------------------------
-				'max-xs': { max: '360px' }, // => @media (min-width: 360px) { ... }
-				'max-sm': { max: '567px' }, // => @media (min-width: 576px) { ... }
-				'max-md': { max: '768px' }, // => @media (min-width: 768px) { ... }
-				'max-lg': { max: '992px' }, // => @media (min-width: 992px) { ... }
-				'max-xl': { max: '1200px' }, // => @media (min-width: 1200px) { ... }
-				'max-2xl': { max: '1536px' } // => @media (min-width: 1536px) { ... }
+				//----------------- max-width utilities------------------------------------------------
+				'max-xs': { max: '359px' }, // => @media (max-width: 359px) { ... }
+				'max-sm': { max: '639px' }, // => @media (max-width: 639px) { ... }
+				'max-md': { max: '767px' }, // => @media (max-width: 767px) { ... }
+				'max-lg': { max: '1023px' }, // => @media (max-width: 1023px) { ... }
+				'max-xl': { max: '1279px' }, // => @media (max-width: 1279px) { ... }
+				'max-2xl': { max: '1535px' } // => @media (max-width: 1535px) { ... }
 			},
 			fontFamily: {}
 		}

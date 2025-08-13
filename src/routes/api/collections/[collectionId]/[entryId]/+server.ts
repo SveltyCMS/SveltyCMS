@@ -2,25 +2,25 @@
  * @file src/routes/api/collections/[collectionId]/[entryId]/+server.ts
  * @description API endpoint for reading, updating, and deleting a single collection entry
  *
- * @example for get/patch/delete single entry:   /api/collections/:collectionId/:entryId
+ * @example for get/patch/delete single entry:  /api/collections/:collectionId/:entryId
  *
  * Features:
- *    * Handles GET, PATCH, and DELETE verbs for full CRUD on a single entry
- *    * Secure, granular access control per operation
- *    * Automatic metadata updates on modification (updatedBy)
- *    * ModifyRequest support for widget-based data processing
- *    * Status-based access control for non-admin users
+ * * Handles GET, PATCH, and DELETE verbs for full CRUD on a single entry
+ * * Secure, granular access control per operation, scoped to the current tenant
+ * * Automatic metadata updates on modification (updatedBy)
+ * * ModifyRequest support for widget-based data processing
+ * * Status-based access control for non-admin users
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { privateEnv } from '@root/config/private';
 
 // Databases
-import { dbAdapter } from '@src/databases/db';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { hasCollectionPermission } from '@api/permissions';
 import { modifyRequest } from '@api/collections/modifyRequest';
+import { roles, initializeRoles } from '@root/config/roles';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -36,51 +36,52 @@ import { logger } from '@utils/logger.svelte';
 export const GET: RequestHandler = async ({ locals, params }) => {
 	const startTime = performance.now();
 	const endpoint = `GET /api/collections/${params.collectionId}/${params.entryId}`;
+	const { user, tenantId } = locals;
 
 	logger.info(`${endpoint} - Request started`, {
-		userId: locals.user?._id,
-		userEmail: locals.user?.email,
+		userId: user?._id,
+		userEmail: user?.email,
 		collectionId: params.collectionId,
-		entryId: params.entryId
+		entryId: params.entryId,
+		tenantId
 	});
 
 	try {
-		if (!locals.user) {
+		if (!user) {
 			logger.warn(`${endpoint} - Unauthorized access attempt`);
 			throw error(401, 'Unauthorized');
 		}
 
-		const schema = contentManager.getCollectionById(params.collectionId);
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			logger.error(`${endpoint} - Tenant ID is missing in a multi-tenant setup.`);
+			throw error(400, 'Could not identify the tenant for this request.');
+		}
+
+		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
 			logger.warn(`${endpoint} - Collection not found`, {
 				collectionId: params.collectionId,
 				entryId: params.entryId,
-				userId: locals.user._id
+				userId: user._id,
+				tenantId
 			});
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(locals.user, 'read', schema))) {
-			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id,
-				userEmail: locals.user.email,
-				userRole: locals.user.role
-			});
-			throw error(403, 'Forbidden');
-		}
-
+		const dbAdapter = locals.dbAdapter;
 		const collectionName = `collection_${schema._id}`;
-		const result = await dbAdapter.crud.findOne(collectionName, { _id: params.entryId });
+		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
+		if (privateEnv.MULTI_TENANT) {
+			query.tenantId = tenantId;
+		}
+		const result = await dbAdapter.crud.findOne(collectionName, query);
 
 		if (!result.success) {
 			logger.error(`${endpoint} - Database findOne failed`, {
 				collection: schema._id,
 				entryId: params.entryId,
-				operation: 'findOne',
 				error: result.error.message,
-				userId: locals.user._id
+				userId: user._id
 			});
 			throw error(500, 'Failed to retrieve entry.');
 		}
@@ -89,47 +90,40 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			logger.info(`${endpoint} - Entry not found`, {
 				collection: schema._id,
 				entryId: params.entryId,
-				userId: locals.user._id
+				userId: user._id
 			});
 			throw error(404, 'Entry not found');
-		}
+		} // Check if user can access this specific entry (status-based)
 
-		// Check if user can access this specific entry (status-based)
-		const userRole = roles.find((role) => role._id === locals.user.role);
+		await initializeRoles();
+		const userRole = roles.find((role) => role._id === user.role);
 		const isAdmin = userRole?.isAdmin === true;
-		if (!isAdmin && result.data.status !== 'publish') {
+		if (!isAdmin && result.data.status !== 'published') {
 			logger.warn(`${endpoint} - Non-admin user attempted to access unpublished entry`, {
 				collection: schema._id,
 				entryId: params.entryId,
 				entryStatus: result.data.status,
-				userId: locals.user._id,
-				userEmail: locals.user.email,
-				userRole: locals.user.role
+				userId: user._id,
+				userEmail: user.email,
+				userRole: user.role
 			});
 			throw error(404, 'Entry not found');
-		}
+		} // Apply modifyRequest for widget-based processing
 
-		// Apply modifyRequest for widget-based processing
 		const dataArray = [result.data];
 		try {
 			await modifyRequest({
 				data: dataArray,
 				fields: schema.fields,
 				collection: schema,
-				user: locals.user,
-				type: 'GET'
-			});
-			logger.debug(`${endpoint} - ModifyRequest processing completed`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id
+				user: user,
+				type: 'GET',
+				tenantId
 			});
 		} catch (modifyError) {
 			logger.warn(`${endpoint} - ModifyRequest processing failed`, {
-				collection: schema._id,
-				entryId: params.entryId,
 				error: modifyError.message,
-				userId: locals.user._id
+				userId: user._id
 			});
 		}
 
@@ -141,40 +135,15 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		};
 
 		logger.info(`${endpoint} - Entry retrieved successfully`, {
-			collection: schema._id,
-			entryId: params.entryId,
-			entryStatus: result.data.status,
-			userId: locals.user._id,
-			duration: `${duration.toFixed(2)}ms`,
-			status: 200
+			duration: `${duration.toFixed(2)}ms`
 		});
 
 		return json(responseData);
 	} catch (e) {
-		const duration = performance.now() - startTime;
-
 		if (e.status) {
-			// SvelteKit errors (already have status codes)
-			logger.warn(`${endpoint} - Request failed`, {
-				status: e.status,
-				message: e.message || e.body?.message,
-				duration: `${duration.toFixed(2)}ms`,
-				userId: locals.user?._id,
-				collectionId: params.collectionId,
-				entryId: params.entryId
-			});
 			throw e;
 		}
-
-		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
-			duration: `${duration.toFixed(2)}ms`,
-			userId: locals.user?._id,
-			collectionId: params.collectionId,
-			entryId: params.entryId,
-			status: 500
-		});
+		logger.error(`${endpoint} - Unexpected error`, { error: e.message, stack: e.stack });
 		throw error(500, 'Internal Server Error');
 	}
 };
@@ -183,170 +152,88 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const startTime = performance.now();
 	const endpoint = `PATCH /api/collections/${params.collectionId}/${params.entryId}`;
+	const { user, tenantId } = locals;
 
-	logger.info(`${endpoint} - Request started`, {
-		userId: locals.user?._id,
-		userEmail: locals.user?.email,
-		collectionId: params.collectionId,
-		entryId: params.entryId
-	});
+	logger.info(`${endpoint} - Request started`, { userId: user?._id, tenantId });
 
 	try {
-		if (!locals.user) {
-			logger.warn(`${endpoint} - Unauthorized access attempt`);
+		if (!user) {
 			throw error(401, 'Unauthorized');
 		}
 
-		const schema = contentManager.getCollectionById(params.collectionId);
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Could not identify the tenant for this request.');
+		}
+
+		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
-			logger.warn(`${endpoint} - Collection not found`, {
-				collectionId: params.collectionId,
-				entryId: params.entryId,
-				userId: locals.user._id
-			});
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
-			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id,
-				userEmail: locals.user.email,
-				userRole: locals.user.role
-			});
-			throw error(403, 'Forbidden');
-		}
+		// User access already validated by hooks
 
 		let body;
 		const contentType = request.headers.get('content-type');
 
-		// Handle both JSON and FormData
 		if (contentType?.includes('application/json')) {
 			body = await request.json();
-			logger.debug(`${endpoint} - Received JSON update request`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id,
-				updateFields: Object.keys(body || {})
-			});
 		} else if (contentType?.includes('multipart/form-data')) {
 			const formData = await request.formData();
 			body = Object.fromEntries(formData.entries());
-			logger.debug(`${endpoint} - Received FormData update request`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id,
-				fieldCount: Object.keys(body || {}).length
-			});
 		} else {
-			logger.warn(`${endpoint} - Unsupported content type`, {
-				contentType,
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id
-			});
 			throw error(400, 'Unsupported content type');
 		}
 
-		// Prepare update data with metadata
-		const updateData = {
-			...body,
-			updatedBy: locals.user._id
-			// Note: updatedAt is automatically set by the database adapter
-		};
+		const updateData = { ...body, updatedBy: user._id };
 
-		// Apply modifyRequest for pre-processing
 		const dataArray = [updateData];
 		try {
 			await modifyRequest({
 				data: dataArray,
 				fields: schema.fields,
 				collection: schema,
-				user: locals.user,
-				type: 'PATCH'
-			});
-			logger.debug(`${endpoint} - ModifyRequest pre-processing completed`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id
+				user,
+				type: 'PATCH',
+				tenantId
 			});
 		} catch (modifyError) {
-			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				error: modifyError.message,
-				userId: locals.user._id
-			});
+			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, { error: modifyError.message });
 		}
 
+		const dbAdapter = locals.dbAdapter;
 		const collectionName = `collection_${schema._id}`;
+		// First verify the entry exists and belongs to the current tenant
+		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
+		if (privateEnv.MULTI_TENANT) {
+			query.tenantId = tenantId;
+		}
+
+		const verificationResult = await dbAdapter.crud.findOne(collectionName, query);
+		if (!verificationResult.success || !verificationResult.data) {
+			throw error(404, 'Entry not found or access denied');
+		}
+
 		const result = await dbAdapter.crud.update(collectionName, params.entryId, dataArray[0]);
 
 		if (!result.success) {
-			logger.error(`${endpoint} - Database update failed`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				operation: 'update',
-				error: result.error.message,
-				userId: locals.user._id
-			});
 			throw new Error(result.error.message);
 		}
 
 		if (!result.data) {
-			logger.info(`${endpoint} - Entry not found for update`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id
-			});
 			throw error(404, 'Entry not found');
 		}
 
 		const duration = performance.now() - startTime;
-		const responseData = {
-			success: true,
-			data: result.data,
-			performance: { duration }
-		};
+		const responseData = { success: true, data: result.data, performance: { duration } };
 
-		logger.info(`${endpoint} - Entry updated successfully`, {
-			collection: schema._id,
-			entryId: params.entryId,
-			updatedFields: Object.keys(body || {}),
-			userId: locals.user._id,
-			userEmail: locals.user.email,
-			duration: `${duration.toFixed(2)}ms`,
-			responseSize: JSON.stringify(responseData).length,
-			status: 200
-		});
+		logger.info(`${endpoint} - Entry updated successfully`, { duration: `${duration.toFixed(2)}ms` });
 
 		return json(responseData);
 	} catch (e) {
-		const duration = performance.now() - startTime;
-
 		if (e.status) {
-			// SvelteKit errors (already have status codes)
-			logger.warn(`${endpoint} - Request failed`, {
-				status: e.status,
-				message: e.message || e.body?.message,
-				duration: `${duration.toFixed(2)}ms`,
-				userId: locals.user?._id,
-				collectionId: params.collectionId,
-				entryId: params.entryId
-			});
 			throw e;
 		}
-
-		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
-			duration: `${duration.toFixed(2)}ms`,
-			userId: locals.user?._id,
-			collectionId: params.collectionId,
-			entryId: params.entryId,
-			status: 500
-		});
+		logger.error(`${endpoint} - Unexpected error`, { error: e.message, stack: e.stack });
 		throw error(500, 'Internal Server Error');
 	}
 };
@@ -355,100 +242,56 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	const startTime = performance.now();
 	const endpoint = `DELETE /api/collections/${params.collectionId}/${params.entryId}`;
+	const { user, tenantId } = locals;
 
-	logger.info(`${endpoint} - Request started`, {
-		userId: locals.user?._id,
-		userEmail: locals.user?.email,
-		collectionId: params.collectionId,
-		entryId: params.entryId
-	});
+	logger.info(`${endpoint} - Request started`, { userId: user?._id, tenantId });
 
 	try {
-		if (!locals.user) {
-			logger.warn(`${endpoint} - Unauthorized access attempt`);
+		if (!user) {
 			throw error(401, 'Unauthorized');
 		}
 
-		const schema = contentManager.getCollectionById(params.collectionId);
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Could not identify the tenant for this request.');
+		}
+
+		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
-			logger.warn(`${endpoint} - Collection not found`, {
-				collectionId: params.collectionId,
-				entryId: params.entryId,
-				userId: locals.user._id
-			});
 			throw error(404, 'Collection not found');
 		}
 
-		if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
-			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id,
-				userEmail: locals.user.email,
-				userRole: locals.user.role
-			});
-			throw error(403, 'Forbidden');
+		const dbAdapter = locals.dbAdapter;
+		const normalizedCollectionId = normalizeCollectionName(schema._id);
+
+		// First verify the entry exists and belongs to the current tenant
+		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
+		if (privateEnv.MULTI_TENANT) {
+			query.tenantId = tenantId;
 		}
 
-		// Get normalized collection name for database operations
-		const normalizedCollectionId = normalizeCollectionName(schema._id);
+		const verificationResult = await dbAdapter.crud.findOne(normalizedCollectionId, query);
+		if (!verificationResult.success || !verificationResult.data) {
+			throw error(404, 'Entry not found or access denied');
+		}
+
 		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId);
 
 		if (!result.success) {
 			if (result.error.message.includes('not found')) {
-				logger.info(`${endpoint} - Entry not found for deletion`, {
-					collection: schema._id,
-					entryId: params.entryId,
-					userId: locals.user._id
-				});
 				throw error(404, 'Entry not found');
 			}
-			logger.error(`${endpoint} - Database deletion failed`, {
-				error: result.error.message,
-				collection: schema._id,
-				entryId: params.entryId,
-				userId: locals.user._id
-			});
 			throw error(500, 'Failed to delete entry');
 		}
 
 		const duration = performance.now() - startTime;
-
-		logger.info(`${endpoint} - Entry deleted successfully`, {
-			collection: schema._id,
-			entryId: params.entryId,
-			userId: locals.user._id,
-			userEmail: locals.user.email,
-			duration: `${duration.toFixed(2)}ms`,
-			status: 204
-		});
+		logger.info(`${endpoint} - Entry deleted successfully`, { duration: `${duration.toFixed(2)}ms` });
 
 		return new Response(null, { status: 204 }); // 204 No Content
 	} catch (e) {
-		const duration = performance.now() - startTime;
-
 		if (e.status) {
-			// SvelteKit errors (already have status codes)
-			logger.warn(`${endpoint} - Request failed`, {
-				status: e.status,
-				message: e.message || e.body?.message,
-				duration: `${duration.toFixed(2)}ms`,
-				userId: locals.user?._id,
-				collectionId: params.collectionId,
-				entryId: params.entryId
-			});
 			throw e;
 		}
-
-		logger.error(`${endpoint} - Unexpected error`, {
-			error: e.message,
-			stack: e.stack,
-			duration: `${duration.toFixed(2)}ms`,
-			userId: locals.user?._id,
-			collectionId: params.collectionId,
-			entryId: params.entryId,
-			status: 500
-		});
+		logger.error(`${endpoint} - Unexpected error`, { error: e.message, stack: e.stack });
 		throw error(500, 'Internal Server Error');
 	}
 };

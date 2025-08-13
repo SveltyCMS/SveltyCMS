@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file Authentication Form Component for SveltyCMS
 @component
 **This component handles both SignIn and SignUp functionality for the SveltyCMS**
@@ -13,7 +13,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/utils/configMigration';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import type { PageData } from './$types';
 
 	// Components
@@ -23,10 +23,10 @@ Features:
 	import Seasons from '@components/system/icons/Seasons.svelte';
 
 	// Stores
-	import { systemLanguage } from '@stores/store.svelte';
+	// ...existing code...
 	import { getLanguageName } from '@utils/languageUtils';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { setSystemLanguage } from '@stores/store.svelte';
+	import { systemLanguage } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -43,7 +43,7 @@ Features:
 
 	// Set Initial active state based on conditions (will be updated by effect)
 	let active = $state<undefined | 0 | 1>(
-		publicEnv.DEMO || publicEnv.SEASONS
+		getPublicSetting('DEMO') || getPublicSetting('SEASONS')
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
@@ -69,9 +69,9 @@ Features:
 
 	// Set initial background based on conditions (will be updated reactively)
 	let background = $state<'white' | '#242728'>(
-		publicEnv.DEMO
+		getPublicSetting('DEMO')
 			? '#242728' // Dark background for DEMO mode
-			: publicEnv.SEASONS
+			: getPublicSetting('SEASONS')
 				? 'white' // Light background for SEASONS mode
 				: firstUserExists
 					? 'white' // Light background for existing users
@@ -94,8 +94,8 @@ Features:
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived(
-		Array.isArray(publicEnv.LOCALES)
-			? [...publicEnv.LOCALES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		Array.isArray(getPublicSetting('LOCALES'))
+			? [...getPublicSetting('LOCALES')].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 			: ['en']
 	);
 
@@ -109,7 +109,9 @@ Features:
 
 	// Ensure a valid language is always used
 	const currentLanguage = $derived(
-		systemLanguage.value && Array.isArray(publicEnv.LOCALES) && publicEnv.LOCALES.includes(systemLanguage.value) ? systemLanguage.value : 'en'
+		systemLanguage.value && Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').includes(systemLanguage.value)
+			? systemLanguage.value
+			: 'en'
 	);
 
 	// Package version
@@ -120,7 +122,7 @@ Features:
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			setSystemLanguage(lang as (typeof systemLanguage)['value']);
+			systemLanguage.set(lang as (typeof systemLanguage)['value']);
 			isDropdownOpen = false;
 			searchQuery = '';
 		}, 100); // Reduced delay for faster feedback
@@ -166,7 +168,7 @@ Features:
 	// Set up the interval to update the countdown every second
 	$effect(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
-		if (publicEnv.DEMO) {
+		if (getPublicSetting('DEMO')) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
@@ -180,7 +182,7 @@ Features:
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = publicEnv.DEMO ? '#242728' : publicEnv.SEASONS ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = getPublicSetting('DEMO') ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -226,13 +228,13 @@ Features:
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
+		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
+		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
 			background = '#242728';
 		}
 	}
@@ -296,7 +298,7 @@ Features:
 	/>
 
 	{#if active == undefined}
-		{#if publicEnv.DEMO}
+		{#if getPublicSetting('DEMO')}
 			<!-- DEMO MODE -->
 			<div
 				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
@@ -330,7 +332,7 @@ Features:
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			{#if Array.isArray(publicEnv.LOCALES) && publicEnv.LOCALES.length > 5}
+			{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
 				<div class="relative">
 					<!-- Current Language Display -->
 					<button

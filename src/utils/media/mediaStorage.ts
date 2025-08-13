@@ -4,8 +4,9 @@
  * This module handles all file system operations and media processing.
  */
 
-import { setCache } from '@root/src/databases/redis';
+import { cacheService } from '@src/databases/CacheService';
 import { dbAdapter } from '@src/databases/db';
+import { getPublicSetting } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 import { sanitize } from '@utils/utils';
 import crypto from 'crypto';
@@ -27,7 +28,7 @@ type ImageSizesType = typeof defaultImageSizes & {
 };
 
 const SIZES: ImageSizesType = {
-	...(publicEnv.IMAGE_SIZES || defaultImageSizes),
+	...(getPublicSetting('IMAGE_SIZES') || defaultImageSizes),
 	original: 0,
 	thumbnail: 200
 } as const;
@@ -41,9 +42,7 @@ async function getFs() {
 	return fs;
 }
 
-/**
- * Resizes an image using Sharp
- */
+// Resizes an image using Sharp
 export async function resizeImage(buffer: Buffer, width: number, height?: number): Promise<Sharp.Sharp> {
 	if (!import.meta.env.SSR) {
 		throw error(500, 'File operations can only be performed on the server');
@@ -54,13 +53,11 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 	});
 }
 
-/**
- * Saves a file to disk
- */
+// Saves a file to disk
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	try {
 		const fs = await getFs();
-		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const fullPath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 		const dir = Path.dirname(fullPath);
 
 		logger.debug('Creating directory for file', {
@@ -96,9 +93,7 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 	}
 }
 
-/**
- * Saves resized versions of an image
- */
+// Saves resized versions of an image
 export async function saveResizedImages(
 	buffer: Buffer,
 	hash: string,
@@ -125,15 +120,16 @@ export async function saveResizedImages(
 			let resizedBuffer = await resizeImage(buffer, width);
 
 			// Apply format conversion if configured
-			if (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format !== 'original') {
-				resizedBuffer = resizedBuffer.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as 'avif' | 'webp', {
-					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality,
+			const formatQuality = getPublicSetting('MEDIA_OUTPUT_FORMAT_QUALITY');
+			if (formatQuality && formatQuality.format !== 'original') {
+				resizedBuffer = resizedBuffer.toFormat(formatQuality.format as 'avif' | 'webp', {
+					quality: formatQuality.quality,
 					lossless: false
 				});
 			}
 
 			// Use correct extension based on output format
-			const outputExt = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : `.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+			const outputExt = formatQuality && formatQuality.format === 'original' ? ext : `.${formatQuality?.format ?? ''}`;
 
 			const resizedUrl = Path.posix.join(basePath, size, `${fileName}-${hash}.${outputExt}`);
 
@@ -188,15 +184,13 @@ export async function saveResizedImages(
 	return resizedImages;
 }
 
-/**
- * Deletes a file from storage
- */
+// Deletes a file from storage
 export async function deleteFile(url: string): Promise<void> {
 	const startTime = performance.now();
 
 	try {
 		const fs = await getFs();
-		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 
 		logger.debug('Deleting file', {
 			url,
@@ -222,12 +216,10 @@ export async function deleteFile(url: string): Promise<void> {
 	}
 }
 
-/**
- * Retrieves a file from storage
- */
+// Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 	const buffer = await fs.promises.readFile(filePath);
 	logger.info('File retrieved from disk', { url });
 	return buffer;
@@ -238,7 +230,7 @@ export async function getFile(url: string): Promise<Buffer> {
  */
 export async function fileExists(url: string): Promise<boolean> {
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 	try {
 		await fs.promises.access(filePath);
 		return true;
@@ -247,47 +239,74 @@ export async function fileExists(url: string): Promise<boolean> {
 	}
 }
 
-/**
- * Moves a file to trash
- */
+// Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	// Remove leading slash and/or MEDIA_FOLDER prefix to get relative path within media folder
-	let relativeUrl = url;
+	const mediaFolder = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
 
-	// Remove leading slash if present
-	if (relativeUrl.startsWith('/')) {
-		relativeUrl = relativeUrl.substring(1);
+	// Normalize various possible forms:
+	// - /files/avatars/...
+	// - /mediaFiles/avatars/...
+	// - mediaFiles/avatars/...
+	// - avatars/...
+	let input = (url || '').toString();
+	// Strip origin
+	input = input.replace(/^https?:\/\/[^/]+/i, '');
+	// Remove leading slashes
+	input = input.replace(/^\/+/, '');
+	// Map files/ to media folder space
+	if (input.startsWith('files/')) {
+		input = input.slice('files/'.length);
+	}
+	// Remove media folder prefix if present
+	if (input.startsWith(`${mediaFolder}/`)) {
+		input = input.slice(mediaFolder.length + 1);
 	}
 
-	// Remove MEDIA_FOLDER prefix if present (after removing leading slash)
-	const mediaFolderPrefix = `${publicEnv.MEDIA_FOLDER}/`;
-	if (relativeUrl.startsWith(mediaFolderPrefix)) {
-		relativeUrl = relativeUrl.substring(mediaFolderPrefix.length);
+	// Guard: invalid or empty path
+	if (!input || input.endsWith('/')) {
+		logger.warn('moveMediaToTrash called with invalid path; skipping', { url, normalized: input });
+		return;
 	}
 
-	const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, relativeUrl);
-	const trashPath = Path.join(publicEnv.MEDIA_FOLDER, '.trash', Path.basename(relativeUrl));
+	const sourceAbs = Path.join(process.cwd(), mediaFolder, input);
+	const trashAbs = Path.join(process.cwd(), mediaFolder, '.trash', input); // preserve subdirs
 
-	// Create trash directory if it doesn't exist
-	await fs.promises.mkdir(Path.dirname(trashPath), { recursive: true });
+	// Ensure trash dir exists
+	await fs.promises.mkdir(Path.dirname(trashAbs), { recursive: true });
 
-	// Move file to trash
-	await fs.promises.rename(sourcePath, trashPath);
-	logger.info('File moved to trash', { originalUrl: url, trashUrl: trashPath });
+	try {
+		const stat = await fs.promises.stat(sourceAbs).catch(() => null);
+		if (!stat) {
+			logger.warn('Source file not found for trash; skipping', { sourceAbs });
+			return;
+		}
+		if (!stat.isFile()) {
+			// Do not attempt to trash directories
+			logger.warn('Source path is not a file; skipping', { sourceAbs });
+			return;
+		}
+		await fs.promises.rename(sourceAbs, trashAbs);
+		logger.info('File moved to trash', { originalUrl: url, trashUrl: trashAbs });
+	} catch (err) {
+		const code = err && typeof err === 'object' && 'code' in err ? (err as { code?: string }).code : undefined;
+		if (code === 'ENOENT') {
+			logger.warn('File not found during trash operation; skipping', { sourceAbs });
+			return;
+		}
+		// Re-throw for upstream handling for unexpected errors
+		throw err;
+	}
 }
 
-/**
- * Cleans up media directory
- */
+// Cleans up media directory
+
 export async function cleanMediaDirectory(): Promise<void> {
 	// Implementation for cleaning up unused files
 	logger.info('Media directory cleanup completed');
 }
 
-/**
- * Saves a remote media file to the database
- */
+// Saves a remote media file to the database
 export async function saveRemoteMedia(fileUrl: string, contentTypes: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
 		// Fetch the media file from the provided URL
@@ -358,7 +377,7 @@ export async function saveRemoteMedia(fileUrl: string, contentTypes: string, use
 		}
 
 		const id = insertResult.data._id || '';
-		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
+		await cacheService.set(`media:${id}`, fileInfo, 3600);
 
 		logger.info('Remote media saved to database', { fileInfo });
 		return { id, fileInfo };
@@ -384,7 +403,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 
 		const fs = await getFs();
 		// Create avatars directory under the media folder
-		const avatarsPath = Path.join(process.cwd(), publicEnv.MEDIA_FOLDER, 'avatars');
+		const avatarsPath = Path.join(process.cwd(), getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', 'avatars');
 		if (!fs.existsSync(avatarsPath)) {
 			await fs.promises.mkdir(avatarsPath, { recursive: true });
 		}
@@ -401,10 +420,11 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		if (existingFile && existingFile.success && existingFile.data) {
 			const mediaData = existingFile.data as { url?: string };
 			let fileUrl = mediaData.url || '';
-			if (publicEnv.MEDIASERVER_URL) {
-				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			const mediaServerUrl = getPublicSetting('MEDIASERVER_URL');
+			if (mediaServerUrl) {
+				fileUrl = `${mediaServerUrl}/${fileUrl}`;
 			} else {
-				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+				fileUrl = `${getPublicSetting('MEDIA_FOLDER') || 'mediaFiles'}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -521,7 +541,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		}
 
 		// Return the URL for serving to the client - this will be saved to user.avatar field
-		const fileUrl = `/${publicEnv.MEDIA_FOLDER}/${avatarUrl}`;
+		const fileUrl = `/${getPublicSetting('MEDIA_FOLDER') || 'mediaFiles'}/${avatarUrl}`;
 
 		logger.info('Avatar saved successfully to disk', {
 			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId,

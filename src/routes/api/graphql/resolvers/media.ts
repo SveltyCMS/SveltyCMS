@@ -20,12 +20,13 @@
  * - Provides the foundation for querying media data through the GraphQL API
  */
 
-import { dbAdapter } from '@src/databases/db';
+import { privateEnv } from '@root/config/private';
+
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 // System Logs
 import { logger } from '@utils/logger.svelte';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // Types
 import type { User } from '@src/auth/types';
@@ -81,13 +82,16 @@ interface PaginationArgs {
 // GraphQL context type
 interface GraphQLContext {
 	user?: User;
+	tenantId?: string;
 }
 
 // GraphQL parent type for media resolvers
 type MediaResolverParent = unknown;
 
 // Builds resolvers for querying media data with pagination support.
-export function mediaResolvers() {
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
+
+export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Check media permissions
 		if (!context.user) {
@@ -95,30 +99,40 @@ export function mediaResolvers() {
 			throw new Error('Authentication required');
 		}
 
-		const permissionResult = await checkApiPermission(context.user, {
-			resource: 'media',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`GraphQL: User ${context.user._id} denied access to media type ${contentTypes}`);
-			throw new Error(`Access denied: ${permissionResult.error || 'Insufficient permissions for media access'}`);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
 			throw Error('Database adapter is not initialized');
 		}
 
+		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
+			throw new Error('Internal Server Error: Tenant context is missing.');
+		}
+
 		const { page = 1, limit = 50 } = pagination || {};
-		const skip = (page - 1) * limit;
 
 		try {
-			const result = await dbAdapter.findMany(contentTypes, {}, { sort: { createdAt: -1 }, skip, limit });
-			logger.info(`Fetched ${contentTypes}`, { count: result.length });
-			return result;
+			// --- MULTI-TENANCY: Scope the query by tenantId ---
+			const query: { tenantId?: string } = {};
+			if (privateEnv.MULTI_TENANT) {
+				query.tenantId = context.tenantId;
+			}
+
+			// Use query builder pattern consistent with REST API
+			const queryBuilder = dbAdapter.queryBuilder(contentTypes).where(query).sort('createdAt', 'desc').paginate({ page, pageSize: limit });
+
+			const result = await queryBuilder.execute();
+
+			if (!result.success) {
+				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
+			}
+
+			logger.info(`Fetched ${contentTypes}`, { count: result.data.length, tenantId: context.tenantId });
+			return result.data;
 		} catch (error) {
-			logger.error(`Error fetching data for ${contentTypes}:`, error);
+			logger.error(`Error fetching data for ${contentTypes}:`, { error, tenantId: context.tenantId });
 			throw Error(`Failed to fetch data for ${contentTypes}`);
 		}
 	};

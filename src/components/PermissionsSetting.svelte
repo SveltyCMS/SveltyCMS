@@ -17,13 +17,11 @@ Features:
 -->
 
 <script lang="ts">
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 	import type { Role } from '@src/auth/types';
 	import { PermissionAction } from '@src/auth/types';
-	// Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
 
-	const toastStore = getToastStore();
+	// Skeleton
+	import { showToast } from '@utils/toast';
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
@@ -31,18 +29,18 @@ Features:
 		onUpdate?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
 	}
 
-	let { permissions = {}, onUpdate = () => {} }: Props = $props();
+	let { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
 
 	// Local state
 	let error: string | null = $state(null);
 	let searchQuery = $state('');
 
 	// Convert permissions object to include all roles with default values
-	function initializePermissions() {
-		const initializedPermissions = { ...permissions };
+	function initializePermissions(currentPermissions: Record<string, any>, availableRoles: Role[]) {
+		const initializedPermissions = { ...currentPermissions };
 
-		// Ensure all roles have entries
-		getGlobalSetting('ROLES').forEach((role) => {
+		// Ensure all roles from the prop have entries
+		availableRoles.forEach((role) => {
 			if (!initializedPermissions[role._id]) {
 				initializedPermissions[role._id] = {
 					create: true,
@@ -60,9 +58,13 @@ Features:
 		return initializedPermissions;
 	}
 
-	let permissionsState = $state(initializePermissions());
+	let permissionsState = $state(initializePermissions(permissions, roles));
 
-	// Function to toggle permission
+	// Re-initialize when props change
+	$effect(() => {
+		permissionsState = initializePermissions(permissions, roles);
+	}); // Function to toggle permission
+
 	function togglePermission(roleId: string, action: PermissionAction) {
 		if (!permissionsState[roleId]) {
 			permissionsState[roleId] = {} as Record<PermissionAction, boolean>;
@@ -94,20 +96,6 @@ Features:
 		);
 
 		onUpdate(cleanedPermissions);
-	}
-
-	// Show toast messages
-	function showToast(message: string, type: 'success' | 'warning' | 'error') {
-		const backgrounds = {
-			success: 'variant-filled-success',
-			warning: 'variant-filled-warning',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message,
-			background: backgrounds[type],
-			timeout: 3000
-		});
 	}
 
 	// Filter roles based on search

@@ -21,17 +21,15 @@ It provides functionality to:
 	import { tick } from 'svelte';
 
 	// Types
-	import type { Role } from '@src/auth';
+	import type { Role } from '@src/auth/types';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
-
-	const toastStore = getToastStore();
+	import { showToast } from '@utils/toast';
 
 	let { roleData, setRoleData } = $props();
 
-	// Reactive state using Svelte 5 runes
+	// Reactive state
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let currentAdminRole = $state<string | null>(null);
@@ -70,21 +68,6 @@ It provides functionality to:
 		const selectedRoleId = (event.target as HTMLSelectElement).value;
 		selectedAdminRole = selectedRoleId;
 	};
-
-	// Show corresponding Toast messages
-	function showToast(message: string, type: 'success' | 'info' | 'error') {
-		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message: message,
-			background: backgrounds[type],
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		});
-	}
 
 	// Function to save the new admin role
 	const saveAdminRole = async () => {

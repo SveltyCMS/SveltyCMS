@@ -25,7 +25,7 @@ This component provides a streamlined interface for managing collection entries 
 
 <script lang="ts">
 	// Correctly import the new, direct action handlers
-	import { cloneCurrentEntry, deleteCurrentEntry, scheduleCurrentEntry, saveEntry } from '../utils/entryActions';
+	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
 
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
@@ -33,37 +33,111 @@ This component provides a streamlined interface for managing collection entries 
 	// Stores
 	import { page } from '$app/state';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
+	// Subscribe to shouldShowNextButton store for use in markup (runes mode)
+	let shouldShowNextButtonValue = $derived(shouldShowNextButton);
 	import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
-	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
+	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// Utils & Components
-	import { convertTimestampToDateString } from '@utils/utils';
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
+	import { showScheduleModal } from '@utils/modalUtils';
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
 
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	const { user } = page.data;
+	const isAdmin = page.data.isAdmin || false;
 
-	// --- State Management ---
-	let isPublish = $state(false);
+	// --- Wrapper functions for event handlers ---
+	const handleCloneEntry = () => cloneCurrentEntry();
+	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, isAdmin);
+
+	// --- Status Management using collection status directly  ---
+	const isPublish = $derived(() => {
+		const status = collectionValue.value?.status ?? collection.value?.status ?? StatusTypes.unpublish;
+		return status === StatusTypes.publish;
+	});
+	let isLoading = $state(false);
+
+	// Handle toggle changes - update collection status directly
+	async function handleStatusToggle(newValue: boolean) {
+		if (newValue === isPublish || isLoading) {
+			if (process.env.NODE_ENV !== 'production') {
+				console.log('[RightSidebar] Toggle skipped', { newValue, isPublish, isLoading });
+			}
+			return false;
+		}
+
+		isLoading = true;
+		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
+		if (process.env.NODE_ENV !== 'production') {
+			console.log('[RightSidebar] Status toggle clicked - updating to:', newStatus);
+		}
+
+		try {
+			// If entry exists, update via API
+			if (collectionValue.value?._id && collection.value?._id) {
+				const { updateEntryStatus } = await import('@src/utils/apiClient');
+				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
+
+				if (result.success) {
+					// Update the collection value store
+					collectionValue.update((current) => ({ ...current, status: newStatus }));
+
+					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
+
+					if (process.env.NODE_ENV !== 'production') {
+						console.log('[RightSidebar] API update successful');
+					}
+					return true;
+				} else {
+					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
+
+					console.error('[RightSidebar] API update failed:', result.error);
+					return false;
+				}
+			} else {
+				// New entry - just update local state
+				collectionValue.update((current) => ({ ...current, status: newStatus }));
+				if (process.env.NODE_ENV !== 'production') {
+					console.log('[RightSidebar] Local update for new entry');
+				}
+				return true;
+			}
+		} catch (e) {
+			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
+			showToast(errorMessage, 'error');
+
+			console.error('[RightSidebar] Toggle error:', e);
+			return false;
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	const shouldDisableStatusToggle = $derived(
+		(mode.value === 'create' && !uiStateManager.isRightSidebarVisible.value) ||
+			(mode.value === 'edit' && !uiStateManager.isRightSidebarVisible.value && screenSize.value !== 'LG') ||
+			isLoading
+	);
+
 	let schedule = $state('');
 
+	// Handle schedule updates
 	$effect(() => {
 		const cv = collectionValue.value;
-		isPublish = cv?.status === StatusTypes.publish;
 		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
 	});
-
 	let dates = $derived({
 		created: collectionValue.value?.createdAt
-			? new Date(collectionValue.value.createdAt).toLocaleDateString(getLocale(), {
+			? new Date(String(collectionValue.value.createdAt)).toLocaleDateString(getLocale(), {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -72,7 +146,7 @@ This component provides a streamlined interface for managing collection entries 
 				})
 			: '-',
 		updated: collectionValue.value?.updatedAt
-			? new Date(collectionValue.value.updatedAt).toLocaleDateString(getLocale(), {
+			? new Date(String(collectionValue.value.updatedAt)).toLocaleDateString(getLocale(), {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -92,59 +166,55 @@ This component provides a streamlined interface for managing collection entries 
 	});
 
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = { ref: ScheduleModal };
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
-			component: modalComponent,
-			response: (r: { date: string; action: string } | boolean) => {
-				if (typeof r === 'object' && r.date) {
-					schedule = r.date;
-					if (r.action === 'schedule') {
-						collectionValue.update((cv) => ({
-							...cv,
-							status: StatusTypes.schedule,
-							_scheduled: new Date(r.date).getTime()
-						}));
+		showScheduleModal({
+			onSchedule: (date: Date, action: string) => {
+				schedule = date.toISOString();
+				if (action === 'schedule') {
+					collectionValue.update((cv) => ({
+						...cv,
+						status: StatusTypes.schedule,
+						_scheduled: date.getTime()
+					}));
+					if (process.env.NODE_ENV !== 'production') {
+						console.log('[RightSidebar] Entry scheduled');
 					}
 				}
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
-	function toggleStatus() {
-		isPublish = !isPublish;
-		collectionValue.update((cv) => ({
-			...cv,
-			status: isPublish ? StatusTypes.publish : StatusTypes.unpublish,
-			updatedAt: new Date()
-		}));
-	}
-
-	async function saveData() {
+	// Shared save logic for HeaderEdit and RightSidebar
+	function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
-			console.warn('Save blocked due to validation errors.');
+			console.warn('[RightSidebar] Save blocked due to validation errors.');
+			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
 		const dataToSave = { ...collectionValue.value };
+
+		// Status rules: Schedule takes precedence, otherwise use current collection status
+		if (schedule && schedule.trim() !== '') {
+			dataToSave.status = StatusTypes.schedule;
+			dataToSave._scheduled = new Date(schedule).getTime();
+		} else {
+			dataToSave.status = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
+			delete dataToSave._scheduled;
+		}
 
 		// Set metadata for all saves
 		if (mode.value === 'create') {
 			dataToSave.createdBy = user?.username ?? 'system';
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
-
-		// Handle scheduling if set
-		if (schedule && schedule.trim() !== '') {
-			dataToSave._scheduled = new Date(schedule).getTime();
-		} else {
-			delete dataToSave._scheduled;
+		if (process.env.NODE_ENV !== 'production') {
+			console.log('[RightSidebar] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
 		}
-
-		await saveEntry(dataToSave, toastStore, isPublish);
+		saveEntry(dataToSave);
 		handleUILayoutToggle();
+	}
+
+	async function saveData() {
+		prepareAndSaveEntry();
 	}
 
 	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
@@ -155,12 +225,13 @@ This component provides a streamlined interface for managing collection entries 
 
 {#if showSidebar}
 	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
-		{#if $shouldShowNextButton && mode.value === 'create'}
+		{#if shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
 			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
-		{:else}
+		{/if}
+		{#if !(shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
 			<header class="flex flex-col items-center justify-center gap-3">
 				<button
 					type="button"
@@ -170,7 +241,7 @@ This component provides a streamlined interface for managing collection entries 
 					class:opacity-50={!validationStore.isValid || !canWrite}
 					class:cursor-not-allowed={!validationStore.isValid || !canWrite}
 					aria-label="Save entry"
-					title={validationStore.isValid() ? 'Save changes' : 'Please fix validation errors before saving'}
+					title={validationStore.isValid ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
 					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
@@ -178,12 +249,14 @@ This component provides a streamlined interface for managing collection entries 
 
 				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
+						value={isPublish}
 						label={isPublish ? m.status_publish() : m.status_unpublish()}
 						labelColor={isPublish ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
-						bind:value={isPublish}
-						onChange={toggleStatus}
+						disabled={shouldDisableStatusToggle || isLoading}
+						on:change={(e) => handleStatusToggle(e.detail)}
+						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : isPublish ? m.status_publish() : m.status_unpublish()}
 					/>
 				</div>
 
@@ -191,7 +264,7 @@ This component provides a streamlined interface for managing collection entries 
 					<div class="flex w-full flex-col gap-2">
 						<button
 							type="button"
-							onclick={cloneCurrentEntry}
+							onclick={handleCloneEntry}
 							disabled={!canCreate}
 							class="gradient-secondary gradient-secondary-hover btn w-full gap-2 text-white shadow-md transition-all duration-200"
 							aria-label="Clone entry"
@@ -202,7 +275,7 @@ This component provides a streamlined interface for managing collection entries 
 
 						<button
 							type="button"
-							onclick={deleteCurrentEntry}
+							onclick={handleDeleteEntry}
 							disabled={!canDelete}
 							class="variant-filled-error btn w-full gap-2 shadow-md transition-all duration-200 hover:shadow-lg"
 							aria-label="Delete entry"
@@ -242,11 +315,7 @@ This component provides a streamlined interface for managing collection entries 
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{#if user?.username}
-									<div class="-ml-1.5">
-										{user?.username}
-									</div>
-								{/if}
+								{collectionValue.value?.createdBy || user?.username || 'system'}
 							</span>
 						</div>
 					</div>
@@ -256,11 +325,7 @@ This component provides a streamlined interface for managing collection entries 
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{#if user?.username}
-										<div class="-ml-1.5">
-											{user?.username}
-										</div>
-									{/if}
+									{collectionValue.value.updatedBy || user?.username || 'system'}
 								</span>
 							</div>
 						</div>

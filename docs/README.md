@@ -1,3 +1,14 @@
+---
+title: SveltyCMS Documentation
+description: Complete documentation for SveltyCMS - a powerful, modern Headless CMS built with SvelteKit and Svelte 5. Designed for both users and developers.
+type: user
+icon: mdi:book-open-variant
+folder: 01-getting-started
+order: 10
+created: 2025-08-05
+updated: 2025-08-05
+---
+
 # SveltyCMS Documentation
 
 Welcome to SveltyCMS - a powerful, modern Headless CMS built with SvelteKit and Svelte 5. Our documentation is designed with two clear goals:

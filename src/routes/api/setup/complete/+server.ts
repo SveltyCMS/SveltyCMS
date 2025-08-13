@@ -5,14 +5,13 @@
 
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { connectToMongoDBWithConfig } from '@src/databases/mongodb/dbconnect';
-import { SystemPreferencesModel } from '@src/databases/mongodb/models/systemPreferences';
 import { getPublicSettings, invalidateSettingsCache, loadGlobalSettings } from '@src/stores/globalSettings';
 import { setupAdminSchema } from '@src/utils/formSchemas';
 import { hashPassword } from '@src/utils/password';
 import { json } from '@sveltejs/kit';
 import { randomBytes } from 'crypto';
-import { safeParse } from 'valibot';
 import mongoose from 'mongoose';
+import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
 // Interface definitions for better type safety
@@ -276,8 +275,10 @@ async function saveSettingsToDatabase(system: SystemConfig, apiKeys: ApiKeysConf
 		{ key: 'SECRET_MAPBOX_API_TOKEN', value: apiKeys?.secretMapboxApiToken ?? undefined, visibility: 'private' }
 	];
 
+	// Use the dedicated SystemSettingModel for key-value settings
+	const { SystemSettingModel } = await import('@src/databases/mongodb/models/setting');
 	for (const setting of settings) {
-		await SystemPreferencesModel.updateOne(
+		await SystemSettingModel.updateOne(
 			{ key: setting.key, scope: 'system' },
 			{
 				$set: {
@@ -295,8 +296,13 @@ async function saveSettingsToDatabase(system: SystemConfig, apiKeys: ApiKeysConf
 }
 
 async function createAdminUser(admin: AdminConfig) {
+	// Debug: Log admin email before calling getUserByEmail
+	console.log('Backend received admin email:', admin.email);
 	if (!admin.username || !admin.email || !admin.password) {
 		throw new Error('Admin user information is incomplete');
+	}
+	if (typeof admin.email !== 'string' || !admin.email.trim() || !admin.email.includes('@')) {
+		throw new Error('Admin email is missing or invalid.');
 	}
 
 	// Validate admin user data against centralized schema
@@ -313,7 +319,7 @@ async function createAdminUser(admin: AdminConfig) {
 	const userAdapter = new UserAdapter();
 
 	// Check if user already exists
-	const existingUser = await userAdapter.getUserByEmail(admin.email);
+	const existingUser = await userAdapter.getUserByEmail({ email: admin.email });
 
 	if (existingUser) {
 		// User exists, update their information

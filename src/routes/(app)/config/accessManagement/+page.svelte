@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 
 	// Components
@@ -31,8 +31,6 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	const toastStore = getToastStore();
 
 	// Use $state for local component state
 	let currentTab = $state(0); // Initial tab set to 0 (Permissions)
@@ -97,21 +95,6 @@
 		modifiedCount = 0;
 		showToast('Changes have been reset.', 'info');
 	};
-
-	// Helper for toast notifications
-	function showToast(message: string, type: 'success' | 'info' | 'error') {
-		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message,
-			background: backgrounds[type],
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		});
-	}
 </script>
 
 <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -146,7 +129,7 @@
 		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
 			<Tab bind:group={currentTab} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" ></iconify-icon>
+					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
 					<span class={currentTab === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tab>

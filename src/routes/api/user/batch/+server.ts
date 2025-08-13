@@ -18,14 +18,13 @@
  * }
  */
 
+import { privateEnv } from '@root/config/private';
+
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
-// Auth (Database Agnostic)
-// TODO: Remove once batch user operations are added to database-agnostic interface
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-import { checkApiPermission } from '@api/permissions';
+// Auth and permission helpers
+import { auth } from '@src/databases/db';
 
 // Validation
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
@@ -40,61 +39,84 @@ const batchUserActionSchema = object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		const { user, tenantId } = locals; // Destructure tenantId from locals
 		const body = await request.json().catch(() => {
 			throw error(400, 'Invalid JSON in request body');
 		});
 		const { userIds, action } = parse(batchUserActionSchema, body);
 
-		// Map batch actions to permission actions
-		const actionMap: Record<string, string> = {
-			delete: 'delete',
-			block: 'update',
-			unblock: 'update'
-		};
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'user',
-			action: actionMap[action]
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized attempt to '${action}' users`, {
-				userId: locals.user?._id,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
-		}
-
-		if (userIds.some((id) => id === locals.user?._id)) {
+		if (userIds.some((id) => id === user?._id)) {
 			throw error(400, 'You cannot perform batch actions on your own account.');
 		}
 
-		const userAdapter = new UserAdapter();
+		if (!auth) {
+			throw error(500, 'Authentication system is not initialized');
+		}
+
+		// --- MULTI-TENANCY SECURITY CHECK ---
+		// Before performing any action, verify all target users belong to the current tenant.
+		if (privateEnv.MULTI_TENANT) {
+			if (!tenantId) {
+				throw error(500, 'Tenant could not be identified for this operation.');
+			}
+			// Check if all users exist and belong to the tenant
+			const userChecks = await Promise.all(
+				userIds.map(async (userId) => {
+					const userResult = await auth.db.getUserById(userId, tenantId);
+					return userResult.success ? userResult.data : null;
+				})
+			);
+
+			if (userChecks.some((user) => user === null)) {
+				logger.warn(`Attempt to act on users outside of tenant or non-existent users`, {
+					userId: user?._id,
+					tenantId,
+					requestedUserIds: userIds
+				});
+				throw error(403, 'Forbidden: One or more user IDs do not belong to your tenant or do not exist.');
+			}
+		}
+
 		let successMessage = '';
 
 		switch (action) {
-			case 'delete':
-				await userAdapter.deleteUsers(userIds);
+			case 'delete': {
+				const result = await auth.db.deleteUsers(userIds, tenantId);
+				if (!result.success) {
+					throw error(500, `Failed to delete users: ${result.error}`);
+				}
 				successMessage = 'Users deleted successfully.';
 				break;
-			case 'block':
-				await userAdapter.blockUsers(userIds);
+			}
+			case 'block': {
+				const result = await auth.db.blockUsers(userIds, tenantId);
+				if (!result.success) {
+					throw error(500, `Failed to block users: ${result.error}`);
+				}
 				successMessage = 'Users blocked successfully.';
 				break;
-			case 'unblock':
-				await userAdapter.unblockUsers(userIds);
+			}
+			case 'unblock': {
+				const result = await auth.db.unblockUsers(userIds, tenantId);
+				if (!result.success) {
+					throw error(500, `Failed to unblock users: ${result.error}`);
+				}
 				successMessage = 'Users unblocked successfully.';
 				break;
+			}
 		}
 
 		logger.info(`Batch user action '${action}' completed.`, {
 			affectedIds: userIds,
-			executedBy: locals.user?._id
+			executedBy: user?._id,
+			tenantId
 		});
-
 		// Invalidate admin cache since user data has changed
+
 		const { invalidateAdminCache } = await import('@src/hooks.server');
-		invalidateAdminCache('users');
+		invalidateAdminCache('users', tenantId);
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {

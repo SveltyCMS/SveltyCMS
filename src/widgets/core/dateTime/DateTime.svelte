@@ -42,7 +42,8 @@
 	value = collectionValue.value[fieldName] || value;
 
 	const _data = $state<Record<string, string>>(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
+	const _language = DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 

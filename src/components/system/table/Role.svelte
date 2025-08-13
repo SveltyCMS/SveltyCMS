@@ -15,8 +15,8 @@
 
 <script lang="ts">
 	// Auth
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-	import type { Role } from '@src/auth';
+	import { roles as configRoles, initializeRoles } from '@root/config/roles';
+	import type { Role } from '@src/auth/types';
 
 	let roles = $state<Role[]>([]);
 
@@ -24,6 +24,7 @@
 	let { value } = $props<{ value: string }>();
 
 	// Initialize roles from global settings or DB
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 	$effect(() => {
 		roles = getGlobalSetting('ROLES') || [];
 	});

@@ -16,31 +16,38 @@ ENHANCEMENTS:
 
 	// Skeleton
 	import ModalEditSystem from './ModalEditSystem.svelte';
-	import { getToastStore, getModalStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import { showModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
-	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// --- ENHANCED SAVE PROCESS ---
 	async function saveConfig(configData: { [key: string]: any }, isPrivate: boolean) {
 		const toast = (message: string, background: string) => {
-			toastStore.trigger({ message, background } as ToastSettings);
+			// Map legacy backgrounds to showToast types via our adapter where possible
+			if (background?.includes('success') || background === 'gradient-success') showToast(message, 'success');
+			else if (background?.includes('error') || background === 'gradient-error') showToast(message, 'error');
+			else if (background?.includes('warning') || background === 'gradient-warning' || background === 'variant-filled-warning')
+				showToast(message, 'warning');
+			else showToast(message, 'info');
 		};
 
 		try {
-			// Step 1: Export current settings for backup (optional, can be shown to user)
-			toast('Exporting current settings...', 'variant-filled-secondary');
-			const exportResponse = await fetch('/api/settings/export');
-			if (!exportResponse.ok) {
-				const exportResult = await exportResponse.json();
-				throw new Error(exportResult.message || 'Failed to export current settings.');
-			}
-			toast('Settings export successful!', 'variant-filled-success');
+			// Step 1: Back up the current configuration
+			toast('Backing up current configuration...', 'gradient-tertiary');
+			const backupResponse = await fetch('/api/config/backup', { method: 'POST' });
 
-			// Step 2: Import new settings
-			toast('Saving new settings...', 'variant-filled-secondary');
-			const importResponse = await fetch('/api/settings/import', {
+			if (!backupResponse.ok) {
+				const backupResult = await backupResponse.json();
+				throw new Error(backupResult.message || 'Failed to create configuration backup.');
+			}
+			toast('Backup successful!', 'gradient-primary');
+
+			// Step 2: Save the new configuration
+			toast('Saving new configuration...', 'gradient-tertiary');
+			const saveResponse = await fetch('/api/save-config', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ settings: configData, isPrivate })
@@ -49,33 +56,37 @@ ENHANCEMENTS:
 				const importResult = await importResponse.json();
 				throw new Error(importResult.message || 'Failed to import new settings.');
 			}
-			toast('Settings saved successfully!', 'variant-filled-success');
+			toast('Configuration saved successfully!', 'gradient-primary');
 
 			// Step 3: Trigger server restart
 			await triggerRestart();
 		} catch (error: any) {
 			console.error('Error in save process:', error);
-			toast(error.message, 'variant-filled-error');
+			toast(error.message, 'gradient-error');
 		}
 	}
 
 	async function triggerRestart() {
 		const toast = (message: string, background: string) => {
-			toastStore.trigger({ message, background } as ToastSettings);
+			if (background?.includes('success') || background === 'gradient-success') showToast(message, 'success');
+			else if (background?.includes('error') || background === 'gradient-error') showToast(message, 'error');
+			else if (background?.includes('warning') || background === 'gradient-warning' || background === 'variant-filled-warning')
+				showToast(message, 'warning');
+			else showToast(message, 'info');
 		};
 		try {
-			toast('Triggering server restart...', 'variant-filled-secondary');
+			toast('Triggering server restart...', 'gradient-tertiary');
 			const response = await fetch('/api/restart', { method: 'POST' });
 			const result = await response.json();
 
 			if (result.success) {
-				toast('Server restart triggered successfully!', 'variant-filled-success');
+				toast('Server restart triggered successfully!', 'gradient-primary');
 			} else {
 				throw new Error('Failed to trigger server restart.');
 			}
 		} catch (error: any) {
 			console.error('Error triggering server restart:', error);
-			toast(error.message, 'variant-filled-error');
+			toast(error.message, 'gradient-error');
 		}
 	}
 
@@ -102,7 +113,7 @@ ENHANCEMENTS:
 			title,
 			component: modalComponent
 		};
-		modalStore.trigger(modalSettings);
+		showModal(modalSettings);
 	}
 
 	const categories = [
@@ -124,13 +135,11 @@ ENHANCEMENTS:
 <!-- Page Title with Back Button -->
 <PageTitle name="System Settings" icon="uil:setting" showBackButton={true} backUrl="/config" />
 
-<div class="my-4">
-	<div class="alert variant-soft-warning text-center">
-		<iconify-icon icon="mdi:alert" class="text-2xl"></iconify-icon>
-		<div>
-			<p class="font-bold">Caution: For Administrators Only</p>
-			<p>Changes made here directly affect the server configuration and can cause instability if not done correctly.</p>
-		</div>
+<div class="alert variant-soft-warning mb-2 text-center">
+	<iconify-icon icon="mdi:alert" class="text-2xl"></iconify-icon>
+	<div class="flex-1">
+		<p class="font-bold">Caution: For Administrators Only</p>
+		<p>Changes made here directly affect the server configuration and can cause instability if not done correctly.</p>
 	</div>
 </div>
 

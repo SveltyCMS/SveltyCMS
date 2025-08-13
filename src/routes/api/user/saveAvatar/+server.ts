@@ -21,54 +21,46 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Config
+import { privateEnv } from '@root/config/private';
+
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
 
 // Media storage
+import { getPublicSetting } from '@src/stores/globalSettings';
+import { cacheService } from '@src/databases/CacheService';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
-import { getCacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
-		const targetUserId = (formData.get('userId') as string) || locals.user._id; // Default to self if no userId provided
-		const isEditingSelf = locals.user._id === targetUserId;
-		let hasPermission = false;
+		const targetUserId = (formData.get('userId') as string) || (formData.get('user_id') as string) || locals.user._id; // Default to self if no userId provided
 
-		if (isEditingSelf) {
-			// Users can always update their own avatar
-			hasPermission = true;
-		} else {
-			// To update another user's avatar, need admin permissions
-			const permissionResult = await checkApiPermission(locals.user, {
-				resource: 'users',
-				action: 'write'
-			});
-			hasPermission = permissionResult.hasPermission;
-		}
+		// Role-based access is handled by hooks.server.ts
+		const isEditingSelf = targetUserId === locals.user._id;
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to update avatar', {
-				requestedBy: locals.user?._id,
-				targetUserId: targetUserId
-			});
-			return json(
-				{
-					error: "Forbidden: You do not have permission to update this user's avatar."
-				},
-				{ status: 403 }
-			);
-		}
-
-		// Ensure the authentication system is initialized
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
+		// In multi-tenant mode, ensure target user is in same tenant when editing others
+		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+			const tenantId = locals.tenantId;
+			const targetUser = await auth.getUserById(targetUserId, tenantId);
+			if (!targetUser || targetUser.tenantId !== tenantId) {
+				logger.warn('Admin attempted to update avatar for user outside their tenant', {
+					adminId: locals.user._id,
+					targetUserId,
+					tenantId
+				});
+				return json(
+					{
+						error: 'Forbidden: You can only update avatars for users within your own tenant.'
+					},
+					{ status: 403 }
+				);
+			}
 		}
 
 		const avatarFile = formData.get('avatar') as File | null;
@@ -79,14 +71,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate file type on the server as a secondary check
-		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'];
 		if (!allowedTypes.includes(avatarFile.type)) {
 			logger.error('Invalid file type for avatar', {
 				userId: locals.user._id,
 				targetUserId,
 				fileType: avatarFile.type
 			});
-			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
+			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, WebP, and SVG are allowed.');
 		}
 
 		// Before saving a new avatar, move the old one to trash if it exists.
@@ -112,22 +104,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Save the new avatar image and update the user's profile
 		const avatarUrl = await saveAvatarImage(avatarFile, targetUserId);
-		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl });
+
+		// Persist DB with raw media path (typically /mediaFiles/avatars/..)
+		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
+
+		// Normalize URL for client consumption to route through /files
+		const mediaFolder = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+		const normalizedAvatarUrl = avatarUrl.replace(/^https?:\/\/[^/]+/i, '').replace(new RegExp(`^\\/?(?:${mediaFolder}|mediaFiles)\\/`), '/files/');
 
 		// Invalidate any cached session data to reflect the change immediately.
 		const session_id = locals.session_id;
 		if (session_id) {
 			const user = await auth.validateSession(session_id);
-			const cacheStore = getCacheStore();
-			await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+			await cacheService.set(session_id, { user, timestamp: Date.now() }, 3600);
 		}
 
-		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl });
+		logger.info('Avatar saved successfully', { userId: targetUserId, avatarUrl: normalizedAvatarUrl });
 
 		return json({
 			success: true,
 			message: 'Avatar saved successfully',
-			avatarUrl
+			avatarUrl: normalizedAvatarUrl
 		});
 	} catch (err) {
 		const httpError = err as HttpError;

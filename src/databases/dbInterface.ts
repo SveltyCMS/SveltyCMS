@@ -67,38 +67,12 @@ export interface CacheOptions {
 	enabled?: boolean;
 }
 
-/** Core Types **/
-export type DatabaseId = string & { readonly __brand: unique symbol }; // Unique identifier type
-export type ISODateString = string & { readonly __isoDate: unique symbol }; // ISO 8601 date string type
-
-/** Base Entity **/
-export interface BaseEntity {
-	_id: DatabaseId; // Unique identifier
-	createdAt: ISODateString; // ISO 8601 date string
-	updatedAt: ISODateString; // ISO 8601 date string
-}
+import type { DatabaseId, BaseEntity, ContentNode } from './types';
 
 /** collection **/
 export interface CollectionModel {
 	findOne: (query: FilterQuery<Document>) => Promise<Document | null>;
 	aggregate: (pipeline: AggregationPipeline[]) => Promise<unknown[]>;
-}
-
-/** Translation **/
-export interface Translation {
-	languageTag: string;
-	translationName: string;
-	isDefault?: boolean;
-}
-
-/** Content Management Types **/
-export interface ContentNode<ContentType = 'category' | 'collection'> extends BaseEntity {
-	name: string;
-	nodeType: ContentType;
-	icon?: string;
-	order: number;
-	translations: Translation[];
-	parentId?: string;
 }
 
 /** Nested Content Structure **/

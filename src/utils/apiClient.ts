@@ -40,13 +40,14 @@ export interface Collection {
 }
 
 interface GetDataResponse {
-	entryList: Record<string, unknown>[];
-	pagesCount: number;
-	totalItems: number;
+	items: Record<string, unknown>[];
+	total: number;
+	totalPages: number;
+	page?: number;
+	pageSize?: number;
 }
 
 // --- Core API Functions ---
-
 async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiResponse<T>> {
 	try {
 		const response = await fetch(endpoint, {
@@ -67,7 +68,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit): Promise<ApiR
 }
 
 // --- Entry Action Functions ---
-
 export function createEntry(collectionId: string, payload: Record<string, unknown>): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}`, {
 		method: 'POST',
@@ -104,10 +104,38 @@ export function updateEntryStatus(collectionId: string, entryId: string, status:
 	});
 }
 
+export function deleteEntry(collectionId: string, entryId: string): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/${entryId}`, {
+		method: 'DELETE'
+	});
+}
+
+export function batchDeleteEntries(collectionId: string, entryIds: string[]): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/batch-delete`, {
+		method: 'POST',
+		body: JSON.stringify({ entryIds })
+	});
+}
+
 export function createClones(collectionId: string, entries: Record<string, unknown>[]): Promise<ApiResponse<unknown>> {
 	return fetchApi(`/api/collections/${collectionId}/batch-clone`, {
 		method: 'POST',
 		body: JSON.stringify({ entries })
+	});
+}
+
+// Batch operations for entries
+export function batchCloneEntries(collectionId: string, entryIds: string[]): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/batch`, {
+		method: 'POST',
+		body: JSON.stringify({ action: 'clone', entryIds })
+	});
+}
+
+export function batchUpdateEntriesStatus(collectionId: string, entryIds: string[], status: string): Promise<ApiResponse<unknown>> {
+	return fetchApi(`/api/collections/${collectionId}/batch`, {
+		method: 'POST',
+		body: JSON.stringify({ action: 'status', entryIds, status })
 	});
 }
 
@@ -186,9 +214,7 @@ export function invalidateCollectionCache(collectionId: string): void {
 	logger.info(`[Cache] Invalidated for collection ${collectionId}`);
 }
 
-/**
- * Enhanced getData function using new RESTful endpoints
- */
+// Enhanced getData function using new RESTful endpoints
 export async function getData(query: {
 	collectionId: string;
 	page?: number;
@@ -215,9 +241,31 @@ export async function getData(query: {
 	const endpoint = `/api/collections/${collectionId}?${searchParams}`;
 
 	const result = await fetchApi<GetDataResponse>(endpoint, { method: 'GET' });
+
+	// Add debugging for production issues
 	if (result.success && result.data) {
+		// Validate the response format
+		if (!result.data.items || !Array.isArray(result.data.items)) {
+			logger.error(`[getData] Invalid response format:`, {
+				endpoint,
+				hasItems: !!result.data.items,
+				itemsType: typeof result.data.items,
+				responseKeys: Object.keys(result.data)
+			});
+			return { success: false, error: 'Invalid response format from server' };
+		}
+
 		dataCache.set(cacheKey, { data: result.data, timestamp: Date.now(), ttl: CACHE_TTL_MS });
+		logger.info(`[getData] Success:`, {
+			endpoint,
+			itemCount: result.data.items.length,
+			total: result.data.total,
+			cached: true
+		});
+	} else if (!result.success) {
+		logger.error(`[getData] API Error:`, { endpoint, error: result.error });
 	}
+
 	return result;
 }
 

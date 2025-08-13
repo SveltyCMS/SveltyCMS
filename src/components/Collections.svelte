@@ -378,6 +378,12 @@ Features:
 				collection.set(null);
 				shouldShowNextButton.set(true);
 
+				// Clear EntryList cache to prevent stale data
+				const cacheEvent = new CustomEvent('clearEntryListCache', {
+					detail: { resetState: true, reason: 'collection-switch' }
+				});
+				document.dispatchEvent(cacheEvent);
+
 				// Debounce the actual navigation slightly to prevent rapid clicks
 				navigationTimeout = setTimeout(() => {
 					goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);

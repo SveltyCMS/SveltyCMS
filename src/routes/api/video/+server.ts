@@ -26,7 +26,6 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { tiktok, twitch, vimeo, youtube, type YoutubeData } from '@widgets/custom/remoteVideo/video';
 
 // Permission checking
-import { checkApiPermission } from '@api/permissions';
 
 // Define types for each platform's response
 interface BaseVideoData {
@@ -58,28 +57,11 @@ function getYouTubeVideoId(url: string): string | null {
 	return match ? match[1] : null;
 }
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request }) => {
 	logger.debug('Video info request received');
 
 	try {
-		// Check permissions for media operations
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'media',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn(`Unauthorized video info request`, {
-				userId: locals.user?._id,
-				error: permissionResult.error
-			});
-			return json(
-				{
-					error: permissionResult.error || 'Forbidden'
-				},
-				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-			);
-		}
+		// Authentication is handled by hooks.server.ts - user presence confirms access
 
 		const data = await request.formData();
 		const url = data.get('url');

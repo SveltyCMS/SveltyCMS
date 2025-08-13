@@ -2,8 +2,8 @@
  * @file config/collections/Menu.ts
  * @description Collection file for Menu
  */
-import widgets from '@widgets';
 import type { Schema } from '@root/src/content/types';
+import widgets from '@widgets';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
@@ -12,7 +12,7 @@ export const schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'bi:menu-button-wide',
 	strict: false,
-	status: 'published',
+	status: 'unpublish',
 	slug: 'menu',
 
 	// Defined Fields that are used in Collection

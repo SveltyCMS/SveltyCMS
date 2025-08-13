@@ -42,8 +42,10 @@
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);
 
-	// Language is constant since email is not translatable
-	const _language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+	let _language = $state('');
+	onMount(async () => {
+		_language = await getPublicSetting('DEFAULT_CONTENT_LANGUAGE');
+	});
 
 	// Update translation progress when data changes
 

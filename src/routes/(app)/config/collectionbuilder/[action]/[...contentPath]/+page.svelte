@@ -25,8 +25,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
-	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
+	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 
 	import { initializeWidgets } from '@src/widgets';
 
@@ -47,7 +48,6 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import type { Schema } from '@src/content/types';
 
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
 	let collectionPath = $state(page.params.contentPath);
@@ -135,11 +135,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
-			toastStore.trigger({
-				message: 'Please fix validation errors before saving',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Please fix validation errors before saving', 'error');
 			return;
 		}
 
@@ -174,16 +170,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		});
 
 		if (resp.data.status === 200) {
-			// Trigger the toast
-			const t = {
-				message: "Collection Saved. You're all set to build your content.",
-				// Provide any utility or variant background style:
-				background: 'variant-filled-primary',
-				timeout: 3000,
-				// Add your custom classes here:
-				classes: 'border-1 !rounded-md'
-			};
-			toastStore.trigger(t);
+			showToast("Collection Saved. You're all set to build your content.", 'success');
 		}
 	}
 
@@ -203,16 +190,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 						}
 					});
 
-					// Trigger the toast
-					const t = {
-						message: 'Collection Deleted.',
-						// Provide any utility or variant background style:
-						background: 'variant-filled-error',
-						timeout: 3000,
-						// Add your custom classes here:
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
+					// Notify via global toast helper
+					showToast('Collection Deleted.', 'error');
 					goto(`/collection`);
 				} else {
 					// User cancelled, do not delete

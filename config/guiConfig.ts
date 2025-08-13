@@ -8,7 +8,7 @@
  *
  * @imports
  * - m: A collection of localized messages imported from '@src/paraglide/messages' used to
- *   provide descriptions and helper texts for the configuration fields.
+ * provide descriptions and helper texts for the configuration fields.
  *
  * @interfaces
  * - ConfigField<T>: A generic interface representing a configuration field,
@@ -55,7 +55,7 @@ interface ConfigField<T> {
 interface ConfigCategory {
 	description: string;
 	icon: string;
-	fields: { [key: string]: ConfigField<string | number | boolean> };
+	fields: { [key: string]: ConfigField<string | number | boolean | object> };
 }
 
 const databaseConfig: ConfigCategory = {
@@ -116,6 +116,12 @@ const databaseConfig: ConfigCategory = {
 			default: 10,
 			helper: m.databaseConfig_DB_POOL_SIZE_helper(),
 			icon: 'mdi:pool'
+		},
+		MULTI_TENANT: {
+			type: 'boolean',
+			default: false,
+			helper: m.databaseConfig_MULTI_TENANT_helper(),
+			icon: 'mdi:sitemap'
 		}
 	}
 };
@@ -151,6 +157,38 @@ const emailConfig: ConfigCategory = {
 	}
 };
 
+// --- NEW: Session Management Category ---
+const sessionConfig: ConfigCategory = {
+	description: 'Configure user session behavior, duration, and validation.',
+	icon: 'mdi:account-clock',
+	fields: {
+		SESSION_CLEANUP_INTERVAL: {
+			type: 'number',
+			default: 60000,
+			helper: 'How often expired sessions are removed from memory (in milliseconds).',
+			icon: 'mdi:broom'
+		},
+		MAX_IN_MEMORY_SESSIONS: {
+			type: 'number',
+			default: 10000,
+			helper: 'The maximum number of user sessions to hold in memory at one time.',
+			icon: 'mdi:memory'
+		},
+		DB_VALIDATION_PROBABILITY: {
+			type: 'number',
+			default: 0.1,
+			helper: 'The probability (from 0 to 1) of validating a session against the database on each request.',
+			icon: 'mdi:dice-5'
+		},
+		SESSION_EXPIRATION_SECONDS: {
+			type: 'number',
+			default: 3600,
+			helper: 'The duration in seconds until a user session automatically expires.',
+			icon: 'mdi:timer-sand'
+		}
+	}
+};
+
 const googleConfig: ConfigCategory = {
 	description: m.googleConfig_Description(),
 	icon: 'mdi:google',
@@ -165,7 +203,7 @@ const googleConfig: ConfigCategory = {
 			type: 'string',
 			default: '',
 			helper: m.googleConfig_GOOGLE_CIENT_ID_helper(),
-			icon: 'mdi:client'
+			icon: 'mdi:card-account-details'
 		},
 		GOOGLE_CLIENT_SECRET: {
 			type: 'string',
@@ -190,11 +228,11 @@ const redisConfig: ConfigCategory = {
 			type: 'boolean',
 			default: false,
 			helper: m.redisConfig_USE_REDIS_helper(),
-			icon: 'mdi:database'
+			icon: 'mdi:toggle-switch'
 		},
 		REDIS_HOST: {
 			type: 'string',
-			default: '',
+			default: 'localhost',
 			helper: m.redisConfig_REDIS_HOST_helper(),
 			icon: 'mdi:server-network'
 		},
@@ -228,6 +266,27 @@ const mapboxConfig: ConfigCategory = {
 			default: '',
 			helper: m.mapboxConfig_MAPBOX_API_TOKEN_helper(),
 			icon: 'mdi:key'
+		},
+		// --- ADDED: Secret Mapbox token ---
+		SECRET_MAPBOX_API_TOKEN: {
+			type: 'string',
+			default: '',
+			helper: 'Secret Mapbox API token for server-side use.',
+			icon: 'mdi:key-chain-variant'
+		}
+	}
+};
+
+// --- NEW: Third-Party APIs Category ---
+const apiConfig: ConfigCategory = {
+	description: 'Configure tokens and settings for various third-party API integrations.',
+	icon: 'mdi:api',
+	fields: {
+		TWITCH_TOKEN: {
+			type: 'string',
+			default: '',
+			helper: 'API token for Twitch integration.',
+			icon: 'mdi:twitch'
 		}
 	}
 };
@@ -276,13 +335,60 @@ const llmConfig: ConfigCategory = {
 	}
 };
 
+// --- NEW: Security Category ---
+const securityConfig: ConfigCategory = {
+	description: 'Manage security settings, roles, permissions, secret keys, and two-factor authentication.',
+	icon: 'mdi:shield-lock',
+	fields: {
+		JWT_SECRET_KEY: {
+			type: 'string',
+			default: '',
+			helper: 'The secret key for signing JWTs. Must be at least 32 characters long.',
+			icon: 'mdi:key-variant'
+		},
+		USE_2FA: {
+			type: 'boolean',
+			default: false,
+			helper: 'Enable Two-Factor Authentication globally for enhanced security.',
+			icon: 'mdi:two-factor-authentication'
+		},
+		TWO_FACTOR_AUTH_SECRET: {
+			type: 'string',
+			default: '',
+			helper: 'Secret key for 2FA token generation. Leave empty to auto-generate.',
+			icon: 'mdi:key-plus'
+		},
+		TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: {
+			type: 'number',
+			default: 10,
+			helper: 'Number of backup codes to generate for 2FA recovery (1-50).',
+			icon: 'mdi:backup-restore'
+		},
+		ROLES: {
+			type: 'object',
+			default: ['admin', 'editor'],
+			helper: 'Define the user roles available in the system.',
+			icon: 'mdi:account-group'
+		},
+		PERMISSIONS: {
+			type: 'object',
+			default: ['manage', 'edit', 'create'],
+			helper: 'Define the permissions available in the system.',
+			icon: 'mdi:shield-check'
+		}
+	}
+};
+
 // Private Config Categories
 const privateConfigCategories = {
 	database: databaseConfig,
 	email: emailConfig,
+	session: sessionConfig,
+	security: securityConfig,
 	google: googleConfig,
 	redis: redisConfig,
 	mapbox: mapboxConfig,
+	api: apiConfig,
 	tiktok: tiktokConfig,
 	llm: llmConfig
 };
@@ -297,11 +403,42 @@ const systemConfig: ConfigCategory = {
 			helper: m.systemConfig_SITE_NAME_helper(),
 			icon: 'mdi:web'
 		},
+		SERVER_PORT: {
+			type: 'number',
+			default: 3000,
+			helper: 'The port the main application server will run on.',
+			icon: 'mdi:web-box'
+		},
 		BODY_SIZE_LIMIT: {
 			type: 'number',
 			default: 104857600,
 			helper: m.systemConfig_BODY_SIZE_LIMIT_helper(),
 			icon: 'mdi:weight'
+		},
+		// --- ADDED: More system settings ---
+		MAX_FILE_SIZE: {
+			type: 'number',
+			default: 104857600,
+			helper: 'The maximum size for a single file upload in bytes.',
+			icon: 'mdi:file-upload'
+		},
+		EXTRACT_DATA_PATH: {
+			type: 'string',
+			default: './exports/data.json',
+			helper: 'File path for exporting collection data if the feature is enabled.',
+			icon: 'mdi:file-export'
+		},
+		USE_ARCHIVE_ON_DELETE: {
+			type: 'boolean',
+			default: true,
+			helper: 'If enabled, deleted items are archived instead of being permanently removed.',
+			icon: 'mdi:archive'
+		},
+		DEMO: {
+			type: 'boolean',
+			default: false,
+			helper: 'Enable demo mode, which may restrict certain features.',
+			icon: 'mdi:flask'
 		},
 		HOST_DEV: {
 			type: 'string',
@@ -348,22 +485,22 @@ const languageConfig: ConfigCategory = {
 			icon: 'mdi:translate'
 		},
 		AVAILABLE_CONTENT_LANGUAGES: {
-			type: 'array',
+			type: 'object',
 			default: ['en'],
 			helper: m.languageConfig_AVAILABLE_CONTENT_LANGUAGE_helper(),
-			icon: 'mdi:translate'
+			icon: 'mdi:translate-variant'
 		},
 		BASE_LOCALE: {
 			type: 'string',
 			default: 'en',
 			helper: 'Base locale for the CMS interface (from inlang configuration)',
-			icon: 'mdi:translate'
+			icon: 'mdi:earth'
 		},
 		LOCALES: {
-			type: 'array',
+			type: 'object',
 			default: ['en'],
 			helper: 'Available interface locales (from inlang configuration)',
-			icon: 'mdi:translate'
+			icon: 'mdi:web'
 		}
 	}
 };
@@ -399,11 +536,38 @@ const mediaConfig: ConfigCategory = {
 	}
 };
 
+// --- NEW: Logging Category ---
+const loggingConfig: ConfigCategory = {
+	description: 'Configure log levels, rotation, and retention policies.',
+	icon: 'mdi:math-log',
+	fields: {
+		LOG_LEVELS: {
+			type: 'object',
+			default: ['error', 'warn'],
+			helper: "The logging levels to be active. (e.g., 'error', 'info', 'debug').",
+			icon: 'mdi:format-list-bulleted-type'
+		},
+		LOG_RETENTION_DAYS: {
+			type: 'number',
+			default: 7,
+			helper: 'The number of days to keep log files before deleting them.',
+			icon: 'mdi:calendar-clock'
+		},
+		LOG_ROTATION_SIZE: {
+			type: 'number',
+			default: 5242880,
+			helper: 'The maximum size of a log file in bytes before it is rotated.',
+			icon: 'mdi:rotate-3d-variant'
+		}
+	}
+};
+
 // Public Config Categories
 const publicConfigCategories = {
 	system: systemConfig,
 	language: languageConfig,
-	media: mediaConfig
+	media: mediaConfig,
+	logging: loggingConfig
 };
 
 // Exports

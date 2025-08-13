@@ -1,37 +1,45 @@
 /**
- * @file src/utils/encryption.ts
- * @description Provides utility functions for encrypting and decrypting strings using AES-256-CBC encryption.
- * This module is designed to handle sensitive data encryption and decryption for the application.
+ * @file encryption.ts
+ * @description Server-only utility functions for string encryption and decryption using AES-256-CBC.
  *
- * @requires crypto - Node.js crypto module for cryptographic operations
- * @requires @src/stores/globalSettings - For accessing encryption settings from database
+ * ⚠️ WARNING: This module uses Node.js crypto and should NEVER be imported by client-side code.
+ * Import this only in server-side code (.server.ts files, API routes, hooks.server.ts, etc.)
  *
- * @constant ENCRYPTION_KEY - A fixed key used for encryption and decryption, retrieved from database settings
- * @constant IV_LENGTH - The length of the initialization vector, fixed at 16 bytes for AES
+ * For client-side cryptographic needs, use Web Crypto API instead.
  */
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { privateEnv } from '@root/config/private';
 
-import crypto from 'crypto';
+// Server-side only: Dynamic import to prevent bundling in client code
+let crypto: typeof import('crypto');
 
-const ENCRYPTION_KEY = getGlobalSetting<string>('ENCRYPTION_KEY') || 'default-encryption-key-change-me';
+async function getCrypto() {
+	if (!crypto) {
+		crypto = await import('crypto');
+	}
+	return crypto;
+}
+
+const ENCRYPTION_KEY = privateEnv.ENCRYPTION_KEY;
 const IV_LENGTH = 16; // For AES, this is always 16
 
-// Encrypts a string
-export function encrypt(text: string): string {
-	const iv = crypto.randomBytes(IV_LENGTH);
-	const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+// Encrypts a string (server-side only)
+export async function encrypt(text: string): Promise<string> {
+	const cryptoModule = await getCrypto();
+	const iv = cryptoModule.randomBytes(IV_LENGTH);
+	const cipher = cryptoModule.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
 	let encrypted = cipher.update(text);
 	encrypted = Buffer.concat([encrypted, cipher.final()]);
 	return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
-// Decrypts an encrypted string
-export function decrypt(text: string): string {
+// Decrypts an encrypted string (server-side only)
+export async function decrypt(text: string): Promise<string> {
+	const cryptoModule = await getCrypto();
 	const textParts = text.split(':');
 	const iv = Buffer.from(textParts.shift()!, 'hex');
 	const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-	const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+	const decipher = cryptoModule.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
 	let decrypted = decipher.update(encryptedText);
 	decrypted = Buffer.concat([decrypted, decipher.final()]);
 	return decrypted.toString();

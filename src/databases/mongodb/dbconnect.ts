@@ -6,21 +6,12 @@
  * structured logging, and environment-based configuration.
  */
 
-// Handle private config that might not exist during setup
-let privateEnv: any = null;
+// Shared connection retry constants
+const MAX_RETRIES = 5;
+const RETRY_DELAY = 5000;
 
-// Function to load private config when needed
-async function loadPrivateConfig() {
-	if (privateEnv) return privateEnv;
-
-	try {
-		const module = await import('@root/config/private');
-		privateEnv = module.privateEnv;
-		return privateEnv;
-	} catch (error) {
-		return null;
-	}
-}
+// Directly import privateEnv from config/private
+import { privateEnv } from '@root/config/private';
 
 import mongoose from 'mongoose';
 
@@ -96,56 +87,27 @@ export async function connectToMongoDBWithConfig(dbConfig: {
  * Connect to the MongoDB database with retry logic.
  */
 export async function connectToMongoDB(): Promise<void> {
-	// Check if already connected to avoid multiple connections
-	if (mongoose.connection.readyState === 1) {
-		logger.info('MongoDB already connected, skipping connection attempt');
-		return;
+	if (!privateEnv) {
+		logger.error('MongoDB connection failed: privateEnv is null. The database is not configured.');
+		logger.error('Please run the setup wizard to configure your database connection.');
+		throw new Error('Database configuration missing. Run setup before starting the server.');
 	}
 
-	// Load private config dynamically
-	const config = await loadPrivateConfig();
-	if (!config) {
-		logger.debug('Private config not available - skipping MongoDB connection during setup');
-		return;
-	}
-
-	// Configuration constants loaded from config
-	const MAX_RETRIES = config.DB_RETRY_ATTEMPTS || 5;
-	const RETRY_DELAY = config.DB_RETRY_DELAY || 5000;
-
-	const isAtlas = config.DB_HOST?.startsWith('mongodb+srv://');
+	const hasScheme = privateEnv.DB_HOST.startsWith('mongodb://') || privateEnv.DB_HOST.startsWith('mongodb+srv://');
+	const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
+	const hostWithScheme = hasScheme ? privateEnv.DB_HOST : `mongodb://${privateEnv.DB_HOST}`;
 	const connectionString = isAtlas
-		? `${config.DB_HOST}/${config.DB_NAME}`
-		: `${config.DB_HOST}${config.DB_PORT ? `:${config.DB_PORT}` : ''}/${config.DB_NAME}`;
+		? `${hostWithScheme}/${privateEnv.DB_NAME}`
+		: `${hostWithScheme}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
 
 	const options: ConnectOptions = {
 		authSource: isAtlas ? undefined : 'admin',
-		user: config.DB_USER,
-		pass: config.DB_PASSWORD,
-		dbName: config.DB_NAME,
-		maxPoolSize: config.DB_POOL_SIZE || 5,
+		user: privateEnv.DB_USER,
+		pass: privateEnv.DB_PASSWORD,
+		dbName: privateEnv.DB_NAME,
+		maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
 		retryWrites: true,
 		serverSelectionTimeoutMS: DB_TIMEOUT
-		// Additional options for optimization and stability (consider enabling as needed):
-		// autoIndex: false, // Disable auto-indexing in production, manage indexes manually
-		// bufferCommands: false, // Disable command buffering if immediate execution is critical
-		// serverApi: { // Enable stable API if using MongoDB Atlas (adjust version as needed)
-		//     version: '1',
-		//     strict: true,
-		//     deprecationErrors: true
-		// }
-
-		// 		const optimizedConfig = {
-		// maxPoolSize: 10, // Maintain up to 10 socket connections
-		// serverSelectionTimeoutMS: 5000, // Keep trying for 5 seconds
-		// socketTimeoutMS: 45000, // Close connections after 45 seconds inactivity
-		// family: 4, // Use IPv4, skip IPv6
-		// bufferMaxEntries: 0, // Disable mongoose buffering
-		// bufferCommands: false, // Disable mongoose buffering
-		// maxIdleTimeMS: 30000, // Close connections after 30 seconds inactivity
-		// minPoolSize: 2, // Maintain at least 2 socket connections
-		// };
-		// 	};
 	};
 
 	// Only add event handlers if not already added
@@ -159,7 +121,7 @@ export async function connectToMongoDB(): Promise<void> {
 		try {
 			logger.info(`\x1b[33mAttempting to connect to MongoDB (Attempt ${attempt}/${MAX_RETRIES})...\x1b[0m`);
 			await mongoose.connect(connectionString, options);
-			logger.info(`\x1b[32mSuccessfully connected to MongoDB database: \x1b[34m${config.DB_NAME}\x1b[0m`);
+			logger.info(`\x1b[32mSuccessfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
 			return;
 		} catch (error) {
 			logger.error(`MongoDB connection attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`);

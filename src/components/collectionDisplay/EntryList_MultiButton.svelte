@@ -34,6 +34,7 @@
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
+	import { showStatusChangeConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -87,19 +88,11 @@
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = { ref: ScheduleModal };
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
-			component: modalComponent,
-			response: (r: { date: string; action: string } | undefined) => {
-				if (r) {
-					schedule(r.date, r.action);
-				}
+		showScheduleModal({
+			onSchedule: (date: Date, action: string) => {
+				schedule(date.toISOString(), action);
 			}
-		};
-		modalStore.trigger(modalSettings);
+		});
 	}
 
 	// his function only calls the event handlers that the parent component (`EntryList.svelte`) listens for
@@ -124,11 +117,12 @@
 				openCloneModal(); // Open colorful confirmation modal
 				break;
 			case 'archive':
-				// Handle archive action (always archives, regardless of user role)
-				openDeleteModal(); // This will handle archiving logic
+				// Call parent's delete function with archive mode
+				deleteAction(false); // false = archive
 				break;
 			case 'delete':
-				openDeleteModal(); // Open colorful confirmation modal
+				// Call parent's delete function with permanent delete mode
+				deleteAction(true); // true = permanent delete
 				break;
 			case 'test':
 				test(); // Emit the 'test' event.
@@ -152,204 +146,30 @@
 		dropdownOpen = false;
 	}
 
-	// Enhanced Delete Modal with colorful styling and admin options
-	function openDeleteModal(): void {
-		const isArchiving = getGlobalSetting('USE_ARCHIVE_ON_DELETE');
-
-		// Check if all selected entries are already archived
-		const allEntriesArchived = selectedStatuses.length > 0 && selectedStatuses.every((status) => status === 'archive');
-
-		// Determine the action based on what button was clicked
-		if (currentAction === 'archive') {
-			// Direct archive action (admin users only when USE_ARCHIVE_ON_DELETE=true)
-			openArchiveModal();
-			return;
-		}
-
-		if (currentAction === 'delete') {
-			// For admin users when archiving is enabled, show options
-			if (isAdmin && isArchiving) {
-				// If all selected entries are already archived, go straight to permanent delete confirmation
-				if (allEntriesArchived) {
-					openPermanentDeleteModal();
-					return;
-				}
-				// Otherwise, show admin options modal (archive or permanent delete)
-				openAdminDeleteModal();
-				return;
-			}
-
-			// For non-admin users when archiving is enabled, perform archive but show as "delete"
-			if (!isAdmin && isArchiving) {
-				openArchiveModal();
-				return;
-			}
-
-			// Standard permanent delete (when archiving is disabled)
-			openPermanentDeleteModal();
-			return;
-		}
-	}
-
-	// Archive confirmation modal
-	function openArchiveModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-warning-500 font-bold">Archiving</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> this entry? Archived items can be restored later.`
-					: `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? Archived items can be restored later.`,
-			buttonTextConfirm: 'Archive',
-			buttonTextCancel: 'Cancel',
-			meta: {
-				buttonConfirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white'
-			},
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					deleteAction(false); // false = archive
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
-	}
-
-	// Permanent delete confirmation modal
-	function openPermanentDeleteModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-error-500 font-bold">Deletion</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-error-500 font-semibold">permanently delete</span> this entry? This action cannot be undone and will remove the entry from the system.`
-					: `Are you sure you want to <span class="text-error-500 font-semibold">permanently delete</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This action cannot be undone and will remove all selected entries from the system.`,
-			buttonTextConfirm: 'Delete',
-			buttonTextCancel: 'Cancel',
-			meta: {
-				buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white'
-			},
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					deleteAction(true); // true = permanent delete
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
-	}
-
-	// Admin Delete Modal with options for both archive and permanent delete
-	function openAdminDeleteModal(): void {
-		const entryText = selectedCount === 1 ? 'entry' : `${selectedCount} entries`;
-
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `<span class="text-primary-500 font-bold">Admin Delete Options</span>`,
-			body: `
-                <div class="space-y-4">
-                    <p class="text-surface-700 dark:text-surface-300 mb-4">
-                        As an administrator, you can choose how to handle the selected ${entryText}:
-                    </p>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3 p-3 border border-warning-300 rounded-lg bg-warning-50 dark:bg-warning-900/20">
-                            <iconify-icon icon="bi:archive-fill" width="20" class="text-warning-600"></iconify-icon>
-                            <div>
-                                <div class="font-semibold text-warning-700 dark:text-warning-300">Archive ${entryText}</div>
-                                <div class="text-sm text-warning-600 dark:text-warning-400">Hide from view but keep in database (can be restored)</div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-3 p-3 border border-error-300 rounded-lg bg-error-50 dark:bg-error-900/20">
-                            <iconify-icon icon="bi:trash3-fill" width="20" class="text-error-600"></iconify-icon>
-                            <div>
-                                <div class="font-semibold text-error-700 dark:text-error-300">Permanently Delete ${entryText}</div>
-                                <div class="text-sm text-error-600 dark:text-error-400">Remove completely from database (cannot be undone)</div>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="text-xs text-surface-500 mt-4">
-                        Click "Archive" below to archive the ${entryText}, or "Cancel" to choose permanent deletion.
-                    </p>
-                </div>
-            `,
-			buttonTextConfirm: 'Archive',
-			buttonTextCancel: 'Permanent Delete',
-			meta: {
-				buttonConfirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white',
-				buttonCancelClasses: 'bg-error-500 hover:bg-error-600 text-white'
-			},
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					// Archive action (default confirm button)
-					deleteAction(false);
-				} else {
-					// Show permanent delete confirmation
-					openPermanentDeleteModal();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
-	}
-
 	// Enhanced Publish Modal with colorful styling
 	function openPublishModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`
-					: `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will make all selected entries visible to the public.`,
-			buttonTextConfirm: 'Publish',
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white' },
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					publish();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		showStatusChangeConfirm({
+			status: StatusTypes.publish,
+			count: selectedCount,
+			onConfirm: () => publish()
+		});
 	}
 
 	// Enhanced Unpublish Modal with colorful styling
 	function openUnpublishModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`
-					: `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will hide all selected entries from the public.`,
-			buttonTextConfirm: 'Unpublish',
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					unpublish();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		showStatusChangeConfirm({
+			status: StatusTypes.unpublish,
+			count: selectedCount,
+			onConfirm: () => unpublish()
+		});
 	}
 
 	// Enhanced Clone Modal with colorful styling
 	function openCloneModal(): void {
-		const modalSettings: ModalSettings = {
-			type: 'confirm',
-			title: `Please Confirm <span class="text-secondary-500 font-bold">Cloning</span>`,
-			body:
-				selectedCount === 1
-					? `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> this entry? This will create a duplicate copy.`
-					: `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will create duplicate copies of all selected entries.`,
-			buttonTextConfirm: 'Clone',
-			buttonTextCancel: 'Cancel',
-			meta: { buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white' },
-			response: (confirmed: boolean) => {
-				if (confirmed) {
-					clone();
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		showCloneModal({
+			count: selectedCount,
+			onConfirm: () => clone()
+		});
 	}
 
 	// Dynamic buttonMap based on configuration and user role
@@ -365,7 +185,7 @@
 			};
 
 			// Handle delete/archive options based on configuration and user role
-			if (publicEnv.USE_ARCHIVE_ON_DELETE) {
+			if (getPublicSetting('USE_ARCHIVE_ON_DELETE')) {
 				// When archiving is enabled
 				if (isAdmin) {
 					// Admins see both archive and delete options

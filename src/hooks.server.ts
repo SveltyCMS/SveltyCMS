@@ -1,148 +1,88 @@
 /**
  * @file src/hooks.server.ts
- * @description Server-side hooks for SvelteKit CMS application
+ * @description Optimized server-side hooks for SvelteKit CMS application
  *
  * This file handles:
- * - Authentication and session management
- * - Rate limiting for API endpoints
- * - Permission checks for protected routes
- * - Static asset caching
- * - API response caching using session store
+ * - Modular middleware architecture for performance
+ * - Conditional loading based on environment settings
+ * - Multi-tenant support (configurable)
+ * - Redis caching (configurable)
+ * - Static asset optimization
+ * - Rate limiting
+ * - Session authentication and management
+ * - Authorization and role management
+ * - API request handling with caching
+ * - Locale management
  * - Security headers
- * - OAuth route handling
- * - Performance logging
- * - Session metrics cleanup
+ * - Performance monitoring
  */
 
 import { building } from '$app/environment';
+import { enableSetupMode, getPrivateSetting, setupModeDefaults } from '@stores/globalSettings';
 import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
-// Stores
-import { enableSetupMode, getGlobalSetting, loadGlobalSettings } from '@src/stores/globalSettings';
-import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-
-// Rate Limiter
-import { RateLimiter } from 'sveltekit-rate-limiter/server';
-
-// Auth and Database Adapters
+// Core authentication and database
 import { initializeRoles, roles } from '@root/config/roles';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
+import type { User } from '@src/auth/types';
 
-import type { User } from '@src/auth';
-import type { Locale } from '@src/paraglide/runtime';
+// Dynamically import db stuff only when not building and not in setup mode
+let dbModule, dbInitPromise;
+let isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+let privateEnv;
+if (!building) {
+	try {
+		privateEnv = (await import('@root/config/private')).privateEnv;
+	} catch {
+		privateEnv = setupModeDefaults;
+	}
+	const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
+	const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
+	isSetupMode = isSetupMode || dbHostEmpty || dbNameEmpty;
+	if (!isSetupMode) {
+		dbModule = await import('@src/databases/db');
+		dbInitPromise = dbModule.dbInitPromise;
+	} else {
+		dbInitPromise = Promise.resolve();
+	}
+} else {
+	dbInitPromise = Promise.resolve();
+}
+
+// Stores (removed unused imports)
+
 // Cache
-import { getCacheStore } from '@src/cacheStore/index.server';
+import { cacheService } from '@src/databases/CacheService';
+import { sessionCache, sessionMetrics, getUserFromSessionId as sharedGetUserFromSessionId } from '@src/hooks/utils/session';
+import { getTenantIdFromHostname } from '@src/hooks/utils/tenant';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Cache TTLs
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const SESSION_TTL = CACHE_TTL; // Align session TTL with cache TTL
-const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
-const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
+// Import middleware modules
+import { addSecurityHeaders } from './hooks/addSecurityHeaders';
+import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleLocale } from './hooks/handleLocale';
+import { handleRateLimit } from './hooks/handleRateLimit';
+import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
 
-// Performance Caches - Consider moving to WeakMap for better memory management
+// Cache TTLs (centralized)
+import {
+	SESSION_CACHE_TTL_MS as CACHE_TTL_MS,
+	USER_COUNT_CACHE_TTL_MS,
+	USER_COUNT_CACHE_TTL_S,
+	USER_PERM_CACHE_TTL_MS,
+	USER_PERM_CACHE_TTL_S
+} from '@src/databases/CacheService';
+const SESSION_TTL = CACHE_TTL_MS;
+
+// Performance Caches - Optimized for memory management
 let userCountCache: { count: number; timestamp: number } | null = null;
 const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 
-// Session Metrics - WeakMap for automatic cleanup when sessions are garbage collected
-const sessionMetrics = {
-	lastActivity: new Map<string, number>(),
-	activeExtensions: new Map<string, number>(),
-	rotationAttempts: new Map<string, number>()
-};
-
-// Rate limiters will be initialized after global settings are loaded
-let limiter: RateLimiter;
-let refreshLimiter: RateLimiter;
-let apiLimiter: RateLimiter;
-
-// Initialize rate limiters after global settings are available
-function initializeRateLimiters() {
-	if (!limiter) {
-		limiter = new RateLimiter({
-			IP: [300, 'h'], // 300 requests per hour per IP
-			IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
-			cookie: {
-				name: 'ratelimit',
-				secret: getGlobalSetting('JWT_SECRET_KEY'),
-				rate: [500, 'm'], // 500 requests per minute per cookie
-				preflight: true
-			}
-		});
-	}
-
-	if (!refreshLimiter) {
-		refreshLimiter = new RateLimiter({
-			IP: [10, 'm'], // 10 requests per minute per IP
-			IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
-			cookie: {
-				name: 'refreshlimit',
-				secret: getGlobalSetting('JWT_SECRET_KEY'),
-				rate: [10, 'm'], // 10 requests per minute per cookie
-				preflight: true
-			}
-		});
-	}
-
-	if (!apiLimiter) {
-		// Get a stricter rate limiter for API requests
-		apiLimiter = new RateLimiter({
-			IP: [500, 'm'], // 500 requests per minute per IP
-			IPUA: [200, 'm'] // 200 requests per minute per IP+User-Agent
-		});
-	}
-}
-
-// Check if a given pathname is a static asset
-const isStaticAsset = (pathname: string): boolean =>
-	pathname.startsWith('/static/') ||
-	pathname.startsWith('/_app/') ||
-	pathname.endsWith('.js') ||
-	pathname.endsWith('.css') ||
-	pathname === '/favicon.ico';
-
-// Check if the given IP is localhost
-const isLocalhost = (ip: string): boolean => ip === '::1' || ip === '127.0.0.1';
-
-// Check if a route is an OAuth route
-const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login') && pathname.includes('OAuth');
-
-// Check if the route is public or an OAuth route
-const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup'];
-	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
-};
-
-const getClientIp = (event: RequestEvent): string => {
-	try {
-		return (
-			event.getClientAddress() ||
-			event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-			event.request.headers.get('x-real-ip') ||
-			'127.0.0.1'
-		);
-	} catch {
-		return '127.0.0.1';
-	}
-};
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
-
-// Session and Permission Caches
-const sessionCache = new Map<string, { user: User; timestamp: number }>();
-const lastRefreshAttempt = new Map<string, number>();
+// Session metrics and cache imported from shared session utils
 
 // Request deduplication for expensive operations
 const pendingOperations = new Map<string, Promise<unknown>>();
@@ -161,55 +101,7 @@ async function deduplicate<T>(key: string, operation: () => Promise<T>): Promise
 	return promise;
 }
 
-// Simple circuit breaker for database operations
-class CircuitBreaker {
-	private failures = 0;
-	private lastFailTime = 0;
-	private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
-
-	constructor(
-		private maxFailures = 5,
-		private timeout = 60000 // 1 minute
-	) {}
-
-	async execute<T>(operation: () => Promise<T>, fallback?: () => T): Promise<T> {
-		if (this.state === 'OPEN') {
-			if (Date.now() - this.lastFailTime > this.timeout) {
-				this.state = 'HALF_OPEN';
-			} else {
-				if (fallback) return fallback();
-				throw new Error('Circuit breaker is OPEN');
-			}
-		}
-
-		try {
-			const result = await operation();
-			this.onSuccess();
-			return result;
-		} catch (error) {
-			this.onFailure();
-			if (fallback) return fallback();
-			throw error;
-		}
-	}
-
-	private onSuccess() {
-		this.failures = 0;
-		this.state = 'CLOSED';
-	}
-
-	private onFailure() {
-		this.failures++;
-		this.lastFailTime = Date.now();
-		if (this.failures >= this.maxFailures) {
-			this.state = 'OPEN';
-		}
-	}
-}
-
-// Circuit breakers for different operations
-const authCircuitBreaker = new CircuitBreaker(3, 30000); // 3 failures, 30 second timeout
-const cacheCircuitBreaker = new CircuitBreaker(5, 10000); // 5 failures, 10 second timeout
+// Circuit breaker logic is handled where needed; not used directly here after refactor
 
 // Health metrics for monitoring
 const healthMetrics = {
@@ -234,20 +126,58 @@ setInterval(
 	60 * 60 * 1000
 );
 
-// Export health metrics for monitoring endpoints
-export const getHealthMetrics = () => ({ ...healthMetrics });
+// Utility functions
+const isStaticAsset = (pathname: string): boolean =>
+	pathname.startsWith('/static/') ||
+	pathname.startsWith('/_app/') ||
+	pathname.endsWith('.js') ||
+	pathname.endsWith('.css') ||
+	pathname === '/favicon.ico';
 
-// Optimized user count getter with caching and deduplication
-const getCachedUserCount = async (authServiceReady: boolean): Promise<number> => {
+const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login') && pathname.includes('OAuth');
+
+const isPublicOrOAuthRoute = (pathname: string): boolean => {
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
+	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
+};
+
+const getClientIp = (event: RequestEvent): string => {
+	try {
+		return (
+			event.getClientAddress() ||
+			event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+			event.request.headers.get('x-real-ip') ||
+			'127.0.0.1'
+		);
+	} catch {
+		return '127.0.0.1';
+	}
+};
+
+/**
+ * Identifies a tenant based on the request hostname.
+ * In a real-world application, this would query a database of tenants.
+ * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
+ */
+
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
+// Optimized user count getter with caching and deduplication (now tenant-aware)
+const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
-	const cacheKey = 'global:userCount';
-	const cacheStore = getCacheStore(); // Get distributed cache instance
-
+	const multiTenant = getPrivateSetting<boolean>('MULTI_TENANT');
+	const cacheKey = multiTenant && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
 	// Try distributed cache first
 	try {
-		const cached = await cacheStore.get<{ count: number; timestamp: number }>(cacheKey);
-		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL) {
-			// Also update local cache for very fast subsequent access on the same instance
+		const cached = await cacheService.get<{ count: number; timestamp: number }>(cacheKey, tenantId);
+		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
 			userCountCache = cached;
 			return cached.count;
 		}
@@ -256,23 +186,24 @@ const getCachedUserCount = async (authServiceReady: boolean): Promise<number> =>
 	}
 
 	// Return local cached value if still valid (fallback)
-	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL) {
+	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
 		return userCountCache.count;
 	}
 
 	// Use deduplication for expensive database operations
-	return deduplicate(`getUserCount:${authServiceReady}`, async () => {
+	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
 		let userCount = -1;
+		const filter = multiTenant && tenantId ? { tenantId } : {};
 
-		if (authServiceReady && auth) {
+		if (authServiceReady && dbModule.auth) {
 			try {
-				userCount = await auth.getUserCount();
+				userCount = await dbModule.auth.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from auth service: ${err.message}`);
 			}
-		} else if (authAdapter && typeof authAdapter.getUserCount === 'function') {
+		} else if (dbModule.authAdapter && typeof dbModule.authAdapter.getUserCount === 'function') {
 			try {
-				userCount = await authAdapter.getUserCount();
+				userCount = await dbModule.authAdapter.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from adapter: ${err.message}`);
 			}
@@ -281,12 +212,13 @@ const getCachedUserCount = async (authServiceReady: boolean): Promise<number> =>
 		// Cache the result in both distributed and local cache
 		if (userCount >= 0) {
 			const dataToCache = { count: userCount, timestamp: now };
+
 			try {
-				await cacheStore.set(cacheKey, dataToCache, new Date(now + USER_COUNT_CACHE_TTL));
+				await cacheService.set(cacheKey, dataToCache, USER_COUNT_CACHE_TTL_S, tenantId);
 			} catch (err) {
 				logger.error(`Failed to write user count to distributed cache: ${err.message}`);
 			}
-			// Also update local cache for very fast subsequent access on the same instance
+
 			userCountCache = dataToCache;
 		}
 
@@ -294,140 +226,75 @@ const getCachedUserCount = async (authServiceReady: boolean): Promise<number> =>
 	});
 };
 
-// Get user from session ID with optimized caching (initialization-aware)
-const getUserFromSessionId = async (session_id: string | undefined, authServiceReady: boolean = false): Promise<User | null> => {
-	if (!session_id) return null;
+// Get user from session ID with optimized caching (now tenant-aware)
+const getUserFromSessionId = (session_id: string | undefined, authServiceReady: boolean = false, tenantId?: string) =>
+	sharedGetUserFromSessionId(session_id, authServiceReady, tenantId, dbModule.auth);
 
-	const cacheStore = getCacheStore();
+// Optimized admin data loading with caching (now tenant-aware)
+const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?: string): Promise<unknown> => {
 	const now = Date.now();
-
-	// Only use cached sessions if auth service is ready OR if this is a static asset request
-	const canUseCache = authServiceReady || auth !== null;
-
-	const memCached = sessionCache.get(session_id);
-	if (memCached && now - memCached.timestamp < CACHE_TTL && canUseCache) {
-		// Extend session in cache proactively on every hit
-		const sessionData = { user: memCached.user, timestamp: now };
-		sessionCache.set(session_id, sessionData); // Update in-memory timestamp
-		cacheStore
-			.set(session_id, sessionData, new Date(now + CACHE_TTL))
-			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		sessionMetrics.lastActivity.set(session_id, now); // Update session metrics
-		return memCached.user;
-	}
-
-	// Try Redis cache only if auth service is ready
-	if (canUseCache) {
-		try {
-			const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
-			if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
-				// Ensure redis cache isn't stale if TTLs differ
-				sessionCache.set(session_id, redisCached); // Populate in-memory cache
-				sessionMetrics.lastActivity.set(session_id, now);
-				return redisCached.user;
-			}
-		} catch (cacheError) {
-			logger.error(`Error reading from session cache store for ${session_id}: ${cacheError.message}`);
-		}
-	}
-
-	// Validate session in database only if auth service is ready
-	if (!authServiceReady || !auth) {
-		logger.debug(`Auth service not ready, skipping session validation for ${session_id}`);
-		return null;
-	}
-
-	try {
-		// Use circuit breaker for database auth operations
-		const user = await authCircuitBreaker.execute(
-			() => auth.validateSession(session_id),
-			() => null // Fallback to null if circuit is open
-		);
-
-		if (user) {
-			const sessionData = { user, timestamp: now };
-			sessionCache.set(session_id, sessionData);
-
-			// Use circuit breaker for cache operations too
-			await cacheCircuitBreaker.execute(
-				() => cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL)),
-				() => {} // Fallback to no-op if cache circuit is open
-			);
-
-			sessionMetrics.lastActivity.set(session_id, now);
-			return user;
-		}
-		logger.warn(`Session validation returned no user for ${session_id}`);
-	} catch (dbError) {
-		logger.error(`Session validation DB error for \x1b[31m${session_id}\x1b[0m: ${dbError.message}`);
-	}
-	return null;
-};
-
-// Optimized admin data loading with caching
-const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown> => {
-	const now = Date.now();
-	const distributedCacheStore = getCacheStore(); // Assuming Redis
-	const inMemoryCacheKey = `inMemoryAdmin:${cacheKey}`; // Separate key for in-memory cache
+	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
+	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
 
 	// 1. Try in-memory cache first (fastest)
 	const memCached = adminDataCache.get(inMemoryCacheKey);
-	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL) {
+	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL_MS) {
 		return memCached.data;
 	}
 
-	// 2. Try distributed cache (e.g., Redis)
+	// 2. Try distributed cache (e.g., Redis) if enabled
 	if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
-		// Only cache specific keys in Redis
 		try {
-			const redisCached = await distributedCacheStore.get<{ data: unknown; timestamp: number }>(`adminData:${cacheKey}`);
-			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL) {
-				adminDataCache.set(inMemoryCacheKey, redisCached); // Populate in-memory cache
+			const redisCached = await cacheService.get<{ data: unknown; timestamp: number }>(distributedCacheKey);
+			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL_MS) {
+				adminDataCache.set(inMemoryCacheKey, redisCached);
 				return redisCached.data;
 			}
 		} catch (err) {
-			logger.warn(`Failed to read admin data (${cacheKey}) from distributed cache: ${err.message}`);
+			logger.warn(`Failed to read admin data (\x1b[34m${cacheKey}\x1b[0m) from distributed cache: ${err.message}`);
 		}
 	}
 
 	let data = null;
-	if (auth) {
+	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
+
+	if (dbModule.auth) {
 		try {
 			if (cacheKey === 'roles') {
-				// First try to get roles from the database
-				data = await auth.getAllRoles();
-				// If no roles in database, initialize and use the config roles
+				data = await dbModule.auth.getAllRoles();
 				if (!data || data.length === 0) {
 					await initializeRoles();
 					data = roles;
 				}
 			} else if (cacheKey === 'users') {
-				data = await auth.getAllUsers();
+				data = await dbModule.auth.getAllUsers(filter);
 			} else if (cacheKey === 'tokens') {
-				data = await auth.getAllTokens();
+				data = await dbModule.auth.getAllTokens(filter.filter);
 			}
 
 			if (data) {
 				// Cache in-memory
 				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now });
-				// Cache in distributed store
+
+				// Cache in distributed store if enabled
 				if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
 					try {
-						await distributedCacheStore.set(`adminData:${cacheKey}`, { data, timestamp: now }, new Date(now + USER_PERM_CACHE_TTL));
+						await cacheService.set(distributedCacheKey, { data, timestamp: now }, USER_PERM_CACHE_TTL_S);
 					} catch (err) {
-						logger.error(`Failed to write admin data (${cacheKey}) to distributed cache: ${err.message}`);
+						logger.error(`Failed to write admin data (\x1b[34m${cacheKey}\x1b[0m) to distributed cache: ${err.message}`);
 					}
 				}
 			}
 		} catch (err) {
-			logger.warn(`Failed to load admin data from DB (${cacheKey}): ${err.message}`);
+			logger.warn(`Failed to load admin data from DB (\x1b[34m${cacheKey}\x1b[0m): ${err.message}`);
+
 			// Specific fallback for roles if DB fetch fails
 			if (cacheKey === 'roles') {
 				try {
 					await initializeRoles();
-					data = roles; // Use config roles as last resort
+					data = roles;
 				} catch (roleErr) {
-					logger.warn(`Failed to initialize config roles fallback: ${roleErr.message}`);
+					logger.warn(`Failed to initialize config roles fallback: \x1b[34m${roleErr.message}\x1b[0m`);
 				}
 			}
 		}
@@ -438,7 +305,7 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 				await initializeRoles();
 				data = roles;
 			} catch (roleErr) {
-				logger.warn(`Failed to initialize config roles: ${roleErr.message}`);
+				logger.warn(`Failed to initialize config roles: \x1b[34m${roleErr.message}\x1b[0m`);
 			}
 		}
 	}
@@ -446,314 +313,200 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 	return data || [];
 };
 
-// Helper function to invalidate admin data cache - exported for use in API endpoints
-export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): void => {
-	const distributedCacheStore = getCacheStore();
-	if (cacheKey) {
-		adminDataCache.delete(`inMemoryAdmin:${cacheKey}`); // Invalidate local cache
-		distributedCacheStore
-			.delete(`adminData:${cacheKey}`)
-			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[31m${cacheKey}\x1b[0m: ${err.message}`));
-		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0m`);
-	} else {
-		adminDataCache.clear(); // Clear all local caches
-		// For distributed cache, you'd need a pattern-based deletion or iterate if you have a known set of keys
-		// Note: If your cache store supports pattern deletion, use it here
-		['roles', 'users', 'tokens'].forEach((key) => {
-			distributedCacheStore
-				.delete(`adminData:${key}`)
-				.catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
-		});
-		logger.debug('All admin cache cleared');
-	}
-};
-
-// Helper function to invalidate user count cache - exported for use after user creation/deletion
-export const invalidateUserCountCache = (): void => {
-	userCountCache = null; // Invalidate local cache
-	const distributedCacheStore = getCacheStore();
-	distributedCacheStore.delete('global:userCount').catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
-	logger.debug('User count cache invalidated');
-};
-
-// Handle static asset caching
-const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
-	if (isStaticAsset(event.url.pathname)) {
-		const response = await resolve(event);
-		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-		return response;
-	}
-	return resolve(event);
-};
-
-// Handle rate limiting
-const handleRateLimit: Handle = async ({ event, resolve }) => {
-	const clientIp = getClientIp(event);
-
-	if (isStaticAsset(event.url.pathname) || isLocalhost(clientIp) || building) {
-		return resolve(event);
-	}
-
-	// Skip rate limiting if limiters aren't initialized yet (e.g., during startup)
-	if (!limiter || !apiLimiter) {
-		return resolve(event);
-	}
-
-	const currentLimiter = event.url.pathname.startsWith('/api/') ? apiLimiter : limiter;
-	if (await currentLimiter.isLimited(event)) {
-		logger.warn(`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, endpoint: \x1b[34m${event.url.pathname}\x1b[0m`);
-		// Throw a SvelteKit error that can be caught by +error.svelte
-		throw error(429, 'Too Many Requests. Please try again later.');
-	}
-	return resolve(event);
-};
-
-// Helper function for session rotation logic
-async function handleSessionRotation(
-	event: RequestEvent,
-	user: User,
-	session_id: string,
-	authService: typeof auth,
-	refreshLimiter: RateLimiter,
-	cookieName: string
-): Promise<string> {
-	if (typeof authService.getSessionTokenData !== 'function') {
-		logger.error('auth.getSessionTokenData is not a function in authService');
-		event.cookies.delete(cookieName, { path: '/' });
-		throw redirect(302, '/login');
-	}
-
-	let tokenData: { expiresAt: Date; user_id: string } | null = null;
-	try {
-		tokenData = await authService.getSessionTokenData(session_id);
-	} catch (tokenError) {
-		logger.error(`Failed to get session token data for session \x1b[31m${session_id}\x1b[0m: ${tokenError.message}`);
-		event.cookies.delete(cookieName, { path: '/' });
-		throw redirect(302, '/login');
-	}
-
-	if (tokenData && tokenData.user_id === user._id) {
-		const now = Date.now();
-		const expiresAtTime = new Date(tokenData.expiresAt).getTime();
-		const timeLeft = expiresAtTime - now;
-
-		const shouldRefresh = timeLeft > 0 && timeLeft < 60 * 60 * 1000; // Less than 1 hour left
-		const REFRESH_DEBOUNCE_MS = 5 * 60 * 1000;
-		const lastAttempt = lastRefreshAttempt.get(session_id) || 0;
-
-		if (shouldRefresh && now - lastAttempt > REFRESH_DEBOUNCE_MS) {
-			lastRefreshAttempt.set(session_id, now);
-			sessionMetrics.rotationAttempts.set(session_id, (sessionMetrics.rotationAttempts.get(session_id) || 0) + 1);
-
-			// Skip rate limiting if refreshLimiter isn't initialized yet
-			const rateLimited = refreshLimiter ? await refreshLimiter.isLimited(event) : false;
-			if (rateLimited) {
-				logger.warn(`Refresh rate limit exceeded for user \x1b[34m${user._id}\x1b[0m, IP: \x1b[34m${getClientIp(event)}\x1b[0m`);
-			} else {
-				try {
-					const oldSessionId = session_id;
-					const newExpiryDate = new Date(now + CACHE_TTL);
-					const newTokenId = await authService.rotateToken(session_id, newExpiryDate);
-
-					if (newTokenId) {
-						session_id = newTokenId;
-						logger.debug(`Token rotated for user \x1b[34m${user._id}\x1b[0m. New session ID: \x1b[34m${newTokenId}\x1b[0m`);
-						sessionMetrics.activeExtensions.set(session_id, now);
-
-						const cacheStore = getCacheStore();
-						const sessionData = { user, timestamp: now };
-
-						// Update distributed cache with new session ID
-						sessionCache.set(newTokenId, sessionData);
-						await cacheStore.set(newTokenId, sessionData, new Date(now + CACHE_TTL));
-
-						// Clean up old session from cache
-						sessionCache.delete(oldSessionId);
-						cacheStore
-							.delete(oldSessionId)
-							.catch((err) => logger.warn(`Failed to delete old session \x1b[31m${oldSessionId}\x1b[0m from cache: ${err.message}`));
-
-						// Update the cookie to the new session ID
-						event.cookies.set(cookieName, session_id, {
-							path: '/',
-							httpOnly: true,
-							secure: event.url.protocol === 'https:',
-							maxAge: CACHE_TTL / 1000,
-							sameSite: 'lax'
-						});
-
-						logger.debug(`Cache updated for token rotation - old: ${oldSessionId}, new: ${newTokenId}`);
-					} else {
-						logger.warn(`Token rotation failed for user ${user._id}: newTokenId was null/undefined.`);
-					}
-				} catch (rotationError) {
-					logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError.message}`);
-				}
-			}
-		}
-	} else if (tokenData && tokenData.user_id !== user._id) {
-		logger.error(
-			`CRITICAL: Session ID ${session_id} for user ${user._id} resolved to token data for different user ${tokenData.user_id}. Invalidating session.`
-		);
-		event.cookies.delete(cookieName, { path: '/' });
-		throw redirect(302, '/login');
-	} else if (!tokenData && session_id) {
-		logger.warn(`Session ${session_id} for user ${user._id} yielded no valid tokenData. Clearing cookie.`);
-		event.cookies.delete(cookieName, { path: '/' });
-		event.locals.user = null; // Ensure locals.user is nullified
-	}
-
-	return session_id;
-}
-
-// Handle authentication, authorization, and API caching
+// Main authentication and authorization middleware
 const handleAuth: Handle = async ({ event, resolve }) => {
+	// Use setupModeDefaults if setupMode is active
+	const isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+	const privateEnv = isSetupMode ? setupModeDefaults : (await import('@root/config/private')).privateEnv;
 	if (building) return resolve(event);
 
 	const requestStartTime = performance.now();
-	const { url, cookies, locals } = event; // Destructure for cleaner access
+	const { url, cookies, locals } = event;
 
 	// Track request metrics
 	healthMetrics.requests.total++;
 
 	// Skip auth entirely for static assets during initialization
 	if (isStaticAsset(url.pathname)) {
-		logger.debug(`Skipping auth for static asset: ${url.pathname}`);
+		logger.debug(`Skipping auth for static asset: \x1b[34m${url.pathname}\x1b[0m`);
 		return resolve(event);
 	}
 
 	try {
+		// Multi-tenancy logic (only if enabled)
+		if (privateEnv.MULTI_TENANT) {
+			// Process multi-tenancy within the main auth handler to avoid duplication
+			const tenantId = getTenantIdFromHostname(url.hostname);
+			if (!tenantId) {
+				throw error(404, `Tenant not found for hostname: \x1b[34m${url.hostname}\x1b[0m`);
+			}
+			locals.tenantId = tenantId;
+			logger.debug(`Request identified for tenant: \x1b[34m${tenantId}\x1b[0m`);
+		}
+
 		// Wait for database initialization
 		await dbInitPromise;
 
-		// Check if auth service is ready
-		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
+		// Only run DB-dependent logic if dbModule is defined (not in setup mode)
+		if (typeof dbModule !== 'undefined' && dbModule) {
+			// Get the current dbAdapter from the module (it might have been updated during initialization)
+			const currentDbAdapter = dbModule.dbAdapter;
 
-		let session_id = cookies.get(SESSION_COOKIE_NAME);
-		const user = await getUserFromSessionId(session_id, authServiceReady);
+			// Ensure dbAdapter is properly initialized before making it available
+			if (!currentDbAdapter) {
+				logger.error('Database adapter is null after initialization', {
+					dbModuleExists: !!dbModule,
+					dbAdapterFromModule: !!dbModule.dbAdapter,
+					dbInitPromiseCompleted: true
+				});
+				throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
+			}
 
-		locals.user = user;
-		locals.permissions = user?.permissions || [];
-		locals.session_id = user ? session_id : undefined;
+			// Make the dbAdapter available to all subsequent handlers and endpoints
+			locals.dbAdapter = currentDbAdapter;
 
-		if (user && session_id && authServiceReady) {
-			// Session management and token rotation logic
-			session_id = await handleSessionRotation(event, user, session_id, auth, refreshLimiter, SESSION_COOKIE_NAME);
-		} else if (!user && session_id) {
-			logger.debug(`Clearing invalid session cookie: ${session_id}`);
-			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		}
+			// Debug: Log dbAdapter status
+			logger.debug('Database adapter status in hooks', {
+				dbAdapterExists: !!currentDbAdapter,
+				dbAdapterType: currentDbAdapter?.constructor?.name || 'null'
+			});
 
-		// Optimized first user check with caching
-		const userCount = await getCachedUserCount(authServiceReady);
-		const isFirstUser = userCount === 0;
-		locals.isFirstUser = isFirstUser;
+			// Check if auth service is ready (Mongoose connection must be fully established)
+			let authServiceReady = false;
+			try {
+				const mongoose = dbModule.mongoose || (await import('mongoose')).default;
+				const isDbConnected = mongoose.connection.readyState === 1; // 1 = connected
+				authServiceReady = isDbConnected && dbModule.auth !== null && typeof dbModule.auth.validateSession === 'function';
+			} catch (err) {
+				logger.warn('Could not check Mongoose connection state:', err);
+				authServiceReady = false;
+			}
 
-		// Load roles and other admin data conditionally and with caching
-		if (authServiceReady) {
-			// First, load roles for everyone (guests might need to see public roles)
-			locals.roles = (await getAdminDataCached(user, 'roles')) as unknown[];
+			const session_id = cookies.get(SESSION_COOKIE_NAME);
+			const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
 
-			if (locals.user) {
-				// This block now ONLY runs for logged-in users
-				const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
-				const isAdmin = !!(userRole as { isAdmin?: boolean })?.isAdmin;
+			locals.user = user;
+			locals.permissions = user?.permissions || [];
+			locals.session_id = user ? session_id : undefined;
 
-				locals.isAdmin = isAdmin;
-				locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(locals.user, 'manage', 'user', undefined, locals.roles);
+			// Optimized first user check with caching
+			const userCount = await getCachedUserCount(authServiceReady, locals.tenantId);
+			const isFirstUser = userCount === 0;
+			locals.isFirstUser = isFirstUser;
 
-				// Conditionally load other admin data
-				if (
-					(isAdmin || locals.hasManageUsersPermission) &&
-					(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
-				) {
-					const [allUsers, allTokens] = await Promise.all([getAdminDataCached(locals.user, 'users'), getAdminDataCached(locals.user, 'tokens')]);
-					locals.allUsers = allUsers as unknown[];
-					locals.allTokens = allTokens;
+			// Load roles and other admin data conditionally and with caching
+			if (authServiceReady) {
+				// First, load roles for everyone (guests might need to see public roles)
+				locals.roles = (await getAdminDataCached(user, 'roles', locals.tenantId)) as unknown[];
+
+				if (locals.user) {
+					// This block now ONLY runs for logged-in users
+					const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
+					const isAdmin = !!(userRole as { isAdmin?: boolean })?.isAdmin;
+
+					locals.isAdmin = isAdmin;
+					locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(locals.user, 'manage', 'user', undefined, locals.roles);
+
+					// Conditionally load other admin data
+					if (
+						(isAdmin || locals.hasManageUsersPermission) &&
+						(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
+					) {
+						const [allUsers, allTokens] = await Promise.all([
+							getAdminDataCached(locals.user, 'users', locals.tenantId),
+							getAdminDataCached(locals.user, 'tokens', locals.tenantId)
+						]);
+						locals.allUsers = allUsers as unknown[];
+						locals.allTokens = allTokens;
+					} else {
+						locals.allUsers = [];
+						locals.allTokens = [];
+					}
 				} else {
+					// This block runs for guests (user is null)
+					locals.isAdmin = false;
+					locals.hasManageUsersPermission = false;
 					locals.allUsers = [];
 					locals.allTokens = [];
 				}
 			} else {
-				// This block runs for guests (user is null)
-				// Set safe defaults for non-authenticated users
+				// If auth service not ready, set safe defaults and fall back to config roles
+				await initializeRoles();
+				locals.roles = roles;
 				locals.isAdmin = false;
 				locals.hasManageUsersPermission = false;
 				locals.allUsers = [];
 				locals.allTokens = [];
 			}
-		} else {
-			// If auth service not ready, set safe defaults and fall back to config roles
-			await initializeRoles(); // Ensure config roles are loaded
+
+			// Performance logging for the request duration
+			const responseTime = performance.now() - requestStartTime;
+			logger.debug(
+				`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`
+			);
+
+			// Authorization checks
+			const isPublic = isPublicOrOAuthRoute(url.pathname);
+			const isApi = url.pathname.startsWith('/api/');
+
+			if (isOAuthRoute(url.pathname)) {
+				logger.debug('OAuth route detected, passing through');
+				return resolve(event);
+			}
+
+			if (authServiceReady) {
+				if (!locals.user && !isPublic && !isFirstUser) {
+					logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
+					if (isApi) throw error(401, 'Unauthorized');
+					throw redirect(302, '/login');
+				}
+
+				if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
+					// Check if setup is completed before redirecting from setup page
+					const isSetupRoute = url.pathname.startsWith('/setup');
+					const setupCompleted = getGlobalSetting('SETUP_COMPLETED');
+
+					if (isSetupRoute && !setupCompleted) {
+						// Allow access to setup page if setup is not completed
+						logger.debug(`Setup not completed, allowing access to setup page: \x1b[34m${url.pathname}\x1b[0m`);
+					} else {
+						logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
+						throw redirect(302, '/');
+					}
+				}
+			} else {
+				logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
+				if (!isPublic) {
+					throw error(503, 'Service Unavailable: Authentication service is initializing. Please try again shortly.');
+				}
+			}
+
+			return resolve(event);
+		}
+		// If dbModule is undefined (setup mode), set safe defaults and allow setup routes
+		else {
+			await initializeRoles();
 			locals.roles = roles;
 			locals.isAdmin = false;
 			locals.hasManageUsersPermission = false;
 			locals.allUsers = [];
 			locals.allTokens = [];
-		}
 
-		// Update stores from existing cookies if present
-		const systemLangCookie = cookies.get('systemLanguage');
-		const contentLangCookie = cookies.get('contentLanguage');
+			const responseTime = performance.now() - requestStartTime;
+			logger.debug(`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m (setup mode)`);
 
-		if (systemLangCookie) {
-			try {
-				systemLanguage.set(systemLangCookie as Locale);
-			} catch {
-				logger.warn(`Invalid system language cookie value: ${systemLangCookie}`);
-				cookies.delete('systemLanguage', { path: '/' });
+			// Allow access to setup routes and public routes
+			const isPublic = isPublicOrOAuthRoute(url.pathname);
+			const isSetupRoute = url.pathname.startsWith('/setup');
+			const isTestDbRoute = url.pathname === '/api/setup/test-database' || url.pathname === '/api/setup/test-database/';
+			const isSetupCompleteRoute = url.pathname === '/api/setup/complete' || url.pathname === '/api/setup/complete/';
+
+			if (isSetupRoute || isPublic || isTestDbRoute || isSetupCompleteRoute) {
+				return resolve(event);
+			} else {
+				throw redirect(302, '/setup');
 			}
 		}
-
-		if (contentLangCookie) {
-			try {
-				contentLanguage.set(contentLangCookie as Locale);
-			} catch {
-				logger.warn(`Invalid content language cookie value: ${contentLangCookie}`);
-				cookies.delete('contentLanguage', { path: '/' });
-			}
-		}
-
-		// Performance logging for the request duration
-		const responseTime = performance.now() - requestStartTime;
-		logger.debug(
-			`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: ${authServiceReady})`
-		);
-
-		// Authorization checks
-		const isPublic = isPublicOrOAuthRoute(url.pathname);
-		const isApi = url.pathname.startsWith('/api/');
-
-		if (isOAuthRoute(url.pathname)) {
-			logger.debug('OAuth route detected, passing through');
-			return resolve(event);
-		}
-
-		if (authServiceReady) {
-			if (!locals.user && !isPublic && !isFirstUser) {
-				logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
-				if (isApi) throw error(401, 'Unauthorized');
-				throw redirect(302, '/login');
-			}
-
-			if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-				// Check if setup is completed before redirecting from setup page
-				const isSetupRoute = url.pathname.startsWith('/setup');
-				const setupCompleted = getGlobalSetting('SETUP_COMPLETED');
-
-				if (isSetupRoute && !setupCompleted) {
-					// Allow access to setup page if setup is not completed
-					logger.debug(`Setup not completed, allowing access to setup page: \x1b[34m${url.pathname}\x1b[0m`);
-				} else {
-					logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
-					throw redirect(302, '/');
-				}
-			}
-		} else {
-			logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
-		}
-
-		return resolve(event);
 	} catch (err) {
 		// Track error metrics
 		healthMetrics.requests.errors++;
@@ -765,7 +518,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		const clientIp = getClientIp(event);
 		logger.error(
-			`Unhandled error in handleAuth for \x1b[34m${url.pathname}\x1b[0m (IP: ${clientIp}): ${err instanceof Error ? err.message : JSON.stringify(err)}`,
+			`Unhandled error in handleAuth for \x1b[34m${url.pathname}\x1b[0m (IP: \x1b[34m${clientIp}\x1b[0m): ${err instanceof Error ? err.message : JSON.stringify(err)}`,
 			{
 				stack: err instanceof Error ? err.stack : undefined
 			}
@@ -789,46 +542,65 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 };
 
-// Add security headers to the response
-const addSecurityHeaders: Handle = async ({ event, resolve }) => {
-	const response = await resolve(event);
-	const headers = {
-		'X-Frame-Options': 'SAMEORIGIN',
-		'X-XSS-Protection': '1; mode=block',
-		'X-Content-Type-Options': 'nosniff',
-		'Referrer-Policy': 'strict-origin-when-cross-origin',
-		'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), display-capture=()'
-	};
-	Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
-	if (event.url.protocol === 'https:') {
-		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-	}
-	return response;
+// Build the middleware sequence based on configuration
+const buildMiddlewareSequence = (): Handle[] => {
+	const middleware: Handle[] = [];
+
+	// Always include static asset caching first for performance
+	middleware.push(handleStaticAssetCaching);
+
+	// Add rate limiting (always enabled for security)
+	middleware.push(handleRateLimit);
+
+	// Add multi-tenancy middleware if enabled (integrated into auth handler for efficiency)
+	// No separate middleware needed as it's handled in handleAuth
+
+	// Add authentication and authorization
+	middleware.push(handleAuth);
+
+	// Add API request handling
+	middleware.push(handleApiRequests);
+
+	// Add locale handling
+	middleware.push(handleLocale);
+
+	// Always add security headers last
+	middleware.push(addSecurityHeaders);
+
+	return middleware;
 };
 
-// Combine all hooks
-export const handle: Handle = sequence(
-	// logRequestHook, // Uncomment for debugging
-	handleStaticAssetCaching,
-	handleRateLimit,
-	handleAuth,
-	addSecurityHeaders
-);
+// Combine all hooks using the optimized sequence
+export const handle: Handle = sequence(...buildMiddlewareSequence());
 
-// Helper function to invalidate API cache
-export const invalidateApiCache = async (apiEndpoint: string, userId: string): Promise<void> => {
-	const cacheStore = getCacheStore();
-	const basePattern = `api:${apiEndpoint}:${userId}`;
-	logger.debug(`Attempting to invalidate API cache for pattern \x1b[33m${basePattern}:*\x1b[0m and exact key \x1b[33m${basePattern}\x1b[0m`);
-	try {
-		// Try to delete pattern-based cache keys if supported
-		if (typeof cacheStore.deletePattern === 'function') {
-			await cacheStore.deletePattern(`${basePattern}:*`);
-		}
-		await cacheStore.delete(basePattern);
-	} catch (e) {
-		logger.error(`Error during explicit API cache invalidation for \x1b[31m${basePattern}\x1b[0m: ${e.message}`);
+// Export utility functions for external use
+export const getHealthMetrics = () => ({ ...healthMetrics });
+
+export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
+	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
+	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
+
+	if (cacheKey) {
+		adminDataCache.delete(inMemoryCacheKey);
+		cacheService
+			.delete(distributedCacheKey)
+			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[34m${cacheKey}\x1b[0m: ${err.message}`));
+		logger.debug(`Admin cache invalidated for: \x1b[34m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
+	} else {
+		adminDataCache.clear();
+		['roles', 'users', 'tokens'].forEach((key) => {
+			const distKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${key}` : `adminData:${key}`;
+			cacheService.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
+		});
+		logger.debug('All admin cache cleared');
 	}
+};
+
+export const invalidateUserCountCache = (tenantId?: string): void => {
+	userCountCache = null;
+	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
+	cacheService.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
+	logger.debug('User count cache invalidated');
 };
 
 export const cleanupSessionMetrics = (): void => {
@@ -845,7 +617,7 @@ export const cleanupSessionMetrics = (): void => {
 		}
 	}
 	if (cleanedCount > 0) {
-		logger.info(`Cleaned up metrics for ${cleanedCount} stale sessions.`);
+		logger.info(`Cleaned up metrics for \x1b[34m${cleanedCount}\x1b[0m stale sessions.`);
 	}
 };
 

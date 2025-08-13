@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/dashboard/+page.svelte
 @component
-**This file sets up and displays the dashboard page. It provides a user-friendly interface for managing system resources and system messages**
+**Dashboard page providing a user-friendly interface for managing system resources and system messages**
 
 @example
 <Dashboard />
@@ -10,209 +10,272 @@
 - `data` {object} - Object containing user data
 
 ### Features
-- Displays widgets for CPU usage, disk usage, memory usage, last 5 media, user activity, and system messages
+- Displays widgets for CPU usage, disk usage, memory usage, performance, user activity, and system messages
+- Fully responsive grid with dynamic width and height resizing
+- Drag-and-drop widget reordering
+- Persistent widget configurations via systemPreferences with multiple layouts
+- Layout switching (e.g., default, compact)
+- Accessible widget addition, removal, and layout switching
 -->
-
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import { flip } from 'svelte/animate';
-
-	// Stores
+	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
-
-	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import FirstLoginWelcome from '@components/admin/FirstLoginWelcome.svelte';
-	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-	import CPUWidget from './widgets/CPUWidget.svelte';
-	import DiskWidget from './widgets/DiskWidget.svelte';
-	import MemoryWidget from './widgets/MemoryWidget.svelte';
-	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
-	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
-	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
-	import LogsWidget from './widgets/LogsWidget.svelte';
-	import Last5ContentWidget from './widgets/Last5ContentWidget.svelte';
-	import PerformanceWidget from './widgets/PerformanceWidget.svelte';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetSize, WidgetComponent, WidgetMeta } from '@config/types';
 
-	// --- Type Definitions ---
-	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
-	type DropPosition = 'before' | 'after' | 'replace' | 'insert';
+	const { data }: { data: PageData } = $props();
 
-	const widgetComponentRegistry = {
-		CPUWidget: { component: CPUWidget, name: 'CPU Usage', icon: 'mdi:cpu-64-bit' },
-		DiskWidget: { component: DiskWidget, name: 'Disk Usage', icon: 'mdi:harddisk' },
-		MemoryWidget: { component: MemoryWidget, name: 'Memory Usage', icon: 'mdi:memory' },
-		Last5ContentWidget: { component: Last5ContentWidget, name: 'Last 5 Content', icon: 'mdi:image-multiple' },
-		Last5MediaWidget: { component: Last5MediaWidget, name: 'Last 5 Media', icon: 'mdi:image-multiple' },
-		UserActivityWidget: { component: UserActivityWidget, name: 'User Activity', icon: 'mdi:account-group' },
-		SystemMessagesWidget: { component: SystemMessagesWidget, name: 'System Messages', icon: 'mdi:message-alert' },
-		LogsWidget: { component: LogsWidget, name: 'System Logs', icon: 'mdi:file-document-outline' },
-		PerformanceWidget: { component: PerformanceWidget, name: 'Performance Monitor', icon: 'mdi:chart-line' }
-	} as const;
+	const MAX_COLUMNS = 4;
+	const MAX_ROWS = 4;
+	const HEADER_HEIGHT = 48; // Approx height of widget header
 
-	interface DashboardWidgetConfig {
-		id: string;
-		component: keyof typeof widgetComponentRegistry;
-		label: string;
-		icon: string;
-		size: WidgetSize;
-		gridPosition?: number;
-	}
+	let mainContainerEl: HTMLElement | null = $state(null);
+	let searchInput: HTMLInputElement | null = $state(null);
+	let dropdownOpen = $state(false);
+	let searchQuery = $state('');
+	let loadError = $state<string | null>(null);
+	let registryLoaded = $state(false);
+	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
 
-	interface DropIndicator {
-		index: number;
-		position: DropPosition;
-	}
+	let showImportExport = $state(false);
 
-	interface DragState {
+	let dragState: {
 		item: DashboardWidgetConfig | null;
 		element: HTMLElement | null;
 		offset: { x: number; y: number };
 		isActive: boolean;
-	}
+		gridPosition?: { row: number; col: number };
+	} = $state({ item: null, element: null, offset: { x: 0, y: 0 }, isActive: false });
+	let dropIndicator: DropIndicator | null = $state(null);
+	let gridDropIndicator: { row: number; col: number; width: number; height: number } | null = $state(null);
 
-	// --- Constants & Props ---
-	const HEADER_HEIGHT = 60;
-	let { data: pageData }: { data: { user: { id: string; username?: string; email?: string; role?: string; isAdmin?: boolean } } } = $props();
-
-	// --- State Management (Svelte 5 Runes) ---
-	let items = $state<DashboardWidgetConfig[]>([]);
-	let showFirstLoginWelcome = $state(false);
-	let showImportExport = $state(false);
-	let dropdownOpen = $state(false);
-	let preferencesLoaded = $state(false);
-	let previewSizes = $state<Record<string, WidgetSize>>({});
-	let loadError = $state<string | null>(null);
-	let searchQuery = $state('');
-	let searchInput: HTMLInputElement | null = $state(null);
-	let mainContainerEl: HTMLElement | null = $state(null);
-	let dragState = $state<DragState>({ item: null, element: null, offset: { x: 0, y: 0 }, isActive: false });
-	let dropIndicator = $state<DropIndicator | null>(null);
-
-	// --- Utility Functions ---
-	function getColumnSpan(size: WidgetSize): number {
-		const spanMap: Record<WidgetSize, number> = { '1/4': 1, '1/2': 2, '3/4': 3, full: 4 };
-		return spanMap[size] || 1;
-	}
-
-	function recalculateGridPositions(currentItems: DashboardWidgetConfig[], previews: Record<string, WidgetSize>): DashboardWidgetConfig[] {
-		const grid = new Array(100).fill(null); // 4x25 grid
-		let cursor = 0;
-		return currentItems.map((item) => {
-			const effectiveSize = previews[item.id] || item.size;
-			const span = getColumnSpan(effectiveSize);
-			while (grid[cursor] !== null) cursor++;
-			const col = cursor % 4;
-			if (col + span > 4) {
-				cursor += 4 - col;
-				while (grid[cursor] !== null) cursor++;
+	async function loadWidgetRegistry() {
+		const modules = import.meta.glob('./widgets/*.svelte');
+		const registry: typeof widgetRegistry = {};
+		for (const path in modules) {
+			const name = path.split('/').pop()?.replace('.svelte', '');
+			if (name) {
+				const module = (await modules[path]()) as { default: WidgetComponent; widgetMeta: WidgetMeta };
+				registry[name] = {
+					component: module.default,
+					name: module.widgetMeta?.name || name,
+					description: module.widgetMeta?.description || '',
+					icon: module.widgetMeta?.icon || 'mdi:widgets',
+					widgetMeta: module.widgetMeta
+				};
 			}
-			const newItem = { ...item, gridPosition: cursor };
-			for (let i = 0; i < span; i++) {
-				if (cursor + i < grid.length) {
-					grid[cursor + i] = item.id;
-				}
-			}
-			return newItem;
-		});
+		}
+		widgetRegistry = registry;
+		registryLoaded = true;
 	}
 
-	// --- Derived State ---
-	let positionedItems = $derived(recalculateGridPositions(items, previewSizes));
-	let currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
-	let availableWidgets = $derived(
-		(Object.keys(widgetComponentRegistry) as Array<keyof typeof widgetComponentRegistry>).filter(
-			(name) => !items.some((item) => item.component === name)
-		)
+	const widgetComponentRegistry = $derived(widgetRegistry);
+	const currentPreferences = $derived($systemPreferences?.preferences || []);
+	const availableWidgets = $derived(
+		registryLoaded && currentPreferences
+			? Object.keys(widgetComponentRegistry).filter((name) => !currentPreferences.some((item) => item.component === name))
+			: []
 	);
-	let filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
+	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
+	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
 
-	// --- Core Logic ---
+	// Helper function to calculate grid position from mouse coordinates
+	function getGridPositionFromCoords(x: number, y: number, gridContainer: HTMLElement) {
+		const rect = gridContainer.getBoundingClientRect();
+		const relativeX = x - rect.left;
+		const relativeY = y - rect.top;
+
+		const gap = 16; // 1rem gap
+		const cellWidth = (rect.width - gap * (MAX_COLUMNS - 1)) / MAX_COLUMNS;
+		const cellHeight = 180 + gap; // grid-auto-rows: 180px + gap
+
+		const col = Math.floor(relativeX / (cellWidth + gap));
+		const row = Math.floor(relativeY / cellHeight);
+
+		return {
+			col: Math.max(0, Math.min(MAX_COLUMNS - 1, col)),
+			row: Math.max(0, row)
+		};
+	}
+
+	// Helper function to find insertion position based on coordinates
+	function findInsertionPosition(x: number, y: number): number {
+		const gridContainer = mainContainerEl?.querySelector('.responsive-dashboard-grid') as HTMLElement;
+		if (!gridContainer) return currentPreferences.length;
+
+		// Get all widget elements and their positions
+		const widgets = Array.from(gridContainer.querySelectorAll('.widget-container')) as HTMLElement[];
+		const widgetPositions = widgets.map((el) => {
+			const rect = el.getBoundingClientRect();
+			const gridRect = gridContainer.getBoundingClientRect();
+			return {
+				id: el.dataset.widgetId,
+				centerX: rect.left + rect.width / 2 - gridRect.left,
+				centerY: rect.top + rect.height / 2 - gridRect.top,
+				rect
+			};
+		});
+
+		const relativeX = x - gridContainer.getBoundingClientRect().left;
+		const relativeY = y - gridContainer.getBoundingClientRect().top;
+
+		// Find the closest widget or insertion point
+		let insertIndex = 0;
+		let minDistance = Infinity;
+
+		for (let i = 0; i <= widgetPositions.length; i++) {
+			let targetY, targetX;
+
+			if (i === 0) {
+				// Before first widget
+				targetY = widgetPositions[0]?.centerY || 0;
+				targetX = widgetPositions[0]?.centerX || 0;
+			} else if (i === widgetPositions.length) {
+				// After last widget
+				const lastWidget = widgetPositions[widgetPositions.length - 1];
+				targetY = lastWidget?.centerY || relativeY;
+				targetX = lastWidget?.centerX || relativeX;
+			} else {
+				// Between widgets
+				const prevWidget = widgetPositions[i - 1];
+				const nextWidget = widgetPositions[i];
+				targetY = (prevWidget.centerY + nextWidget.centerY) / 2;
+				targetX = (prevWidget.centerX + nextWidget.centerX) / 2;
+			}
+
+			const distance = Math.sqrt(Math.pow(relativeX - targetX, 2) + Math.pow(relativeY - targetY, 2));
+
+			if (distance < minDistance) {
+				minDistance = distance;
+				insertIndex = i;
+			}
+		}
+
+		return insertIndex;
+	}
+
 	async function saveLayout() {
 		try {
-			const widgetPrefs = items.map((item) => ({
-				...item,
-				x: item.gridPosition ?? 0,
-				y: 0,
-				w: getColumnSpan(item.size),
-				h: 1
-			}));
-			await systemPreferences.setPreference(pageData.user.id, widgetPrefs);
+			if (!data.pageData?.user) return;
+			await systemPreferences.setPreference(data.pageData.user.id, currentPreferences);
 		} catch (err) {
 			console.error('Failed to save layout:', err);
 			loadError = 'Failed to save layout.';
 		}
 	}
 
-	function addNewWidget(componentName: keyof typeof widgetComponentRegistry) {
+	// Ensure all widgets have proper order values
+	function ensureWidgetOrder() {
+		if (!data.pageData?.user) return;
+
+		const widgets = [...currentPreferences];
+		let needsUpdate = false;
+
+		// Check if any widgets are missing order property
+		widgets.forEach((widget, index) => {
+			if (typeof widget.order !== 'number') {
+				widget.order = index;
+				needsUpdate = true;
+			}
+		});
+
+		// Sort by existing order and reassign sequential order values
+		widgets.sort((a, b) => (a.order || 0) - (b.order || 0));
+		widgets.forEach((widget, index) => {
+			if (widget.order !== index) {
+				widget.order = index;
+				needsUpdate = true;
+			}
+		});
+
+		// Update widgets if needed using batch update
+		if (needsUpdate) {
+			systemPreferences.updateWidgets(data.pageData.user.id, widgets);
+		}
+	}
+
+	function addNewWidget(componentName: string) {
+		if (!data.pageData?.user) {
+			console.error('SveltyCMS: Cannot add widget, user data is not available.');
+			loadError = 'Cannot add widget: User data is not available. Please try refreshing the page.';
+			return;
+		}
 		const componentInfo = widgetComponentRegistry[componentName];
+		if (!componentInfo) {
+			console.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
+			loadError = `Cannot add widget: Component "${componentName}" not found.`;
+			return;
+		}
+
+		const defaultSize = componentInfo.widgetMeta?.defaultSize || { w: 1, h: 1 };
+
 		const newItem: DashboardWidgetConfig = {
 			id: `widget-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`,
 			component: componentName,
 			label: componentInfo.name,
 			icon: componentInfo.icon,
-			size: componentName === 'LogsWidget' ? '1/2' : '1/4'
+			size: defaultSize,
+			settings: componentInfo.widgetMeta?.settings || {},
+			order: currentPreferences.length // Use order instead of gridPosition
 		};
-		items.push(newItem);
+		systemPreferences.updateWidget(data.pageData.user.id, newItem);
 		dropdownOpen = false;
 		searchQuery = '';
-		saveLayout();
 	}
 
 	function removeWidget(id: string) {
-		items = items.filter((item) => item.id !== id);
-		saveLayout();
+		if (!data.pageData?.user) return;
+		systemPreferences.removeWidget(data.pageData.user.id, id);
+	}
+
+	function resetAllWidgets() {
+		if (!data.pageData?.user) return;
+		systemPreferences.setPreference(data.pageData.user.id, []);
 	}
 
 	function resizeWidget(widgetId: string, newSize: WidgetSize) {
-		const item = items.find((i) => i.id === widgetId);
+		if (!data.pageData?.user) return;
+		const item = currentPreferences.find((i) => i.id === widgetId);
 		if (item) {
-			item.size = newSize;
-			const newPreviews = { ...previewSizes };
-			delete newPreviews[widgetId];
-			previewSizes = newPreviews;
-			saveLayout();
+			const updatedSize = {
+				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
+				h: Math.max(1, Math.min(MAX_ROWS, newSize.h))
+			};
+			systemPreferences.updateWidget(data.pageData.user.id, { ...item, size: updatedSize });
 		}
 	}
 
-	function handlePreviewSizeChange(widgetId: string, previewSize: WidgetSize | null) {
-		const item = items.find((i) => i.id === widgetId);
-		if (!item) return;
+	function performDrop(widget: DashboardWidgetConfig, indicator: { targetIndex: number }) {
+		if (!data.pageData?.user) return;
 
-		const newPreviews = { ...previewSizes };
-		if (previewSize === null || previewSize === item.size) {
-			delete newPreviews[widgetId];
-		} else {
-			newPreviews[widgetId] = previewSize;
-		}
-		previewSizes = newPreviews;
+		const currentWidgets = [...currentPreferences];
+		const currentIndex = currentWidgets.findIndex((w) => w.id === widget.id);
+
+		if (currentIndex === -1) return;
+
+		// Remove from current position
+		const [movedWidget] = currentWidgets.splice(currentIndex, 1);
+
+		// Insert at new position
+		currentWidgets.splice(indicator.targetIndex, 0, movedWidget);
+
+		// Update order property for all widgets and save them as a batch
+		const updatedWidgets = currentWidgets.map((w, index) => ({
+			...w,
+			order: index
+		}));
+
+		systemPreferences.updateWidgets(data.pageData.user.id, updatedWidgets);
 	}
+	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
+		// Ignore clicks on interactive elements and resize handles
+		if (!!(event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
 
-	function performDrop(draggedItem: DashboardWidgetConfig, indicator: DropIndicator) {
-		const fromIndex = items.findIndex((i) => i.id === draggedItem.id);
-		let toIndex = indicator.index;
-		if (fromIndex === -1 || fromIndex === toIndex) return;
-
-		const newItems = [...items];
-		const [movedItem] = newItems.splice(fromIndex, 1);
-
-		if (fromIndex < toIndex) {
-			const targetId = positionedItems[toIndex].id;
-			toIndex = newItems.findIndex((i) => i.id === targetId);
-		}
-
-		newItems.splice(toIndex, 0, movedItem);
-		items = newItems;
-		saveLayout();
-	}
-
-	// --- Drag and Drop Handlers ---
-	function handleDragStart(event: MouseEvent | TouchEvent, item: DashboardWidgetConfig, element: HTMLElement) {
-		if (!!(event.target as HTMLElement).closest('button, a, input, select')) return;
 		const coords = 'touches' in event ? event.touches[0] : event;
 		const rect = element.getBoundingClientRect();
+
 		if (coords.clientY - rect.top > HEADER_HEIGHT) return;
 
 		event.preventDefault();
@@ -222,106 +285,110 @@
 			offset: { x: coords.clientX - rect.left, y: coords.clientY - rect.top },
 			isActive: true
 		};
-		element.style.cssText = `opacity: 0.8; transform: scale(1.02); z-index: 1000; position: fixed; pointer-events: none; width: ${rect.width}px; height: ${rect.height}px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); transition: none;`;
-		document.addEventListener('mousemove', handleDragMove);
-		document.addEventListener('mouseup', handleDragEnd, { once: true });
-		document.addEventListener('touchmove', handleDragMove, { passive: false });
-		document.addEventListener('touchend', handleDragEnd, { once: true });
+
+		element.style.opacity = '0.5';
+		element.style.zIndex = '1000';
+		const clone = element.cloneNode(true) as HTMLElement;
+		clone.style.cssText = `position: fixed; left: ${rect.left}px; top: ${rect.top}px; width: ${rect.width}px; height: ${rect.height}px; pointer-events: none; transform: scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.15); margin: 0;`;
+		document.body.appendChild(clone);
+		dragState.element = clone;
+
+		// Use pointer events to cover mouse, touch, and pen with a passive move listener
+		document.addEventListener('pointermove', handleDragMove as EventListener, { passive: true });
+		document.addEventListener('pointerup', handleDragEnd as EventListener, { once: true });
 	}
 
-	function handleDragMove(event: MouseEvent | TouchEvent) {
-		if (!dragState.isActive || !dragState.element || !mainContainerEl) return;
-		event.preventDefault();
-		const coords = 'touches' in event ? event.touches[0] : event;
-		const containerRect = mainContainerEl.getBoundingClientRect();
-		const elRect = dragState.element.getBoundingClientRect();
-		let newX = coords.clientX - dragState.offset.x;
-		let newY = coords.clientY - dragState.offset.y;
-		newX = Math.max(containerRect.left, Math.min(newX, containerRect.right - elRect.width));
-		newY = Math.max(containerRect.top, Math.min(newY, containerRect.bottom - elRect.height));
-		dragState.element.style.left = `${newX}px`;
-		dragState.element.style.top = `${newY}px`;
+	function handleDragMove(event: MouseEvent | TouchEvent | PointerEvent) {
+		if (!dragState.isActive || !dragState.element) return;
 
-		// Update drop indicator
-		const targetEl = document.elementFromPoint(coords.clientX, coords.clientY)?.closest('.widget-container');
-		if (targetEl instanceof HTMLElement && targetEl.dataset.gridIndex) {
-			const targetIndex = parseInt(targetEl.dataset.gridIndex, 10);
-			if (positionedItems[targetIndex]?.id !== dragState.item?.id) {
-				dropIndicator = { index: targetIndex, position: 'replace' };
-				return;
+		const coords = 'touches' in event ? event.touches[0] : event;
+		dragState.element.style.left = `${coords.clientX - dragState.offset.x}px`;
+		dragState.element.style.top = `${coords.clientY - dragState.offset.y}px`;
+
+		// Find insertion position based on mouse coordinates
+		const insertionIndex = findInsertionPosition(coords.clientX, coords.clientY);
+
+		// Show visual feedback for insertion position
+		if (dragState.item) {
+			const currentIndex = currentPreferences.findIndex((p) => p.id === dragState.item?.id);
+			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
+				dropIndicator = {
+					targetIndex: insertionIndex > currentIndex ? insertionIndex - 1 : insertionIndex
+				};
+			} else {
+				dropIndicator = null;
 			}
 		}
-		dropIndicator = null;
+
+		// Clear grid drop indicator as we're using linear positioning
+		gridDropIndicator = null;
 	}
 
 	function handleDragEnd() {
 		if (!dragState.isActive) return;
-		if (dragState.element) dragState.element.style.cssText = '';
-		if (dropIndicator && dragState.item) performDrop(dragState.item, dropIndicator);
+
+		console.log('Drag end - dropIndicator:', dropIndicator, 'dragState.item:', dragState.item);
+
+		const originalElement = mainContainerEl?.querySelector(`[data-widget-id="${dragState.item?.id}"]`) as HTMLElement;
+		if (originalElement) {
+			originalElement.style.opacity = '';
+			originalElement.style.zIndex = '';
+		}
+
+		if (dragState.element) {
+			document.body.removeChild(dragState.element);
+		}
+
+		// Handle repositioning based on drop indicator
+		if (dropIndicator && dragState.item) {
+			console.log('Performing drop with targetIndex:', dropIndicator.targetIndex);
+			performDrop(dragState.item, dropIndicator);
+		}
+
 		dragState = { item: null, element: null, offset: { x: 0, y: 0 }, isActive: false };
 		dropIndicator = null;
-		document.removeEventListener('mousemove', handleDragMove);
-		document.removeEventListener('touchmove', handleDragMove);
+		gridDropIndicator = null;
+
+		document.removeEventListener('pointermove', handleDragMove as EventListener);
 	}
 
-	// --- Lifecycle ---
 	onMount(() => {
-		(async () => {
-			try {
-				// Check if this is a first-time admin login
-				const hasSeenWelcome = localStorage.getItem('sveltycms-welcome-seen');
-				const isAdmin = pageData.user?.isAdmin || pageData.user?.role === 'admin';
-
-				if (isAdmin && !hasSeenWelcome) {
-					showFirstLoginWelcome = true;
-				}
-
-				await systemPreferences.loadPreferences(pageData.user.id);
-				const currentState = systemPreferences.getState();
-				const loadedWidgets = (currentState?.preferences || [])
-					.filter(
-						(w: any): w is DashboardWidgetConfig =>
-							w && w.id && w.component && w.size && widgetComponentRegistry[w.component as keyof typeof widgetComponentRegistry]
-					)
-					.map((w: any) => ({
-						...w,
-						label: w.label || widgetComponentRegistry[w.component].name,
-						icon: w.icon || widgetComponentRegistry[w.component].icon
-					}));
-				items = loadedWidgets;
-			} catch (err) {
-				console.error('Failed to load preferences:', err);
-				loadError = 'Could not load dashboard preferences.';
-			} finally {
-				preferencesLoaded = true;
-			}
-		})();
+		loadWidgetRegistry();
+		if (data.pageData?.user) {
+			systemPreferences.loadPreferences(data.pageData.user.id);
+			// Ensure proper widget ordering after preferences load
+			setTimeout(ensureWidgetOrder, 100);
+		}
 	});
 </script>
 
-<!-- First Login Welcome Modal -->
-{#if showFirstLoginWelcome}
-	<FirstLoginWelcome user={pageData.user} bind:showWelcome={showFirstLoginWelcome} />
-{/if}
-
-<main bind:this={mainContainerEl} class="relative overflow-x-hidden" style="touch-action: pan-y;">
+<main bind:this={mainContainerEl} class="relative overflow-y-auto overflow-x-hidden" style="touch-action: pan-y;">
 	<header class="mb-2 flex items-center justify-between gap-2 border-b border-surface-200 p-2 dark:border-surface-700">
 		<PageTitle name="Dashboard" icon="bi:bar-chart-line" showBackButton={true} backUrl="/config" />
 		<div class="flex items-center gap-2">
-			<!-- Import/Export Button -->
-			<button class="variant-outline-primary btn" onclick={() => (showImportExport = true)} title="Import and Export Collections Data">
-				<iconify-icon icon="mdi:database-import" class="mr-2"></iconify-icon>
-				Import/Export
-			</button>
-
-			<div class="relative">
-				<button class="variant-filled-primary btn" onclick={() => (dropdownOpen = !dropdownOpen)} aria-haspopup="true" aria-expanded={dropdownOpen}>
-					<iconify-icon icon="mdi:plus" class="mr-2"> </iconify-icon>
-					Add Widget
+			<!-- Reset All Button - Small and subtle -->
+			{#if currentPreferences.length > 0}
+				<button class="variant-outline-surface btn-icon" onclick={resetAllWidgets} aria-label="Reset all widgets" title="Reset all widgets">
+					<iconify-icon icon="mdi:refresh"></iconify-icon>
 				</button>
+			{/if}
+			<!-- Add Widget Button -->
+			<div class="relative">
+				{#if availableWidgets.length > 0}
+					<button
+						class="variant-filled-primary btn"
+						onclick={() => (dropdownOpen = !dropdownOpen)}
+						aria-haspopup="true"
+						aria-expanded={dropdownOpen}
+						aria-label="Add Widget"
+					>
+						<iconify-icon icon="mdi:plus" class="mr-2"></iconify-icon>
+						Add Widget
+					</button>
+				{/if}
 				{#if dropdownOpen}
 					<div
-						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded-xl border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded border bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
 						role="menu"
 					>
 						<div class="p-2">
@@ -329,12 +396,17 @@
 						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
+								{@const widgetInfo = widgetComponentRegistry[widgetName]}
 								<button
-									class="flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
+									class="flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
 									onclick={() => addNewWidget(widgetName)}
+									title={widgetInfo?.description}
+									role="menuitem"
 								>
-									<iconify-icon icon={widgetComponentRegistry[widgetName].icon} class="text-primary-500"></iconify-icon>
-									<span>{widgetComponentRegistry[widgetName].name}</span>
+									<iconify-icon icon={widgetInfo?.icon || 'mdi:widgets'} class="text-primary-500"></iconify-icon>
+									<div class="flex flex-col">
+										<span>{widgetInfo?.name || widgetName}</span>
+									</div>
 								</button>
 							{:else}
 								<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
@@ -348,38 +420,52 @@
 
 	<div class="relative m-0 w-full p-0">
 		<section class="w-full px-1 py-4">
-			{#if !preferencesLoaded}
-				<div role="status" class="flex h-full items-center justify-center text-lg text-gray-500">Loading preferences...</div>
-			{:else if positionedItems.length > 0}
+			{#if !registryLoaded}
+				<div role="status" class="flex h-full items-center justify-center text-lg text-gray-500">Loading...</div>
+			{:else if currentPreferences.length > 0}
 				<div class="responsive-dashboard-grid" role="grid">
-					{#each positionedItems as item, index (item.id)}
+					<!-- Grid drop indicator -->
+					{#if gridDropIndicator}
+						<div
+							class="pointer-events-none absolute z-30 rounded-lg border-2 border-dashed border-primary-500 bg-primary-500/20"
+							style:grid-column="span {gridDropIndicator.width}"
+							style:grid-row="span {gridDropIndicator.height}"
+							style:grid-column-start={gridDropIndicator.col + 1}
+							style:grid-row-start={gridDropIndicator.row + 1}
+						></div>
+					{/if}
+
+					{#each currentPreferences.sort((a, b) => (a.order || 0) - (b.order || 0)) as item (item.id)}
 						{@const SvelteComponent = widgetComponentRegistry[item.component]?.component}
-						{@const effectiveSize = previewSizes[item.id] || item.size}
-						{@const columnSpan = getColumnSpan(effectiveSize)}
-						<article
+						<div
+							role="button"
+							tabindex="0"
 							class="widget-container group relative select-none overflow-hidden rounded-lg border border-surface-200/80 bg-surface-50 shadow-sm transition-all duration-300 dark:border-surface-700 dark:bg-surface-800"
-							data-grid-index={index}
-							style="grid-column: span {columnSpan}; touch-action: none;"
+							data-widget-id={item.id}
+							style:grid-column="span {item.size.w}"
+							style:grid-row="span {item.size.h}"
+							style:touch-action="manipulation"
 							animate:flip={{ duration: 300 }}
+							onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
 						>
 							{#if SvelteComponent}
 								<SvelteComponent
 									{...item}
 									theme={currentTheme}
 									onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
-									onPreviewSizeChange={(previewSize: WidgetSize | null) => handlePreviewSizeChange(item.id, previewSize)}
 									onCloseRequest={() => removeWidget(item.id)}
-									onDragStart={(event: MouseEvent | TouchEvent, element: HTMLElement) => handleDragStart(event, item, element)}
 								/>
-								{#if dropIndicator && dropIndicator.index === index}
-									<div
-										class="pointer-events-none absolute inset-0 z-20 animate-pulse rounded-lg border-2 border-dashed border-primary-500 bg-primary-500/20"
-									></div>
+								{#if dropIndicator}
+									{@const currentIndex = currentPreferences.findIndex((p) => p.id === item.id)}
+									{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
+									{#if isDropTarget}
+										<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-primary-500" style:transform="translateY(-50%)"></div>
+									{/if}
 								{/if}
 							{:else}
 								<div class="flex h-full items-center justify-center p-4 text-error-500">Widget "{item.component}" not found.</div>
 							{/if}
-						</article>
+						</div>
 					{/each}
 				</div>
 			{:else}
@@ -392,6 +478,7 @@
 						<button
 							class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
 							onclick={() => (dropdownOpen = true)}
+							aria-label="Add first widget"
 						>
 							<iconify-icon icon="mdi:plus" width="22" class="mr-2"></iconify-icon>
 							Add Widget
@@ -432,20 +519,12 @@
 {/if}
 
 <style lang="postcss">
-	/* Responsive dashboard grid */
 	.responsive-dashboard-grid {
 		display: grid;
 		gap: 1rem;
-		grid-template-columns: repeat(1, minmax(0, 1fr));
-	}
-	@media (min-width: 640px) {
-		.responsive-dashboard-grid {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-	@media (min-width: 1024px) {
-		.responsive-dashboard-grid {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-		}
+		grid-template-columns: repeat(4, 1fr);
+		grid-auto-rows: 180px;
+		grid-auto-flow: row dense;
+		position: relative;
 	}
 </style>

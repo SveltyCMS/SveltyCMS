@@ -1,26 +1,24 @@
 /**
  * @file src/routes/api/dashboard/last5Content/+server.ts
- * @description API endpoint for recent content data for dashboard widgets.
+ * @description API endpoint for recent content data for dashboard widgets using database-agnostic adapter.
  *
  * @example GET /api/dashboard/last5Content
  *
  * Features:
  * - **Secure Authorization:** Access is controlled centrally by `src/hooks.server.ts`.
- * - **High-Performance Log Reading:** Efficiently reads only the end of the log file.
+ * - **Database-Agnostic:** Uses standardized adapter methods for cross-database compatibility.
  * - **Input Validation:** Safely validates and caps the `limit` query parameter.
+ * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
 import { error, json } from '@sveltejs/kit';
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
 
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
 import { StatusTypes } from '@src/content/types';
-
-// Permissions
-import { checkApiPermission } from '@api/permissions';
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -44,19 +42,16 @@ const ContentItemSchema = v.object({
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals, url }) => {
+	const { user, tenantId } = locals;
 	try {
-		// Check if user has permission for dashboard access using centralized system
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'dashboard',
-			action: 'read'
-		});
+		// Authentication is handled by hooks.server.ts
+		if (!user) {
+			logger.warn('Unauthorized attempt to access recent content data');
+			throw error(401, 'Unauthorized');
+		}
 
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to access recent content data', {
-				userId: locals.user?._id,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
 		// 1. Validate Input
@@ -64,34 +59,40 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			limit: Number(url.searchParams.get('limit')) || undefined
 		});
 
-		// 2. Get all collection schemas the user can read
-		const { collections: allCollections } = await contentManager.getCollectionData();
+		// 2. Get all collection schemas the user can read (scoped to the tenant)
+		let allCollections;
+		try {
+			const collectionData = await contentManager.getCollectionData(tenantId);
+			allCollections = collectionData.collections;
+		} catch (err) {
+			logger.error('Failed to get collection data:', err);
+			throw error(500, 'Could not access collection data');
+		}
+
+		if (!allCollections || Object.keys(allCollections).length === 0) {
+			logger.info('No collections found, returning empty result');
+			return json([]);
+		}
 
 		if (!dbAdapter) {
 			logger.error('Database adapter not available');
 			throw error(500, 'Database connection unavailable');
 		}
 
-		// 3. Filter collections user can read and query each for recent items
-		const readableCollectionPromises = Object.entries(allCollections).map(async ([collectionId, collection]) => {
-			const canRead = await hasCollectionPermission(locals.user, 'read', collection);
-			return canRead ? [collectionId, collection] : null;
-		});
+		// 3. Process all collections (hooks already validated access)
+		const collectionsEntries = Object.entries(allCollections);
 
-		const readableCollections = (await Promise.all(readableCollectionPromises)).filter(Boolean) as Array<[string, Record<string, unknown>]>;
-
-		// 4. Query EACH collection for its top 'limit' recent items efficiently
-		const queryPromises = readableCollections.map(async ([collectionId, collection]) => {
+		// 4. Query EACH collection for its top 'limit' recent items efficiently (scoped to the tenant)
+		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
 			try {
 				const collectionName = `collection_${collection._id}`;
+				const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
 
-				// Use database-agnostic query builder for efficient querying
-				const result = await dbAdapter
-					.queryBuilder(collectionName)
-					.select(['_id', 'title', 'name', 'label', 'createdAt', 'created', 'date', 'createdBy', 'author', 'creator', 'status', 'state'])
-					.sort('createdAt', 'desc')
-					.limit(query.limit)
-					.execute();
+				// Use database-agnostic CRUD methods for reliable querying
+				const result = await dbAdapter.crud.findMany(collectionName, filter, {
+					limit: query.limit,
+					fields: ['_id', 'title', 'name', 'label', 'createdAt', 'created', 'date', 'createdBy', 'author', 'creator', 'status', 'state']
+				});
 
 				if (result.success && result.data && Array.isArray(result.data)) {
 					return result.data.map((entry: Record<string, unknown>) => ({
@@ -120,22 +121,62 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		});
 
 		// 6. Take only the requested limit and transform to final format
-		const recentContent = allEntries.slice(0, query.limit).map((entry) => ({
-			id: entry._id?.toString() || entry.id || crypto.randomUUID(),
-			title: entry.title || entry.name || entry.label || 'Untitled',
-			collection: entry.collectionName,
-			createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
-			createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
-			status: entry.status || entry.state || StatusTypes.publish
-		}));
+		const limitedEntries = allEntries.slice(0, query.limit);
+
+		// 7. Get unique user IDs for username lookup
+		const userIds = [...new Set(limitedEntries.map((entry) => entry.createdBy || entry.author || entry.creator).filter(Boolean))];
+
+		// 8. Lookup usernames
+		const userLookup = new Map();
+		if (userIds.length > 0) {
+			try {
+				const userResult = await dbAdapter.crud.findMany(
+					'auth_users',
+					{ _id: { $in: userIds } },
+					{ fields: ['_id', 'username', 'email', 'firstName', 'lastName'] }
+				);
+
+				if (userResult.success && userResult.data) {
+					userResult.data.forEach((user) => {
+						// Create display name - prefer username, fallback to firstName + lastName, then email
+						let displayName = user.username;
+						if (!displayName && (user.firstName || user.lastName)) {
+							displayName = [user.firstName, user.lastName].filter(Boolean).join(' ');
+						}
+						if (!displayName) {
+							displayName = user.email?.split('@')[0] || 'Unknown';
+						}
+						userLookup.set(user._id.toString(), displayName);
+					});
+				}
+			} catch (err) {
+				logger.warn('Failed to lookup usernames for content:', err);
+			}
+		}
+
+		// 9. Transform to final format with usernames
+		const recentContent = limitedEntries.map((entry) => {
+			const userId = entry.createdBy || entry.author || entry.creator || 'Unknown';
+			const username = userLookup.get(userId?.toString()) || 'Unknown';
+
+			return {
+				id: entry._id?.toString() || entry.id || uuidv4(),
+				title: entry.title || entry.name || entry.label || 'Untitled',
+				collection: entry.collectionName,
+				createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
+				createdBy: username,
+				status: entry.status || entry.state || StatusTypes.publish
+			};
+		});
 
 		const validatedData = v.parse(v.array(ContentItemSchema), recentContent);
 
 		logger.info('Recent content fetched efficiently', {
-			collectionsQueried: readableCollections.length,
+			collectionsQueried: collectionsEntries.length,
 			totalCandidates: allEntries.length,
 			finalCount: validatedData.length,
-			requestedBy: locals.user?._id
+			requestedBy: user?._id,
+			tenantId
 		});
 
 		return json(validatedData);

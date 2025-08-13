@@ -15,7 +15,6 @@
  */
 
 import fs from 'fs/promises';
-import crypto from 'crypto';
 import path from 'path';
 import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid'; // Random UUID generation
@@ -291,7 +290,7 @@ async function compileFile(
 	try {
 		// 1. Read the source file content
 		const sourceContent = await fs.readFile(sourceFilePath, 'utf8');
-		const sourceContentHash = await getContentHash(sourceContent);
+		const sourceContentHash = getContentHash(sourceContent);
 
 		// 2. Determine the UUID
 		let uuid: string | null = null;
@@ -660,14 +659,23 @@ async function writeCompiledFile(filePath: string, code: string): Promise<void> 
 	await fs.writeFile(filePath, code);
 }
 
-async function getContentHash(content: string): Promise<string> {
-	// Using md5 for speed, consider sha256 for lower collision probability if needed
-	return crypto.createHash('md5').update(content).digest('hex');
+// Simple hash function using string content for change detection
+function getContentHash(content: string): string {
+	// Create a simple hash based on content length and some character codes
+	// This is sufficient for detecting file changes in most cases
+	let hash = 0;
+	for (let i = 0; i < content.length; i++) {
+		const char = content.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
+		hash = hash & hash; // Convert to 32bit integer
+	}
+	// Convert to hex and ensure it's always positive
+	return Math.abs(hash).toString(16);
 }
 
 // Helper function to extract Hash from JS file content
 function extractHashFromJs(content: string): string | null {
-	// More robust regex to handle potential whitespace variations
+	// More robust regex to handle potential whitespace variations and hex format
 	const match = content.match(/^\/\/\s*HASH:\s*([a-f0-9]+)\s*$/m);
 	return match ? match[1] : null;
 }

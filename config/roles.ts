@@ -38,8 +38,11 @@ export async function initializeRoles(): Promise<void> {
 				'api:user',
 				'api:userActivity',
 				'api:media',
+				'api:widgets',
+				'api:sendMail',
 				'collections:read',
-				'content:builder'
+				'content:builder',
+				'config:widgetManagement'
 			],
 			icon: 'material-symbols:code',
 			color: 'gradient-pink'

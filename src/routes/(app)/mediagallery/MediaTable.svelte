@@ -138,9 +138,11 @@ Key features:
 				<tbody>
 					{#each paginatedFiles as file (file._id)}
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<td class="w-10">
-								<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
-							</td>
+							<TableIcons
+								cellClass="w-10 text-center"
+								checked={selectedFiles.has(file.filename)}
+								onCheck={(checked) => handleSelection(file, checked)}
+							/>
 							<td>
 								{#if file?.filename && file?.path && file?.hash}
 									<img
@@ -191,11 +193,11 @@ Key features:
 				class=" bg-surface-100-800-token sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 py-2 md:flex-row md:justify-between md:p-4"
 			>
 				<TablePagination
-					{currentPage}
+					bind:currentPage
+					bind:rowsPerPage
 					{pagesCount}
-					{rowsPerPage}
-					rowsPerPageOptions={[5, 10, 25, 50, 100]}
 					totalItems={filteredFiles.length}
+					rowsPerPageOptions={[5, 10, 25, 50, 100]}
 					onUpdatePage={(page) => {
 						currentPage = page;
 					}}

@@ -5,6 +5,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { privateEnv } from '@root/config/private';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -20,10 +21,15 @@ import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
 // GET /api/systemVirtualFolder/[folderId] - Fetches contents of a specific virtual folder
 export const GET: RequestHandler = async ({ params, locals }) => {
+	const { user, tenantId } = locals;
 	try {
 		// Check authentication
-		if (!locals.user) {
+		if (!user) {
 			throw error(401, 'Authentication required');
+		}
+
+		if (privateEnv.MULTI_TENANT && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
 		const { folderId } = params;
@@ -32,64 +38,55 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		let folders: SystemVirtualFolder[] = [];
 		let files: any[] = [];
 
+		const tenantFilter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+
 		if (folderId === 'root') {
-			// Root folder - get top-level folders and files
-			if (!dbAdapter?.systemVirtualFolder) {
-				throw error(500, 'Virtual folder adapter not available');
-			}
-			const vfRes = await dbAdapter.systemVirtualFolder.getByParentId(null);
-			if (!vfRes.success) {
-				const details = vfRes.error instanceof Error ? vfRes.error.message : String(vfRes.error);
-				throw error(500, `Failed to fetch virtual folders: ${details}`);
-			}
-			folders = vfRes.data ?? [];
+			// Root folder - get top-level folders and files, scoped by tenant
+			const folderResult = await dbAdapter.systemVirtualFolder.getByParentId(null);
+			folders = folderResult.success ? folderResult.data || [] : [];
 
-			// Get media files in root
-			const [images, documents, audio, videos] = await Promise.all([
-				dbAdapter.getAll('media_images', { virtualFolderId: null }),
-				dbAdapter.getAll('media_documents', { virtualFolderId: null }),
-				dbAdapter.getAll('media_audio', { virtualFolderId: null }),
-				dbAdapter.getAll('media_videos', { virtualFolderId: null })
+			const fileQuery = { virtualFolderId: null, ...tenantFilter };
+			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
+				dbAdapter.crud.findMany('media_images', fileQuery),
+				dbAdapter.crud.findMany('media_documents', fileQuery),
+				dbAdapter.crud.findMany('media_audio', fileQuery),
+				dbAdapter.crud.findMany('media_videos', fileQuery)
 			]);
-
+			const images = imagesResult.success ? imagesResult.data || [] : [];
+			const documents = documentsResult.success ? documentsResult.data || [] : [];
+			const audio = audioResult.success ? audioResult.data || [] : [];
+			const videos = videosResult.success ? videosResult.data || [] : [];
 			files = [...images, ...documents, ...audio, ...videos];
 		} else {
-			// Specific folder
-			if (!dbAdapter?.systemVirtualFolder) {
-				throw error(500, 'Virtual folder adapter not available');
-			}
-			const byId = await dbAdapter.systemVirtualFolder.getById(folderId);
-			if (!byId.success) {
-				const details = byId.error instanceof Error ? byId.error.message : String(byId.error);
-				throw error(500, `Failed to fetch folder: ${details}`);
-			}
-			currentFolder = byId.data;
+			// Specific folder - ensure it belongs to the current tenant
+			const folderResult = await dbAdapter.systemVirtualFolder.getById(folderId);
+			currentFolder = folderResult.success ? folderResult.data : null;
 
 			if (!currentFolder) {
 				throw error(404, 'Folder not found');
-			}
+			} // Get subfolders and files, scoped by tenant
 
-			// Get subfolders
-			const vfChildren = await dbAdapter.systemVirtualFolder.getByParentId(folderId);
-			folders = vfChildren.success ? (vfChildren.data ?? []) : [];
+			const subfolderResult = await dbAdapter.systemVirtualFolder.getByParentId(folderId);
+			folders = subfolderResult.success ? subfolderResult.data || [] : [];
 
-			// Get media files in this folder
-			const [images, documents, audio, videos] = await Promise.all([
-				dbAdapter.getAll('media_images', { virtualFolderId: folderId }),
-				dbAdapter.getAll('media_documents', { virtualFolderId: folderId }),
-				dbAdapter.getAll('media_audio', { virtualFolderId: folderId }),
-				dbAdapter.getAll('media_videos', { virtualFolderId: folderId })
+			const fileQuery = { virtualFolderId: folderId, ...tenantFilter };
+			const [imagesResult, documentsResult, audioResult, videosResult] = await Promise.all([
+				dbAdapter.crud.findMany('media_images', fileQuery),
+				dbAdapter.crud.findMany('media_documents', fileQuery),
+				dbAdapter.crud.findMany('media_audio', fileQuery),
+				dbAdapter.crud.findMany('media_videos', fileQuery)
 			]);
-
+			const images = imagesResult.success ? imagesResult.data || [] : [];
+			const documents = documentsResult.success ? documentsResult.data || [] : [];
+			const audio = audioResult.success ? audioResult.data || [] : [];
+			const videos = videosResult.success ? videosResult.data || [] : [];
 			files = [...images, ...documents, ...audio, ...videos];
-		}
+		} // Process files with URL construction
 
-		// Process files with URL construction
 		const processedFiles = files.map((file) => {
 			try {
 				const originalUrl = constructMediaUrl(file, 'original');
 				const thumbnailUrl = constructMediaUrl(file, 'thumbnail');
-
 				return {
 					...file,
 					url: originalUrl,
@@ -113,7 +110,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			}
 		});
 
-		logger.debug(`Fetched folder ${folderId}: ${processedFiles.length} files, ${folders.length} subfolders`);
+		logger.debug(`Fetched folder ${folderId}: ${processedFiles.length} files, ${folders.length} subfolders`, { tenantId });
 
 		return json({
 			success: true,
@@ -127,7 +124,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		});
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Error fetching folder contents for ${params.folderId}: ${message}`);
+		logger.error(`Error fetching folder contents for ${params.folderId}: ${message}`, { tenantId });
 
 		throw error(500, message);
 	}

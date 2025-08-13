@@ -7,20 +7,12 @@ import { json } from '@sveltejs/kit';
 import mariadb from 'mariadb';
 import mongoose from 'mongoose';
 // Auth
-import { checkApiPermission } from '@api/permissions';
 
 export async function POST({ request, locals }) {
-	// Check permissions using centralized system
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'system',
-		action: 'write'
-	});
-
-	if (!permissionResult.hasPermission) {
-		return json(
-			{ error: permissionResult.error || 'Forbidden: Insufficient permissions to test database connection' },
-			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
-		);
+	// Allow unauthenticated access in setup mode
+	let isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+	if (!locals.user && !isSetupMode) {
+		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const config = await request.json();
@@ -41,7 +33,7 @@ export async function POST({ request, locals }) {
 			await testConnection.close(); // Close the temporary connection
 
 			return json({ success: true, message: 'MongoDB connection successful!' });
-		} catch (error: unknown) {
+		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			console.error('MongoDB test connection error:', error);
 			return json({ success: false, message: `MongoDB connection failed: ${errorMessage}` }, { status: 400 });

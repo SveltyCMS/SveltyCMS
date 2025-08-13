@@ -25,6 +25,7 @@
 	// Utils
 	import { track } from '@src/utils/reactivity.svelte';
 	import { getFieldName } from '@src/utils/utils';
+	import { untrack } from 'svelte';
 
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, nonEmpty, nullable, transform } from 'valibot';
@@ -69,6 +70,7 @@
 	// Validation state - now using the enhanced validation store
 	let inputElement: HTMLInputElement | null = null;
 	let debounceTimeout: number | undefined;
+	let hasValidatedOnMount = $state(false);
 
 	// Get validation state from store
 	let validationError = $derived(validationStore.getError(fieldName));
@@ -122,6 +124,9 @@
 				// Required field validation
 				if (field?.required && (currentValue === null || currentValue === undefined || currentValue === '')) {
 					const error = 'This field is required';
+					if (process.env.NODE_ENV !== 'production') {
+						console.log(`[Input Widget] Setting required field error for ${fieldName}:`, error);
+					}
 					validationStore.setError(fieldName, error);
 					return error;
 				}
@@ -226,11 +231,25 @@
 		};
 	});
 
-	// Initialize validation on mount if requested
+	// Initialize validation on mount if requested - only run once
 	$effect(() => {
-		if (validateOnMount) {
-			// Small delay to ensure component is fully mounted
-			setTimeout(() => validateInput(true), 0);
+		if (validateOnMount && !hasValidatedOnMount) {
+			hasValidatedOnMount = true;
+			if (process.env.NODE_ENV !== 'production') {
+				console.log(
+					`[Input Widget] Validating on mount for field: ${fieldName}, required: ${field?.required}, value:`,
+					value[_language],
+					'widget instance:',
+					Math.random().toString(36).substr(2, 5)
+				);
+			}
+			// Use untrack to prevent circular dependencies and run validation immediately
+			untrack(() => {
+				if (process.env.NODE_ENV !== 'production') {
+					console.log(`[Input Widget] About to validate ${fieldName}, current errors:`, $state.snapshot(validationStore.errors));
+				}
+				validateInput(true);
+			});
 		}
 	});
 

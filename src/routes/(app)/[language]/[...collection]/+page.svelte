@@ -12,6 +12,10 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { getGlobalSetting } from '@src/stores/globalSettings';
 
+	// Track last language from URL and user-initiated language changes
+	let lastUrlLanguage = data?.contentLanguage ?? 'en';
+	let userInitiatedLanguageChange = false;
+
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';

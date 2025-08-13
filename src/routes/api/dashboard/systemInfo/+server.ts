@@ -45,7 +45,6 @@ import { promisify } from 'util';
 import { performance } from 'perf_hooks';
 
 // Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -483,18 +482,10 @@ const getSystemInfo = async (type?: string) => {
 // Fetches and returns system information including CPU, disk, memory, and OS details.
 export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
-		// Check if user has permission for dashboard access
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'dashboard',
-			action: 'read'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Unauthorized attempt to access system info', {
-				userId: locals.user?._id,
-				error: permissionResult.error
-			});
-			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+		// Authentication is handled by hooks.server.ts
+		if (!locals.user) {
+			logger.warn('Unauthorized attempt to access system info');
+			throw error(401, 'Unauthorized');
 		}
 
 		// Check if specific type of information is requested

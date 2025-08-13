@@ -58,7 +58,8 @@
 
 	const fieldName = getFieldName(field);
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
+	const _language = DEFAULT_CONTENT_LANGUAGE;
 	const language = $contentLanguage;
 
 	export const WidgetData = async () => _data;

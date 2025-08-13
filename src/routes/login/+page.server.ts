@@ -828,7 +828,17 @@ export const actions: Actions = {
 
 			resp = authResult;
 
-			if (resp && resp.status) {
+			if (resp && resp.requires2FA) {
+				// User needs 2FA verification
+				logger.debug('2FA verification required for user', { userId: resp.userId });
+				return message(signInForm, 'Please enter your 2FA code to continue.', {
+					status: 200,
+					data: {
+						requires2FA: true,
+						userId: resp.userId
+					}
+				});
+			} else if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
 				redirectPath = collectionPath;
 
@@ -853,6 +863,87 @@ export const actions: Actions = {
 		// Handle redirect outside try-catch
 		if (redirectPath) {
 			throw redirect(303, redirectPath);
+		}
+	},
+
+	verify2FA: async (event) => {
+		// --- START: Language Validation Logic ---
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		// --- END: Language Validation Logic ---
+
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
+		await dbInitPromise;
+
+		const authReady = await waitForAuthService();
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for verify2FA action');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		try {
+			const formData = await event.request.formData();
+			const userId = formData.get('userId') as string;
+			const code = formData.get('code') as string;
+
+			if (!userId || !code) {
+				return fail(400, { message: 'Missing required fields.' });
+			}
+
+			// Import 2FA service
+			const { getDefaultTwoFactorAuthService } = await import('@auth/twoFactorAuth');
+			const twoFactorService = getDefaultTwoFactorAuthService(auth);
+
+			// Verify 2FA code
+			const result = await twoFactorService.verify2FA(userId, code);
+
+			if (!result.success) {
+				logger.warn('2FA verification failed during login', { userId, reason: result.message });
+				return fail(400, { message: result.message });
+			}
+
+			// 2FA verification successful - get user and create session
+			const user = await auth.getUserById(userId);
+			if (!user) {
+				logger.error('User not found after successful 2FA verification', { userId });
+				return fail(500, { message: 'User not found.' });
+			}
+
+			// Create session
+			await createSessionAndSetCookie(userId, event.cookies);
+
+			// Update user attributes
+			const updatePromise = auth.updateUserAttributes(userId, {
+				lastAuthMethod: 'password+2fa',
+				lastLogin: new Date()
+			});
+
+			updatePromise.catch((err) => {
+				logger.error(`Failed to update user attributes after 2FA login for ${userId}:`, err);
+			});
+
+			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
+
+			// Get redirect path
+			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+
+			// Trigger data prefetch
+			fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
+				logger.debug('Data caching failed during 2FA sign-in:', err);
+			});
+
+			throw redirect(303, redirectPath);
+		} catch (e) {
+			if (e instanceof Response) {
+				throw e; // Re-throw redirect
+			}
+			const err = e as Error;
+			logger.error(`Unexpected error in verify2FA action`, { message: err.message, stack: err.stack });
+			return fail(500, { message: 'An unexpected server error occurred.' });
 		}
 	},
 
@@ -1059,7 +1150,7 @@ async function signInUser(
 	password: string,
 	isToken: boolean,
 	cookies: Cookies
-): Promise<{ status: boolean; message?: string; user?: User }> {
+): Promise<{ status: boolean; message?: string; user?: User; requires2FA?: boolean; userId?: string }> {
 	logger.debug(`signInUser called`, { email, isToken });
 	if (!auth) {
 		logger.error('Auth system not initialized for signInUser');
@@ -1073,6 +1164,19 @@ async function signInUser(
 			const authResult = await auth.authenticate(email, password);
 			if (authResult && authResult.user) {
 				user = authResult.user;
+
+				// Check if user has 2FA enabled
+				if (user.is2FAEnabled) {
+					logger.debug(`User has 2FA enabled, requiring 2FA verification`, { userId: user._id });
+					// Don't create session yet - wait for 2FA verification
+					return {
+						status: false,
+						message: '2FA verification required',
+						requires2FA: true,
+						userId: user._id
+					};
+				}
+
 				authSuccess = true;
 				// Use the session that authenticate() already created
 				const sessionCookie = auth.createSessionCookie(authResult.sessionId);

@@ -28,7 +28,7 @@ Features:
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { showToast } from '@utils/toast';
 	import { goto } from '$app/navigation';
 	import { getGlobalSetting } from '@src/stores/globalSettings';
 
@@ -37,9 +37,6 @@ Features:
 	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-
-	// Toast notifications
-	const toastStore = getToastStore();
 
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
@@ -82,11 +79,7 @@ Features:
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			toastStore.trigger({
-				message: 'Error fetching folders: ' + message,
-				background: 'variant-filled-error',
-				timeout: 5000
-			});
+			showToast('Error fetching folders: ' + message, 'error');
 			folders = [];
 		} finally {
 			isLoading = false;
@@ -114,11 +107,7 @@ Features:
 
 			const result = await response.json();
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder created successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
+				showToast('Folder created successfully', 'success');
 				newFolderName = '';
 				await fetchVirtualFolders();
 			} else {
@@ -127,11 +116,7 @@ Features:
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			toastStore.trigger({
-				message: 'Error creating folder: ' + message,
-				background: 'variant-filled-error',
-				timeout: 5000
-			});
+			showToast('Error creating folder: ' + message, 'error');
 		} finally {
 			isLoading = false;
 		}
@@ -148,22 +133,14 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder updated successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
+				showToast('Folder updated successfully', 'success');
 				await fetchVirtualFolders();
 			} else {
 				throw new Error(result.error || 'Failed to update folder');
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
-			toastStore.trigger({
-				message: 'Error updating folder',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Error updating folder', 'error');
 		}
 	}
 
@@ -178,22 +155,14 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder deleted successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
+				showToast('Folder deleted successfully', 'success');
 				await fetchVirtualFolders();
 			} else {
 				throw new Error(result.error || 'Failed to delete folder');
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);
-			toastStore.trigger({
-				message: 'Error deleting folder',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+			showToast('Error deleting folder', 'error');
 		}
 	}
 
