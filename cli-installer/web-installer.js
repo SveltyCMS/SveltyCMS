@@ -146,7 +146,9 @@ async function waitForSetupPage(url, timeout = 20000) {
 }
 
 async function openSetupWizard() {
-  const setupUrl = 'http://localhost:5173/setup';
+  const host = process.env.HOST || '127.0.0.1';
+  const port = process.env.PORT || 5173;
+  const setupUrl = `http://${host}:${port}/setup`;
   console.log('\n🌐 Waiting for setup wizard to be available...');
   const ready = await waitForSetupPage(setupUrl);
   if (ready) {

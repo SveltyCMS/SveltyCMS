@@ -35,7 +35,9 @@ export default defineConfig(async () => {
 		console.log(`${LOG_PREFIX} Detected setup status: ${isSetupComplete ? 'complete' : 'incomplete'}`);
 	} catch (setupError) {
 		console.warn(`${LOG_PREFIX} Unable to determine setup status (will assume incomplete):`, (setupError as Error).message);
-		console.log(`${LOG_PREFIX} Visit http://localhost:5173/setup to complete initial configuration.`);
+		const host = process.env.HOST || '127.0.0.1';
+		const port = process.env.PORT || 5173;
+		console.log(`${LOG_PREFIX} Visit http://${host}:${port}/setup to complete initial configuration.`);
 	}
 
 	if (!isSetupComplete) {
@@ -68,16 +70,26 @@ export default defineConfig(async () => {
 		setTimeout(async () => {
 			try {
 				const open = (await import('open')).default;
+				const host = process.env.HOST || '127.0.0.1';
+				const port = process.env.PORT || 5173;
+				const setupUrl = `http://${host}:${port}/setup`;
 				console.log(`${LOG_PREFIX} Opening setup wizard in default browser...`);
-				await open('http://localhost:5173/setup');
+				await open(setupUrl);
 			} catch {
-				console.log(`${LOG_PREFIX} Manual navigation required: http://localhost:5173/setup`);
+				const host = process.env.HOST || '127.0.0.1';
+				const port = process.env.PORT || 5173;
+				const setupUrl = `http://${host}:${port}/setup`;
+				console.log(`${LOG_PREFIX} Manual navigation required: ${setupUrl}`);
 			}
 		}, 1500);
 
 		return {
 			plugins: [sveltekit()],
-			server: { fs: { allow: ['static', '.'] } },
+			server: {
+				fs: { allow: ['static', '.'] },
+				host: process.env.HOST || '127.0.0.1',
+				port: process.env.PORT ? Number(process.env.PORT) : 5173
+			},
 			define: {
 				__VERSION__: JSON.stringify(pkg.version),
 				SUPERFORMS_LEGACY: true,

@@ -9,7 +9,7 @@ import pc from 'picocolors';
 
 export async function exportSettings() {
 	try {
-		const response = await fetch('http://localhost:3000/api/settings/export');
+		const response = await fetch('/api/settings/export');
 		if (!response.ok) throw new Error('Failed to export settings');
 		const data = await response.json();
 		const filePath = path.join(process.cwd(), 'settings-export.json');
@@ -24,7 +24,7 @@ export async function importSettings() {
 	try {
 		const filePath = path.join(process.cwd(), 'settings-import.json');
 		const settings = JSON.parse(await fs.readFile(filePath, 'utf-8'));
-		const response = await fetch('http://localhost:3000/api/settings/import', {
+		const response = await fetch('/api/settings/import', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ settings })
