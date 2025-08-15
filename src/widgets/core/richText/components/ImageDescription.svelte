@@ -15,6 +15,7 @@
 	let { show = false, value = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
 
 	let _value = $state(value);
+	let show_input = $state(false);
 
 	$effect(() => {
 		_value = value;
@@ -25,8 +26,6 @@
 			show_input = false;
 		}
 	});
-
-	let show_input = $state(false);
 
 	$effect(() => {
 		if (!show) {
@@ -47,29 +46,28 @@
 	}
 </script>
 
-<div class:hidden={!show}>
-	<button onclick={handleClick} aria-label="Description" class="flex items-center">
+<div class:hidden={!show} class="relative">
+	<button onclick={handleClick} aria-label="Description" class="btn btn-sm flex items-center">
 		<iconify-icon icon="material-symbols:description" width="20"></iconify-icon>
-		description
+		<span class="hidden sm:inline">Description</span>
 	</button>
 	{#if show_input}
-		<div class="description">
-			<input type="text" bind:value={_value} onkeydown={handleKeydown} />
+		<div class="description absolute top-full mt-2">
+			<input type="text" bind:value={_value} onkeydown={handleKeydown} class="input" placeholder="Enter description" />
 		</div>
 	{/if}
 </div>
 
 <style lang="postcss">
 	.description {
-		position: fixed;
-		top: 100%;
-		margin-top: 20px;
 		left: 50%;
 		transform: translate(-50%);
+		width: 250px;
+		z-index: 10;
 	}
 	input {
 		border: 1px solid;
-		width: 200%;
+		width: 100%;
 		padding: 5px;
 		border-radius: 5px;
 	}
