@@ -120,7 +120,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		// 	color: 'bg-error-500'
 		// }
 	].filter((endpoint) => {
-		if (user?.role === 'admin') return true;
+		if (user?.isAdmin) return true;
 		else if (endpoint.url.path === '/collection') return false;
 		else return true;
 	});

@@ -30,7 +30,7 @@ Features:
 	import { onMount } from 'svelte';
 	import { showToast } from '@utils/toast';
 	import { goto } from '$app/navigation';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -54,7 +54,7 @@ Features:
 
 	// Determine if a folder is the root folder
 	export function isRootFolder(folder: { name: string; parent?: string | null }): boolean {
-		return folder.name === getGlobalSetting('MEDIA_FOLDER') && folder.parent === null;
+		return folder.name === getPublicSetting('MEDIA_FOLDER') && folder.parent === null;
 	}
 
 	// Fetch virtual folders from the API

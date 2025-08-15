@@ -22,6 +22,7 @@ Features:
 
 	// Skeleton
 	import { showToast } from '@utils/toast';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
@@ -71,7 +72,7 @@ Features:
 		}
 
 		// Don't allow modifying admin permissions
-		const role = getGlobalSetting('ROLES').find((r) => r._id === roleId);
+		const role = getPublicSetting('ROLES').find((r) => r._id === roleId);
 		if (role?.isAdmin) {
 			showToast('Cannot modify permissions for admin role', 'warning');
 			return;
@@ -99,7 +100,7 @@ Features:
 	}
 
 	// Filter roles based on search
-	let filteredRoles = $derived(getGlobalSetting('ROLES').filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
+	let filteredRoles = $derived(getPublicSetting('ROLES').filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Icons for different permission actions
 	const actionIcons: Record<PermissionAction, string> = {

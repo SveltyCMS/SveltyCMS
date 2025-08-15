@@ -65,8 +65,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
-
 		// Check user permission for collection management
 		const collectionManagementConfig = permissionConfigs.collectionManagement;
 		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
@@ -310,14 +308,14 @@ import type { Schema } from '@src/content/types';
 
 export const schema: Schema = {
 	// Collection Name coming from filename so not needed
-	
+
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: '',
 	status: '',
 	description: '',
 	slug: '',
-	
+
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options
 	fields: []

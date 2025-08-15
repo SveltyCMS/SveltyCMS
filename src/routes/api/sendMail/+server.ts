@@ -45,8 +45,8 @@ import { json, error as svelteKitError } from '@sveltejs/kit';
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
 
-// Environment variables for SMTP configuration
-import { getGlobalSetting } from '@src/stores/globalSettings';
+// Configuration service for SMTP settings
+import { config, getSmtpHost, getSmtpPort, getSmtpEmail, getSmtpPassword } from '@src/lib/config.server';
 
 // Permissions
 
@@ -181,9 +181,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const availableTemplateNames = Object.keys(svelteEmailModules).map((path) => path.split('/').pop()?.replace('.svelte', ''));
 		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
-	// Validate SMTP configuration from privateEnv
-	const requiredSmtpVars: (keyof typeof privateEnv)[] = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
-	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
+	// Initialize configuration service
+	await config.initialize();
+
+	// Validate SMTP configuration
+	const smtpHost = await getSmtpHost();
+	const smtpPort = await getSmtpPort();
+	const smtpEmail = await getSmtpEmail();
+	const smtpPassword = await getSmtpPassword();
+
+	const missingVars = [];
+	if (!smtpHost) missingVars.push('SMTP_HOST');
+	if (!smtpPort) missingVars.push('SMTP_PORT');
+	if (!smtpEmail) missingVars.push('SMTP_EMAIL');
+	if (!smtpPassword) missingVars.push('SMTP_PASSWORD');
 
 	if (missingVars.length > 0) {
 		logger.warn('SMTP configuration incomplete. Email sending skipped.', {
@@ -199,9 +210,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// If SMTP host is a known dummy/placeholder, skip sending in dev-friendly way
-	const dummyHost = String(privateEnv.SMTP_HOST || '').toLowerCase();
+	const dummyHost = String(smtpHost || '').toLowerCase();
 	if (/dummy|example|\.invalid$/.test(dummyHost)) {
-		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: privateEnv.SMTP_HOST, tenantId });
+		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: smtpHost, tenantId });
 		return json({
 			success: true,
 			message: 'Email sending skipped due to dummy SMTP host (development mode).',
@@ -226,16 +237,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return createErrorResponse((renderErr as Error).message, 500);
 	}
 	// 3. Configure Nodemailer Transporter
-	const smtpPort = Number(privateEnv.SMTP_PORT);
 	const secureConnection = smtpPort === 465;
 
 	const transporter = nodemailer.createTransport({
-		host: privateEnv.SMTP_HOST,
+		host: smtpHost,
 		port: smtpPort,
 		secure: secureConnection,
 		auth: {
-			user: privateEnv.SMTP_EMAIL,
-			pass: privateEnv.SMTP_PASSWORD
+			user: smtpEmail,
+			pass: smtpPassword
 		},
 		tls: {
 			rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true
@@ -246,8 +256,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const mailOptions: Mail.Options = {
 		from: {
-			name: props?.sitename || getGlobalSetting<string>('SMTP_FROM_NAME') || 'SveltyCMS',
-			address: getGlobalSetting<string>('SMTP_EMAIL')!
+			name: props?.sitename || 'SveltyCMS',
+			address: smtpEmail!
 		},
 		to: recipientEmail,
 		subject: subject,

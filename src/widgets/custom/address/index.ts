@@ -3,7 +3,7 @@
 @description - Address index file.
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 
@@ -25,7 +25,7 @@ const widget = (params: Params & { widgetId?: string }) => {
 	if (!params.display) {
 		display = async ({ data }) => {
 			data = data ? data : {}; // Ensure data is not undefined
-			const defaultLanguage = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+			const defaultLanguage = 'en'; // Default language
 			// Return the data for the default content language or a message indicating no data entry
 			return data[defaultLanguage] || m.widgets_nodata();
 		};

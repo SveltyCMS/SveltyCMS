@@ -9,8 +9,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	// Track last language from URL and user-initiated language changes
 	let lastUrlLanguage = data?.contentLanguage ?? 'en';
@@ -102,7 +101,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		// Only set language from URL if user hasn't initiated a language change
 		if (!userInitiatedLanguageChange) {
-			const availableContentLanguages = getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+			const availableContentLanguages = getPublicSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
 			if (!(availableContentLanguages as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
 				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
 				if (!contentLanguage.value || !(availableContentLanguages as ReadonlyArray<Locale>).includes(contentLanguage.value)) {

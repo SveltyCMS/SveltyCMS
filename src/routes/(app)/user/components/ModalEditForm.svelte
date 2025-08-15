@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/user/components/ModalEditForm.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
@@ -85,7 +85,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const canChangePassword = isOwnProfile || user?.isAdmin;
 
 	// Check if user has delete permission for layout purposes
-	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
+	const hasDeletePermission = user?.isAdmin || false;
 	const showDeleteButton = hasDeletePermission && !isOwnProfile && !isFirstUser;
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {

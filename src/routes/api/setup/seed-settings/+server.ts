@@ -11,8 +11,6 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async () => {
 	try {
-		console.log('🚀 Starting settings seeding process...');
-
 		// Seed the database with default settings
 		await seedDefaultSettings();
 
@@ -25,7 +23,7 @@ export const POST: RequestHandler = async () => {
 			timestamp: new Date().toISOString()
 		});
 	} catch (error) {
-		console.error('❌ Failed to seed settings:', error);
+		console.error('Failed to seed settings:', error);
 
 		return json(
 			{

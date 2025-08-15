@@ -43,29 +43,6 @@ export default defineConfig(async () => {
 	if (!isSetupComplete) {
 		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
 
-		const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
-		const templatePath = Path.posix.join(process.cwd(), 'templates/private.template.ts');
-
-		// Ensure template‑based private config (never synthesize dynamically here)
-		if (!existsSync(privateConfigPath)) {
-			const fs = await import('fs/promises');
-			const configDir = Path.posix.join(process.cwd(), 'config');
-			if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
-			try {
-				if (existsSync(templatePath)) {
-					await fs.copyFile(templatePath, privateConfigPath);
-					console.log(`${LOG_PREFIX} Created initial private config from template -> config/private.ts`);
-				} else {
-					console.error(`${LOG_PREFIX} \x1b[31mTemplate missing:\x1b[0m templates/private.template.ts`);
-					throw new Error('private.template.ts missing');
-				}
-			} catch (e) {
-				console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
-			}
-		} else {
-			console.log(`${LOG_PREFIX} Existing private config detected – no copy needed.`);
-		}
-
 		// Open setup wizard after a brief delay (non-blocking)
 		setTimeout(async () => {
 			try {

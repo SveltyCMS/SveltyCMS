@@ -18,7 +18,7 @@ import { initializeRoles, roles } from '@root/config/roles';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import type { User } from '@src/auth/types';
 import { cacheService } from '@src/databases/CacheService';
-import { auth } from '@src/databases/db';
+import { auth, authAdapter } from '@src/databases/db';
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 
@@ -32,11 +32,22 @@ const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 // Health metrics for monitoring (if kept here, otherwise import from utils)
 // const healthMetrics = { /* ... */ }; // Assuming it's in a shared place
 
-// Request deduplication for expensive operations (if kept here, otherwise import)
-// const pendingOperations = new Map<string, Promise<unknown>>(); // Assuming it's in a shared place
+// Request deduplication for expensive operations
+const pendingOperations = new Map<string, Promise<unknown>>();
 
-// Helper function to deduplicate expensive async operations (if kept here, otherwise import)
-// async function deduplicate<T>(key: string, operation: () => Promise<T>): Promise<T> { /* ... */ } // Assuming it's in a shared place
+// Helper function to deduplicate expensive async operations
+async function deduplicate<T>(key: string, operation: () => Promise<T>): Promise<T> {
+	if (pendingOperations.has(key)) {
+		return pendingOperations.get(key) as Promise<T>;
+	}
+
+	const promise = operation().finally(() => {
+		pendingOperations.delete(key);
+	});
+
+	pendingOperations.set(key, promise);
+	return promise;
+}
 
 // Optimized user count getter with caching and deduplication (now tenant-aware)
 const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
@@ -227,18 +238,15 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const isApi = url.pathname.startsWith('/api/');
 
 	if (isOAuthRoute(url.pathname)) {
-		logger.debug('OAuth route detected, passing through');
 		return resolve(event);
 	}
 
 	if (auth !== null && typeof auth.validateSession === 'function') {
 		if (!locals.user && !isPublic && !isFirstUser) {
-			logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
 			if (isApi) throw error(401, 'Unauthorized');
 			throw redirect(302, '/login');
 		}
 		if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-			logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
 			throw redirect(302, '/');
 		}
 		// Note: API handling is moved to handleApiRequests
@@ -258,7 +266,6 @@ export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', te
 		cacheService
 			.delete(distributedCacheKey, tenantId)
 			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[31m${cacheKey}\x1b[0m: ${err.message}`));
-		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
 	} else {
 		adminDataCache.clear();
 		['roles', 'users', 'tokens'].forEach((key) => {
@@ -266,7 +273,6 @@ export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', te
 				.delete(`adminData:${key}`, tenantId)
 				.catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
 		});
-		logger.debug('All admin cache cleared');
 	}
 };
 
@@ -275,5 +281,4 @@ export const invalidateUserCountCache = (tenantId?: string): void => {
 	userCountCache = null; // Invalidate local cache
 	const cacheKey = 'userCount';
 	cacheService.delete(cacheKey, tenantId).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
-	logger.debug('User count cache invalidated');
 };

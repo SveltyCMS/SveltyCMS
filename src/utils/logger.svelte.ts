@@ -15,17 +15,12 @@
  */
 
 import { browser, building } from '$app/environment';
-import { getPublicSetting } from '@src/stores/globalSettings';
 
 // Safe getter that handles when settings aren't loaded yet
+// For now, we'll use default values since this is a client-side utility
 function safeGetPublicSetting<T>(key: string, defaultValue: T): T {
-	try {
-		const value = getPublicSetting<T>(key);
-		return value !== undefined ? value : defaultValue;
-	} catch {
-		// Settings not loaded yet, return default
-		return defaultValue;
-	}
+	// TODO: Get settings from page data when available
+	return defaultValue;
 }
 
 // Check if running on the server
@@ -261,12 +256,19 @@ const serverFileOps = isServer
 	? {
 			_logStream: null as unknown, // Store the write stream instance
 			async _getModules() {
-				const fsPromises = await import('node:fs/promises');
-				const path = await import('node:path');
-				const zlib = await import('node:zlib');
-				const fs = await import('node:fs');
-				const stream = await import('node:stream/promises');
-				return { fsPromises, path, zlib, fs, stream };
+				try {
+					const fsPromises = await import('node:fs/promises');
+					const path = await import('node:path');
+					const zlib = await import('node:zlib');
+					const fs = await import('node:fs');
+					const stream = await import('node:stream/promises');
+					return { fsPromises, path, zlib, fs, stream };
+				} catch (error) {
+					// In development mode, Vite module runner might be closed
+					// Fall back to console logging only
+					console.warn('Logger: Unable to load file system modules, falling back to console logging');
+					throw new Error('Vite module runner unavailable');
+				}
 			},
 			async getLogStream(): Promise<unknown> {
 				const { path, fs } = await this._getModules();
@@ -413,6 +415,19 @@ const serverFileOps = isServer
 						});
 					});
 				} catch (fileError) {
+					// Check if it's a Vite module runner error (development mode)
+					if (fileError instanceof Error && fileError.message.includes('Vite module runner')) {
+						// In development mode, just log to console and continue
+						for (const entry of batch) {
+							const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
+							const formattedArgs = entry.args.map(formatValue).join(' ');
+							console.log(
+								`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`
+							);
+						}
+						return;
+					}
+
 					console.error('Failed to write to log file, attempting recovery:', fileError);
 					this._logStream = null; // Invalidate stream on error to force re-initialization
 

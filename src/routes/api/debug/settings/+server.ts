@@ -1,10 +1,10 @@
-import { getPublicSettings } from '@src/stores/globalSettings';
+import { config } from '@src/lib/config.server';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
 	try {
-		const settings = getPublicSettings();
+		const settings = await config.getPublicSettings();
 		return json({
 			success: true,
 			settings,

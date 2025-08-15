@@ -19,7 +19,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { config } from '@src/lib/config.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -213,7 +213,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const LOG_DIRECTORY = 'logs';
 		const LOG_FILE_NAME = 'app.log';
-		const LOG_RETENTION_DAYS = getPublicSetting('LOG_RETENTION_DAYS') || 30;
+		const LOG_RETENTION_DAYS = (await config.getPublic('LOG_RETENTION_DAYS')) || 30;
 
 		const startDateTime = params.startDate ? new Date(params.startDate).getTime() : 0;
 		const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Infinity;

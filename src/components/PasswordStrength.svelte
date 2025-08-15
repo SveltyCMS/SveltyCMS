@@ -22,7 +22,7 @@
 <script lang="ts">
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 	import { fade } from 'svelte/transition';
 
 	interface Props {
@@ -34,7 +34,7 @@
 	let { password = '', confirmPassword = '' }: Props = $props();
 
 	// Customizable password strength thresholds
-	const MIN_PASSWORD_LENGTH = getGlobalSetting('PASSWORD_LENGTH') || 8;
+	const MIN_PASSWORD_LENGTH = getPublicSetting('PASSWORD_LENGTH') || 8;
 	const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
 	const GREEN_LENGTH = YELLOW_LENGTH + 4;
 

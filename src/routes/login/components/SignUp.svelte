@@ -13,7 +13,7 @@ Features:
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	import type { PageData } from '../$types';
 
@@ -427,7 +427,7 @@ Features:
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !getGlobalSetting<boolean>('USE_GOOGLE_OAUTH') || !showOAuth}
+					{#if !getPublicSetting<boolean>('USE_GOOGLE_OAUTH') || !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}

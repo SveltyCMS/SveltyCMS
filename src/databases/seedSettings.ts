@@ -4,8 +4,8 @@
  * This replaces the static configuration files with database-driven settings.
  */
 
-import type { SystemPreferences } from '@src/databases/dbInterface';
-import { SystemPreferencesModel } from '@src/databases/mongodb/models/systemPreferences';
+import type { SystemSetting } from '@src/databases/mongodb/models/setting';
+import { SystemSettingModel } from '@src/databases/mongodb/models/setting';
 
 /**
  * Default public settings that were previously in config/public.ts
@@ -46,7 +46,11 @@ const defaultPublicSettings: Array<{ key: string; value: any; description?: stri
 	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' },
 
 	// Demo Mode
-	{ key: 'DEMO', value: false, description: 'Enable demo mode (restricts certain features)' }
+	{ key: 'DEMO', value: false, description: 'Enable demo mode (restricts certain features)' },
+
+	// Mapbox config (public token for client-side use)
+	{ key: 'USE_MAPBOX', value: false, description: 'Enable Mapbox integration' },
+	{ key: 'MAPBOX_API_TOKEN', value: '', description: 'Public Mapbox API token (for client-side use)' }
 ];
 
 /**
@@ -77,9 +81,7 @@ const defaultPrivateSettings: Array<{ key: string; value: any; description?: str
 	{ key: 'DB_VALIDATION_PROBABILITY', value: 0.1, description: 'Probability (0-1) of validating a session against the DB' },
 	{ key: 'SESSION_EXPIRATION_SECONDS', value: 86400, description: 'Duration in seconds until a session expires (24 hours)' },
 
-	// Mapbox config
-	{ key: 'USE_MAPBOX', value: false, description: 'Enable Mapbox integration' },
-	{ key: 'MAPBOX_API_TOKEN', value: '', description: 'Public Mapbox API token (for client-side use)' },
+	// Mapbox config (secret token for server-side use)
 	{ key: 'SECRET_MAPBOX_API_TOKEN', value: '', description: 'Secret Mapbox API token (for server-side use)' },
 
 	// Other APIs
@@ -108,26 +110,22 @@ export async function seedDefaultSettings(): Promise<void> {
 	for (const setting of allSettings) {
 		const isPublic = defaultPublicSettings.some((s) => s.key === setting.key);
 
-		const systemPreference: Partial<SystemPreferences> = {
+		const systemPreference: Partial<SystemSetting> = {
 			key: setting.key,
 			value: setting.value,
 			scope: 'system',
 			visibility: isPublic ? 'public' : 'private',
-			description: setting.description || '',
 			isGlobal: true,
-			createdAt: new Date(),
 			updatedAt: new Date()
 		};
 
 		try {
 			// Use upsert to avoid duplicates
-			await SystemPreferencesModel.updateOne({ key: setting.key, scope: 'system' }, { $set: systemPreference }, { upsert: true });
+			await SystemSettingModel.updateOne({ key: setting.key }, { $set: systemPreference }, { upsert: true });
 		} catch (error) {
 			console.error(`Failed to seed setting ${setting.key}:`, error);
 		}
 	}
-
-	console.log(`✅ Seeded ${allSettings.length} default settings`);
 }
 
 /**
@@ -135,7 +133,7 @@ export async function seedDefaultSettings(): Promise<void> {
  * This creates a settings snapshot for project templates.
  */
 export async function exportSettingsSnapshot(): Promise<Record<string, any>> {
-	const settings = await SystemPreferencesModel.find({ scope: 'system' }).lean().exec();
+	const settings = await SystemSettingModel.find({ scope: 'system' }).lean().exec();
 
 	const snapshot: Record<string, any> = {
 		version: '1.0.0',
@@ -166,22 +164,19 @@ export async function importSettingsSnapshot(snapshot: Record<string, any>): Pro
 	console.log('📥 Importing settings snapshot...');
 
 	for (const [key, settingData] of Object.entries(snapshot.settings)) {
-		const systemPreference: Partial<SystemPreferences> = {
+		const systemPreference: Partial<SystemSetting> = {
 			key,
 			value: settingData.value,
 			scope: 'system',
 			visibility: settingData.visibility || 'public',
-			description: settingData.description || '',
 			isGlobal: true,
 			updatedAt: new Date()
 		};
 
 		try {
-			await SystemPreferencesModel.updateOne({ key, scope: 'system' }, { $set: systemPreference }, { upsert: true });
+			await SystemSettingModel.updateOne({ key }, { $set: systemPreference }, { upsert: true });
 		} catch (error) {
 			console.error(`Failed to import setting ${key}:`, error);
 		}
 	}
-
-	console.log('✅ Settings snapshot imported successfully');
 }

@@ -1,9 +1,14 @@
 /**
  * @file src/stores/globalSettings.ts
- * @description Loads and caches all system-wide settings from the database at startup.
- * Provides fast, reactive access to settings throughout the app.
+ * @deprecated This store is deprecated. Use @src/lib/settings.server for server-side and @src/stores/publicSettings for client-side.
+ * @description DEPRECATED: Loads and caches all system-wide settings from the database at startup.
  *
- * This service handles both public and private settings that were previously in config files.
+ * SECURITY WARNING: This approach exposes private settings to the client, which is a security risk.
+ *
+ * MIGRATION GUIDE:
+ * - Server-side: Use @src/lib/settings.server.ts
+ * - Client-side: Use @src/stores/publicSettings.ts
+ * - Private settings: Use @src/lib/env.server.ts
  */
 
 import type { SystemPreferences } from '@src/databases/dbInterface';
@@ -91,31 +96,33 @@ export interface PublicSettings {
 }
 
 /**
- * Enables setup mode for when database isn't configured yet
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function enableSetupMode(): void {
+	console.warn('DEPRECATED: enableSetupMode() - Use @src/lib/settings.server.ts instead');
 	setupMode = true;
 	cacheLoaded = true;
 }
 
 /**
- * Disables setup mode and loads settings from database
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function disableSetupMode(): void {
+	console.warn('DEPRECATED: disableSetupMode() - Use @src/lib/settings.server.ts instead');
 	setupMode = false;
 	cacheLoaded = false;
 }
 
 /**
- * Loads all system-wide settings from the database into memory.
- * Call this at app/server startup.
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export async function loadGlobalSettings(): Promise<void> {
+	console.warn('DEPRECATED: loadGlobalSettings() - Use @src/lib/settings.server.ts instead');
 	try {
 		// Dynamically import SystemPreferencesModel to avoid mongoose initialization issues
-		const { SystemPreferencesModel } = await import('@src/databases/mongodb/models/systemPreferences');
+		const { SystemSettingModel } = await import('@src/databases/mongodb/models/setting');
 
-		const allPrefs = await SystemPreferencesModel.find({ scope: 'system' }).lean().exec();
+		const allPrefs = await SystemSettingModel.find({ scope: 'system' }).lean().exec();
 		settingsCache = {};
 		for (const pref of allPrefs) {
 			settingsCache[pref.key] = pref;
@@ -126,7 +133,6 @@ export async function loadGlobalSettings(): Promise<void> {
 		const setupCompleted = settingsCache['SETUP_COMPLETED']?.value;
 		if (setupCompleted) {
 			setupMode = false; // Disable setup mode if setup is complete
-			console.log('✅ Setup completed, disabling setup mode');
 		}
 	} catch (error) {
 		// If database connection fails, fall back to setup mode
@@ -137,10 +143,10 @@ export async function loadGlobalSettings(): Promise<void> {
 }
 
 /**
- * Gets a setting by key from the cache (fast, in-memory).
- * If not loaded, throws an error.
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function getSetting(key: string): SystemPreferences | undefined {
+	console.warn('DEPRECATED: getSetting() - Use @src/lib/settings.server.ts instead');
 	// If cache is not loaded, fallback to setupModeDefaults
 	if (!cacheLoaded || setupMode) {
 		return {
@@ -158,19 +164,19 @@ export function getSetting(key: string): SystemPreferences | undefined {
 }
 
 /**
- * Gets a public setting value by key.
- * Returns the value directly, or undefined if not found.
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function getPublicSetting<T = string>(key: string): T | undefined {
+	console.warn('DEPRECATED: getPublicSetting() - Use @src/lib/settings.server.ts instead');
 	const setting = getSetting(key);
 	return setting?.value as T | undefined;
 }
 
 /**
- * Gets all public settings as a structured object.
- * This replaces the old publicEnv object.
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function getPublicSettings(): PublicSettings {
+	console.warn('DEPRECATED: getPublicSettings() - Use @src/lib/settings.server.ts instead');
 	if (!cacheLoaded) {
 		enableSetupMode();
 	}
@@ -198,36 +204,44 @@ export function getPublicSettings(): PublicSettings {
 }
 
 /**
- * Gets a private setting value by key.
- * Returns the value directly, or undefined if not found.
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function getPrivateSetting<T = string>(key: string): T | undefined {
+	console.warn('DEPRECATED: getPrivateSetting() - Use @src/lib/settings.server.ts instead');
 	const setting = getSetting(key);
 	return setting?.value as T | undefined;
 }
 
 /**
- * Optionally, expose a function to refresh the cache (e.g., after settings change).
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export async function refreshGlobalSettings(): Promise<void> {
+	console.warn('DEPRECATED: refreshGlobalSettings() - Use @src/lib/settings.server.ts instead');
 	await loadGlobalSettings();
 }
 
 /**
- * Invalidates the settings cache, forcing a reload on next access.
+ * @deprecated Use @src/lib/settings.server.ts instead
  */
 export function invalidateSettingsCache(): void {
+	console.warn('DEPRECATED: invalidateSettingsCache() - Use @src/lib/settings.server.ts instead');
 	cacheLoaded = false;
 	settingsCache = {};
 }
 
-// Optionally, expose the full cache for advanced use
+/**
+ * @deprecated Use @src/lib/settings.server.ts instead
+ */
 export function getAllSettings(): Record<string, SystemPreferences> {
+	console.warn('DEPRECATED: getAllSettings() - Use @src/lib/settings.server.ts instead');
 	if (!cacheLoaded) throw new Error('Global settings cache not loaded.');
 	return settingsCache;
 }
 
-// Legacy compatibility - provide a function that mimics the old publicEnv
+/**
+ * @deprecated Use @src/lib/settings.server.ts instead
+ */
 export function getGlobalSetting<T = string>(key: string): T | undefined {
+	console.warn('DEPRECATED: getGlobalSetting() - Use @src/lib/settings.server.ts instead');
 	return getPublicSetting<T>(key);
 }

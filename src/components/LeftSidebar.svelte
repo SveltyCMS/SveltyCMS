@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 	import axios from 'axios';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
@@ -91,7 +91,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...(getGlobalSetting('LOCALES') as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(getPublicSetting('LOCALES') as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -126,8 +126,6 @@
 	// SignOut function
 	async function signOut() {
 		try {
-			console.log('Starting sign-out process...');
-
 			// Call the logout API endpoint
 			await axios.post(
 				'/api/user/logout',
@@ -137,7 +135,6 @@
 				}
 			);
 
-			console.log('Logout successful, redirecting to login page');
 			window.location.href = '/login';
 		} catch (error) {
 			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
@@ -183,7 +180,6 @@
 		if (page.url.pathname !== '/user') {
 			// Force hide sidebar first on mobile
 			if (typeof window !== 'undefined' && window.innerWidth < 768) {
-				console.log('Mobile detected, hiding sidebar before navigation');
 				toggleUIElement('leftSidebar', 'hidden');
 			}
 			mode.set('view');
@@ -195,7 +191,6 @@
 		if (page.url.pathname !== '/config') {
 			// Force hide sidebar first on mobile
 			if (typeof window !== 'undefined' && window.innerWidth < 768) {
-				console.log('Mobile detected, hiding sidebar before navigation');
 				toggleUIElement('leftSidebar', 'hidden');
 			}
 			mode.set('view');

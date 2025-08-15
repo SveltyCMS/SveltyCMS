@@ -6,8 +6,7 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -35,7 +34,7 @@
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Reset your password for {getGlobalSetting('SITE_NAME')}</title>
+		<title>Reset your password for {getPublicSetting('SITE_NAME')}</title>
 	</Head>
 
 	<Preview preview="Reset your password for {getPublicSetting('SITE_NAME') || 'SveltyCMS'}" />

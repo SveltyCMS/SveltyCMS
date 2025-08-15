@@ -23,10 +23,10 @@
 	// Ensure roles is an array
 	let { value } = $props<{ value: string }>();
 
-	// Initialize roles from global settings or DB
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	// Initialize roles from public settings
+	import { getPublicSetting } from '@src/stores/publicSettings';
 	$effect(() => {
-		roles = getGlobalSetting('ROLES') || [];
+		roles = getPublicSetting('ROLES') || [];
 	});
 
 	// Determine if the roles array is defined and has the required elements

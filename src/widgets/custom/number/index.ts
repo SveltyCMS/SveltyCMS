@@ -3,7 +3,7 @@
 @description - Number index file.
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 

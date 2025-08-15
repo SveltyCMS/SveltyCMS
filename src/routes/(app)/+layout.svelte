@@ -26,7 +26,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	// Auth
 	import type { User } from '@src/auth/types';

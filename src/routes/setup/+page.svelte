@@ -134,7 +134,7 @@
 
 			const response = await fetch('/api/setup/status');
 			const data = await response.json();
-			if (data.isComplete) goto('/');
+			if (data.isComplete) goto('/login');
 		} catch {}
 	});
 
@@ -217,8 +217,6 @@
 	}
 
 	async function completeSetup() {
-		// Debug: Log admin email before submitting
-		console.log('Submitting setup with admin email:', adminUser.email);
 		if (!validateStep(2)) return;
 
 		isLoading = true;

@@ -4,7 +4,6 @@
  */
 
 import type { Locale } from '@src/paraglide/runtime';
-import { getPublicSetting } from '@src/stores/globalSettings';
 import { store } from '@utils/reactivity.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 
@@ -45,14 +44,8 @@ function getCookie(name: string): string | null {
 const initialTranslationProgress: TranslationProgress = { show: false };
 
 // Safely handle the languages array to prevent server-side initialization errors
+// This will be set from page data when available
 let availableLanguages: Locale[] = [];
-try {
-	availableLanguages = (getPublicSetting('AVAILABLE_CONTENT_LANGUAGES') as Locale[]) || [];
-} catch {
-	// If not available (e.g., during server initialization), use empty array
-	console.warn('getPublicSetting not available during store initialization, using empty languages array');
-	availableLanguages = [];
-}
 
 for (const lang of availableLanguages) {
 	initialTranslationProgress[lang] = {
@@ -165,7 +158,7 @@ export const avatarSrc = {
 				return;
 			}
 
-			const MEDIA_FOLDER = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+			const MEDIA_FOLDER = 'mediaFiles'; // Default value, can be overridden from page data
 
 			// Strip any leading origin or duplicate slashes (defensive)
 			let url = newValue.replace(/^https?:\/\/[^/]+/i, '');
@@ -326,8 +319,8 @@ let initialSystemLanguage: Locale;
 let initialContentLanguage: Locale;
 
 try {
-	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (getPublicSetting('BASE_LOCALE') as Locale) ?? 'en';
-	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (getPublicSetting('DEFAULT_CONTENT_LANGUAGE') as Locale) ?? 'en';
+	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? 'en';
+	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? 'en';
 } catch {
 	// Fallback values for server-side initialization
 	initialSystemLanguage = 'en' as Locale;

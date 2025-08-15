@@ -217,7 +217,7 @@ delete endpoint, resolving the "Unexpected token" browser error.
 			<input bind:value={formData.token} type="hidden" name="token" />
 
 			<!-- User Role -->
-			{#if user.role === 'admin'}
+			{#if user.isAdmin}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
 						{m.form_userrole()}: <span class="text-error-500">*</span>

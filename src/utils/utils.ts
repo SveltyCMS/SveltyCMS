@@ -21,7 +21,7 @@
  * @exports numerous utility functions and constants
  */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 
 import type { BaseIssue, BaseSchema } from 'valibot';
 import type { Field } from '@src/content/types';
@@ -128,7 +128,7 @@ export function sanitize(str: string) {
 }
 
 // Get the environment variables for image sizes
-const env_sizes = getPublicSetting('IMAGE_SIZES') || {};
+const env_sizes = {}; // Default empty object for now
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Takes an object and recursively parses any values that can be converted to JSON

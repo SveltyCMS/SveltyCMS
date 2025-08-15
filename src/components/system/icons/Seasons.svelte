@@ -17,9 +17,8 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 	import { Confetti } from 'svelte-confetti';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -132,8 +131,8 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	const isNavratri = Math.abs(date.getTime() - navratri.getTime()) < 9 * 24 * 60 * 60 * 1000; // 9 days
 </script>
 
-{#if getGlobalSetting('SEASONS') === true}
-	{#if getGlobalSetting('SEASON_REGION') === 'Western_Europe'}
+{#if getPublicSetting('SEASONS') === true}
+	{#if getPublicSetting('SEASON_REGION') === 'Western_Europe'}
 		{#if isNewYear && date.getMonth() !== 11}
 			<!-- New Year -->
 			<div class="-translate-y-1/2> absolute -top-28 left-1/2 z-10 -translate-x-1/2">
@@ -199,7 +198,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 	{/if}
 
-	{#if getGlobalSetting('SEASON_REGION') === 'East_Asia'}
+	{#if getPublicSetting('SEASON_REGION') === 'East_Asia'}
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
@@ -237,7 +236,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 	{/if}
 
-	{#if getGlobalSetting('SEASON_REGION') === 'South_Asia'}
+	{#if getPublicSetting('SEASON_REGION') === 'South_Asia'}
 		{#if isDiwali}
 			<!-- Diwali -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">

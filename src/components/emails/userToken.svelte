@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -36,18 +36,18 @@
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Invitation to join {getGlobalSetting('SITE_NAME')}</title>
+		<title>Invitation to join {getPublicSetting('SITE_NAME')}</title>
 	</Head>
-	<Preview preview="You have been invited to join {getGlobalSetting('SITE_NAME')}" />
+	<Preview preview="You have been invited to join {getPublicSetting('SITE_NAME')}" />
 
 	<Body>
 		<Container>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD')}>
+				<Link href={dev ? getPublicSetting('HOST_DEV') : getPublicSetting('HOST_PROD')}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${getGlobalSetting('SITE_NAME')} logo`}
+						alt={`${getPublicSetting('SITE_NAME')} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
@@ -60,7 +60,7 @@
 				<Text>Hello there,</Text>
 
 				<Text>
-					You have been invited to join <strong>{getGlobalSetting('SITE_NAME')}</strong> as a
+					You have been invited to join <strong>{getPublicSetting('SITE_NAME')}</strong> as a
 					<strong>{role}</strong>. Please click the button below to create your account.
 				</Text>
 			</Section>
@@ -98,7 +98,7 @@
 			<Section>
 				<Hr />
 				<Text style={{ fontSize: '12px', color: '#666' }}>
-					<strong>Can't click the link?</strong> Go to {getGlobalSetting('HOST_PROD') || getGlobalSetting('HOST_DEV')} and use the token above during signup.
+					<strong>Can't click the link?</strong> Go to {getPublicSetting('HOST_PROD') || getPublicSetting('HOST_DEV')} and use the token above during signup.
 				</Text>
 			</Section>
 

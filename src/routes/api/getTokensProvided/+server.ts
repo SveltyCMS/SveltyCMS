@@ -1,54 +1,29 @@
 /**
  * @file src/routes/api/getTokensProvided/+server.ts
- * @description API endpoint for checking the availability of external service tokens.
+ * @description Server-side API endpoint to check available API tokens
  *
- * This module provides functionality to:
- * - Check if API keys/tokens are provided for Google, Twitch, and TikTok
- * - Return a JSON object indicating which tokens are available
- *
- * Features:
- * - Environment-based token availability check
- * - Logging of token availability status
- *
- * Usage:
- * GET /api/getTokensProvided
- * Returns: JSON object with boolean values for each service token
- * Requires: Admin authentication or system permissions
+ * This endpoint returns which API tokens are configured without exposing the actual tokens.
  */
 
-import { privateEnv } from '@root/config/private';
-import { json, type RequestHandler } from '@sveltejs/kit';
-
-// Permissions
-
-// System Logger
-import { logger } from '@utils/logger.svelte';
-
-interface TokenStatus {
-	google: boolean;
-	twitch: boolean;
-	tiktok: boolean;
-}
+import { json } from '@sveltejs/kit';
+import { config, getGoogleApiKey, getTwitchToken } from '@src/lib/config.server';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
-	// No permission checks needed - hooks already verified:
-	// 1. User is authenticated
-	// 2. User has correct role for this API endpoint
-	// 3. User belongs to correct tenant (if multi-tenant)
+	try {
+		// Initialize configuration service
+		await config.initialize();
 
-	logger.debug('Checking provided tokens...');
+		const tokensProvided = {
+			google: Boolean(await getGoogleApiKey()),
+			twitch: Boolean(await getTwitchToken())
+		};
 
-	const tokensProvided: TokenStatus = {
-		google: Boolean(getGlobalSetting<string>('GOOGLE_API_KEY')),
-		twitch: Boolean(getGlobalSetting<string>('TWITCH_TOKEN')),
-		tiktok: Boolean(getGlobalSetting<string>('TIKTOK_TOKEN'))
-	};
-
-	Object.entries(tokensProvided).forEach(([service, isProvided]) => {
-		logger.debug(`${service} token is ${isProvided ? 'provided' : 'not provided'}.`);
-	});
-
-	logger.info('Tokens provided status', tokensProvided);
-
-	return json(tokensProvided);
+		return json({
+			tokensProvided
+		});
+	} catch (error) {
+		console.error('Error checking tokens:', error);
+		return json({ error: 'Failed to check available tokens' }, { status: 500 });
+	}
 };

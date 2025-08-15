@@ -16,20 +16,21 @@ import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { user } = locals;
+		const { user, roles, isAdmin } = locals;
 
 		if (!user) {
 			logger.warn('User not authenticated, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User session validated successfully for user: \x1b[34m${user._id}\x1b[0m`);
-
 		if (!user.role) {
 			const message = `User role is missing for user \x1b[34m${user.email}\x1b[0m`;
 			logger.warn(message);
 			throw error(403, message);
 		}
+
+		// Use the isAdmin status from locals (calculated in hooks)
+		const userIsAdmin = isAdmin || false;
 
 		const serializableUser = {
 			_id: user._id.toString(),
@@ -45,7 +46,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			let hasPermission = false;
 			const config = permissionConfigs[key];
 
-			if (user.role.toLowerCase() === 'admin') {
+			if (userIsAdmin) {
 				hasPermission = true; // Admins should always have permission
 			} else {
 				// Check user permission for non-admin roles
@@ -60,7 +61,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			user: serializableUser,
 			permissions,
 			permissionConfigs,
-			allPermissions
+			allPermissions,
+			isAdmin: userIsAdmin // Pass the admin status to the client
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

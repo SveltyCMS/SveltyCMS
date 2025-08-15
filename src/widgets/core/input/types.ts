@@ -3,7 +3,7 @@
 @description - Input widget types
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 import { toStringHelper } from '@utils/utils';
 
 // Components
@@ -78,7 +78,7 @@ export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
 	// Use the sanitized field name as the type ID
 	const typeID = label;
 
-	const languages = await getPublicSetting('LOCALES');
+	const languages = ['en']; // Default languages
 	const graphqlFields = languages ? languages.map((contentLanguage) => `${contentLanguage}: String`).join('\n') : 'en: String';
 
 	// Return an object containing the type name and the GraphQL schema

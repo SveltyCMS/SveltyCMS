@@ -3,7 +3,7 @@
  * @description Defines RemoteVideo widget types and GraphQL schema
  */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -65,7 +65,7 @@ export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
 	const typeID = label;
 
 	// Return an object containing the type name and the GraphQL schema
-	const availableLanguages = (await getPublicSetting('AVAILABLE_CONTENT_LANGUAGES')) as string[];
+	const availableLanguages = ['en']; // Default languages
 	return {
 		typeID: typeID,
 		graphql: /* GraphQL */ `

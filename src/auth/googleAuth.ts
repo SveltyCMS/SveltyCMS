@@ -8,22 +8,27 @@
  */
 
 import { dev } from '$app/environment';
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { config, getGoogleClientId, getGoogleClientSecret } from '@src/lib/config.server';
 import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Utility function to determine the correct OAuth redirect URI
-function getOAuthRedirectUri(): string {
+async function getOAuthRedirectUri(): Promise<string> {
+	// Initialize configuration service
+	await config.initialize();
+
 	// Use SvelteKit's built-in environment detection
 	if (dev) {
 		logger.debug('🔧 Development mode detected - using development host');
-		return `${getGlobalSetting('HOST_DEV')}/login/oauth`;
+		const hostDev = await config.getPublic('HOST_DEV');
+		return `${hostDev}/login/oauth`;
 	} // For production builds, use the production host
 
 	logger.debug('🚀 Production mode detected - using production host');
-	return `${getGlobalSetting('HOST_PROD')}/login/oauth`;
+	const hostProd = await config.getPublic('HOST_PROD');
+	return `${hostProd}/login/oauth`;
 }
 
 // Google OAuth
@@ -31,7 +36,13 @@ let googleAuthClient: OAuth2Client | null = null;
 
 // Initialize Google OAuth client with ID, secret, and redirect URL
 async function googleAuth(): Promise<OAuth2Client | null> {
-	if (!getGlobalSetting('GOOGLE_CLIENT_ID') || !getGlobalSetting('GOOGLE_CLIENT_SECRET')) {
+	// Initialize configuration service
+	await config.initialize();
+
+	const clientId = await getGoogleClientId();
+	const clientSecret = await getGoogleClientSecret();
+
+	if (!clientId || !clientSecret) {
 		logger.warn('Google client ID and secret are not provided. OAuth unavailable.');
 		return null;
 	}
@@ -41,9 +52,8 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 			logger.debug('Setting up Google OAuth2...');
 			const { google } = await import('googleapis');
 			const redirectUri = getOAuthRedirectUri();
-			logger.debug(`Using OAuth redirect URI: \x1b[34m${redirectUri}\x1b[0m`);
 
-			googleAuthClient = new google.auth.OAuth2(getGlobalSetting('GOOGLE_CLIENT_ID'), getGlobalSetting('GOOGLE_CLIENT_SECRET'), redirectUri);
+			googleAuthClient = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 		}
 
 		return googleAuthClient;
@@ -69,7 +79,7 @@ async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consen
 	}
 
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-	const baseUrl = getOAuthRedirectUri(); // Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
+	const baseUrl = await getOAuthRedirectUri(); // Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
 	// Use 'online' access_type to prevent PKCE from being auto-enabled in newer googleapis versions
 
 	const authUrlOptions: Record<string, string | boolean | undefined> = {

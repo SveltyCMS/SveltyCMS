@@ -13,8 +13,7 @@
  * - Proper typing for user data
  */
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
-import { publicEnv } from '@src/utils/configMigration';
+import { config, getPasswordLength, getGoogleApiKey, getGoogleClientId, getGoogleClientSecret } from '@src/lib/config.server';
 
 import { dev } from '$app/environment';
 import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
@@ -53,21 +52,13 @@ import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
 import { fetchAndCacheCollectionData, getFirstCollectionInfo } from '@utils/collections-prefetch';
 
-const limiter = new RateLimiter({
-	IP: [200, 'h'], // 200 requests per hour per IP
-	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
-	cookie: {
-		name: 'ratelimit',
-		secret: getGlobalSetting<string>('JWT_SECRET_KEY'),
-		rate: [50, 'm'], // 50 requests per minute per cookie
-		preflight: true
-	}
-});
+// Rate limiter will be initialized in the load function after config is ready
+let limiter: RateLimiter;
 
-// Password strength configuration
-const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
-const YELLOW_LENGTH = MIN_PPASSWORD_LENGTH + 3;
-const GREEN_LENGTH = YELLOW_LENGTH + 4;
+// Password strength configuration - will be set in load function
+let MIN_PPASSWORD_LENGTH = 8;
+let YELLOW_LENGTH = 11;
+let GREEN_LENGTH = 15;
 
 // Function to calculate password strength (matches the logic in PasswordStrength.svelte)
 function calculatePasswordStrength(password: string): number {
@@ -147,10 +138,28 @@ async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promis
 }
 // --- END: Updated Language-Aware Redirect Functions ---
 
+// Helper function to get configuration values
+async function getConfigValues() {
+	const hostProd = await config.getPublic('HOST_PROD');
+	const hostDev = await config.getPublic('HOST_DEV');
+	const siteName = await config.getPublic('SITE_NAME');
+	const locales = await config.getPublic('LOCALES');
+	const baseLocale = await config.getPublic('BASE_LOCALE');
+
+	return {
+		hostProd: hostProd || 'https://localhost:3000',
+		hostDev: hostDev || 'http://localhost:5173',
+		siteName: siteName || 'SveltyCMS',
+		locales: locales || ['en'],
+		baseLocale: baseLocale || 'en'
+	};
+}
+
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
-	if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) {
+	const useGoogleOAuth = await config.getPublic('USE_GOOGLE_OAUTH');
+	if (!useGoogleOAuth) {
 		return false;
 	}
 
@@ -179,8 +188,6 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 		});
 		const hasOAuthUsers = users && users.length > 0;
 
-		logger.debug(`OAuth users check: found \x1b[34m${users?.length || 0}\x1b[0m users with lastAuthMethod \x1b[34m'google'\x1b[0m`);
-
 		if (hasOAuthUsers) {
 			return true; // Show OAuth for existing OAuth users to sign in
 		}
@@ -203,11 +210,33 @@ const wrappedSignUpSchema = valibot(signUpFormSchema);
 const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
+	// Initialize configuration service
+	await config.initialize();
+
+	// Initialize rate limiter with JWT secret
+	const jwtSecret = config.env.JWT_SECRET_KEY;
+	limiter = new RateLimiter({
+		IP: [1000, 'h'], // 1000 requests per hour per IP
+		IPUA: [500, 'm'], // 500 requests per minute per IP+User-Agent
+		cookie: {
+			name: 'ratelimit',
+			secret: jwtSecret,
+			rate: [200, 'm'], // 200 requests per minute per cookie
+			preflight: true
+		}
+	});
+
+	// Set password strength configuration
+	const passwordLength = await getPasswordLength();
+	MIN_PPASSWORD_LENGTH = passwordLength || 8;
+	YELLOW_LENGTH = MIN_PPASSWORD_LENGTH + 3;
+	GREEN_LENGTH = YELLOW_LENGTH + 4;
+
 	// --- START: Language Validation Logic ---
+	const configValues = await getConfigValues();
 	const langFromStore = get(systemLanguage) as Locale | null;
-	// Use PUBLIC_ENV.LOCALES for validation, fallback to BASE_LOCALE
-	const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-	const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+	const supportedLocales = configValues.locales as Locale[];
+	const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 	// --- END: Language Validation Logic ---
 
 	try {
@@ -313,10 +342,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		);
 
 		const code = url.searchParams.get('code');
-		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
-		if (getGlobalSetting<boolean>('USE_GOOGLE_OAUTH') && code) {
+		const useGoogleOAuth = await config.getPublic('USE_GOOGLE_OAUTH');
+		if (useGoogleOAuth && code) {
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
@@ -360,8 +389,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						const emailProps = {
 							username: googleUser.name || user?.username || '',
 							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+							hostLink: configValues.hostProd || `https://${request.headers.get('host')}`,
+							sitename: configValues.siteName
 						};
 						try {
 							const mailResponse = await fetch('/api/sendMail', {
@@ -405,8 +434,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						const emailProps = {
 							username: googleUser.name || newUser?.username || '',
 							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+							hostLink: configValues.hostProd || `https://${request.headers.get('host')}`,
+							sitename: configValues.siteName
 						};
 						try {
 							const mailResponse = await fetch('/api/sendMail', {
@@ -543,9 +572,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 export const actions: Actions = {
 	signUp: async (event) => {
 		// --- START: Language Validation Logic ---
+		const configValues = await getConfigValues();
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const supportedLocales = configValues.locales as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -597,11 +627,12 @@ export const actions: Actions = {
 					// Invalidate user count cache so the system knows a user now exists
 					invalidateUserCountCache();
 
+					const configValues = await getConfigValues();
 					const emailProps = {
 						username: resp.user.username,
 						email: resp.user.email,
-						hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+						hostLink: configValues.hostProd || `https://${event.request.headers.get('host')}`,
+						sitename: configValues.siteName
 					};
 
 					try {
@@ -700,11 +731,12 @@ export const actions: Actions = {
 			event.cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
 
 			// Send welcome email
+			const configValues = await getConfigValues();
 			const emailProps = {
 				username: newUser.username,
 				email: newUser.email,
-				hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-				sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+				hostLink: configValues.hostProd || `https://${event.request.headers.get('host')}`,
+				sitename: configValues.siteName
 			};
 
 			try {
@@ -765,7 +797,8 @@ export const actions: Actions = {
 			logger.debug(`Sign-up OAuth form invalid: ${form.message}`);
 			return fail(400, { form });
 		}
-		if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) throw redirect(303, '/login');
+		const useGoogleOAuth = await config.getPublic('USE_GOOGLE_OAUTH');
+		if (!useGoogleOAuth) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { form, message: 'Too many requests.' });
 		}
@@ -774,7 +807,8 @@ export const actions: Actions = {
 	},
 
 	signInOAuth: async (event) => {
-		if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) throw redirect(303, '/login');
+		const useGoogleOAuth = await config.getPublic('USE_GOOGLE_OAUTH');
+		if (!useGoogleOAuth) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
@@ -789,9 +823,10 @@ export const actions: Actions = {
 
 	signIn: async (event) => {
 		// --- START: Language Validation Logic ---
+		const configValues = await getConfigValues();
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const supportedLocales = configValues.locales as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -868,9 +903,10 @@ export const actions: Actions = {
 
 	verify2FA: async (event) => {
 		// --- START: Language Validation Logic ---
+		const configValues = await getConfigValues();
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = configValues.locales as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -949,9 +985,10 @@ export const actions: Actions = {
 
 	forgotPW: async (event) => {
 		// --- START: Language Validation Logic ---
+		const configValues = await getConfigValues();
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const supportedLocales = configValues.locales as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -974,7 +1011,8 @@ export const actions: Actions = {
 			checkMail = await forgotPWCheck(email);
 
 			if (checkMail.success && checkMail.token && checkMail.expiresIn) {
-				const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+				const configValues = await getConfigValues();
+				const baseUrl = dev ? configValues.hostDev : configValues.hostProd;
 				const resetLink = `${baseUrl}/login?token=${checkMail.token}&email=${encodeURIComponent(email)}`;
 				logger.debug(`Reset link generated: ${resetLink}`);
 
@@ -984,7 +1022,7 @@ export const actions: Actions = {
 					expiresIn: checkMail.expiresIn,
 					resetLink: resetLink,
 					username: checkMail.username || email,
-					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					sitename: configValues.siteName
 				};
 
 				// Use SvelteKit's fetch for server-side API calls
@@ -1025,9 +1063,10 @@ export const actions: Actions = {
 
 	resetPW: async (event) => {
 		// --- START: Language Validation Logic ---
+		const configValues = await getConfigValues();
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		const supportedLocales = configValues.locales as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
@@ -1052,11 +1091,12 @@ export const actions: Actions = {
 			logger.debug(`Password reset check response`, { email, response: JSON.stringify(resp) });
 
 			if (resp.status) {
+				const configValues = await getConfigValues();
 				const emailProps = {
 					username: resp.username || email,
 					email: email,
-					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					hostLink: configValues.hostProd || `https://${event.request.headers.get('host')}`,
+					sitename: configValues.siteName
 				};
 				try {
 					// Use SvelteKit's fetch for server-side API calls
@@ -1104,9 +1144,10 @@ export const actions: Actions = {
 
 	prefetch: async () => {
 		// --- START: Language Validation Logic ---
+		const configValues = await getConfigValues();
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = configValues.locales as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (configValues.baseLocale as Locale);
 		// --- END: Language Validation Logic ---
 
 		// This action is called when user switches to SignIn/SignUp components

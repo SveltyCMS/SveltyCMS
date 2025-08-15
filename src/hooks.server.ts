@@ -18,7 +18,8 @@
  */
 
 import { building } from '$app/environment';
-import { enableSetupMode, getPrivateSetting, setupModeDefaults } from '@stores/globalSettings';
+import { privateConfig, isSetupComplete } from '@src/lib/env.server';
+import { config } from '@src/lib/config.server';
 import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
@@ -31,16 +32,27 @@ import type { User } from '@src/auth/types';
 // Dynamically import db stuff only when not building and not in setup mode
 let dbModule, dbInitPromise;
 let isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
-let privateEnv;
+
 if (!building) {
+	// Initialize configuration service
 	try {
-		privateEnv = (await import('@root/config/private')).privateEnv;
-	} catch {
-		privateEnv = setupModeDefaults;
+		await config.initialize();
+	} catch (error) {
+		console.warn('Failed to initialize configuration service:', error);
 	}
-	const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
-	const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
-	isSetupMode = isSetupMode || dbHostEmpty || dbNameEmpty;
+
+	// Check if setup is complete by checking environment variables
+	try {
+		const envConfigured = isSetupComplete();
+		if (!envConfigured) {
+			isSetupMode = true;
+		} else {
+			isSetupMode = false;
+		}
+	} catch (error) {
+		isSetupMode = true;
+	}
+
 	if (!isSetupMode) {
 		dbModule = await import('@src/databases/db');
 		dbInitPromise = dbModule.dbInitPromise;
@@ -172,7 +184,7 @@ const getPerformanceEmoji = (responseTime: number): string => {
 // Optimized user count getter with caching and deduplication (now tenant-aware)
 const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
-	const multiTenant = getPrivateSetting<boolean>('MULTI_TENANT');
+	const multiTenant = privateConfig?.MULTI_TENANT;
 	const cacheKey = multiTenant && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
 	// Try distributed cache first
 	try {
@@ -233,7 +245,7 @@ const getUserFromSessionId = (session_id: string | undefined, authServiceReady: 
 // Optimized admin data loading with caching (now tenant-aware)
 const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?: string): Promise<unknown> => {
 	const now = Date.now();
-	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
+	const distributedCacheKey = privateConfig.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
 
 	// 1. Try in-memory cache first (fastest)
@@ -256,7 +268,7 @@ const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?
 	}
 
 	let data = null;
-	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
+	const filter = privateConfig.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
 
 	if (dbModule.auth) {
 		try {
@@ -315,9 +327,6 @@ const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?
 
 // Main authentication and authorization middleware
 const handleAuth: Handle = async ({ event, resolve }) => {
-	// Use setupModeDefaults if setupMode is active
-	const isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
-	const privateEnv = isSetupMode ? setupModeDefaults : (await import('@root/config/private')).privateEnv;
 	if (building) return resolve(event);
 
 	const requestStartTime = performance.now();
@@ -328,20 +337,18 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	// Skip auth entirely for static assets during initialization
 	if (isStaticAsset(url.pathname)) {
-		logger.debug(`Skipping auth for static asset: \x1b[34m${url.pathname}\x1b[0m`);
 		return resolve(event);
 	}
 
 	try {
 		// Multi-tenancy logic (only if enabled)
-		if (privateEnv.MULTI_TENANT) {
+		if (privateConfig.MULTI_TENANT) {
 			// Process multi-tenancy within the main auth handler to avoid duplication
 			const tenantId = getTenantIdFromHostname(url.hostname);
 			if (!tenantId) {
 				throw error(404, `Tenant not found for hostname: \x1b[34m${url.hostname}\x1b[0m`);
 			}
 			locals.tenantId = tenantId;
-			logger.debug(`Request identified for tenant: \x1b[34m${tenantId}\x1b[0m`);
 		}
 
 		// Wait for database initialization
@@ -364,12 +371,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 			// Make the dbAdapter available to all subsequent handlers and endpoints
 			locals.dbAdapter = currentDbAdapter;
-
-			// Debug: Log dbAdapter status
-			logger.debug('Database adapter status in hooks', {
-				dbAdapterExists: !!currentDbAdapter,
-				dbAdapterType: currentDbAdapter?.constructor?.name || 'null'
-			});
 
 			// Check if auth service is ready (Mongoose connection must be fully established)
 			let authServiceReady = false;
@@ -440,39 +441,24 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			}
 
 			// Performance logging for the request duration
-			const responseTime = performance.now() - requestStartTime;
-			logger.debug(
-				`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`
-			);
 
 			// Authorization checks
 			const isPublic = isPublicOrOAuthRoute(url.pathname);
 			const isApi = url.pathname.startsWith('/api/');
 
 			if (isOAuthRoute(url.pathname)) {
-				logger.debug('OAuth route detected, passing through');
 				return resolve(event);
 			}
 
 			if (authServiceReady) {
 				if (!locals.user && !isPublic && !isFirstUser) {
-					logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
 					if (isApi) throw error(401, 'Unauthorized');
 					throw redirect(302, '/login');
 				}
 
 				if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-					// Check if setup is completed before redirecting from setup page
-					const isSetupRoute = url.pathname.startsWith('/setup');
-					const setupCompleted = getGlobalSetting('SETUP_COMPLETED');
-
-					if (isSetupRoute && !setupCompleted) {
-						// Allow access to setup page if setup is not completed
-						logger.debug(`Setup not completed, allowing access to setup page: \x1b[34m${url.pathname}\x1b[0m`);
-					} else {
-						logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
-						throw redirect(302, '/');
-					}
+					// Redirect authenticated users away from public routes (including setup)
+					throw redirect(302, '/');
 				}
 			} else {
 				logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
@@ -491,9 +477,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			locals.hasManageUsersPermission = false;
 			locals.allUsers = [];
 			locals.allTokens = [];
-
-			const responseTime = performance.now() - requestStartTime;
-			logger.debug(`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m (setup mode)`);
 
 			// Allow access to setup routes and public routes
 			const isPublic = isPublicOrOAuthRoute(url.pathname);
@@ -578,29 +561,26 @@ export const getHealthMetrics = () => ({ ...healthMetrics });
 
 export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
+	const distributedCacheKey = privateConfig.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
 
 	if (cacheKey) {
 		adminDataCache.delete(inMemoryCacheKey);
 		cacheService
 			.delete(distributedCacheKey)
 			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[34m${cacheKey}\x1b[0m: ${err.message}`));
-		logger.debug(`Admin cache invalidated for: \x1b[34m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
 	} else {
 		adminDataCache.clear();
 		['roles', 'users', 'tokens'].forEach((key) => {
-			const distKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${key}` : `adminData:${key}`;
+			const distKey = privateConfig.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${key}` : `adminData:${key}`;
 			cacheService.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
 		});
-		logger.debug('All admin cache cleared');
 	}
 };
 
 export const invalidateUserCountCache = (tenantId?: string): void => {
 	userCountCache = null;
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
+	const cacheKey = privateConfig.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
 	cacheService.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
-	logger.debug('User count cache invalidated');
 };
 
 export const cleanupSessionMetrics = (): void => {
@@ -621,57 +601,24 @@ export const cleanupSessionMetrics = (): void => {
 	}
 };
 
-// Load global settings from DB at server startup
-
-// Enable setup mode initially to prevent startup errors
-enableSetupMode();
-
-// Only try to load settings if not in build mode
+// Load settings from database at server startup
 if (!building) {
-	let shouldAttemptDbLoad = true;
 	try {
-		const { privateEnv } = await import('@root/config/private');
-		const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
-		const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
-		if (dbHostEmpty || dbNameEmpty) {
-			console.log('ℹ️ DB credentials not provided yet (DB_HOST / DB_NAME empty) – staying in setup mode, skipping settings load.');
-			shouldAttemptDbLoad = false;
-		}
-	} catch {
-		// File missing or import error; remain in setup mode and skip DB load.
-		shouldAttemptDbLoad = false;
-	}
+		// Settings are already loaded in the initialization block above
+		// Just check if we need to seed default settings
+		const { getPublicSetting } = await import('@src/lib/settings.server');
+		const siteName = getPublicSetting('SITE_NAME');
 
-	if (shouldAttemptDbLoad) {
-		try {
-			await loadGlobalSettings();
-			initializeRateLimiters();
-			console.log('✅ Settings loaded from database');
-		} catch (error) {
-			console.log('⚠️ Database not configured yet, using setup mode:', error.message);
-			enableSetupMode();
-			shouldAttemptDbLoad = false;
-		}
-	}
-
-	// Check if we need to seed default settings (if database is empty)
-	try {
-		if (shouldAttemptDbLoad) {
-			const siteName = getGlobalSetting('SITE_NAME');
-			if (!siteName) {
-				console.log('🌱 No settings found in database. Seeding default settings...');
-				try {
-					const { seedDefaultSettings } = await import('@src/databases/seedSettings');
-					await seedDefaultSettings();
-					await loadGlobalSettings(); // Reload settings after seeding
-					initializeRateLimiters(); // Re-initialize rate limiters after seeding
-					console.log('✅ Default settings seeded successfully');
-				} catch (error) {
-					console.error('❌ Failed to seed default settings:', error);
-				}
+		if (!siteName) {
+			try {
+				const { seedDefaultSettings } = await import('@src/databases/seedSettings');
+				await seedDefaultSettings();
+				await loadSettings(); // Reload settings after seeding
+			} catch (error) {
+				console.error('Failed to seed default settings:', error);
 			}
 		}
 	} catch (error) {
-		console.log('⚠️ Could not check for seeding, continuing in setup mode:', error.message);
+		// Continue in setup mode if there's an issue checking settings
 	}
 }

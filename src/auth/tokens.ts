@@ -18,6 +18,7 @@ import { error } from '@sveltejs/kit';
 import type { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Token } from './types';
+import { config } from '@src/lib/config.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -54,8 +55,11 @@ export async function createNewToken(
 	log('debug', 'Creating new token', { user_id, email, tenantId });
 
 	try {
+		// Initialize configuration service
+		await config.initialize();
+
 		const query: { user_id: string; tenantId?: string } = { user_id };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if ((await config.getPrivate('MULTI_TENANT')) && tenantId) {
 			query.tenantId = tenantId;
 		} // Check if a token for this user_id already exists in the current tenant
 
@@ -71,7 +75,7 @@ export async function createNewToken(
 		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
 		const tokenData: Partial<Token> = { user_id, token, email, expires: expiresAt };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if ((await config.getPrivate('MULTI_TENANT')) && tenantId) {
 			tokenData.tenantId = tenantId;
 		}
 
@@ -96,8 +100,11 @@ export async function validateToken(
 	log('debug', 'Validating token', { user_id, tenantId });
 
 	try {
+		// Initialize configuration service
+		await config.initialize();
+
 		const query: { user_id: string; token: string; tenantId?: string } = { user_id, token };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if ((await config.getPrivate('MULTI_TENANT')) && tenantId) {
 			query.tenantId = tenantId;
 		}
 		const result = await TokenModel.findOne(query);
@@ -131,8 +138,11 @@ export async function consumeToken(
 	log('debug', 'Consuming token', { user_id, tenantId });
 
 	try {
+		// Initialize configuration service
+		await config.initialize();
+
 		const query: { user_id: string; token: string; tenantId?: string } = { user_id, token };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if ((await config.getPrivate('MULTI_TENANT')) && tenantId) {
 			query.tenantId = tenantId;
 		}
 		const result = await TokenModel.findOne(query);

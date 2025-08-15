@@ -24,12 +24,9 @@ let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explici
 
 // Function to load private config when needed
 async function loadPrivateConfig() {
-	if (privateEnv) return privateEnv;
-
 	try {
-		const module = await import('@root/config/private');
-		privateEnv = module.privateEnv;
-		return privateEnv;
+		const { privateConfig } = await import('@src/lib/env.server');
+		return privateConfig;
 	} catch {
 		// Private config doesn't exist during setup - this is expected
 		console.log('Private config not found during setup - this is expected during initial setup');
@@ -87,8 +84,6 @@ async function loadAdapters() {
 		logger.debug('Private config not available yet - skipping adapter loading during setup');
 		return;
 	}
-
-	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
 
 	try {
 		switch (config.DB_TYPE) {
@@ -163,19 +158,15 @@ async function loadAdapters() {
 async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
-		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
 		const themes = await dbAdapter.themes.getAllThemes(); // Ensure themes is an array before accessing its length
 		if (!Array.isArray(themes)) {
 			logger.warn('No themes returned from database or an error occurred. Assuming no themes exist.');
 			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
 			return;
 		}
-		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes in the database`);
 
 		if (themes.length === 0) {
 			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
 		} else {
 			logger.info('Themes already exist in the database. Skipping default theme initialization.');
 		}
@@ -243,8 +234,6 @@ async function initializeVirtualFolders(): Promise<void> {
 				path: rootFolder.path,
 				id: rootFolder._id?.toString() || 'No ID'
 			});
-		} else {
-			logger.debug(`Found \x1b[34m${systemVirtualFolders.length}\x1b[0m virtual folders`);
 		}
 	} catch (err) {
 		const message = `Error initializing virtual folders: ${err instanceof Error ? err.message : String(err)}`;
@@ -285,8 +274,7 @@ async function initializeSystem(): Promise<void> {
 			})
 		]);
 		isConnected = true; // Mark connected after DB connection succeeds
-		const step1Time = performance.now() - step1StartTime;
-		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
+		// Check if adapters loaded correctly (loadAdapters throws on critical failure)
 
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
@@ -295,14 +283,7 @@ async function initializeSystem(): Promise<void> {
 		const step2StartTime = performance.now();
 
 		try {
-			await Promise.all([
-				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
-				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
-				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete'))
-			]);
-
-			const step2Time = performance.now() - step2StartTime;
-			logger.debug(`\x1b[32mStep 2 completed:\x1b[0m Database models setup in \x1b[32m${step2Time.toFixed(2)}ms\x1b[0m`);
+			await Promise.all([dbAdapter.auth.setupAuthModels(), dbAdapter.media.setupMediaModels(), dbAdapter.widgets.setupWidgetModels()]);
 		} catch (modelSetupErr) {
 			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
 			throw modelSetupErr;
@@ -312,9 +293,6 @@ async function initializeSystem(): Promise<void> {
 
 		try {
 			await Promise.all([initializeMediaFolder(), initializeDefaultTheme(), initializeRevisions(), initializeVirtualFolders()]);
-
-			const step3Time = performance.now() - step3StartTime;
-			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);
 			throw componentErr;
@@ -324,8 +302,6 @@ async function initializeSystem(): Promise<void> {
 
 		try {
 			await contentManager.initialize();
-			const step4Time = performance.now() - step4StartTime;
-			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
 		} catch (contentErr) {
 			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
 			throw contentErr;
@@ -338,11 +314,7 @@ async function initializeSystem(): Promise<void> {
 			// We can simply log that this step is complete, as the critical logic is in ContentManager.
 			// If ContentManager failed, initialization would have already stopped.
 
-			const schemas = Array.from(collectionMap.values());
-			logger.debug(`ContentManager reports \x1b[34m${schemas.length}\x1b[0m collections loaded. Verification complete.`);
-
-			const step5Time = performance.now() - step5StartTime;
-			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection models verified in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
+			// Collection models verified through ContentManager
 		} catch (modelErr) {
 			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
@@ -362,18 +334,10 @@ async function initializeSystem(): Promise<void> {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
 			} // Verify auth methods are available
 
-			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
-			logger.debug(
-				`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
-				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
-			); // Test auth functionality
-
+			// Test auth functionality
 			if (typeof auth.validateSession !== 'function') {
 				throw new Error('Auth instance missing validateSession method');
 			}
-
-			const step6Time = performance.now() - step6StartTime;
-			logger.debug(`\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified in \x1b[32m${step6Time.toFixed(2)}ms\x1b[0m`);
 		} catch (authErr) {
 			logger.error(`Auth initialization failed: ${authErr.message}`);
 			throw authErr;
@@ -382,8 +346,7 @@ async function initializeSystem(): Promise<void> {
 		isInitialized = true;
 		isConnected = true;
 
-		const totalTime = performance.now() - systemStartTime;
-		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m! All systems ready.`);
+		logger.info('System initialization completed successfully! All systems ready.');
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);

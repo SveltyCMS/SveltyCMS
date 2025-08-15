@@ -3,7 +3,7 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { config, getHostProd, getSiteName, getDefaultLanguage, getGoogleClientId, getGoogleClientSecret } from '@src/lib/config.server';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -49,9 +49,12 @@ async function sendWelcomeEmail(
 	request: Request
 ) {
 	try {
+		// Initialize configuration service
+		await config.initialize();
+
 		const userLanguage = (get(systemLanguage) as Locale) || 'en';
-		const hostProd = await getGlobalSetting('HOST_PROD');
-		const siteName = await getGlobalSetting('SITE_NAME');
+		const hostProd = await getHostProd();
+		const siteName = await getSiteName();
 		const emailProps = {
 			username,
 			email,
@@ -272,22 +275,15 @@ async function handleGoogleUser(
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
 		await dbInitPromise;
-		logger.debug('System ready in OAuth load function');
 		if (!auth) throw error(500, 'Internal Server Error: Authentication system is not initialized');
 
-		logger.debug('OAuth Callback called:');
 		const firstUserExists = (await auth.getUserCount()) !== 0;
-		logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
 		const error_param = url.searchParams.get('error');
 		const error_subtype = url.searchParams.get('error_subtype');
 		const token = state ? decodeURIComponent(state) : null;
-
-		logger.debug(`Authorization code from URL: \x1b[34m${code}\x1b[0m`);
-		logger.debug(`Registration token from state: \x1b[34m${token}\x1b[0m`);
-		logger.debug(`Is First User: \x1b[34m${!firstUserExists}\x1b[0m`);
 
 		// Handle OAuth errors first
 		if (error_param) {
@@ -322,20 +318,18 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		// Process OAuth callback
 		try {
-			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
+			// Initialize configuration service
+			await config.initialize();
 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
-			const redirectUri = getOAuthRedirectUri();
-			const googleAuthClient = new google.auth.OAuth2(
-				getGlobalSetting<string>('GOOGLE_CLIENT_ID'),
-				getGlobalSetting<string>('GOOGLE_CLIENT_SECRET'),
-				redirectUri
-			);
+			const redirectUri = await getOAuthRedirectUri();
+			const clientId = await getGoogleClientId();
+			const clientSecret = await getGoogleClientSecret();
+			const googleAuthClient = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 			const { tokens } = await googleAuthClient.getToken(code);
 			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 
-			logger.debug('Successfully obtained tokens from Google');
 			googleAuthClient.setCredentials(tokens);
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
@@ -350,11 +344,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Prefetch first collection data for instant loading (fire and forget)
 			import('@utils/collections-prefetch')
 				.then(async ({ prefetchFirstCollectionData }) => {
-					const defaultLanguage = await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE');
+					const defaultLanguage = await getDefaultLanguage();
 					const userLanguage = url.searchParams.get('lang') || defaultLanguage || 'en';
-					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
-						logger.debug('Prefetch failed during OAuth callback:', err);
-					});
+					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {});
 				})
 				.catch(() => {
 					// Silently fail if prefetch module can't be loaded
@@ -364,10 +356,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			let redirectUrl = '/';
 			const firstCollection = contentManager.getFirstCollection();
 			if (firstCollection && firstCollection.path) {
-				const defaultLanguage = await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+				const defaultLanguage = (await getDefaultLanguage()) || 'en';
 				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 			}
-			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
+
 			throw redirect(302, redirectUrl);
 		} catch (err) {
 			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
@@ -413,7 +405,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		// Check if this is already a properly formatted error from inner catch blocks
 		if (err && typeof err === 'object' && 'status' in err && 'body' in err) {
-			logger.debug('Re-throwing formatted error from inner handler');
 			throw err;
 		}
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';

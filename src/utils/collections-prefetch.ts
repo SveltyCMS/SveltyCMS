@@ -7,7 +7,7 @@
 
 import { dev } from '$app/environment';
 import { contentManager } from '@root/src/content/ContentManager';
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 import { logger } from '@utils/logger.svelte';
 
 interface PrefetchedData {
@@ -88,9 +88,9 @@ export async function fetchAndCacheCollectionData(language: string = 'en', fetch
 				const url = new URL(serverRequest.url);
 				baseUrl = `${url.protocol}//${url.host}`;
 			} else {
-				const hostDev = getPublicSetting('HOST_DEV');
-				const hostProd = getPublicSetting('HOST_PROD');
-				baseUrl = dev ? hostDev || 'http://localhost:5176' : hostProd || 'https://localhost';
+				const hostDev = 'http://localhost:5176'; // Default value
+				const hostProd = 'https://localhost'; // Default value
+				baseUrl = dev ? hostDev : hostProd;
 			}
 		}
 

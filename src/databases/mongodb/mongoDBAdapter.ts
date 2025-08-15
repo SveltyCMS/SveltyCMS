@@ -155,7 +155,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				const collectionFiles: string[] = [];
 				try {
 					const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
-					logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
+
 					for (const entry of entries) {
 						const fullPath = new URL(entry.name, dirPath).pathname;
 						if (entry.isDirectory()) {

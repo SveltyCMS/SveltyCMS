@@ -23,8 +23,8 @@ import { logger } from '@utils/logger.svelte';
 
 // Password utilities
 
-// Import global settings service for DB-based configuration
-import { getGlobalSetting } from '@src/stores/globalSettings';
+// Import configuration service for DB-based configuration
+import { config } from '@src/lib/config.server';
 
 export {
 	checkPermissions,
@@ -168,15 +168,15 @@ export class Auth {
 				throw error(400, 'Email and password are required');
 			}
 
-			if (getGlobalSetting('MULTI_TENANT') && !tenantId) {
+			if ((await config.getPrivate('MULTI_TENANT')) && !tenantId) {
 				throw error(400, 'Tenant ID is required in multi-tenant mode');
 			}
 
 			const normalizedEmail = email.toLowerCase();
 			let hashedPassword: string | undefined;
 			if (!oauth && password) {
-				if (!argon2) throw error(500, 'Argon2 is not available');
-				hashedPassword = await argon2.hash(password, { ...argon2Attributes, type: argon2.argon2id });
+				const { hashPassword } = await import('@src/utils/password');
+				hashedPassword = await hashPassword(password);
 			}
 
 			const user = await this.db.createUser({ ...userData, email: normalizedEmail, password: hashedPassword });
@@ -285,8 +285,9 @@ export class Auth {
 			const user = await this.getUserByEmail({ email, tenantId });
 			if (!user || !user.password) return null;
 
-			const argon2 = await import('argon2');
-			const isValid = await argon2.verify(user.password, password);
+			// Use the centralized password verification function
+			const { verifyPassword } = await import('@src/utils/password');
+			const isValid = await verifyPassword(user.password, password);
 			if (!isValid) return null;
 
 			const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -316,8 +317,8 @@ export class Auth {
 
 	async updateUserAttributes(user_id: string, attributes: Partial<User>, tenantId?: string): Promise<User> {
 		if (attributes.password && typeof window === 'undefined') {
-			if (!argon2) throw error(500, 'Argon2 is not available');
-			attributes.password = await argon2.hash(attributes.password, { ...argon2Attributes, type: argon2.argon2id });
+			const { hashPassword } = await import('@src/utils/password');
+			attributes.password = await hashPassword(attributes.password);
 		}
 		if (attributes.email === null) {
 			attributes.email = undefined;
@@ -374,8 +375,8 @@ export class Auth {
 		if (!user) {
 			return { status: false, message: 'User not found' };
 		}
-		const argon2 = await import('argon2');
-		const hashedPassword = await argon2.hash(password);
+		const { hashPassword } = await import('@src/utils/password');
+		const hashedPassword = await hashPassword(password);
 		await this.updateUser(user._id, { password: hashedPassword }, tenantId);
 		return { status: true };
 	}
@@ -391,14 +392,5 @@ export function hasRole(user: User, roleName: string): boolean {
 	return user.role.toLowerCase() === roleName.toLowerCase();
 }
 
-export async function hashPassword(password: string): Promise<string> {
-	if (typeof window !== 'undefined') throw new Error('Password hashing is only available on the server');
-	const argon2Module = await import('argon2');
-	return argon2Module.hash(password, { ...argon2Attributes, type: argon2Module.argon2id });
-}
-
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-	if (typeof window !== 'undefined') throw new Error('Password verification is only available on the server');
-	const argon2Module = await import('argon2');
-	return argon2Module.verify(hash, password);
-}
+// Re-export the centralized password functions for backwards compatibility
+export { hashPassword, verifyPassword } from '@src/utils/password';

@@ -9,10 +9,10 @@ import type { PageServerLoad } from './$types';
 // Auth check is handled by hooks.server.ts
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const { user } = locals;
+	const { user, isAdmin } = locals;
 
 	// Additional permission check for admin features
-	if (!user || user.role !== 'admin') {
+	if (!user || !isAdmin) {
 		throw error(403, 'Access denied. Admin privileges required for import/export functionality.');
 	}
 
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			username: user.username,
 			email: user.email,
 			role: user.role,
-			isAdmin: user.role === 'admin'
+			isAdmin: isAdmin || false
 		}
 	};
 };

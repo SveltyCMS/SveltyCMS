@@ -3,7 +3,7 @@
 @description - colorPicker index file.
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GraphqlSchema, GuiSchema } from './types';
 
@@ -24,7 +24,7 @@ const widget = (params: Params & { widgetId?: string }) => {
 			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
 			// Return the data for the default content language or a message indicating no data entry
-			return data[getPublicSetting('DEFAULT_CONTENT_LANGUAGE')] || m.widgets_nodata();
+			return data['en'] || m.widgets_nodata(); // Default language
 		};
 		display.default = true;
 	} else {

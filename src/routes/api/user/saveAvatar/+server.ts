@@ -31,7 +31,7 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Media storage
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { config } from '@src/lib/config.server';
 import { cacheService } from '@src/databases/CacheService';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
@@ -109,7 +109,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
 
 		// Normalize URL for client consumption to route through /files
-		const mediaFolder = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+		const mediaFolder = await config.getPublic('MEDIA_FOLDER') || 'mediaFiles';
 		const normalizedAvatarUrl = avatarUrl.replace(/^https?:\/\/[^/]+/i, '').replace(new RegExp(`^\\/?(?:${mediaFolder}|mediaFiles)\\/`), '/files/');
 
 		// Invalidate any cached session data to reflect the change immediately.

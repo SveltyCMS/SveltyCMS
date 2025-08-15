@@ -448,7 +448,7 @@ class ContentManager {
 				// If found by UUID, use its path to load the file
 				const filePath = normalizePath(schema.path);
 				const fullFilePath = `${compiledDirectoryPath}${filePath}.js`;
-				logger.debug(`Trying to load collection file by UUID: \x1b[34m${fullFilePath}\x1b[0m`);
+
 				collectionFile = await this.readFile(fullFilePath);
 			} else {
 				// Fallback: treat as path

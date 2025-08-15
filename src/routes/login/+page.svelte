@@ -13,7 +13,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 	import type { PageData } from './$types';
 
 	// Components

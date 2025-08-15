@@ -8,8 +8,8 @@
  * - Redirects to the first collection with the correct language
  * - Throws an error if there are no collections for the tenant
  */
-import { getPublicSetting } from '@src/stores/globalSettings';
-import { privateEnv } from '@root/config/private';
+import { config, getDefaultLanguage } from '@src/lib/config.server';
+import { essentialEnv } from '@src/lib/env.server';
 
 import { redirect, error } from '@sveltejs/kit';
 import { dbInitPromise } from '@src/databases/db';
@@ -24,6 +24,9 @@ import { roles } from '@root/config/roles';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals, url, fetch }) => {
+	// Initialize configuration service
+	await config.initialize();
+
 	const { user, tenantId, roles: tenantRoles } = locals; // Unauthenticated users should be redirected to the login page
 	if (!user) {
 		logger.debug('User is not authenticated, redirecting to login');
@@ -52,7 +55,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 		} // Get the first collection redirect URL for the current tenant
 
 		if (url.pathname === '/') {
-			if (privateEnv.MULTI_TENANT && !tenantId) {
+			if ((await config.getPrivate('MULTI_TENANT')) && !tenantId) {
 				throw error(400, 'Tenant could not be identified for this operation.');
 			}
 			const firstCollection = await contentManager.getFirstCollection(tenantId);
@@ -61,7 +64,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 			if (firstCollection && firstCollection.path) {
 				const contentLanguageCookie = url.searchParams.get('contentLanguage');
 				const userLanguage = user?.systemLanguage;
-				const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+				const redirectLanguage = contentLanguageCookie || userLanguage || (await getDefaultLanguage()) || 'en';
 				redirectUrl = `/${redirectLanguage}${firstCollection.path}`;
 			} else {
 				// Fallback: Get content structure for the tenant
@@ -73,7 +76,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 						const firstCollectionNode = sortedCollections[0];
 						const contentLanguageCookie = url.searchParams.get('contentLanguage');
 						const userLanguage = user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+						const redirectLanguage = contentLanguageCookie || userLanguage || (await getDefaultLanguage()) || 'en';
 						const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
 						redirectUrl = `/${redirectLanguage}${collectionPath}`;
 					}
@@ -84,10 +87,10 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 
 			if (redirectUrl !== '/') {
 				import('@utils/collections-prefetch')
-					.then(({ prefetchFirstCollectionData }) => {
+					.then(async ({ prefetchFirstCollectionData }) => {
 						const contentLanguageCookie = url.searchParams.get('contentLanguage');
 						const userLanguage = user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+						const redirectLanguage = contentLanguageCookie || userLanguage || (await getDefaultLanguage()) || 'en';
 						prefetchFirstCollectionData(redirectLanguage, fetch).catch((err) => {
 							logger.debug('Prefetch failed during root redirect:', err);
 						});

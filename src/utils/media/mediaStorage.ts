@@ -6,7 +6,6 @@
 
 import { cacheService } from '@src/databases/CacheService';
 import { dbAdapter } from '@src/databases/db';
-import { getPublicSetting } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 import { sanitize } from '@utils/utils';
 import crypto from 'crypto';
@@ -28,7 +27,7 @@ type ImageSizesType = typeof defaultImageSizes & {
 };
 
 const SIZES: ImageSizesType = {
-	...(getPublicSetting('IMAGE_SIZES') || defaultImageSizes),
+	...defaultImageSizes,
 	original: 0,
 	thumbnail: 200
 } as const;
@@ -57,7 +56,7 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	try {
 		const fs = await getFs();
-		const fullPath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
+		const fullPath = Path.join('mediaFiles', url); // Default value for now
 		const dir = Path.dirname(fullPath);
 
 		logger.debug('Creating directory for file', {
@@ -120,7 +119,7 @@ export async function saveResizedImages(
 			let resizedBuffer = await resizeImage(buffer, width);
 
 			// Apply format conversion if configured
-			const formatQuality = getPublicSetting('MEDIA_OUTPUT_FORMAT_QUALITY');
+			const formatQuality = undefined; // Default value for now
 			if (formatQuality && formatQuality.format !== 'original') {
 				resizedBuffer = resizedBuffer.toFormat(formatQuality.format as 'avif' | 'webp', {
 					quality: formatQuality.quality,
@@ -190,7 +189,7 @@ export async function deleteFile(url: string): Promise<void> {
 
 	try {
 		const fs = await getFs();
-		const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
+		const filePath = Path.join('mediaFiles', url);
 
 		logger.debug('Deleting file', {
 			url,
@@ -219,7 +218,7 @@ export async function deleteFile(url: string): Promise<void> {
 // Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
 	const fs = await getFs();
-	const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
+	const filePath = Path.join('mediaFiles', url);
 	const buffer = await fs.promises.readFile(filePath);
 	logger.info('File retrieved from disk', { url });
 	return buffer;
@@ -230,7 +229,7 @@ export async function getFile(url: string): Promise<Buffer> {
  */
 export async function fileExists(url: string): Promise<boolean> {
 	const fs = await getFs();
-	const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
+	const filePath = Path.join('mediaFiles', url);
 	try {
 		await fs.promises.access(filePath);
 		return true;
@@ -242,7 +241,7 @@ export async function fileExists(url: string): Promise<boolean> {
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	const mediaFolder = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+	const mediaFolder = 'mediaFiles';
 
 	// Normalize various possible forms:
 	// - /files/avatars/...
@@ -403,7 +402,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 
 		const fs = await getFs();
 		// Create avatars directory under the media folder
-		const avatarsPath = Path.join(process.cwd(), getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', 'avatars');
+		const avatarsPath = Path.join(process.cwd(), 'mediaFiles', 'avatars');
 		if (!fs.existsSync(avatarsPath)) {
 			await fs.promises.mkdir(avatarsPath, { recursive: true });
 		}
@@ -420,11 +419,11 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		if (existingFile && existingFile.success && existingFile.data) {
 			const mediaData = existingFile.data as { url?: string };
 			let fileUrl = mediaData.url || '';
-			const mediaServerUrl = getPublicSetting('MEDIASERVER_URL');
+			const mediaServerUrl = undefined; // Default value for now
 			if (mediaServerUrl) {
 				fileUrl = `${mediaServerUrl}/${fileUrl}`;
 			} else {
-				fileUrl = `${getPublicSetting('MEDIA_FOLDER') || 'mediaFiles'}/${fileUrl}`;
+				fileUrl = `mediaFiles/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -541,7 +540,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		}
 
 		// Return the URL for serving to the client - this will be saved to user.avatar field
-		const fileUrl = `/${getPublicSetting('MEDIA_FOLDER') || 'mediaFiles'}/${avatarUrl}`;
+		const fileUrl = `/mediaFiles/${avatarUrl}`;
 
 		logger.info('Avatar saved successfully to disk', {
 			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId,

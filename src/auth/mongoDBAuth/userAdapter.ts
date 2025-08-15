@@ -26,7 +26,7 @@
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { config } from '@src/lib/config.server';
 import { error } from '@sveltejs/kit';
 
 // Adapter
@@ -137,7 +137,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 				throw error(404, `User not found for ID: \x1b[34m${user_id}\x1b[0m ${tenantId ? `in tenant: ${tenantId}` : ''}`);
 			}
 			user._id = user._id.toString();
-			logger.debug(`User attributes updated: \x1b[34m${user_id}\x1b[0m`, { tenantId });
 			return user as User;
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
@@ -188,7 +187,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 	async getUserCount(filter?: Record<string, unknown>): Promise<number> {
 		try {
 			const count = await this.UserModel.countDocuments(filter || {});
-			logger.debug(`User count retrieved: \x1b[34m${count}\x1b[0m`);
 			return count;
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserCount: ${err instanceof Error ? err.message : String(err)}`;
@@ -201,7 +199,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 	async getUsersWithPermission(permissionName: string): Promise<User[]> {
 		try {
 			const users = await this.UserModel.find({ permissions: permissionName }).lean();
-			logger.debug(`Users with permission \x1b[34m${permissionName}\x1b[0m retrieved`);
 			return users.map((user) => {
 				user._id = user._id.toString();
 				return user as User;
@@ -261,7 +258,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 				userPermissions.find((p) => p._id === id)
 			) as Permission[];
 
-			logger.debug(`Permissions retrieved for user: \x1b[34m${user_id}\x1b[0m`);
 			return uniquePermissions;
 		} catch (err) {
 			const message = `Error in UserAdapter.getPermissionsForUser: ${err instanceof Error ? err.message : String(err)}`;
@@ -286,7 +282,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 				return true;
 			}
 
-			logger.debug(`User ${user_id} does not have permission: \x1b[34m${permissionName}\x1b[0m`);
 			return false;
 		} catch (err) {
 			const message = `Error in UserAdapter.hasPermissionByAction: ${err instanceof Error ? err.message : String(err)}`;
@@ -422,9 +417,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const user = await this.UserModel.findOne(filter).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by ID: \x1b[34m${user_id}\x1b[0m`, {
-					tenantId: tenantId || '\x1b[34mnone\x1b[0m (single-tenant mode)'
-				});
 				return user as User;
 			} else {
 				return null;
@@ -498,6 +490,9 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get roles for a user
 	async getRolesForUser(user_id: string): Promise<Role[]> {
 		try {
+			// Initialize configuration service
+			await config.initialize();
+
 			const user = await this.UserModel.findById(user_id).lean();
 			if (!user || !user.role) {
 				logger.warn(`User or role not found for user ID: \x1b[34m${user_id}\x1b[0m`);
@@ -505,14 +500,14 @@ export class UserAdapter implements Partial<authDBInterface> {
 			}
 
 			user._id = user._id.toString();
-			// Fetch the role from the file-based roles configuration
-			const role = getGlobalSetting('ROLES').find((r) => r._id === user.role);
+			// Fetch the role from the configuration
+			const roles = await config.getPrivate('ROLES');
+			const role = roles?.find((r) => r._id === user.role);
 			if (!role) {
 				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 				return [];
 			}
 
-			logger.debug(`Roles retrieved for user ID: \x1b[34m${user_id}\x1b[0m`);
 			return [role];
 		} catch (err) {
 			const message = `Error in UserAdapter.getRolesForUser: ${err instanceof Error ? err.message : String(err)}`;
@@ -564,7 +559,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 			await this.UserModel.findByIdAndUpdate(user_id, {
 				lastActiveAt: new Date()
 			});
-			logger.debug(`Updated lastActiveAt for user: \x1b[34m${user_id}\x1b[0m`);
 		} catch (err) {
 			const message = `Error in UserAdapter.updateLastActiveAt: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { user_id });
@@ -578,7 +572,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 			await this.UserModel.findByIdAndUpdate(user_id, {
 				expiresAt: expirationDate
 			});
-			logger.debug(`Set expiration date for user: \x1b[34m${user_id}\x1b[0m`);
 		} catch (err) {
 			const message = `Error in UserAdapter.setUserExpiration: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { user_id, expirationDate });

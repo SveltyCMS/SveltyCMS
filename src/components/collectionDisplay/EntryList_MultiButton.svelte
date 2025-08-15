@@ -23,14 +23,13 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Config
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	// TODO: Get settings from page data when available
 
 	// Stores
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { storeListboxValue } from '@stores/store.svelte';
 	import { page } from '$app/stores';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -185,7 +184,7 @@
 			};
 
 			// Handle delete/archive options based on configuration and user role
-			if (getPublicSetting('USE_ARCHIVE_ON_DELETE')) {
+			if (false) { // TODO: Get from page data when available
 				// When archiving is enabled
 				if (isAdmin) {
 					// Admins see both archive and delete options

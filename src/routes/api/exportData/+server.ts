@@ -23,7 +23,7 @@ import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { config } from '@src/lib/config.server';
 import type { RequestHandler } from './$types';
 
 // Database adapter for collection queries
@@ -62,14 +62,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		logger.debug('User has permission to export data', { tenantId });
-
 		// Fetch data from all collections concurrently, scoped to the tenant
 		const data = await fetchAllCollectionData(collections.value, tenantId);
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 
-		const extractDataPath = getPublicSetting('EXTRACT_DATA_PATH');
+		const extractDataPath = await config.getPublic('EXTRACT_DATA_PATH');
 		if (!extractDataPath) {
 			logger.error('EXTRACT_DATA_PATH not configured');
 			throw error(500, 'Server configuration error: EXTRACT_DATA_PATH not set');
@@ -106,7 +104,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 async function fetchAllCollectionData(collections: Record<string, DatabaseCollection>, tenantId?: string) {
 	const fetchPromises = Object.values(collections).map(async (collection: DatabaseCollection) => {
 		const name = collection.name;
-		logger.debug(`Fetching data for collection: ${name}`, { tenantId });
 
 		try {
 			const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant

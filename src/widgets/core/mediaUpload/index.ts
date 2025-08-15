@@ -10,7 +10,7 @@ Features:
 - Array of uploaded files
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+// TODO: Get settings from page data when available
 
 // Media
 import type { MediaType } from '@utils/media/mediaModels';
@@ -42,7 +42,7 @@ interface AggregationInfo {
 }
 
 async function getLanguage(info: AggregationInfo): Promise<string> {
-	return info.contentLanguage || ((await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string);
+	return info.contentLanguage || 'en'; // Default language
 }
 
 // Helper function to safely get element by ID

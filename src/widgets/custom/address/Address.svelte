@@ -17,7 +17,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting } from '@src/stores/publicSettings';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
@@ -45,8 +45,8 @@
 	import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 
 	// Initialize Mapbox
-	const mapboxToken = getGlobalSetting<string>('MAPBOX_API_TOKEN');
-	const isMapboxEnabled = getGlobalSetting<boolean>('USE_MAPBOX') && mapboxToken;
+	const mapboxToken = getPublicSetting('MAPBOX_API_TOKEN');
+	const isMapboxEnabled = getPublicSetting('USE_MAPBOX') && mapboxToken;
 
 	interface Props {
 		field?: Field;

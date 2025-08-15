@@ -14,7 +14,7 @@
 
 import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { config, getSiteName } from '@src/lib/config.server';
 import type { LayoutServerLoad } from './$types';
 
 // System Logger
@@ -22,9 +22,12 @@ import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
+	// Initialize configuration service
+	await config.initialize();
+
 	const { theme, user } = locals;
 	// Get site name from database settings
-	const siteName = getGlobalSetting('SITE_NAME') || 'SveltyCMS';
+	const siteName = (await getSiteName()) || 'SveltyCMS';
 
 	try {
 		await contentManager.initialize();
