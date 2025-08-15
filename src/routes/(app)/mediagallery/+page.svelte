@@ -87,8 +87,8 @@ It p			if (result.success) {
 	let globalSearchValue = $state('');
 	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
 	let view = $state<'grid' | 'table'>('grid');
-	let gridSize = $state<'small' | 'medium' | 'large'>('small');
-	let tableSize = $state<'small' | 'medium' | 'large'>('small');
+	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
+	let tableSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 
 	type MediaTypeOption = {
 		value: 'All' | MediaTypeEnum;
@@ -145,7 +145,7 @@ It p			if (result.success) {
 	});
 
 	// Handle user preferences
-	function storeUserPreference(view: 'grid' | 'table', gridSize: 'small' | 'medium' | 'large', tableSize: 'small' | 'medium' | 'large') {
+	function storeUserPreference(view: 'grid' | 'table', gridSize: 'tiny' | 'small' | 'medium' | 'large', tableSize: 'tiny' | 'small' | 'medium' | 'large') {
 		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
 	}
 
@@ -206,8 +206,8 @@ It p			if (result.success) {
 		if (userPreference) {
 			const [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
 			view = preferredView as 'grid' | 'table';
-			gridSize = preferredGridSize as 'small' | 'medium' | 'large';
-			tableSize = preferredTableSize as 'small' | 'medium' | 'large';
+			gridSize = preferredGridSize as 'tiny' | 'small' | 'medium' | 'large';
+			tableSize = preferredTableSize as 'tiny' | 'small' | 'medium' | 'large';
 		}
 
 		// Listen for folder selection events from the Collections sidebar
@@ -573,21 +573,60 @@ It p			if (result.success) {
 				<div class="flex flex-col items-center">
 					<p class="text-xs">Size</p>
 					<div class="divide-surface-00 flex divide-x">
-						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
+						{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}
 							<button
 								onclick={() => {
 									const newSize =
 										view === 'grid'
-											? gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'small';
+											? gridSize === 'tiny'
+												? 'small'
+												: gridSize === 'small'
+													? 'medium'
+													: gridSize === 'medium'
+														? 'large'
+														: 'tiny'
+											: tableSize === 'tiny'
+												? 'small'
+												: tableSize === 'small'
+													? 'medium'
+													: tableSize === 'medium'
+														? 'large'
+														: 'tiny';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								aria-label="Tiny"
+								class="px-1"
+							>
+								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}
+								></iconify-icon>
+								<p class="text-xs">Tiny</p>
+							</button>
+						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
+							<button
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'tiny'
+												? 'small'
+												: gridSize === 'small'
+													? 'medium'
+													: gridSize === 'medium'
+														? 'large'
+														: 'tiny'
+											: tableSize === 'tiny'
+												? 'small'
+												: tableSize === 'small'
+													? 'medium'
+													: tableSize === 'medium'
+														? 'large'
+														: 'tiny';
 
 									if (view === 'grid') {
 										gridSize = newSize;
@@ -609,16 +648,20 @@ It p			if (result.success) {
 								onclick={() => {
 									const newSize =
 										view === 'grid'
-											? gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'small';
+											? gridSize === 'tiny'
+												? 'small'
+												: gridSize === 'small'
+													? 'medium'
+													: gridSize === 'medium'
+														? 'large'
+														: 'tiny'
+											: tableSize === 'tiny'
+												? 'small'
+												: tableSize === 'small'
+													? 'medium'
+													: tableSize === 'medium'
+														? 'large'
+														: 'tiny';
 
 									if (view === 'grid') {
 										gridSize = newSize;
@@ -639,16 +682,20 @@ It p			if (result.success) {
 								onclick={() => {
 									const newSize =
 										view === 'grid'
-											? gridSize === 'small'
-												? 'medium'
-												: gridSize === 'medium'
-													? 'large'
-													: 'small'
-											: tableSize === 'small'
-												? 'medium'
-												: tableSize === 'medium'
-													? 'large'
-													: 'small';
+											? gridSize === 'tiny'
+												? 'small'
+												: gridSize === 'small'
+													? 'medium'
+													: gridSize === 'medium'
+														? 'large'
+														: 'tiny'
+											: tableSize === 'tiny'
+												? 'small'
+												: tableSize === 'small'
+													? 'medium'
+													: tableSize === 'medium'
+														? 'large'
+														: 'tiny';
 
 									if (view === 'grid') {
 										gridSize = newSize;
@@ -722,21 +769,59 @@ It p			if (result.success) {
 			<div class="hidden flex-col items-center sm:flex">
 				Size
 				<div class="flex divide-x divide-gray-500">
-					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
+					{#if (view === 'grid' && gridSize === 'tiny') || (view === 'table' && tableSize === 'tiny')}
 						<button
 							onclick={() => {
 								const newSize =
 									view === 'grid'
-										? gridSize === 'small'
-											? 'medium'
-											: gridSize === 'medium'
-												? 'large'
-												: 'small'
-										: tableSize === 'small'
-											? 'medium'
-											: tableSize === 'medium'
-												? 'large'
-												: 'small';
+										? gridSize === 'tiny'
+											? 'small'
+											: gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'tiny'
+										: tableSize === 'tiny'
+											? 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'tiny';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Tiny"
+						>
+							<iconify-icon icon="material-symbols:apps" height="40"></iconify-icon>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Tiny</span>
+						</button>
+					{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
+						<button
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'tiny'
+											? 'small'
+											: gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'tiny'
+										: tableSize === 'tiny'
+											? 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'tiny';
 
 								if (view === 'grid') {
 									gridSize = newSize;
@@ -757,16 +842,20 @@ It p			if (result.success) {
 							onclick={() => {
 								const newSize =
 									view === 'grid'
-										? gridSize === 'small'
-											? 'medium'
-											: gridSize === 'medium'
-												? 'large'
-												: 'small'
-										: tableSize === 'small'
-											? 'medium'
-											: tableSize === 'medium'
-												? 'large'
-												: 'small';
+										? gridSize === 'tiny'
+											? 'small'
+											: gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'tiny'
+										: tableSize === 'tiny'
+											? 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'tiny';
 
 								if (view === 'grid') {
 									gridSize = newSize;
@@ -787,16 +876,20 @@ It p			if (result.success) {
 							onclick={() => {
 								const newSize =
 									view === 'grid'
-										? gridSize === 'small'
-											? 'medium'
-											: gridSize === 'medium'
-												? 'large'
-												: 'small'
-										: tableSize === 'small'
-											? 'medium'
-											: tableSize === 'medium'
-												? 'large'
-												: 'small';
+										? gridSize === 'tiny'
+											? 'small'
+											: gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'tiny'
+										: tableSize === 'tiny'
+											? 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'tiny';
 
 								if (view === 'grid') {
 									gridSize = newSize;

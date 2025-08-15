@@ -3,7 +3,8 @@
 @description - RichText TipTap widget text style extension with fixed font size handling
 */
 
-import TextStyle from '@tiptap/extension-text-style';
+// TipTap v3 exports TextStyle as a named export (no default)
+import { TextStyle } from '@tiptap/extension-text-style';
 
 declare module '@tiptap/core' {
 	interface Commands<ReturnType> {

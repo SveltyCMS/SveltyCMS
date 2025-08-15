@@ -21,7 +21,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { motion } from '@src/utils/utils';
-
 	import { fade } from 'svelte/transition';
 	import { linear } from 'svelte/easing';
 	import { tick, onMount, onDestroy } from 'svelte';
@@ -34,16 +33,19 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import { mode } from '@stores/collectionStore.svelte';
 	import { toggleUIElement } from '@stores/UIStore.svelte';
 
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Skeleton UI - Import popup action and modal store
+	import { getModalStore, popup } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+
+	// --- Tooltip State ---
+	const navPopup = 'floatingNavTooltip'; // A unique ID for the popup target
+	let activeTooltipText = ''; // This will hold the text for the currently hovered button
 
 	// Config / UX constants
 	const buttonRadius = 25; // home button size
 	const EDGE_MARGIN = 12; // px gap from screen edges for the FAB
 	let navigation_info: Record<string, any> = {};
 	let showRoutes = false;
-	// radial menu center (set on mount and when opening)
 	let center = { x: 0, y: 0 };
 
 	// Refs
@@ -57,68 +59,56 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	let prefersReducedMotion = false;
 	let MOTION_MS = 200;
 
-	// Endpoint definition with URL and icon only
+	// Endpoint definition now includes a 'tooltip' property
 	let endpoints: {
 		url: {
 			external: boolean;
 			path: string;
 		};
 		icon: string;
+		tooltip: string;
 		color?: string;
 	}[] = [
 		{
-			// Home
+			tooltip: 'Home',
 			url: { external: false, path: `/` },
 			icon: 'solar:home-bold'
 		},
 		{
-			// User
+			tooltip: 'User Profile',
 			url: { external: false, path: `/user` },
 			icon: 'radix-icons:avatar',
 			color: 'bg-orange-500'
 		},
 		{
-			// Collection builder
+			tooltip: 'Collection Builder',
 			url: { external: false, path: `/config/collectionbuilder` },
 			icon: 'fluent-mdl2:build-definition',
 			color: 'bg-green-500'
 		},
 		{
-			// Image Editor
+			tooltip: 'Image Editor',
 			url: { external: false, path: `/imageEditor` },
 			icon: 'tdesign:image-edit'
 		},
 		{
-			// Graphql Yoga Explorer
+			tooltip: 'GraphQL Explorer',
 			url: { external: true, path: `/api/graphql` },
 			icon: 'teenyicons:graphql-outline',
 			color: 'bg-pink-500'
 		},
 		{
-			// System Configuration
+			tooltip: 'System Configuration',
 			url: { external: false, path: `/config` },
 			icon: 'mynaui:config',
 			color: 'bg-surface-400'
 		},
 		{
-			// Marketplace
+			tooltip: 'Marketplace',
 			url: { external: true, path: `https://www.sveltycms.com` },
 			icon: 'icon-park-outline:shopping-bag',
 			color: 'bg-primary-700'
-		},
-		{
-			// System Configuration
-			url: { external: false, path: `/config` },
-			icon: 'mynaui:config',
-			color: 'bg-surface-400'
 		}
-		//{
-
-		// 	// GlobalSearch
-		// 	url: { external: false, path: ``}, //this needs to change to alt+s
-		// 	icon: 'material-symbols:search-rounded',
-		// 	color: 'bg-error-500'
-		// }
 	].filter((endpoint) => {
 		if (user?.role === 'admin') return true;
 		else if (endpoint.url.path === '/collection') return false;
@@ -127,9 +117,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	export let buttonInfo: { x: number; y: number; radius: number } = { x: 0, y: 0, radius: buttonRadius };
 
-	// Adjust button position on window resize (mounted only)
+	// Adjust button position on window resize
 	async function handleResize() {
-		// keep button inside the viewport on resize
 		const minX = buttonRadius + EDGE_MARGIN;
 		const maxX = window.innerWidth - (buttonRadius + EDGE_MARGIN);
 		const minY = buttonRadius + EDGE_MARGIN;
@@ -148,43 +137,31 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	function getBasePath(pathname: string) {
 		const params = Object.values($page.params);
 		const replaced = params.reduce((acc, param) => {
-			acc = acc.replace(param, '');
-			return acc;
+			return acc.replace(param, '');
 		}, pathname);
 		return params.length > 0 ? replaced : pathname;
 	}
 
-	// Button position is exported with a default; refined on mount
-
 	onMount(() => {
-		// read persisted navigation positions
 		try {
 			navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
 		} catch {
 			navigation_info = {};
 		}
-
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-
-		// motion preference
 		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		MOTION_MS = prefersReducedMotion ? 0 : 200;
-
-		// restore position for this page if available
 		const key = getBasePath($page.url.pathname);
 		const saved = navigation_info[key];
 		if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
 			buttonInfo = { x: saved.x, y: saved.y, radius: buttonRadius };
-			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 		} else {
 			buttonInfo = {
 				x: window.innerWidth - (buttonRadius + EDGE_MARGIN),
 				y: window.innerHeight - (buttonRadius + EDGE_MARGIN),
 				radius: buttonRadius
 			};
-			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 		}
-
 		window.addEventListener('resize', handleResize, { passive: true });
 		window.addEventListener('keydown', onKeyDown);
 	});
@@ -194,10 +171,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		window.removeEventListener('keydown', onKeyDown);
 	});
 
-	// Derived radius roughly matches the visual ring (~340px diameter => 170px radius)
 	const MENU_RADIUS = 160;
 
-	// Calculate endpoint positions and angles based on their index
 	$: endpointsWithPos = endpoints.map((endpoint, index) => {
 		const angle = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
 		const x = center.x + MENU_RADIUS * Math.cos(angle);
@@ -205,7 +180,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		return { ...endpoint, x, y, angle };
 	});
 
-	// Show the routes when the component is visible
 	function closeMenu() {
 		if (!showRoutes) return;
 		showRoutes = false;
@@ -236,100 +210,89 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 	function drag(node: HTMLDivElement) {
 		let moved = false;
-		let timeout: ReturnType<typeof setTimeout>;
-		let raf = 0;
-		let nextX = 0,
-			nextY = 0;
+		let dragging = false;
+		let startX = 0;
+		let startY = 0;
+		const DRAG_THRESHOLD = 10;
 		node.onpointerdown = (e) => {
-			timeout = setTimeout(() => {
-				const x = e.offsetX - node.offsetWidth / 2;
-				const y = e.offsetY - node.offsetHeight / 2;
-				buttonInfo = { ...buttonInfo, x: e.clientX - x, y: e.clientY - y };
-				node.setPointerCapture(e.pointerId);
-				node.onpointermove = (e) => {
+			startX = e.clientX;
+			startY = e.clientY;
+			moved = false;
+			dragging = false;
+			node.setPointerCapture(e.pointerId);
+			node.onpointermove = (moveEvent) => {
+				const dx = moveEvent.clientX - startX;
+				const dy = moveEvent.clientY - startY;
+				const distance = Math.sqrt(dx * dx + dy * dy);
+				if (!dragging && distance > DRAG_THRESHOLD) {
+					dragging = true;
+				}
+				if (dragging) {
 					moved = true;
-					nextX = e.clientX - x;
-					nextY = e.clientY - y;
-					if (!raf) {
-						raf = requestAnimationFrame(() => {
-							buttonInfo = { ...buttonInfo, x: nextX, y: nextY };
-							if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-							raf = 0;
-						});
+					const offsetX = e.offsetX - node.offsetWidth / 2;
+					const offsetY = e.offsetY - node.offsetHeight / 2;
+					buttonInfo = {
+						...buttonInfo,
+						x: moveEvent.clientX - offsetX,
+						y: moveEvent.clientY - offsetY
+					};
+					if (firstLine) {
+						firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 					}
-				};
-			}, 60);
+				}
+			};
 		};
 		node.onpointerup = async (e) => {
-			if (!moved) await toggleMenuOpen();
-
-			timeout && clearTimeout(timeout);
-			moved = false;
+			if (!dragging) {
+				await toggleMenuOpen();
+			}
 			node.onpointermove = null;
 			node.releasePointerCapture(e.pointerId);
-			if (raf) {
-				cancelAnimationFrame(raf);
-				raf = 0;
-			}
-
-			const distance = [
-				buttonInfo.x, //left
-				window.innerWidth - buttonInfo.x, //right
-				buttonInfo.y, //top
-				window.innerHeight - buttonInfo.y //bottom
-			];
-
+			if (!moved) return;
+			const distance = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
 			let promise: Promise<void>;
-
 			switch (distance.indexOf(Math.min(...distance))) {
-				case 0:
-					{
-						promise = motion([buttonInfo.x], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
-							buttonInfo.x = t[0];
-							await tick();
-							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-						});
-					}
+				case 0: {
+					promise = motion([buttonInfo.x], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
+						buttonInfo.x = t[0];
+						await tick();
+						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+					});
 					break;
-				case 1:
-					{
-						promise = motion([buttonInfo.x], [window.innerWidth - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
-							buttonInfo.x = t[0];
-							await tick();
-							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-						});
-					}
+				}
+				case 1: {
+					promise = motion([buttonInfo.x], [window.innerWidth - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
+						buttonInfo.x = t[0];
+						await tick();
+						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+					});
 					break;
-				case 2:
-					{
-						promise = motion([buttonInfo.y], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
-							buttonInfo.y = t[0];
-							await tick();
-							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-						});
-					}
+				}
+				case 2: {
+					promise = motion([buttonInfo.y], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
+						buttonInfo.y = t[0];
+						await tick();
+						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+					});
 					break;
-				case 3:
-					{
-						promise = motion([buttonInfo.y], [window.innerHeight - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
-							buttonInfo.y = t[0];
-							await tick();
-							firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-						});
-					}
+				}
+				case 3: {
+					promise = motion([buttonInfo.y], [window.innerHeight - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
+						buttonInfo.y = t[0];
+						await tick();
+						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+					});
 					break;
+				}
 			}
-
 			await tick();
-			firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-
+			if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 			await promise;
 			navigation_info = { ...navigation_info, ...{ [getBasePath($page.url.pathname)]: buttonInfo } };
 			localStorage.setItem('navigation', JSON.stringify(navigation_info));
 		};
 	}
 
-	// Set the dash of the line
 	function setDash(node: SVGElement) {
 		let first = true;
 		for (const lineElement of node.children) {
@@ -345,7 +308,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}
 
-	// Reverse the dash
 	function reverse() {
 		if (!svg) return;
 		let first = true;
@@ -362,15 +324,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}
 
-	// Animate the dash
 	$: if (!showRoutes) reverse();
 	function keepAlive(node, { delay = 0, duration = 200, easing: easing$1 = linear } = {}) {
-		return {
-			delay,
-			duration,
-			easing: easing$1,
-			css: (t) => ``
-		};
+		return { delay, duration, easing: easing$1, css: (t) => `` };
 	}
 
 	function isRightToLeft() {
@@ -378,16 +334,23 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	}
 </script>
 
-<!-- Start Nav Button-->
+<div class="card variant-filled-surface z-[99999999] p-2" data-popup={navPopup}>
+	{activeTooltipText}
+	<div class="variant-filled-surface arrow"></div>
+</div>
+
 <div
 	bind:this={firstCircle}
-	aria-label="Open navigation"
+	use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
+	on:mouseenter={() => (activeTooltipText = 'Open Navigation Menu')}
+	on:mouseleave={() => (activeTooltipText = '')}
+	aria-label="Open Navigation Menu"
 	role="button"
 	aria-expanded={showRoutes}
 	use:drag
-	class="circle flex touch-none items-center justify-center bg-tertiary-500"
+	class="circle flex touch-none items-center justify-center bg-tertiary-500 [&>*]:pointer-events-none"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;left:{(Math.min(
-		isRightToLeft() ? buttonRadius : buttonInfo.x, // Change left position based on RTL
+		isRightToLeft() ? buttonRadius : buttonInfo.x,
 		window.innerWidth - buttonRadius
 	) /
 		window.innerWidth) *
@@ -396,7 +359,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white"></iconify-icon>
 </div>
 
-<!-- Show the routes when the component is visible -->
 {#if showRoutes}
 	<button out:keepAlive|local on:click|self={closeMenu} class=" fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
@@ -406,7 +368,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			{/each}
 		</svg>
 
-		<!-- Home button -->
 		<div
 			transition:fade
 			class="absolute left-1/2 top-1/4 -z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
@@ -414,11 +375,13 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				2}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		></div>
 
-		<!-- Other endpoint buttons -->
 		<div
 			bind:this={circles[0]}
+			use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
+			on:mouseenter={() => (activeTooltipText = endpoints[0]?.tooltip)}
+			on:mouseleave={() => (activeTooltipText = '')}
 			role="button"
-			aria-label="Home"
+			aria-label={endpoints[0]?.tooltip || 'Home'}
 			tabindex="0"
 			on:click={() => {
 				mode.set('view');
@@ -429,7 +392,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			}}
 			on:keydown={(event) => {
 				if (event.key === 'Enter' || event.key === ' ') {
-					// Trigger the same action as on:click
 					mode.set('view');
 					modalStore.clear();
 					toggleUIElement('leftSidebar', 'hidden');
@@ -440,15 +402,17 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			class="circle flex items-center justify-center border-2 bg-gray-600"
 			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		>
-			<iconify-icon width="32" style="color:white" icon="solar:home-bold"></iconify-icon>
+			<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon}></iconify-icon>
 		</div>
 
 		{#each endpointsWithPos.slice(1, endpointsWithPos.length) as endpoint, index}
 			<div
 				bind:this={circles[index + 1]}
-				typeof="button"
-				role={endpoint.icon}
-				aria-label={endpoint.icon}
+				use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
+				on:mouseenter={() => (activeTooltipText = endpoint.tooltip)}
+				on:mouseleave={() => (activeTooltipText = '')}
+				role="button"
+				aria-label={endpoint.tooltip}
 				on:click={() => {
 					if (endpoint?.url?.external) {
 						window.open(endpoint?.url?.path || '/', '_blank');
@@ -460,7 +424,6 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
 				style="top:{endpoint.y}px;left:{endpoint.x}px;animation: showEndPoints 0.2s 0.4s forwards"
 			>
-				<!-- Icon for the button -->
 				<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
 			</div>
 		{/each}

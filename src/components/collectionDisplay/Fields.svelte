@@ -451,11 +451,11 @@
 												{@const fieldName = getFieldName(field, false)}
 												{@const shouldValidateOnMount = field.required && mode.value === 'create'}
 												<!-- Debug validation mount -->
-												{#if process.env.NODE_ENV !== 'production' && shouldValidateOnMount}
+												<!-- {#if process.env.NODE_ENV !== 'production' && shouldValidateOnMount}
 													<div style="font-size:0.7em;color:#0a0;">
 														Validating on mount: {field.label || fieldName} (required: {field.required}, mode: {mode.value}, fieldName: {fieldName})
 													</div>
-												{/if}
+												{/if} -->
 												<WidgetComponent
 													{field}
 													WidgetData={{}}
