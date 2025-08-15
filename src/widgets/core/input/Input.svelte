@@ -41,23 +41,30 @@
 		debounceMs?: number;
 	}
 
-	let {
-		field,
-		value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }),
-		validateOnMount = false,
-		validateOnChange = true,
-		validateOnBlur = true,
-		debounceMs = 300
-	}: Props = $props();
+	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+
+	// Initialize value if null/undefined
+	$effect(() => {
+		if (!value) {
+			if (field?.translated) {
+				value = { [contentLanguage.value.toLowerCase()]: '' };
+			} else {
+				value = { [(publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase()]: '' };
+			}
+		}
+	});
 
 	// Field name for validation
 	const fieldName = getFieldName(field);
 
-	// Language handling
+	// Language handling - with safe fallback
 	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
 
+	// Safe value access with fallback
+	let safeValue = $derived(value?.[_language] ?? '');
+
 	// Character count
-	let count = $derived(value[_language]?.length ?? 0);
+	let count = $derived(safeValue?.length ?? 0);
 
 	// Validation state - now using the enhanced validation store
 	let inputElement: HTMLInputElement | null = null;
@@ -100,7 +107,7 @@
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {
-		const currentValue = value?.[_language];
+		const currentValue = safeValue;
 
 		// Clear existing timeout
 		if (debounceTimeout) {
@@ -213,6 +220,14 @@
 		// Could be used for custom focus behavior
 	}
 
+	// Safe value setter function
+	function updateValue(newValue: string) {
+		if (!value) {
+			value = {};
+		}
+		value = { ...value, [_language]: newValue };
+	}
+
 	// Cleanup function
 	$effect(() => {
 		return () => {
@@ -230,7 +245,7 @@
 			if (process.env.NODE_ENV !== 'production') {
 				console.log(
 					`[Input Widget] Validating on mount for field: ${fieldName}, required: ${field?.required}, value:`,
-					value[_language],
+					safeValue,
 					'widget instance:',
 					Math.random().toString(36).substr(2, 5)
 				);
@@ -247,8 +262,7 @@
 
 	// Watch for value changes from external sources
 	$effect(() => {
-		// This effect runs when value[_language] changes
-		const currentValue = value[_language];
+		// This effect runs when safeValue changes
 		if (isTouched && validateOnChange) {
 			validateInput(false);
 		}
@@ -265,15 +279,11 @@
 
 		<input
 			type="text"
-			bind:value={
-				() => value[_language],
-				(v) => {
-					const temp = { ...value };
-					temp[_language] = v;
-					value = temp;
-				}
-			}
-			oninput={handleInput}
+			value={safeValue}
+			oninput={(e) => {
+				updateValue(e.currentTarget.value);
+				handleInput();
+			}}
 			onblur={handleBlur}
 			onfocus={handleFocus}
 			name={field?.db_fieldName}

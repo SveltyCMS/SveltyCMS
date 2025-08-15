@@ -98,7 +98,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		{#if mode.value === 'view' || mode.value === 'modify'}
 			<EntryList />
 		{:else if ['edit', 'create'].includes(mode.value)}
-			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
+			<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
 				<Fields fields={collection.value.fields} fieldsData={collectionValue.value} customData={{}} root={true} />
 			</div>
 		{/if}
