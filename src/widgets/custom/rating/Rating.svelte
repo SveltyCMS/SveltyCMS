@@ -53,8 +53,9 @@
 
 	const fieldName = getFieldName(field);
 
-	// Initialize _data based on mode
-	let _data = mode.value === 'create' ? {} : value;
+	// Initialize _data based on mode (wrap in reactive state for Svelte 5)
+	let _data = $state<any>(mode.value === 'create' ? {} : value || {});
+	let ratingValue = $state(_data.value ?? null);
 
 	// Create a writable store for validation error
 	const validationErrorStore = writable<string | null>(null);
@@ -97,7 +98,8 @@
 
 	// Handle rating click
 	function handleIconClick(event: CustomEvent<{ index: number }>): void {
-		_data.value = event.detail.index;
+		ratingValue = event.detail.index;
+		_data.value = ratingValue;
 		validateInput();
 	}
 
@@ -115,7 +117,7 @@
 <div class="input-container relative mb-4">
 	<!-- Ratings -->
 	<Ratings
-		bind:value={_data.value}
+		bind:value={ratingValue}
 		max={maxRating}
 		interactive
 		on:icon={handleIconClick}

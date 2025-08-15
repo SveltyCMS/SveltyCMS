@@ -33,7 +33,7 @@ Key features:
 
 	interface Props {
 		filteredFiles?: MediaImage[];
-		gridSize?: 'small' | 'medium' | 'large';
+		gridSize?: 'tiny' | 'small' | 'medium' | 'large';
 		ondeleteImage?: (file: MediaImage) => void;
 	}
 
@@ -75,11 +75,19 @@ Key features:
 				class="card border border-surface-300 dark:border-surface-500"
 			>
 				<header class="m-2 flex w-auto items-center justify-between">
-					<button use:popup={FileTooltip} aria-label="File Info" class="btn-icon">
+					<button
+						use:popup={{
+							event: 'click',
+							target: `FileInfo-${index}`,
+							placement: 'right'
+						}}
+						aria-label="File Info"
+						class="btn-icon"
+					>
 						<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</button>
 
-					<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo">
+					<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{index}">
 						<table class="table-hover w-full table-auto">
 							<thead class="text-tertiary-500">
 								<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
@@ -97,9 +105,9 @@ Key features:
 												: ''}"
 											onclick={(e) => {
 												e.preventDefault();
-												if (size === 'small' || size === 'medium' || size === 'large') {
+												if (size === 'tiny' || size === 'small' || size === 'medium' || size === 'large') {
 													dispatch('sizechange', {
-														size: size === 'small' ? 'medium' : size === 'medium' ? 'large' : 'small',
+														size: size === 'tiny' ? 'small' : size === 'small' ? 'medium' : size === 'medium' ? 'large' : 'tiny',
 														type: 'grid'
 													});
 												}
@@ -130,7 +138,9 @@ Key features:
 								{/each}
 							</tbody>
 						</table>
+						<div class="bg-surface-100-800-token arrow" />
 					</div>
+
 					<button aria-label="Edit" class="btn-icon">
 						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500"></iconify-icon>
 					</button>
@@ -139,12 +149,14 @@ Key features:
 					</button>
 				</header>
 
-				<section class="p-2">
+				<section class="flex items-center justify-center p-2">
 					{#if file?.filename && file?.path && file?.hash}
 						<img
 							src={file.thumbnail?.url ?? '/static/Default_User.svg'}
 							alt={`Thumbnail for ${file.filename}`}
-							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
+							class={`rounded object-cover ${
+								gridSize === 'tiny' ? 'h-16 w-16' : gridSize === 'small' ? 'h-24 w-24' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'
+							}`}
 							onerror={(e: Event) => {
 								const target = e.target as HTMLImageElement;
 								if (target) {

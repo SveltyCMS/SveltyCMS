@@ -9,8 +9,14 @@
 	import { initializeStores } from '@skeletonlabs/skeleton';
 	import { page } from '$app/stores';
 
-	// Initialize Skeleton stores
+
+	// Initializing Skeleton stores
+	import { initializeStores, Toast, storePopup } from '@skeletonlabs/skeleton';
+	// Import from Floating UI
+	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
+
 	initializeStores();
+	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Props
 	interface Props {

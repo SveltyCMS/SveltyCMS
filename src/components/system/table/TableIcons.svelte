@@ -47,7 +47,7 @@
 	}
 </script>
 
-<td onclick={handleIconClick} class={`p-0 text-center align-middle ${cellClass}`}>
+<td onclick={handleIconClick} class={`border-r p-0 text-center align-middle ${cellClass}`}>
 	<button
 		onkeydown={handleKeydown}
 		onclick={handleIconClick}

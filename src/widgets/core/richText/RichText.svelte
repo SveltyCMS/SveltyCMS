@@ -15,10 +15,10 @@
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	import { onMount, onDestroy, tick, untrack } from 'svelte';
-	import { meta_data, debounce, getFieldName } from '@utils/utils';
-	import { getTextDirection } from '@utils/utils';
+
+	import { publicEnv } from '@root/config/public';
+	import { onMount, onDestroy, tick } from 'svelte';
+	import { meta_data, debounce, getFieldName, getTextDirection } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import type { ComponentProps } from 'svelte';
 	import type { FieldType } from '.';
@@ -31,25 +31,29 @@
 	// Components
 	import DropDown from './components/DropDown.svelte';
 	import ColorSelector from './components/ColorSelector.svelte';
-	import ImageResize from './extensions/ImageResize';
 	import ImageDescription from './components/ImageDescription.svelte';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
 
 	// TipTap
-	import StarterKit from '@tiptap/starter-kit';
 	import { Editor, Extension } from '@tiptap/core';
-	import TextStyle from './extensions/TextStyle';
-	import TextAlign from '@tiptap/extension-text-align';
-	import FontFamily from '@tiptap/extension-font-family';
-	import Color from '@tiptap/extension-color';
-	import Link from '@tiptap/extension-link';
-	import Youtube from '@tiptap/extension-youtube';
-	import CharacterCount from '@tiptap/extension-character-count';
-	import Table from '@tiptap/extension-table';
-	import TableRow from '@tiptap/extension-table-row';
-	import TableCell from '@tiptap/extension-table-cell';
-	import TableHeader from '@tiptap/extension-table-header';
+	import { StarterKit } from '@tiptap/starter-kit';
+	import { Link } from '@tiptap/extension-link';
+	import { TextAlign } from '@tiptap/extension-text-align';
+	import { FontFamily } from '@tiptap/extension-font-family';
+	import { Color } from '@tiptap/extension-color';
+	import { Youtube } from '@tiptap/extension-youtube';
+	import { CharacterCount } from '@tiptap/extension-character-count';
+	import { Table } from '@tiptap/extension-table';
+	import { TableRow } from '@tiptap/extension-table-row';
+	import { TableCell } from '@tiptap/extension-table-cell';
+	import { TableHeader } from '@tiptap/extension-table-header';
+	import { Underline } from '@tiptap/extension-underline';
+	import { Placeholder } from '@tiptap/extension-placeholder';
+
+	// Custom Extensions
+	import ImageResize from './extensions/ImageResize'; // IMPORTANT: You need this custom extension. See implementation below.
+	import TextStyle from './extensions/TextStyle'; // IMPORTANT: You need this custom extension for font size. See implementation below.
 
 	// Props
 	let showMobileMenu = $state(false);
@@ -89,8 +93,18 @@
 	// Update editor content when language changes
 	$effect(() => {
 		if (editor && _language) {
-			const content = _data.content[_language] || value?.content?.[_language] || '';
-			editor.commands.setContent(content);
+			const newContent = _data.content[_language] || value?.content?.[_language] || '';
+			// Only update if content is different to prevent losing cursor position
+			if (editor.getHTML() !== newContent) {
+				editor.commands.setContent(newContent, false);
+			}
+			editor.setOptions({
+				editorProps: {
+					attributes: {
+						dir: getTextDirection(_language)
+					}
+				}
+			});
 		}
 	});
 
@@ -99,7 +113,7 @@
 	// Validation function
 	function validateContent() {
 		const fieldId = getFieldName(field);
-		if (field?.required && (!_data.content[_language] || _data.content[_language] === '<p></p>')) {
+		if (field?.required && (!editor || editor.isEmpty)) {
 			validationError = 'Content is required';
 			validationStore.setError(fieldId, validationError);
 			return false;
@@ -113,257 +127,230 @@
 		if (!element) return;
 
 		editor = new Editor({
-			parseOptions: { preserveWhitespace: 'full' },
 			element: element,
 			extensions: [
 				StarterKit,
-				Link,
-				TextStyle,
+				TextStyle, // Custom extension for font-size
 				FontFamily,
 				Color,
-				Youtube,
-				ImageResize,
-				CharacterCount,
+				ImageResize, // Custom Image extension
+				Underline,
+				Placeholder.configure({
+					placeholder: ({ node }) => {
+						if (node.type.name === 'heading') return 'Write a heading…';
+						return 'Start writing your awesome content…';
+					},
+					includeChildren: true,
+					emptyEditorClass: 'is-editor-empty'
+				}),
+				Link.configure({
+					openOnClick: false
+				}),
 				Table.configure({
 					resizable: true
 				}),
 				TableRow,
-				TableCell,
 				TableHeader,
+				TableCell,
 				TextAlign.configure({
 					types: ['heading', 'paragraph', 'image']
 				}),
-
+				Youtube.configure({
+					modestBranding: true,
+					HTMLAttributes: {
+						class: 'w-full aspect-video'
+					}
+				}),
+				CharacterCount,
 				Extension.create({
 					name: 'Tab',
 					addKeyboardShortcuts() {
 						return {
-							Tab: () => {
-								return this.editor.commands.insertContent('\t');
+							Tab: ({ editor: e }) => {
+								return e.commands.insertContent('\t');
 							}
 						};
 					}
 				})
 			],
-
 			content: _data.content[_language] || value?.content?.[_language] || '',
 			editorProps: {
 				attributes: {
 					dir: getTextDirection(_language)
 				}
 			},
-
-			onUpdate: () => {
+			onUpdate: ({ editor }) => {
 				active_dropDown = ''; // force re-render for active states
-				deb(() => {
-					if (!editor) return;
-					let content = editor.getHTML();
-					content == '<p></p>' && (content = '');
-					_data.content[_language] = content;
-					validateContent();
-				});
+				let content = editor.getHTML();
+				_data.content[_language] = editor.isEmpty ? '' : content;
+				deb(validateContent);
 			},
-
 			onTransaction: ({ transaction }) => {
 				handleImageDeletes(transaction);
 			}
 		});
 
-		// Focus the editor after initialization
 		tick().then(() => {
 			editor?.commands.focus('start');
 		});
 	});
 
 	function handleImageDeletes(transaction: any) {
-		const getImageIds = (fragment: any) => {
-			let srcs = new Set<string>();
-			let obj = new Map<string, { id: string; src: string }>();
+		if (!transaction.docChanged) return;
+
+		const getImageIds = (fragment: any): string[] => {
+			let ids: string[] = [];
 			fragment.forEach((node: any) => {
-				if (node.type.name === 'image') {
-					srcs.add(node.attrs.media_image);
-					obj.set(node.attrs.id, { id: node.attrs.id, src: node.attrs.src });
+				if (node.type.name === 'image' && node.attrs.id) {
+					ids.push(node.attrs.id);
+				}
+				if (node.content) {
+					ids = ids.concat(getImageIds(node.content));
 				}
 			});
-			return { srcs, obj };
+			return ids;
 		};
 
-		let current = getImageIds(transaction.doc.content);
-		let previous = getImageIds(transaction.before.content);
-		// Determine which images were deleted
-		let deletedImageSrcs = [...previous.srcs].filter((src) => src && !current.srcs.has(src)) as string[];
-		for (let obj of previous.obj) {
-			if (!current.obj.has(obj[0])) {
-				images[obj[0]] && delete images[obj[0]];
-			}
-		}
+		const oldIds = new Set(getImageIds(transaction.before.content));
+		const newIds = new Set(getImageIds(transaction.doc.content));
+		const removedIds = [...oldIds].filter((id) => !newIds.has(id));
 
-		if (deletedImageSrcs.length > 0) {
-			meta_data.add('media_images_remove', deletedImageSrcs);
+		if (removedIds.length > 0) {
+			removedIds.forEach((id) => {
+				if (images[id]) {
+					delete images[id];
+				}
+			});
+			meta_data.add('media_images_remove', removedIds);
 		}
 	}
 
 	onDestroy(() => {
-		if (editor) {
-			editor.destroy();
-		}
+		editor?.destroy();
 	});
 
-	// Text Types
+	// DropDown Definitions
 	let textTypes: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+		if (!editor) return [];
 		return [
 			{
 				name: 'Paragraph',
 				icon: 'bi:paragraph',
-				active: () => editor?.isActive('paragraph') ?? false,
-				onClick: () => editor?.chain().focus().setParagraph().run()
+				active: () => editor.isActive('paragraph'),
+				onClick: () => editor.chain().focus().setParagraph().run()
 			},
 			{
-				name: 'Heading',
+				name: 'Heading 1',
 				icon: 'bi:type-h1',
-				active: () => editor?.isActive('heading', { level: 1 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 1 }).run()
+				active: () => editor.isActive('heading', { level: 1 }),
+				onClick: () => editor.chain().focus().toggleHeading({ level: 1 }).run()
 			},
 			{
-				name: 'Heading',
+				name: 'Heading 2',
 				icon: 'bi:type-h2',
-				active: () => editor?.isActive('heading', { level: 2 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 2 }).run()
+				active: () => editor.isActive('heading', { level: 2 }),
+				onClick: () => editor.chain().focus().toggleHeading({ level: 2 }).run()
 			},
 			{
-				name: 'Heading',
+				name: 'Heading 3',
 				icon: 'bi:type-h3',
-				active: () => editor?.isActive('heading', { level: 3 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 3 }).run()
+				active: () => editor.isActive('heading', { level: 3 }),
+				onClick: () => editor.chain().focus().toggleHeading({ level: 3 }).run()
 			},
 			{
-				name: 'Heading',
+				name: 'Heading 4',
 				icon: 'bi:type-h4',
-				active: () => editor?.isActive('heading', { level: 4 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 4 }).run()
+				active: () => editor.isActive('heading', { level: 4 }),
+				onClick: () => editor.chain().focus().toggleHeading({ level: 4 }).run()
 			}
 		];
 	});
 
-	// Fonts
 	let fonts: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+		if (!editor) return [];
 		return [
 			{
 				name: 'Arial',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Arial' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Arial').run()
+				active: () => editor.isActive('textStyle', { fontFamily: 'Arial' }),
+				onClick: () => editor.chain().focus().setFontFamily('Arial').run()
 			},
 			{
 				name: 'Verdana',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Verdana' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Verdana').run()
+				active: () => editor.isActive('textStyle', { fontFamily: 'Verdana' }),
+				onClick: () => editor.chain().focus().setFontFamily('Verdana').run()
 			},
 			{
 				name: 'Tahoma',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Tahoma' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Tahoma').run()
-			},
-			{
-				name: 'Times New Roman',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Times New Roman' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Times New Roman').run()
-			},
-			{
-				name: 'Georgia',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Georgia' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Georgia').run()
-			},
-			{
-				name: 'Garamond',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Garamond' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Garamond').run()
+				active: () => editor.isActive('textStyle', { fontFamily: 'Tahoma' }),
+				onClick: () => editor.chain().focus().setFontFamily('Tahoma').run()
 			}
 		];
 	});
 
-	// Alignment
 	let alignText: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+		if (!editor) return [];
 		return [
 			{
 				name: 'left',
 				icon: 'fa6-solid:align-left',
-				active: () => editor?.isActive({ textAlign: 'left' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('left').run()
+				active: () => editor.isActive({ textAlign: 'left' }),
+				onClick: () => editor.chain().focus().setTextAlign('left').run()
 			},
 			{
 				name: 'right',
 				icon: 'fa6-solid:align-right',
-				active: () => editor?.isActive({ textAlign: 'right' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('right').run()
+				active: () => editor.isActive({ textAlign: 'right' }),
+				onClick: () => editor.chain().focus().setTextAlign('right').run()
 			},
 			{
 				name: 'center',
 				icon: 'fa6-solid:align-center',
-				active: () => editor?.isActive({ textAlign: 'center' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('center').run()
+				active: () => editor.isActive({ textAlign: 'center' }),
+				onClick: () => editor.chain().focus().setTextAlign('center').run()
 			},
 			{
 				name: 'justify',
 				icon: 'fa6-solid:align-justify',
-				active: () => editor?.isActive({ textAlign: 'justify' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('justify').run()
+				active: () => editor.isActive({ textAlign: 'justify' }),
+				onClick: () => editor.chain().focus().setTextAlign('justify').run()
 			}
 		];
 	});
 
-	// Insert
 	let inserts: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+		if (!editor) return [];
 		return [
-			{
-				name: 'image',
-				icon: 'fa6-solid:image',
-				onClick: () => {
-					showImageDialog = true;
-				},
-				active: () => editor?.isActive('image') ?? false
-			},
-			{
-				name: 'video',
-				icon: 'fa6-solid:video',
-				onClick: () => {
-					showVideoDialog = true;
-				},
-				active: () => editor?.isActive('video') ?? false
-			},
+			{ name: 'image', icon: 'fa6-solid:image', onClick: () => (showImageDialog = true), active: () => editor.isActive('image') },
+			{ name: 'video', icon: 'fa6-solid:video', onClick: () => (showVideoDialog = true), active: () => editor.isActive('youtube') },
 			{
 				name: 'table',
 				icon: 'bi:table',
-				onClick: () => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
-				active: () => editor?.isActive('table') ?? false
+				onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+				active: () => editor.isActive('table')
 			}
 		];
 	});
 
-	// Float
 	let floats: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+		if (!editor) return [];
 		return [
 			{
 				name: 'wrap left',
 				icon: 'teenyicons:align-left-solid',
-				onClick: () => editor?.chain().focus().setImageFloat('left').run(),
-				active: () => false
+				onClick: () => editor.chain().focus().setImageFloat('left').run(),
+				active: () => editor.isActive('image', { float: 'left' })
 			},
 			{
 				name: 'wrap right',
 				icon: 'teenyicons:align-right-solid',
-				onClick: () => editor?.chain().focus().setImageFloat('right').run(),
-				active: () => false
+				onClick: () => editor.chain().focus().setImageFloat('right').run(),
+				active: () => editor.isActive('image', { float: 'right' })
 			},
 			{
 				name: 'unwrap',
 				icon: 'mdi:filter-remove',
-				onClick: () => editor?.chain().focus().setImageFloat('unset').run(),
-				active: () => false
+				onClick: () => editor.chain().focus().setImageFloat('unset').run(),
+				active: () => !editor.getAttributes('image').float || editor.getAttributes('image').float === 'unset'
 			}
 		];
 	});
@@ -371,16 +358,13 @@
 	// Font Size
 	let fontSize = $state(16);
 	$effect(() => {
-		if (!editor || !element) return;
-		fontSize =
-			editor.getAttributes('textStyle').fontSize ||
-			window.getComputedStyle(window.getSelection()?.focusNode?.parentElement || element).fontSize.replace('px', '');
+		if (editor) {
+			const sizeAttr = editor.getAttributes('textStyle').fontSize;
+			fontSize = sizeAttr ? parseInt(sizeAttr.replace('px', ''), 10) : 16;
+		}
 	});
 
-	// Show button
-	function show(
-		button: 'textType' | 'font' | 'align' | 'insert' | 'float' | 'color' | 'bold' | 'italic' | 'strike' | 'link' | 'fontSize' | 'description'
-	) {
+	function show(button: string) {
 		if (!editor) return false;
 		if (editor.isActive('image')) {
 			return ['float', 'align', 'description'].includes(button);
@@ -391,63 +375,54 @@
 		return true;
 	}
 
-	function handleFontSizeDecrease() {
-		fontSize--;
-		editor?.chain().focus().setFontSize(fontSize).run();
+	function handleFontSize(change: number) {
+		const newSize = Math.max(8, Math.min(72, fontSize + change));
+		editor?.chain().focus().setFontSize(`${newSize}px`).run();
 	}
 
-	function handleFontSizeIncrease() {
-		fontSize++;
-		editor?.chain().focus().setFontSize(fontSize).run();
+	function setFontSizeDirect(value: number) {
+		if (Number.isNaN(value)) return;
+		const clamped = Math.max(8, Math.min(72, value));
+		fontSize = clamped;
+		editor?.chain().focus().setFontSize(`${clamped}px`).run();
 	}
 
-	function handleBoldClick() {
-		editor?.chain().focus().toggleBold().run();
+	function setLink() {
+		if (!editor) return;
+		const previousUrl = editor.getAttributes('link').href;
+		const url = window.prompt('URL', previousUrl);
+
+		if (url === null) return; // Cancelled
+		if (url === '') {
+			editor.chain().focus().extendMarkRange('link').unsetLink().run();
+			return;
+		}
+
+		const finalUrl = /^(https?:\/\/)/i.test(url) ? url : `https://${url}`;
+		editor.chain().focus().extendMarkRange('link').setLink({ href: finalUrl }).run();
 	}
 
-	function handleItalicClick() {
-		editor?.chain().focus().toggleItalic().run();
-	}
-
-	function handleStrikeClick() {
-		editor?.chain().focus().toggleStrike().run();
-	}
-
-	function handleLinkClick() {
-		editor?.chain().focus().toggleLink({ href: 'https://google.com' }).run();
+	function clearFormatting() {
+		if (!editor) return;
+		editor.chain().focus().unsetAllMarks().clearNodes().run();
 	}
 
 	let isUploading = $state(false);
-	let uploadTimeout: ReturnType<typeof setTimeout> | null = null;
-
 	function handleFileChange(value: File | MediaImage) {
 		if (!editor) return;
-
-		let url;
-		// Start a timer to show loader only if upload is slow (e.g. > 700ms)
-		if (uploadTimeout) clearTimeout(uploadTimeout);
-		isUploading = false;
-		uploadTimeout = setTimeout(() => {
-			isUploading = true;
-		}, 700);
+		isUploading = true;
 
 		if (value instanceof File) {
-			url = URL.createObjectURL(value);
-			let image_id = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+			const url = URL.createObjectURL(value);
+			const image_id = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
-			// Simulate upload delay for UX
-			setTimeout(() => {
-				isUploading = false;
-				if (uploadTimeout) clearTimeout(uploadTimeout);
-			}, 500);
 		} else {
-			// Use the MediaImage url property directly
-			url = value.url;
+			const url = value.url;
 			editor.chain().focus().setImage({ src: url, storage_image: value._id }).run();
-			isUploading = false;
-			if (uploadTimeout) clearTimeout(uploadTimeout);
 		}
+
+		isUploading = false;
 	}
 </script>
 
@@ -463,192 +438,197 @@
 		aria-label="Content title"
 	/>
 
-	<!-- Rich Text Editor -->
 	<div class="m-auto flex max-h-[500px] w-full flex-col items-center gap-2 overflow-auto">
+		<!-- Toolbar -->
 		{#if editor}
-			<!-- Toolbar -->
 			<div
-				class="sticky top-0 z-10 my-1 flex w-full flex-wrap items-center justify-center gap-1 bg-surface-500"
+				class="sticky top-0 z-10 my-1 flex w-full flex-wrap items-center justify-start gap-1 rounded border border-surface-400/40 bg-surface-600/40 p-1 backdrop-blur-sm dark:border-surface-300/20 dark:bg-surface-800/40"
 				role="toolbar"
 				aria-label="Rich text editor toolbar"
 			>
 				{#if isMobile.value}
-					<button onclick={() => (showMobileMenu = !showMobileMenu)} class="btn" aria-label="Toggle toolbar menu" aria-expanded={showMobileMenu}>
+					<button
+						type="button"
+						onclick={() => (showMobileMenu = !showMobileMenu)}
+						class="btn-sm"
+						aria-label="Toggle toolbar menu"
+						aria-expanded={showMobileMenu}
+					>
 						<iconify-icon icon="mdi:menu" width="22"></iconify-icon>
 					</button>
 				{/if}
-
 				<div class="flex flex-wrap gap-1" class:hidden={isMobile.value && !showMobileMenu}>
-					<!-- TextType -->
-					<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} />
-					<!-- Font -->
-					<DropDown show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" bind:active={active_dropDown} />
-					<!-- Color -->
+					<DropDown {show} items={textTypes} label="Text style" bind:active={active_dropDown} />
+					<DropDown show={show('font')} items={fonts} icon="gravity-ui:text" label="Font family" bind:active={active_dropDown} />
 					<ColorSelector
 						show={show('color')}
 						color={editor?.getAttributes('textStyle').color || '#000000'}
 						onChange={(color) => editor?.chain().focus().setColor(color).run()}
 						bind:active={active_dropDown}
 					/>
-
-					<div class="flex items-center" class:hidden={!show('fontSize')} role="group" aria-label="Font size controls">
-						<!-- Size -->
-						<button
-							onclick={handleFontSizeDecrease}
-							onkeydown={(e) => e.key === 'Enter' && handleFontSizeDecrease()}
-							aria-label="Decrease Font Size"
-							class="btn"
-							tabindex="0"
-						>
-							<iconify-icon icon="bi:dash-lg" width="22"></iconify-icon>
+					<div class:hidden={!show('fontSize')} class="flex items-center" role="group" aria-label="Font size controls">
+						<button type="button" onclick={() => handleFontSize(-1)} class="btn-sm" aria-label="Decrease font size" title="Decrease font size">
+							<iconify-icon icon="bi:dash-lg" width="20"></iconify-icon>
 						</button>
-
 						<input
-							type="text"
-							class="w-12 text-center text-sm text-black outline-none"
+							id="rt-font-size"
+							type="number"
+							min="8"
+							max="72"
+							step="1"
+							class="w-14 rounded border border-transparent bg-white/90 px-1 text-center text-sm text-black outline-none focus:border-primary-400 dark:bg-surface-600 dark:text-white"
 							bind:value={fontSize}
 							aria-label="Font size"
 							role="spinbutton"
 							aria-valuenow={fontSize}
-							aria-valuemin="1"
-							aria-valuemax="100"
+							aria-valuemin="8"
+							aria-valuemax="72"
+							onchange={(e) => setFontSizeDirect(parseInt(e.currentTarget.value, 10))}
 						/>
-
 						<button
-							onclick={handleFontSizeIncrease}
-							onkeydown={(e) => e.key === 'Enter' && handleFontSizeIncrease()}
-							aria-label="Increase Font Size"
-							class="btn"
-							tabindex="0"
+							type="button"
+							onclick={() => handleFontSize(1)}
+							class="btn-sm"
+							aria-label="Increase font size"
+							title="Increase font size"
+							aria-controls="rt-font-size"
 						>
 							<iconify-icon icon="bi:plus-lg" width="22"></iconify-icon>
 						</button>
 					</div>
+					<span
+						role="separator"
+						aria-orientation="vertical"
+						class="mx-0.5 h-6 w-px self-center bg-surface-500/40 dark:bg-surface-300/30"
+						aria-hidden="true"
+					></span>
+					<div class="flex items-center divide-x rounded border border-surface-500 px-1" role="group" aria-label="Inline formatting">
+						<button
+							class:hidden={!show('bold')}
+							type="button"
+							onclick={() => editor.chain().focus().toggleBold().run()}
+							class:active={editor.isActive('bold')}
+							aria-label="Bold"
+							aria-pressed={editor.isActive('bold')}
+							title="Bold (Ctrl+B)"
+							aria-keyshortcuts="Control+B"
+						>
+							<iconify-icon icon="bi:type-bold" width="22"></iconify-icon>
+						</button>
+						<button
+							class:hidden={!show('italic')}
+							type="button"
+							onclick={() => editor.chain().focus().toggleItalic().run()}
+							class:active={editor.isActive('italic')}
+							aria-label="Italic"
+							aria-pressed={editor.isActive('italic')}
+							title="Italic (Ctrl+I)"
+							aria-keyshortcuts="Control+I"
+						>
+							<iconify-icon icon="bi:type-italic" width="22"></iconify-icon>
+						</button>
+						<button
+							class:hidden={!show('underline')}
+							type="button"
+							onclick={() => editor.chain().focus().toggleUnderline().run()}
+							class:active={editor.isActive('underline')}
+							aria-label="Underline"
+							aria-pressed={editor.isActive('underline')}
+							title="Underline (Ctrl+U)"
+							aria-keyshortcuts="Control+U"
+						>
+							<iconify-icon icon="bi:type-underline" width="22"></iconify-icon>
+						</button>
+						<button
+							class:hidden={!show('strike')}
+							type="button"
+							onclick={() => editor.chain().focus().toggleStrike().run()}
+							class:active={editor.isActive('strike')}
+							aria-label="Strikethrough"
+							aria-pressed={editor.isActive('strike')}
+							title="Strikethrough (Ctrl+Shift+S)"
+							aria-keyshortcuts="Control+Shift+S"
+						>
+							<iconify-icon icon="bi:type-strikethrough" width="22"></iconify-icon>
+						</button>
+						<button
+							class:hidden={!show('link')}
+							type="button"
+							onclick={() => (editor.isActive('link') ? editor.chain().focus().unsetLink().run() : setLink())}
+							class:active={editor.isActive('link')}
+							aria-label={editor.isActive('link') ? 'Remove link' : 'Insert link'}
+							aria-pressed={editor.isActive('link')}
+							title={editor.isActive('link') ? 'Remove link (Ctrl+K)' : 'Link (Ctrl+K)'}
+							aria-keyshortcuts="Control+K"
+						>
+							<iconify-icon icon="bi:link-45deg" width="20"></iconify-icon>
+						</button>
+						<button type="button" onclick={clearFormatting} aria-label="Clear formatting" title="Clear formatting">
+							<iconify-icon icon="mdi:format-clear" width="20"></iconify-icon>
+						</button>
+					</div>
+					<span
+						role="separator"
+						aria-orientation="vertical"
+						class="mx-0.5 h-6 w-px self-center bg-surface-500/40 dark:bg-surface-300/30"
+						aria-hidden="true"
+					></span>
+					<DropDown show={show('align')} items={alignText} icon="fa6-solid:align-left" label="Alignment" bind:active={active_dropDown} />
+					<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert elements" bind:active={active_dropDown} />
+					<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Image wrap" bind:active={active_dropDown} />
+					<ImageDescription
+						show={show('description')}
+						value={editor?.getAttributes('image')?.description}
+						onSubmit={(description) => editor?.chain().focus().setImageDescription(description).run()}
+						bind:active={active_dropDown}
+					/>
+					<div class="divide-x" role="group" aria-label="History">
+						<button
+							type="button"
+							onclick={() => editor.chain().focus().undo().run()}
+							class="btn"
+							disabled={!editor.can().undo()}
+							aria-label="Undo"
+							title="Undo (Ctrl+Z)"
+						>
+							<iconify-icon icon="mdi:undo" width="22"></iconify-icon>
+						</button>
+						<button
+							type="button"
+							onclick={() => editor.chain().focus().redo().run()}
+							class="btn"
+							disabled={!editor.can().redo()}
+							aria-label="Redo"
+							title="Redo (Ctrl+Shift+Z)"
+						>
+							<iconify-icon icon="mdi:redo" width="22"></iconify-icon>
+						</button>
+					</div>
+					<div
+						class="ml-auto flex items-center justify-end px-2 text-xs text-gray-500 dark:text-gray-400"
+						aria-live="polite"
+						aria-atomic="true"
+						id="editor-stats"
+					>
+						{editor.storage.characterCount?.characters() || 0} characters | {editor.storage.characterCount?.words() || 0} words
+					</div>
 				</div>
 			</div>
-
-			<div class="divide-x" role="group" aria-label="Text formatting">
-				<!-- Bold -->
-				<button
-					class:hidden={!show('bold')}
-					onclick={handleBoldClick}
-					onkeydown={(e) => e.key === 'Enter' && handleBoldClick()}
-					aria-label="Bold"
-					aria-pressed={editor?.isActive('bold') ?? false}
-					class:active={editor?.isActive('bold') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:type-bold" width="22"></iconify-icon>
-				</button>
-
-				<!-- Italic -->
-				<button
-					class:hidden={!show('italic')}
-					onclick={handleItalicClick}
-					onkeydown={(e) => e.key === 'Enter' && handleItalicClick()}
-					aria-label="Italic"
-					aria-pressed={editor?.isActive('italic') ?? false}
-					class:active={editor?.isActive('italic') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:type-italic" width="22"></iconify-icon>
-				</button>
-
-				<!-- Strikethrough -->
-				<button
-					class:hidden={!show('strike')}
-					onclick={handleStrikeClick}
-					onkeydown={(e) => e.key === 'Enter' && handleStrikeClick()}
-					aria-label="Strikethrough"
-					aria-pressed={editor?.isActive('strike') ?? false}
-					class:active={editor?.isActive('strike') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:type-strikethrough" width="22"></iconify-icon>
-				</button>
-
-				<!-- Link -->
-				<button
-					class:hidden={!show('link')}
-					onclick={handleLinkClick}
-					onkeydown={(e) => e.key === 'Enter' && handleLinkClick()}
-					aria-label="Link"
-					aria-pressed={editor?.isActive('link') ?? false}
-					class:active={editor?.isActive('link') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:link-45deg" width="20"></iconify-icon>
-				</button>
-			</div>
-
-			<!-- Align -->
-			<DropDown show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
-			<!-- Insert -->
-			<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
-			<!-- Float -->
-			<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
-
-			<!-- Image Description -->
-			<ImageDescription
-				show={show('description')}
-				value={editor?.getAttributes('image')?.description}
-				onSubmit={(description) => editor?.chain().focus().setImageDescription(description).run()}
-				bind:active={active_dropDown}
-			/>
-
-			<!-- Image -->
-			<FileInput show={showImageDialog} on:change={handleFileChange} className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white" />
-
-			<!-- Video -->
-			<VideoDialog bind:show={showVideoDialog} {editor} />
-
-			<div class="divide-x" role="group" aria-label="History actions">
-				<button
-					onclick={() => editor?.chain().focus().undo().run()}
-					onkeydown={(e) => e.key === 'Enter' && editor?.chain().focus().undo().run()}
-					aria-label="Undo"
-					class="btn"
-					tabindex="0"
-					disabled={!editor?.can().undo()}
-				>
-					<iconify-icon icon="mdi:undo" width="22"></iconify-icon>
-				</button>
-
-				<button
-					onclick={() => editor?.chain().focus().redo().run()}
-					onkeydown={(e) => e.key === 'Enter' && editor?.chain().focus().redo().run()}
-					aria-label="Redo"
-					class="btn"
-					tabindex="0"
-					disabled={!editor?.can().redo()}
-				>
-					<iconify-icon icon="mdi:redo" width="22"></iconify-icon>
-				</button>
-			</div>
-
-			<!-- Character Count -->
-			<div class="ml-auto p-2 text-xs text-gray-500 dark:text-gray-400">
-				{editor.storage.characterCount?.characters() || 0} characters | {editor.storage.characterCount?.words() || 0} words
-			</div>
 		{/if}
-
-		<!-- Editor Container -->
+		<FileInput {showImageDialog} on:change={(e) => handleFileChange(e.detail)} className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white" />
+		<VideoDialog bind:show={showVideoDialog} {editor} />
 		<div
 			bind:this={element}
 			role="textbox"
 			tabindex="0"
-			class="min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto dark:text-white"
+			class="tiptap-editor min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto rounded border border-surface-300 bg-surface-100 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:border-surface-400 dark:bg-surface-700 dark:text-white"
 			class:error={!!validationError}
 			aria-label="Rich text editor"
 			aria-multiline="true"
 			aria-required={!!field?.required}
-			dir={getTextDirection(_language) as 'ltr' | 'rtl'}
-		>
-			<!-- Editor content will be inserted here by TipTap -->
-		</div>
+		></div>
 	</div>
 
-	<!-- Error Message -->
 	{#if validationError}
 		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
@@ -665,8 +645,32 @@
 		outline: none;
 	}
 
+	/* Editor wrapper styling */
+	.tiptap-editor {
+		background-image:
+			linear-gradient(var(--tw-color-surface-200) 1px, transparent 1px), linear-gradient(90deg, var(--tw-color-surface-200) 1px, transparent 1px);
+		background-size:
+			22px 22px,
+			22px 22px;
+		background-position: -1px -1px;
+	}
+
+	.dark .tiptap-editor {
+		background-image:
+			linear-gradient(theme('colors.surface.600') 1px, transparent 1px), linear-gradient(90deg, theme('colors.surface.600') 1px, transparent 1px);
+	}
+
+	/* Placeholder */
+	:global(.is-editor-empty:first-child::before) {
+		content: attr(data-placeholder);
+		float: left;
+		color: theme('colors.gray.400');
+		pointer-events: none;
+		height: 0;
+	}
+
 	:global(.ProseMirror-selectednode img) {
-		box-shadow: 0px 0px 4px 0px #34363699 inset;
+		outline: 2px solid theme('colors.primary.500');
 	}
 
 	:global(.dark .ProseMirror),
