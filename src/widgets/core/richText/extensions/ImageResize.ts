@@ -2,8 +2,7 @@
 @file src/widgets/core/richText/extensions/ImageResize.ts
 @description - RichText TipTap widget image extension
 */
-
-import ImageExtension from '@tiptap/extension-image';
+import { Image as ImageExtension } from '@tiptap/extension-image';
 
 declare module '@tiptap/core' {
 	interface Commands<ReturnType> {
@@ -23,7 +22,9 @@ const ImageResize = ImageExtension.extend({
 		return {
 			...this.parent?.(),
 			id: null,
-			media_image: null
+			media_image: null,
+			allowBase64: true,
+			sizes: ['25%', '50%', '75%', '100%']
 		};
 	},
 
@@ -33,11 +34,11 @@ const ImageResize = ImageExtension.extend({
 			setImageFloat:
 				(side: 'left' | 'right' | 'unset') =>
 				({ commands }) =>
-					commands.updateAttributes('image', { float: side }),
+					commands.updateAttributes(this.name, { float: side }),
 			setImageDescription:
 				(description: string) =>
 				({ commands }) =>
-					commands.updateAttributes('image', { description })
+					commands.updateAttributes(this.name, { description })
 		};
 	},
 
@@ -97,27 +98,21 @@ const ImageResize = ImageExtension.extend({
 	},
 
 	renderHTML({ HTMLAttributes }) {
+		const { float, w, h, margin, textAlign, description, ...rest } = HTMLAttributes;
 		return [
 			'div',
 			{
-				style: `text-align: ${HTMLAttributes.textAlign};float: ${HTMLAttributes.float};width: ${HTMLAttributes.w};height: ${HTMLAttributes.h}; margin: ${HTMLAttributes.margin}`
+				style: `text-align: ${textAlign};float: ${float};width: ${w};height: ${h}; margin: ${margin}; position: relative;`
 			},
-			[
-				'img',
-				{
-					storage_image: HTMLAttributes.storage_image,
-					src: HTMLAttributes.id || HTMLAttributes.src,
-					style: 'width: 100%; height: 100%; cursor:pointer'
-				}
-			],
-			HTMLAttributes.description
+			['img', this.options.HTMLAttributes, rest],
+			description
 				? [
 						'div',
 						{
 							class: 'description',
 							style: DESCRIPTION_STYLE
 						},
-						HTMLAttributes.description
+						description
 					]
 				: ''
 		];
@@ -126,106 +121,102 @@ const ImageResize = ImageExtension.extend({
 	parseHTML() {
 		return [
 			{
-				tag: 'div',
-
+				tag: 'div[style*="float"]',
 				getAttrs: (node) => {
-					if ((node.firstChild as HTMLElement).tagName == 'IMG') return null;
+					if ((node as HTMLElement).querySelector('img')) {
+						return {};
+					}
 					return false;
+				}
+			},
+			{
+				tag: 'img[src]',
+				getAttrs: (node) => {
+					if ((node as HTMLElement).closest('div[style*="float"]')) {
+						return false;
+					}
+					return {};
 				}
 			}
 		];
 	},
 
 	addNodeView() {
-		return ({ editor, HTMLAttributes, node }) => {
-			const { src, alt } = HTMLAttributes;
-			const nodeAttrs = node.attrs as any;
+		return ({ editor, node, getPos }) => {
+			const nodeAttrs = node.attrs as Record<string, unknown>;
 			nodeAttrs._ = null;
 
 			const container = document.createElement('div');
+			container.style.position = 'relative';
+			container.style.display = 'inline-block';
+			container.style.float = nodeAttrs.float as string;
+			container.style.lineHeight = '0';
+
 			const resizer = document.createElement('div');
+			resizer.style.position = 'relative';
+			resizer.style.width = nodeAttrs.w as string;
+			resizer.style.height = nodeAttrs.h as string;
+			resizer.style.display = 'inline-block';
+
 			const img = document.createElement('img');
-			container.style.textAlign = nodeAttrs.textAlign;
-			if (nodeAttrs.description) {
-				const description = document.createElement('div');
-				description.style.cssText = DESCRIPTION_STYLE;
-				description.innerText = nodeAttrs.description;
-				resizer.appendChild(description);
-			}
-			const knob1 = document.createElement('div');
-			const knob2 = document.createElement('div');
-			const knob3 = document.createElement('div');
-			knob1.style.cssText = 'cursor: ew-resize;width: 15px; height: 100%;  position: absolute; top:0;left:0;transform:translateX(-50%)';
-			knob2.style.cssText = 'cursor: ew-resize;width: 15px; height: 100%;  position: absolute; top:0;right:0;transform:translateX(50%)';
-			knob3.style.cssText = 'cursor: ns-resize;width: 100%; height: 15px;  position: absolute; bottom:0;left:0;transform:translateY(50%)';
-
-			knob1.onpointerdown = (e) => {
-				knobDrag(e, knob1, 'left', resizer, nodeAttrs);
-			};
-			knob2.onpointerdown = (e) => {
-				knobDrag(e, knob2, 'right', resizer, nodeAttrs);
-			};
-			knob3.onpointerdown = (e) => {
-				knobDrag(e, knob3, 'top', resizer, nodeAttrs);
-			};
-
-			resizer.appendChild(knob1);
-			resizer.appendChild(knob2);
-			resizer.appendChild(knob3);
-
-			Object.assign(resizer.style, {
-				display: 'inline-block',
-				position: 'relative',
-				width: nodeAttrs.w,
-				height: nodeAttrs.h,
-				margin: nodeAttrs.margin,
-				float: nodeAttrs.float
-			});
-
-			resizer.appendChild(img);
-
-			img.src = src;
-			img.alt = alt;
+			img.setAttribute('src', nodeAttrs.src as string);
+			img.setAttribute('alt', nodeAttrs.alt as string);
 			img.style.width = '100%';
 			img.style.height = '100%';
 			img.style.cursor = 'pointer';
 
+			resizer.appendChild(img);
 			container.appendChild(resizer);
 
-			if (nodeAttrs.textAlign != 'justify') {
-				nodeAttrs.margin = resizer.style.margin = 'unset';
+			if (nodeAttrs.description) {
+				const desc = document.createElement('div');
+				desc.textContent = nodeAttrs.description as string;
+				desc.style.cssText = DESCRIPTION_STYLE;
+				container.appendChild(desc);
 			}
-			if (nodeAttrs.float == 'left') {
-				resizer.style.marginRight = '10px';
-			} else if (nodeAttrs.float == 'right') {
-				resizer.style.marginLeft = '10px';
-			}
-			resizer.ondrag = (e) => {
-				if (nodeAttrs.textAlign != 'justify') {
-					return;
-				}
-				resizer.style.opacity = '0';
-				const marginLeft =
-					Math.max(
-						((e.clientX - editor.$doc.element.getBoundingClientRect().left - resizer.offsetWidth / 2) / editor.$doc.element.offsetWidth) * 100,
-						0
-					) + '%';
-				const marginRight =
-					Math.max(
-						((editor.$doc.element.getBoundingClientRect().right - e.clientX - +resizer.offsetWidth / 2) / editor.$doc.element.offsetWidth) * 100,
-						0
-					) + '%';
-				if (nodeAttrs.float == 'left' || nodeAttrs.float == 'unset') {
-					nodeAttrs.margin = resizer.style.margin = `0 0 0 ${marginLeft}`;
-				} else if (nodeAttrs.float == 'right') {
-					nodeAttrs.margin = resizer.style.margin = `0 ${marginRight} 0 0`;
-				}
-			};
-			resizer.ondragend = () => {
-				resizer.style.opacity = '1';
+
+			const knob1 = document.createElement('div');
+			const knob2 = document.createElement('div');
+			knob1.style.cssText = 'cursor: ew-resize;width: 15px; height: 100%;  position: absolute; top:0;left:0;transform:translateX(-50%)';
+			knob2.style.cssText = 'cursor: ew-resize;width: 15px; height: 100%;  position: absolute; top:0;right:0;transform:translateX(50%)';
+
+			resizer.appendChild(knob1);
+			resizer.appendChild(knob2);
+
+			knob1.onpointerdown = (e) => knobDrag(e, knob1, 'left', resizer, nodeAttrs);
+			knob2.onpointerdown = (e) => knobDrag(e, knob2, 'right', resizer, nodeAttrs);
+
+			let isDragging = false;
+
+			const onDrag = (e: MouseEvent) => {
+				if (!isDragging) return;
+				const newWidth = e.clientX - resizer.getBoundingClientRect().left;
+				resizer.style.width = `${newWidth}px`;
+				preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, e.shiftKey);
 			};
 
-			nodeAttrs.default = false;
+			const onStopDrag = () => {
+				isDragging = false;
+				document.removeEventListener('mousemove', onDrag);
+				document.removeEventListener('mouseup', onStopDrag);
+				if (typeof getPos === 'function') {
+					editor.view.dispatch(
+						editor.view.state.tr.setNodeMarkup(getPos(), undefined, {
+							...nodeAttrs,
+							w: resizer.style.width,
+							h: resizer.style.height
+						})
+					);
+				}
+			};
+
+			img.onmousedown = (e) => {
+				e.preventDefault();
+				isDragging = true;
+				document.addEventListener('mousemove', onDrag);
+				document.addEventListener('mouseup', onStopDrag);
+			};
+
 			return {
 				dom: container
 			};
@@ -233,7 +224,7 @@ const ImageResize = ImageExtension.extend({
 	}
 });
 
-function preserveAspectRatio(resizer: HTMLDivElement, nodeAttrs: any, width: string, preserveRatio = true) {
+function preserveAspectRatio(resizer: HTMLDivElement, nodeAttrs: Record<string, unknown>, width: string, preserveRatio = true) {
 	if (!preserveRatio) return;
 
 	const img = resizer.querySelector('img');
@@ -251,7 +242,13 @@ function preserveAspectRatio(resizer: HTMLDivElement, nodeAttrs: any, width: str
 	}
 }
 
-function knobDrag(e: PointerEvent, knob: HTMLDivElement, side: 'left' | 'right' | 'top' | 'bottom', resizer: HTMLDivElement, nodeAttrs: any) {
+function knobDrag(
+	e: PointerEvent,
+	knob: HTMLDivElement,
+	side: 'left' | 'right' | 'top' | 'bottom',
+	resizer: HTMLDivElement,
+	nodeAttrs: Record<string, unknown>
+) {
 	e.preventDefault();
 	e.stopPropagation();
 
@@ -261,15 +258,18 @@ function knobDrag(e: PointerEvent, knob: HTMLDivElement, side: 'left' | 'right' 
 	knob.setPointerCapture(e.pointerId);
 	knob.onpointermove = (e) => {
 		if (side == 'left' || side == 'right') {
-			const newWidth = resizer.offsetWidth + (side == 'left' ? -e.movementX : e.movementX) + 'px';
-			nodeAttrs.w = resizer.style.width = newWidth;
-
-			// Preserve aspect ratio if shift key is pressed
-			if (preserveAspectRatio) {
-				preserveAspectRatio(resizer, nodeAttrs, newWidth, true);
-			}
+			const currentWidth = parseInt(resizer.style.width, 10);
+			const dx = side === 'left' ? e.movementX * -1 : e.movementX;
+			const newWidth = currentWidth + dx;
+			resizer.style.width = `${newWidth}px`;
+			nodeAttrs.w = `${newWidth}px`;
+			preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, e.shiftKey);
 		} else {
-			nodeAttrs.h = resizer.style.height = resizer.offsetHeight + e.movementY + 'px';
+			const currentHeight = parseInt(resizer.style.height, 10);
+			const dy = side === 'top' ? e.movementY * -1 : e.movementY;
+			const newHeight = currentHeight + dy;
+			resizer.style.height = `${newHeight}px`;
+			nodeAttrs.h = `${newHeight}px`;
 		}
 	};
 
@@ -279,4 +279,4 @@ function knobDrag(e: PointerEvent, knob: HTMLDivElement, side: 'left' | 'right' 
 	};
 }
 
-export { ImageResize, ImageResize as default };
+export { ImageResize as default, ImageResize };

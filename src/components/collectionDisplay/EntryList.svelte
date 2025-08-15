@@ -1,7 +1,7 @@
 <!--
 @file src/components/collectionDisplay/EntryList.svelte
 @component
-**EntryList component to display collections data.**
+**EntryList component to display collections data**
 
 @example
 <EntryList />
@@ -325,46 +325,44 @@ Features:
 	$effect(() => {
 		// Sync displayTableHeaders with settings or defaults from tableHeaders
 		const currentCollId = currentCollection?._id;
-		untrack(() => {
-			// Avoid self-triggering loop if displayTableHeaders itself is changed by DND
-			const settings = entryListPaginationSettings;
-			if (tableHeaders.length > 0) {
-				// If settings for current collection exist and have displayTableHeaders, use them
-				if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
-					// Reconcile saved headers with current schema headers
-					// This ensures that if schema changes (e.g. field removed/added), it's handled gracefully
-					const schemaHeaderMap = new Map(tableHeaders.map((th) => [th.name, th]));
-					const reconciledHeaders: TableHeader[] = [];
-					const addedNames = new Set<string>();
+		const settings = entryListPaginationSettings;
 
-					// First, add headers from saved settings that still exist in the schema, maintaining saved order and visibility
-					for (const savedHeader of settings.displayTableHeaders) {
-						const schemaHeader = schemaHeaderMap.get(savedHeader.name);
-						if (schemaHeader) {
-							reconciledHeaders.push({
-								...schemaHeader, // Base properties from schema (like id, label)
-								id: savedHeader.id || schemaHeader.id, // Prefer saved ID if available
-								visible: typeof savedHeader.visible === 'boolean' ? savedHeader.visible : schemaHeader.visible // Prefer saved visibility
-							});
-							addedNames.add(savedHeader.name);
-						}
+		if (tableHeaders.length > 0) {
+			// If settings for current collection exist and have displayTableHeaders, use them
+			if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
+				// Reconcile saved headers with current schema headers
+				// This ensures that if schema changes (e.g. field removed/added), it's handled gracefully
+				const schemaHeaderMap = new Map(tableHeaders.map((th) => [th.name, th]));
+				const reconciledHeaders: TableHeader[] = [];
+				const addedNames = new Set<string>();
+
+				// First, add headers from saved settings that still exist in the schema, maintaining saved order and visibility
+				for (const savedHeader of settings.displayTableHeaders) {
+					const schemaHeader = schemaHeaderMap.get(savedHeader.name);
+					if (schemaHeader) {
+						reconciledHeaders.push({
+							...schemaHeader, // Base properties from schema (like id, label)
+							id: savedHeader.id || schemaHeader.id, // Prefer saved ID if available
+							visible: typeof savedHeader.visible === 'boolean' ? savedHeader.visible : schemaHeader.visible // Prefer saved visibility
+						});
+						addedNames.add(savedHeader.name);
 					}
-					// Then, add any new headers from the schema that weren't in saved settings
-					for (const schemaHeader of tableHeaders) {
-						if (!addedNames.has(schemaHeader.name)) {
-							reconciledHeaders.push({ ...schemaHeader, visible: true }); // New headers are visible by default
-						}
-					}
-					displayTableHeaders = reconciledHeaders;
-				} else {
-					// No specific settings for these headers, or collection changed: use default from tableHeaders
-					displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
 				}
+				// Then, add any new headers from the schema that weren't in saved settings
+				for (const schemaHeader of tableHeaders) {
+					if (!addedNames.has(schemaHeader.name)) {
+						reconciledHeaders.push({ ...schemaHeader, visible: true }); // New headers are visible by default
+					}
+				}
+				displayTableHeaders = reconciledHeaders;
 			} else {
-				// No schema headers
-				displayTableHeaders = [];
+				// No specific settings for these headers, or collection changed: use default from tableHeaders
+				displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
 			}
-		});
+		} else {
+			// No schema headers
+			displayTableHeaders = [];
+		}
 	});
 
 	let visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
@@ -1185,25 +1183,15 @@ Features:
 		displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: newVisibility }));
 	}
 
-	function resetColumnSettings() {
+	// It now resets the entire view (columns, filters, sorting, pagination) to its default state.
+	function resetViewSettings() {
 		const currentCollId = currentCollection?._id;
 		if (browser && currentCollId) {
 			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
 		}
-		// Reset relevant parts of the settings state by re-assigning the whole object or critical sub-objects
-		entryListPaginationSettings = {
-			...defaultPaginationSettings(currentCollId ?? null), // Start with fresh defaults
-			// Potentially keep some user preferences like density if desired
-			density: entryListPaginationSettings.density,
-			// Re-initialize filters based on current tableHeaders
-			filters: tableHeaders.reduce(
-				(acc, th) => {
-					acc[th.name] = '';
-					return acc;
-				},
-				{} as Record<string, string>
-			)
-		};
+		// By re-assigning the settings to a fresh default object, we trigger the reactive effects
+		// that will reset the column order, filters, sorting, and pagination.
+		entryListPaginationSettings = defaultPaginationSettings(currentCollId);
 	}
 </script>
 
@@ -1312,9 +1300,10 @@ Features:
 						<input type="checkbox" bind:checked={selectAllColumns} onchange={handleSelectAllColumnsToggle} class="mr-1" />
 						{m.entrylist_all()}
 					</label>
-					<button class="variant-ghost-surface btn btn-sm" onclick={resetColumnSettings}>
+
+					<button class="variant-ghost-surface btn btn-sm" onclick={resetViewSettings}>
 						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-tertiary-500"></iconify-icon>
-						Reset Columns
+						Reset View
 					</button>
 				</div>
 				<section

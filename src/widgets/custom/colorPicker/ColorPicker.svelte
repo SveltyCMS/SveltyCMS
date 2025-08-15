@@ -83,7 +83,7 @@
 		<input
 			type="color"
 			bind:value={_data.color}
-			class="h-11 w-11 rounded border-0"
+			class="h-11 w-11 cursor-pointer rounded border border-surface-400/40 bg-surface-100 p-0 dark:border-surface-300/30 dark:bg-surface-600"
 			class:error={!!validationError}
 			oninput={validateInput}
 			aria-label="Color picker"
@@ -97,7 +97,7 @@
 			bind:value={_data.color}
 			oninput={validateInput}
 			placeholder={m.colorPicker_hex()}
-			class="input text-black dark:text-primary-500"
+			class="input font-mono text-sm text-surface-900 dark:bg-surface-700 dark:text-surface-50"
 			class:error={!!validationError}
 			aria-label="Hex color value"
 			aria-invalid={!!validationError}

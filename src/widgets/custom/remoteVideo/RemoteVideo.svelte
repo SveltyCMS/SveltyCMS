@@ -132,8 +132,13 @@
 	<!-- URL Input -->
 	<input
 		type="url"
-		bind:value={_data[_language]}
-		oninput={handleInput}
+		value={_data[_language] || ''}
+		on:input={(e) => {
+			const v = (e.target as HTMLInputElement).value;
+			_data[_language] = v;
+			value = v; // keep legacy value in sync
+			handleInput(e);
+		}}
 		class="input w-full text-black dark:text-primary-500"
 		class:error={!!validationError}
 		aria-invalid={!!validationError}

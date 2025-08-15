@@ -1,29 +1,37 @@
-<!--
- @file src/components/TranslationStatus.svelte
- @component
- **Translation status component for displaying translation progress per language in a progress bar with percentage.**
+
+<!-- 
+@file src/components/TranslationStatus.svelte 
+@component
+**Translation status component for displaying translation progress per language in a progress bar with percentage.**
 
 @example
- <TranslationStatus />  
+<TranslationStatus /> 
 
- ### Props:
- - `mode` {object} - The current mode object from the mode store
- - `collection` {object} - The current collection object from the collection store
+### Props:
+- `mode` {object} - The current mode object from the mode store
+- `collection` {object} - The current collection object from the collection store
 
- ### Features:
- - Persists translation progress through API calls
- - Displays translation progress per language in a progress bar with percentage
- - Handles language selection and translation progress updates
- - Smooth animations and micro-interactions
+### Features:
+- Persists translation progress through API calls
+- Displays translation progress per language in a progress bar with percentage
+- Handles language selection and translation progress updates
+- Smooth animations and micro-interactions
 -->
 
 <script lang="ts">
+
+	import { publicEnv } from '@root/config/public';
+	import { cubicOut, quintOut } from 'svelte/easing';
+	import { Tween } from 'svelte/motion';
+
+	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
+
+	// Store
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
-	import { cubicOut, quintOut } from 'svelte/easing';
-	import { Tween } from 'svelte/motion';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
