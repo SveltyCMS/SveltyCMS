@@ -119,9 +119,9 @@
 	const tableHeadersUser = [
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_avatar(), key: 'avatar' },
-		{ label: m.form_email(), key: 'email' },
-		{ label: m.form_username(), key: 'username' },
-		{ label: m.form_role(), key: 'role' },
+		{ label: m.email(), key: 'email' },
+		{ label: m.username(), key: 'username' },
+		{ label: m.role(), key: 'role' },
 		{ label: 'Tenant ID', key: 'tenantId' },
 		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_activesession(), key: 'activeSessions' },
@@ -132,8 +132,8 @@
 
 	const tableHeaderToken = [
 		{ label: m.adminarea_blocked(), key: 'blocked' },
-		{ label: m.form_email(), key: 'email' },
-		{ label: m.form_role(), key: 'role' },
+		{ label: m.email(), key: 'email' },
+		{ label: m.role(), key: 'role' },
 		{ label: 'Tenant ID', key: 'tenantId' },
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },

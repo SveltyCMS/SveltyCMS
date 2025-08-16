@@ -9,13 +9,13 @@ This version includes corrections for permission contexts and link typos.
 -->
 
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { onMount } from 'svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
-	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	onMount(() => {
 		collection.set(null);
@@ -48,6 +48,8 @@ This version includes corrections for permission contexts and link typos.
 			iconColor: 'text-tertiary-600',
 			permission: {
 				contextId: 'config:collectionManagement',
+				name: 'Collection Builder',
+				description: 'Manage and build collections',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -63,6 +65,8 @@ This version includes corrections for permission contexts and link typos.
 			target: '_blank',
 			permission: {
 				contextId: 'api:graphql',
+				name: 'GraphQL',
+				description: 'Access GraphQL API',
 				requiredRole: 'developer',
 				action: 'access',
 				contextType: 'system'
@@ -77,6 +81,8 @@ This version includes corrections for permission contexts and link typos.
 			iconColor: 'text-primary-600',
 			permission: {
 				contextId: 'content:images',
+				name: 'Image Editor',
+				description: 'Edit and manage images',
 				requiredRole: 'editor',
 				action: 'manage',
 				contextType: 'system'
@@ -92,6 +98,8 @@ This version includes corrections for permission contexts and link typos.
 			target: '_blank',
 			permission: {
 				contextId: 'system:admin',
+				name: 'Email Previews',
+				description: 'Preview system emails',
 				requiredRole: 'admin',
 				action: 'access',
 				contextType: 'system'
@@ -100,12 +108,14 @@ This version includes corrections for permission contexts and link typos.
 		{
 			id: 'dashboard',
 			href: '/dashboard',
-			label: m.config_Dashboard(),
+			label: m.dashboard(),
 			icon: 'bi:bar-chart-line',
 			classes: 'variant-ghost-primary dark:text-white',
 			iconColor: 'text-error-600',
 			permission: {
 				contextId: 'system:dashboard',
+				name: 'Dashboard',
+				description: 'Access system dashboard',
 				requiredRole: 'user',
 				action: 'access',
 				contextType: 'system'
@@ -114,7 +124,7 @@ This version includes corrections for permission contexts and link typos.
 		{
 			id: 'marketplace',
 			href: 'https://www.sveltyCMS.com',
-			label: m.config_Martketplace(),
+			label: m.marketplace(),
 			icon: 'icon-park-outline:shopping-bag',
 			classes: 'variant-ghost-primary dark:text-white',
 			target: '_blank',
@@ -128,6 +138,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-primary dark:text-white',
 			permission: {
 				contextId: 'config:widgetManagement',
+				name: 'Widget Management',
+				description: 'Manage system widgets',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -141,6 +153,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-primary dark:text-white',
 			permission: {
 				contextId: 'config:themeManagement',
+				name: 'Theme Management',
+				description: 'Manage system themes',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -155,6 +169,8 @@ This version includes corrections for permission contexts and link typos.
 			permission: {
 				// FIX: Changed from 'system:settings' to 'config:settings' to match +page.server.ts
 				contextId: 'config:settings',
+				name: 'Settings',
+				description: 'Manage system settings',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'system'
@@ -168,6 +184,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-warning dark:text-white',
 			permission: {
 				contextId: 'config:importExport',
+				name: 'Import & Export',
+				description: 'Import and export system data',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'system'
@@ -182,6 +200,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-error dark:text-white',
 			permission: {
 				contextId: 'config:accessManagement',
+				name: 'Access Management',
+				description: 'Manage user access and roles',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'

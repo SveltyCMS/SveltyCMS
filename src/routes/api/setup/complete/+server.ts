@@ -53,7 +53,7 @@ interface AdminConfig {
 	confirmPassword: string;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		const setupData = await request.json();
 		const { database, admin, system, apiKeys } = setupData;
@@ -100,10 +100,50 @@ export const POST: RequestHandler = async ({ request }) => {
 			console.warn('⚠️ Could not reload settings cache, continuing anyway:', loadError);
 		}
 
-		// Step 6: Send response immediately before any potential server restart
+		// Step 6: Auto-create session for the admin user so they're logged in immediately
+		interface SessionCookieMeta {
+			name: string;
+			value: string;
+			attributes?: Record<string, unknown>;
+		}
+		let sessionCookie: SessionCookieMeta | null = null;
+		try {
+			// Lazy import auth system pieces (db.ts) AFTER settings saved & adapters loaded via subsequent init cycle
+			const { auth } = await import('@src/databases/db');
+			if (auth) {
+				// Fetch the admin user we just created/updated
+				const userAdapter = new UserAdapter();
+				const adminUser = await userAdapter.getUserByEmail({ email: admin.email });
+				if (adminUser?._id) {
+					const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+					// create session directly through auth (handles store)
+					const session = await auth.createSession({ user_id: adminUser._id, expires: expiresAt });
+					sessionCookie = auth.createSessionCookie(session._id) as SessionCookieMeta;
+					cookies.set(sessionCookie.name, sessionCookie.value, { ...(sessionCookie.attributes || {}), path: '/' });
+					console.log('✅ Admin session created during setup completion');
+				}
+			} else {
+				console.warn('⚠️ Auth not yet initialized during setup completion – admin auto-login skipped');
+			}
+		} catch (sessErr) {
+			console.warn('⚠️ Failed to auto-login admin user after setup:', sessErr);
+		}
+
+		// Step 6 (response): Provide redirect path hint to first collection
+		let redirectPath = '/';
+		try {
+			// dynamic import to avoid circular issues
+			const { contentManager } = await import('@src/content/ContentManager');
+			const first = contentManager.getFirstCollection();
+			if (first?.path) redirectPath = first.path.startsWith('/') ? first.path : `/${first.path}`;
+		} catch {
+			// swallow – auto-login is optional
+		}
 		const response = json({
 			success: true,
-			message: 'Setup completed successfully'
+			message: 'Setup completed successfully',
+			redirectPath,
+			loggedIn: !!sessionCookie
 		});
 
 		// Step 7: Update private config file with database settings (do this after response)

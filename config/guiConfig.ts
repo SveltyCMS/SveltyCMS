@@ -127,7 +127,7 @@ const databaseConfig: ConfigCategory = {
 };
 
 const emailConfig: ConfigCategory = {
-	description: m.emailConfig_Description(),
+	description: m.emailConfig_description(),
 	icon: 'mdi:email',
 	fields: {
 		SMTP_HOST: {
@@ -190,7 +190,7 @@ const sessionConfig: ConfigCategory = {
 };
 
 const googleConfig: ConfigCategory = {
-	description: m.googleConfig_Description(),
+	description: m.googleConfig_description(),
 	icon: 'mdi:google',
 	fields: {
 		USE_GOOGLE_OAUTH: {
@@ -221,7 +221,7 @@ const googleConfig: ConfigCategory = {
 };
 
 const redisConfig: ConfigCategory = {
-	description: m.redisConfig_Description(),
+	description: m.redisConfig_description(),
 	icon: 'mdi:server-network',
 	fields: {
 		USE_REDIS: {
@@ -252,7 +252,7 @@ const redisConfig: ConfigCategory = {
 };
 
 const mapboxConfig: ConfigCategory = {
-	description: m.mapboxConfig_Description(),
+	description: m.mapboxConfig_description(),
 	icon: 'mdi:map-marker',
 	fields: {
 		USE_MAPBOX: {
@@ -292,7 +292,7 @@ const apiConfig: ConfigCategory = {
 };
 
 const tiktokConfig: ConfigCategory = {
-	description: m.tiktokConfig_Description(),
+	description: m.tiktokConfig_description(),
 	icon: 'ic:baseline-tiktok',
 	fields: {
 		USE_TIKTOK: {
@@ -394,7 +394,7 @@ const privateConfigCategories = {
 };
 
 const systemConfig: ConfigCategory = {
-	description: m.systemConfig_Description(),
+	description: m.systemConfig_description(),
 	icon: 'mdi:cog',
 	fields: {
 		SITE_NAME: {
@@ -475,7 +475,7 @@ const systemConfig: ConfigCategory = {
 };
 
 const languageConfig: ConfigCategory = {
-	description: m.languageConfig_Description(),
+	description: m.languageConfig_description(),
 	icon: 'mdi:translate',
 	fields: {
 		DEFAULT_CONTENT_LANGUAGE: {
@@ -506,7 +506,7 @@ const languageConfig: ConfigCategory = {
 };
 
 const mediaConfig: ConfigCategory = {
-	description: m.mediaConfig_Description(),
+	description: m.mediaConfig_description(),
 	icon: 'mdi:image',
 	fields: {
 		IMAGE_SIZES: {

@@ -93,7 +93,7 @@
 						type="text"
 						required
 						bind:value={token}
-						label={m.signup_registrationtoken()}
+						label={m.registration_token?.() || m.signup_registrationtoken?.()}
 						icon="mdi:key-chain"
 						iconColor="white"
 						textColor="white"

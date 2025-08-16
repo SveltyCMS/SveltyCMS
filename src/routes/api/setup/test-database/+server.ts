@@ -1,48 +1,170 @@
 /**
  * @file src/routes/api/setup/test-database/+server.ts
  * @description API endpoint to test database connections during setup
+ *
+ * Features:
+ * -
  */
 
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import mongoose from 'mongoose';
+import type { RequestHandler } from './$types';
+
+// Reuse similar timeout constant as in dbconnect.ts
+const DB_TIMEOUT = 15000; // 15s server selection
+
+/**
+ * Classify a Mongo connection error into a stable code we can translate client‑side.
+ */
+function classifyMongoError(err: unknown): { classification: string; raw: string } {
+	const raw = err instanceof Error ? err.message : String(err);
+	const lower = raw.toLowerCase();
+	if (/auth/i.test(lower) && /fail|bad|auth/i.test(lower)) return { classification: 'authentication_failed', raw };
+	if (/not authorized|unauthorized|permission/i.test(lower)) return { classification: 'not_authorized', raw };
+	if (/ecconnrefused|connection refused/i.test(lower)) return { classification: 'connection_refused', raw };
+	if (/enotfound|getaddrinfo|dns/i.test(lower)) return { classification: 'dns_not_found', raw };
+	if (/timed out|timeout|server selection timed out/i.test(lower)) return { classification: 'timeout', raw };
+	if (/tls|ssl|certificate/i.test(lower)) return { classification: 'tls_error', raw };
+	if (/uri malformed|invalid connection string|must begin with|invalid scheme/i.test(lower)) return { classification: 'invalid_uri', raw };
+	return { classification: 'unknown', raw };
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const dbConfig = await request.json();
 
-		// Test MongoDB connection
+		// Test MongoDB connection with deeper validation
 		if (dbConfig.type === 'mongodb') {
-			const connectionString = dbConfig.host.startsWith('mongodb+srv://')
-				? `${dbConfig.host}/${dbConfig.name}`
-				: `${dbConfig.host}${dbConfig.port ? `:${dbConfig.port}` : ''}/${dbConfig.name}`;
+			// Accept either hostnames (localhost, mongo) or full URIs (mongodb:// / mongodb+srv://)
+			const hasScheme = typeof dbConfig.host === 'string' && (dbConfig.host.startsWith('mongodb://') || dbConfig.host.startsWith('mongodb+srv://'));
+			const isAtlas = hasScheme && dbConfig.host.startsWith('mongodb+srv://');
+			const baseHost = hasScheme ? dbConfig.host : `mongodb://${dbConfig.host}`;
+
+			// Append port only if: not Atlas, a port provided, and baseHost does not already include an explicit port
+			let hostWithPort = baseHost;
+			if (!isAtlas && dbConfig.port) {
+				// Extract host portion after scheme before any slash or query
+				const hostPortPart = baseHost.replace(/^mongodb(?:\+srv)?:\/\//, '').split('/')[0];
+				const alreadyHasPort = /:[0-9]+$/.test(hostPortPart);
+				if (!alreadyHasPort) hostWithPort = `${baseHost}:${dbConfig.port}`;
+			}
+
+			const connectionString = isAtlas ? `${baseHost}/${dbConfig.name}` : `${hostWithPort}/${dbConfig.name}`;
 
 			const options = {
 				user: dbConfig.user || undefined,
 				pass: dbConfig.password || undefined,
-				maxPoolSize: 1 // Use minimal pool for testing
+				dbName: dbConfig.name,
+				authSource: isAtlas ? undefined : 'admin',
+				retryWrites: true,
+				serverSelectionTimeoutMS: DB_TIMEOUT,
+				maxPoolSize: 1 // minimal pool for a probe
 			};
 
-			// Test connection
-			const testConnection = await mongoose.createConnection(connectionString, options);
-			await testConnection.asPromise();
-			await testConnection.close();
+			let conn;
+			const warnings: string[] = [];
+			let authenticatedUsers: Array<{ user: string; db: string }> = [];
+			let dbStats: Record<string, unknown> | null = null;
+			let collectionsSample: string[] = [];
+			const start = Date.now();
+			try {
+				conn = await mongoose.createConnection(connectionString, options).asPromise();
+				const nativeDb = conn.getClient().db(dbConfig.name);
+				// Force server selection + auth
+				await nativeDb.command({ ping: 1 });
+				// Gather lightweight stats (ignore if unauthorized)
+				try {
+					dbStats = await nativeDb.command({ dbStats: 1, scale: 1 });
+				} catch {
+					warnings.push('dbStats_not_authorized');
+				}
+				// List up to 3 collection names to prove namespace access
+				try {
+					const cols = await nativeDb.listCollections({}, { nameOnly: true }).toArray();
+					collectionsSample = cols.slice(0, 3).map((c) => c.name);
+				} catch {
+					warnings.push('listCollections_failed');
+				}
+				// Connection / auth status (admin command requires role; ignore failures)
+				try {
+					const status = await nativeDb.admin().command({ connectionStatus: 1 });
+					if (status?.authInfo?.authenticatedUsers) authenticatedUsers = status.authInfo.authenticatedUsers;
+				} catch {
+					warnings.push('auth_status_unavailable');
+				}
+			} catch (error) {
+				const { classification, raw } = classifyMongoError(error);
+				return json(
+					{
+						success: false,
+						error: raw,
+						classification,
+						atlas: isAtlas,
+						usedUri: connectionString
+					},
+					{ status: 500 }
+				);
+			} finally {
+				if (conn) await conn.close().catch(() => {});
+			}
+
+			const durationMs = Date.now() - start;
+			const authProvided = Boolean(dbConfig.user || dbConfig.password);
+			const authenticated = authenticatedUsers.length > 0;
+			if (!authProvided && authenticated) {
+				warnings.push('unexpected_authenticated_without_credentials');
+			}
+			if (!authProvided && !authenticated) {
+				warnings.push('unauthenticated_connection');
+			}
+			if (authProvided && !authenticated) {
+				warnings.push('credentials_not_authenticated');
+			}
+
+			// Determine success & messaging
+			let success = authenticated;
+			let message = authenticated ? 'Database connection (authenticated) successful' : 'Database connection failed: unauthenticated';
+			if (!authProvided) {
+				// If no credentials supplied, we still may want to warn rather than succeed silently
+				if (authenticated) {
+					// Edge case: server auto-auth (X509 / mechanism) – treat as success
+					success = true;
+					message = 'Database connection successful (implicit authentication)';
+				} else {
+					warnings.push('unauthenticated_connection_blocked');
+					success = false;
+					message = 'Unauthenticated connection refused. Provide user & password.';
+				}
+			}
 
 			return json({
-				success: true,
-				message: 'Database connection successful'
+				success,
+				message,
+				atlas: isAtlas,
+				usedUri: connectionString,
+				authenticated,
+				warnings,
+				latencyMs: durationMs,
+				collectionsSample,
+				stats: dbStats ? { collections: dbStats.collections, objects: dbStats.objects, dataSize: dbStats.dataSize } : null,
+				authenticatedUsers
 			});
 		} else {
-			// For other database types, you would implement similar connection testing
+			// Placeholder for future database engines
 			return json({
 				success: false,
 				error: 'Database type not yet supported for testing'
 			});
 		}
 	} catch (error) {
-		return json({
-			success: false,
-			error: error instanceof Error ? error.message : 'Unknown database error'
-		}, { status: 500 });
+		const { classification, raw } = classifyMongoError(error);
+		return json(
+			{
+				success: false,
+				error: raw,
+				classification
+			},
+			{ status: 500 }
+		);
 	}
 };

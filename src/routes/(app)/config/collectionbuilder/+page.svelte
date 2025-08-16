@@ -269,7 +269,7 @@
 		disabled={isLoading}
 	>
 		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
-		{m.collection_addcollection()}
+		{m.collection_add()}
 	</button>
 
 	<!-- Save Button -->
@@ -292,7 +292,7 @@
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
 		<p class="mb-4 text-center dark:text-primary-500">
-			{m.collection_text_description()}
+			{m.collection_description()}
 		</p>
 
 		<Board contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />

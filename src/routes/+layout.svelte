@@ -6,6 +6,8 @@
 
 <script lang="ts">
 	import '../app.postcss';
+	// Register Iconify custom element globally
+	import 'iconify-icon';
 
 	import { page } from '$app/state';
 	// Initializing Skeleton stores

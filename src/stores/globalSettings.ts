@@ -112,27 +112,26 @@ export function disableSetupMode(): void {
  */
 export async function loadGlobalSettings(): Promise<void> {
 	try {
-		// Dynamically import SystemPreferencesModel to avoid mongoose initialization issues
-		const { SystemPreferencesModel } = await import('@src/databases/mongodb/models/systemPreferences');
+		// Dynamically import SystemSettingModel (key-value settings)
+		const { SystemSettingModel } = await import('@src/databases/mongodb/models/setting');
 
-		const allPrefs = await SystemPreferencesModel.find({ scope: 'system' }).lean().exec();
+		const allSettings = await SystemSettingModel.find({ scope: 'system' }).lean().exec();
 		settingsCache = {};
-		for (const pref of allPrefs) {
-			settingsCache[pref.key] = pref;
+		for (const setting of allSettings) {
+			if (!setting.key) continue; // Safety guard
+			settingsCache[setting.key] = setting as unknown as SystemPreferences; // Reuse interface shape
 		}
 		cacheLoaded = true;
 
-		// Check if setup is complete based on loaded settings
 		const setupCompleted = settingsCache['SETUP_COMPLETED']?.value;
 		if (setupCompleted) {
-			setupMode = false; // Disable setup mode if setup is complete
+			setupMode = false;
 			console.log('✅ Setup completed, disabling setup mode');
 		}
 	} catch (error) {
-		// If database connection fails, fall back to setup mode
 		console.warn('Database connection failed, enabling setup mode:', error);
 		enableSetupMode();
-		throw error; // Re-throw to let caller handle it
+		throw error;
 	}
 }
 

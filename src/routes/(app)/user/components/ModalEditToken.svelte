@@ -147,7 +147,8 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				throw new Error(data.message || 'Failed to delete token');
 			}
 
-			showToast(`<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_user_deleted()}`, 'success');
+			
+			showToast(`<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_deleted_successfully()}`, 'success');
 			// Return success so parent can update UI
 			modalStore.close({ success: true, action: 'delete' });
 			await invalidateAll();
@@ -199,7 +200,7 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				<FloatingInput
 					type="email"
 					name="email"
-					label={m.form_emailaddress()}
+					label={m.email()}
 					bind:value={formData.email}
 					onkeydown={() => (errorStatus.email.status = false)}
 					required
@@ -220,7 +221,7 @@ delete endpoint, resolving the "Unexpected token" browser error.
 			{#if user.role === 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
-						{m.form_userrole()}: <span class="text-error-500">*</span>
+						{m.role()}: <span class="text-error-500">*</span>
 					</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">

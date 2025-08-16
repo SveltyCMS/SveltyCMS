@@ -185,7 +185,7 @@
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
+					{m.role()}<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
@@ -205,11 +205,11 @@
 			{#if user}
 				<form>
 					<label>
-						{m.form_username()}:
+						{m.username()}:
 						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input" />
 					</label>
 					<label>
-						{m.form_email()}:
+						{m.email()}:
 						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input" />
 					</label>
 					<label>

@@ -42,10 +42,14 @@ export async function connectToMongoDBWithConfig(dbConfig: {
 	const MAX_RETRIES = 5;
 	const RETRY_DELAY = 5000;
 
-	const isAtlas = dbConfig.host.startsWith('mongodb+srv://');
+	// Normalize host to ensure scheme present (users might enter just 'localhost' or 'mongo')
+	const hasScheme = dbConfig.host.startsWith('mongodb://') || dbConfig.host.startsWith('mongodb+srv://');
+	const normalizedHost = hasScheme ? dbConfig.host : `mongodb://${dbConfig.host}`;
+	const isAtlas = normalizedHost.startsWith('mongodb+srv://');
 	const connectionString = isAtlas
-		? `${dbConfig.host}/${dbConfig.name}`
-		: `${dbConfig.host}${dbConfig.port ? `:${dbConfig.port}` : ''}/${dbConfig.name}`;
+		? `${normalizedHost}/${dbConfig.name}`
+		: `${normalizedHost}${dbConfig.port ? `:${dbConfig.port}` : ''}/${dbConfig.name}`;
+	logger.info(`Using MongoDB connection string: ${connectionString.replace(/:(.*?)@/, ':****@')}`);
 
 	const options: ConnectOptions = {
 		authSource: isAtlas ? undefined : 'admin',

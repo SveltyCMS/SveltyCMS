@@ -1,13 +1,17 @@
+import { SystemSettingModel } from '@src/databases/mongodb/models/setting';
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { SystemPreferencesModel } from '@src/databases/mongodb/models/systemPreferences';
-import { unlinkSync, existsSync } from 'fs';
+import { existsSync, unlinkSync } from 'fs';
 import { resolve } from 'path';
+import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async () => {
 	try {
-		// Reset the SETUP_COMPLETED flag in database
-		await SystemPreferencesModel.updateOne({ key: 'SETUP_COMPLETED' }, { $set: { value: false } }, { upsert: true });
+		// Reset the SETUP_COMPLETED flag in database (key-value settings collection)
+		await SystemSettingModel.updateOne(
+			{ key: 'SETUP_COMPLETED' },
+			{ $set: { value: false, scope: 'system', visibility: 'public' } },
+			{ upsert: true }
+		);
 
 		// Remove the private.ts file to trigger file-based setup check
 		const privateConfigPath = resolve(process.cwd(), 'config/private.ts');

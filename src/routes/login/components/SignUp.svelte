@@ -305,7 +305,7 @@ Features:
 						tabindex={usernameTabIndex}
 						required
 						bind:value={$form.username}
-						label={m.form_username()}
+						label={m.username()}
 						{...$constraints.username}
 						icon="mdi:user-circle"
 						iconColor="white"
@@ -326,7 +326,7 @@ Features:
 						autocapitalize="none"
 						spellcheck={false}
 						bind:value={$form.email}
-						label={m.form_emailaddress()}
+						label={m.email()}
 						{...$constraints.email}
 						icon="mdi:email"
 						iconColor="white"
@@ -373,7 +373,8 @@ Features:
 						required
 						bind:value={$form.confirm_password}
 						{showPassword}
-						label={m.form_confirmpassword()}
+					
+						label={m.confirm_password?.() || m.form_confirmpassword?.()}
 						{...$constraints.confirm_password}
 						icon="mdi:password"
 						iconColor="white"
@@ -398,7 +399,8 @@ Features:
 							tabindex={tokenTabIndex}
 							required
 							bind:value={$form.token}
-							label={m.signup_registrationtoken()}
+							
+							label={m.registration_token?.() || m.signup_registrationtoken?.()}
 							{...$constraints.token}
 							icon="mdi:key-chain"
 							iconColor="white"
