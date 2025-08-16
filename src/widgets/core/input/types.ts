@@ -3,7 +3,7 @@
 @description - Input widget types
 */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 import { toStringHelper } from '@utils/utils';
 
 // Components
@@ -74,11 +74,12 @@ export const GuiSchema = {
 /**
  * Define Text GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
+export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
 	// Use the sanitized field name as the type ID
 	const typeID = label;
 
-	const graphqlFields = publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n');
+	const languages = await getPublicSetting('LOCALES');
+	const graphqlFields = languages ? languages.map((contentLanguage) => `${contentLanguage}: String`).join('\n') : 'en: String';
 
 	// Return an object containing the type name and the GraphQL schema
 	const schema = {

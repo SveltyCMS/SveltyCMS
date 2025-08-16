@@ -1,6 +1,6 @@
 /**
 @file src/widgets/core/mediaUpload/index.ts
-@description - MediaUpload index file  
+@description - MediaUpload index file
 
 Features:
 - Media upload for images, videos, audio, and documents
@@ -10,7 +10,7 @@ Features:
 - Array of uploaded files
 */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 
 // Media
 import type { MediaType } from '@utils/media/mediaModels';
@@ -41,8 +41,8 @@ interface AggregationInfo {
 	sort?: number;
 }
 
-function getLanguage(info: AggregationInfo): string {
-	return info.contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+async function getLanguage(info: AggregationInfo): Promise<string> {
+	return info.contentLanguage || ((await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string);
 }
 
 // Helper function to safely get element by ID
@@ -183,7 +183,7 @@ widget.aggregations = {
 	filters: async (info: AggregationInfo) => {
 		const field = info.field as ReturnType<typeof widget>;
 		const fieldName = getFieldName(field);
-		const language = getLanguage(info);
+		const language = await getLanguage(info);
 
 		return [
 			{
@@ -199,7 +199,7 @@ widget.aggregations = {
 	sorts: async (info: AggregationInfo) => {
 		const field = info.field as ReturnType<typeof widget>;
 		const fieldName = getFieldName(field);
-		const language = getLanguage(info);
+		const language = await getLanguage(info);
 
 		return [{ $sort: { [`${fieldName}.${language}`]: info.sort || 1 } }];
 	}

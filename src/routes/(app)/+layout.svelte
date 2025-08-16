@@ -26,7 +26,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -234,8 +234,11 @@
 	});
 
 	// SEO
-	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
-	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	const siteName = $derived(data.settings?.SITE_NAME || 'SveltyCMS');
+	const SeoTitle = $derived(`${siteName}`);
+	const SeoDescription = $derived(
+		`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`
+	);
 </script>
 
 <svelte:head>

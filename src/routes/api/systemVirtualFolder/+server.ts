@@ -11,7 +11,7 @@
  * - ModifyRequest support for widget-based data processing.
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
 

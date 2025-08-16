@@ -10,7 +10,6 @@
  */
 
 import { dev } from '$app/environment';
-import { privateEnv } from '@root/config/private';
 import { error } from '@sveltejs/kit';
 
 import type { authDBInterface } from './authDBInterface';
@@ -22,21 +21,26 @@ import { corePermissions } from './corePermissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Password utilities
+
+// Import global settings service for DB-based configuration
+import { getGlobalSetting } from '@src/stores/globalSettings';
+
 export {
-	hasPermissionWithRoles as hasPermission,
-	hasPermissionByAction,
+	checkPermissions,
 	getRolePermissionsWithRoles as checkRolePermissions,
-	isAdminRoleWithRoles,
-	validateUserPermission,
-	registerPermission,
 	getAllPermissions,
 	getPermissionById,
 	getPermissionConfig,
+	getUserRole,
+	getUserRoles,
+	hasPermissionWithRoles as hasPermission,
+	hasPermissionByAction,
+	isAdminRoleWithRoles,
 	permissionConfigs,
 	permissions,
-	checkPermissions,
-	getUserRole,
-	getUserRoles
+	registerPermission,
+	validateUserPermission
 } from './permissions';
 
 // Note: TOTP functions are server-only and should be imported from './totp' directly
@@ -52,7 +56,7 @@ export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoF
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
 // Export safe constants
-export { SESSION_COOKIE_NAME, generateRandomToken, generateTokenWithExpiry } from './constants';
+export { generateRandomToken, generateTokenWithExpiry, SESSION_COOKIE_NAME } from './constants';
 
 // Import for internal use
 import { SESSION_COOKIE_NAME } from './constants';
@@ -164,7 +168,7 @@ export class Auth {
 				throw error(400, 'Email and password are required');
 			}
 
-			if (privateEnv.MULTI_TENANT && !tenantId) {
+			if (getGlobalSetting('MULTI_TENANT') && !tenantId) {
 				throw error(400, 'Tenant ID is required in multi-tenant mode');
 			}
 

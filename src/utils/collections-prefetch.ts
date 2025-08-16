@@ -5,10 +5,10 @@
  * Gets first collection info and fetches/caches data during authentication for instant loading
  */
 
-import { contentManager } from '@root/src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
 import { dev } from '$app/environment';
-import { publicEnv } from '@root/config/public';
+import { contentManager } from '@root/src/content/ContentManager';
+import { getPublicSetting } from '@src/stores/globalSettings';
+import { logger } from '@utils/logger.svelte';
 
 interface PrefetchedData {
 	collectionId: string;
@@ -88,7 +88,9 @@ export async function fetchAndCacheCollectionData(language: string = 'en', fetch
 				const url = new URL(serverRequest.url);
 				baseUrl = `${url.protocol}//${url.host}`;
 			} else {
-				baseUrl = dev ? publicEnv.HOST_DEV || 'http://localhost:5176' : publicEnv.HOST_PROD || 'https://localhost';
+				const hostDev = getPublicSetting('HOST_DEV');
+				const hostProd = getPublicSetting('HOST_PROD');
+				baseUrl = dev ? hostDev || 'http://localhost:5176' : hostProd || 'https://localhost';
 			}
 		}
 

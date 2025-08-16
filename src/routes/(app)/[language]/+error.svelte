@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/[language]/+error.svelte
 @component
 **Displays an Error page for the SveltyCMS**
@@ -9,14 +9,14 @@
 ### Props:
 - `error`: The error object containing status and message.
 
-### Features: 
-- Dynamic display of error status and message based on the error encountered. 
-- Rotating animation effect for the site name to enhance visual appeal. 
+### Features:
+- Dynamic display of error status and message based on the error encountered.
+- Rotating animation effect for the site name to enhance visual appeal.
 - Clear call-to-action link to return to the homepage.
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { page } from '$app/state';

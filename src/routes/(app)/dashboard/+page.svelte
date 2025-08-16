@@ -39,6 +39,8 @@
 	let registryLoaded = $state(false);
 	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
 
+	let showImportExport = $state(false);
+
 	let dragState: {
 		item: DashboardWidgetConfig | null;
 		element: HTMLElement | null;
@@ -487,6 +489,34 @@
 		</section>
 	</div>
 </main>
+
+<!-- Import/Export Modal -->
+{#if showImportExport}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+			<div class="flex items-center justify-between border-b p-6">
+				<h3 class="text-xl font-semibold">Data Import & Export</h3>
+				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm">
+					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
+				</button>
+			</div>
+
+			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
+				<ImportExportManager />
+			</div>
+
+			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
+				<div class="text-sm text-gray-600 dark:text-gray-400">
+					<iconify-icon icon="mdi:shield-check" class="mr-1 inline h-4 w-4"></iconify-icon>
+					Your data is securely managed and never leaves your server
+				</div>
+				<div class="flex space-x-2">
+					<button onclick={() => (showImportExport = false)} class="variant-filled-primary btn"> Done </button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style lang="postcss">
 	.responsive-dashboard-grid {

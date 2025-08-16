@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/core/richText/RichText.svelte
 @component
 **RichText TipTap widget component**
@@ -15,6 +15,7 @@
 -->
 
 <script lang="ts">
+
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { meta_data, debounce, getFieldName, getTextDirection } from '@utils/utils';
@@ -79,7 +80,15 @@
 	let _data = $state(mode.value === 'create' ? { content: {}, header: {} } : value);
 
 	// Language handling
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _defaultLanguage = $state('');
+	let _language = $derived(field?.translated ? $contentLanguage : _defaultLanguage);
+
+	// Load default language
+	$effect(async () => {
+		if (!field?.translated) {
+			_defaultLanguage = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+		}
+	});
 
 	// Update editor content when language changes
 	$effect(() => {

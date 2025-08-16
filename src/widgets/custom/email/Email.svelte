@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/email/Email.svelte
 @component
 **Email widget**
@@ -17,7 +17,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
@@ -42,8 +42,10 @@
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);
 
-	// Language is constant since email is not translatable
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let _language = $state('');
+	onMount(async () => {
+		_language = await getPublicSetting('DEFAULT_CONTENT_LANGUAGE');
+	});
 
 	// Update translation progress when data changes
 

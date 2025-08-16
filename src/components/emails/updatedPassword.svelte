@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/updatedPassword.svelte
 @component
 **updatedPassword Email component to confirm password change**
@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -24,24 +24,24 @@
 		languageTag?: string;
 	}
 
-	let { username = '', tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
+	let { username = '', tokenLink = dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD'), languageTag = systemLanguage.value }: Props = $props();
 </script>
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Your password for {publicEnv.SITE_NAME} was changed</title>
+		<title>Your password for {getGlobalSetting('SITE_NAME')} was changed</title>
 	</Head>
 
-	<Preview preview="Your password for {publicEnv.SITE_NAME} was changed" />
+	<Preview preview="Your password for {getGlobalSetting('SITE_NAME')} was changed" />
 
 	<Body>
 		<Container style={{ fontSize: '16px' }}>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+				<Link href={dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD')}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${publicEnv.SITE_NAME} logo`}
+						alt={`${getGlobalSetting('SITE_NAME')} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
@@ -62,7 +62,7 @@
 				</Text>
 
 				<Text style={{ fontSize: '16px' }}>
-					You have successfully changed your password for <strong>{publicEnv.SITE_NAME}</strong>.
+					You have successfully changed your password for <strong>{getGlobalSetting('SITE_NAME')}</strong>.
 				</Text>
 
 				<!-- Security Notice -->

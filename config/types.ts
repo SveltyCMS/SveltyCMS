@@ -13,9 +13,12 @@ import { array, boolean, literal, maxValue, minLength, minValue, number, object,
 
 /**
  * The PRIVATE configuration for the application.
+ *
+ * NOTE: Only essential startup values are kept here. All other settings are now database-driven.
+ * This includes database connection info and JWT secret that are required for the server to start.
  */
 export const privateConfigSchema = object({
-	// --- Database configuration ---
+	// --- Database configuration (Essential for startup) ---
 	DB_TYPE: union([literal('mongodb'), literal('mariadb')]), // Define the database type (e.g., 'mongodb')
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')), // Database host address
 	DB_PORT: pipe(number(), minValue(1)), // Database port number
@@ -81,6 +84,9 @@ export const privateConfigSchema = object({
 
 /**
  * The PUBLIC configuration for the application.
+ *
+ * NOTE: Most public settings are now stored in the database and loaded dynamically.
+ * This schema only validates essential startup values that must be available immediately.
  */
 export const publicConfigSchema = object({
 	// --- Host configuration ---

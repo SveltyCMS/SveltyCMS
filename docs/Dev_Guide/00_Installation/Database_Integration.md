@@ -1,5 +1,9 @@
 # Database Integration
 
+- SveltyCMS now loads all runtime settings from the database at startup.
+- Static config is only used for DB connection and secrets.
+- See `/api/settings/export` and `/api/settings/import` for settings management.
+
 This guide explains **how SveltyCMS handles database integration** and supports multiple database types.
 
 ## Database Abstraction Layer

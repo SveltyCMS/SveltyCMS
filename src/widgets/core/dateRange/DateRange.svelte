@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/core/dateRange/DateRange.svelte
 @component
 **DateRange widget component to display date range field**
@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
@@ -35,9 +35,14 @@
 	}
 
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let _language = $state('');
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
+
+	// Load default language
+	$effect(async () => {
+		_language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+	});
 
 	let endDateValue: string | null = $state(null);
 

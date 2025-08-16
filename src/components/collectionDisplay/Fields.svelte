@@ -36,7 +36,7 @@
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 
 	// Config
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import type { Locale } from '@src/paraglide/runtime';
 
 	// Content processing

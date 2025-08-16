@@ -3,7 +3,7 @@
 @description - radio widget types
 */
 
-import { publicEnv } from '@root/config/public';
+import { getPublicSetting } from '@src/stores/globalSettings';
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -61,16 +61,17 @@ export const GuiSchema = {
 /**
  * Define Radio GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
+export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
 	// Use the sanitized field name as the type ID
 	const typeID = label;
 
 	// Return an object containing the type name and the GraphQL schema
+	const availableLanguages = (await getPublicSetting('AVAILABLE_CONTENT_LANGUAGES')) as string[];
 	return {
 		typeID: typeID,
 		graphql: /* GraphQL */ `
         type ${typeID} {
-			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
+			${availableLanguages.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
 		}
         `
 	};

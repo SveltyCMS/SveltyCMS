@@ -6,7 +6,8 @@
  * Most authentication and user data is already handled by hooks.server.ts.
  */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/utils/configMigration';
+
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -14,8 +15,8 @@ import type { PageServerLoad } from './$types';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ locals, params, url }) => {

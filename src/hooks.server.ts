@@ -18,7 +18,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { enableSetupMode, getPrivateSetting, setupModeDefaults } from '@stores/globalSettings';
 import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
@@ -28,11 +28,25 @@ import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import type { User } from '@src/auth/types';
 
-// Dynamically import db stuff only when not building
+// Dynamically import db stuff only when not building and not in setup mode
 let dbModule, dbInitPromise;
+let isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+let privateEnv;
 if (!building) {
-	dbModule = await import('@src/databases/db');
-	dbInitPromise = dbModule.dbInitPromise;
+	try {
+		privateEnv = (await import('@root/config/private')).privateEnv;
+	} catch {
+		privateEnv = setupModeDefaults;
+	}
+	const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
+	const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
+	isSetupMode = isSetupMode || dbHostEmpty || dbNameEmpty;
+	if (!isSetupMode) {
+		dbModule = await import('@src/databases/db');
+		dbInitPromise = dbModule.dbInitPromise;
+	} else {
+		dbInitPromise = Promise.resolve();
+	}
 } else {
 	dbInitPromise = Promise.resolve();
 }
@@ -158,7 +172,8 @@ const getPerformanceEmoji = (responseTime: number): string => {
 // Optimized user count getter with caching and deduplication (now tenant-aware)
 const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
 	const now = Date.now();
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
+	const multiTenant = getPrivateSetting<boolean>('MULTI_TENANT');
+	const cacheKey = multiTenant && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
 	// Try distributed cache first
 	try {
 		const cached = await cacheService.get<{ count: number; timestamp: number }>(cacheKey, tenantId);
@@ -178,7 +193,7 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 	// Use deduplication for expensive database operations
 	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
 		let userCount = -1;
-		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
+		const filter = multiTenant && tenantId ? { tenantId } : {};
 
 		if (authServiceReady && dbModule.auth) {
 			try {
@@ -300,6 +315,9 @@ const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?
 
 // Main authentication and authorization middleware
 const handleAuth: Handle = async ({ event, resolve }) => {
+	// Use setupModeDefaults if setupMode is active
+	const isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+	const privateEnv = isSetupMode ? setupModeDefaults : (await import('@root/config/private')).privateEnv;
 	if (building) return resolve(event);
 
 	const requestStartTime = performance.now();
@@ -329,122 +347,166 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Wait for database initialization
 		await dbInitPromise;
 
-		// Get the current dbAdapter from the module (it might have been updated during initialization)
-		const currentDbAdapter = dbModule.dbAdapter;
+		// Only run DB-dependent logic if dbModule is defined (not in setup mode)
+		if (typeof dbModule !== 'undefined' && dbModule) {
+			// Get the current dbAdapter from the module (it might have been updated during initialization)
+			const currentDbAdapter = dbModule.dbAdapter;
 
-		// Ensure dbAdapter is properly initialized before making it available
-		if (!currentDbAdapter) {
-			logger.error('Database adapter is null after initialization', {
-				dbModuleExists: !!dbModule,
-				dbAdapterFromModule: !!dbModule.dbAdapter,
-				dbInitPromiseCompleted: true
+			// Ensure dbAdapter is properly initialized before making it available
+			if (!currentDbAdapter) {
+				logger.error('Database adapter is null after initialization', {
+					dbModuleExists: !!dbModule,
+					dbAdapterFromModule: !!dbModule.dbAdapter,
+					dbInitPromiseCompleted: true
+				});
+				throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
+			}
+
+			// Make the dbAdapter available to all subsequent handlers and endpoints
+			locals.dbAdapter = currentDbAdapter;
+
+			// Debug: Log dbAdapter status
+			logger.debug('Database adapter status in hooks', {
+				dbAdapterExists: !!currentDbAdapter,
+				dbAdapterType: currentDbAdapter?.constructor?.name || 'null'
 			});
-			throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
-		}
 
-		// Make the dbAdapter available to all subsequent handlers and endpoints
-		locals.dbAdapter = currentDbAdapter;
+			// Check if auth service is ready (Mongoose connection must be fully established)
+			let authServiceReady = false;
+			try {
+				const mongoose = dbModule.mongoose || (await import('mongoose')).default;
+				const isDbConnected = mongoose.connection.readyState === 1; // 1 = connected
+				authServiceReady = isDbConnected && dbModule.auth !== null && typeof dbModule.auth.validateSession === 'function';
+			} catch (err) {
+				logger.warn('Could not check Mongoose connection state:', err);
+				authServiceReady = false;
+			}
 
-		// Debug: Log dbAdapter status
-		logger.debug('Database adapter status in hooks', {
-			dbAdapterExists: !!currentDbAdapter,
-			dbAdapterType: currentDbAdapter?.constructor?.name || 'null'
-		});
+			const session_id = cookies.get(SESSION_COOKIE_NAME);
+			const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
 
-		// Check if auth service is ready
-		const authServiceReady = dbModule.auth !== null && typeof dbModule.auth.validateSession === 'function';
+			locals.user = user;
+			locals.permissions = user?.permissions || [];
+			locals.session_id = user ? session_id : undefined;
 
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
+			// Optimized first user check with caching
+			const userCount = await getCachedUserCount(authServiceReady, locals.tenantId);
+			const isFirstUser = userCount === 0;
+			locals.isFirstUser = isFirstUser;
 
-		locals.user = user;
-		locals.permissions = user?.permissions || [];
-		locals.session_id = user ? session_id : undefined;
+			// Load roles and other admin data conditionally and with caching
+			if (authServiceReady) {
+				// First, load roles for everyone (guests might need to see public roles)
+				locals.roles = (await getAdminDataCached(user, 'roles', locals.tenantId)) as unknown[];
 
-		// Optimized first user check with caching
-		const userCount = await getCachedUserCount(authServiceReady, locals.tenantId);
-		const isFirstUser = userCount === 0;
-		locals.isFirstUser = isFirstUser;
+				if (locals.user) {
+					// This block now ONLY runs for logged-in users
+					const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
+					const isAdmin = !!(userRole as { isAdmin?: boolean })?.isAdmin;
 
-		// Load roles and other admin data conditionally and with caching
-		if (authServiceReady) {
-			// First, load roles for everyone (guests might need to see public roles)
-			locals.roles = (await getAdminDataCached(user, 'roles', locals.tenantId)) as unknown[];
+					locals.isAdmin = isAdmin;
+					locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(locals.user, 'manage', 'user', undefined, locals.roles);
 
-			if (locals.user) {
-				// This block now ONLY runs for logged-in users
-				const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
-				const isAdmin = !!(userRole as { isAdmin?: boolean })?.isAdmin;
-
-				locals.isAdmin = isAdmin;
-				locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(locals.user, 'manage', 'user', undefined, locals.roles);
-
-				// Conditionally load other admin data
-				if (
-					(isAdmin || locals.hasManageUsersPermission) &&
-					(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
-				) {
-					const [allUsers, allTokens] = await Promise.all([
-						getAdminDataCached(locals.user, 'users', locals.tenantId),
-						getAdminDataCached(locals.user, 'tokens', locals.tenantId)
-					]);
-					locals.allUsers = allUsers as unknown[];
-					locals.allTokens = allTokens;
+					// Conditionally load other admin data
+					if (
+						(isAdmin || locals.hasManageUsersPermission) &&
+						(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
+					) {
+						const [allUsers, allTokens] = await Promise.all([
+							getAdminDataCached(locals.user, 'users', locals.tenantId),
+							getAdminDataCached(locals.user, 'tokens', locals.tenantId)
+						]);
+						locals.allUsers = allUsers as unknown[];
+						locals.allTokens = allTokens;
+					} else {
+						locals.allUsers = [];
+						locals.allTokens = [];
+					}
 				} else {
+					// This block runs for guests (user is null)
+					locals.isAdmin = false;
+					locals.hasManageUsersPermission = false;
 					locals.allUsers = [];
 					locals.allTokens = [];
 				}
 			} else {
-				// This block runs for guests (user is null)
+				// If auth service not ready, set safe defaults and fall back to config roles
+				await initializeRoles();
+				locals.roles = roles;
 				locals.isAdmin = false;
 				locals.hasManageUsersPermission = false;
 				locals.allUsers = [];
 				locals.allTokens = [];
 			}
-		} else {
-			// If auth service not ready, set safe defaults and fall back to config roles
+
+			// Performance logging for the request duration
+			const responseTime = performance.now() - requestStartTime;
+			logger.debug(
+				`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`
+			);
+
+			// Authorization checks
+			const isPublic = isPublicOrOAuthRoute(url.pathname);
+			const isApi = url.pathname.startsWith('/api/');
+
+			if (isOAuthRoute(url.pathname)) {
+				logger.debug('OAuth route detected, passing through');
+				return resolve(event);
+			}
+
+			if (authServiceReady) {
+				if (!locals.user && !isPublic && !isFirstUser) {
+					logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
+					if (isApi) throw error(401, 'Unauthorized');
+					throw redirect(302, '/login');
+				}
+
+				if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
+					// Check if setup is completed before redirecting from setup page
+					const isSetupRoute = url.pathname.startsWith('/setup');
+					const setupCompleted = getGlobalSetting('SETUP_COMPLETED');
+
+					if (isSetupRoute && !setupCompleted) {
+						// Allow access to setup page if setup is not completed
+						logger.debug(`Setup not completed, allowing access to setup page: \x1b[34m${url.pathname}\x1b[0m`);
+					} else {
+						logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
+						throw redirect(302, '/');
+					}
+				}
+			} else {
+				logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
+				if (!isPublic) {
+					throw error(503, 'Service Unavailable: Authentication service is initializing. Please try again shortly.');
+				}
+			}
+
+			return resolve(event);
+		}
+		// If dbModule is undefined (setup mode), set safe defaults and allow setup routes
+		else {
 			await initializeRoles();
 			locals.roles = roles;
 			locals.isAdmin = false;
 			locals.hasManageUsersPermission = false;
 			locals.allUsers = [];
 			locals.allTokens = [];
-		}
 
-		// Performance logging for the request duration
-		const responseTime = performance.now() - requestStartTime;
-		logger.debug(
-			`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`
-		);
+			const responseTime = performance.now() - requestStartTime;
+			logger.debug(`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m (setup mode)`);
 
-		// Authorization checks
-		const isPublic = isPublicOrOAuthRoute(url.pathname);
-		const isApi = url.pathname.startsWith('/api/');
+			// Allow access to setup routes and public routes
+			const isPublic = isPublicOrOAuthRoute(url.pathname);
+			const isSetupRoute = url.pathname.startsWith('/setup');
+			const isTestDbRoute = url.pathname === '/api/setup/test-database' || url.pathname === '/api/setup/test-database/';
+			const isSetupCompleteRoute = url.pathname === '/api/setup/complete' || url.pathname === '/api/setup/complete/';
 
-		if (isOAuthRoute(url.pathname)) {
-			logger.debug('OAuth route detected, passing through');
-			return resolve(event);
-		}
-
-		if (authServiceReady) {
-			if (!locals.user && !isPublic && !isFirstUser) {
-				logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
-				if (isApi) throw error(401, 'Unauthorized');
-				throw redirect(302, '/login');
-			}
-
-			if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-				logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
-				throw redirect(302, '/');
-			}
-		} else {
-			logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
-			if (!isPublic) {
-				throw error(503, 'Service Unavailable: Authentication service is initializing. Please try again shortly.');
+			if (isSetupRoute || isPublic || isTestDbRoute || isSetupCompleteRoute) {
+				return resolve(event);
+			} else {
+				throw redirect(302, '/setup');
 			}
 		}
-
-		return resolve(event);
 	} catch (err) {
 		// Track error metrics
 		healthMetrics.requests.errors++;
@@ -464,12 +526,19 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		// Provide a generic, safe error message to the client
 		if (url.pathname.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Internal Server Error', message: 'An unexpected server error occurred.' }), {
-				status: 500,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({
+					error: 'Internal Server Error',
+					message: err instanceof Error ? err.message : 'An unexpected server error occurred.',
+					details: err instanceof Error ? err.stack : undefined
+				}),
+				{
+					status: 500,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			);
 		}
-		throw error(500, 'An unexpected error occurred. Please try again later.');
+		throw error(500, err instanceof Error ? err.message : 'An unexpected error occurred. Please try again later.');
 	}
 };
 
@@ -551,3 +620,58 @@ export const cleanupSessionMetrics = (): void => {
 		logger.info(`Cleaned up metrics for \x1b[34m${cleanedCount}\x1b[0m stale sessions.`);
 	}
 };
+
+// Load global settings from DB at server startup
+
+// Enable setup mode initially to prevent startup errors
+enableSetupMode();
+
+// Only try to load settings if not in build mode
+if (!building) {
+	let shouldAttemptDbLoad = true;
+	try {
+		const { privateEnv } = await import('@root/config/private');
+		const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
+		const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
+		if (dbHostEmpty || dbNameEmpty) {
+			console.log('ℹ️ DB credentials not provided yet (DB_HOST / DB_NAME empty) – staying in setup mode, skipping settings load.');
+			shouldAttemptDbLoad = false;
+		}
+	} catch {
+		// File missing or import error; remain in setup mode and skip DB load.
+		shouldAttemptDbLoad = false;
+	}
+
+	if (shouldAttemptDbLoad) {
+		try {
+			await loadGlobalSettings();
+			initializeRateLimiters();
+			console.log('✅ Settings loaded from database');
+		} catch (error) {
+			console.log('⚠️ Database not configured yet, using setup mode:', error.message);
+			enableSetupMode();
+			shouldAttemptDbLoad = false;
+		}
+	}
+
+	// Check if we need to seed default settings (if database is empty)
+	try {
+		if (shouldAttemptDbLoad) {
+			const siteName = getGlobalSetting('SITE_NAME');
+			if (!siteName) {
+				console.log('🌱 No settings found in database. Seeding default settings...');
+				try {
+					const { seedDefaultSettings } = await import('@src/databases/seedSettings');
+					await seedDefaultSettings();
+					await loadGlobalSettings(); // Reload settings after seeding
+					initializeRateLimiters(); // Re-initialize rate limiters after seeding
+					console.log('✅ Default settings seeded successfully');
+				} catch (error) {
+					console.error('❌ Failed to seed default settings:', error);
+				}
+			}
+		}
+	} catch (error) {
+		console.log('⚠️ Could not check for seeding, continuing in setup mode:', error.message);
+	}
+}

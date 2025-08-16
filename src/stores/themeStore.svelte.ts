@@ -10,8 +10,8 @@
  * - TypeScript support with custom Theme type
  */
 
-import { store } from '@utils/reactivity.svelte';
 import type { Theme } from '@src/databases/dbInterface';
+import { store } from '@utils/reactivity.svelte';
 
 // Types
 interface ThemeState {
@@ -19,6 +19,8 @@ interface ThemeState {
 	isLoading: boolean;
 	error: string | null;
 	lastUpdateAttempt: Date | null;
+	// explicit dark mode flag (decoupled from currentTheme name so themes can be light/dark variants)
+	darkMode: boolean;
 }
 
 // Create base stores
@@ -30,7 +32,12 @@ function createThemeStores() {
 		currentTheme: null,
 		isLoading: false,
 		error: null,
-		lastUpdateAttempt: null
+		lastUpdateAttempt: null,
+		darkMode:
+			typeof window !== 'undefined'
+				? localStorage.getItem('darkMode') === 'true' ||
+					(localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
+				: false
 	};
 
 	// Base store
@@ -42,6 +49,7 @@ function createThemeStores() {
 	const themeName = store(state().currentTheme?.name ?? 'default');
 	const isDefault = store(state().currentTheme?.isDefault ?? false);
 	const isLoading = store(state().isLoading);
+	const darkMode = store(state().darkMode);
 	const error = store(state().error);
 
 	// Initialize theme from database
@@ -97,10 +105,7 @@ function createThemeStores() {
 				lastUpdateAttempt: new Date()
 			}));
 
-			// Update the document class for immediate visual feedback
-			if (typeof window !== 'undefined') {
-				document.documentElement.classList.toggle('dark', themeToUpdate.name === 'dark');
-			}
+			// Do not automatically flip dark class here; rely on explicit toggleDarkMode()
 
 			return themeToUpdate;
 		} catch (err) {
@@ -112,6 +117,18 @@ function createThemeStores() {
 			}));
 			throw new Error(`Failed to update theme: ${errorMessage}`);
 		}
+	}
+
+	function toggleDarkMode(force?: boolean) {
+		state.update((s) => {
+			const next = force !== undefined ? force : !s.darkMode;
+			if (typeof window !== 'undefined') {
+				document.documentElement.classList.toggle('dark', next);
+				localStorage.setItem('darkMode', String(next));
+			}
+			return { ...s, darkMode: next };
+		});
+		darkMode.set(state().darkMode);
 	}
 
 	// Clear error state
@@ -151,7 +168,9 @@ function createThemeStores() {
 		updateTheme,
 		clearError,
 		startAutoRefresh,
-		stopAutoRefresh
+		stopAutoRefresh,
+		toggleDarkMode,
+		darkMode
 	};
 }
 
@@ -190,9 +209,8 @@ export const isDefault = {
 	subscribe: () => stores.isDefault
 };
 
-export const isLoading = {
-	subscribe: () => stores.isLoading
-};
+export const isLoading = { subscribe: () => stores.isLoading };
+export const darkMode = { subscribe: () => stores.darkMode };
 
 export const error = {
 	subscribe: () => stores.error
@@ -202,6 +220,7 @@ export const error = {
 export const initializeThemeStore = stores.initialize;
 export const updateTheme = stores.updateTheme;
 export const clearError = stores.clearError;
+export const toggleDarkMode = stores.toggleDarkMode;
 
 // Cleanup
 if (typeof window !== 'undefined') {

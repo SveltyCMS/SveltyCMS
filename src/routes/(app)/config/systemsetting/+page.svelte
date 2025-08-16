@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/config/systemsetting/+page.svelte
 @description Main page for system settings.
 
@@ -50,12 +50,11 @@ ENHANCEMENTS:
 			const saveResponse = await fetch('/api/save-config', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ configData, isPrivate })
+				body: JSON.stringify({ settings: configData, isPrivate })
 			});
-
-			if (!saveResponse.ok) {
-				const saveResult = await saveResponse.json();
-				throw new Error(saveResult.message || 'Failed to save configuration.');
+			if (!importResponse.ok) {
+				const importResult = await importResponse.json();
+				throw new Error(importResult.message || 'Failed to import new settings.');
 			}
 			toast('Configuration saved successfully!', 'gradient-primary');
 

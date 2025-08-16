@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/PermissionsSetting.svelte
 @component
 **Enhanced Permissions Setting Component for managing widget field permissions**
@@ -71,7 +71,7 @@ Features:
 		}
 
 		// Don't allow modifying admin permissions
-		const role = roles.find((r) => r._id === roleId);
+		const role = getGlobalSetting('ROLES').find((r) => r._id === roleId);
 		if (role?.isAdmin) {
 			showToast('Cannot modify permissions for admin role', 'warning');
 			return;
@@ -99,7 +99,7 @@ Features:
 	}
 
 	// Filter roles based on search
-	let filteredRoles = $derived(roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
+	let filteredRoles = $derived(getGlobalSetting('ROLES').filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Icons for different permission actions
 	const actionIcons: Record<PermissionAction, string> = {

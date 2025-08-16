@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/phoneNumber/PhoneNumber.svelte
 @component
 **PhoneNumber widget component that allows users to enter a phone number**
@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
@@ -32,7 +32,8 @@
 	const fieldName = getFieldName(field);
 
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
+	const _language = DEFAULT_CONTENT_LANGUAGE;
 
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/welcomeUser.svelte
 @component
 **welcomeUser Email component to send welcome email to new user signup**
@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -24,7 +24,7 @@
 		languageTag?: string;
 	}
 
-	let { username = '', hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
+	let { username = '', hostLink = dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD'), languageTag = systemLanguage.value }: Props = $props();
 </script>
 
 <Html lang={languageTag}>
@@ -38,10 +38,10 @@
 		<Container>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+				<Link href={dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD')}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${publicEnv.SITE_NAME} logo`}
+						alt={`${getGlobalSetting('SITE_NAME')} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}

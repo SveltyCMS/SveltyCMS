@@ -26,7 +26,7 @@
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
-import { roles as configRoles } from '@root/config/roles';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 
 // Adapter
@@ -440,6 +440,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 	} // Get a user by email
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
 		try {
+			if (!criteria.email || typeof criteria.email !== 'string') {
+				logger.error('getUserByEmail called with invalid email:', { email: criteria.email, tenantId: criteria.tenantId });
+				return null;
+			}
 			const normalizedEmail = criteria.email.toLowerCase();
 			const filter: Record<string, unknown> = { email: normalizedEmail };
 			if (criteria.tenantId) {
@@ -502,7 +506,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			user._id = user._id.toString();
 			// Fetch the role from the file-based roles configuration
-			const role = configRoles.find((r) => r._id === user.role);
+			const role = getGlobalSetting('ROLES').find((r) => r._id === user.role);
 			if (!role) {
 				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 				return [];

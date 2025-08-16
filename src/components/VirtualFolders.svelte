@@ -30,7 +30,7 @@ Features:
 	import { onMount } from 'svelte';
 	import { showToast } from '@utils/toast';
 	import { goto } from '$app/navigation';
-	import { publicEnv } from '@root/config/public';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -54,7 +54,7 @@ Features:
 
 	// Determine if a folder is the root folder
 	export function isRootFolder(folder: { name: string; parent?: string | null }): boolean {
-		return folder.name === publicEnv.MEDIA_FOLDER && folder.parent === null;
+		return folder.name === getGlobalSetting('MEDIA_FOLDER') && folder.parent === null;
 	}
 
 	// Fetch virtual folders from the API
@@ -62,7 +62,7 @@ Features:
 		isLoading = true;
 		error = null;
 		try {
-			const response = await fetch('/api/virtualFolder');
+			const response = await fetch('/api/systemVirtualFolder');
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -92,7 +92,7 @@ Features:
 		isLoading = true;
 
 		try {
-			const response = await fetch('/api/virtualFolder', {
+			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -125,7 +125,7 @@ Features:
 	// Update an existing folder
 	export async function updateFolder(folderId: string, newName: string): Promise<void> {
 		try {
-			const response = await fetch('/api/virtualFolder', {
+			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ folderId, name: newName })
@@ -147,7 +147,7 @@ Features:
 	// Delete a folder
 	export async function deleteFolder(folderId: string): Promise<void> {
 		try {
-			const response = await fetch('/api/virtualFolder', {
+			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ folderId })

@@ -1,3 +1,4 @@
+
 <!-- 
 @file src/components/TranslationStatus.svelte 
 @component
@@ -18,6 +19,7 @@
 -->
 
 <script lang="ts">
+
 	import { publicEnv } from '@root/config/public';
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
@@ -33,18 +35,14 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Local state management with runes
 	let isOpen = $state(false);
 	let completionTotals = $state({ total: 0, translated: 0 });
 	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
 	let availableLanguages = $derived.by<Locale[]>(() => {
-		if (publicEnv && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)) {
-			return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
-		} else {
-			// console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
-			return [];
-		}
+		return getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') as Locale[];
 	});
 
 	// Track initialization

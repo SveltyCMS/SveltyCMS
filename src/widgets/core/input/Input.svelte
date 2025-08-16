@@ -19,7 +19,7 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import type { FieldType } from '.';
 
 	// Utils
@@ -56,6 +56,7 @@
 
 	// Field name for validation
 	const fieldName = getFieldName(field);
+
 
 	// Language handling - with safe fallback
 	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());

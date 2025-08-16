@@ -11,13 +11,14 @@
 - `value`: any
 
 ### Features
-- Translatable	
+- Translatable
 -->
 
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
+	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
@@ -42,7 +43,7 @@
 	let debounceTimeout: number | undefined;
 
 	// Computed values
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _language = $derived(field?.translated ? $contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// Initialize data structure
 	$effect(() => {

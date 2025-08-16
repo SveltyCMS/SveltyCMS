@@ -17,8 +17,25 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/utils/configMigration';
+
+// Handle private config that might not exist during setup
+let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// Function to load private config when needed
+async function loadPrivateConfig() {
+	if (privateEnv) return privateEnv;
+
+	try {
+		const module = await import('@root/config/private');
+		privateEnv = module.privateEnv;
+		return privateEnv;
+	} catch {
+		// Private config doesn't exist during setup - this is expected
+		console.log('Private config not found during setup - this is expected during initial setup');
+		return null;
+	}
+}
 
 // MongoDB
 import { connectToMongoDB } from './mongodb/dbconnect';
@@ -61,10 +78,20 @@ async function loadAdapters() {
 		logger.debug('Adapters already loaded, skipping');
 		return;
 	}
-	logger.debug(`🔌 Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+
+	// Load private config when needed
+	const config = await loadPrivateConfig();
+
+	// If private config doesn't exist yet (during setup), we can't load adapters
+	if (!config || !config.DB_TYPE) {
+		logger.debug('Private config not available yet - skipping adapter loading during setup');
+		return;
+	}
+
+	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
 
 	try {
-		switch (privateEnv.DB_TYPE) {
+		switch (config.DB_TYPE) {
 			case 'mongodb': {
 				logger.debug('Importing MongoDB adapter...');
 				const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
@@ -118,8 +145,8 @@ async function loadAdapters() {
 				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
 				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 			default:
-				logger.error(`Unknown DB_TYPE: ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+				logger.error(`Unknown DB_TYPE: ${config.DB_TYPE}`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 		}
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');

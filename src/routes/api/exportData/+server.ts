@@ -18,13 +18,13 @@
  *
  */
 
+import { privateEnv } from '@root/config/private';
+import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
 
+import { getPublicSetting } from '@src/stores/globalSettings';
 import type { RequestHandler } from './$types';
-import { publicEnv } from '@root/config/public';
 
 // Database adapter for collection queries
 import { dbAdapter } from '@src/databases/db';
@@ -69,19 +69,20 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 
-		if (!publicEnv.EXTRACT_DATA_PATH) {
+		const extractDataPath = getPublicSetting('EXTRACT_DATA_PATH');
+		if (!extractDataPath) {
 			logger.error('EXTRACT_DATA_PATH not configured');
 			throw error(500, 'Server configuration error: EXTRACT_DATA_PATH not set');
 		}
 
 		// --- MULTI-TENANCY: Modify the file path to be tenant-specific ---
-		let filePath = publicEnv.EXTRACT_DATA_PATH;
+		let filePath = extractDataPath;
 		if (privateEnv.MULTI_TENANT && tenantId) {
 			const dir = path.dirname(filePath);
 			const ext = path.extname(filePath);
 			const base = path.basename(filePath, ext);
 			filePath = path.join(dir, `${base}-${tenantId}${ext}`);
-		} // Write the fetched data to the specified file
+		}
 
 		await writeDataToFile(data, filePath);
 		logger.info(`Data successfully written to ${filePath}`, { tenantId });

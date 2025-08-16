@@ -1,10 +1,10 @@
-<!-- 
+<!--
  @file  src/components/HeaderEdit.svelte
  @component
  **HeaderEdit component**
- The HeaderEdit component manages the collection entry header for both "edit" and "view" modes. 
- It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling, 
- and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views 
+ The HeaderEdit component manages the collection entry header for both "edit" and "view" modes.
+ It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling,
+ and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views
  and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
 
 @example
@@ -38,7 +38,7 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 	import { invalidateCollectionCache, batchUpdateEntries, updateEntryStatus, createEntry } from '@src/utils/apiClient';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

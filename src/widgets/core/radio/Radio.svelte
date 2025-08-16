@@ -1,6 +1,6 @@
-<!-- 
+<!--
 @file src/widgets/core/radio/Radio.svelte
-@component 
+@component
 **Radio widget component that allows users to select a single option from a list of options.**
 
 @example
@@ -16,7 +16,8 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting } from '@src/stores/globalSettings';
+	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
 	import { getFieldName } from '@utils/utils';
 	import { onMount, onDestroy } from 'svelte';
 
@@ -43,7 +44,15 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 
 	// Computed values
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _defaultLanguage = $state('');
+	let _language = $derived(field?.translated ? $contentLanguage : _defaultLanguage);
+
+	// Load default language
+	$effect(async () => {
+		if (!field?.translated) {
+			_defaultLanguage = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+		}
+	});
 
 	// Translation progress is now handled by the Fields.svelte component
 	// No need for individual widget components to update it

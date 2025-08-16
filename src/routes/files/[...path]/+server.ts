@@ -3,12 +3,12 @@
  * @description Serves media files from the mediaFiles directory
  */
 
+import { getPublicSetting } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
-import { readFileSync, existsSync, statSync } from 'fs';
+import { logger } from '@utils/logger.svelte';
+import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import type { RequestHandler } from './$types';
-import { publicEnv } from '@root/config/public';
-import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {
@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 
 		// Construct the full path to the media file
-		const mediaFolderPath = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+		const mediaFolderPath = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
 		const fullPath = join(process.cwd(), mediaFolderPath, filePath);
 
 		// Security check: ensure the file is within the media folder

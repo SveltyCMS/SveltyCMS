@@ -115,3 +115,13 @@ See our [Contributing Guidelines](../../CONTRIBUTING.md) for code standards and 
 - [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
 - [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
 - [Developer Chat](https://discord.gg/sveltycms)
+
+## Configuration (2025+)
+- All runtime settings are DB-driven and managed via the admin GUI/API.
+- Static config is only for DB/secrets.
+- CLI installer now only prompts for DB/secrets and supports settings import/export.
+
+## Migration Checklist
+- Remove legacy static config usage.
+- Refactor all runtime config to use dynamic settings.
+- Update documentation and onboarding guides.

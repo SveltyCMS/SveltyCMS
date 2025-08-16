@@ -3,7 +3,7 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { publicEnv } from '@root/config/public';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -50,11 +50,13 @@ async function sendWelcomeEmail(
 ) {
 	try {
 		const userLanguage = (get(systemLanguage) as Locale) || 'en';
+		const hostProd = await getGlobalSetting('HOST_PROD');
+		const siteName = await getGlobalSetting('SITE_NAME');
 		const emailProps = {
 			username,
 			email,
-			hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-			sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+			hostLink: hostProd || `https://${request.headers.get('host')}`,
+			sitename: siteName || 'SveltyCMS'
 		};
 
 		await fetchFn('/api/sendMail', {
@@ -322,13 +324,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		try {
 			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
-			// Import and get the private config directly
-			const { privateEnv } = await import('@root/config/private');
-
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
+			const googleAuthClient = new google.auth.OAuth2(
+				getGlobalSetting<string>('GOOGLE_CLIENT_ID'),
+				getGlobalSetting<string>('GOOGLE_CLIENT_SECRET'),
+				redirectUri
+			);
 			const { tokens } = await googleAuthClient.getToken(code);
 			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 
@@ -346,8 +349,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			// Prefetch first collection data for instant loading (fire and forget)
 			import('@utils/collections-prefetch')
-				.then(({ prefetchFirstCollectionData }) => {
-					const userLanguage = url.searchParams.get('lang') || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				.then(async ({ prefetchFirstCollectionData }) => {
+					const defaultLanguage = await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE');
+					const userLanguage = url.searchParams.get('lang') || defaultLanguage || 'en';
 					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
 						logger.debug('Prefetch failed during OAuth callback:', err);
 					});
@@ -360,7 +364,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			let redirectUrl = '/';
 			const firstCollection = contentManager.getFirstCollection();
 			if (firstCollection && firstCollection.path) {
-				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				const defaultLanguage = await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
 				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 			}
 			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);

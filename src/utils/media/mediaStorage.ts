@@ -4,9 +4,9 @@
  * This module handles all file system operations and media processing.
  */
 
-import { publicEnv } from '@root/config/public';
 import { cacheService } from '@src/databases/CacheService';
 import { dbAdapter } from '@src/databases/db';
+import { getPublicSetting } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 import { sanitize } from '@utils/utils';
 import crypto from 'crypto';
@@ -21,13 +21,14 @@ import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
 import { logger } from '@utils/logger.svelte';
 
 // Image sizes configuration
-type ImageSizesType = typeof publicEnv.IMAGE_SIZES & {
+const defaultImageSizes = { sm: 600, md: 900, lg: 1200 };
+type ImageSizesType = typeof defaultImageSizes & {
 	original: 0;
 	thumbnail: 200;
 };
 
 const SIZES: ImageSizesType = {
-	...publicEnv.IMAGE_SIZES,
+	...(getPublicSetting('IMAGE_SIZES') || defaultImageSizes),
 	original: 0,
 	thumbnail: 200
 } as const;
@@ -56,7 +57,7 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	try {
 		const fs = await getFs();
-		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const fullPath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 		const dir = Path.dirname(fullPath);
 
 		logger.debug('Creating directory for file', {
@@ -119,15 +120,16 @@ export async function saveResizedImages(
 			let resizedBuffer = await resizeImage(buffer, width);
 
 			// Apply format conversion if configured
-			if (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format !== 'original') {
-				resizedBuffer = resizedBuffer.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as 'avif' | 'webp', {
-					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality,
+			const formatQuality = getPublicSetting('MEDIA_OUTPUT_FORMAT_QUALITY');
+			if (formatQuality && formatQuality.format !== 'original') {
+				resizedBuffer = resizedBuffer.toFormat(formatQuality.format as 'avif' | 'webp', {
+					quality: formatQuality.quality,
 					lossless: false
 				});
 			}
 
 			// Use correct extension based on output format
-			const outputExt = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : `.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+			const outputExt = formatQuality && formatQuality.format === 'original' ? ext : `.${formatQuality?.format ?? ''}`;
 
 			const resizedUrl = Path.posix.join(basePath, size, `${fileName}-${hash}.${outputExt}`);
 
@@ -188,7 +190,7 @@ export async function deleteFile(url: string): Promise<void> {
 
 	try {
 		const fs = await getFs();
-		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 
 		logger.debug('Deleting file', {
 			url,
@@ -217,7 +219,7 @@ export async function deleteFile(url: string): Promise<void> {
 // Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 	const buffer = await fs.promises.readFile(filePath);
 	logger.info('File retrieved from disk', { url });
 	return buffer;
@@ -228,7 +230,7 @@ export async function getFile(url: string): Promise<Buffer> {
  */
 export async function fileExists(url: string): Promise<boolean> {
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', url);
 	try {
 		await fs.promises.access(filePath);
 		return true;
@@ -240,7 +242,7 @@ export async function fileExists(url: string): Promise<boolean> {
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+	const mediaFolder = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
 
 	// Normalize various possible forms:
 	// - /files/avatars/...
@@ -401,7 +403,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 
 		const fs = await getFs();
 		// Create avatars directory under the media folder
-		const avatarsPath = Path.join(process.cwd(), publicEnv.MEDIA_FOLDER, 'avatars');
+		const avatarsPath = Path.join(process.cwd(), getPublicSetting('MEDIA_FOLDER') || 'mediaFiles', 'avatars');
 		if (!fs.existsSync(avatarsPath)) {
 			await fs.promises.mkdir(avatarsPath, { recursive: true });
 		}
@@ -418,10 +420,11 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		if (existingFile && existingFile.success && existingFile.data) {
 			const mediaData = existingFile.data as { url?: string };
 			let fileUrl = mediaData.url || '';
-			if (publicEnv.MEDIASERVER_URL) {
-				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			const mediaServerUrl = getPublicSetting('MEDIASERVER_URL');
+			if (mediaServerUrl) {
+				fileUrl = `${mediaServerUrl}/${fileUrl}`;
 			} else {
-				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+				fileUrl = `${getPublicSetting('MEDIA_FOLDER') || 'mediaFiles'}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -538,7 +541,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		}
 
 		// Return the URL for serving to the client - this will be saved to user.avatar field
-		const fileUrl = `/${publicEnv.MEDIA_FOLDER}/${avatarUrl}`;
+		const fileUrl = `/${getPublicSetting('MEDIA_FOLDER') || 'mediaFiles'}/${avatarUrl}`;
 
 		logger.info('Avatar saved successfully to disk', {
 			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId,
