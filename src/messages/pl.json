@@ -605,6 +605,17 @@
 	"setup_database_name": "Nazwa bazy danych",
 	"setup_database_user": "Nazwa użytkownika (opcjonalnie)",
 	"setup_database_password": "Hasło (opcjonalnie)",
+	"setup_database_username_placeholder": "Nazwa użytkownika bazy danych",
+	"setup_database_password_placeholder": "Hasło do bazy danych",
+	"setup_heading_title": "Konfiguracja {publicEnv.SITE_NAME}",
+	"setup_heading_subtitle": "Skonfiguruj swój system zarządzania treścią w kilku prostych krokach",
+	"setup_heading_badge": "Kreator instalacji",
+	"setup_database_intro": "Wprowadź dane połączenia z bazą danych. SveltyCMS obsługuje bazy danych MongoDB, PostgreSQL i MySQL.",
+	"setup_button_test_connection": "Testuj połączenie",
+	"setup_label_database_type": "Typ bazy danych",
+	"setup_legend_completed": "Zakończony",
+	"setup_legend_current": "Aktualny krok",
+	"setup_legend_pending": "Aż do",
 	"setup_admin_username": "Nazwa użytkownika",
 	"setup_admin_email": "Adres e-mail",
 	"setup_admin_password": "Hasło",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Nazwa strony",
 	"setup_button_previous": "Poprzedni",
 	"setup_button_next": "Następny",
-	"setup_button_complete": "Zakończ konfigurację",
-	"setup_button_test_connection": "Testuj połączenie"
+	"setup_button_complete": "Zakończ konfigurację"
 }

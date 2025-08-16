@@ -6,14 +6,25 @@
 
 <script lang="ts">
 	import '../app.postcss';
-	import { initializeStores } from '@skeletonlabs/skeleton';
-	import { page } from '$app/stores';
 
-
+	import { page } from '$app/state';
 	// Initializing Skeleton stores
-	import { initializeStores, Toast, storePopup } from '@skeletonlabs/skeleton';
+	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
 	// Import from Floating UI
-	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
+	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+
+	// Paraglide locale bridge (migrated from setup/+layout.svelte wrapper)
+	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@stores/store.svelte';
+
+	let currentLocale = $state(getLocale());
+	$effect(() => {
+		const desired = systemLanguage.value;
+		if (desired && availableLocales.includes(desired as any) && currentLocale !== desired) {
+			setLocale(desired as any, { reload: false });
+			currentLocale = desired;
+		}
+	});
 
 	initializeStores();
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
@@ -24,9 +35,9 @@
 	}
 
 	let { children }: Props = $props();
-	
+
 	// Get the site name from data loaded in layout.server.ts
-	const siteName = $derived($page.data.settings?.SITE_NAME || 'SveltyCMS');
+	const siteName = $derived(page.data.settings?.SITE_NAME || 'SveltyCMS');
 </script>
 
 <svelte:head>
@@ -34,5 +45,7 @@
 </svelte:head>
 
 <div>
-	{@render children?.()}
+	{#key currentLocale}
+		{@render children?.()}
+	{/key}
 </div>

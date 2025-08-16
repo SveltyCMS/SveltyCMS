@@ -605,6 +605,17 @@
 	"setup_database_name": "ڈیٹا بیس کا نام",
 	"setup_database_user": "یوزر نیم (اختیاری)",
 	"setup_database_password": "پاس ورڈ (اختیاری)",
+	"setup_database_username_placeholder": "ڈیٹا بیس کا صارف نام",
+	"setup_database_password_placeholder": "ڈیٹا بیس پاس ورڈ",
+	"setup_heading_title": "{publicEnv.SITE_NAME} سیٹ اپ کریں۔",
+	"setup_heading_subtitle": "اپنے مواد کے انتظام کے نظام کو چند آسان مراحل میں ترتیب دیں۔",
+	"setup_heading_badge": "انسٹالیشن وزرڈ",
+	"setup_database_intro": "اپنے ڈیٹا بیس کنکشن کی تفصیلات درج کریں۔ SveltyCMS MongoDB، PostgreSQL، اور MySQL ڈیٹا بیس کو سپورٹ کرتا ہے۔",
+	"setup_button_test_connection": "کنکشن ٹیسٹ کریں",
+	"setup_label_database_type": "ڈیٹا بیس کی قسم",
+	"setup_legend_completed": "مکمل",
+	"setup_legend_current": "موجودہ مرحلہ",
+	"setup_legend_pending": "زیر التواء",
 	"setup_admin_username": "یوزر نیم",
 	"setup_admin_email": "ای میل ایڈریس",
 	"setup_admin_password": "پاس ورڈ",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "سائٹ کا نام",
 	"setup_button_previous": "پچھلا",
 	"setup_button_next": "اگلا",
-	"setup_button_complete": "سیٹ اپ مکمل کریں",
-	"setup_button_test_connection": "کنکشن ٹیسٹ کریں"
+	"setup_button_complete": "سیٹ اپ مکمل کریں"
 }

@@ -64,19 +64,37 @@ export default defineConfig(async () => {
 			console.log(`${LOG_PREFIX} Existing private config detected – no copy needed.`);
 		}
 
-		// Open setup wizard after a brief delay (non-blocking)
-		setTimeout(async () => {
-			try {
-				const open = (await import('open')).default;
-				console.log(`${LOG_PREFIX} Opening setup wizard in default browser...`);
-				await open('http://localhost:5173/setup');
-			} catch {
-				console.log(`${LOG_PREFIX} Manual navigation required: http://localhost:5173/setup`);
-			}
-		}, 1500);
-
 		return {
-			plugins: [sveltekit()],
+			plugins: [
+				sveltekit(),
+				{
+					name: 'setup-wizard-opener',
+					configureServer(server) {
+						// Open setup wizard after server starts with correct port
+						const originalListen = server.listen;
+						server.listen = function (...args) {
+							const result = originalListen.apply(this, args);
+
+							// Get the actual port after server starts
+							setTimeout(async () => {
+								const address = server.httpServer?.address();
+								const port = typeof address === 'object' && address ? address.port : 5173;
+								const setupUrl = `http://localhost:${port}/setup`;
+
+								try {
+									const open = (await import('open')).default;
+									console.log(`${LOG_PREFIX} Opening setup wizard in default browser...`);
+									await open(setupUrl);
+								} catch {
+									console.log(`${LOG_PREFIX} Manual navigation required: ${setupUrl}`);
+								}
+							}, 1500);
+
+							return result;
+						};
+					}
+				}
+			],
 			server: { fs: { allow: ['static', '.'] } },
 			define: {
 				__VERSION__: JSON.stringify(pkg.version),

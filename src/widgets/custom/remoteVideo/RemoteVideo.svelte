@@ -15,42 +15,14 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
 	import { getFieldName } from '@utils/utils';
-
+	import type { FieldType } from '.';
 	// Stores
-	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
-
-	interface Props {
-		field: FieldType;
-		show?: boolean;
-		key?: string;
-		active?: string;
-		onChange?: (color: string) => void;
-	}
-
-	let { field }: Props = $props();
-
-	const fieldName = getFieldName(field);
-
-	// States
-	let value = $state(collectionValue.value[fieldName] || '');
-	let validationError = $state<string | null>(null);
-	let debounceTimeout = $state<number | undefined>(undefined);
-	let myData = $state<any>(null);
-
-	// Get the derived value
-	const _data = $derived(mode.value === 'create' ? {} : value);
-	const _language = $derived(contentLanguage);
-
-	// Export widget data function
-	export const WidgetData = async () => _data;
-
+	import { collectionValue, mode } from '@stores/collectionStore.svelte';
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	// Valibot
 	import * as v from 'valibot';
-	import { pipe, transform, object, optional, string, url, boolean, number } from 'valibot';
+	import { boolean, number, object, optional, pipe, string, transform, url } from 'valibot';
 
 	// Define the validation schema for this widget
 	const valueSchema = pipe(
@@ -133,7 +105,7 @@
 	<input
 		type="url"
 		value={_data[_language] || ''}
-		on:input={(e) => {
+		oninput={(e) => {
 			const v = (e.target as HTMLInputElement).value;
 			_data[_language] = v;
 			value = v; // keep legacy value in sync

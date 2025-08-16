@@ -605,6 +605,17 @@
 	"setup_database_name": "მონაცემთა ბაზის სახელი",
 	"setup_database_user": "მომხმარებლის სახელი (არასავალდებულო)",
 	"setup_database_password": "პაროლი (არასავალდებულო)",
+	"setup_database_username_placeholder": "მონაცემთა ბაზის მომხმარებლის სახელი",
+	"setup_database_password_placeholder": "მონაცემთა ბაზის პაროლი",
+	"setup_heading_title": "{publicEnv.SITE_NAME}-ის დაყენება",
+	"setup_heading_subtitle": "დააკონფიგურირეთ თქვენი კონტენტის მართვის სისტემა რამდენიმე მარტივი ნაბიჯით",
+	"setup_heading_badge": "ინსტალაციის ოსტატი",
+	"setup_database_intro": "შეიყვანეთ თქვენი მონაცემთა ბაზის კავშირის დეტალები. SveltyCMS მხარს უჭერს MongoDB, PostgreSQL და MySQL მონაცემთა ბაზებს.",
+	"setup_button_test_connection": "კავშირის ტესტირება",
+	"setup_label_database_type": "მონაცემთა ბაზის ტიპი",
+	"setup_legend_completed": "დასრულებულია",
+	"setup_legend_current": "მიმდინარე ნაბიჯი",
+	"setup_legend_pending": "მოლოდინის რეჟიმშია",
 	"setup_admin_username": "მომხმარებლის სახელი",
 	"setup_admin_email": "ელ.ფოსტის მისამართი",
 	"setup_admin_password": "პაროლი",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "საიტის სახელი",
 	"setup_button_previous": "წინა",
 	"setup_button_next": "შემდეგი",
-	"setup_button_complete": "დაყენების დასრულება",
-	"setup_button_test_connection": "კავშირის ტესტირება"
+	"setup_button_complete": "დაყენების დასრულება"
 }

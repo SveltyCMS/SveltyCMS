@@ -605,6 +605,17 @@
 	"setup_database_name": "Ime baze podatkov",
 	"setup_database_user": "Uporabniško ime (neobvezno)",
 	"setup_database_password": "Geslo (neobvezno)",
+	"setup_database_username_placeholder": "Uporabniško ime baze podatkov",
+	"setup_database_password_placeholder": "Geslo baze podatkov",
+	"setup_heading_title": "Namestitev {publicEnv.SITE_NAME}-a",
+	"setup_heading_subtitle": "Konfigurirajte svoj sistem za upravljanje vsebin v nekaj preprostih korakih",
+	"setup_heading_badge": "Čarovnik za namestitev",
+	"setup_database_intro": "Vnesite podatke o povezavi z vašo bazo podatkov. SveltyCMS podpira baze podatkov MongoDB, PostgreSQL in MySQL.",
+	"setup_button_test_connection": "Preizkusi povezavo",
+	"setup_label_database_type": "Vrsta baze podatkov",
+	"setup_legend_completed": "Dokončano",
+	"setup_legend_current": "Trenutni korak",
+	"setup_legend_pending": "V teku",
 	"setup_admin_username": "Uporabniško ime",
 	"setup_admin_email": "E-poštni naslov",
 	"setup_admin_password": "Geslo",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Ime strani",
 	"setup_button_previous": "Prejšnji",
 	"setup_button_next": "Naslednji",
-	"setup_button_complete": "Dokončaj nastavitev",
-	"setup_button_test_connection": "Preizkusi povezavo"
+	"setup_button_complete": "Dokončaj nastavitev"
 }

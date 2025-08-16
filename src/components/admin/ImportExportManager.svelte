@@ -1,7 +1,8 @@
 <!--
 @file src/components/admin/ImportExportManager.svelte
 @description Import/Export Manager Component for Admin Dashboard
-@features
+
+### Features:
 - Export all collections data or individual collections
 - Import data with validation and error reporting
 - Support for JSON and CSV formats
@@ -10,10 +11,6 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-
 	// Icons
 	import Icon from '@iconify/svelte';
 
@@ -22,13 +19,12 @@
 	import Input from '@components/system/inputs/Input.svelte';
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
-
 	// Skeleton components
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getToastStore } from '@skeletonlabs/skeleton';
 
 	// Utils
-	import { logger } from '@utils/logger.svelte';
 	import { getCollections } from '@utils/apiClient';
+	import { logger } from '@utils/logger.svelte';
 
 	// Types
 	interface Collection {
@@ -67,38 +63,50 @@
 		}>;
 	}
 
-	// State
-	let collections: Collection[] = [];
-	let loading = false;
-	let showExportModal = false;
-	let showImportModal = false;
-	let showResultsModal = false;
+	// --- State using Svelte 5 Runes ---
+	let collections = $state<Collection[]>([]);
+	let loading = $state(false);
+	let showExportModal = $state(false);
+	let showImportModal = $state(false);
+	let showResultsModal = $state(false);
 
 	// Export state
-	let exportOptions: ExportOptions = {
+	let exportOptions = $state<ExportOptions>({
 		format: 'json',
 		collections: [],
 		includeMetadata: true,
 		limit: undefined
-	};
-	let exportProgress = 0;
-	let exportUrl = '';
+	});
+	let exportProgress = $state(0);
+	let exportUrl = $state('');
+	let exportLimitString = $state('');
 
 	// Import state
-	let importOptions: ImportOptions = {
+	let importOptions = $state<ImportOptions>({
 		format: 'json',
 		overwrite: false,
 		validate: true,
 		skipInvalid: true,
 		batchSize: 100
-	};
-	let importFiles: FileList | null = null;
-	let importProgress = 0;
-	let importResult: ImportResult | null = null;
-
-	onMount(async () => {
-		await loadCollections();
 	});
+	let importFiles = $state<FileList | null>(null);
+	let importProgress = $state(0);
+	let importResult = $state<ImportResult | null>(null);
+	let importBatchSizeString = $state('100');
+
+	// Sync string and number values
+	$effect(() => {
+		const limitNum = parseInt(exportLimitString, 10);
+		exportOptions.limit = isNaN(limitNum) ? undefined : limitNum;
+	});
+
+	$effect(() => {
+		const batchSizeNum = parseInt(importBatchSizeString, 10);
+		importOptions.batchSize = isNaN(batchSizeNum) ? 100 : batchSizeNum;
+	});
+
+	// --- Data Loading ---
+	loadCollections();
 
 	async function loadCollections() {
 		try {
@@ -106,7 +114,22 @@
 			const response = await getCollections({ includeFields: false });
 
 			if (response.success && response.data) {
-				collections = response.data.collections || [];
+				// Handle different response structures and map to our Collection interface
+				let rawCollections: any[] = [];
+				if (Array.isArray(response.data)) {
+					rawCollections = response.data;
+				} else if (response.data && typeof response.data === 'object' && 'collections' in response.data) {
+					rawCollections = (response.data as any).collections || [];
+				}
+
+				// Map to our Collection interface
+				collections = rawCollections.map((col) => ({
+					id: col.id || col.name,
+					name: col.name,
+					label: col.label || col.name,
+					description: col.description
+				}));
+
 				// Select all collections by default
 				exportOptions.collections = collections.map((c) => c.id);
 			} else {
@@ -120,7 +143,7 @@
 		}
 	}
 
-	// Export Functions
+	// --- Export Functions ---
 	async function exportAllData() {
 		try {
 			loading = true;
@@ -167,7 +190,7 @@
 			}, 100);
 
 			// Export each collection individually
-			const exportData = {};
+			const exportData: Record<string, any> = {};
 
 			for (let i = 0; i < exportOptions.collections.length; i++) {
 				const collectionId = exportOptions.collections[i];
@@ -207,7 +230,7 @@
 		}
 	}
 
-	// Import Functions
+	// --- Import Functions ---
 	async function handleImport() {
 		if (!importFiles || importFiles.length === 0) {
 			showAlertMessage('Please select a file to import', 'warning');
@@ -267,11 +290,10 @@
 		}
 	}
 
-	// Toast store
+	// --- UI & Utility Functions ---
 	const toastStore = getToastStore();
 
 	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
-		// Show as toast
 		const background =
 			type === 'success'
 				? 'variant-filled-success'
@@ -302,10 +324,11 @@
 	}
 
 	function toggleCollectionSelection(collectionId: string) {
-		if (exportOptions.collections.includes(collectionId)) {
-			exportOptions.collections = exportOptions.collections.filter((id) => id !== collectionId);
+		const index = exportOptions.collections.indexOf(collectionId);
+		if (index > -1) {
+			exportOptions.collections.splice(index, 1);
 		} else {
-			exportOptions.collections = [...exportOptions.collections, collectionId];
+			exportOptions.collections.push(collectionId);
 		}
 	}
 
@@ -319,7 +342,6 @@
 </script>
 
 <div class="import-export-manager">
-	<!-- Header -->
 	<div class="mb-6 flex items-center justify-between">
 		<div>
 			<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Data Import & Export</h2>
@@ -327,21 +349,19 @@
 		</div>
 
 		<div class="flex gap-3">
-			<Button on:click={() => (showExportModal = true)} variant="secondary" disabled={loading}>
+			<Button onclick={() => (showExportModal = true)} variant="secondary" disabled={loading}>
 				<Icon icon="mdi:export" class="mr-2 h-4 w-4" />
 				Export Data
 			</Button>
 
-			<Button on:click={() => (showImportModal = true)} variant="primary" disabled={loading}>
+			<Button onclick={() => (showImportModal = true)} variant="primary" disabled={loading}>
 				<Icon icon="mdi:import" class="mr-2 h-4 w-4" />
 				Import Data
 			</Button>
 		</div>
 	</div>
 
-	<!-- Quick Actions -->
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-		<!-- Export All Data -->
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<div class="mr-3 rounded-lg bg-blue-100 p-2 dark:bg-blue-900">
@@ -353,10 +373,9 @@
 				</div>
 			</div>
 
-			<Button on:click={exportAllData} variant="outline" disabled={loading} class="w-full">Export Everything</Button>
+			<Button onclick={exportAllData} variant="outline" disabled={loading} class="w-full">Export Everything</Button>
 		</div>
 
-		<!-- Collections Overview -->
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<div class="mr-3 rounded-lg bg-green-100 p-2 dark:bg-green-900">
@@ -371,35 +390,31 @@
 			</div>
 
 			<div class="space-y-2">
-				{#each collections.slice(0, 3) as collection}
+				{#each collections.slice(0, 3) as collection (collection.id)}
 					<div class="flex items-center justify-between text-sm">
 						<span class="text-gray-700 dark:text-gray-300">{collection.label}</span>
 						<Icon icon="mdi:chevron-right" class="h-4 w-4 text-gray-400" />
 					</div>
 				{/each}
 				{#if collections.length > 3}
-					<p class="text-xs text-gray-500 dark:text-gray-500">
-						...and {collections.length - 3} more
-					</p>
+					<p class="text-xs text-gray-500 dark:text-gray-500">...and {collections.length - 3} more</p>
 				{/if}
 			</div>
 		</div>
 	</div>
 
-	<!-- Progress Bar -->
 	{#if loading && (exportProgress > 0 || importProgress > 0)}
 		<div class="mb-6">
 			<ProgressBar value={exportProgress || importProgress} label={exportProgress > 0 ? 'Exporting...' : 'Importing...'} />
 		</div>
 	{/if}
 
-	<!-- Download Link -->
 	{#if exportUrl}
 		<div class="mb-6">
 			<div class="alert variant-filled-success">
 				<div class="flex items-center justify-between">
 					<span>Export completed successfully!</span>
-					<Button on:click={downloadExport} variant="primary" size="sm">
+					<Button onclick={downloadExport} variant="primary" size="sm">
 						<Icon icon="mdi:download" class="mr-2 h-4 w-4" />
 						Download
 					</Button>
@@ -409,43 +424,42 @@
 	{/if}
 </div>
 
-<!-- Export Modal -->
 {#if showExportModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Export Collections</h3>
-				<button on:click={() => (showExportModal = false)} class="variant-ghost btn btn-sm">
+				<button onclick={() => (showExportModal = false)} class="variant-ghost btn btn-sm">
 					<Icon icon="mdi:close" class="h-5 w-5" />
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
-				<!-- Format Selection -->
 				<div>
-					<label class="mb-2 block text-sm font-medium">Export Format</label>
-					<select class="select" bind:value={exportOptions.format}>
+					<label for="export-format" class="mb-2 block text-sm font-medium">Export Format</label>
+					<select id="export-format" class="select" bind:value={exportOptions.format}>
 						<option value="json">JSON</option>
 						<option value="csv">CSV</option>
 					</select>
 				</div>
 
-				<!-- Collection Selection -->
 				<div>
 					<div class="mb-3 flex items-center justify-between">
-						<label class="block text-sm font-medium">Select Collections</label>
+						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="space-x-2">
-							<Button on:click={selectAllCollections} variant="ghost" size="sm">Select All</Button>
-							<Button on:click={clearCollectionSelection} variant="ghost" size="sm">Clear All</Button>
+							<Button onclick={selectAllCollections} variant="ghost" size="sm">Select All</Button>
+							<Button onclick={clearCollectionSelection} variant="ghost" size="sm">Clear All</Button>
 						</div>
 					</div>
 
 					<div class="max-h-48 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
-						{#each collections as collection}
-							<label class="flex items-center space-x-3 py-2">
+						{#each collections as collection (collection.id)}
+							{@const inputId = `export-collection-${collection.id}`}
+							<label for={inputId} class="flex cursor-pointer items-center space-x-3 py-2">
 								<input
+									id={inputId}
 									type="checkbox"
 									checked={exportOptions.collections.includes(collection.id)}
-									on:change={() => toggleCollectionSelection(collection.id)}
+									onchange={() => toggleCollectionSelection(collection.id)}
 									class="rounded"
 								/>
 								<div>
@@ -459,20 +473,18 @@
 					</div>
 				</div>
 
-				<!-- Options -->
 				<div class="space-y-4">
-					<Toggles bind:value={exportOptions.includeMetadata} label="Include Metadata" helper="Include schema and field information" />
-
+					<Toggles bind:value={exportOptions.includeMetadata} label="Include Metadata" />
 					<div>
-						<label class="mb-2 block text-sm font-medium">Limit (optional)</label>
-						<Input bind:value={exportOptions.limit} type="number" placeholder="Leave empty for all records" />
+						<label for="export-limit" class="mb-2 block text-sm font-medium">Limit (optional)</label>
+						<Input type="text" bind:value={exportLimitString} placeholder="Leave empty for all records" />
 					</div>
 				</div>
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button on:click={() => (showExportModal = false)} variant="ghost">Cancel</Button>
-				<Button on:click={exportSelectedCollections} variant="primary" disabled={loading || exportOptions.collections.length === 0}>
+				<Button onclick={() => (showExportModal = false)} variant="ghost">Cancel</Button>
+				<Button onclick={exportSelectedCollections} variant="primary" disabled={loading || exportOptions.collections.length === 0}>
 					Export Selected
 				</Button>
 			</div>
@@ -480,21 +492,20 @@
 	</div>
 {/if}
 
-<!-- Import Modal -->
 {#if showImportModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Collections</h3>
-				<button on:click={() => (showImportModal = false)} class="variant-ghost btn btn-sm">
+				<button onclick={() => (showImportModal = false)} class="variant-ghost btn btn-sm">
 					<Icon icon="mdi:close" class="h-5 w-5" />
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
-				<!-- File Upload -->
 				<div>
-					<label class="mb-2 block text-sm font-medium">Select File</label>
+					<label for="import-file" class="mb-2 block text-sm font-medium">Select File</label>
 					<input
+						id="import-file"
 						type="file"
 						bind:files={importFiles}
 						accept=".json,.csv"
@@ -503,116 +514,102 @@
 					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
 				</div>
 
-				<!-- Format Selection -->
 				<div>
-					<label class="mb-2 block text-sm font-medium">Data Format</label>
-					<select class="select" bind:value={importOptions.format}>
+					<label for="import-format" class="mb-2 block text-sm font-medium">Data Format</label>
+					<select id="import-format" class="select" bind:value={importOptions.format}>
 						<option value="json">JSON</option>
 						<option value="csv">CSV</option>
 					</select>
 				</div>
 
-				<!-- Import Options -->
 				<div class="space-y-4">
-					<Toggles bind:value={importOptions.overwrite} label="Overwrite Existing" helper="Replace existing entries with same ID" />
-
-					<Toggles bind:value={importOptions.validate} label="Validate Data" helper="Validate entries against schema" />
-
-					<Toggles bind:value={importOptions.skipInvalid} label="Skip Invalid Entries" helper="Continue import if validation fails" />
-
+					<Toggles bind:value={importOptions.overwrite} label="Overwrite Existing" />
+					<Toggles bind:value={importOptions.validate} label="Validate Data" />
+					<Toggles bind:value={importOptions.skipInvalid} label="Skip Invalid Entries" />
 					<div>
-						<label class="mb-2 block text-sm font-medium">Batch Size</label>
-						<Input bind:value={importOptions.batchSize} type="number" min="1" max="1000" />
+						<label for="import-batch-size" class="mb-2 block text-sm font-medium">Batch Size</label>
+						<Input type="text" bind:value={importBatchSizeString} placeholder="100" />
 					</div>
 				</div>
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button on:click={() => (showImportModal = false)} variant="ghost">Cancel</Button>
-				<Button on:click={handleImport} variant="primary" disabled={loading || !importFiles}>Import Data</Button>
+				<Button onclick={() => (showImportModal = false)} variant="ghost">Cancel</Button>
+				<Button onclick={handleImport} variant="primary" disabled={loading || !importFiles}>Import Data</Button>
 			</div>
 		</div>
 	</div>
 {/if}
 
-<!-- Results Modal -->
-{#if showResultsModal}
+{#if showResultsModal && importResult}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
 		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
-				<button on:click={() => (showResultsModal = false)} class="variant-ghost btn btn-sm">
+				<button onclick={() => (showResultsModal = false)} class="variant-ghost btn btn-sm">
 					<Icon icon="mdi:close" class="h-5 w-5" />
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">
-				{#if importResult}
-					<div class="space-y-6">
-						<!-- Summary -->
-						<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-							<h3 class="mb-3 font-semibold">Import Summary</h3>
-							<div class="grid grid-cols-3 gap-4 text-center">
-								<div>
-									<div class="text-2xl font-bold text-green-600">{importResult.totalImported}</div>
-									<div class="text-sm text-gray-600">Imported</div>
-								</div>
-								<div>
-									<div class="text-2xl font-bold text-yellow-600">{importResult.totalSkipped}</div>
-									<div class="text-sm text-gray-600">Skipped</div>
-								</div>
-								<div>
-									<div class="text-2xl font-bold text-red-600">{importResult.totalErrors}</div>
-									<div class="text-sm text-gray-600">Errors</div>
-								</div>
+				<div class="space-y-6">
+					<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+						<h3 class="mb-3 font-semibold">Import Summary</h3>
+						<div class="grid grid-cols-3 gap-4 text-center">
+							<div>
+								<div class="text-2xl font-bold text-green-600">{importResult.totalImported}</div>
+								<div class="text-sm text-gray-600">Imported</div>
 							</div>
-						</div>
-
-						<!-- Collection Results -->
-						<div>
-							<h3 class="mb-3 font-semibold">Collection Details</h3>
-							<div class="max-h-64 space-y-3 overflow-y-auto">
-								{#each importResult.results as result}
-									<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-										<div class="mb-2 flex items-center justify-between">
-											<h4 class="font-medium">{result.collection}</h4>
-											<div class="flex space-x-4 text-sm">
-												<span class="text-green-600">+{result.imported}</span>
-												<span class="text-yellow-600">~{result.skipped}</span>
-												<span class="text-red-600">!{result.errors.length}</span>
-											</div>
-										</div>
-
-										{#if result.errors.length > 0}
-											<div class="text-sm">
-												<details>
-													<summary class="cursor-pointer text-red-600">
-														{result.errors.length} errors
-													</summary>
-													<div class="mt-2 space-y-1">
-														{#each result.errors.slice(0, 5) as error}
-															<div class="text-xs text-gray-600">
-																Line {error.index + 1}: {error.error}
-															</div>
-														{/each}
-														{#if result.errors.length > 5}
-															<div class="text-xs text-gray-500">
-																...and {result.errors.length - 5} more errors
-															</div>
-														{/if}
-													</div>
-												</details>
-											</div>
-										{/if}
-									</div>
-								{/each}
+							<div>
+								<div class="text-2xl font-bold text-yellow-600">{importResult.totalSkipped}</div>
+								<div class="text-sm text-gray-600">Skipped</div>
+							</div>
+							<div>
+								<div class="text-2xl font-bold text-red-600">{importResult.totalErrors}</div>
+								<div class="text-sm text-gray-600">Errors</div>
 							</div>
 						</div>
 					</div>
-				{/if}
+
+					<div>
+						<h3 class="mb-3 font-semibold">Collection Details</h3>
+						<div class="max-h-64 space-y-3 overflow-y-auto">
+							{#each importResult.results as result (result.collection)}
+								<div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+									<div class="mb-2 flex items-center justify-between">
+										<h4 class="font-medium">{result.collection}</h4>
+										<div class="flex space-x-4 text-sm">
+											<span class="text-green-600">+{result.imported}</span>
+											<span class="text-yellow-600">~{result.skipped}</span>
+											<span class="text-red-600">!{result.errors.length}</span>
+										</div>
+									</div>
+
+									{#if result.errors.length > 0}
+										<div class="text-sm">
+											<details>
+												<summary class="cursor-pointer text-red-600">{result.errors.length} errors</summary>
+												<div class="mt-2 space-y-1">
+													{#each result.errors.slice(0, 5) as error (error.index)}
+														<div class="text-xs text-gray-600">Line {error.index + 1}: {error.error}</div>
+													{/each}
+													{#if result.errors.length > 5}
+														<div class="text-xs text-gray-500">
+															...and {result.errors.length - 5} more errors
+														</div>
+													{/if}
+												</div>
+											</details>
+										</div>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button on:click={() => (showResultsModal = false)} variant="primary">Close</Button>
+				<Button onclick={() => (showResultsModal = false)} variant="primary">Close</Button>
 			</div>
 		</div>
 	</div>
@@ -620,6 +617,8 @@
 
 <style>
 	.import-export-manager {
-		@apply mx-auto max-w-6xl p-6;
+		max-width: 72rem;
+		margin: 0 auto;
+		padding: 1.5rem;
 	}
 </style>

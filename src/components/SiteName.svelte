@@ -3,9 +3,9 @@
 @component
 **SiteName component for displaying the site name**
 
-```tsx
+###Example
 <SiteName  char="CMS" />
-```
+
 #### Props
 - `char` {string} - Character to be used to highlight the site name
 -->

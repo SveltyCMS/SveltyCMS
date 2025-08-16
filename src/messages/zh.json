@@ -605,6 +605,17 @@
 	"setup_database_name": "数据库名称",
 	"setup_database_user": "用户名（可选）",
 	"setup_database_password": "密码（可选）",
+	"setup_database_username_placeholder": "数据库用户名",
+	"setup_database_password_placeholder": "数据库密码",
+	"setup_heading_title": "设置 {publicEnv.SITE_NAME}",
+	"setup_heading_subtitle": "只需几个简单的步骤即可配置您的内容管理系统",
+	"setup_heading_badge": "安装向导",
+	"setup_database_intro": "输入您的数据库连接详细信息。SveltyCMS 支持 MongoDB、PostgreSQL 和 MySQL 数据库。",
+	"setup_button_test_connection": "测试连接",
+	"setup_label_database_type": "数据库类型",
+	"setup_legend_completed": "完全的",
+	"setup_legend_current": "当前步骤",
+	"setup_legend_pending": "待办的",
 	"setup_admin_username": "用户名",
 	"setup_admin_email": "电子邮件地址",
 	"setup_admin_password": "密码",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "网站名称",
 	"setup_button_previous": "上一步",
 	"setup_button_next": "下一步",
-	"setup_button_complete": "完成设置",
-	"setup_button_test_connection": "测试连接"
+	"setup_button_complete": "完成设置"
 }

@@ -605,6 +605,17 @@
 	"setup_database_name": "Veritabanı Adı",
 	"setup_database_user": "Kullanıcı Adı (isteğe bağlı)",
 	"setup_database_password": "Şifre (isteğe bağlı)",
+	"setup_database_username_placeholder": "Veritabanı kullanıcı adı",
+	"setup_database_password_placeholder": "Veritabanı şifresi",
+	"setup_heading_title": "{publicEnv.SITE_NAME} Kurulumu",
+	"setup_heading_subtitle": "İçerik yönetim sisteminizi birkaç basit adımda yapılandırın",
+	"setup_heading_badge": "Kurulum Sihirbazı",
+	"setup_database_intro": "Veritabanı bağlantı bilgilerinizi girin. SveltyCMS, MongoDB, PostgreSQL ve MySQL veritabanlarını destekler.",
+	"setup_button_test_connection": "Bağlantıyı Test Et",
+	"setup_label_database_type": "Veritabanı Türü",
+	"setup_legend_completed": "Tamamlanmış",
+	"setup_legend_current": "Mevcut Adım",
+	"setup_legend_pending": "Askıda olması",
 	"setup_admin_username": "Kullanıcı Adı",
 	"setup_admin_email": "E-posta Adresi",
 	"setup_admin_password": "Şifre",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Site Adı",
 	"setup_button_previous": "Önceki",
 	"setup_button_next": "Sonraki",
-	"setup_button_complete": "Kurulumu Tamamla",
-	"setup_button_test_connection": "Bağlantıyı Test Et"
+	"setup_button_complete": "Kurulumu Tamamla"
 }

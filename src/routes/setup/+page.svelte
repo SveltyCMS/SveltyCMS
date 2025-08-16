@@ -1,16 +1,24 @@
 <!--
 @file src/routes/setup/+page.svelte
 @description Professional multi-step setup wizard for SveltyCMS with clean, modern design
+
+Features:
+
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { setupAdminSchema } from '@src/utils/formSchemas';
+	import { onMount } from 'svelte';
 	import { safeParse } from 'valibot';
-	import 'iconify-icon';
-
-	// Import multi-language support
+	// Theme & language (Skeleton mode management)
+	import SiteName from '@components/SiteName.svelte';
+	import { modeCurrent, popup, type PopupSettings, setInitialClassState, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { systemLanguage } from '@stores/store.svelte';
+	import { getLanguageName } from '@utils/languageUtils';
+	import { get } from 'svelte/store';
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	const steps = [
@@ -37,7 +45,139 @@
 	];
 
 	let currentStep = $state(0);
+	// Language selector state
+	let isLangOpen = $state(false);
+	let langSearch = $state('');
+	let langSearchInput: HTMLInputElement | null = $state(null);
+	// Import Paraglide runtime locales as a richer fallback when settings only expose default
+	import { locales as paraglideLocales } from '@src/paraglide/runtime';
+	const availableLanguages = $derived(
+		(() => {
+			const raw = getPublicSetting('LOCALES');
+			// Normalize: allow comma/space separated string or array
+			let normalized: string[] = [];
+			if (Array.isArray(raw)) normalized = raw as string[];
+			else if (typeof raw === 'string') normalized = raw.split(/[ ,;]+/).filter(Boolean);
+			// If we only have a single locale (likely setup mode default), fall back to full Paraglide list
+			if (normalized.length <= 1) normalized = [...paraglideLocales];
+			// Ensure uniqueness and stable sort by English name
+			return [...new Set(normalized)].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+		})()
+	);
+	const filteredLanguages = $derived(
+		availableLanguages.filter(
+			(l) =>
+				getLanguageName(l as string, systemLanguage.value)
+					.toLowerCase()
+					.includes(langSearch.toLowerCase()) ||
+				getLanguageName(l as string, 'en')
+					.toLowerCase()
+					.includes(langSearch.toLowerCase())
+		) as string[]
+	);
+
+	function selectLanguage(lang: string) {
+		// Immediate update for clearer UX in setup (no debounce needed here)
+		systemLanguage.set(lang as (typeof systemLanguage)['value']);
+		isLangOpen = false;
+		langSearch = '';
+	}
+	function toggleLang() {
+		isLangOpen = !isLangOpen;
+	}
+	function outsideLang(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		if (!target.closest('.language-selector')) {
+			isLangOpen = false;
+			langSearch = '';
+		}
+	}
+	$effect(() => {
+		if (typeof window !== 'undefined' && isLangOpen) {
+			window.addEventListener('click', outsideLang);
+			setTimeout(() => langSearchInput?.focus(), 0);
+			return () => window.removeEventListener('click', outsideLang);
+		}
+	});
+
+	let mediaQuery: MediaQueryList | null = null;
+
+	onMount(() => {
+		// Apply initial class state (mirrors app layout behavior for standalone setup route)
+		try {
+			setInitialClassState();
+		} catch {}
+		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		const savedTheme = localStorage.getItem('theme');
+		const prefersDark = mediaQuery.matches;
+		// In existing app layout newMode = savedTheme === 'light'; replicate for consistency
+		const newMode = savedTheme ? savedTheme === 'light' : !prefersDark; // boolean: true => light
+		setModeUserPrefers(newMode);
+		setModeCurrent(newMode);
+		const handleChange = (e: MediaQueryListEvent) => {
+			if (!localStorage.getItem('theme')) {
+				// only update if user hasn't chosen explicitly
+				const prefersDarkChange = e.matches;
+				const mode = !prefersDarkChange; // invert to keep boolean mapping (true => light)
+				setModeUserPrefers(mode);
+				setModeCurrent(mode);
+			}
+		};
+		mediaQuery.addEventListener('change', handleChange);
+		return () => mediaQuery && mediaQuery.removeEventListener('change', handleChange);
+	});
+
+	// Light/Dark toggle (mirrors LeftSidebar implementation semantics)
+	const toggleTheme = () => {
+		const currentMode = get(modeCurrent);
+		const newMode = !currentMode;
+		setModeUserPrefers(newMode);
+		setModeCurrent(newMode);
+		localStorage.setItem('theme', newMode ? 'light' : 'dark');
+	};
+
+	// Popup tooltip config
+	const SwitchThemeTooltip: PopupSettings = { event: 'hover', target: 'SetupSwitchTheme', placement: 'bottom-start' };
 	let totalSteps = steps.length;
+
+	// Heading composition helper: extracts before/after around site name across languages (site name may be at start or end)
+	function computeHeadingParts(full: string) {
+		const candidatesRaw = [systemSettings.siteName, getPublicSetting('SITE_NAME') as string, 'SveltyCMS'];
+		const candidates = [...new Set(candidatesRaw.filter(Boolean))] as string[];
+		// Prioritize longer names first to avoid partial matches
+		candidates.sort((a, b) => b.length - a.length);
+		for (const name of candidates) {
+			const idx = full.indexOf(name);
+			if (idx !== -1) {
+				return {
+					before: full.slice(0, idx).trimEnd(),
+					siteName: name,
+					after: full.slice(idx + name.length).trimStart()
+				};
+			}
+		}
+		// Fallback: treat entire string as prefix, site name styled separately appended
+		return { before: full.trim(), siteName: candidates[0] || 'SveltyCMS', after: '' };
+	}
+
+	let headingParts = $state({ before: '', siteName: '', after: '' });
+	$effect(() => {
+		// Paraglide message requires the { publicEnv: { SITE_NAME } } token object.
+		// In early setup, env may be undefined; fall back to systemSettings or default.
+		try {
+			if (m.setup_heading_title) {
+				const siteNameToken = getPublicSetting('SITE_NAME') || systemSettings.siteName || 'SveltyCMS';
+				// Message pattern: "Setup {publicEnv.SITE_NAME}" or localized variant.
+				// Provide expected shape: { publicEnv: { SITE_NAME: string } }
+				const localized = m.setup_heading_title({ publicEnv: { SITE_NAME: siteNameToken } });
+				headingParts = computeHeadingParts(localized);
+			}
+		} catch (e) {
+			// Last-resort fallback without translation tokens to avoid runtime crash
+			const siteNameToken = systemSettings.siteName || 'SveltyCMS';
+			headingParts = computeHeadingParts(`Setup ${siteNameToken}`);
+		}
+	});
 
 	// Form data
 	let dbConfig = $state({
@@ -93,7 +233,18 @@
 	let isRedirecting = $state(false);
 	let errorMessage = $state('');
 	let successMessage = $state('');
-	let validationErrors = $state({});
+	type ValidationErrors = {
+		host?: string;
+		port?: string;
+		name?: string;
+		username?: string;
+		email?: string;
+		password?: string;
+		confirmPassword?: string;
+		siteName?: string;
+		[key: string]: string | undefined;
+	};
+	let validationErrors = $state<ValidationErrors>({});
 
 	// Password visibility states
 	let showDbPassword = $state(false);
@@ -143,9 +294,9 @@
 
 		switch (step) {
 			case 0: // Database
-				if (!dbConfig.host) validationErrors.host = 'Host is required';
-				if (!dbConfig.port) validationErrors.port = 'Port is required';
-				if (!dbConfig.name) validationErrors.name = 'Database name is required';
+				if (!dbConfig.host) validationErrors.host = m.setup_validation_host_required();
+				if (!dbConfig.port) validationErrors.port = m.setup_validation_port_required();
+				if (!dbConfig.name) validationErrors.name = m.setup_validation_dbname_required();
 				break;
 			case 1: // Admin
 				// Use centralized validation schema
@@ -166,7 +317,7 @@
 				}
 				break;
 			case 2: // System
-				if (!systemSettings.siteName) validationErrors.siteName = 'Site name is required';
+				if (!systemSettings.siteName) validationErrors.siteName = m.setup_validation_sitename_required();
 				break;
 		}
 
@@ -205,12 +356,16 @@
 			const data = await response.json();
 
 			if (data.success) {
-				successMessage = 'Database connection successful!';
+				successMessage = m.setup_db_test_success();
 			} else {
-				errorMessage = `Database connection failed: ${data.error}`;
+				errorMessage = m.setup_db_test_failed({ error: data.error || '' });
 			}
 		} catch (error) {
-			errorMessage = `Connection error: ${error.message}`;
+			if (error instanceof Error) {
+				errorMessage = m.setup_db_test_error({ error: error.message });
+			} else {
+				errorMessage = m.setup_db_test_unknown_error();
+			}
 		} finally {
 			isLoading = false;
 		}
@@ -241,19 +396,23 @@
 			const data = await response.json();
 
 			if (data.success) {
-				successMessage = 'Setup completed successfully!';
+				successMessage = m.setup_complete_success();
 
 				// Immediately start the redirect process to prevent flash
 				isRedirecting = true;
-				successMessage = 'Redirecting to login...';
+				successMessage = m.setup_complete_redirect();
 
 				// Redirect after showing the loading animation
 				setTimeout(() => goto('/login'), 2000);
 			} else {
-				errorMessage = `Setup failed: ${data.error}`;
+				errorMessage = m.setup_complete_failed({ error: data.error || '' });
 			}
 		} catch (error) {
-			errorMessage = `Setup error: ${error.message}`;
+			if (error instanceof Error) {
+				errorMessage = m.setup_complete_error({ error: error.message });
+			} else {
+				errorMessage = m.setup_complete_unknown_error();
+			}
 		} finally {
 			// Only reset loading if we're not redirecting
 			if (!isRedirecting) {
@@ -265,6 +424,8 @@
 
 <svelte:head>
 	<title>SveltyCMS Setup</title>
+	<!-- Ensure Skeleton sets initial mode classes for standalone setup route -->
+	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 	<link
 		href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&display=swap"
 		rel="stylesheet"
@@ -278,20 +439,99 @@
 	</style>
 </svelte:head>
 
-<div class="min-h-screen w-full bg-slate-50 text-slate-900">
+<div class="bg-surface-50-900 min-h-screen w-full transition-colors">
+	<!-- Top bar with theme + language selectors -->
+	<div class="flex items-center justify-end gap-4 px-4 py-3">
+		<!-- Language selector (mirrors login simplified) -->
+		<div class="language-selector relative">
+			{#if availableLanguages.length > 5}
+				<button onclick={toggleLang} class="variant-ghost btn btn-sm flex items-center gap-2">
+					<span>{getLanguageName(systemLanguage.value)} ({systemLanguage.value.toUpperCase()})</span>
+					<svg class="h-3.5 w-3.5 transition-transform {isLangOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+				</button>
+				{#if isLangOpen}
+					<div
+						class="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800"
+					>
+						<input
+							bind:this={langSearchInput}
+							bind:value={langSearch}
+							placeholder={m.setup_search_placeholder()}
+							class="input-sm input mb-2 w-full"
+						/>
+						<div class="max-h-56 overflow-y-auto">
+							{#each filteredLanguages as lang}
+								<button
+									onclick={() => selectLanguage(lang)}
+									class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 {systemLanguage.value ===
+									lang
+										? 'bg-surface-200/80 font-medium dark:bg-surface-600/70'
+										: ''}"
+								>
+									<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+									{#if systemLanguage.value === lang}
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
+											<path
+												fill-rule="evenodd"
+												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+												clip-rule="evenodd"
+											/>
+										</svg>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			{:else}
+				<select
+					bind:value={systemLanguage.value}
+					class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium shadow-sm focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/20 dark:border-slate-700 dark:bg-slate-800"
+					onchange={(e: Event) => selectLanguage((e.target as HTMLSelectElement).value)}
+				>
+					{#each availableLanguages as lang}
+						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
+					{/each}
+				</select>
+			{/if}
+		</div>
+		<!-- Theme switch (Skeleton modeCurrent with popup tooltip) -->
+		<div>
+			<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label={m.setup_theme_toggle_fallback()} class="variant-ghost btn-icon">
+				{#if !$modeCurrent}
+					<iconify-icon icon="bi:sun" width="22"></iconify-icon>
+				{:else}
+					<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
+				{/if}
+			</button>
+			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SetupSwitchTheme">
+				<!-- Reuse existing translation key; fallback to simple text if unavailable -->
+				{#if m.applayout_switchmode}
+					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
+				{:else}
+					{m.setup_theme_toggle_fallback()}
+				{/if}
+				<div class="variant-filled arrow"></div>
+			</div>
+		</div>
+	</div>
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
 		<!-- Header -->
-		<div class="mb-6 rounded-xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6 lg:mb-10">
+		<div class="mb-6 rounded-xl border border-surface-200 bg-white p-4 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-10">
 			<div class="flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-center">
 				<div class="flex flex-shrink-0 items-center justify-center lg:justify-start">
 					<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-12 w-auto sm:h-16" />
 				</div>
-				<div class="border-l-0 border-slate-200 lg:border-l lg:pl-5">
-					<h1 class="mb-1 text-center text-xl font-bold leading-tight text-slate-800 sm:text-2xl lg:text-left lg:text-3xl">Setup SveltyCMS</h1>
-					<p class="text-center text-sm text-slate-600 sm:text-base lg:text-left">Configure your content management system in a few simple steps</p>
+				<div class="border-l-0 border-surface-200 dark:border-surface-600 lg:border-l lg:pl-5">
+					<h1 class="mb-1 text-center text-xl font-bold leading-tight sm:text-2xl lg:text-left lg:text-3xl">
+						{#if headingParts.before}{headingParts.before}&nbsp;{/if}<SiteName />{#if headingParts.after}&nbsp;{headingParts.after}{/if}
+					</h1>
+					<p class="text-center text-sm sm:text-base lg:text-left">{m.setup_heading_subtitle()}</p>
 				</div>
-				<div class="ml-auto hidden rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2 lg:flex">
-					<div class="text-xs font-medium uppercase tracking-wider text-indigo-600">Installation Wizard</div>
+				<div class="ml-auto hidden rounded border border-indigo-100 bg-indigo-50 px-4 py-2 lg:flex">
+					<div class="text-xs font-medium uppercase tracking-wider text-surface-500">{m.setup_heading_badge()}</div>
 				</div>
 			</div>
 		</div>
@@ -300,18 +540,20 @@
 		<div class="flex flex-col gap-4 lg:min-h-[560px] lg:flex-row lg:gap-6">
 			<!-- Step Indicator (Left Side) - Horizontal on mobile, vertical on desktop -->
 			<div class="w-full shrink-0 lg:w-72">
-				<div class="flex flex-col rounded-xl border border-slate-100 bg-white shadow-sm lg:sticky lg:top-8">
+				<div
+					class="flex h-full flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800 lg:sticky lg:top-8"
+				>
 					<!-- Mobile: Horizontal step indicator -->
 					<div class="relative flex items-start justify-between p-4 lg:hidden">
-						{#each steps as step, i}
+						{#each steps as _step, i}
 							<div class="relative z-10 flex flex-1 flex-col items-center">
 								<div
 									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all sm:h-10 sm:w-10 sm:text-sm {i <
 									currentStep
-										? 'bg-emerald-500 text-white'
+										? 'bg-primary-500 text-white'
 										: i === currentStep
-											? 'bg-[#ff3e00] text-white shadow-[0_2px_6px_rgba(255,62,0,0.15)]'
-											: 'bg-slate-100 text-slate-400'}"
+											? 'bg-primary-500 text-white shadow-xl'
+											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'}"
 								>
 									<span class="flex items-center justify-center leading-none">
 										{#if i < currentStep}
@@ -322,8 +564,12 @@
 									</span>
 								</div>
 								<div class="mt-2 text-center">
-									<div class="text-xs font-medium sm:text-sm {i <= currentStep ? 'text-slate-800' : 'text-slate-400'} max-w-16 truncate sm:max-w-20">
-										{step.label.split(' ')[0]}
+									<div
+										class="text-xs font-medium sm:text-sm {i <= currentStep
+											? 'text-surface-900 dark:text-white'
+											: 'text-surface-500 dark:text-surface-400'} max-w-16 truncate sm:max-w-20"
+									>
+										{_step.label.split(' ')[0]}
 									</div>
 								</div>
 							</div>
@@ -331,7 +577,7 @@
 
 						<!-- Connecting lines for mobile -->
 						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9">
-							{#each steps as step, i}
+							{#each steps as _unused, i}
 								{#if i !== steps.length - 1}
 									<div
 										class="mx-1 h-0.5 flex-1 {i < currentStep ? 'bg-emerald-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
@@ -343,7 +589,7 @@
 
 					<!-- Desktop: Vertical step indicator -->
 					<div class="hidden p-6 lg:block">
-						{#each steps as step, i}
+						{#each steps as _step, i}
 							<div class="relative last:pb-0">
 								<button
 									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {i <= currentStep
@@ -355,10 +601,10 @@
 									<div
 										class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {i <
 										currentStep
-											? 'bg-emerald-500 text-white'
+											? 'bg-primary-500 '
 											: i === currentStep
-												? 'bg-[#ff3e00] text-white shadow-[0_2px_6px_rgba(255,62,0,0.15)]'
-												: 'bg-slate-100 text-slate-400'}"
+												? 'bg-error-500 shadow-xl'
+												: 'bg-slate-100 '}"
 									>
 										<span class="flex items-center justify-center leading-none">
 											{#if i < currentStep}
@@ -369,14 +615,14 @@
 										</span>
 									</div>
 									<div class="text-left">
-										<div class="text-base font-medium {i <= currentStep ? 'text-slate-800' : 'text-slate-400'}">{step.label}</div>
-										<div class="mt-1 text-sm {i <= currentStep ? 'text-slate-500' : 'text-slate-400'}">{step.shortDesc}</div>
+										<div class="text-base font-medium {i <= currentStep ? 'text-slate-800' : 'text-slate-400'}">{_step.label}</div>
+										<div class="mt-1 text-sm {i <= currentStep ? 'text-slate-500' : 'text-slate-400'}">{_step.shortDesc}</div>
 									</div>
 								</button>
 								{#if i !== steps.length - 1}
 									<div
 										class="absolute left-[1.45rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {i < currentStep
-											? 'bg-emerald-500'
+											? 'bg-primary-500'
 											: 'border-l-2 border-dashed border-slate-200'}"
 									></div>
 								{/if}
@@ -390,13 +636,13 @@
 								<div class="mr-3 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-xs font-semibold text-white">
 									<span class="flex items-center justify-center leading-none">✓</span>
 								</div>
-								<span class="text-sm text-slate-600">Completed</span>
+								<span class="text-sm text-slate-600">{m.setup_legend_completed()}</span>
 							</div>
 							<div class="mb-3 flex items-center">
 								<div class="mr-3 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[#ff3e00] text-xs font-semibold text-white">
 									<span class="flex items-center justify-center leading-none">{currentStep + 1}</span>
 								</div>
-								<span class="text-sm text-slate-600">Current Step</span>
+								<span class="text-sm text-slate-600">{m.setup_legend_current()}</span>
 							</div>
 							<div class="flex items-center">
 								<div
@@ -404,7 +650,7 @@
 								>
 									<span class="flex items-center justify-center leading-none">3</span>
 								</div>
-								<span class="text-sm text-slate-600">Pending</span>
+								<span class="text-sm text-slate-600">{m.setup_legend_pending()}</span>
 							</div>
 						</div>
 					</div>
@@ -412,13 +658,13 @@
 			</div>
 
 			<!-- Main Card (Right Side) -->
-			<div class="flex flex-1 flex-col">
-				<div class="flex h-full flex-col overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+			<div class="flex flex-1 flex-col rounded-xl border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
+				<div class="flex h-full flex-col overflow-hidden rounded-xl border">
 					<!-- Card Header with Step Title -->
-					<div class="border-b border-slate-100 bg-slate-50 px-4 py-3 sm:px-6 sm:py-4">
+					<div class=" border-b px-4 py-3 sm:px-6 sm:py-4">
 						{#if currentStep === 0}
-							<h2 class="flex items-center text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
-								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-[#ff3e00] sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+							<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
 									<path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z" />
 									<path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z" />
 									<path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z" />
@@ -426,15 +672,15 @@
 								Database Configuration
 							</h2>
 						{:else if currentStep === 1}
-							<h2 class="flex items-center text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
-								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-[#ff3e00] sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+							<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
 									<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
 								</svg>
 								Administrator Account
 							</h2>
 						{:else if currentStep === 2}
-							<h2 class="flex items-center text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
-								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-[#ff3e00] sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+							<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
 									<path
 										fill-rule="evenodd"
 										d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
@@ -444,8 +690,8 @@
 								System Configuration
 							</h2>
 						{:else if currentStep === 3}
-							<h2 class="flex items-center text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
-								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-[#ff3e00] sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+							<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
+								<svg xmlns="http://www.w3.org/2000/svg" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
 									<path
 										fill-rule="evenodd"
 										d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -463,89 +709,73 @@
 							<div class="fade-in">
 								<!-- Database Configuration -->
 								<div class="mb-6 sm:mb-8">
-									<p class="text-sm text-slate-600 sm:text-base">
-										Enter your database connection details. SveltyCMS supports MongoDB, PostgreSQL, and MySQL databases.
+									<p class="text-sm sm:text-base">
+										{m.setup_database_intro()}
 									</p>
 								</div>
 
 								<div class="space-y-4 sm:space-y-6">
 									<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
 										<div>
-											<label for="db-type" class="mb-1 block text-sm font-medium text-slate-700">Database Type</label>
-											<select
-												id="db-type"
-												bind:value={dbConfig.type}
-												class="w-full touch-manipulation rounded-md border border-slate-200 px-3 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10"
-											>
+											<label for="db-type" class="mb-1 block text-sm font-medium">{m.setup_label_database_type()}</label>
+											<select id="db-type" bind:value={dbConfig.type} class="input rounded">
 												<option value="mongodb">MongoDB</option>
 												<option value="postgresql">PostgreSQL</option>
 												<option value="mysql">MySQL</option>
 											</select>
 										</div>
 										<div>
-											<label for="db-host" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_database_host()}</label>
+											<label for="db-host" class="mb-1 block text-sm font-medium">{m.setup_database_host()}</label>
 											<input
 												id="db-host"
 												bind:value={dbConfig.host}
 												type="text"
 												placeholder="localhost"
-												class="w-full touch-manipulation rounded-md border px-3 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.host
-													? 'border-red-500'
-													: 'border-slate-200'}"
+												class="input w-full rounded {validationErrors.host ? 'border-error-500' : 'border-slate-200'}"
 											/>
 											{#if validationErrors.host}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.host}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.host}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="db-port" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_database_port()}</label>
+											<label for="db-port" class="mb-1 block text-sm font-medium">{m.setup_database_port()}</label>
 											<input
 												id="db-port"
 												bind:value={dbConfig.port}
 												type="text"
 												placeholder="27017"
-												class="w-full touch-manipulation rounded-md border px-3 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.port
-													? 'border-red-500'
-													: 'border-slate-200'}"
+												class="input w-full rounded {validationErrors.port ? 'border-error-500' : 'border-slate-200'}"
 											/>
 											{#if validationErrors.port}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.port}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.port}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="db-name" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_database_name()}</label>
+											<label for="db-name" class="mb-1 block text-sm font-medium">{m.setup_database_name()}</label>
 											<input
 												id="db-name"
 												bind:value={dbConfig.name}
 												type="text"
 												placeholder="SveltyCMS"
-												class="w-full touch-manipulation rounded-md border px-3 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.name
-													? 'border-red-500'
-													: 'border-slate-200'}"
+												class="input w-full rounded {validationErrors.name ? 'border-error-500' : 'border-slate-200'}"
 											/>
 											{#if validationErrors.name}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.name}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.name}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="db-user" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_database_user()}</label>
-											<input
-												id="db-user"
-												bind:value={dbConfig.user}
-												type="text"
-												placeholder="Database username"
-												class="w-full touch-manipulation rounded-md border px-3 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10"
-											/>
+											<label for="db-user" class="mb-1 block text-sm font-medium">{m.setup_database_user()}</label>
+											<input id="db-user" bind:value={dbConfig.user} type="text" placeholder="Database username" class="input rounded" />
 										</div>
 										<div>
-											<label for="db-password" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_database_password()}</label>
+											<label for="db-password" class="mb-1 block text-sm font-medium">{m.setup_database_password()}</label>
 											<div class="relative">
 												<input
 													id="db-password"
 													bind:value={dbConfig.password}
 													type={showDbPassword ? 'text' : 'password'}
 													placeholder="Database password"
-													class="w-full touch-manipulation rounded-md border px-3 py-2.5 pr-10 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10"
+													class="input w-full rounded"
 												/>
 												<button
 													type="button"
@@ -562,13 +792,13 @@
 									<button
 										onclick={testDatabaseConnection}
 										disabled={isLoading}
-										class="flex min-h-[2.75rem] w-full touch-manipulation items-center justify-center gap-2 rounded-md bg-[#ff3e00] px-5 py-3 font-medium text-white transition-all hover:bg-[#ff3e00]/90 focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/20 disabled:cursor-not-allowed disabled:opacity-60"
+										class="variant-filled-tertiary btn w-full dark:variant-filled-primary"
 									>
 										{#if isLoading}
 											<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"></div>
 											Testing Connection...
 										{:else}
-											Test Database Connection
+											{m.setup_button_test_connection()}
 										{/if}
 									</button>
 								</div>
@@ -577,43 +807,39 @@
 							<div class="fade-in">
 								<!-- Admin User -->
 								<div class="mb-8">
-									<p class="text-slate-600">Create your administrator account with full access to manage content, users, and system settings.</p>
+									<p class="">Create your administrator account with full access to manage content, users, and system settings.</p>
 								</div>
 
 								<div class="space-y-6">
 									<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 										<div>
-											<label for="admin-username" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_admin_username()}</label>
+											<label for="admin-username" class="mb-1 block text-sm font-medium">{m.setup_admin_username()}</label>
 											<input
 												id="admin-username"
 												bind:value={adminUser.username}
 												type="text"
 												placeholder="Enter username"
-												class="w-full rounded-md border px-3.5 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.username
-													? 'border-red-500'
-													: 'border-slate-200'}"
+												class="input w-full rounded {validationErrors.username ? 'border-error-500' : 'border-slate-200'}"
 											/>
 											{#if validationErrors.username}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.username}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.username}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="admin-email" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_admin_email()}</label>
+											<label for="admin-email" class="mb-1 block text-sm font-medium">{m.setup_admin_email()}</label>
 											<input
 												id="admin-email"
 												bind:value={adminUser.email}
 												type="email"
 												placeholder="admin@example.com"
-												class="w-full rounded-md border px-3.5 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.email
-													? 'border-red-500'
-													: 'border-slate-200'}"
+												class="input w-full rounded {validationErrors.email ? 'border-error-500' : 'border-slate-200'}"
 											/>
 											{#if validationErrors.email}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.email}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.email}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="admin-password" class="mb-1 block text-sm font-medium text-slate-700">{m.setup_admin_password()}</label>
+											<label for="admin-password" class="mb-1 block text-sm font-medium">{m.setup_admin_password()}</label>
 											<div class="relative">
 												<input
 													id="admin-password"
@@ -621,27 +847,23 @@
 													oninput={checkPasswordRequirements}
 													type={showAdminPassword ? 'text' : 'password'}
 													placeholder="Enter secure password"
-													class="w-full rounded-md border px-3.5 py-2.5 pr-10 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.password
-														? 'border-red-500'
-														: 'border-slate-200'}"
+													class="input w-full rounded {validationErrors.password ? 'border-error-500' : 'border-slate-200'}"
 												/>
 												<button
 													type="button"
 													onclick={toggleAdminPassword}
-													class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+													class="btn absolute"
 													aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 												>
 													<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18"></iconify-icon>
 												</button>
 											</div>
 											{#if validationErrors.password}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.password}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.password}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="admin-confirm-password" class="mb-1 block text-sm font-medium text-slate-700"
-												>{m.setup_admin_confirm_password()}</label
-											>
+											<label for="admin-confirm-password" class="mb-1 block text-sm font-medium">{m.setup_admin_confirm_password()}</label>
 											<div class="relative">
 												<input
 													id="admin-confirm-password"
@@ -649,9 +871,7 @@
 													oninput={checkPasswordRequirements}
 													type={showConfirmPassword ? 'text' : 'password'}
 													placeholder="Confirm your password"
-													class="w-full rounded-md border px-3.5 py-2.5 pr-10 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.confirmPassword
-														? 'border-red-500'
-														: 'border-slate-200'}"
+													class="input w-full rounded {validationErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
 												/>
 												<button
 													type="button"
@@ -663,18 +883,18 @@
 												</button>
 											</div>
 											{#if validationErrors.confirmPassword}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.confirmPassword}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.confirmPassword}</div>
 											{/if}
 										</div>
 									</div>
 
-									<div class="mt-4 rounded-lg border-l-4 border-indigo-400 bg-slate-50 p-4 shadow-sm">
-										<h4 class="mb-2 text-sm font-semibold tracking-tight text-slate-800">Password Requirements</h4>
+									<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:bg-surface-500">
+										<h4 class="mb-2 text-sm font-semibold tracking-tight">Password Requirements</h4>
 										<ul class="space-y-2 text-sm">
-											<li class="flex items-center {passwordRequirements.length ? 'text-emerald-600' : 'text-slate-500'}">
+											<li class="flex items-center {passwordRequirements.length ? 'text-primary-600' : 'text-slate-500'}">
 												<span
 													class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.length
-														? 'border-emerald-300 bg-emerald-100 text-emerald-600'
+														? 'border-primary-300 bg-emerald-100 text-primary-600'
 														: 'border-slate-300 bg-slate-100 text-slate-400'}"
 												>
 													{#if passwordRequirements.length}
@@ -689,10 +909,10 @@
 												</span>
 												Minimum 8 characters
 											</li>
-											<li class="flex items-center {passwordRequirements.letter ? 'text-emerald-600' : 'text-slate-500'}">
+											<li class="flex items-center {passwordRequirements.letter ? 'text-primary-600' : 'text-slate-500'}">
 												<span
 													class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.letter
-														? 'border-emerald-300 bg-emerald-100 text-emerald-600'
+														? 'border-primary-300 bg-emerald-100 text-primary-600'
 														: 'border-slate-300 bg-slate-100 text-slate-400'}"
 												>
 													{#if passwordRequirements.letter}
@@ -707,10 +927,10 @@
 												</span>
 												At least one letter (A-Z or a-z)
 											</li>
-											<li class="flex items-center {passwordRequirements.number ? 'text-emerald-600' : 'text-slate-500'}">
+											<li class="flex items-center {passwordRequirements.number ? 'text-primary-600' : 'text-slate-500'}">
 												<span
 													class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.number
-														? 'border-emerald-300 bg-emerald-100 text-emerald-600'
+														? 'border-primary-300 bg-emerald-100 text-emerald-600'
 														: 'border-slate-300 bg-slate-100 text-slate-400'}"
 												>
 													{#if passwordRequirements.number}
@@ -725,10 +945,10 @@
 												</span>
 												At least one number (0-9)
 											</li>
-											<li class="flex items-center {passwordRequirements.special ? 'text-emerald-600' : 'text-slate-500'}">
+											<li class="flex items-center {passwordRequirements.special ? 'text-primary-600' : 'text-slate-500'}">
 												<span
 													class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.special
-														? 'border-emerald-300 bg-emerald-100 text-emerald-600'
+														? 'border-primary-300 bg-emerald-100 text-primary-600'
 														: 'border-slate-300 bg-slate-100 text-slate-400'}"
 												>
 													{#if passwordRequirements.special}
@@ -743,10 +963,10 @@
 												</span>
 												At least one special character (@$!%*#?&)
 											</li>
-											<li class="flex items-center {passwordRequirements.match ? 'text-emerald-600' : 'text-slate-500'}">
+											<li class="flex items-center {passwordRequirements.match ? 'text-primary-600' : 'text-slate-500'}">
 												<span
 													class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.match
-														? 'border-emerald-300 bg-emerald-100 text-emerald-600'
+														? 'border-primary-300 bg-emerald-100 text-primary-600'
 														: 'border-slate-300 bg-slate-100 text-slate-400'}"
 												>
 													{#if passwordRequirements.match}
@@ -763,7 +983,7 @@
 											</li>
 											<li class="mt-2 flex items-center border-t border-slate-200 pt-2 text-slate-500">
 												<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
-													<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+													<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-tertiary-500" viewBox="0 0 20 20" fill="currentColor">
 														<path
 															fill-rule="evenodd"
 															d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -781,49 +1001,35 @@
 							<div class="fade-in">
 								<!-- System Settings -->
 								<div class="mb-8">
-									<p class="text-slate-600">
-										Configure the basic settings for your CMS including site name, language preferences, and media storage.
-									</p>
+									<p class="">Configure the basic settings for your CMS including site name, language preferences, and media storage.</p>
 								</div>
 
 								<div class="space-y-6">
 									<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 										<div>
-											<label for="site-name" class="mb-1 block text-sm font-medium text-slate-700">Site Name</label>
+											<label for="site-name" class="mb-1 block text-sm font-medium">Site Name</label>
 											<input
 												id="site-name"
 												bind:value={systemSettings.siteName}
 												type="text"
 												placeholder="My SveltyCMS Site"
-												class="w-full rounded-md border px-3.5 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10 {validationErrors.siteName
-													? 'border-red-500'
-													: 'border-slate-200'}"
+												class="input w-full rounded {validationErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
 											/>
 											{#if validationErrors.siteName}
-												<div class="mt-1 text-xs text-red-500">{validationErrors.siteName}</div>
+												<div class="mt-1 text-xs text-error-500">{validationErrors.siteName}</div>
 											{/if}
 										</div>
 										<div>
-											<label for="default-language" class="mb-1 block text-sm font-medium text-slate-700">Default Language</label>
-											<select
-												id="default-language"
-												bind:value={systemSettings.defaultLanguage}
-												class="w-full rounded-md border px-3.5 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10"
-											>
-												<option value="en">English</option>
-												<option value="es">Spanish</option>
-												<option value="fr">French</option>
-												<option value="de">German</option>
-												<option value="it">Italian</option>
+											<label for="default-language" class="mb-1 block text-sm font-medium">Default Language</label>
+											<select id="default-language" bind:value={systemSettings.defaultLanguage} class="input w-full rounded">
+												{#each availableLanguages as lang}
+													<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
+												{/each}
 											</select>
 										</div>
 										<div>
-											<label for="timezone" class="mb-1 block text-sm font-medium text-slate-700">Timezone</label>
-											<select
-												id="timezone"
-												bind:value={systemSettings.timezone}
-												class="w-full rounded-md border px-3.5 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10"
-											>
+											<label for="timezone" class="mb-1 block text-sm font-medium">Timezone</label>
+											<select id="timezone" bind:value={systemSettings.timezone} class="input w-full rounded">
 												<option value="UTC">UTC (Coordinated Universal Time)</option>
 												<option value="America/New_York">Eastern Time (ET)</option>
 												<option value="America/Chicago">Central Time (CT)</option>
@@ -835,13 +1041,13 @@
 											</select>
 										</div>
 										<div>
-											<label for="media-folder" class="mb-1 block text-sm font-medium text-slate-700">Media Storage Path</label>
+											<label for="media-folder" class="mb-1 block text-sm font-medium">Media Storage Path</label>
 											<input
 												id="media-folder"
 												bind:value={systemSettings.mediaFolder}
 												type="text"
 												placeholder="./static/media"
-												class="w-full rounded-md border px-3.5 py-2.5 text-sm transition-all hover:border-slate-300 focus:border-[#ff3e00] focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/10"
+												class="input w-full rounded"
 											/>
 										</div>
 									</div>
@@ -851,20 +1057,18 @@
 							<div class="fade-in">
 								<!-- Review & Complete -->
 								<div class="mb-8">
-									<p class="text-slate-600">
-										Please review your configuration before completing the setup. Once finished, you'll be redirected to the login page.
-									</p>
+									<p class="">Please review your configuration before completing the setup. Once finished, you'll be redirected to the login page.</p>
 								</div>
 
 								<div class="space-y-6">
 									<div class="mt-4 space-y-6 rounded-lg border border-indigo-100 bg-indigo-50/50 p-4">
 										<div class="grid grid-cols-1 gap-8 md:grid-cols-2">
 											<div>
-												<h3 class="mb-3 flex items-center font-semibold tracking-tight text-slate-800">
+												<h3 class="mb-3 flex items-center font-semibold tracking-tight">
 													<span class="mr-2 inline-block h-2 w-2 rounded-full bg-indigo-500"></span>
 													Database Configuration
 												</h3>
-												<div class="space-y-2 text-sm text-slate-600">
+												<div class="space-y-2 text-sm">
 													<div><span class="font-medium">Type:</span> {dbConfig.type}</div>
 													<div><span class="font-medium">Host:</span> {dbConfig.host}</div>
 													<div><span class="font-medium">Port:</span> {dbConfig.port}</div>
@@ -876,11 +1080,11 @@
 											</div>
 
 											<div>
-												<h3 class="mb-3 flex items-center font-semibold tracking-tight text-slate-800">
+												<h3 class="mb-3 flex items-center font-semibold tracking-tight">
 													<span class="mr-2 inline-block h-2 w-2 rounded-full bg-indigo-500"></span>
 													Administrator Account
 												</h3>
-												<div class="space-y-2 text-sm text-slate-600">
+												<div class="space-y-2 text-sm">
 													<div><span class="font-medium">Username:</span> {adminUser.username}</div>
 													<div><span class="font-medium">Email:</span> {adminUser.email}</div>
 													<div><span class="font-medium">Password:</span> ••••••••</div>
@@ -888,11 +1092,11 @@
 											</div>
 
 											<div>
-												<h3 class="mb-3 flex items-center font-semibold tracking-tight text-slate-800">
+												<h3 class="mb-3 flex items-center font-semibold tracking-tight">
 													<span class="mr-2 inline-block h-2 w-2 rounded-full bg-indigo-500"></span>
 													System Settings
 												</h3>
-												<div class="space-y-2 text-sm text-slate-600">
+												<div class="t space-y-2 text-sm">
 													<div><span class="font-medium">Site Name:</span> {systemSettings.siteName}</div>
 													<div><span class="font-medium">Language:</span> {systemSettings.defaultLanguage}</div>
 													<div><span class="font-medium">Timezone:</span> {systemSettings.timezone}</div>
@@ -900,11 +1104,11 @@
 											</div>
 
 											<div>
-												<h3 class="mb-3 flex items-center font-semibold tracking-tight text-slate-800">
+												<h3 class="mb-3 flex items-center font-semibold tracking-tight">
 													<span class="mr-2 inline-block h-2 w-2 rounded-full bg-indigo-500"></span>
 													Media Storage
 												</h3>
-												<div class="space-y-2 text-sm text-slate-600">
+												<div class="space-y-2 text-sm">
 													<div><span class="font-medium">Path:</span> {systemSettings.mediaFolder}</div>
 												</div>
 											</div>
@@ -929,8 +1133,8 @@
 
 						<!-- Status Messages -->
 						{#if successMessage && !isRedirecting}
-							<div class="mt-4 flex items-center gap-2 rounded-md border-l-4 border-green-400 bg-green-50 p-3.5 text-sm text-green-800">
-								<svg class="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="bg-primara-50 mt-4 flex items-center gap-2 rounded-md border-l-4 border-primary-400 p-3.5 text-sm text-green-800">
+								<svg class="h-4 w-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
 								</svg>
 								{successMessage}
@@ -938,8 +1142,8 @@
 						{/if}
 
 						{#if errorMessage}
-							<div class="mt-4 flex items-center gap-2 rounded-md border-l-4 border-red-400 bg-red-50 p-3.5 text-sm text-red-600">
-								<svg class="h-4 w-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div class="mt-4 flex items-center gap-2 rounded-md border-l-4 border-error-400 bg-red-50 p-3.5 text-sm text-error-600">
+								<svg class="h-4 w-4 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
 								</svg>
 								{errorMessage}
@@ -955,20 +1159,17 @@
 						<button
 							onclick={prevStep}
 							disabled={currentStep === 0}
-							class="order-2 flex min-h-[2.75rem] touch-manipulation items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-600 transition-all hover:border-indigo-300 hover:bg-indigo-100 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:order-1"
+							class="variant-filled-tertiary btn order-2 dark:variant-filled-primary sm:order-1"
 						>
 							← {m.setup_button_previous()}
 						</button>
 
-						<div class="order-1 text-center text-sm font-medium text-slate-500 sm:order-2">
+						<div class="order-1 text-center text-sm font-medium sm:order-2">
 							Step {currentStep + 1} of {totalSteps}
 						</div>
 
 						{#if currentStep < totalSteps - 1}
-							<button
-								onclick={nextStep}
-								class="order-3 flex min-h-[2.75rem] touch-manipulation items-center justify-center rounded-md bg-[#ff3e00] px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#ff3e00]/90 focus:outline-none focus:ring-2 focus:ring-[#ff3e00]/20"
-							>
+							<button onclick={nextStep} class="variant-filled-tertiary btn order-3 dark:variant-filled-primary">
 								{m.setup_button_next()} →
 							</button>
 						{:else}
@@ -976,13 +1177,9 @@
 						{/if}
 					</div>
 				</div>
-				<!-- End of Card -->
 			</div>
-			<!-- End of Flex-1 -->
 		</div>
-		<!-- End of Main Content with Left Side Steps -->
 	</div>
-	<!-- End of mx-auto max-w-6xl px-6 py-12 -->
 </div>
 
 <!-- Redirect Loading Overlay -->
@@ -996,15 +1193,13 @@
 			</div>
 
 			<!-- Message -->
-			<h3 class="mb-2 text-lg font-semibold text-slate-800">Setup Complete!</h3>
+			<h3 class="mb-2 text-lg font-semibold text-slate-800">{m.twofa_setup_complete_title()}</h3>
 			<p class="text-sm text-slate-600">
 				{successMessage}
 			</p>
 		</div>
 	</div>
 {/if}
-
-<!-- End of min-h-screen -->
 
 <style>
 	/* Any component-specific styles can go here */
@@ -1021,14 +1216,6 @@
 			opacity: 1;
 			transform: translateY(0);
 		}
-	}
-
-	:global(h1, h2, h3, h4, h5, h6) {
-		font-family: 'Bricolage Grotesque', sans-serif;
-	}
-
-	:global(body) {
-		font-family: 'Inter', sans-serif;
 	}
 
 	/* Accent color variables */

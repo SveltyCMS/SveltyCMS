@@ -605,6 +605,17 @@
 	"setup_database_name": "Tietokannan nimi",
 	"setup_database_user": "Käyttäjänimi (valinnainen)",
 	"setup_database_password": "Salasana (valinnainen)",
+	"setup_database_username_placeholder": "Tietokannan käyttäjätunnus",
+	"setup_database_password_placeholder": "Tietokannan salasana",
+	"setup_heading_title": "{publicEnv.SITE_NAME}:n asennus",
+	"setup_heading_subtitle": "Määritä sisällönhallintajärjestelmäsi muutamalla yksinkertaisella vaiheella",
+	"setup_heading_badge": "Asennusavustaja",
+	"setup_database_intro": "Anna tietokantayhteystietosi. SveltyCMS tukee MongoDB-, PostgreSQL- ja MySQL-tietokantoja.",
+	"setup_button_test_connection": "Testaa yhteys",
+	"setup_label_database_type": "Tietokannan tyyppi",
+	"setup_legend_completed": "Valmis",
+	"setup_legend_current": "Nykyinen vaihe",
+	"setup_legend_pending": "Odottaa",
 	"setup_admin_username": "Käyttäjätunnus",
 	"setup_admin_email": "Sähköpostiosoite",
 	"setup_admin_password": "Salasana",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Sivuston nimi",
 	"setup_button_previous": "Edellinen",
 	"setup_button_next": "Seuraava",
-	"setup_button_complete": "Viimeistele asennus",
-	"setup_button_test_connection": "Testaa yhteys"
+	"setup_button_complete": "Viimeistele asennus"
 }

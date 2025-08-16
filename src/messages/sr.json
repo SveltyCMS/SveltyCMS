@@ -605,6 +605,17 @@
 	"setup_database_name": "Назив базе података",
 	"setup_database_user": "Корисничко име (опционо)",
 	"setup_database_password": "Лозинка (опционо)",
+	"setup_database_username_placeholder": "Корисничко име базе података",
+	"setup_database_password_placeholder": "Лозинка базе података",
+	"setup_heading_title": "Подешавање {publicEnv.SITE_NAME}-а",
+	"setup_heading_subtitle": "Конфигуришите свој систем за управљање садржајем у неколико једноставних корака",
+	"setup_heading_badge": "Чаробњак за инсталацију",
+	"setup_database_intro": "Унесите детаље везе са базом података. SveltyCMS подржава базе података MongoDB, PostgreSQL и MySQL.",
+	"setup_button_test_connection": "Тестирај везу",
+	"setup_label_database_type": "Тип базе података",
+	"setup_legend_completed": "Завршено",
+	"setup_legend_current": "Тренутни корак",
+	"setup_legend_pending": "На чекању",
 	"setup_admin_username": "Корисничко име",
 	"setup_admin_email": "Е-маил адреса",
 	"setup_admin_password": "Лозинка",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Назив сајта",
 	"setup_button_previous": "Претходни",
 	"setup_button_next": "Следећи",
-	"setup_button_complete": "Заврши подешавање",
-	"setup_button_test_connection": "Тестирај везу"
+	"setup_button_complete": "Заврши подешавање"
 }

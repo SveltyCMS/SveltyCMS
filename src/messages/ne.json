@@ -605,6 +605,17 @@
 	"setup_database_name": "डाटाबेस नाम",
 	"setup_database_user": "प्रयोगकर्ता नाम (वैकल्पिक)",
 	"setup_database_password": "पासवर्ड (वैकल्पिक)",
+	"setup_database_username_placeholder": "डाटाबेस प्रयोगकर्ता नाम",
+	"setup_database_password_placeholder": "डाटाबेस पासवर्ड",
+	"setup_heading_title": "{publicEnv.SITE_NAME} सेटअप गर्नुहोस्",
+	"setup_heading_subtitle": "केही सरल चरणहरूमा आफ्नो सामग्री व्यवस्थापन प्रणाली कन्फिगर गर्नुहोस्",
+	"setup_heading_badge": "स्थापना विजार्ड",
+	"setup_database_intro": "आफ्नो डाटाबेस जडान विवरणहरू प्रविष्ट गर्नुहोस्। SveltyCMS ले MongoDB, PostgreSQL, र MySQL डाटाबेसहरूलाई समर्थन गर्दछ।",
+	"setup_button_test_connection": "कनेक्शन परीक्षण गर्नुहोस्",
+	"setup_label_database_type": "डाटाबेस प्रकार",
+	"setup_legend_completed": "पूरा भयो",
+	"setup_legend_current": "हालको चरण",
+	"setup_legend_pending": "विचाराधीन",
 	"setup_admin_username": "प्रयोगकर्ता नाम",
 	"setup_admin_email": "इमेल ठेगाना",
 	"setup_admin_password": "पासवर्ड",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "साइटको नाम",
 	"setup_button_previous": "अघिल्लो",
 	"setup_button_next": "अर्को",
-	"setup_button_complete": "सेटअप पूरा गर्नुहोस्",
-	"setup_button_test_connection": "कनेक्शन परीक्षण गर्नुहोस्"
+	"setup_button_complete": "सेटअप पूरा गर्नुहोस्"
 }

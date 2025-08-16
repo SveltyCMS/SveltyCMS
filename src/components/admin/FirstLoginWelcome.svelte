@@ -9,18 +9,14 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-
+	import { onMount } from 'svelte';
 	// Icons
 	import Icon from '@iconify/svelte';
 
 	// Components
-	import Button from '@components/system/buttons/Button.svelte';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-
+	import Button from '@components/system/buttons/Button.svelte';
 	// Utils
 	import { logger } from '@utils/logger.svelte';
 
@@ -36,21 +32,22 @@
 	}
 
 	// Props
-	export let user: any;
-	export let showWelcome = true;
+	let { user, showWelcome = true } = $props<{
+		user: any;
+		showWelcome?: boolean;
+	}>();
 
 	// State
-	let currentStep = 0;
-	// Modal store for import/export
-	const modalStore = getModalStore();
+	let currentStep = $state(0);
+	let showImportExport = $state(false);
+	let dismissedWelcome = $state(false);
 
 	function openImportExportModal() {
 		showImportExport = true;
 	}
-	let dismissedWelcome = false;
 
 	// Welcome steps for new admin users
-	const welcomeSteps: WelcomeStep[] = [
+	let welcomeSteps = $state([
 		{
 			id: 'data-management',
 			title: 'Data Import & Export',
@@ -86,7 +83,7 @@
 			actionUrl: '/config/systemsetting',
 			completed: false
 		}
-	];
+	]);
 
 	onMount(() => {
 		// Check if user has already seen the welcome screen
@@ -106,13 +103,13 @@
 	}
 
 	function markStepCompleted(stepId: string) {
-		const index = welcomeSteps.findIndex(s => s.id === stepId);
+		const index = welcomeSteps.findIndex((s) => s.id === stepId);
 		if (index !== -1) {
 			welcomeSteps[index].completed = true;
 		}
 
 		// Save progress to localStorage
-		const completedSteps = welcomeSteps.filter(s => s.completed).map(s => s.id);
+		const completedSteps = welcomeSteps.filter((s) => s.completed).map((s) => s.id);
 		localStorage.setItem('sveltycms-welcome-progress', JSON.stringify(completedSteps));
 	}
 
@@ -145,7 +142,7 @@
 			const savedProgress = localStorage.getItem('sveltycms-welcome-progress');
 			if (savedProgress) {
 				const completedSteps = JSON.parse(savedProgress);
-				welcomeSteps.forEach(step => {
+				welcomeSteps.forEach((step) => {
 					if (completedSteps.includes(step.id)) {
 						step.completed = true;
 					}
@@ -159,180 +156,150 @@
 
 {#if showWelcome && !dismissedWelcome}
 	<!-- Welcome Container -->
-	<div class="welcome-container max-w-4xl mx-auto p-6 bg-surface-50 dark:bg-surface-800 rounded-lg shadow-lg">
+	<div class="welcome-container mx-auto max-w-4xl rounded-lg bg-surface-50 p-6 shadow-lg dark:bg-surface-800">
 		<!-- Header -->
-		<div class="text-center mb-8">
-			<div class="mx-auto w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
-				<Icon icon="mdi:rocket-launch" class="w-10 h-10 text-blue-600 dark:text-blue-400" />
+		<div class="mb-8 text-center">
+			<div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+				<Icon icon="mdi:rocket-launch" class="h-10 w-10 text-blue-600 dark:text-blue-400" />
 			</div>
-			<h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
 				Congratulations, {user?.username || 'Admin'}!
 			</h2>
-			<p class="text-gray-600 dark:text-gray-400">
-				Your SveltyCMS installation is ready. Let's get you started with the essential features.
-			</p>
+			<p class="text-gray-600 dark:text-gray-400">Your SveltyCMS installation is ready. Let's get you started with the essential features.</p>
 		</div>
 
-			<!-- Progress Indicator -->
-			<div class="flex justify-center mb-8">
-				<div class="flex space-x-2">
-					{#each welcomeSteps as step, index}
-						<button
-							class="w-3 h-3 rounded-full transition-colors duration-200 {
-								index === currentStep
-									? 'bg-blue-600'
-									: step.completed
-										? 'bg-green-500'
-										: 'bg-gray-300 dark:bg-gray-600'
-							}"
-							on:click={() => currentStep = index}
-						/>
-					{/each}
-				</div>
+		<!-- Progress Indicator -->
+		<div class="mb-8 flex justify-center">
+			<div class="flex space-x-2">
+				{#each welcomeSteps as step, index}
+					<button
+						class="h-3 w-3 rounded-full transition-colors duration-200 {index === currentStep
+							? 'bg-blue-600'
+							: step.completed
+								? 'bg-green-500'
+								: 'bg-gray-300 dark:bg-gray-600'}"
+						onclick={() => (currentStep = index)}
+						aria-label="Go to step {index + 1}: {step.title}"
+					></button>
+				{/each}
 			</div>
+		</div>
 
-			<!-- Current Step -->
-			{#if currentStep < welcomeSteps.length}
-				{@const step = welcomeSteps[currentStep]}
-				<div class="step-content">
-					<div class="text-center mb-6">
-						<div class="mx-auto w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
-							<Icon icon={step.icon} class="w-8 h-8 text-gray-600 dark:text-gray-400" />
-						</div>
-						<h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-							{step.title}
-						</h3>
-						<p class="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-							{step.description}
-						</p>
+		<!-- Current Step -->
+		{#if currentStep < welcomeSteps.length}
+			{@const step = welcomeSteps[currentStep]}
+			<div class="step-content">
+				<div class="mb-6 text-center">
+					<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+						<Icon icon={step.icon} class="h-8 w-8 text-gray-600 dark:text-gray-400" />
 					</div>
+					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">
+						{step.title}
+					</h3>
+					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">
+						{step.description}
+					</p>
+				</div>
 
-					<!-- Step Action -->
-					<div class="text-center mb-6">
-						<Button
-							on:click={() => handleStepAction(step)}
-							variant="primary"
-							size="lg"
-							class="px-8"
-						>
-							<Icon icon={step.icon} class="w-5 h-5 mr-2" />
-							{step.action}
-						</Button>
-					</div>
+				<!-- Step Action -->
+				<div class="mb-6 text-center">
+					<Button onclick={() => handleStepAction(step)} variant="primary" size="lg" class="px-8">
+						<Icon icon={step.icon} class="mr-2 h-5 w-5" />
+						{step.action}
+					</Button>
+				</div>
 
-					<!-- Special content for data management step -->
-					{#if step.id === 'data-management'}
-						<div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
-							<div class="flex items-start space-x-3">
-								<Icon icon="mdi:information" class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-								<div class="text-sm">
-									<p class="font-medium text-blue-900 dark:text-blue-100 mb-1">
-										Data Management Tips
-									</p>
-									<ul class="text-blue-700 dark:text-blue-300 space-y-1">
-										<li>• Regular backups protect your content from data loss</li>
-										<li>• Export collections before major system changes</li>
-										<li>• Import/export supports both JSON and CSV formats</li>
-										<li>• You can migrate data from other CMS platforms</li>
-									</ul>
-								</div>
+				<!-- Special content for data management step -->
+				{#if step.id === 'data-management'}
+					<div class="mb-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+						<div class="flex items-start space-x-3">
+							<Icon icon="mdi:information" class="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<div class="text-sm">
+								<p class="mb-1 font-medium text-blue-900 dark:text-blue-100">Data Management Tips</p>
+								<ul class="space-y-1 text-blue-700 dark:text-blue-300">
+									<li>• Regular backups protect your content from data loss</li>
+									<li>• Export collections before major system changes</li>
+									<li>• Import/export supports both JSON and CSV formats</li>
+									<li>• You can migrate data from other CMS platforms</li>
+								</ul>
 							</div>
 						</div>
-					{/if}
-				</div>
-			{/if}
+					</div>
+				{/if}
+			</div>
+		{/if}
 
-			<!-- Quick Stats -->
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-					<div class="text-2xl font-bold text-green-600">✓</div>
-					<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
-				</div>
-				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-					<div class="text-2xl font-bold text-blue-600">0</div>
-					<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
-				</div>
-				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-					<div class="text-2xl font-bold text-purple-600">1</div>
-					<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
-				</div>
-				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-					<div class="text-2xl font-bold text-orange-600">∞</div>
-					<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
-				</div>
+		<!-- Quick Stats -->
+		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+				<div class="text-2xl font-bold text-green-600">✓</div>
+				<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
+			</div>
+			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+				<div class="text-2xl font-bold text-blue-600">0</div>
+				<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
+			</div>
+			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+				<div class="text-2xl font-bold text-purple-600">1</div>
+				<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
+			</div>
+			<div class="rounded-lg bg-gray-50 p-4 text-center dark:bg-gray-800">
+				<div class="text-2xl font-bold text-orange-600">∞</div>
+				<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
 			</div>
 		</div>
+	</div>
 
-		<svelte:fragment slot="footer">
-			<div class="flex justify-between items-center w-full">
-				<div class="flex space-x-2">
-					<Button
-						on:click={previousStep}
-						variant="ghost"
-						disabled={currentStep === 0}
-					>
-						<Icon icon="mdi:chevron-left" class="w-4 h-4 mr-1" />
-						Previous
-					</Button>
-				</div>
+	<!-- Footer -->
+	<div class="flex w-full items-center justify-between">
+		<div class="flex space-x-2">
+			<Button onclick={previousStep} variant="ghost" disabled={currentStep === 0}>
+				<Icon icon="mdi:chevron-left" class="mr-1 h-4 w-4" />
+				Previous
+			</Button>
+		</div>
 
-				<div class="flex space-x-2">
-					<Button
-						on:click={dismissWelcome}
-						variant="ghost"
-					>
-						Skip Tour
-					</Button>
+		<div class="flex space-x-2">
+			<Button onclick={dismissWelcome} variant="ghost">Skip Tour</Button>
 
-					{#if currentStep < welcomeSteps.length - 1}
-						<Button
-							on:click={nextStep}
-							variant="secondary"
-						>
-							Next
-							<Icon icon="mdi:chevron-right" class="w-4 h-4 ml-1" />
-						</Button>
-					{:else}
-						<Button
-							on:click={goToDashboard}
-							variant="primary"
-						>
-							Go to Dashboard
-							<Icon icon="mdi:view-dashboard" class="w-4 h-4 ml-2" />
-						</Button>
-					{/if}
-				</div>
-			</div>
+			{#if currentStep < welcomeSteps.length - 1}
+				<Button onclick={nextStep} variant="secondary">
+					Next
+					<Icon icon="mdi:chevron-right" class="ml-1 h-4 w-4" />
+				</Button>
+			{:else}
+				<Button onclick={goToDashboard} variant="primary">
+					Go to Dashboard
+					<Icon icon="mdi:view-dashboard" class="ml-2 h-4 w-4" />
+				</Button>
+			{/if}
 		</div>
 	</div>
 {/if}
 
 <!-- Import/Export Overlay -->
 {#if showImportExport}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-		<div class="bg-surface-50 dark:bg-surface-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-			<div class="flex justify-between items-center p-6 border-b">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button
-					on:click={() => showImportExport = false}
-					class="btn btn-sm variant-ghost"
-				>
-					<Icon icon="mdi:close" class="w-5 h-5" />
+				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm">
+					<Icon icon="mdi:close" class="h-5 w-5" />
 				</button>
 			</div>
 
-			<div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
 				<ImportExportManager />
 			</div>
 
-			<div class="flex justify-between items-center p-6 border-t bg-surface-100 dark:bg-surface-700">
+			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
 				<div class="text-sm text-gray-600 dark:text-gray-400">
-					<Icon icon="mdi:shield-check" class="w-4 h-4 inline mr-1" />
+					<Icon icon="mdi:shield-check" class="mr-1 inline h-4 w-4" />
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">
 					<Button
-						on:click={() => {
+						onclick={() => {
 							showImportExport = false;
 							markStepCompleted('data-management');
 						}}
@@ -348,10 +315,14 @@
 
 <style>
 	.welcome-container {
-		@apply max-w-4xl mx-auto;
+		max-width: 64rem;
+		margin: 0 auto;
 	}
 
 	.step-content {
-		@apply min-h-[300px] flex flex-col justify-center;
+		min-height: 300px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
 	}
 </style>

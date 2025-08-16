@@ -605,6 +605,17 @@
 	"setup_database_name": "データベース名",
 	"setup_database_user": "ユーザー名（任意）",
 	"setup_database_password": "パスワード（任意）",
+	"setup_database_username_placeholder": "データベースユーザー名",
+	"setup_database_password_placeholder": "データベースパスワード",
+	"setup_heading_title": "{publicEnv.SITE_NAME}のセットアップ",
+	"setup_heading_subtitle": "簡単な手順でコンテンツ管理システムを設定",
+	"setup_heading_badge": "インストールウィザード",
+	"setup_database_intro": "データベース接続の詳細を入力してください。SveltyCMS は MongoDB、PostgreSQL、MySQL データベースをサポートしています。",
+	"setup_button_test_connection": "接続テスト",
+	"setup_label_database_type": "データベースの種類",
+	"setup_legend_completed": "完了",
+	"setup_legend_current": "現在のステップ",
+	"setup_legend_pending": "保留中",
 	"setup_admin_username": "ユーザー名",
 	"setup_admin_email": "メールアドレス",
 	"setup_admin_password": "パスワード",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "サイト名",
 	"setup_button_previous": "前へ",
 	"setup_button_next": "次へ",
-	"setup_button_complete": "セットアップ完了",
-	"setup_button_test_connection": "接続テスト"
+	"setup_button_complete": "セットアップ完了"
 }

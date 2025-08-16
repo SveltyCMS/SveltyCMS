@@ -605,6 +605,17 @@
 	"setup_database_name": "Назва бази даних",
 	"setup_database_user": "Ім'я користувача (необов'язково)",
 	"setup_database_password": "Пароль (необов'язково)",
+	"setup_database_username_placeholder": "Ім'я користувача бази даних",
+	"setup_database_password_placeholder": "Пароль бази даних",
+	"setup_heading_title": "Налаштування {publicEnv.SITE_NAME}",
+	"setup_heading_subtitle": "Налаштуйте свою систему керування контентом за кілька простих кроків",
+	"setup_heading_badge": "Майстер встановлення",
+	"setup_database_intro": "Введіть дані підключення до бази даних. SveltyCMS підтримує бази даних MongoDB, PostgreSQL та MySQL.",
+	"setup_button_test_connection": "Тестувати підключення",
+	"setup_label_database_type": "Тип бази даних",
+	"setup_legend_completed": "Завершено",
+	"setup_legend_current": "Поточний крок",
+	"setup_legend_pending": "Очікує на розгляд",
 	"setup_admin_username": "Ім'я користувача",
 	"setup_admin_email": "Електронна адреса",
 	"setup_admin_password": "Пароль",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Назва сайту",
 	"setup_button_previous": "Попередній",
 	"setup_button_next": "Наступний",
-	"setup_button_complete": "Завершити налаштування",
-	"setup_button_test_connection": "Тестувати підключення"
+	"setup_button_complete": "Завершити налаштування"
 }

@@ -605,6 +605,17 @@
 	"setup_database_name": "Databasnamn",
 	"setup_database_user": "Användarnamn (valfritt)",
 	"setup_database_password": "Lösenord (valfritt)",
+	"setup_database_username_placeholder": "Databasanvändarnamn",
+	"setup_database_password_placeholder": "Lösenord för databasen",
+	"setup_heading_title": "Konfigurera {publicEnv.SITE_NAME}",
+	"setup_heading_subtitle": "Konfigurera ditt innehållshanteringssystem i några enkla steg",
+	"setup_heading_badge": "Installationsguiden",
+	"setup_database_intro": "Ange dina databasanslutningsuppgifter. SveltyCMS stöder MongoDB-, PostgreSQL- och MySQL-databaser.",
+	"setup_button_test_connection": "Testa anslutning",
+	"setup_label_database_type": "Databastyp",
+	"setup_legend_completed": "Avslutad",
+	"setup_legend_current": "Nuvarande steg",
+	"setup_legend_pending": "I avvaktan på",
 	"setup_admin_username": "Användarnamn",
 	"setup_admin_email": "E-postadress",
 	"setup_admin_password": "Lösenord",
@@ -612,6 +623,5 @@
 	"setup_system_site_name": "Webbplatsnamn",
 	"setup_button_previous": "Föregående",
 	"setup_button_next": "Nästa",
-	"setup_button_complete": "Slutför installation",
-	"setup_button_test_connection": "Testa anslutning"
+	"setup_button_complete": "Slutför installation"
 }
