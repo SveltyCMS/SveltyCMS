@@ -65,7 +65,7 @@ jobs:
         run: bunx svelte-kit sync
 
       - name: Build SvelteKit server
-        run: bunx svelte-kit build
+        run: bunx vite build
 
       - name: Start preview server (port 4173)
         run: |
