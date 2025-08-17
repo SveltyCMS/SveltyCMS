@@ -15,67 +15,71 @@
 -->
 
 <script lang="ts">
-	import { run, preventDefault } from 'svelte/legacy';
-
-	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
-
+	import { preventDefault, run } from 'svelte/legacy';
 	// Stores
+	import { publicEnv } from '@root/config/public';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
-
 	// Valibot validation
-	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	import { boolean, number, object, optional, parse, pipe, regex, string, type ValiError } from 'valibot';
 
+	// Reactive language handling (align with core Input widget pattern)
+	// Derive active language: if field is translatable use current contentLanguage, otherwise fallback to default public env setting
+	// Props (minimal) - currency widget expects a field definition and optional value object keyed by language codes
 	interface Props {
-		field: FieldType;
-		value?: any;
+		field: any;
+		value?: Record<string, string>;
 	}
+	let { field, value = $bindable<Record<string, string> | undefined>() }: Props = $props();
 
-	let { field, value = collectionValue.value[getFieldName(field)] || {} }: Props = $props();
+	// Internal data object (fallback if external value not provided)
+	let _data = $state<Record<string, string>>(value || {});
+	// Sync outward when internal changes
+	$effect(() => {
+		if (value !== _data) value = _data;
+	});
+	// Sync inward if parent replaces value object
+	$effect(() => {
+		if (value && value !== _data) _data = value;
+	});
+
+	// Field name for validation store
 	const fieldName = getFieldName(field);
 
-	const _data = $state(mode.value === 'create' ? {} : value);
-	import { onMount } from 'svelte';
-	let _language: string = '';
-	onMount(async () => {
-		_language = await getPublicSetting('DEFAULT_CONTENT_LANGUAGE');
-	});
+	let _language = $derived((field?.translated ? contentLanguage.value : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string))?.toLowerCase());
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
 	let numberInput: HTMLInputElement | undefined = $state();
-	const language = contentLanguage.value;
 
 	export const WidgetData = async () => _data;
 
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const value = target.value;
-		const decimalSeparator = getDecimalSeparator(language);
+		const decimalSeparator = getDecimalSeparator(_language);
 		if (value[value.length - 1] !== decimalSeparator) {
 			const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
 			if (!isNaN(number)) {
-				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(number);
+				target.value = new Intl.NumberFormat(_language, { maximumFractionDigits: 20 }).format(number);
 			} else {
 				target.value = value;
 			}
 		}
 	}
 
-	function getDecimalSeparator(language: string) {
-		const numberWithDecimalSeparator = new Intl.NumberFormat(language).format(1.1);
+	function getDecimalSeparator(locale: string) {
+		const numberWithDecimalSeparator = new Intl.NumberFormat(locale).format(1.1);
 		return numberWithDecimalSeparator.substring(1, 2);
 	}
 
 	run(() => {
 		if (numberInput) {
 			const value = numberInput.value;
-			const decimalSeparator = getDecimalSeparator(language);
+			const decimalSeparator = getDecimalSeparator(_language);
 			const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
 			if (!isNaN(number)) {
-				numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(number);
+				numberInput.value = new Intl.NumberFormat(_language, { maximumFractionDigits: 20 }).format(number);
 			} else {
 				numberInput.value = value;
 			}
@@ -95,7 +99,7 @@
 		required: optional(boolean())
 	});
 
-	type WidgetSchemaType = InferInput<typeof widgetSchema>;
+	// (WidgetSchemaType omitted because not used directly)
 
 	// Generic validation function that uses the provided schema to validate the input
 	function validateSchema(data: unknown): string | null {

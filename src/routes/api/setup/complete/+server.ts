@@ -92,6 +92,21 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			force?: boolean;
 		};
 
+		// Sanitize & early-validate admin user BEFORE any destructive operations (e.g. dropping DB)
+		const rawAdmin: unknown = admin;
+		const adminObj = rawAdmin && typeof rawAdmin === 'object' ? (rawAdmin as Record<string, unknown>) : {};
+		const adminSanitized: AdminConfig = {
+			username: String(adminObj.username ?? ''),
+			email: String(adminObj.email ?? ''),
+			password: String(adminObj.password ?? ''),
+			confirmPassword: String(adminObj.confirmPassword ?? '')
+		};
+		const adminValidation = safeParse(setupAdminSchema, adminSanitized);
+		if (!adminValidation.success) {
+			const issues = adminValidation.issues.map((i) => i.message).join(', ');
+			return json({ success: false, error: `Invalid admin user data: ${issues}` }, { status: 400 });
+		}
+
 		const correlationId = randomBytes(6).toString('hex');
 		logger.info('Starting setup completion process', {
 			correlationId,
@@ -133,8 +148,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		logger.info('Settings saved to database', { correlationId });
 
 		// Step 4: Create admin user
-		logger.info('Creating/updating admin user...', { correlationId, admin: admin.email });
-		await createAdminUser(admin, correlationId);
+		logger.info('Creating/updating admin user...', { correlationId, admin: adminSanitized.email });
+		await createAdminUser(adminSanitized, correlationId);
 		logger.info('Admin user processed', { correlationId });
 
 		// Step 5: Invalidate settings cache and reload from database
@@ -351,6 +366,9 @@ async function clearExistingDatabase(opts: { correlationId: string }): Promise<v
 }
 
 async function saveSettingsToDatabase(system: SystemConfig, apiKeys: ApiKeysConfig) {
+	// NOTE: Database credentials are intentionally NOT persisted here. They live only in config/private.ts
+	// (written by updatePrivateConfig) to keep them out of the runtime settings collection.
+	// Only non‑DB system + feature flags + API tokens (if provided) are stored below.
 	const settings = [
 		// Setup completion marker (public so it can be checked)
 		{ key: 'SETUP_COMPLETED', value: true, visibility: 'public' },
@@ -397,9 +415,12 @@ async function saveSettingsToDatabase(system: SystemConfig, apiKeys: ApiKeysConf
 		{ key: 'SECRET_MAPBOX_API_TOKEN', value: apiKeys?.secretMapboxApiToken ?? undefined, visibility: 'private' }
 	];
 
+	// Remove entries with undefined (unset optional secrets) to avoid cluttering the collection
+	const filtered = settings.filter((s) => s.value !== undefined);
+
 	// Use the dedicated SystemSettingModel for key-value settings
 	const { SystemSettingModel } = await import('@src/databases/mongodb/models/setting');
-	for (const setting of settings) {
+	for (const setting of filtered) {
 		await SystemSettingModel.updateOne(
 			{ key: setting.key, scope: 'system' },
 			{

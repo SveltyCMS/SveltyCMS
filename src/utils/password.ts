@@ -6,6 +6,7 @@
  * to ensure consistency across the entire application.
  */
 
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Secure argon2 configuration
