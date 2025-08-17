@@ -65,11 +65,11 @@ jobs:
         run: bunx svelte-kit sync
 
       - name: Build SvelteKit server
-        run: bunx svelte-kit build
+        run: bunx vite build
 
       - name: Start preview server (port 4173)
         run: |
-          bunx svelte-kit preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+          bunx vite preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
           echo $! > preview.pid
 
       - name: Wait for server to be ready
