@@ -84,7 +84,7 @@ jobs:
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
-          bunx playwright test tests/playwright --workers 8 --output=test-results/playwright
+          npx playwright test --workers 8 --output-dir=test-results/playwright
 
       - name: Run Bun tests (after server is up)
         env:
