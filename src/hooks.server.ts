@@ -15,23 +15,18 @@
  * - Locale management
  * - Security headers
  * - Performance monitoring
+ * - Integration with production-grade configuration system
  */
 
 import { building } from '$app/environment';
-import { enableSetupMode } from '@stores/globalSettings';
 import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
-// Core authentication and database
-// (initializeRoles removed; handled in modular authorization hook when needed)
-
-// Minimal private env import (avoid heavy DB work here; session/auth hook will handle)
-// Private env import not needed here; setup handled in handleSetup / downstream hooks
-
-// Stores (removed unused imports)
+// Production-grade configuration service
+import { config, getConfigForHooks } from '@src/lib/config.server';
 
 // Cache
-import { sessionCache, sessionMetrics } from '@src/hooks/utils/session';
+import { sessionCache } from '@src/hooks/utils/session';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -50,8 +45,6 @@ import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
 // Cache TTLs (centralized)
 import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS } from '@src/databases/CacheService';
 const SESSION_TTL = CACHE_TTL_MS; // for metrics cleanup
-
-// Circuit breaker logic is handled where needed; not used directly here after refactor
 
 // Health metrics for monitoring
 const healthMetrics = {
@@ -75,14 +68,6 @@ setInterval(
 	},
 	60 * 60 * 1000
 );
-
-// Legacy in-file utilities removed; handled within modular hooks
-
-/**
- * Identifies a tenant based on the request hostname.
- * In a real-world application, this would query a database of tenants.
- * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
- */
 
 // Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {
@@ -119,114 +104,108 @@ const handlePerfLog: Handle = async ({ event, resolve }) => {
 	return res;
 };
 
+// Configuration initialization hook
+const handleConfigInit: Handle = async ({ event, resolve }) => {
+	if (!building) {
+		try {
+			// Initialize configuration service if not already done
+			if (!config.isInitialized()) {
+				await config.initialize();
+			}
+
+			// Make configuration available to all hooks and endpoints
+			event.locals.config = getConfigForHooks();
+		} catch (error) {
+			logger.warn('Configuration initialization failed:', error);
+			// Continue with setup mode
+		}
+	}
+	return resolve(event);
+};
+
 // Build the middleware sequence based on configuration
 const buildMiddlewareSequence = (): Handle[] => {
 	const middleware: Handle[] = [];
 
-	// 0. Perf start marker
+	// 0. Configuration initialization
+	middleware.push(handleConfigInit);
+	// 1. Perf start marker
 	middleware.push(handlePerfStart);
-	// 1. Setup gate
+	// 2. Setup gate
 	middleware.push(handleSetup);
-	// 2. Static asset caching
+	// 3. Static asset caching
 	middleware.push(handleStaticAssetCaching);
-	// 3. Rate limiting
+	// 4. Rate limiting
 	middleware.push(handleRateLimit);
-	// 4. Multi-tenancy (sets locals.tenantId)
+	// 5. Multi-tenancy (sets locals.tenantId)
 	middleware.push(handleMultiTenancy);
-	// 5. Session auth / rotation
+	// 6. Session auth / rotation
 	middleware.push(handleSessionAuth);
-	// 6. Authorization & admin data
+	// 7. Authorization & admin data
 	middleware.push(handleAuthorization);
-	// 7. API request handling & caching
+	// 8. API request handling & caching
 	middleware.push(handleApiRequests);
-	// 8. Locale management
+	// 9. Locale management
 	middleware.push(handleLocale);
-	// 9. Security headers
+	// 10. Security headers
 	middleware.push(addSecurityHeaders);
-	// 10. Perf logging (after all other mutations)
+	// 11. Perf logging (after all other mutations)
 	middleware.push(handlePerfLog);
 
 	return middleware;
 };
 
-// Combine all hooks using the optimized sequence
+// Export the main handle function
 export const handle: Handle = sequence(...buildMiddlewareSequence());
 
 // Export utility functions for external use
 export const getHealthMetrics = () => ({ ...healthMetrics });
 
-// NOTE: cache invalidation helpers should now be imported from './hooks/handleAuthorization'
+// Cache invalidation helpers (now integrated with config service)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const invalidateAdminCache = (_cacheKey?: 'roles' | 'users' | 'tokens', _tenantId?: string): void => {
+	// This is now handled in the handleAuthorization hook
+	// Keeping for backward compatibility
+};
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const invalidateUserCountCache = (_tenantId?: string): void => {
+	// This is now handled in the handleAuthorization hook
+	// Keeping for backward compatibility
+};
 
 export const cleanupSessionMetrics = (): void => {
 	const now = Date.now();
-	const METRIC_EXPIRY_THRESHOLD = 2 * SESSION_TTL;
+	const expiredSessions: string[] = [];
 
-	let cleanedCount = 0;
-	for (const [sessionId, timestamp] of sessionMetrics.lastActivity) {
-		if (now - timestamp > METRIC_EXPIRY_THRESHOLD) {
-			sessionMetrics.lastActivity.delete(sessionId);
-			sessionMetrics.activeExtensions.delete(sessionId);
-			sessionMetrics.rotationAttempts.delete(sessionId);
-			cleanedCount++;
+	for (const [sessionId, session] of sessionCache.entries()) {
+		if (now - session.lastActivity > SESSION_TTL) {
+			expiredSessions.push(sessionId);
 		}
 	}
-	if (cleanedCount > 0) {
-		logger.info(`Cleaned up metrics for \x1b[34m${cleanedCount}\x1b[0m stale sessions.`);
+
+	for (const sessionId of expiredSessions) {
+		sessionCache.delete(sessionId);
+	}
+
+	if (expiredSessions.length > 0) {
+		logger.debug(`Cleaned up ${expiredSessions.length} expired sessions`);
 	}
 };
 
-// Load global settings from DB at server startup
-
-// Enable setup mode initially to prevent startup errors
-enableSetupMode();
-
-// Only try to load settings if not in build mode
+// Load settings from database at server startup
 if (!building) {
-	let shouldAttemptDbLoad = true;
 	try {
-		const { privateEnv } = await import('@root/config/private');
-		const dbHostEmpty = !privateEnv?.DB_HOST || privateEnv.DB_HOST.trim() === '';
-		const dbNameEmpty = !privateEnv?.DB_NAME || privateEnv.DB_NAME.trim() === '';
-		if (dbHostEmpty || dbNameEmpty) {
-			logger.info('ℹ️  DB credentials not provided yet (DB_HOST / DB_NAME empty) – staying in setup mode, skipping settings load.');
-			shouldAttemptDbLoad = false;
-		}
-	} catch {
-		// File missing or import error; remain in setup mode and skip DB load.
-		shouldAttemptDbLoad = false;
-	}
-
-	if (shouldAttemptDbLoad) {
-		try {
-			await loadGlobalSettings();
-			initializeRateLimiters();
-			logger.info('✅ Settings loaded from database');
-		} catch (error) {
-			logger.info(`⚠️ Database not configured yet, using setup mode: ${error instanceof Error ? error.message : String(error)}`);
-			enableSetupMode();
-			shouldAttemptDbLoad = false;
-		}
-	}
-
-	// Check if we need to seed default settings (if database is empty)
-	try {
-		if (shouldAttemptDbLoad) {
-			const siteName = getGlobalSetting('SITE_NAME');
-			if (!siteName) {
-				logger.info('🌱 No settings found in database. Seeding default settings...');
-				try {
-					const { seedDefaultSettings } = await import('@src/databases/seedSettings');
-					await seedDefaultSettings();
-					await loadGlobalSettings(); // Reload settings after seeding
-					initializeRateLimiters(); // Re-initialize rate limiters after seeding
-
-					logger.info('✅ Default settings seeded successfully');
-				} catch (error) {
-					logger.error(`❌ Failed to seed default settings: ${error instanceof Error ? error.message : String(error)}`, { error });
-				}
-			}
-		}
+		// Initialize configuration service
+		config
+			.initialize()
+			.then(() => {
+				logger.info('✅ Configuration service initialized successfully');
+			})
+			.catch((error) => {
+				logger.warn('⚠️ Configuration service initialization failed, using setup mode:', error);
+			});
 	} catch (error) {
-		logger.warn(`⚠️ Could not check for seeding, continuing in setup mode: ${error instanceof Error ? error.message : String(error)}`);
+		logger.warn('⚠️ Could not initialize configuration service:', error);
 	}
 }

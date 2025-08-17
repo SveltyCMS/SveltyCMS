@@ -296,6 +296,12 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig) {
 		configContent = configContent.replace(/JWT_SECRET_KEY:\s*['"]{2}/, `JWT_SECRET_KEY: '${generateRandomKey()}'`);
 	}
 
+	// Add ENCRYPTION_KEY if it doesn't exist
+	if (!/ENCRYPTION_KEY:\s*['"`][^'"`]+['"`]/.test(configContent)) {
+		// Add ENCRYPTION_KEY after JWT_SECRET_KEY
+		configContent = configContent.replace(/(JWT_SECRET_KEY:\s*['"`][^'"`]+['"`])/, `$1,\n\tENCRYPTION_KEY: '${generateRandomKey()}'`);
+	}
+
 	await fs.writeFile(configPath, configContent);
 }
 

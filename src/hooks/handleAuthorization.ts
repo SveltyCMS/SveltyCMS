@@ -184,7 +184,16 @@ const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login'
 
 // Check if the route is public or an OAuth route
 const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
+	const publicRoutes = [
+		'/login',
+		'/register',
+		'/forgot-password',
+		'/api/sendMail',
+		'/setup',
+		'/api/setup/status',
+		'/api/setup/test-database',
+		'/api/setup/complete'
+	];
 	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
 };
 

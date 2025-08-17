@@ -231,11 +231,6 @@
 		}
 	});
 	onMount(async () => {
-		try {
-			const res = await fetch('/api/setup/status');
-			const data = await res.json();
-			if (data.isComplete) goto('/');
-		} catch {}
 		document.addEventListener('click', outsideLang);
 		// Restore persisted form data & step
 		loadPersisted();

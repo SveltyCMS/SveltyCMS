@@ -81,17 +81,49 @@ const setupCheckPromise = (async () => {
 // --- THE SETUP HOOK ---
 
 export const handleSetup: Handle = async ({ event, resolve }) => {
-	const isSetupComplete = await setupCheckPromise;
+	// First check the cached startup result
+	let isSetupComplete = await setupCheckPromise;
+
+	// If startup check says setup is incomplete, also check the database
+	// This handles the case where setup completed after server startup
+	if (!isSetupComplete) {
+		try {
+			// Check if we can access the configuration service
+			const { config } = await import('@src/lib/config.server');
+
+			// If config service is initialized, check if setup is completed in database
+			if (config.isInitialized() && !config.isSetupMode()) {
+				const setupCompleted = await config.getPublic('SETUP_COMPLETED');
+				if (setupCompleted) {
+					logger.info('✅ Setup completed detected in database. Allowing access.');
+					isSetupComplete = true;
+				}
+			}
+		} catch (error) {
+			// If we can't check the database, fall back to the startup check
+			logger.debug('Could not check database for setup status, using startup check', error);
+		}
+	}
 
 	// If setup is complete, this hook does nothing and passes the request on.
 	if (isSetupComplete) {
+		// If setup is complete and user is trying to access setup routes, redirect to login
+		const { pathname } = event.url;
+		const setupRoutes = ['/setup', '/api/setup/status', '/api/setup/test-database', '/api/setup/complete'];
+		const isSetupRoute = setupRoutes.some((p) => pathname.startsWith(p));
+
+		if (isSetupRoute && pathname !== '/api/setup/status') {
+			// Allow access to setup status API but redirect other setup routes
+			throw redirect(302, '/login');
+		}
+
 		return resolve(event);
 	}
 
 	const { pathname } = event.url;
 
 	// Define all routes that are allowed to be accessed during setup mode.
-	const allowedPaths = ['/setup', '/api/setup/status', '/api/setup/test-database', '/api/setup/complete'];
+	const allowedPaths = ['/setup', '/api/setup/status', '/api/setup/test-database', '/api/setup/complete', '/api/setup/status/'];
 	const isSetupRoute = allowedPaths.some((p) => pathname.startsWith(p));
 
 	// Also allow SvelteKit's internal assets and the favicon.
