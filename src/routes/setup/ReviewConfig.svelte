@@ -42,7 +42,7 @@ Key Features:
 	</div>
 
 	<div class="space-y-6">
-		<div class="mt-4 space-y-6 rounded border border-indigo-100 bg-white p-4 shadow-xl dark:bg-surface-500">
+		<div class="mt-4 space-y-6 rounded-xl border border-indigo-100 bg-white p-4 shadow-xl dark:bg-surface-500">
 			<div class="grid grid-cols-1 gap-8 md:grid-cols-2">
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight">
@@ -50,7 +50,7 @@ Key Features:
 						{m.setup_review_section_database?.() || 'Database Configuration'}
 					</h3>
 					<!-- Consistent two-column grid for aligned values -->
-					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[9em_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="font-medium">{m.setup_label_database_type ? m.setup_label_database_type() : 'Type:'}</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{dbConfig.type}:</dd>
 						{#if dbConfig.host}<dt class="font-medium">{m.label_host?.() || 'Host'}:</dt>
@@ -69,7 +69,7 @@ Key Features:
 						<iconify-icon icon="mdi:account" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_admin?.() || 'Administrator Account'}
 					</h3>
-					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="font-medium">{m.form_username()}:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{adminUser.username}</dd>
 						<dt class="font-medium">{m.form_email()}:</dt>
@@ -84,7 +84,7 @@ Key Features:
 						<iconify-icon icon="mdi:cog" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_system?.() || 'System Settings'}
 					</h3>
-					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="font-medium">{m.setup_system_site_name?.() || 'Site Name'}:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.siteName}</dd>
 						<dt class="font-medium">{m.setup_review_label_default_system_lang?.() || 'Default System Lang'}:</dt>
@@ -105,7 +105,7 @@ Key Features:
 						<iconify-icon icon="mdi:folder" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_media?.() || 'Media Storage'}
 					</h3>
-					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt class="font-medium">{m.setup_review_label_path?.() || 'Path'}:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.mediaFolder}</dd>
 					</dl>

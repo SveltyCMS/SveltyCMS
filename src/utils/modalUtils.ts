@@ -5,6 +5,7 @@
  */
 
 import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 export interface ConfirmModalOptions {

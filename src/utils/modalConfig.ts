@@ -11,9 +11,11 @@
  */
 
 import type { ModalSettings } from '@skeletonlabs/skeleton';
-import { m } from '@src/messages/messages';
 import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';
+
+// ParaglideJS
+import { m } from '@src/messages/messages';
 
 // Modal themes and configurations
 export interface ModalTheme {

@@ -150,30 +150,87 @@
 	// Toggle for showing detailed DB test info
 	let showDbDetails = $state(false);
 
-	// --- Session persistence (prevent losing form data on reload) ---
+	// --- Persistent storage (debounced, localStorage primary with session fallback + migration) ---
 	const PERSIST_PREFIX = 'setupWizard:';
 	const KEY_DB = PERSIST_PREFIX + 'dbConfig';
 	const KEY_ADMIN = PERSIST_PREFIX + 'adminUser';
 	const KEY_SYSTEM = PERSIST_PREFIX + 'systemSettings';
-	const KEY_STEP = 'setupCurrentStep'; // legacy existing key for step
+	const KEY_STEP = 'setupCurrentStep'; // existing key for step (kept for backward compatibility / migration)
+	const KEY_VERSION = PERSIST_PREFIX + 'version';
+	const STORAGE_VERSION = 1;
+
+	let storage: Storage | null = null; // chosen primary storage (localStorage preferred)
+	let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function initStorage() {
+		if (typeof window === 'undefined') return;
+		// Attempt to use localStorage
+		try {
+			window.localStorage.setItem('__sv_setup_test', '1');
+			window.localStorage.removeItem('__sv_setup_test');
+			storage = window.localStorage;
+		} catch {
+			// Fallback to sessionStorage (some browsers / privacy modes)
+			try {
+				storage = window.sessionStorage;
+			} catch {
+				storage = null;
+			}
+		}
+		// Migration: if primary is localStorage and legacy data only exists in sessionStorage, copy it once
+		try {
+			if (storage === window.localStorage) {
+				const hasVersion = storage.getItem(KEY_VERSION);
+				if (!hasVersion) {
+					const legacySession = window.sessionStorage;
+					for (const k of [KEY_DB, KEY_ADMIN, KEY_SYSTEM, KEY_STEP]) {
+						const val = legacySession.getItem(k);
+						if (val && !storage.getItem(k)) storage.setItem(k, val);
+					}
+					storage.setItem(KEY_VERSION, String(STORAGE_VERSION));
+				}
+			}
+		} catch {}
+	}
 
 	function loadPersisted() {
-		if (typeof sessionStorage === 'undefined') return;
+		if (!storage) return;
 		try {
-			const db = sessionStorage.getItem(KEY_DB);
-			if (db) Object.assign(dbConfig, JSON.parse(db));
-			const adm = sessionStorage.getItem(KEY_ADMIN);
-			if (adm) Object.assign(adminUser, JSON.parse(adm));
-			const sys = sessionStorage.getItem(KEY_SYSTEM);
-			if (sys) Object.assign(systemSettings, JSON.parse(sys));
+			const rawDb = storage.getItem(KEY_DB);
+			if (rawDb) Object.assign(dbConfig, JSON.parse(rawDb));
+			const rawAdmin = storage.getItem(KEY_ADMIN);
+			if (rawAdmin) Object.assign(adminUser, JSON.parse(rawAdmin));
+			const rawSys = storage.getItem(KEY_SYSTEM);
+			if (rawSys) Object.assign(systemSettings, JSON.parse(rawSys));
+			// Step is primitive
+			const st = storage.getItem(KEY_STEP);
+			if (st !== null) {
+				const n = parseInt(st, 10);
+				if (!Number.isNaN(n) && n >= 0 && n < steps.length) currentStep = n;
+			}
 		} catch {}
+	}
+
+	function persistAll() {
+		if (!storage) return;
+		try {
+			storage.setItem(KEY_DB, JSON.stringify({ ...dbConfig }));
+			storage.setItem(KEY_ADMIN, JSON.stringify({ ...adminUser }));
+			storage.setItem(KEY_SYSTEM, JSON.stringify({ ...systemSettings }));
+			storage.setItem(KEY_STEP, String(currentStep));
+			storage.setItem(KEY_VERSION, String(STORAGE_VERSION));
+		} catch {}
+	}
+	function schedulePersist() {
+		if (persistTimer) clearTimeout(persistTimer);
+		persistTimer = setTimeout(persistAll, 300); // debounce writes
 	}
 	function clearPersisted() {
 		try {
-			sessionStorage.removeItem(KEY_DB);
-			sessionStorage.removeItem(KEY_ADMIN);
-			sessionStorage.removeItem(KEY_SYSTEM);
-			sessionStorage.removeItem(KEY_STEP);
+			for (const s of [storage, typeof sessionStorage !== 'undefined' ? sessionStorage : null]) {
+				if (!s) continue;
+				for (const k of [KEY_DB, KEY_ADMIN, KEY_SYSTEM, KEY_STEP, KEY_VERSION]) s.removeItem(k);
+			}
 		} catch {}
 	}
 	type ValidationErrors = {
@@ -232,16 +289,9 @@
 	});
 	onMount(async () => {
 		document.addEventListener('click', outsideLang);
-		// Restore persisted form data & step
+		// Initialize storage system then load persisted data (step included)
+		initStorage();
 		loadPersisted();
-		// Restore persisted step after initial mount (after potential locale-triggered remount)
-		try {
-			const stored = sessionStorage.getItem(KEY_STEP);
-			if (stored !== null) {
-				const parsed = parseInt(stored, 10);
-				if (!Number.isNaN(parsed) && parsed >= 0 && parsed < steps.length) currentStep = parsed;
-			}
-		} catch {}
 	});
 	onDestroy(() => {
 		document.removeEventListener('click', outsideLang);
@@ -364,41 +414,46 @@
 			if (!isRedirecting) isLoading = false;
 		}
 	}
-	// Invalidate db test pass flag if fingerprint changes after success
+	// (Removed invalidation of dbTestPassed when fields change – once passed it stays enabled as requested)
+	// Derived per-step completion (kept up-to-date so going back doesn't "un-complete" later steps unless invalidated)
+	const stepCompleted = $derived([
+		dbTestPassed,
+		validateStep(1, false),
+		validateStep(2, false),
+		false // final review step treated separately
+	]);
+	// Positive flag (easier to reason about): can the user proceed to the next step?
+	let canProceed = $state(false);
 	$effect(() => {
-		if (dbTestPassed && lastTestFingerprint && lastTestFingerprint !== dbConfigFingerprint) dbTestPassed = false;
+		let enabled = false;
+		if (currentStep === 0)
+			enabled = dbTestPassed; // require successful DB test
+		else if (currentStep === 1 || currentStep === 2)
+			enabled = validateStep(currentStep, false); // form validation
+		else enabled = false; // no next step on final
+		if (enabled !== canProceed) canProceed = enabled;
 	});
-	let isNextDisabled = $state(true);
+	// Unified debounced persistence triggers
 	$effect(() => {
-		let disabled = true;
-		if (currentStep === 0) disabled = !dbTestPassed;
-		else if (currentStep === 1 || currentStep === 2) disabled = !validateStep(currentStep, false);
-		else disabled = true;
-		if (disabled !== isNextDisabled) isNextDisabled = disabled;
-	});
-	// Persist wizard state objects & step
-	$effect(() => {
-		try {
-			sessionStorage.setItem(KEY_STEP, String(currentStep));
-		} catch {}
-	});
-	$effect(() => {
-		try {
-			sessionStorage.setItem(KEY_DB, JSON.stringify({ ...dbConfig }));
-		} catch {}
-	});
-	$effect(() => {
-		try {
-			sessionStorage.setItem(KEY_ADMIN, JSON.stringify({ ...adminUser }));
-		} catch {}
+		// Track primitive step changes
+		currentStep;
+		schedulePersist();
 	});
 	$effect(() => {
-		try {
-			sessionStorage.setItem(KEY_SYSTEM, JSON.stringify({ ...systemSettings }));
-		} catch {}
+		// Deep-ish watch using stringified snapshot fingerprints
+		JSON.stringify(dbConfig);
+		schedulePersist();
+	});
+	$effect(() => {
+		JSON.stringify(adminUser);
+		schedulePersist();
+	});
+	$effect(() => {
+		JSON.stringify(systemSettings);
+		schedulePersist();
 	});
 	function nextStep() {
-		if (isNextDisabled) return;
+		if (!canProceed) return;
 		// For validating steps ensure we commit errors right before advancing
 		if (currentStep === 1 || currentStep === 2) {
 			if (!validateStep(currentStep, true)) return;
@@ -416,6 +471,35 @@
 			errorMessage = '';
 			successMessage = '';
 		}
+	}
+	// Clear all wizard data & persistence
+	function clearWizardData() {
+		if (typeof window !== 'undefined') {
+			if (!confirm('Clear all setup data?')) return;
+		}
+		// Reset objects in-place to keep reactivity
+		Object.assign(dbConfig, { type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '' });
+		Object.assign(adminUser, { username: '', email: '', password: '', confirmPassword: '' });
+		Object.assign(systemSettings, {
+			siteName: 'SveltyCMS',
+			defaultSystemLanguage: 'en',
+			systemLanguages: ['en'],
+			defaultContentLanguage: 'en',
+			contentLanguages: ['en', 'de'],
+			mediaFolder: './mediaFolder',
+			timezone: 'UTC'
+		});
+		passwordRequirements = { length: false, letter: false, number: false, special: false, match: false } as typeof passwordRequirements;
+		validationErrors = {};
+		lastDbTest = null;
+		lastTestFingerprint = null;
+		dbTestPassed = false;
+		showDbDetails = false;
+		successMessage = '';
+		errorMessage = '';
+		currentStep = 0;
+		clearPersisted();
+		schedulePersist();
 	}
 </script>
 
@@ -529,8 +613,9 @@
 							<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 								<button
 									type="button"
-									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {i <
-									currentStep
+									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
+										i
+									]
 										? 'bg-primary-500 text-white'
 										: i === currentStep
 											? 'bg-primary-500 text-white shadow-xl'
@@ -542,7 +627,7 @@
 									disabled={i > currentStep}
 									onclick={() => i <= currentStep && (currentStep = i)}
 								>
-									<span>{i < currentStep ? '✓' : i + 1}</span>
+									<span>{stepCompleted[i] && i !== currentStep ? '✓' : i + 1}</span>
 								</button>
 								<div class="mt-2 text-center">
 									<div
@@ -559,7 +644,7 @@
 						<!-- Connecting lines for mobile -->
 						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9" aria-hidden="true">
 							{#each steps as _unused, i}{#if i !== steps.length - 1}<div
-										class="mx-1 h-0.5 flex-1 {i < currentStep ? 'bg-emerald-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
+										class="mx-1 h-0.5 flex-1 {stepCompleted[i] ? 'bg-emerald-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
 									></div>{/if}{/each}
 						</div>
 					</div>
@@ -576,14 +661,15 @@
 									onclick={() => i <= currentStep && (currentStep = i)}
 								>
 									<div
-										class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {i <
-										currentStep
-											? 'bg-primary-500 '
+										class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
+											i
+										]
+											? 'bg-primary-500'
 											: i === currentStep
 												? 'bg-error-500 shadow-xl'
-												: 'bg-slate-100 '}"
+												: 'bg-slate-100'}"
 									>
-										<span>{i < currentStep ? '✓' : i + 1}</span>
+										<span>{stepCompleted[i] && i !== currentStep ? '✓' : i + 1}</span>
 									</div>
 									<div class="text-left">
 										<div
@@ -607,7 +693,7 @@
 									</div>
 								</button>
 								{#if i !== steps.length - 1}<div
-										class="absolute left-[1.65rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {i < currentStep
+										class="absolute left-[1.65rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
 											? 'bg-primary-500'
 											: 'border-l-2 border-dashed border-slate-200'}"
 									></div>{/if}
@@ -640,7 +726,7 @@
 			<div class="flex flex-1 flex-col rounded-xl border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
 				<div class="flex h-full flex-col overflow-hidden rounded-xl border">
 					<!-- Card Header with Step Title -->
-					<div class=" border-b px-4 py-3 sm:px-6 sm:py-4">
+					<div class="flex justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
 						<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
 							{#if currentStep === 0}
 								<iconify-icon icon="mdi:database" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
@@ -656,6 +742,16 @@
 								{m.setup_step_complete()}
 							{/if}
 						</h2>
+						<button
+							onclick={clearWizardData}
+							type="button"
+							class="variant-ghost btn btn-sm rounded text-xs"
+							aria-label="Reset data"
+							title="Reset data"
+						>
+							<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+							Reset Data
+						</button>
 					</div>
 
 					<!-- Card Content -->
@@ -723,6 +819,19 @@
 										<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 										<span class="hidden sm:inline">{showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
 									</button>
+									<!-- Dismiss status message -->
+									<button
+										type="button"
+										class="btn-icon btn-sm ml-1 mt-0.5 h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
+										aria-label="Close message"
+										onclick={() => {
+											successMessage = '';
+											errorMessage = '';
+											showDbDetails = false;
+										}}
+									>
+										<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
+									</button>
 								</div>
 								{#if showDbDetails}
 									<div class="border-t border-surface-200 bg-surface-50 text-xs dark:border-surface-600 dark:bg-surface-700">
@@ -780,24 +889,28 @@
 					<div
 						class="mt-6 flex flex-col gap-3 border-t border-slate-200 px-4 pb-4 pt-4 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:pb-6 sm:pt-6"
 					>
-						{#if currentStep > 0}
-							<button onclick={prevStep} class="variant-filled-tertiary btn order-2 dark:variant-filled-primary sm:order-1">
-								<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-								{m.button_previous()}
-							</button>
-						{:else}
-							<!-- Spacer to maintain centered step text & next button alignment on first step -->
-							<div class="order-2 sm:order-1"></div>
-						{/if}
+						<div class="order-2 flex items-center gap-2 sm:order-1">
+							{#if currentStep > 0}
+								<button onclick={prevStep} class="variant-filled-tertiary btn dark:variant-filled-primary">
+									<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+									{m.button_previous()}
+								</button>
+							{:else}
+								<!-- Maintain layout -->
+								<div class="w-0"></div>
+							{/if}
+						</div>
 						<div class="order-1 text-center text-sm font-medium sm:order-2">
 							{m.setup_progress_step_of({ current: String(currentStep + 1), total: String(totalSteps) })}
 						</div>
 						{#if currentStep < steps.length - 1}
 							<button
 								onclick={nextStep}
-								disabled={isNextDisabled}
-								aria-disabled={isNextDisabled}
-								class="variant-filled-tertiary btn order-3 transition-all dark:variant-filled-primary"
+								disabled={!canProceed}
+								aria-disabled={!canProceed}
+								class="variant-filled-tertiary btn order-3 transition-all dark:variant-filled-primary {canProceed
+									? ''
+									: 'cursor-not-allowed opacity-60'}"
 							>
 								{m.button_next()}
 								<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>

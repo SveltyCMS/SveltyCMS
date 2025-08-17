@@ -11,6 +11,8 @@
 
 import { browser } from '$app/environment';
 import { privateEnv } from '@root/config/private';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 import type { RedisClientType } from 'redis';
 
