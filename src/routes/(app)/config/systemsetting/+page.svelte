@@ -9,17 +9,17 @@ ENHANCEMENTS:
   3. It provides clearer, step-by-step user feedback using toasts.
 -->
 <script lang="ts">
-	import { privateConfigCategories, publicConfigCategories } from '@root/config/guiConfig';
+	import { privateConfigCategories, publicConfigCategories } from '@src/routes/setup/guiConfig';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
-	import ModalEditSystem from './ModalEditSystem.svelte';
-	import { getModalStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import ModalEditSystem from './ModalEditSystem.svelte';
 
 	const modalStore = getModalStore();
 
@@ -52,9 +52,9 @@ ENHANCEMENTS:
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ settings: configData, isPrivate })
 			});
-			if (!importResponse.ok) {
-				const importResult = await importResponse.json();
-				throw new Error(importResult.message || 'Failed to import new settings.');
+			if (!saveResponse.ok) {
+				const saveResult = await saveResponse.json();
+				throw new Error(saveResult.message || 'Failed to save new settings.');
 			}
 			toast('Configuration saved successfully!', 'gradient-primary');
 

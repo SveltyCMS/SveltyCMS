@@ -24,7 +24,7 @@ import type { PageServerLoad } from './$types';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks.server';
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Superforms
 import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';

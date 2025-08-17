@@ -1,6 +1,33 @@
 /**
  * @file src/routes/api/setup/complete/+server.ts
- * @description API endpoint to complete the setup process
+ * @description Finalizes the initial CMS setup (one‑time destructive operation unless force=true).
+ * @summary
+ *  - Connects using provided DB credentials
+ *  - (Force) Wipes all existing database data (dropDatabase with per‑collection fallback)
+ *  - Persists system + feature + API key settings (public & private visibility)
+ *  - Creates or updates the admin user (idempotent)
+ *  - Generates a 32‑byte random key for any missing secrets (e.g. JWT)
+ *  - Invalidates & reloads global settings cache
+ *  - Creates an authenticated session (auto‑login) for the admin user when auth is ready
+ *  - Updates `config/private.ts` with DB credentials if they differ
+ *  - Writes an installation marker `config/.installed`
+ *  - Emits structured logs with a correlationId for traceability
+ *
+ * Request Body (JSON):
+ *  {
+ *    database: { type, host, port, name, user, password },
+ *    system: { siteName, hostDev, hostProd, defaultLanguage, availableLanguages, mediaFolder, useGoogleOAuth?, useRedis?, useMapbox? },
+ *    apiKeys?: { googleClientId?, googleClientSecret?, redisHost?, redisPort?, redisPassword?, mapboxApiToken?, secretMapboxApiToken? },
+ *    admin: { username, email, password, confirmPassword },
+ *    force?: boolean // optional: re‑run setup even if already completed (will wipe data)
+ *  }
+ *
+ * Success Response (200):
+ *  { success: true, message: string, redirectPath: string, loggedIn: boolean }
+ * Failure Responses:
+ *  409 Setup already completed (when force not supplied)
+ *  500 Generic / validation / DB errors
+ *
  */
 
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
@@ -9,6 +36,7 @@ import { getPublicSettings, invalidateSettingsCache, loadGlobalSettings } from '
 import { setupAdminSchema } from '@src/utils/formSchemas';
 import { hashPassword } from '@src/utils/password';
 import { json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.svelte';
 import { randomBytes } from 'crypto';
 import mongoose from 'mongoose';
 import { safeParse } from 'valibot';
@@ -56,48 +84,77 @@ interface AdminConfig {
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		const setupData = await request.json();
-		const { database, admin, system, apiKeys } = setupData;
+		const { database, admin, system, apiKeys, force } = setupData as {
+			database: DatabaseConfig;
+			admin: AdminConfig;
+			system: SystemConfig;
+			apiKeys?: ApiKeysConfig;
+			force?: boolean;
+		};
 
-		console.log('🚀 Starting setup completion process...');
-		console.log('📊 Database config:', { host: database.host, name: database.name, user: database.user });
+		const correlationId = randomBytes(6).toString('hex');
+		logger.info('Starting setup completion process', {
+			correlationId,
+			db: { host: database.host, name: database.name, user: database.user },
+			force: !!force
+		});
 
 		// Step 1: Ensure database connection is established
-		console.log('🔌 Connecting to MongoDB...');
+		logger.info('Connecting to MongoDB...', { correlationId });
 		await connectToMongoDBWithConfig(database);
-		console.log('✅ MongoDB connection established');
+		logger.info('MongoDB connection established', { correlationId });
+
+		// Step 1b: If already completed and not forcing, abort early to protect data
+		try {
+			await loadGlobalSettings();
+			const existing = getPublicSettings();
+			if (existing?.SETUP_COMPLETED && !force) {
+				return json(
+					{
+						success: false,
+						error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
+					},
+					{ status: 409 }
+				);
+			}
+		} catch (e) {
+			// Not fatal – continue
+			logger.warn('Could not pre-load settings before setup; continuing', { correlationId, error: e instanceof Error ? e.message : String(e) });
+		}
 
 		// Step 2: Clear any existing data from database
-		console.log('🧹 Clearing existing database collections...');
-		await clearExistingDatabase();
-		console.log('✅ Database cleared of old data');
+		logger.info('Clearing existing database data...', { correlationId });
+		await clearExistingDatabase({ correlationId });
+		logger.info('Database cleared of old data', { correlationId });
 
 		// Step 3: Save all settings to database
-		console.log('💾 Saving settings to database...');
+		logger.info('Saving settings to database...', { correlationId });
 		await saveSettingsToDatabase(system, apiKeys || {});
-		console.log('✅ Settings saved to database');
+		logger.info('Settings saved to database', { correlationId });
 
 		// Step 4: Create admin user
-		console.log('👤 Creating/updating admin user...');
-		await createAdminUser(admin);
-		console.log('✅ Admin user processed');
+		logger.info('Creating/updating admin user...', { correlationId, admin: admin.email });
+		await createAdminUser(admin, correlationId);
+		logger.info('Admin user processed', { correlationId });
 
 		// Step 5: Invalidate settings cache and reload from database
-		console.log('🔄 Invalidating settings cache...');
+		logger.info('Invalidating settings cache...', { correlationId });
 		invalidateSettingsCache();
 
 		// Force reload the settings from database (with error handling)
 		try {
 			await loadGlobalSettings();
-			console.log('✅ Settings cache reloaded from database');
-
-			// Double-check that the setup completion was saved
 			const settings = getPublicSettings();
-			console.log('📊 Setup verification:', {
+			logger.info('Settings cache reloaded & verified', {
+				correlationId,
 				SETUP_COMPLETED: settings.SETUP_COMPLETED,
 				SITE_NAME: settings.SITE_NAME
 			});
 		} catch (loadError) {
-			console.warn('⚠️ Could not reload settings cache, continuing anyway:', loadError);
+			logger.warn('Could not reload settings cache, continuing anyway', {
+				correlationId,
+				error: loadError instanceof Error ? loadError.message : String(loadError)
+			});
 		}
 
 		// Step 6: Auto-create session for the admin user so they're logged in immediately
@@ -111,7 +168,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			// Lazy import auth system pieces (db.ts) AFTER settings saved & adapters loaded via subsequent init cycle
 			const { auth } = await import('@src/databases/db');
 			if (auth) {
-				// Fetch the admin user we just created/updated
 				const userAdapter = new UserAdapter();
 				const adminUser = await userAdapter.getUserByEmail({ email: admin.email });
 				if (adminUser?._id) {
@@ -120,13 +176,16 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 					const session = await auth.createSession({ user_id: adminUser._id, expires: expiresAt });
 					sessionCookie = auth.createSessionCookie(session._id) as SessionCookieMeta;
 					cookies.set(sessionCookie.name, sessionCookie.value, { ...(sessionCookie.attributes || {}), path: '/' });
-					console.log('✅ Admin session created during setup completion');
+					logger.info('Admin session created during setup completion', { correlationId });
 				}
 			} else {
-				console.warn('⚠️ Auth not yet initialized during setup completion – admin auto-login skipped');
+				logger.warn('Auth not yet initialized during setup completion – admin auto-login skipped', { correlationId });
 			}
 		} catch (sessErr) {
-			console.warn('⚠️ Failed to auto-login admin user after setup:', sessErr);
+			logger.warn('Failed to auto-login admin user after setup', {
+				correlationId,
+				error: sessErr instanceof Error ? sessErr.message : String(sessErr)
+			});
 		}
 
 		// Step 6 (response): Provide redirect path hint to first collection
@@ -163,18 +222,32 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 				if (needsUpdate) {
 					await updatePrivateConfig(database);
-					console.log('✅ Private config updated successfully');
+					logger.info('Private config updated successfully', { correlationId });
 				} else {
-					console.log('ℹ️ Private config already up to date, skipping update');
+					logger.info('Private config already up to date, skipping update', { correlationId });
 				}
 			} catch (error) {
-				console.error('❌ Error updating private config:', error);
+				logger.error('Error updating private config', { correlationId, error: error instanceof Error ? error.message : String(error) });
 			}
 		}, 2000); // 2 second delay instead of setImmediate
 
+		// Step 8: Write a setup marker so future restarts (including built servers) detect completion quickly
+		setTimeout(async () => {
+			try {
+				const fs = await import('fs/promises');
+				const path = await import('path');
+				const markerPath = path.resolve(process.cwd(), 'config', '.installed');
+				await fs.mkdir(path.dirname(markerPath), { recursive: true });
+				await fs.writeFile(markerPath, JSON.stringify({ completedAt: new Date().toISOString(), correlationId }));
+				logger.info('Setup marker written to config/.installed', { correlationId });
+			} catch (markerErr) {
+				logger.warn('Failed to write setup marker', { correlationId, error: markerErr instanceof Error ? markerErr.message : String(markerErr) });
+			}
+		}, 3000);
+
 		return response;
 	} catch (error) {
-		console.error('Setup completion error:', error);
+		logger.error('Setup completion error', { error: error instanceof Error ? error.message : String(error) });
 		return json(
 			{
 				success: false,
@@ -234,36 +307,45 @@ function generateRandomKey(): string {
 /**
  * Clear all existing collections from the database to ensure a clean setup
  */
-async function clearExistingDatabase(): Promise<void> {
+async function clearExistingDatabase(opts: { correlationId: string }): Promise<void> {
+	const { correlationId } = opts;
 	try {
-		// Ensure we're connected to MongoDB
 		if (mongoose.connection.readyState !== 1) {
 			throw new Error('MongoDB connection not established');
 		}
-
-		// Get all collection names
+		// Faster dropDatabase approach; fall back to per-collection if it fails (e.g., lacking perms)
+		try {
+			await mongoose.connection.db.dropDatabase();
+			logger.info('Database dropped via dropDatabase()', { correlationId });
+			return;
+		} catch (dropErr) {
+			logger.warn('dropDatabase() failed, attempting per-collection clear', {
+				correlationId,
+				error: dropErr instanceof Error ? dropErr.message : String(dropErr)
+			});
+		}
 		const collections = await mongoose.connection.db.listCollections().toArray();
-		console.log(`🧹 Found ${collections.length} existing collections to remove`);
-
-		// Drop all collections
+		logger.info('Clearing collections individually', { correlationId, count: collections.length });
 		for (const collection of collections) {
 			try {
 				await mongoose.connection.db.dropCollection(collection.name);
-				console.log(`  ✅ Dropped collection: ${collection.name}`);
+				logger.debug('Dropped collection', { correlationId, name: collection.name });
 			} catch (error) {
-				// If the error is just that collection doesn't exist, that's fine
-				if (error.message?.includes('ns not found')) {
-					console.log(`  ⚠️ Collection ${collection.name} already dropped`);
+				if ((error as Error).message?.includes('ns not found')) {
+					logger.debug('Collection already absent', { correlationId, name: collection.name });
 				} else {
-					console.error(`  ❌ Error dropping collection ${collection.name}:`, error);
+					logger.error('Error dropping collection', {
+						correlationId,
+						name: collection.name,
+						error: error instanceof Error ? error.message : String(error)
+					});
 					throw error;
 				}
 			}
 		}
-
-		console.log(`🧹 Database cleared: dropped ${collections.length} collections`);
+		logger.info('Database cleared (per-collection mode)', { correlationId });
 	} catch (error) {
-		console.error('❌ Error clearing database:', error);
+		logger.error('Error clearing database', { correlationId, error: error instanceof Error ? error.message : String(error) });
 		throw error;
 	}
 }
@@ -335,9 +417,8 @@ async function saveSettingsToDatabase(system: SystemConfig, apiKeys: ApiKeysConf
 	}
 }
 
-async function createAdminUser(admin: AdminConfig) {
-	// Debug: Log admin email before calling getUserByEmail
-	console.log('Backend received admin email:', admin.email);
+async function createAdminUser(admin: AdminConfig, correlationId?: string) {
+	logger.debug('Processing admin user', { correlationId, email: admin.email });
 	if (!admin.username || !admin.email || !admin.password) {
 		throw new Error('Admin user information is incomplete');
 	}
@@ -372,7 +453,7 @@ async function createAdminUser(admin: AdminConfig) {
 		};
 
 		const result = await userAdapter.updateUserAttributes(existingUser._id, updatedData);
-		console.log(`Admin user updated: ${admin.email}`);
+		logger.info('Admin user updated', { correlationId, email: admin.email });
 		return result;
 	} else {
 		// User doesn't exist, create new one
@@ -391,7 +472,7 @@ async function createAdminUser(admin: AdminConfig) {
 			throw new Error('Failed to create admin user');
 		}
 
-		console.log(`Admin user created: ${admin.email}`);
+		logger.info('Admin user created', { correlationId, email: admin.email });
 		return result;
 	}
 }

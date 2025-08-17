@@ -61,8 +61,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:database" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_label_database_type()}</span>
-					<button type="button" use:popup={popupDbType} aria-label="Help: Database Type" class="ml-1 text-slate-400 hover:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbType}
+						aria-label="Help: Database Type"
+						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -82,7 +86,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_host()}</span>
-					<button type="button" use:popup={popupDbHost} aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
+					<button type="button" tabindex="-1" use:popup={popupDbHost} aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
@@ -107,7 +111,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_port()}</span>
-					<button type="button" use:popup={popupDbPort} aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
+					<button type="button" tabindex="-1" use:popup={popupDbPort} aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
@@ -132,8 +136,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_name()}</span>
-					<button type="button" use:popup={popupDbName} aria-label="Help: Database Name" class="ml-1 text-slate-400 hover:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbName}
+						aria-label="Help: Database Name"
+						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -157,8 +165,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_user()}</span>
-					<button type="button" use:popup={popupDbUser} aria-label="Help: Database User" class="ml-1 text-slate-400 hover:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbUser}
+						aria-label="Help: Database User"
+						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -181,8 +193,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.setup_database_password()}</span>
-					<button type="button" use:popup={popupDbPassword} aria-label="Help: Database Password" class="ml-1 text-slate-400 hover:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbPassword}
+						aria-label="Help: Database Password"
+						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
 				<div

@@ -42,6 +42,7 @@ my-cms-project/
 │   ├── private.ts      # Private configuration
 │   ├── public.ts       # Public configuration
 │   └── types.ts        # TypeScript type definitions
+├── src/routes/setup/guiConfig.ts  # GUI configuration
 ├── static/            # Static assets
 └── package.json
 ```
@@ -63,6 +64,6 @@ ADMIN_EMAIL=admin@example.com
 
 ## Next Steps
 
-- [Configuration Guide](./04-Configuration.md)
+- [Configuration Guide](./04-Configuration.mdx)
 - [Running SveltyCMS](./06-Running.md)
 - [Troubleshooting](./07-Troubleshooting.md)

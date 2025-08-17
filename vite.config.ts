@@ -35,7 +35,9 @@ export default defineConfig(async () => {
 		console.log(`${LOG_PREFIX} Detected setup status: ${isSetupComplete ? 'complete' : 'incomplete'}`);
 	} catch (setupError) {
 		console.warn(`${LOG_PREFIX} Unable to determine setup status (will assume incomplete):`, (setupError as Error).message);
-		console.log(`${LOG_PREFIX} Visit http://localhost:5173/setup to complete initial configuration.`);
+		const rawUrl = 'http://localhost:5173/setup';
+		const coloredUrl = useColor ? `\x1b[34m${rawUrl}\x1b[0m` : rawUrl;
+		console.log(`${LOG_PREFIX} Visit ${coloredUrl} to complete initial configuration.`);
 	}
 
 	if (!isSetupComplete) {
@@ -86,7 +88,8 @@ export default defineConfig(async () => {
 									console.log(`${LOG_PREFIX} Opening setup wizard in default browser...`);
 									await open(setupUrl);
 								} catch {
-									console.log(`${LOG_PREFIX} Manual navigation required: ${setupUrl}`);
+									const coloredSetupUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
+									console.log(`${LOG_PREFIX} Manual navigation required: ${coloredSetupUrl}`);
 								}
 							}, 1500);
 

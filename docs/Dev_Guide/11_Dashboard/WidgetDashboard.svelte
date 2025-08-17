@@ -1,30 +1,30 @@
-<!-- 
-  Example: Widget Management Dashboard Component
-  Shows how to use the new widget store in a Svelte component
--->
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import {
-		widgetStoreActions,
 		activeWidgets,
+		canDisableWidget,
 		coreWidgets,
 		customWidgets,
+		getWidgetDependencies,
 		isLoading,
 		isWidgetCore,
-		canDisableWidget,
-		getWidgetDependencies
+		widgetStoreActions
 	} from '@stores/widgetStore.svelte';
+	import { onMount } from 'svelte';
 
-	let tenantId = 'example-tenant';
-	let validationResult: { valid: number; invalid: number; warnings: string[] } | null = null;
-	let requiredWidgets: string[] = [];
+	// Tenant context (example)
+	let tenantId = $state('example-tenant');
 
-	// Reactive variables
-	$: coreWidgetsList = $coreWidgets;
-	$: customWidgetsList = $customWidgets;
-	$: activeWidgetsList = $activeWidgets;
-	$: loading = $isLoading;
+	// Local state using runes
+	let validationResult = $state<{ valid: number; invalid: number; warnings: string[] } | null>(null);
+	let requiredWidgets = $state<string[]>([]);
 
+	// Derived helpers (store values accessed via $ prefix)
+	const coreWidgetsList = $derived($coreWidgets);
+	const customWidgetsList = $derived($customWidgets);
+	const activeWidgetsList = $derived($activeWidgets);
+	const loading = $derived($isLoading);
+
+	// Lifecycle: initialize then load analysis
 	onMount(async () => {
 		try {
 			// Initialize widgets for the tenant
@@ -33,7 +33,7 @@
 			// Load additional data
 			await loadAnalysisData();
 		} catch (error) {
-			logger.error('Failed to initialize widget dashboard:', error);
+			console.error('Failed to initialize widget dashboard:', error);
 		}
 	});
 
@@ -52,11 +52,8 @@
 	async function toggleWidget(widgetName: string) {
 		try {
 			const isActive = activeWidgetsList.includes(widgetName);
-			const newStatus = isActive ? 'inactive' : 'active';
-
+			const newStatus: 'active' | 'inactive' = isActive ? 'inactive' : 'active';
 			await widgetStoreActions.updateWidgetStatus(widgetName, newStatus, tenantId);
-
-			// Reload analysis data after status change
 			await loadAnalysisData();
 		} catch (error) {
 			console.error(`Failed to toggle widget ${widgetName}:`, error);
@@ -93,6 +90,13 @@
 	}
 </script>
 
+<!--
+	@file docs/Dev_Guide/11_Dashboard/WidgetDashboard.svelte
+	@description Example Widget Management Dashboard (Svelte 5 runes version)
+	NOTE: This lives in /docs as an educational example; it is not mounted in the app routing tree.
+-->
+/* @use-runes */
+
 <div class="mx-auto max-w-6xl p-6">
 	<h1 class="mb-6 text-3xl font-bold">Widget Management Dashboard</h1>
 
@@ -111,11 +115,11 @@
 			</div>
 
 			<div class="rounded-lg bg-green-50 p-4">
-				<h3 class="font-semibold text-green-800">Active Custom</h3>
-				<p class="text-2xl font-bold text-green-600">
+				<h3 class="font-semibold text-primary-800">Active Custom</h3>
+				<p class="text-2xl font-bold text-primary-600">
 					{activeWidgetsList.filter((w) => !isWidgetCore(w)).length}
 				</p>
-				<p class="text-sm text-green-600">Currently enabled</p>
+				<p class="text-sm text-primary-600">Currently enabled</p>
 			</div>
 
 			<div class="rounded-lg bg-orange-50 p-4">
@@ -140,7 +144,7 @@
 				<p class="mb-3 text-orange-700">
 					The following widgets are required by your collections: {requiredWidgets.join(', ')}
 				</p>
-				<button on:click={bulkActivateRequired} class="rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700">
+				<button onclick={bulkActivateRequired} class="rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700">
 					Activate All Required Widgets
 				</button>
 			</div>
@@ -212,7 +216,7 @@
 									{status.toUpperCase()}
 								</span>
 								<button
-									on:click={() => toggleWidget(widgetName)}
+									onclick={() => toggleWidget(widgetName)}
 									disabled={!canDisable && isActive}
 									class="rounded px-3 py-1 text-sm {isActive
 										? canDisable

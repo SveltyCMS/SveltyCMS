@@ -97,6 +97,12 @@ export async function connectToMongoDB(): Promise<void> {
 		throw new Error('Database configuration missing. Run setup before starting the server.');
 	}
 
+	// Guard: if DB_HOST not set (empty or undefined), we're in setup mode – skip noisy retries
+	if (!privateEnv.DB_HOST || String(privateEnv.DB_HOST).trim().length === 0) {
+		logger.info('Skipping MongoDB connection: DB_HOST not set (setup mode).');
+		throw new Error('SETUP_MODE_DB_HOST_MISSING');
+	}
+
 	const hasScheme = privateEnv.DB_HOST.startsWith('mongodb://') || privateEnv.DB_HOST.startsWith('mongodb+srv://');
 	const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
 	const hostWithScheme = hasScheme ? privateEnv.DB_HOST : `mongodb://${privateEnv.DB_HOST}`;

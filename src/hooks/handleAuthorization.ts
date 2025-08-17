@@ -20,14 +20,29 @@ import type { User } from '@src/auth/types';
 import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 import { error, redirect, type Handle } from '@sveltejs/kit';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Deduplicate noisy "auth service not ready" warnings
+const authNotReadyLogCache = new Map<string, number>();
+const AUTH_NOT_READY_SUPPRESS_MS = 5000; // suppress repeats for 5s per path
 
 // --- Caches and TTLs (centralized) ---
 import { USER_COUNT_CACHE_TTL_MS, USER_COUNT_CACHE_TTL_S, USER_PERM_CACHE_TTL_MS, USER_PERM_CACHE_TTL_S } from '@src/databases/CacheService';
 
-// Performance Caches - Consider moving to WeakMap for better memory management
+// Performance Caches - lightweight in-memory layer (process scoped)
 let userCountCache: { count: number; timestamp: number } | null = null;
 const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
+
+// Deduplication map for expensive concurrent operations
+const pendingOperations = new Map<string, Promise<unknown>>();
+function deduplicate<T>(key: string, operation: () => Promise<T>): Promise<T> {
+	if (pendingOperations.has(key)) return pendingOperations.get(key) as Promise<T>;
+	const p = operation().finally(() => pendingOperations.delete(key));
+	pendingOperations.set(key, p);
+	return p;
+}
 
 // Health metrics for monitoring (if kept here, otherwise import from utils)
 // const healthMetrics = { /* ... */ }; // Assuming it's in a shared place
@@ -39,7 +54,15 @@ const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 // async function deduplicate<T>(key: string, operation: () => Promise<T>): Promise<T> { /* ... */ } // Assuming it's in a shared place
 
 // Optimized user count getter with caching and deduplication (now tenant-aware)
-const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
+interface AuthServiceLike {
+	getUserCount?: (filter?: Record<string, unknown>) => Promise<number>;
+	getAllRoles?: () => Promise<unknown[]>;
+	getAllUsers?: (filter?: Record<string, unknown>) => Promise<unknown[]>;
+	getAllTokens?: (filter?: Record<string, unknown>) => Promise<unknown[]>;
+	validateSession?: (id: string) => Promise<User | null>;
+}
+
+const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string, authService?: AuthServiceLike): Promise<number> => {
 	const now = Date.now();
 	const cacheKeyBase = 'userCount';
 	// Try distributed cache first
@@ -59,17 +82,11 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
 		let userCount = -1;
 		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
-		if (authServiceReady && auth) {
+		if (authServiceReady && authService) {
 			try {
-				userCount = await auth.getUserCount(filter);
+				userCount = await authService.getUserCount(filter);
 			} catch (err) {
 				logger.warn(`Failed to get user count from auth service: ${err.message}`);
-			}
-		} else if (authAdapter && typeof authAdapter.getUserCount === 'function') {
-			try {
-				userCount = await authAdapter.getUserCount(filter);
-			} catch (err) {
-				logger.warn(`Failed to get user count from adapter: ${err.message}`);
 			}
 		}
 		// Cache the result in both distributed and local cache
@@ -88,7 +105,7 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string):
 };
 
 // Optimized admin data loading with caching (now tenant-aware)
-const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: string): Promise<unknown> => {
+const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?: string, authService?: AuthServiceLike): Promise<unknown> => {
 	const now = Date.now();
 	const distributedCacheKeyBase = `adminData:${cacheKey}`;
 	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`; // Separate key for in-memory cache
@@ -112,19 +129,19 @@ const getAdminDataCached = async (user: User, cacheKey: string, tenantId?: strin
 	}
 	let data = null;
 	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
-	if (auth) {
+	if (authService) {
 		try {
 			if (cacheKey === 'roles') {
 				// First try to get roles from the database
-				data = await auth.getAllRoles(); // If no roles in database, initialize and use the config roles
+				data = await authService.getAllRoles(); // If no roles in database, initialize and use the config roles
 				if (!data || data.length === 0) {
 					await initializeRoles();
 					data = roles;
 				}
 			} else if (cacheKey === 'users') {
-				data = await auth.getAllUsers(filter);
+				data = await authService.getAllUsers(filter);
 			} else if (cacheKey === 'tokens') {
-				data = await auth.getAllTokens(filter.filter);
+				data = await authService.getAllTokens(filter.filter);
 			}
 			if (data) {
 				// Cache in-memory
@@ -174,15 +191,22 @@ const isPublicOrOAuthRoute = (pathname: string): boolean => {
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const { url, locals } = event;
 
+	// Determine the active auth service (adapter agnostic)
+	// Prefer imported auth (primary), fall back to any adapter placed on locals
+	const authService: AuthServiceLike | undefined =
+		(auth as AuthServiceLike) || (locals.dbAdapter && (locals.dbAdapter.auth || locals.dbAdapter.authAdapter));
+
+	const authServiceReady = !!(authService && typeof authService.validateSession === 'function');
+
 	// Optimized first user check with caching
-	const userCount = await getCachedUserCount(auth !== null, locals.tenantId);
+	const userCount = await getCachedUserCount(authServiceReady, locals.tenantId, authService);
 	const isFirstUser = userCount === 0;
 	locals.isFirstUser = isFirstUser;
 
 	// Load roles and other admin data conditionally and with caching
-	if (auth !== null && typeof auth.validateSession === 'function') {
+	if (authServiceReady) {
 		// First, load roles for everyone (guests might need to see public roles)
-		locals.roles = (await getAdminDataCached(locals.user, 'roles', locals.tenantId)) as unknown[];
+		locals.roles = (await getAdminDataCached(locals.user || null, 'roles', locals.tenantId, authService)) as unknown[];
 		if (locals.user) {
 			// This block now ONLY runs for logged-in users
 			const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
@@ -195,8 +219,8 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 				(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
 			) {
 				const [allUsers, allTokens] = await Promise.all([
-					getAdminDataCached(locals.user, 'users', locals.tenantId),
-					getAdminDataCached(locals.user, 'tokens', locals.tenantId)
+					getAdminDataCached(locals.user, 'users', locals.tenantId, authService),
+					getAdminDataCached(locals.user, 'tokens', locals.tenantId, authService)
 				]);
 				locals.allUsers = allUsers as unknown[];
 				locals.allTokens = allTokens;
@@ -231,7 +255,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	if (auth !== null && typeof auth.validateSession === 'function') {
+	if (authServiceReady) {
 		if (!locals.user && !isPublic && !isFirstUser) {
 			logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
 			if (isApi) throw error(401, 'Unauthorized');
@@ -243,7 +267,12 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		}
 		// Note: API handling is moved to handleApiRequests
 	} else {
-		logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
+		const now = Date.now();
+		const last = authNotReadyLogCache.get(url.pathname) || 0;
+		if (now - last > AUTH_NOT_READY_SUPPRESS_MS) {
+			authNotReadyLogCache.set(url.pathname, now);
+			logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
+		}
 	}
 
 	return resolve(event);

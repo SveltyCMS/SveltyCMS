@@ -38,15 +38,22 @@
 	 * to avoid limiting type declarations.
 	 */
 	"include": [
-		// Updated include paths
+		// Project sources
 		"src/**/*.ts",
 		"src/**/*.svelte",
+		"src/**/*.js",
+		"src/**/*.d.ts",
+		// Config & shared types
 		"types/**/*.ts",
 		"config/**/*.ts",
-		"src/**/*.js",
-		"src/**/*.d.ts"
+		// Documentation examples (needed so alias imports like @stores resolve in docs Svelte files)
+		"docs/**/*.svelte",
+		"docs/**/*.ts"
 	],
-	"exclude": [".svelte-kit", "node_modules"]
+	"exclude": [
+		".svelte-kit",
+		"node_modules"
+	]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

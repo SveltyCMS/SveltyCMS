@@ -14,11 +14,11 @@ import { google } from 'googleapis';
 import { auth, dbInitPromise } from '@src/databases/db';
 
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks.server';
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Utils
-import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { contentManager } from '@root/src/content/ContentManager';
+import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
 import { systemLanguage, type Locale } from '@stores/store.svelte';
@@ -364,7 +364,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			let redirectUrl = '/';
 			const firstCollection = contentManager.getFirstCollection();
 			if (firstCollection && firstCollection.path) {
-				const defaultLanguage = await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+				const defaultLanguage = (await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE')) || 'en';
 				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 			}
 			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);

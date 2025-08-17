@@ -18,9 +18,10 @@
  * Import and call startSessionCleanup() to begin automatic cleanup
  */
 
-import { auth } from '@src/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
+import { cleanupSessionMetrics } from '@src/hooks/handleSessionAuth';
+
 // System Logger
-import { cleanupSessionMetrics } from '@src/hooks.server';
 import { logger } from '@utils/logger.svelte';
 
 // Cleanup configuration
@@ -38,7 +39,14 @@ export async function cleanupExpiredSessions(): Promise<{
 	rotatedSessions: number;
 	totalCleaned: number;
 }> {
-	if (!auth) {
+	// Determine active auth service (adapter agnostic)
+	interface AuthServiceLike {
+		deleteExpiredSessions: () => Promise<number>;
+		cleanupRotatedSessions?: () => Promise<number>;
+	}
+	const possibleAdapterAuth = (dbAdapter && (dbAdapter as unknown as { auth?: AuthServiceLike }).auth) || null;
+	const activeAuth: AuthServiceLike | null = (auth as unknown as AuthServiceLike) || possibleAdapterAuth;
+	if (!activeAuth) {
 		logger.warn('Auth service not available for session cleanup');
 		return { expiredSessions: 0, rotatedSessions: 0, totalCleaned: 0 };
 	}
@@ -47,12 +55,12 @@ export async function cleanupExpiredSessions(): Promise<{
 		const startTime = performance.now();
 
 		// Clean up regular expired sessions
-		const expiredSessions = await auth.deleteExpiredSessions();
+		const expiredSessions = await activeAuth.deleteExpiredSessions();
 
 		// Clean up rotated sessions past grace period (if the method exists)
 		let rotatedSessions = 0;
-		if (typeof auth.cleanupRotatedSessions === 'function') {
-			rotatedSessions = await auth.cleanupRotatedSessions();
+		if (typeof activeAuth.cleanupRotatedSessions === 'function') {
+			rotatedSessions = await activeAuth.cleanupRotatedSessions();
 		}
 
 		const totalCleaned = expiredSessions + rotatedSessions;

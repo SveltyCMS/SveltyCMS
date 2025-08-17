@@ -60,7 +60,13 @@ Features:
 				<label for="admin-username" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:account" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_username?.() || 'Username'}</span>
-					<button type="button" use:popup={popupAdminUsername} aria-label="Help: Username" class="ml-1 text-slate-400 hover:text-primary-500">
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupAdminUsername}
+						aria-label="Help: Username"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+					>
 						<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 					</button>
 				</label>
@@ -87,7 +93,7 @@ Features:
 				<label for="admin-email" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_email?.() || 'Email'}</span>
-					<button type="button" use:popup={popupAdminEmail} aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500"
+					<button type="button" tabindex="-1" use:popup={popupAdminEmail} aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500"
 						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
@@ -114,8 +120,12 @@ Features:
 				<label for="admin-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
 					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_password()}</span>
-					<button type="button" use:popup={popupAdminPassword} aria-label="Help: Password" class="ml-1 text-slate-400 hover:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupAdminPassword}
+						aria-label="Help: Password"
+						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -155,6 +165,7 @@ Features:
 					<iconify-icon icon="mdi:key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_confirmpassword?.() || 'Confirm Password'}</span>
 					<button
+						tabindex="-1"
 						type="button"
 						use:popup={popupAdminConfirmPassword}
 						aria-label="Help: Confirm Password"

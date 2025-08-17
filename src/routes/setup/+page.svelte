@@ -1,6 +1,9 @@
 <!--
 @file src/routes/setup/+page.svelte
 @description Professional multi-step setup wizard for SveltyCMS with clean, modern design
+
+### Features:
+-
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
@@ -208,6 +211,8 @@
 	);
 	let lastTestFingerprint = $state<string | null>(null);
 	const dbConfigChangedSinceTest = $derived(!!lastTestFingerprint && lastTestFingerprint !== dbConfigFingerprint && !!lastDbTest?.success);
+	// Explicit db test pass flag for gating Next button
+	let dbTestPassed = $state(false);
 	// Removed unused UI detail toggles & connection string preview (can reintroduce if needed)
 	let dbNameManuallyChanged = $state(false);
 	let isFullUri = $derived(dbConfig.host.startsWith('mongodb://') || dbConfig.host.startsWith('mongodb+srv://'));
@@ -246,16 +251,16 @@
 	onDestroy(() => {
 		document.removeEventListener('click', outsideLang);
 	});
-	function validateStep(step: number) {
-		validationErrors = {};
+	// Validation (optionally non-mutating to avoid reactive loops inside effects)
+	function validateStep(step: number, mutate = true): boolean {
+		const errs: Record<string, string> = {};
 		switch (step) {
-			case 0: // Database
-				if (!dbConfig.host) validationErrors.host = m.setup_validation_host_required();
-				if (!isFullUri && !dbConfig.port) validationErrors.port = m.setup_validation_port_required();
-				if (!dbConfig.name) validationErrors.name = m.setup_validation_dbname_required();
+			case 0:
+				if (!dbConfig.host) errs.host = m.setup_validation_host_required();
+				if (!isFullUri && !dbConfig.port) errs.port = m.setup_validation_port_required();
+				if (!dbConfig.name) errs.name = m.setup_validation_dbname_required();
 				break;
-			case 1: // Admin
-				// Use centralized validation schema
+			case 1:
 				const r = safeParse(setupAdminSchema, {
 					username: adminUser.username,
 					email: adminUser.email,
@@ -265,15 +270,21 @@
 				if (!r.success) {
 					for (const issue of r.issues) {
 						const path = issue.path?.[0]?.key as string;
-						if (path) validationErrors[path] = issue.message;
+						if (path) errs[path] = issue.message;
 					}
 				}
 				break;
-			case 2: // System
-				if (!systemSettings.siteName) validationErrors.siteName = m.setup_validation_sitename_required();
+			case 2:
+				if (!systemSettings.siteName) errs.siteName = m.setup_validation_sitename_required();
 				break;
 		}
-		return Object.keys(validationErrors).length === 0;
+		if (mutate) {
+			const changed =
+				Object.keys(errs).length !== Object.keys(validationErrors).length || Object.keys(errs).some((k) => (validationErrors as any)[k] !== errs[k]);
+			if (changed) validationErrors = errs;
+			else if (!Object.keys(errs).length && Object.keys(validationErrors).length) validationErrors = {};
+		}
+		return Object.keys(errs).length === 0;
 	}
 	async function testDatabaseConnection() {
 		if (!validateStep(0)) return;
@@ -295,6 +306,7 @@
 			if (data.success) {
 				successMessage = m.setup_db_test_success();
 				lastTestFingerprint = dbConfigFingerprint; // store fingerprint of tested config
+				dbTestPassed = true;
 			} else {
 				const originalError = data.error || '';
 				const lower = originalError.toLowerCase();
@@ -317,10 +329,12 @@
 				const finalError = classified || classHint || originalError || 'Unknown error';
 				lastDbTest.error = originalError; // preserve raw
 				errorMessage = m.setup_db_test_failed({ error: finalError });
+				dbTestPassed = false;
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? m.setup_db_test_error({ error: e.message }) : m.setup_db_test_unknown_error();
 			lastDbTest = { success: false, error: errorMessage };
+			dbTestPassed = false;
 		} finally {
 			isLoading = false;
 		}
@@ -355,11 +369,18 @@
 			if (!isRedirecting) isLoading = false;
 		}
 	}
-	const canProceedFlag = $derived(() =>
-		currentStep === 0
-			? !!lastDbTest?.success && lastTestFingerprint === dbConfigFingerprint // require successful test of current config
-			: validateStep(currentStep)
-	);
+	// Invalidate db test pass flag if fingerprint changes after success
+	$effect(() => {
+		if (dbTestPassed && lastTestFingerprint && lastTestFingerprint !== dbConfigFingerprint) dbTestPassed = false;
+	});
+	let isNextDisabled = $state(true);
+	$effect(() => {
+		let disabled = true;
+		if (currentStep === 0) disabled = !dbTestPassed;
+		else if (currentStep === 1 || currentStep === 2) disabled = !validateStep(currentStep, false);
+		else disabled = true;
+		if (disabled !== isNextDisabled) isNextDisabled = disabled;
+	});
 	// Persist wizard state objects & step
 	$effect(() => {
 		try {
@@ -382,8 +403,12 @@
 		} catch {}
 	});
 	function nextStep() {
-		// Only advance if derived flag true for current step
-		if (currentStep < steps.length - 1 && !!canProceedFlag) {
+		if (isNextDisabled) return;
+		// For validating steps ensure we commit errors right before advancing
+		if (currentStep === 1 || currentStep === 2) {
+			if (!validateStep(currentStep, true)) return;
+		}
+		if (currentStep < steps.length - 1) {
 			currentStep++;
 			errorMessage = '';
 			successMessage = '';
@@ -503,19 +528,27 @@
 					class="flex h-full flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800 lg:sticky lg:top-8"
 				>
 					<!-- Mobile: Horizontal step indicator -->
-					<div class="relative flex items-start justify-between p-4 lg:hidden">
+					<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
 						{#each steps as _step, i}
-							<div class="relative z-10 flex flex-1 flex-col items-center">
-								<div
-									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all sm:h-10 sm:w-10 sm:text-sm {i <
+							<!-- Mobile step (button for backward navigation) -->
+							<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
+								<button
+									type="button"
+									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {i <
 									currentStep
 										? 'bg-primary-500 text-white'
 										: i === currentStep
 											? 'bg-primary-500 text-white shadow-xl'
-											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'}"
+											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} {i > currentStep
+										? 'cursor-not-allowed'
+										: 'cursor-pointer'}"
+									aria-current={i === currentStep ? 'step' : undefined}
+									aria-label={`${_step.label} – ${i < currentStep ? 'Completed' : i === currentStep ? 'Current step' : 'Pending step'}`}
+									disabled={i > currentStep}
+									onclick={() => i <= currentStep && (currentStep = i)}
 								>
 									<span>{i < currentStep ? '✓' : i + 1}</span>
-								</div>
+								</button>
 								<div class="mt-2 text-center">
 									<div
 										class="text-xs font-medium sm:text-sm {i <= currentStep
@@ -529,7 +562,7 @@
 						{/each}
 
 						<!-- Connecting lines for mobile -->
-						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9">
+						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9" aria-hidden="true">
 							{#each steps as _unused, i}{#if i !== steps.length - 1}<div
 										class="mx-1 h-0.5 flex-1 {i < currentStep ? 'bg-emerald-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
 									></div>{/if}{/each}
@@ -579,7 +612,7 @@
 									</div>
 								</button>
 								{#if i !== steps.length - 1}<div
-										class="absolute left-[1.45rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {i < currentStep
+										class="absolute left-[1.65rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {i < currentStep
 											? 'bg-primary-500'
 											: 'border-l-2 border-dashed border-slate-200'}"
 									></div>{/if}
@@ -767,11 +800,9 @@
 						{#if currentStep < steps.length - 1}
 							<button
 								onclick={nextStep}
-								disabled={!canProceedFlag}
-								aria-disabled={!canProceedFlag}
-								class="disabled:saturate-75 variant-filled-tertiary btn order-3 transition-all
-									dark:variant-filled-primary disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-surface-300 disabled:text-surface-500
-									disabled:opacity-50 disabled:shadow-none dark:disabled:bg-surface-700"
+								disabled={isNextDisabled}
+								aria-disabled={isNextDisabled}
+								class="variant-filled-tertiary btn order-3 transition-all dark:variant-filled-primary"
 							>
 								{m.button_next()}
 								<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>

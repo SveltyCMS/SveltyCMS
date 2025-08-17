@@ -133,7 +133,9 @@ async function loadAdapters() {
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter), // Permission Management Methods (Imported)
+					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
+					blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
+					unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter), // Permission Management Methods (Imported)
 
 					getAllPermissions
 				};
@@ -274,16 +276,31 @@ async function initializeSystem(): Promise<void> {
 		// 1. Connect to Database & Load Adapters (Concurrently)
 		const step1StartTime = performance.now();
 
+		let setupModeDetected = false;
 		await Promise.all([
-			connectToMongoDB().catch((err) => {
-				logger.error(`MongoDB connection failed: ${err.message}`);
-				throw err;
-			}),
+			connectToMongoDB()
+				.then(() => {
+					/* connected */
+				})
+				.catch((err) => {
+					if (err instanceof Error && err.message === 'SETUP_MODE_DB_HOST_MISSING') {
+						setupModeDetected = true;
+						logger.info('Database credentials incomplete – running in setup mode (skipping full system initialization).');
+						return; // swallow to allow adapters attempt (may also skip) and then early-return below
+					}
+					logger.error(`MongoDB connection failed: ${err.message}`);
+					throw err;
+				}),
 			loadAdapters().catch((err) => {
 				logger.error(`Adapter loading failed: ${err.message}`);
 				throw err;
 			})
 		]);
+		if (setupModeDetected) {
+			// Do NOT mark isConnected / isInitialized; leave system minimal for setup endpoints only
+			logger.debug('Setup mode detected – aborting remaining initialization steps (models, themes, content).');
+			return;
+		}
 		isConnected = true; // Mark connected after DB connection succeeds
 		const step1Time = performance.now() - step1StartTime;
 		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
@@ -424,3 +441,31 @@ if (!building && !isBuildProcess) {
 
 // Export the initialization promise so other modules can wait for system readiness
 export { initializationPromise as dbInitPromise };
+
+// --- Status & Reinitialization Helpers ---
+export function getSystemStatus() {
+	return {
+		initialized: isInitialized,
+		connected: isConnected,
+		authReady: !!auth,
+		initializing: !!initializationPromise && !isInitialized
+	};
+}
+
+export async function reinitializeSystem(force = false): Promise<{ status: string; error?: string }> {
+	if (isInitialized && !force) {
+		return { status: 'already-initialized' };
+	}
+	if (initializationPromise) {
+		return { status: 'initialization-in-progress' };
+	}
+	try {
+		logger.info(`Manual reinitialization requested${force ? ' (force)' : ''}`);
+		initializationPromise = initializeSystem();
+		await initializationPromise;
+		return { status: 'initialized' };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return { status: 'failed', error: message };
+	}
+}

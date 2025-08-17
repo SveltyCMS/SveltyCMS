@@ -46,7 +46,7 @@ Key Features:
 			<div class="grid grid-cols-1 gap-8 md:grid-cols-2">
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight">
-						<iconify-icon icon="mdi:database" width="20" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:database" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_database?.() || 'Database Configuration'}
 					</h3>
 					<!-- Consistent two-column grid for aligned values -->
@@ -66,7 +66,7 @@ Key Features:
 
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight">
-						<iconify-icon icon="mdi:account" width="20" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:account" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_admin?.() || 'Administrator Account'}
 					</h3>
 					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">
@@ -81,7 +81,7 @@ Key Features:
 
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight">
-						<iconify-icon icon="mdi:cog" width="20" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:cog" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_system?.() || 'System Settings'}
 					</h3>
 					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">
@@ -102,7 +102,7 @@ Key Features:
 
 				<div>
 					<h3 class="mb-3 flex items-center font-semibold tracking-tight">
-						<iconify-icon icon="mdi:folder" width="20" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:folder" width="24" class="mr-2 text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						{m.setup_review_section_media?.() || 'Media Storage'}
 					</h3>
 					<dl class="grid grid-cols-[8.5rem_1fr] gap-x-3 gap-y-1 text-sm">

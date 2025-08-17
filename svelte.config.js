@@ -24,10 +24,7 @@ const config = {
 		csrf: {
 			checkOrigin: false // default: true | Protection against cross-site request forgery (CSRF) attacks.
 		},
-		files: {
-			// ... other file options
-			routes: 'src/routes' // Make sure routes are in a folder named 'routes'
-		},
+		// Removed deprecated kit.files.routes override (default 'src/routes' is used)
 		alias: {
 			'@root': '.',
 			'@src': './src',

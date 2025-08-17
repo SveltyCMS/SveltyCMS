@@ -18,7 +18,7 @@ import { privateEnv } from '@root/config/private';
 
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import type { User } from '@src/auth/types';
-import { auth, dbInitPromise } from '@src/databases/db';
+import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { type Handle, type RequestEvent } from '@sveltejs/kit';
 
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -98,6 +98,10 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		// Wait for database initialization
 		await dbInitPromise;
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
+		// Expose dbAdapter early (adapter-agnostic)
+		if (!event.locals.dbAdapter && dbAdapter) {
+			event.locals.dbAdapter = dbAdapter;
+		}
 		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user: User | null = session_id ? await getUserFromSessionId(session_id, authServiceReady, event.locals.tenantId) : null;
 		event.locals.user = user;

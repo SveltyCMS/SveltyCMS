@@ -19,17 +19,17 @@
  */
 import { privateEnv } from '@root/config/private';
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks.server';
+import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
 
 // Validation
-import { object, string, number, parse, minLength } from 'valibot';
+import { minLength, number, object, parse, string } from 'valibot';
 
 // System logger
 import { logger } from '@utils/logger.svelte';

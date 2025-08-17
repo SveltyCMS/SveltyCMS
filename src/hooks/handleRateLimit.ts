@@ -16,6 +16,8 @@ import { building } from '$app/environment';
 import { privateEnv } from '@root/config/private';
 import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Initialize rate limiters

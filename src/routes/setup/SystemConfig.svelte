@@ -164,7 +164,13 @@ Key Features:
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span>{m.setup_system_site_name?.() || 'Site Name'}</span>
-						<button type="button" use:popup={popupSiteName} aria-label="Help: Site Name" class="ml-1 text-slate-400 hover:text-primary-500">
+						<button
+							type="button"
+							tabindex="-1"
+							use:popup={popupSiteName}
+							aria-label="Help: Site Name"
+							class="ml-1 text-slate-400 hover:text-primary-500"
+						>
 							<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
 						</button>
 					</label>
@@ -189,7 +195,13 @@ Key Features:
 					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span>Media Storage Path</span>
-						<button type="button" use:popup={popupMediaPath} aria-label="Help: Media Storage Path" class="ml-1 text-slate-400 hover:text-primary-500">
+						<button
+							type="button"
+							tabindex="-1"
+							use:popup={popupMediaPath}
+							aria-label="Help: Media Storage Path"
+							class="ml-1 text-slate-400 hover:text-primary-500"
+						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
 						</button>
 					</label>
@@ -219,6 +231,7 @@ Key Features:
 						<iconify-icon icon="mdi:translate" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span>{m.setup_label_default_system_language?.() || m.setup_help_default_system_language?.() || 'Default System Language'}</span>
 						<button
+							tabindex="-1"
 							type="button"
 							use:popup={popupDefaultSystem}
 							aria-label="Help: Default System Language"
@@ -244,6 +257,7 @@ Key Features:
 							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>{m.setup_label_system_languages?.() || m.setup_help_system_languages?.() || 'System Languages'}</span>
 							<button
+								tabindex="-1"
 								type="button"
 								use:popup={popupSystemLanguages}
 								aria-label="Help: System Languages"
@@ -333,6 +347,7 @@ Key Features:
 						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<span>{m.setup_label_default_content_language?.() || m.setup_help_default_content_language?.() || 'Default Content Language'}</span>
 						<button
+							tabindex="-1"
 							type="button"
 							use:popup={popupDefaultContent}
 							aria-label="Help: Default Content Language"
@@ -358,6 +373,7 @@ Key Features:
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>{m.setup_label_content_languages?.() || m.setup_help_content_languages?.() || 'Content Languages'}</span>
 							<button
+								tabindex="-1"
 								type="button"
 								use:popup={popupContentLanguages}
 								aria-label="Help: Content Languages"
