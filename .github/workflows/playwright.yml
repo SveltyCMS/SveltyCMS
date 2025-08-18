@@ -1,6 +1,5 @@
 name: Playwright and Bun Tests
 
-# Trigger on pushes to main and next, and on Pull Requests to main
 on:
   push:
     branches:
@@ -13,9 +12,13 @@ on:
 
 jobs:
   test:
-    name: SveltyCMS Playwright Tests
+    name: SveltyCMS Playwright Tests (${{ matrix.mode }})
     timeout-minutes: 60
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mode: [dev, preview]   # run tests in both modes
 
     steps:
       - name: Git checkout
@@ -45,7 +48,6 @@ jobs:
           mongodb-password: admin
           mongodb-db: SveltyCMS
           mongodb-port: 27017
-        # Ensure MongoDB runs for PRs as well
 
       - name: Install dependencies
         run: bun install
@@ -56,39 +58,58 @@ jobs:
       - name: Use test config files
         run: |
           mkdir -p config
-          # Prefer JS/ESM configs to avoid TS import issues in Node during Vite config load
           if [ -f tests/ci-config/public.mjs ]; then cp tests/ci-config/public.mjs config/public.mjs; else cp tests/ci-config/public.ts config/public.ts; fi
           if [ -f tests/ci-config/private.mjs ]; then cp tests/ci-config/private.mjs config/private.mjs; else cp tests/ci-config/private.ts config/private.ts; fi
 
       - name: Generate SvelteKit files
-        # svelte-kit sync ensures .svelte-kit/tsconfig.json exists before build
         run: bunx svelte-kit sync
 
+      # Only build when running in preview mode
       - name: Build SvelteKit server
+        if: matrix.mode == 'preview'
         run: bunx vite build
 
-      - name: Start preview server (port 4173)
+      # Start the server depending on the mode
+      - name: Start server
         run: |
-          bunx vite preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          echo $! > preview.pid
+          if [ "${{ matrix.mode }}" = "dev" ]; then
+            bunx vite dev --port 5173 --host 127.0.0.1 > dev.log 2>&1 &
+            echo $! > server.pid
+          else
+            bunx vite preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
+            echo $! > server.pid
+          fi
 
       - name: Wait for server to be ready
-        run: bunx wait-on http://127.0.0.1:4173 -t 180000
+        run: |
+          if [ "${{ matrix.mode }}" = "dev" ]; then
+            bunx wait-on http://127.0.0.1:5173 -t 180000
+          else
+            bunx wait-on http://127.0.0.1:4173 -t 180000
+          fi
 
-      - name: Show preview logs (on failure)
+      - name: Show server logs (on failure)
         if: failure()
         run: |
-          echo "--- preview.log (last 400 lines) ---"
-          tail -n 400 preview.log || true
+          if [ "${{ matrix.mode }}" = "dev" ]; then
+            echo "--- dev.log (last 200 lines) ---"
+            tail -n 200 dev.log || true
+          else
+            echo "--- preview.log (last 200 lines) ---"
+            tail -n 200 preview.log || true
+          fi
 
       - name: Run Playwright tests
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://127.0.0.1:5173' || 'http://127.0.0.1:4173' }}
         run: |
           mkdir -p test-results/playwright
           npx playwright test --workers 8 --output-dir=test-results/playwright
 
-      - name: Run Bun tests (after server is up)
+      - name: Run Bun tests
+        if: matrix.mode == 'preview'  # only in preview, since API_BASE_URL points to build server
         env:
-          API_BASE_URL: http://localhost:4173
+          API_BASE_URL: http://127.0.0.1:4173
         run: |
           mkdir -p test-results/bun
           bun test tests/bun > test-results/bun/test-results.txt
@@ -96,7 +117,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results
+          name: test-results-${{ matrix.mode }}
           path: |
             test-results/playwright/
             test-results/bun/
