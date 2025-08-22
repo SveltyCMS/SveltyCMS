@@ -62,7 +62,9 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 				const contentLanguageCookie = url.searchParams.get('contentLanguage');
 				const userLanguage = user?.systemLanguage;
 				const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
-				redirectUrl = `/${redirectLanguage}${firstCollection.path}`;
+				// Ensure the collection path has a leading slash
+				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
+				redirectUrl = `/${redirectLanguage}${collectionPath}`;
 			} else {
 				// Fallback: Get content structure for the tenant
 				const contentNodes = await contentManager.getContentStructure(tenantId);

@@ -18,8 +18,9 @@
 	import { getFieldName } from '@utils/utils';
 	import { preventDefault, run } from 'svelte/legacy';
 	// Stores
-	import { publicEnv } from '@root/config/public';
+	import { publicEnv } from '@src/utils/configMigration';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	// Valibot validation
 	import { boolean, number, object, optional, parse, pipe, regex, string, type ValiError } from 'valibot';
 
@@ -46,7 +47,7 @@
 	// Field name for validation store
 	const fieldName = getFieldName(field);
 
-	let _language = $derived((field?.translated ? contentLanguage.value : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string))?.toLowerCase());
+	let _language = $derived((field?.translated ? contentLanguage.value : getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en')?.toLowerCase());
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 

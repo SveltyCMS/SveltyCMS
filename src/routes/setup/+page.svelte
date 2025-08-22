@@ -8,7 +8,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import SiteName from '@components/SiteName.svelte';
-	import { modeCurrent, popup, type PopupSettings, setInitialClassState, setModeCurrent } from '@skeletonlabs/skeleton';
+	import { modeCurrent, setInitialClassState, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	import type { PageData } from './$types';
+	import ThemeToggle from '@components/ThemeToggle.svelte';
+
+	const { data } = $props<{ data: PageData }>();
 	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { setupAdminSchema } from '@src/utils/formSchemas';
 	import { systemLanguage } from '@stores/store.svelte';
@@ -80,6 +84,8 @@
 		{ label: m.setup_step_complete(), shortDesc: m.setup_step_complete_desc() }
 	];
 	let currentStep = $state(0);
+	// Track the highest step reached to determine completion status
+	let highestStepReached = $state(0);
 	const totalSteps = $derived(steps.length);
 
 	// Persist step across locale changes (layout re-keys subtree when language switches)
@@ -97,17 +103,6 @@
 		{ key: 'current', label: m.setup_legend_current(), content: '●' },
 		{ key: 'pending', label: m.setup_legend_pending(), content: '•' }
 	];
-
-	// Theme toggle tooltip & handler
-	const SwitchThemeTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SetupSwitchTheme',
-		placement: 'bottom'
-	};
-	function toggleTheme() {
-		// Skeleton expects boolean toggle for dark mode
-		setModeCurrent(!$modeCurrent);
-	}
 
 	// Form state
 	let dbConfig = $state({ type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '' });
@@ -149,6 +144,8 @@
 	let successMessage = $state('');
 	// Toggle for showing detailed DB test info
 	let showDbDetails = $state(false);
+	// Flag to prevent API calls after setup completion
+	let setupCompleted = $state(false);
 
 	// --- Persistent storage (debounced, localStorage primary with session fallback + migration) ---
 	const PERSIST_PREFIX = 'setupWizard:';
@@ -156,6 +153,8 @@
 	const KEY_ADMIN = PERSIST_PREFIX + 'adminUser';
 	const KEY_SYSTEM = PERSIST_PREFIX + 'systemSettings';
 	const KEY_STEP = 'setupCurrentStep'; // existing key for step (kept for backward compatibility / migration)
+	const KEY_DB_TEST = PERSIST_PREFIX + 'dbTestPassed';
+	const KEY_HIGHEST_STEP = PERSIST_PREFIX + 'highestStepReached';
 	const KEY_VERSION = PERSIST_PREFIX + 'version';
 	const STORAGE_VERSION = 1;
 
@@ -183,7 +182,7 @@
 				const hasVersion = storage.getItem(KEY_VERSION);
 				if (!hasVersion) {
 					const legacySession = window.sessionStorage;
-					for (const k of [KEY_DB, KEY_ADMIN, KEY_SYSTEM, KEY_STEP]) {
+					for (const k of [KEY_DB, KEY_ADMIN, KEY_SYSTEM, KEY_STEP, KEY_DB_TEST]) {
 						const val = legacySession.getItem(k);
 						if (val && !storage.getItem(k)) storage.setItem(k, val);
 					}
@@ -208,6 +207,26 @@
 				const n = parseInt(st, 10);
 				if (!Number.isNaN(n) && n >= 0 && n < steps.length) currentStep = n;
 			}
+			// Restore database test status
+			const dbTest = storage.getItem(KEY_DB_TEST);
+			if (dbTest !== null) {
+				dbTestPassed = dbTest === 'true';
+			}
+
+			// Restore highest step reached
+			const highestStep = storage.getItem(KEY_HIGHEST_STEP);
+			if (highestStep !== null) {
+				const n = parseInt(highestStep, 10);
+				if (!Number.isNaN(n) && n >= 0 && n < steps.length) {
+					highestStepReached = n;
+				}
+			}
+
+			// Fix inconsistent state: if we're on step 2+ but database test didn't pass, reset to step 1
+			if (currentStep > 0 && !dbTestPassed) {
+				currentStep = 0;
+				highestStepReached = 0;
+			}
 		} catch {}
 	}
 
@@ -218,6 +237,8 @@
 			storage.setItem(KEY_ADMIN, JSON.stringify({ ...adminUser }));
 			storage.setItem(KEY_SYSTEM, JSON.stringify({ ...systemSettings }));
 			storage.setItem(KEY_STEP, String(currentStep));
+			storage.setItem(KEY_DB_TEST, String(dbTestPassed));
+			storage.setItem(KEY_HIGHEST_STEP, String(highestStepReached));
 			storage.setItem(KEY_VERSION, String(STORAGE_VERSION));
 		} catch {}
 	}
@@ -229,7 +250,7 @@
 		try {
 			for (const s of [storage, typeof sessionStorage !== 'undefined' ? sessionStorage : null]) {
 				if (!s) continue;
-				for (const k of [KEY_DB, KEY_ADMIN, KEY_SYSTEM, KEY_STEP, KEY_VERSION]) s.removeItem(k);
+				for (const k of [KEY_DB, KEY_ADMIN, KEY_SYSTEM, KEY_STEP, KEY_DB_TEST, KEY_HIGHEST_STEP, KEY_VERSION]) s.removeItem(k);
 			}
 		} catch {}
 	}
@@ -272,6 +293,16 @@
 	let dbTestPassed = $state(false);
 	// Removed unused UI detail toggles & connection string preview (can reintroduce if needed)
 	let dbNameManuallyChanged = $state(false);
+
+	// Function to clear database test error when config changes
+	function clearDbTestError() {
+		errorMessage = '';
+		successMessage = '';
+		lastDbTest = null;
+		lastTestFingerprint = null;
+		dbTestPassed = false;
+		showDbDetails = false;
+	}
 	let isFullUri = $derived(dbConfig.host.startsWith('mongodb://') || dbConfig.host.startsWith('mongodb+srv://'));
 	$effect(() => {
 		if (!systemSettings.systemLanguages.includes(systemSettings.defaultSystemLanguage)) {
@@ -289,6 +320,34 @@
 	});
 	onMount(async () => {
 		document.addEventListener('click', outsideLang);
+
+		// Initialize theme from server-side data to prevent FOUC
+		if (typeof window !== 'undefined' && data.darkMode !== undefined) {
+			setModeUserPrefers(data.darkMode);
+			setModeCurrent(data.darkMode);
+		} else {
+			// Fallback to cookies if server data not available
+			const getCookie = (name: string) => {
+				const value = `; ${document.cookie}`;
+				const parts = value.split(`; ${name}=`);
+				if (parts.length === 2) return parts.pop()?.split(';').shift();
+				return null;
+			};
+
+			const savedTheme = getCookie('theme');
+			const savedDarkMode = getCookie('darkMode');
+
+			if (savedTheme) {
+				const newMode = savedTheme === 'light';
+				setModeUserPrefers(newMode);
+				setModeCurrent(newMode);
+			} else if (savedDarkMode) {
+				const newMode = savedDarkMode === 'true';
+				setModeUserPrefers(newMode);
+				setModeCurrent(newMode);
+			}
+		}
+
 		// Initialize storage system then load persisted data (step included)
 		initStorage();
 		loadPersisted();
@@ -333,6 +392,13 @@
 	}
 	async function testDatabaseConnection() {
 		if (!validateStep(0)) return;
+
+		// Don't test database if setup is already completed
+		if (isRedirecting || setupCompleted) {
+			errorMessage = 'Setup is already completed. Please refresh the page.';
+			return;
+		}
+
 		isLoading = true;
 		errorMessage = '';
 		successMessage = '';
@@ -352,29 +418,42 @@
 				successMessage = m.setup_db_test_success();
 				lastTestFingerprint = dbConfigFingerprint; // store fingerprint of tested config
 				dbTestPassed = true;
+				showDbDetails = false; // Don't show details for successful connections
 			} else {
 				const originalError = data.error || '';
+				const userFriendlyError = data.userFriendly || '';
 				const lower = originalError.toLowerCase();
-				let classified = '';
-				if (!dbConfig.user || !dbConfig.password) {
-					classified = m.setup_db_test_missing_credentials();
-				} else if (/auth|authoriz|credential|login|passwd|password|user/.test(lower)) {
-					classified = originalError; // keep auth error as-is
-				}
-				// Friendly classification hint from server (if provided)
-				let classHint = '';
-				if (data.classification) {
-					const key = `setup_db_test_class_${data.classification}` as keyof typeof m;
-					if (key in m && typeof (m as any)[key] === 'function') {
-						try {
-							classHint = (m as any)[key]();
-						} catch {}
+
+				// Use server-provided user-friendly message if available
+				let finalError = userFriendlyError;
+
+				// Fallback to client-side classification if no user-friendly message
+				if (!finalError) {
+					let classified = '';
+					if (!dbConfig.user || !dbConfig.password) {
+						classified = m.setup_db_test_missing_credentials();
+					} else if (/auth|authoriz|credential|login|passwd|password|user/.test(lower)) {
+						classified = originalError; // keep auth error as-is
 					}
+
+					// Friendly classification hint from server (if provided)
+					let classHint = '';
+					if (data.classification) {
+						const key = `setup_db_test_class_${data.classification}` as keyof typeof m;
+						if (key in m && typeof (m as any)[key] === 'function') {
+							try {
+								classHint = (m as any)[key]();
+							} catch {}
+						}
+					}
+					finalError = classified || classHint || originalError || 'Unknown error';
 				}
-				const finalError = classified || classHint || originalError || 'Unknown error';
+
 				lastDbTest.error = originalError; // preserve raw
+				lastDbTest.userFriendly = userFriendlyError; // store user-friendly message
 				errorMessage = m.setup_db_test_failed({ error: finalError });
 				dbTestPassed = false;
+				showDbDetails = true; // Show details for errors
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? m.setup_db_test_error({ error: e.message }) : m.setup_db_test_unknown_error();
@@ -391,24 +470,71 @@
 		}
 		isLoading = true;
 		errorMessage = '';
+
 		try {
+			console.log('Sending setup completion request...');
 			const response = await fetch('/api/setup/complete', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ database: dbConfig, admin: adminUser, system: systemSettings })
 			});
+			console.log('Response status:', response.status, response.statusText);
+
 			const data = await response.json();
-			if (data.success) {
+			console.log('Response data:', data);
+
+			// Handle successful completion (200 or 409 with success=true)
+			if (response.ok || (response.status === 409 && data.success === true)) {
+				console.log('Setup completed successfully');
 				successMessage = m.setup_complete_success();
 				isRedirecting = true;
+				setupCompleted = true;
 				clearPersisted();
-				// Prefer direct redirect to first collection if backend auto logged-in
+				
+				// Determine redirect target
 				const target = data.loggedIn && data.redirectPath ? data.redirectPath : '/login';
-				setTimeout(() => goto(target), 1200);
-			} else {
-				errorMessage = m.setup_complete_failed({ error: data.error || '' });
+				console.log('Redirecting to:', target);
+				
+				// Force immediate redirect
+				window.location.href = target;
+				
+				// Fallback redirect after a short delay
+				setTimeout(() => {
+					if (window.location.pathname !== target) {
+						console.log('Fallback redirect to:', target);
+						window.location.replace(target);
+					}
+				}, 1000);
+				
+				return;
 			}
+
+			// Handle 409 Conflict (setup already completed)
+			if (response.status === 409) {
+				console.log('Setup already completed (409)');
+				successMessage = 'Setup already completed. Redirecting to login...';
+				isRedirecting = true;
+				setupCompleted = true;
+				clearPersisted();
+				
+				// Force immediate redirect to login
+				window.location.href = '/login';
+				
+				// Fallback redirect after a short delay
+				setTimeout(() => {
+					if (window.location.pathname !== '/login') {
+						console.log('Fallback redirect to /login');
+						window.location.replace('/login');
+					}
+				}, 1000);
+				
+				return;
+			}
+
+			// Handle other errors
+			errorMessage = m.setup_complete_failed({ error: data.error || `HTTP ${response.status}` });
 		} catch (e) {
+			console.log('Setup completion error:', e);
 			errorMessage = e instanceof Error ? m.setup_complete_error({ error: e.message }) : m.setup_complete_unknown_error();
 		} finally {
 			if (!isRedirecting) isLoading = false;
@@ -417,10 +543,25 @@
 	// (Removed invalidation of dbTestPassed when fields change – once passed it stays enabled as requested)
 	// Derived per-step completion (kept up-to-date so going back doesn't "un-complete" later steps unless invalidated)
 	const stepCompleted = $derived([
-		dbTestPassed,
-		validateStep(1, false),
-		validateStep(2, false),
+		// Step 0 (Database) is completed if test passed OR if we've moved past it
+		dbTestPassed || highestStepReached > 0,
+		// Step 1 (Admin) is completed if we've moved past it (highestStepReached > 1) and it's valid
+		highestStepReached > 1 && validateStep(1, false),
+		// Step 2 (System) is completed if we've moved past it (highestStepReached > 2) and it's valid
+		highestStepReached > 2 && validateStep(2, false),
 		false // final review step treated separately
+	]);
+
+	// Derived per-step clickability (allows navigation to completed steps, current step, and next available step)
+	const stepClickable = $derived([
+		// Step 0 (Database) is clickable if test passed OR if we've moved past it
+		dbTestPassed || highestStepReached > 0,
+		// Step 1 (Admin) is clickable if completed or if we can proceed to it
+		highestStepReached > 1 && validateStep(1, false),
+		// Step 2 (System) is clickable if completed or if we can proceed to it
+		highestStepReached > 2 && validateStep(2, false),
+		// Step 3 (Complete) is clickable if all previous steps are completed
+		highestStepReached >= 2 && validateStep(2, false)
 	]);
 	// Positive flag (easier to reason about): can the user proceed to the next step?
 	let canProceed = $state(false);
@@ -443,6 +584,11 @@
 		// Deep-ish watch using stringified snapshot fingerprints
 		JSON.stringify(dbConfig);
 		schedulePersist();
+		// Only clear database test error when config changes AND we're on the database step
+		// or when the config has actually changed since the last successful test
+		if (currentStep === 0 || dbConfigChangedSinceTest) {
+			clearDbTestError();
+		}
 	});
 	$effect(() => {
 		JSON.stringify(adminUser);
@@ -450,6 +596,16 @@
 	});
 	$effect(() => {
 		JSON.stringify(systemSettings);
+		schedulePersist();
+	});
+	$effect(() => {
+		// Persist database test status when it changes
+		dbTestPassed;
+		schedulePersist();
+	});
+	$effect(() => {
+		// Persist highest step reached when it changes
+		highestStepReached;
 		schedulePersist();
 	});
 	function nextStep() {
@@ -460,6 +616,10 @@
 		}
 		if (currentStep < steps.length - 1) {
 			currentStep++;
+			// Update highest step reached
+			if (currentStep > highestStepReached) {
+				highestStepReached = currentStep;
+			}
 			errorMessage = '';
 			successMessage = '';
 			showDbDetails = false;
@@ -498,6 +658,7 @@
 		successMessage = '';
 		errorMessage = '';
 		currentStep = 0;
+		highestStepReached = 0;
 		clearPersisted();
 		schedulePersist();
 	}
@@ -582,19 +743,8 @@
 							</select>
 						{/if}
 					</div>
-					<!-- Theme switch tooltip -->
-					<div>
-						<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label={m.setup_theme_toggle_fallback()} class="variant-ghost btn-icon">
-							{#if !$modeCurrent}<iconify-icon icon="bi:sun" width="22"></iconify-icon>{:else}<iconify-icon icon="bi:moon-fill" width="22"
-								></iconify-icon>{/if}
-						</button>
-						<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SetupSwitchTheme">
-							{#if m.applayout_switchmode}{m.applayout_switchmode({
-									$modeCurrent: !$modeCurrent ? 'Light' : 'Dark'
-								})}{:else}{m.setup_theme_toggle_fallback()}{/if}
-							<div class="variant-filled arrow"></div>
-						</div>
-					</div>
+					<!-- Theme switch -->
+					<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="variant-ghost btn-icon" iconSize={22} />
 				</div>
 			</div>
 		</div>
@@ -618,16 +768,18 @@
 									]
 										? 'bg-primary-500 text-white'
 										: i === currentStep
-											? 'bg-primary-500 text-white shadow-xl'
-											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} {i > currentStep
-										? 'cursor-not-allowed'
-										: 'cursor-pointer'}"
+											? 'bg-error-500 text-white shadow-xl'
+											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} {stepClickable[i] || i === currentStep
+										? 'cursor-pointer'
+										: 'cursor-not-allowed'}"
 									aria-current={i === currentStep ? 'step' : undefined}
-									aria-label={`${_step.label} – ${i < currentStep ? 'Completed' : i === currentStep ? 'Current step' : 'Pending step'}`}
-									disabled={i > currentStep}
-									onclick={() => i <= currentStep && (currentStep = i)}
+									aria-label={`${_step.label} – ${stepCompleted[i] ? 'Completed' : i === currentStep ? 'Current step' : 'Pending step'}`}
+									disabled={!(stepClickable[i] || i === currentStep)}
+									onclick={() => (stepClickable[i] || i === currentStep) && (currentStep = i)}
 								>
-									<span>{stepCompleted[i] && i !== currentStep ? '✓' : i + 1}</span>
+									<span class="text-[0.65rem]">
+										{stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'}
+									</span>
 								</button>
 								<div class="mt-2 text-center">
 									<div
@@ -644,7 +796,7 @@
 						<!-- Connecting lines for mobile -->
 						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9" aria-hidden="true">
 							{#each steps as _unused, i}{#if i !== steps.length - 1}<div
-										class="mx-1 h-0.5 flex-1 {stepCompleted[i] ? 'bg-emerald-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
+										class="mx-1 h-0.5 flex-1 {stepCompleted[i] ? 'bg-primary-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
 									></div>{/if}{/each}
 						</div>
 					</div>
@@ -654,22 +806,24 @@
 						{#each steps as _step, i}
 							<div class="relative last:pb-0">
 								<button
-									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {i <= currentStep
+									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === currentStep
 										? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
 										: 'cursor-not-allowed opacity-50'}"
-									disabled={i > currentStep}
-									onclick={() => i <= currentStep && (currentStep = i)}
+									disabled={!(stepClickable[i] || i === currentStep)}
+									onclick={() => (stepClickable[i] || i === currentStep) && (currentStep = i)}
 								>
 									<div
 										class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
 											i
 										]
-											? 'bg-primary-500'
+											? 'bg-primary-500 text-white'
 											: i === currentStep
-												? 'bg-error-500 shadow-xl'
-												: 'bg-slate-100'}"
+												? 'bg-error-500 text-white shadow-xl'
+												: 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'}"
 									>
-										<span>{stepCompleted[i] && i !== currentStep ? '✓' : i + 1}</span>
+										<span class="text-[0.65rem]">
+											{stepCompleted[i] ? '✓' : i === currentStep ? '●' : '•'}
+										</span>
 									</div>
 									<div class="text-left">
 										<div
@@ -765,6 +919,7 @@
 								{toggleDbPassword}
 								{testDatabaseConnection}
 								{dbConfigChangedSinceTest}
+								{clearDbTestError}
 							/>
 						{:else if currentStep === 1}
 							<div class="fade-in">
@@ -814,7 +969,16 @@
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 										{/if}
 									</svg>
-									<div class="flex-1 pr-4">{successMessage || errorMessage}</div>
+									<div class="flex-1 pr-4">
+										{successMessage || errorMessage}
+										{#if isRedirecting && successMessage}
+											<div class="mt-2">
+												<button onclick={() => (window.location.href = '/login')} class="variant-filled-primary btn-sm">
+													Click here to continue to login
+												</button>
+											</div>
+										{/if}
+									</div>
 									<button type="button" class="btn-sm ml-auto mt-0.5 flex items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
 										<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 										<span class="hidden sm:inline">{showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
@@ -873,6 +1037,12 @@
 										</div>
 										{#if !lastDbTest.success}
 											<div class="border-t border-surface-200 p-3 dark:border-surface-600">
+												{#if lastDbTest.userFriendly}
+													<div class="mb-2 font-semibold text-error-600">Error:</div>
+													<div class="mb-3 rounded bg-red-50 p-2 text-sm text-error-700 dark:bg-error-900/20 dark:text-white">
+														{lastDbTest.userFriendly}
+													</div>
+												{/if}
 												<div class="mb-1 font-semibold text-error-600">{m.setup_db_test_error_details()}</div>
 												<pre
 													class="whitespace-pre-wrap break-all rounded bg-red-50 p-2 text-[11px] leading-snug text-error-700 dark:bg-error-900/20 dark:text-white">{lastDbTest.error ||

@@ -151,7 +151,11 @@ It p			if (result.success) {
 	});
 
 	// Handle user preferences
-	function storeUserPreference(view: 'grid' | 'table', gridSize: 'tiny' | 'small' | 'medium' | 'large', tableSize: 'tiny' | 'small' | 'medium' | 'large') {
+	function storeUserPreference(
+		view: 'grid' | 'table',
+		gridSize: 'tiny' | 'small' | 'medium' | 'large',
+		tableSize: 'tiny' | 'small' | 'medium' | 'large'
+	) {
 		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
 	}
 
@@ -438,7 +442,7 @@ It p			if (result.success) {
 	// Open add virtual folder modal
 	function openAddFolderModal() {
 		// Default to MEDIA_FOLDER, which should represent the root directory
-		let currentFolderPath = publicEnv.MEDIA_FOLDER;
+		let currentFolderPath = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
 
 		// Check if the currentFolder is set (i.e., the user is in a subfolder)
 		if (currentSystemVirtualFolder) {
@@ -610,8 +614,7 @@ It p			if (result.success) {
 								aria-label="Tiny"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}
-								></iconify-icon>
+								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Tiny</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}

@@ -7,9 +7,6 @@
  * language preferences, and media management.
  */
 
-// ParaglideJS
-import * as m from '@src/paraglide/messages';
-
 // Config fields
 interface ConfigField<T> {
 	type: T;
@@ -26,20 +23,20 @@ interface ConfigCategory {
 }
 
 const databaseConfig: ConfigCategory = {
-	description: m.databaseConfig_description(),
+	description: 'Database connection and configuration settings',
 	icon: 'mdi:database',
 	fields: {
 		DB_TYPE: {
 			type: 'string',
 			default: 'mongodb',
-			helper: m.databaseConfig_DB_Type_helper(),
+			helper: 'Type of database to use (mongodb or mariadb)',
 			allowedValues: ['mongodb', 'mariadb'],
 			icon: 'mdi:database'
 		},
 		DB_HOST: {
 			type: 'string',
 			default: 'localhost',
-			helper: m.databaseConfig_DB_HOST_helper(),
+			helper: 'Database server hostname or IP address',
 			icon: 'mdi:server-network'
 		},
 		DB_PORT: {
@@ -51,74 +48,74 @@ const databaseConfig: ConfigCategory = {
 		DB_NAME: {
 			type: 'string',
 			default: '',
-			helper: m.databaseConfig_DB_NAME_helper(),
+			helper: 'Name of the database to connect to',
 			icon: 'mdi:database-edit'
 		},
 		DB_USER: {
 			type: 'string',
 			default: '',
-			helper: m.databaseConfig_DB_USER_helper(),
+			helper: 'Database username for authentication',
 			icon: 'mdi:account'
 		},
 		DB_PASSWORD: {
 			type: 'string',
 			default: '',
-			helper: m.databaseConfig_DB_PASSWORD_helper(),
+			helper: 'Database password for authentication',
 			icon: 'mdi:lock'
 		},
 		DB_RETRY_ATTEMPTS: {
 			type: 'number',
 			default: 5,
-			helper: m.databaseConfig_DB_RETRY_ATTEMPTS_helper(),
+			helper: 'Number of connection retry attempts',
 			icon: 'mdi:reload'
 		},
 		DB_RETRY_DELAY: {
 			type: 'number',
 			default: 5000,
-			helper: m.databaseConfig_DB_RETRY_DELAY_helper(),
+			helper: 'Delay between retry attempts in milliseconds',
 			icon: 'mdi:clock'
 		},
 		DB_POOL_SIZE: {
 			type: 'number',
 			default: 10,
-			helper: m.databaseConfig_DB_POOL_SIZE_helper(),
+			helper: 'Number of connections in the database connection pool',
 			icon: 'mdi:pool'
 		},
 		MULTI_TENANT: {
 			type: 'boolean',
 			default: false,
-			helper: m.databaseConfig_MULTI_TENANT_helper(),
+			helper: 'Enable multi-tenant database support',
 			icon: 'mdi:sitemap'
 		}
 	}
 };
 
 const emailConfig: ConfigCategory = {
-	description: m.emailConfig_description(),
+	description: 'Email server configuration for sending notifications',
 	icon: 'mdi:email',
 	fields: {
 		SMTP_HOST: {
 			type: 'string',
 			default: '',
-			helper: m.emailConfig_SMTP_HOST_helper(),
+			helper: 'SMTP server hostname (e.g., smtp.gmail.com)',
 			icon: 'mdi:server'
 		},
 		SMTP_PORT: {
 			type: 'number',
 			default: 587,
-			helper: m.emailConfig_SMTP_PORT_helper(),
+			helper: 'SMTP server port (587 for TLS, 465 for SSL)',
 			icon: 'mdi:port'
 		},
 		SMTP_EMAIL: {
 			type: 'string',
 			default: '',
-			helper: m.emailConfig_SMTP_EMAIL_helper(),
+			helper: 'Email address used for sending notifications',
 			icon: 'mdi:email'
 		},
 		SMTP_PASSWORD: {
 			type: 'string',
 			default: '',
-			helper: m.emailConfig_SMTP_PASSWORD_helper(),
+			helper: 'Password for the email account',
 			icon: 'mdi:lock'
 		}
 	}
@@ -157,81 +154,81 @@ const sessionConfig: ConfigCategory = {
 };
 
 const googleConfig: ConfigCategory = {
-	description: m.googleConfig_description(),
+	description: 'Google OAuth and API configuration',
 	icon: 'mdi:google',
 	fields: {
 		USE_GOOGLE_OAUTH: {
 			type: 'boolean',
 			default: false,
-			helper: m.googleConfig_GOOGLE_OAUTH_helper(),
+			helper: 'Enable Google OAuth authentication',
 			icon: 'mdi:google'
 		},
 		GOOGLE_CLIENT_ID: {
 			type: 'string',
 			default: '',
-			helper: m.googleConfig_GOOGLE_CIENT_ID_helper(),
+			helper: 'Google OAuth client ID from Google Cloud Console',
 			icon: 'mdi:card-account-details'
 		},
 		GOOGLE_CLIENT_SECRET: {
 			type: 'string',
 			default: '',
-			helper: m.googleConfig_GOOGLE_CLIENT_SECRET_helper(),
+			helper: 'Google OAuth client secret from Google Cloud Console',
 			icon: 'mdi:lock'
 		},
 		GOOGLE_API_KEY: {
 			type: 'string',
 			default: '',
-			helper: m.googleConfig_GOOGLE_API_KEY_helper(),
+			helper: 'Google API key for additional Google services',
 			icon: 'mdi:key'
 		}
 	}
 };
 
 const redisConfig: ConfigCategory = {
-	description: m.redisConfig_description(),
+	description: 'Redis cache and session storage configuration',
 	icon: 'mdi:server-network',
 	fields: {
 		USE_REDIS: {
 			type: 'boolean',
 			default: false,
-			helper: m.redisConfig_USE_REDIS_helper(),
+			helper: 'Enable Redis for caching and session storage',
 			icon: 'mdi:toggle-switch'
 		},
 		REDIS_HOST: {
 			type: 'string',
 			default: 'localhost',
-			helper: m.redisConfig_REDIS_HOST_helper(),
+			helper: 'Redis server hostname or IP address',
 			icon: 'mdi:server-network'
 		},
 		REDIS_PORT: {
 			type: 'number',
 			default: 6379,
-			helper: m.redisConfig_REDIS_PORT_helper(),
+			helper: 'Redis server port (default: 6379)',
 			icon: 'mdi:port'
 		},
 		REDIS_PASSWORD: {
 			type: 'string',
 			default: '',
-			helper: m.redisConfig_REDIS_PASSWORD_helper(),
+			helper: 'Redis server password (if authentication is enabled)',
 			icon: 'mdi:lock'
 		}
 	}
 };
 
 const mapboxConfig: ConfigCategory = {
-	description: m.mapboxConfig_description(),
+	description: 'Mapbox mapping service configuration',
 	icon: 'mdi:map-marker',
 	fields: {
 		USE_MAPBOX: {
 			type: 'boolean',
 			default: false,
-			helper: m.mapboxConfig_USE_MAPBOX_helper(),
+			helper: 'Enable Mapbox mapping services',
 			icon: 'mdi:map'
 		},
 		MAPBOX_API_TOKEN: {
 			type: 'string',
 			default: '',
-			helper: m.mapboxConfig_MAPBOX_API_TOKEN_helper(),
+			helper: 'Mapbox API token for client-side mapping',
 			icon: 'mdi:key'
 		},
 		// --- ADDED: Secret Mapbox token ---
@@ -259,44 +256,44 @@ const apiConfig: ConfigCategory = {
 };
 
 const tiktokConfig: ConfigCategory = {
-	description: m.tiktokConfig_description(),
+	description: 'TikTok API integration configuration',
 	icon: 'ic:baseline-tiktok',
 	fields: {
 		USE_TIKTOK: {
 			type: 'boolean',
 			default: false,
-			helper: m.tiktokConfig_USE_TIKTOK_helper(),
+			helper: 'Enable TikTok API integration',
 			icon: 'ic:baseline-tiktok'
 		},
 		TIKTOK_TOKEN: {
 			type: 'string',
 			default: '',
-			helper: m.tiktokConfig_TIKTOK_TOKEN_helper(),
+			helper: 'TikTok API access token',
 			icon: 'mdi:key'
 		}
 	}
 };
 
 const llmConfig: ConfigCategory = {
-	description: m.llmConfig_description(),
+	description: 'Large Language Model (LLM) configuration',
 	icon: 'mdi:robot',
 	fields: {
 		USE_LLM: {
 			type: 'boolean',
 			default: false,
-			helper: m.llmConfig_useLLM(),
+			helper: 'Enable Large Language Model integration',
 			icon: 'mdi:toggle-switch'
 		},
 		LLM_PROVIDER: {
 			type: 'string',
 			default: '',
-			helper: m.llmConfig_llmProvider(),
+			helper: 'Provider for the Large Language Model (e.g., OpenAI, Anthropic)',
 			icon: 'mdi:domain'
 		},
 		LLM_API_KEY: {
 			type: 'string',
 			default: '',
-			helper: m.llmConfig_apiKey(),
+			helper: 'API key for the Large Language Model provider',
 			icon: 'mdi:key'
 		}
 	}
@@ -361,13 +358,13 @@ const privateConfigCategories = {
 };
 
 const systemConfig: ConfigCategory = {
-	description: m.systemConfig_description(),
+	description: 'System-wide configuration settings',
 	icon: 'mdi:cog',
 	fields: {
 		SITE_NAME: {
 			type: 'string',
 			default: 'SveltyCMS',
-			helper: m.systemConfig_SITE_NAME_helper(),
+			helper: 'The name of your website or application',
 			icon: 'mdi:web'
 		},
 		SERVER_PORT: {
@@ -379,7 +376,7 @@ const systemConfig: ConfigCategory = {
 		BODY_SIZE_LIMIT: {
 			type: 'number',
 			default: 104857600,
-			helper: m.systemConfig_BODY_SIZE_LIMIT_helper(),
+			helper: 'Maximum size of request body in bytes (100MB default)',
 			icon: 'mdi:weight'
 		},
 		// --- ADDED: More system settings ---
@@ -410,31 +407,31 @@ const systemConfig: ConfigCategory = {
 		HOST_DEV: {
 			type: 'string',
 			default: 'http://localhost:5173',
-			helper: m.systemConfig_HOST_DEV_helper(),
+			helper: 'Development server host URL',
 			icon: 'mdi:lan-connect'
 		},
 		HOST_PROD: {
 			type: 'string',
 			default: 'https://yourdomain.de',
-			helper: m.systemConfig_HOST_PROD_helper(),
+			helper: 'Production server host URL',
 			icon: 'mdi:lan-disconnect'
 		},
 		PASSWORD_LENGTH: {
 			type: 'number',
 			default: 8,
-			helper: m.systemConfig_PASSWORD_LENGHT_helper(),
+			helper: 'Minimum password length requirement',
 			icon: 'mdi:lock'
 		},
 		SEASONS: {
 			type: 'boolean',
 			default: false,
-			helper: m.systemConfig_USE_SEASON_helper(),
+			helper: 'Enable seasonal content features',
 			icon: 'mdi:calendar'
 		},
 		SEASON_REGION: {
 			type: 'string',
 			default: 'Western_Europe',
-			helper: m.systemConfig_SEASON_REGION_helper(),
+			helper: 'Geographic region for seasonal content',
 			allowedValues: ['Western_Europe', 'South_Asia', 'East_Asia'],
 			icon: 'mdi:earth'
 		}
@@ -442,19 +439,19 @@ const systemConfig: ConfigCategory = {
 };
 
 const languageConfig: ConfigCategory = {
-	description: m.languageConfig_description(),
+	description: 'Language and localization settings',
 	icon: 'mdi:translate',
 	fields: {
 		DEFAULT_CONTENT_LANGUAGE: {
 			type: 'string',
 			default: 'en',
-			helper: m.languageConfig_DEFAULT_CONTENT_LANGUAGE_helper(),
+			helper: 'Default language for content creation',
 			icon: 'mdi:translate'
 		},
 		AVAILABLE_CONTENT_LANGUAGES: {
 			type: 'object',
 			default: ['en'],
-			helper: m.languageConfig_AVAILABLE_CONTENT_LANGUAGE_helper(),
+			helper: 'List of available languages for content',
 			icon: 'mdi:translate-variant'
 		},
 		BASE_LOCALE: {
@@ -473,7 +470,7 @@ const languageConfig: ConfigCategory = {
 };
 
 const mediaConfig: ConfigCategory = {
-	description: m.mediaConfig_description(),
+	description: 'Media file management and processing settings',
 	icon: 'mdi:image',
 	fields: {
 		IMAGE_SIZES: {
@@ -485,19 +482,19 @@ const mediaConfig: ConfigCategory = {
 		MEDIA_FOLDER: {
 			type: 'string',
 			default: 'mediaFiles',
-			helper: m.mediaConfig_MEDIA_FOLDER_helper(),
+			helper: 'Folder path for storing media files',
 			icon: 'mdi:folder'
 		},
 		MEDIA_OUTPUT_FORMAT_QUALITY: {
 			type: 'object',
 			default: { format: 'original', quality: 80 },
-			helper: m.mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper(),
+			helper: 'Output format and quality settings for media processing',
 			icon: 'mdi:quality-high'
 		},
 		MEDIASERVER_URL: {
 			type: 'string',
 			default: '',
-			helper: m.mediaConfig_MEDIASERVER_URL_helper(),
+			helper: 'URL for the media server (if using external media hosting)',
 			icon: 'mdi:server'
 		}
 	}

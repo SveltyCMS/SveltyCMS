@@ -1,13 +1,13 @@
 /**
  * @file src/hooks/handleAuthentication.ts
  * @description Middleware for session validation and user identification
- * 
+ *
  * @summary This hook reads the session cookie, validates it, and attaches the
  * user object to `event.locals`. It also handles multi-tenancy identification
  * and attaches the database adapter for use in subsequent hooks and endpoints.
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { error, type Handle } from '@sveltejs/kit';
@@ -23,7 +23,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	locals.dbAdapter = dbAdapter;
 
 	// Handle multi-tenancy if enabled.
-	if (privateEnv.MULTI_TENANT) {
+	if (getPrivateSettingWithFallback('MULTI_TENANT', false)) {
 		const tenantId = getTenantIdFromHostname(url.hostname);
 		if (!tenantId) {
 			throw error(404, `Tenant not found for hostname: ${url.hostname}`);

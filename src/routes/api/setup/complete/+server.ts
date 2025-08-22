@@ -119,28 +119,69 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		await connectToMongoDBWithConfig(database);
 		logger.info('MongoDB connection established', { correlationId });
 
-		// Step 1b: If already completed and not forcing, abort early to protect data
-		try {
-			await loadGlobalSettings();
-			const existing = getPublicSettings();
-			if (existing?.SETUP_COMPLETED && !force) {
-				return json(
-					{
-						success: false,
-						error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
-					},
-					{ status: 409 }
-				);
-			}
-		} catch (e) {
-			// Not fatal – continue
-			logger.warn('Could not pre-load settings before setup; continuing', { correlationId, error: e instanceof Error ? e.message : String(e) });
-		}
-
 		// Step 2: Clear any existing data from database
 		logger.info('Clearing existing database data...', { correlationId });
 		await clearExistingDatabase({ correlationId });
 		logger.info('Database cleared of old data', { correlationId });
+
+		// Clear any cached settings to ensure we start fresh
+		try {
+			invalidateSettingsCache();
+			logger.info('Settings cache cleared', { correlationId });
+		} catch (e) {
+			logger.warn('Could not clear settings cache', { correlationId, error: e instanceof Error ? e.message : String(e) });
+		}
+
+		// Step 2b: Check if setup is already completed (after clearing database)
+		// This prevents re-running setup if it was already completed successfully
+		if (!force) {
+			try {
+				// Check if the setup marker file exists
+				const fs = await import('fs/promises');
+				const path = await import('path');
+				const markerPath = path.resolve(process.cwd(), 'config', '.installed');
+				const markerExists = await fs
+					.access(markerPath)
+					.then(() => true)
+					.catch(() => false);
+
+				logger.info('Checking setup marker file', { correlationId, markerPath, markerExists });
+
+				if (markerExists) {
+					logger.info('Setup marker file exists, setup already completed', { correlationId });
+					return json(
+						{
+							success: false,
+							error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
+						},
+						{ status: 409 }
+					);
+				}
+
+				// Also check for .svelty_installed in root
+				const sveltyMarkerPath = path.resolve(process.cwd(), '.svelty_installed');
+				const sveltyMarkerExists = await fs
+					.access(sveltyMarkerPath)
+					.then(() => true)
+					.catch(() => false);
+
+				logger.info('Checking Svelty marker file', { correlationId, sveltyMarkerPath, sveltyMarkerExists });
+
+				if (sveltyMarkerExists) {
+					logger.info('Svelty marker file exists, setup already completed', { correlationId });
+					return json(
+						{
+							success: false,
+							error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
+						},
+						{ status: 409 }
+					);
+				}
+			} catch (e) {
+				// Not fatal – continue
+				logger.warn('Could not check setup marker file; continuing', { correlationId, error: e instanceof Error ? e.message : String(e) });
+			}
+		}
 
 		// Step 3: Save all settings to database
 		logger.info('Saving settings to database...', { correlationId });
@@ -165,6 +206,16 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				SETUP_COMPLETED: settings.SETUP_COMPLETED,
 				SITE_NAME: settings.SITE_NAME
 			});
+
+			// Ensure the settings are properly loaded by checking a few key settings
+			const siteName = getPublicSetting('SITE_NAME');
+			const setupCompleted = getPublicSetting('SETUP_COMPLETED');
+			logger.info('Key settings verification', {
+				correlationId,
+				siteName,
+				setupCompleted,
+				cacheLoaded: true
+			});
 		} catch (loadError) {
 			logger.warn('Could not reload settings cache, continuing anyway', {
 				correlationId,
@@ -172,7 +223,140 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			});
 		}
 
-		// Step 6: Auto-create session for the admin user so they're logged in immediately
+		// Step 6: Update private config file with database settings (do this BEFORE response)
+		logger.info('Updating private config file...', { correlationId });
+		try {
+			logger.info('About to call updatePrivateConfig with database config', {
+				correlationId,
+				dbType: database.type,
+				dbHost: database.host,
+				dbPort: database.port,
+				dbName: database.name,
+				dbUser: database.user
+			});
+
+			// Test file write capability first
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const testPath = path.resolve(process.cwd(), 'config/private.ts');
+			logger.info('Testing file write capability', { testPath });
+
+			// Try to write a test content first
+			const testContent = `// Test content - ${new Date().toISOString()}`;
+			await fs.writeFile(testPath, testContent);
+			logger.info('Test write successful');
+
+			// Read it back to verify
+			const readBack = await fs.readFile(testPath, 'utf8');
+			logger.info('Test read back', { readBack });
+
+			await updatePrivateConfig(database);
+			logger.info('Private config updated successfully', { correlationId });
+			
+			// Clear private config cache to ensure new config is loaded
+			try {
+				const { clearPrivateConfigCache } = await import('@src/databases/db');
+				clearPrivateConfigCache();
+				logger.info('Private config cache cleared', { correlationId });
+			} catch (cacheError) {
+				logger.warn('Could not clear private config cache', {
+					correlationId,
+					error: cacheError instanceof Error ? cacheError.message : String(cacheError)
+				});
+			}
+
+			// Step 6a: Disable setup mode after config is updated
+			logger.info('Disabling setup mode...', { correlationId });
+			try {
+				const { disableSetupMode } = await import('@src/stores/globalSettings');
+				disableSetupMode();
+				logger.info('Setup mode disabled successfully', { correlationId });
+
+				// Force reinitialize the config service to pick up the new configuration
+				const { config } = await import('@src/lib/config.server');
+				await config.forceReinitialize();
+				logger.info('Config service reinitialized successfully', { correlationId });
+			} catch (setupModeError) {
+				logger.warn('Could not disable setup mode or reinitialize config', {
+					correlationId,
+					error: setupModeError instanceof Error ? setupModeError.message : String(setupModeError)
+				});
+			}
+		} catch (error) {
+			logger.error('Error updating private config', { correlationId, error: error instanceof Error ? error.message : String(error) });
+			// Don't fail the setup for config file issues
+		}
+
+		// Step 6b: Small delay to ensure settings are properly cached
+		logger.info('Waiting for settings to be properly cached...', { correlationId });
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Step 6c: Trigger system reinitialization to load new configuration
+		logger.info('Triggering system reinitialization...', { correlationId });
+		try {
+			const { reinitializeSystem, getSystemStatus } = await import('@src/databases/db');
+			const result = await reinitializeSystem(true);
+			logger.info('System reinitialization result', { correlationId, result });
+
+			// Check system status after reinitialization
+			const status = getSystemStatus();
+			logger.info('System status after reinitialization', { correlationId, status });
+
+			if (status.authReady) {
+				logger.info('Authentication system is ready after reinitialization', { correlationId });
+			} else {
+				logger.warn('Authentication system is NOT ready after reinitialization', { correlationId, status });
+			}
+		} catch (reinitError) {
+			logger.warn('System reinitialization failed, but continuing with setup', {
+				correlationId,
+				error: reinitError instanceof Error ? reinitError.message : String(reinitError)
+			});
+		}
+
+		// Step 6d: Wait for auth system to be ready before proceeding
+		logger.info('Waiting for auth system to be ready...', { correlationId });
+		try {
+			const { auth } = await import('@src/databases/db');
+			let authReady = false;
+			const maxWaitTime = 30000; // 30 seconds
+			const startTime = Date.now();
+
+			while (!authReady && Date.now() - startTime < maxWaitTime) {
+				if (auth && typeof auth.validateSession === 'function') {
+					authReady = true;
+					logger.info('Auth system is ready', { correlationId, waitTime: Date.now() - startTime });
+				} else {
+					logger.debug('Auth system not ready yet, waiting...', { correlationId, elapsed: Date.now() - startTime });
+					await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms
+				}
+			}
+
+			if (!authReady) {
+				logger.warn('Auth system not ready after waiting', { correlationId, maxWaitTime });
+			}
+		} catch (authWaitError) {
+			logger.warn('Error waiting for auth system', {
+				correlationId,
+				error: authWaitError instanceof Error ? authWaitError.message : String(authWaitError)
+			});
+		}
+
+		// Step 7: Write setup marker file (do this BEFORE response)
+		logger.info('Writing setup marker file...', { correlationId });
+		try {
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const markerPath = path.resolve(process.cwd(), 'config', '.installed');
+			await fs.mkdir(path.dirname(markerPath), { recursive: true });
+			await fs.writeFile(markerPath, JSON.stringify({ completedAt: new Date().toISOString(), correlationId }));
+			logger.info('Setup marker written to config/.installed', { correlationId });
+		} catch (markerErr) {
+			logger.warn('Failed to write setup marker', { correlationId, error: markerErr instanceof Error ? markerErr.message : String(markerErr) });
+			// Don't fail the setup for marker file issues
+		}
+
+		// Step 8: Auto-create session for the admin user so they're logged in immediately
 		interface SessionCookieMeta {
 			name: string;
 			value: string;
@@ -203,13 +387,36 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			});
 		}
 
-		// Step 6 (response): Provide redirect path hint to first collection
+		// Step 8b: Clear private config cache to force reload after setup completion
+		try {
+			const { clearPrivateConfigCache, reinitializeSystem } = await import('@src/databases/db');
+			clearPrivateConfigCache();
+			logger.info('Private config cache cleared for reinitialization', { correlationId });
+
+			// Reinitialize the system with the new configuration
+			const reinitResult = await reinitializeSystem(true);
+			logger.info('System reinitialization result', { correlationId, result: reinitResult });
+		} catch (cacheErr) {
+			logger.warn('Failed to clear private config cache or reinitialize system', {
+				correlationId,
+				error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
+			});
+		}
+
+		// Step 9 (response): Provide redirect path hint to first collection
 		let redirectPath = '/';
 		try {
-			// dynamic import to avoid circular issues
+			// Use the same redirect logic as the login page to ensure language prefix is included
 			const { contentManager } = await import('@src/content/ContentManager');
 			const first = contentManager.getFirstCollection();
-			if (first?.path) redirectPath = first.path.startsWith('/') ? first.path : `/${first.path}`;
+			if (first?.path) {
+				// Get the default language from settings
+				const { getPublicSetting } = await import('@src/stores/globalSettings');
+				const defaultLanguage = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+				// Ensure the collection path has a leading slash
+				const collectionPath = first.path.startsWith('/') ? first.path : `/${first.path}`;
+				redirectPath = `/${defaultLanguage}${collectionPath}`;
+			}
 		} catch {
 			// swallow – auto-login is optional
 		}
@@ -219,46 +426,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			redirectPath,
 			loggedIn: !!sessionCookie
 		});
-
-		// Step 7: Update private config file with database settings (do this after response)
-		// Use a longer delay to allow the response to be sent and prevent immediate reload issues
-		setTimeout(async () => {
-			try {
-				const fs = await import('fs/promises');
-				const path = await import('path');
-				const configPath = path.resolve(process.cwd(), 'config/private.ts');
-				const configContent = await fs.readFile(configPath, 'utf8');
-
-				// Check if config needs updating (only update if different)
-				const needsUpdate =
-					!configContent.includes(`DB_HOST: '${database.host}'`) ||
-					!configContent.includes(`DB_NAME: '${database.name}'`) ||
-					!configContent.includes(`DB_USER: '${database.user}'`);
-
-				if (needsUpdate) {
-					await updatePrivateConfig(database);
-					logger.info('Private config updated successfully', { correlationId });
-				} else {
-					logger.info('Private config already up to date, skipping update', { correlationId });
-				}
-			} catch (error) {
-				logger.error('Error updating private config', { correlationId, error: error instanceof Error ? error.message : String(error) });
-			}
-		}, 2000); // 2 second delay instead of setImmediate
-
-		// Step 8: Write a setup marker so future restarts (including built servers) detect completion quickly
-		setTimeout(async () => {
-			try {
-				const fs = await import('fs/promises');
-				const path = await import('path');
-				const markerPath = path.resolve(process.cwd(), 'config', '.installed');
-				await fs.mkdir(path.dirname(markerPath), { recursive: true });
-				await fs.writeFile(markerPath, JSON.stringify({ completedAt: new Date().toISOString(), correlationId }));
-				logger.info('Setup marker written to config/.installed', { correlationId });
-			} catch (markerErr) {
-				logger.warn('Failed to write setup marker', { correlationId, error: markerErr instanceof Error ? markerErr.message : String(markerErr) });
-			}
-		}, 3000);
 
 		return response;
 	} catch (error) {
@@ -278,18 +445,24 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig) {
 	const path = await import('path');
 
 	const configPath = path.resolve(process.cwd(), 'config/private.ts');
+	logger.info('updatePrivateConfig: Starting update', { configPath });
 
 	// Only update if file already exists; do NOT create (template copy happens in vite.config)
 	const exists = await fs
 		.access(configPath)
 		.then(() => true)
 		.catch(() => false);
+
+	logger.info('updatePrivateConfig: File exists check', { configPath, exists });
+
 	if (!exists) {
-		console.warn('⚠️ Skipping private config update – file missing (should have been created from template earlier).');
+		logger.warn('⚠️ Skipping private config update – file missing (should have been created from template earlier).');
 		return;
 	}
 
 	let configContent = await fs.readFile(configPath, 'utf8');
+	logger.info('updatePrivateConfig: Current file content length', { contentLength: configContent.length });
+	logger.debug('updatePrivateConfig: Current file content', { content: configContent });
 
 	// Ensure header comment matches simplified format (optional)
 	configContent = configContent.replace(
@@ -297,27 +470,94 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig) {
 		`/**\n * @file config/private.ts\n * @description Private configuration file - will be populated during setup\n */\n\n`
 	);
 
-	// Replace DB fields
-	configContent = configContent
-		.replace(/DB_TYPE:\s*['"][^'"]*['"]/, `DB_TYPE: '${dbConfig.type}'`)
-		.replace(/DB_HOST:\s*['"][^'"]*['"]/, `DB_HOST: '${dbConfig.host}'`)
-		.replace(/DB_PORT:\s*\d+/, `DB_PORT: ${dbConfig.port}`)
-		.replace(/DB_NAME:\s*['"][^'"]*['"]/, `DB_NAME: '${dbConfig.name}'`)
-		.replace(/DB_USER:\s*['"][^'"]*['"]/, `DB_USER: '${dbConfig.user}'`)
-		.replace(/DB_PASSWORD:\s*['"][^'"]*['"]/, `DB_PASSWORD: '${dbConfig.password}'`);
+	// Check if we need to add database configuration fields
+	const hasDbFields = /DB_HOST:\s*['"`][^'"`]*['"`]/.test(configContent);
 
-	// If JWT secret empty in file, inject one (search for JWT_SECRET_KEY: '' or undefined)
-	if (/JWT_SECRET_KEY:\s*['"]{2}/.test(configContent)) {
-		configContent = configContent.replace(/JWT_SECRET_KEY:\s*['"]{2}/, `JWT_SECRET_KEY: '${generateRandomKey()}'`);
+	if (!hasDbFields) {
+		// The file doesn't have database fields, so we need to add them
+		// Find the createPrivateConfig call and add the database fields
+		const createConfigMatch = configContent.match(/createPrivateConfig\(\{([\s\S]*?)\}\);/);
+		if (createConfigMatch) {
+			const configBody = createConfigMatch[1];
+			const newConfigBody = configBody.replace(
+				/(\s*\/\/ If you have any essential static private config, add here\. Otherwise, leave empty\.\s*)/,
+				`	// Database Configuration
+	DB_TYPE: '${dbConfig.type}',
+	DB_HOST: '${dbConfig.host}',
+	DB_PORT: ${dbConfig.port},
+	DB_NAME: '${dbConfig.name}',
+	DB_USER: '${dbConfig.user}',
+	DB_PASSWORD: '${dbConfig.password}',
+
+	// Security Keys
+	JWT_SECRET_KEY: '${generateRandomKey()}',
+	ENCRYPTION_KEY: '${generateRandomKey()}',
+
+	// Multi-tenancy
+	MULTI_TENANT: false,
+
+$1`
+			);
+			configContent = configContent.replace(createConfigMatch[0], `createPrivateConfig({${newConfigBody}});`);
+		} else {
+			// Fallback: replace the entire content
+			configContent = `/**
+ * @file config/private.ts
+ * @description Private configuration file - will be populated during setup
+ */
+
+import { createPrivateConfig } from './types.ts';
+
+export const privateEnv = createPrivateConfig({
+	// Database Configuration
+	DB_TYPE: '${dbConfig.type}',
+	DB_HOST: '${dbConfig.host}',
+	DB_PORT: ${dbConfig.port},
+	DB_NAME: '${dbConfig.name}',
+	DB_USER: '${dbConfig.user}',
+	DB_PASSWORD: '${dbConfig.password}',
+
+	// Security Keys
+	JWT_SECRET_KEY: '${generateRandomKey()}',
+	ENCRYPTION_KEY: '${generateRandomKey()}',
+
+	// Multi-tenancy
+	MULTI_TENANT: false,
+
+	// If you have any essential static private config, add here. Otherwise, leave empty.
+});
+`;
+		}
+	} else {
+		// The file has database fields, so we can replace them
+		configContent = configContent
+			.replace(/DB_TYPE:\s*['"][^'"]*['"]/, `DB_TYPE: '${dbConfig.type}'`)
+			.replace(/DB_HOST:\s*['"][^'"]*['"]/, `DB_HOST: '${dbConfig.host}'`)
+			.replace(/DB_PORT:\s*\d+/, `DB_PORT: ${dbConfig.port}`)
+			.replace(/DB_NAME:\s*['"][^'"]*['"]/, `DB_NAME: '${dbConfig.name}'`)
+			.replace(/DB_USER:\s*['"][^'"]*['"]/, `DB_USER: '${dbConfig.user}'`)
+			.replace(/DB_PASSWORD:\s*['"][^'"]*['"]/, `DB_PASSWORD: '${dbConfig.password}'`);
+
+		// If JWT secret empty in file, inject one (search for JWT_SECRET_KEY: '' or undefined)
+		if (/JWT_SECRET_KEY:\s*['"]{2}/.test(configContent)) {
+			configContent = configContent.replace(/JWT_SECRET_KEY:\s*['"]{2}/, `JWT_SECRET_KEY: '${generateRandomKey()}'`);
+		}
+
+		// Add ENCRYPTION_KEY if it doesn't exist
+		if (!/ENCRYPTION_KEY:\s*['"`][^'"`]+['"`]/.test(configContent)) {
+			// Add ENCRYPTION_KEY after JWT_SECRET_KEY
+			configContent = configContent.replace(/(JWT_SECRET_KEY:\s*['"`][^'"`]+['"`])/, `$1,\n\tENCRYPTION_KEY: '${generateRandomKey()}'`);
+		}
 	}
 
-	// Add ENCRYPTION_KEY if it doesn't exist
-	if (!/ENCRYPTION_KEY:\s*['"`][^'"`]+['"`]/.test(configContent)) {
-		// Add ENCRYPTION_KEY after JWT_SECRET_KEY
-		configContent = configContent.replace(/(JWT_SECRET_KEY:\s*['"`][^'"`]+['"`])/, `$1,\n\tENCRYPTION_KEY: '${generateRandomKey()}'`);
-	}
-
+	logger.info('updatePrivateConfig: About to write file', { configPath, contentLength: configContent.length });
 	await fs.writeFile(configPath, configContent);
+	logger.info('updatePrivateConfig: File written successfully', { configPath });
+
+	// Verify the file was written correctly
+	const verifyContent = await fs.readFile(configPath, 'utf8');
+	logger.info('updatePrivateConfig: Verification - file content length after write', { contentLength: verifyContent.length });
+	logger.debug('updatePrivateConfig: Verification - file content after write', { content: verifyContent });
 }
 
 // Helper function to generate random keys for JWT and encryption

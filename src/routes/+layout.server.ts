@@ -5,7 +5,7 @@
  * correct language and user/tenant context for the entire application.
  */
 import { getPublicSetting } from '@src/stores/globalSettings';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ cookies, locals }) => {
@@ -20,7 +20,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 		contentLanguage,
 		user: locals.user ?? null,
 		isAdmin: locals.isAdmin ?? false,
-		isMultiTenant: privateEnv.MULTI_TENANT ?? false,
+		isMultiTenant: getPrivateSettingWithFallback('MULTI_TENANT', false),
 		tenantId: locals.tenantId ?? null
 	};
 };

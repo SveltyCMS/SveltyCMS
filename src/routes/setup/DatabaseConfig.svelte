@@ -37,7 +37,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		showDbPassword,
 		toggleDbPassword,
 		testDatabaseConnection,
-		dbConfigChangedSinceTest
+		dbConfigChangedSinceTest,
+		clearDbTestError
 	} = $props<{
 		dbConfig: DbConfig;
 		validationErrors: ValidationErrors;
@@ -46,6 +47,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		toggleDbPassword: () => void;
 		testDatabaseConnection: () => void | Promise<void>;
 		dbConfigChangedSinceTest: boolean;
+		clearDbTestError: () => void;
 	}>();
 </script>
 
@@ -76,7 +78,15 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<p>{m.setup_help_database_type?.() || 'Select the database engine to use. Ensure the server & driver are installed.'}</p>
 					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 				</div>
-				<select id="db-type" value={dbConfig.type} onchange={(e) => (dbConfig.type = (e.target as HTMLSelectElement).value)} class="input rounded">
+				<select
+					id="db-type"
+					value={dbConfig.type}
+					onchange={(e) => {
+						dbConfig.type = (e.target as HTMLSelectElement).value;
+						clearDbTestError();
+					}}
+					class="input rounded"
+				>
 					<option value="mongodb">MongoDB</option>
 					<option value="postgresql">PostgreSQL</option>
 					<option value="mysql">MySQL</option>
@@ -100,7 +110,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<input
 					id="db-host"
 					value={dbConfig.host}
-					oninput={(e) => (dbConfig.host = (e.target as HTMLInputElement).value)}
+					oninput={(e) => {
+						dbConfig.host = (e.target as HTMLInputElement).value;
+						clearDbTestError();
+					}}
 					type="text"
 					placeholder={m.setup_database_host_placeholder?.() || 'localhost'}
 					class="input w-full rounded {validationErrors.host ? 'border-error-500' : 'border-slate-200'}"
@@ -125,7 +138,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<input
 					id="db-port"
 					value={dbConfig.port}
-					oninput={(e) => (dbConfig.port = (e.target as HTMLInputElement).value)}
+					oninput={(e) => {
+						dbConfig.port = (e.target as HTMLInputElement).value;
+						clearDbTestError();
+					}}
 					type="text"
 					placeholder={m.setup_database_port_placeholder?.() || '27017'}
 					class="input w-full rounded {validationErrors.port ? 'border-error-500' : 'border-slate-200'}"
@@ -154,7 +170,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<input
 					id="db-name"
 					value={dbConfig.name}
-					oninput={(e) => (dbConfig.name = (e.target as HTMLInputElement).value)}
+					oninput={(e) => {
+						dbConfig.name = (e.target as HTMLInputElement).value;
+						clearDbTestError();
+					}}
 					type="text"
 					placeholder={m.setup_database_name_placeholder?.() || 'SveltyCMS'}
 					class="input w-full rounded {validationErrors.name ? 'border-error-500' : 'border-slate-200'}"
@@ -183,7 +202,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<input
 					id="db-user"
 					value={dbConfig.user}
-					oninput={(e) => (dbConfig.user = (e.target as HTMLInputElement).value)}
+					oninput={(e) => {
+						dbConfig.user = (e.target as HTMLInputElement).value;
+						clearDbTestError();
+					}}
 					type="text"
 					placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
 					class="input rounded"
@@ -212,7 +234,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<input
 						id="db-password"
 						value={dbConfig.password}
-						oninput={(e) => (dbConfig.password = (e.target as HTMLInputElement).value)}
+						oninput={(e) => {
+							dbConfig.password = (e.target as HTMLInputElement).value;
+							clearDbTestError();
+						}}
 						type={showDbPassword ? 'text' : 'password'}
 						placeholder={m.setup_database_password_placeholder?.() || 'Database password'}
 						class="input w-full rounded"

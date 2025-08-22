@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 
 	interface Props {
 		char?: string | null;
@@ -19,8 +19,8 @@
 
 	let { char = null }: Props = $props();
 
-	// Get site name from page data (loaded by layout.server.ts)
-	const siteName = $derived($page.data.settings?.SITE_NAME || 'SveltyCMS');
+	// Get site name directly from settings store
+	const siteName = $derived(getPublicSetting('SITE_NAME') || 'SveltyCMS');
 	const targetSiteName = 'SveltyCMS';
 
 	const mainPart = $derived(siteName === targetSiteName ? siteName.slice(0, -3) : siteName);

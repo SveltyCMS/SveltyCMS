@@ -37,6 +37,8 @@ Features:
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
 	const firstCollection = $state(data.firstCollection);
+	const authNotReady = $state(data.authNotReady || false);
+	const authNotReadyMessage = $state(data.authNotReadyMessage || 'System is initializing...');
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
@@ -244,6 +246,12 @@ Features:
 		isDropdownOpen = !isDropdownOpen;
 	}
 
+	// Handle auth not ready retry
+	async function handleAuthRetry() {
+		// Reload the page to retry auth initialization
+		window.location.reload();
+	}
+
 	// Prefetch when active state changes to SignIn (0) or SignUp (1)
 	$effect(() => {
 		if (active !== undefined) {
@@ -274,30 +282,54 @@ Features:
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
-	<!-- SignIn and SignUp Forms -->
-	<SignIn
-		bind:active
-		FormSchemaLogin={data.loginForm}
-		FormSchemaForgot={data.forgotForm}
-		FormSchemaReset={data.resetForm}
-		onClick={handleSignInClick}
-		onPointerEnter={handleSignInPointerEnter}
-		onBack={resetToInitialState}
-	/>
+	<!-- Auth Not Ready State -->
+	{#if authNotReady}
+		<div class="flex min-h-lvh w-full items-center justify-center bg-white">
+			<div class="text-center">
+				<!-- Loading Animation -->
+				<div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center">
+					<div class="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-[#ff3e00]"></div>
+				</div>
 
-	<SignUp
-		bind:active
-		FormSchemaSignUp={data.signUpForm}
-		isInviteFlow={data.isInviteFlow || false}
-		token={data.token || ''}
-		invitedEmail={data.invitedEmail || ''}
-		inviteError={data.inviteError || ''}
-		onClick={handleSignUpClick}
-		onPointerEnter={handleSignUpPointerEnter}
-		onBack={resetToInitialState}
-	/>
+				<!-- Message -->
+				<h3 class="mb-4 text-xl font-semibold text-slate-800">System Initializing</h3>
+				<p class="mb-6 text-slate-600">{authNotReadyMessage}</p>
 
-	{#if active == undefined}
+				<!-- Retry Button -->
+				<button
+					onclick={handleAuthRetry}
+					class="variant-filled-primary btn"
+				>
+					<iconify-icon icon="mdi:refresh" class="mr-2 h-4 w-4"></iconify-icon>
+					Retry
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- SignIn and SignUp Forms -->
+		<SignIn
+			bind:active
+			FormSchemaLogin={data.loginForm}
+			FormSchemaForgot={data.forgotForm}
+			FormSchemaReset={data.resetForm}
+			onClick={handleSignInClick}
+			onPointerEnter={handleSignInPointerEnter}
+			onBack={resetToInitialState}
+		/>
+
+		<SignUp
+			bind:active
+			FormSchemaSignUp={data.signUpForm}
+			isInviteFlow={data.isInviteFlow || false}
+			token={data.token || ''}
+			invitedEmail={data.invitedEmail || ''}
+			inviteError={data.inviteError || ''}
+			onClick={handleSignUpClick}
+			onPointerEnter={handleSignUpPointerEnter}
+			onBack={resetToInitialState}
+		/>
+
+		{#if active == undefined}
 		{#if getPublicSetting('DEMO')}
 			<!-- DEMO MODE -->
 			<div
@@ -427,6 +459,7 @@ Features:
 			</a>
 		{/if}
 	{/if}
+{/if}
 </div>
 
 <style lang="postcss">

@@ -10,8 +10,8 @@
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000;
 
-// Directly import privateEnv from config/private
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
+import { config } from '@src/lib/config.server';
 
 import mongoose from 'mongoose';
 
@@ -91,31 +91,35 @@ export async function connectToMongoDBWithConfig(dbConfig: {
  * Connect to the MongoDB database with retry logic.
  */
 export async function connectToMongoDB(): Promise<void> {
-	if (!privateEnv) {
-		logger.error('MongoDB connection failed: privateEnv is null. The database is not configured.');
-		logger.error('Please run the setup wizard to configure your database connection.');
-		throw new Error('Database configuration missing. Run setup before starting the server.');
+	// Check if we're in setup mode first
+	if (config.isSetupMode()) {
+		logger.info('Skipping MongoDB connection: Running in setup mode.');
+		throw new Error('SETUP_MODE_DB_HOST_MISSING');
 	}
 
-	// Guard: if DB_HOST not set (empty or undefined), we're in setup mode – skip noisy retries
-	if (!privateEnv.DB_HOST || String(privateEnv.DB_HOST).trim().length === 0) {
+	const dbHost = getPrivateSettingWithFallback('DB_HOST', '');
+	const dbPort = getPrivateSettingWithFallback('DB_PORT', 27017);
+	const dbName = getPrivateSettingWithFallback('DB_NAME', '');
+	const dbUser = getPrivateSettingWithFallback('DB_USER', '');
+	const dbPassword = getPrivateSettingWithFallback('DB_PASSWORD', '');
+	const dbPoolSize = getPrivateSettingWithFallback('DB_POOL_SIZE', 5);
+
+	if (!dbHost || String(dbHost).trim().length === 0) {
 		logger.info('Skipping MongoDB connection: DB_HOST not set (setup mode).');
 		throw new Error('SETUP_MODE_DB_HOST_MISSING');
 	}
 
-	const hasScheme = privateEnv.DB_HOST.startsWith('mongodb://') || privateEnv.DB_HOST.startsWith('mongodb+srv://');
-	const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
-	const hostWithScheme = hasScheme ? privateEnv.DB_HOST : `mongodb://${privateEnv.DB_HOST}`;
-	const connectionString = isAtlas
-		? `${hostWithScheme}/${privateEnv.DB_NAME}`
-		: `${hostWithScheme}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
+	const hasScheme = dbHost.startsWith('mongodb://') || dbHost.startsWith('mongodb+srv://');
+	const isAtlas = dbHost.startsWith('mongodb+srv://');
+	const hostWithScheme = hasScheme ? dbHost : `mongodb://${dbHost}`;
+	const connectionString = isAtlas ? `${hostWithScheme}/${dbName}` : `${hostWithScheme}${dbPort ? `:${dbPort}` : ''}/${dbName}`;
 
 	const options: ConnectOptions = {
 		authSource: isAtlas ? undefined : 'admin',
-		user: privateEnv.DB_USER,
-		pass: privateEnv.DB_PASSWORD,
-		dbName: privateEnv.DB_NAME,
-		maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
+		user: dbUser,
+		pass: dbPassword,
+		dbName: dbName,
+		maxPoolSize: dbPoolSize,
 		retryWrites: true,
 		serverSelectionTimeoutMS: DB_TIMEOUT
 	};
@@ -131,7 +135,7 @@ export async function connectToMongoDB(): Promise<void> {
 		try {
 			logger.info(`\x1b[33mAttempting to connect to MongoDB (Attempt ${attempt}/${MAX_RETRIES})...\x1b[0m`);
 			await mongoose.connect(connectionString, options);
-			logger.info(`\x1b[32mSuccessfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
+			logger.info(`\x1b[32mSuccessfully connected to MongoDB database: \x1b[34m${dbName}\x1b[0m`);
 			return;
 		} catch (error) {
 			logger.error(`MongoDB connection attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`);

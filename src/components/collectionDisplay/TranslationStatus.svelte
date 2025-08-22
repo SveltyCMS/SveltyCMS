@@ -1,11 +1,10 @@
-
-<!-- 
-@file src/components/TranslationStatus.svelte 
+<!--
+@file src/components/TranslationStatus.svelte
 @component
 **Translation status component for displaying translation progress per language in a progress bar with percentage.**
 
 @example
-<TranslationStatus /> 
+<TranslationStatus />
 
 ### Props:
 - `mode` {object} - The current mode object from the mode store
@@ -19,8 +18,7 @@
 -->
 
 <script lang="ts">
-
-	import { publicEnv } from '@root/config/public';
+	import { publicEnv } from '@src/utils/configMigration';
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 

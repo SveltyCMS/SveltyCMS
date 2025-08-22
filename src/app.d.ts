@@ -48,6 +48,7 @@ declare global {
 			allUsers: User[]; // Using imported User type
 			allTokens: Token[]; // Using imported Token type
 			theme: Theme | null; // Ensure 'theme' is correctly typed
+			darkMode: boolean; // Dark mode preference from cookies
 		}
 	}
 

@@ -141,7 +141,10 @@
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
 		setModeCurrent(prefersDarkMode);
-		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
+		
+		// Set cookie for server-side persistence
+		document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 	}
 
 	// Keyboard shortcuts
@@ -157,10 +160,23 @@
 		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
 
-		// Check for saved theme preference in localStorage
-		const savedTheme = localStorage.getItem('theme');
+		// Check for saved theme preference in cookies
+		const getCookie = (name: string) => {
+			const value = `; ${document.cookie}`;
+			const parts = value.split(`; ${name}=`);
+			if (parts.length === 2) return parts.pop()?.split(';').shift();
+			return null;
+		};
+		
+		const savedTheme = getCookie('theme');
+		const savedDarkMode = getCookie('darkMode');
+		
 		if (savedTheme) {
 			const newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		} else if (savedDarkMode) {
+			const newMode = savedDarkMode === 'true';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
 		}

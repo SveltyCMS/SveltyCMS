@@ -149,6 +149,7 @@ Features:
 					/>
 					<button
 						type="button"
+						tabindex="-1"
 						onclick={toggleAdminPassword}
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
@@ -193,6 +194,7 @@ Features:
 					/>
 					<button
 						type="button"
+						tabindex="-1"
 						onclick={toggleConfirmPassword}
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}

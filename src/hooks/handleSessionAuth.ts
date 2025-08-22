@@ -14,7 +14,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
 
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import type { User } from '@src/auth/types';
@@ -50,7 +50,7 @@ const refreshLimiter = new RateLimiter({
 	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'refreshlimit',
-		secret: privateEnv.JWT_SECRET_KEY as string,
+		secret: getPrivateSettingWithFallback('JWT_SECRET_KEY', 'default-secret-key') as string,
 		rate: [10, 'm'], // 10 requests per minute per cookie
 		preflight: true
 	}
@@ -91,6 +91,13 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 	// Skip auth entirely for static assets during initialization
 	if (isStaticAsset(event.url.pathname)) {
 		logger.debug(`Skipping session auth for static asset: ${event.url.pathname}`);
+		return resolve(event);
+	}
+
+	// Skip database initialization for setup routes
+	const isSetupRoute = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
+	if (isSetupRoute) {
+		logger.debug(`Skipping database initialization for setup route: ${event.url.pathname}`);
 		return resolve(event);
 	}
 

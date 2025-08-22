@@ -49,7 +49,7 @@
 			if (field?.translated) {
 				value = { [contentLanguage.value.toLowerCase()]: '' };
 			} else {
-				value = { [(publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase()]: '' };
+				value = { [(getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en').toLowerCase()]: '' };
 			}
 		}
 	});
@@ -57,9 +57,10 @@
 	// Field name for validation
 	const fieldName = getFieldName(field);
 
-
 	// Language handling - with safe fallback
-	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
+	let _language = $derived(
+		field?.translated ? contentLanguage.value.toLowerCase() : (getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en').toLowerCase()
+	);
 
 	// Safe value access with fallback
 	let safeValue = $derived(value?.[_language] ?? '');

@@ -23,18 +23,34 @@ import { publicEnv } from '@src/utils/configMigration';
 let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 // Function to load private config when needed
-async function loadPrivateConfig() {
-	if (privateEnv) return privateEnv;
+async function loadPrivateConfig(forceReload = false) {
+	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
+		logger.debug('Loading private config...');
 		const module = await import('@root/config/private');
 		privateEnv = module.privateEnv;
+		logger.debug('Private config loaded successfully', {
+			hasConfig: !!privateEnv,
+			dbType: privateEnv?.DB_TYPE,
+			dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+		});
 		return privateEnv;
-	} catch {
+	} catch (error) {
 		// Private config doesn't exist during setup - this is expected
-		console.log('Private config not found during setup - this is expected during initial setup');
+		logger.debug('Private config not found during setup - this is expected during initial setup', {
+			error: error instanceof Error ? error.message : String(error)
+		});
 		return null;
 	}
+}
+
+// Function to clear private config cache (used after setup completion)
+export function clearPrivateConfigCache() {
+	logger.debug('Clearing private config cache');
+	privateEnv = null;
+	adaptersLoaded = false;
+	logger.debug('Private config cache cleared');
 }
 
 // MongoDB
@@ -79,8 +95,8 @@ async function loadAdapters() {
 		return;
 	}
 
-	// Load private config when needed
-	const config = await loadPrivateConfig();
+	// Load private config when needed (force reload to pick up changes after setup)
+	const config = await loadPrivateConfig(true);
 
 	// If private config doesn't exist yet (during setup), we can't load adapters
 	if (!config || !config.DB_TYPE) {
@@ -262,7 +278,7 @@ async function initializeRevisions(): Promise<void> {
 }
 
 // Core Initialization Logic
-async function initializeSystem(): Promise<void> {
+async function initializeSystem(forceReload = false): Promise<void> {
 	// Prevent re-initialization
 	if (isInitialized) {
 		logger.debug('System already initialized. Skipping.');
@@ -273,37 +289,44 @@ async function initializeSystem(): Promise<void> {
 	logger.info('Starting SvelteCMS System Initialization...');
 
 	try {
-		// 1. Connect to Database & Load Adapters (Concurrently)
+		// 1. Check for setup mode first
 		const step1StartTime = performance.now();
 
-		let setupModeDetected = false;
-		await Promise.all([
-			connectToMongoDB()
-				.then(() => {
-					/* connected */
-				})
-				.catch((err) => {
-					if (err instanceof Error && err.message === 'SETUP_MODE_DB_HOST_MISSING') {
-						setupModeDetected = true;
-						logger.info('Database credentials incomplete – running in setup mode (skipping full system initialization).');
-						return; // swallow to allow adapters attempt (may also skip) and then early-return below
-					}
-					logger.error(`MongoDB connection failed: ${err.message}`);
-					throw err;
-				}),
-			loadAdapters().catch((err) => {
-				logger.error(`Adapter loading failed: ${err.message}`);
-				throw err;
-			})
-		]);
+		// Check if we're in setup mode by trying to load private config
+		const privateConfig = await loadPrivateConfig(forceReload);
+		const setupModeDetected = !privateConfig || !privateConfig.DB_TYPE;
+
+		logger.debug('Setup mode detection', {
+			hasPrivateConfig: !!privateConfig,
+			hasDbType: !!privateConfig?.DB_TYPE,
+			setupModeDetected
+		});
+
 		if (setupModeDetected) {
+			logger.info('Private config not available – running in setup mode (skipping full system initialization).');
 			// Do NOT mark isConnected / isInitialized; leave system minimal for setup endpoints only
 			logger.debug('Setup mode detected – aborting remaining initialization steps (models, themes, content).');
 			return;
 		}
+
+		// 2. Connect to Database (only if not in setup mode)
+		try {
+			await connectToMongoDB();
+		} catch (err) {
+			logger.error(`MongoDB connection failed: ${err.message}`);
+			throw err;
+		}
+
+		// 3. Load Adapters (only if not in setup mode)
+		try {
+			await loadAdapters();
+		} catch (err) {
+			logger.error(`Adapter loading failed: ${err.message}`);
+			throw err;
+		}
 		isConnected = true; // Mark connected after DB connection succeeds
 		const step1Time = performance.now() - step1StartTime;
-		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
+		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`);
 
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
@@ -456,16 +479,31 @@ export async function reinitializeSystem(force = false): Promise<{ status: strin
 	if (isInitialized && !force) {
 		return { status: 'already-initialized' };
 	}
+
+	// If force is true, clear any existing initialization promise and reload config
+	if (force) {
+		logger.info('Force reinitialization requested - clearing existing initialization promise and reloading config');
+		initializationPromise = null;
+		isInitialized = false;
+		isConnected = false;
+		auth = null;
+		// Force reload private config
+		await loadPrivateConfig(true);
+	}
+
 	if (initializationPromise) {
 		return { status: 'initialization-in-progress' };
 	}
+
 	try {
 		logger.info(`Manual reinitialization requested${force ? ' (force)' : ''}`);
-		initializationPromise = initializeSystem();
+		initializationPromise = initializeSystem(force);
 		await initializationPromise;
 		return { status: 'initialized' };
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
+		// Clear the failed promise so retries are possible
+		initializationPromise = null;
 		return { status: 'failed', error: message };
 	}
 }

@@ -16,17 +16,80 @@ const DB_TIMEOUT = 15000; // 15s server selection
 /**
  * Classify a Mongo connection error into a stable code we can translate client‑side.
  */
-function classifyMongoError(err: unknown): { classification: string; raw: string } {
+function classifyMongoError(err: unknown): { classification: string; raw: string; userFriendly: string } {
 	const raw = err instanceof Error ? err.message : String(err);
 	const lower = raw.toLowerCase();
-	if (/auth/i.test(lower) && /fail|bad|auth/i.test(lower)) return { classification: 'authentication_failed', raw };
-	if (/not authorized|unauthorized|permission/i.test(lower)) return { classification: 'not_authorized', raw };
-	if (/ecconnrefused|connection refused/i.test(lower)) return { classification: 'connection_refused', raw };
-	if (/enotfound|getaddrinfo|dns/i.test(lower)) return { classification: 'dns_not_found', raw };
-	if (/timed out|timeout|server selection timed out/i.test(lower)) return { classification: 'timeout', raw };
-	if (/tls|ssl|certificate/i.test(lower)) return { classification: 'tls_error', raw };
-	if (/uri malformed|invalid connection string|must begin with|invalid scheme/i.test(lower)) return { classification: 'invalid_uri', raw };
-	return { classification: 'unknown', raw };
+
+	// Check for specific error patterns and provide user-friendly messages
+	if (/auth/i.test(lower) && /fail|bad|auth/i.test(lower)) {
+		return {
+			classification: 'authentication_failed',
+			raw,
+			userFriendly: 'Authentication failed. Please check your username and password.'
+		};
+	}
+	if (/not authorized|unauthorized|permission/i.test(lower)) {
+		return {
+			classification: 'not_authorized',
+			raw,
+			userFriendly: 'Access denied. The user does not have permission to access this database.'
+		};
+	}
+	if (/ecconnrefused|connection refused/i.test(lower)) {
+		return {
+			classification: 'connection_refused',
+			raw,
+			userFriendly: 'Connection refused. Please check if the database server is running and the port is correct.'
+		};
+	}
+	if (/enotfound|getaddrinfo|dns/i.test(lower)) {
+		return {
+			classification: 'dns_not_found',
+			raw,
+			userFriendly: 'Host not found. Please check the hostname or IP address.'
+		};
+	}
+	if (/timed out|timeout|server selection timed out/i.test(lower)) {
+		return {
+			classification: 'timeout',
+			raw,
+			userFriendly: 'Connection timed out. Please check if the database server is reachable.'
+		};
+	}
+	if (/tls|ssl|certificate/i.test(lower)) {
+		return {
+			classification: 'tls_error',
+			raw,
+			userFriendly: 'TLS/SSL connection error. Please check your security settings.'
+		};
+	}
+	if (/uri malformed|invalid connection string|must begin with|invalid scheme/i.test(lower)) {
+		return {
+			classification: 'invalid_uri',
+			raw,
+			userFriendly: 'Invalid connection string. Please check your host and port configuration.'
+		};
+	}
+	if (/unable to parse|invalid port|port.*invalid/i.test(lower)) {
+		return {
+			classification: 'invalid_port',
+			raw,
+			userFriendly: 'Invalid port number. Please enter a valid port (e.g., 27017 for MongoDB).'
+		};
+	}
+	if (/invalid hostname|hostname.*invalid/i.test(lower)) {
+		return {
+			classification: 'invalid_hostname',
+			raw,
+			userFriendly: 'Invalid hostname. Please check the hostname or IP address format.'
+		};
+	}
+
+	return {
+		classification: 'unknown',
+		raw,
+		userFriendly: 'An unexpected error occurred. Please check your configuration and try again.'
+	};
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -93,11 +156,12 @@ export const POST: RequestHandler = async ({ request }) => {
 					warnings.push('auth_status_unavailable');
 				}
 			} catch (error) {
-				const { classification, raw } = classifyMongoError(error);
+				const { classification, raw, userFriendly } = classifyMongoError(error);
 				return json(
 					{
 						success: false,
 						error: raw,
+						userFriendly,
 						classification,
 						atlas: isAtlas,
 						usedUri: connectionString
@@ -157,11 +221,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		}
 	} catch (error) {
-		const { classification, raw } = classifyMongoError(error);
+		const { classification, raw, userFriendly } = classifyMongoError(error);
 		return json(
 			{
 				success: false,
 				error: raw,
+				userFriendly,
 				classification
 			},
 			{ status: 500 }

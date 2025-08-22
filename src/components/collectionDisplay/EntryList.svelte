@@ -36,7 +36,7 @@ Features:
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
 	import { cloneEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
 	// Config
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { getGlobalSetting, getPublicSetting } from '@src/stores/globalSettings';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -991,7 +991,7 @@ Features:
 			return;
 		}
 
-		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const useArchiving = getPublicSetting('USE_ARCHIVE_ON_DELETE') || false;
 		const isForArchived = showDeleted || isPermanent;
 		const willDelete = !useArchiving || isForArchived;
 
@@ -1086,7 +1086,7 @@ Features:
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) return;
 
-		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const useArchiving = getPublicSetting('USE_ARCHIVE_ON_DELETE') || false;
 		const isForArchived = showDeleted;
 		const willDelete = !useArchiving || isForArchived;
 

@@ -27,6 +27,15 @@ interface ThemeState {
 function createThemeStores() {
 	let refreshInterval: NodeJS.Timeout | null = null;
 
+	// Helper function to get cookie value
+	const getCookie = (name: string): string | null => {
+		if (typeof window === 'undefined') return null;
+		const value = `; ${document.cookie}`;
+		const parts = value.split(`; ${name}=`);
+		if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+		return null;
+	};
+
 	// Initial state
 	const initialState: ThemeState = {
 		currentTheme: null,
@@ -35,8 +44,8 @@ function createThemeStores() {
 		lastUpdateAttempt: null,
 		darkMode:
 			typeof window !== 'undefined'
-				? localStorage.getItem('darkMode') === 'true' ||
-					(localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
+				? getCookie('darkMode') === 'true' ||
+					(getCookie('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
 				: false
 	};
 
@@ -124,7 +133,8 @@ function createThemeStores() {
 			const next = force !== undefined ? force : !s.darkMode;
 			if (typeof window !== 'undefined') {
 				document.documentElement.classList.toggle('dark', next);
-				localStorage.setItem('darkMode', String(next));
+				// Set cookie for server-side persistence
+				document.cookie = `darkMode=${next}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 			}
 			return { ...s, darkMode: next };
 		});

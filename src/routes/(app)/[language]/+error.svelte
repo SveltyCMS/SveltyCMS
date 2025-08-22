@@ -36,7 +36,7 @@
 	const repeat = 3;
 	const separator = ' • ';
 
-	const siteName = publicEnv.SITE_NAME;
+	const siteName = getPublicSetting('SITE_NAME') || 'SveltyCMS';
 
 	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
 
@@ -45,7 +45,7 @@
 	// Set the error data and SEO information that will be used by the layout
 	export const load: Load = () => {
 		return {
-			SeoTitle: `Error ${page.status} - ${publicEnv.SITE_NAME}`,
+			SeoTitle: `Error ${page.status} - ${getPublicSetting('SITE_NAME') || 'SveltyCMS'}`,
 			SeoDescription: `An error occurred while trying to access this page. Status: ${page.status}. ${page.error?.message || m.error_pagenotfound()}`
 		};
 	};

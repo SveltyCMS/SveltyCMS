@@ -6,7 +6,7 @@
  * Most authentication and user data is already handled by hooks.server.ts.
  */
 
-import { publicEnv } from '@src/utils/configMigration';
+import { getPublicSettingWithFallback } from '@src/utils/configMigration';
 
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -32,14 +32,15 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	// Handle user system language preferences
 	const userSystemLanguage = user?.systemLanguage;
-	if (userSystemLanguage && userSystemLanguage !== language && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(userSystemLanguage)) {
+	const availableLanguages = getPublicSettingWithFallback('AVAILABLE_CONTENT_LANGUAGES', ['en']);
+	if (userSystemLanguage && userSystemLanguage !== language && availableLanguages.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
 		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
 		throw redirect(302, newPath);
 	}
 
 	// Validate language and collection parameters
-	if (!language || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language) || !collection) {
+	if (!language || !availableLanguages.includes(language) || !collection) {
 		const message = 'The language parameter is missing or invalid.';
 		logger.warn(message, { language, collection });
 		throw error(404, message);

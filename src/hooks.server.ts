@@ -41,6 +41,7 @@ import { handleRateLimit } from './hooks/handleRateLimit';
 import { handleSessionAuth } from './hooks/handleSessionAuth';
 import { handleSetup } from './hooks/handleSetup';
 import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+import { handleTheme } from './hooks/handleTheme';
 
 // Cache TTLs (centralized)
 import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS } from '@src/databases/CacheService';
@@ -145,11 +146,13 @@ const buildMiddlewareSequence = (): Handle[] => {
 	middleware.push(handleAuthorization);
 	// 8. API request handling & caching
 	middleware.push(handleApiRequests);
-	// 9. Locale management
+	// 9. Theme management
+	middleware.push(handleTheme);
+	// 10. Locale management
 	middleware.push(handleLocale);
-	// 10. Security headers
+	// 11. Security headers
 	middleware.push(addSecurityHeaders);
-	// 11. Perf logging (after all other mutations)
+	// 12. Perf logging (after all other mutations)
 	middleware.push(handlePerfLog);
 
 	return middleware;

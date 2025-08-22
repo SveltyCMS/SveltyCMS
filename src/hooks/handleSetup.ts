@@ -15,12 +15,16 @@ import Path from 'path';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// --- SETUP COMPLETION CHECK (RUNS ONCE AT STARTUP) ---
+// --- SETUP COMPLETION CHECK (RUNS ON EVERY REQUEST) ---
 
-// This promise resolves to true if setup is complete, and false otherwise.
-// It's evaluated once at startup and reused for subsequent requests for performance.
-const setupCheckPromise = (async () => {
-	if (building) return true; // During build assume setup is fine.
+// Note: Setup completion is now checked on every request to handle dynamic setup completion
+// without requiring server restart. This provides better UX during development.
+
+// --- THE SETUP HOOK ---
+
+export const handleSetup: Handle = async ({ event, resolve }) => {
+	// Check for setup completion on every request to handle dynamic setup completion
+	let isSetupComplete = false;
 
 	try {
 		const base = process.cwd();
@@ -29,91 +33,90 @@ const setupCheckPromise = (async () => {
 		// This is the cheapest and most reliable signal for repeat restarts in prod.
 		const markerCandidates = [Path.join(base, 'config', '.installed'), Path.join(base, '.svelty_installed')];
 		if (markerCandidates.some((p) => existsSync(p))) {
-			logger.info('✅ Setup marker found. Setup is complete.');
-			return true;
+			logger.debug('✅ Setup marker found. Setup is complete.');
+			isSetupComplete = true;
 		}
 
 		// 2) Environment variables: many cloud deployments provide DB credentials via env.
-		if (process.env.SVELTY_SETUP_DONE === 'true') {
-			logger.info('✅ SVELTY_SETUP_DONE env var present. Setup is complete.');
-			return true;
+		if (!isSetupComplete && process.env.SVELTY_SETUP_DONE === 'true') {
+			logger.debug('✅ SVELTY_SETUP_DONE env var present. Setup is complete.');
+			isSetupComplete = true;
 		}
-		if (process.env.DB_HOST && process.env.DB_HOST.trim().length > 0) {
-			logger.info('✅ DB_HOST present in environment. Setup is complete.');
-			return true;
+		if (!isSetupComplete && process.env.DB_HOST && process.env.DB_HOST.trim().length > 0) {
+			logger.debug('✅ DB_HOST present in environment. Setup is complete.');
+			isSetupComplete = true;
 		}
 
 		// 3) Fallback: look for config/private.* files (dev or built artifacts).
-		const candidates = [
-			Path.join(base, 'config', 'private.ts'),
-			Path.join(base, 'config', 'private.js'),
-			Path.join(base, 'config', 'private.cjs'),
-			Path.join(base, 'config', 'private.mjs')
-		];
+		if (!isSetupComplete) {
+			const candidates = [
+				Path.join(base, 'config', 'private.ts'),
+				Path.join(base, 'config', 'private.js'),
+				Path.join(base, 'config', 'private.cjs'),
+				Path.join(base, 'config', 'private.mjs')
+			];
 
-		const foundPath = candidates.find((p) => existsSync(p));
-		if (!foundPath) {
-			logger.info('⚠️ Configuration file not found (config/private.*) and no marker/env present. Entering setup mode.');
-			return false;
-		}
+			const foundPath = candidates.find((p) => existsSync(p));
+			if (foundPath) {
+				// Lightweight validation: inspect only the head of the file for DB_HOST to avoid
+				// executing any config code and to keep startup fast.
+				const raw = readFileSync(foundPath, 'utf8');
+				const head = raw.slice(0, 32 * 1024); // first 32KB is usually enough
 
-		// Lightweight validation: inspect only the head of the file for DB_HOST to avoid
-		// executing any config code and to keep startup fast.
-		const raw = readFileSync(foundPath, 'utf8');
-		const head = raw.slice(0, 32 * 1024); // first 32KB is usually enough
-
-		// Match patterns like DB_HOST: 'value' or DB_HOST = "value" or DB_HOST: `value`
-		const dbHostRegex = /DB_HOST\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m;
-		const match = head.match(dbHostRegex);
-		if (match && match[1] && match[1].trim().length > 0) {
-			logger.info(`✅ Configuration found (${Path.basename(foundPath)}). Setup is complete.`);
-			return true;
-		}
-
-		logger.info('⚠️  Configuration file present but DB_HOST not set. Entering setup mode.');
-		return false;
-	} catch (err) {
-		logger.error('⚠️ Error while checking configuration. Entering setup mode.', (err as Error).message);
-		return false;
-	}
-})();
-
-// --- THE SETUP HOOK ---
-
-export const handleSetup: Handle = async ({ event, resolve }) => {
-	// First check the cached startup result
-	let isSetupComplete = await setupCheckPromise;
-
-	// If startup check says setup is incomplete, also check the database
-	// This handles the case where setup completed after server startup
-	if (!isSetupComplete) {
-		try {
-			// Check if we can access the configuration service
-			const { config } = await import('@src/lib/config.server');
-
-			// If config service is initialized, check if setup is completed in database
-			if (config.isInitialized() && !config.isSetupMode()) {
-				const setupCompleted = await config.getPublic('SETUP_COMPLETED');
-				if (setupCompleted) {
-					logger.info('✅ Setup completed detected in database. Allowing access.');
+				// Match patterns like DB_HOST: 'value' or DB_HOST = "value" or DB_HOST: `value`
+				const dbHostRegex = /DB_HOST\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m;
+				const match = head.match(dbHostRegex);
+				if (match && match[1] && match[1].trim().length > 0) {
+					logger.debug(`✅ Configuration found (${Path.basename(foundPath)}). Setup is complete.`);
 					isSetupComplete = true;
 				}
 			}
-		} catch (error) {
-			// If we can't check the database, fall back to the startup check
-			logger.debug('Could not check database for setup status, using startup check', error);
 		}
+
+		// 4) Check database for setup completion (if file checks didn't work)
+		if (!isSetupComplete) {
+			try {
+				// Check if we can access the configuration service
+				const { config } = await import('@src/lib/config.server');
+
+				// If config service is initialized, check if setup is completed in database
+				if (config.isInitialized() && !config.isSetupMode()) {
+					const setupCompleted = await config.getPublic('SETUP_COMPLETED');
+					if (setupCompleted) {
+						logger.info('✅ Setup completed detected in database. Allowing access.');
+						isSetupComplete = true;
+					}
+				}
+			} catch (error) {
+				// If we can't check the database, continue with file-based checks
+				logger.debug('Could not check database for setup status, continuing with file checks', error);
+			}
+		}
+	} catch (err) {
+		logger.error('⚠️ Error while checking configuration. Entering setup mode.', (err as Error).message);
+		isSetupComplete = false;
 	}
 
 	// If setup is complete, this hook does nothing and passes the request on.
 	if (isSetupComplete) {
+		// --- Ensure authentication system is re-initialized after setup ---
+		try {
+			const { clearPrivateConfigCache } = await import('@src/databases/db');
+			clearPrivateConfigCache();
+			// Optionally, trigger adapter reload if available
+			if (typeof globalThis.reloadAdapters === 'function') {
+				await globalThis.reloadAdapters();
+			}
+		} catch (err) {
+			logger.warn('Could not clear private config cache or reload adapters after setup:', err);
+		}
 		// If setup is complete and user is trying to access setup routes, redirect to login
 		const { pathname } = event.url;
 		const setupRoutes = ['/setup', '/api/setup/status', '/api/setup/test-database', '/api/setup/complete'];
 		const isSetupRoute = setupRoutes.some((p) => pathname.startsWith(p));
 
-		if (isSetupRoute && pathname !== '/api/setup/status') {
-			// Allow access to setup status API but redirect other setup routes
+		if (isSetupRoute && pathname !== '/api/setup/status' && pathname !== '/api/setup/complete') {
+			// Allow access to setup status API and complete API but redirect other setup routes
 			throw redirect(302, '/login');
 		}
 
