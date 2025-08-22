@@ -13,7 +13,7 @@ import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { pathToFileURL } from 'url'; // Import pathToFileURL
-import { purgeCss } from 'vite-plugin-tailwind-purgecss';
+// Removed vite-plugin-tailwind-purgecss - using Tailwind's built-in purging instead
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -45,7 +45,7 @@ export default defineConfig(async () => {
 		});
 		console.error('\n💡 Running installer to generate missing configuration files...');
 		try {
-			execSync('bun run installer', { stdio: 'inherit' });
+			execSync('npm run installer', { stdio: 'inherit' });
 
 			// Immediately check if config files were actually created
 			const stillMissingAfterInstall = configPaths.filter((config) => !existsSync(config.path));
@@ -55,7 +55,7 @@ export default defineConfig(async () => {
 					console.error(`  - ${config.name}`);
 				});
 				console.error('\n💡 This usually happens when the installer is cancelled or fails.');
-				console.error('Please run `bun run installer` manually to complete the setup.');
+				console.error('Please run `npm run installer` manually to complete the setup.');
 				console.error('👋 Exiting Vite configuration gracefully...');
 				process.exit(0); // Exit gracefully instead of crashing
 			}
@@ -76,7 +76,7 @@ export default defineConfig(async () => {
 		if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
 			console.error('\n❌ Config files are missing after installer check.');
 			console.error('This usually means the installer was cancelled or failed.');
-			console.error('Please run `bun run installer` manually to complete the setup.');
+			console.error('Please run `npm run installer` manually to complete the setup.');
 			console.error('👋 Exiting Vite configuration gracefully...');
 			process.exit(0); // Exit gracefully
 		}
@@ -89,7 +89,7 @@ export default defineConfig(async () => {
 	} catch (importError) {
 		console.error('\n❌ Failed to import config files after installer.');
 		console.error('This usually means the installer was cancelled or the files are malformed.');
-		console.error('Please run `bun run installer` manually to recreate the config files.');
+		console.error('Please run `npm run installer` manually to recreate the config files.');
 		console.error('👋 Exiting Vite configuration gracefully...');
 		console.error('\nError details:', importError);
 		process.exit(0); // Exit gracefully instead of crashing
@@ -299,7 +299,7 @@ export default defineConfig(async () => {
 				},
 				enforce: 'post'
 			},
-			purgeCss(), // Purge unused Tailwind CSS classes
+			// CSS purging handled by Tailwind's built-in content scanning
 			paraglideVitePlugin({
 				project: './project.inlang', // Path to your inlang project settings
 				outdir: './src/paraglide', // This is where you specify the output directory
