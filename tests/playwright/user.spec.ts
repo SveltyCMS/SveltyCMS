@@ -10,7 +10,7 @@ import { test, expect } from '@playwright/test';
 
 async function loginUser(page) {
 	console.log('Logging in...');
-	await page.goto('http://localhost:5173/login');
+	await page.goto('http://localhost:5174/login');
 	await page.locator('p:has-text("Sign In")').click();
 	await page.locator('#email-address').fill('test@test.de');
 	await page.locator('#password').fill('Test123!');
@@ -21,13 +21,13 @@ async function loginUser(page) {
 test('Login User', async ({ page }) => {
 	await loginUser(page);
 	console.log('Login User test');
-	expect(page.url()).toBe('http://localhost:5173/');
+	expect(page.url()).toBe('http://localhost:5174/');
 });
 
 test('Edit Avatar', async ({ page }) => {
 	await loginUser(page);
 	console.log('Edit Avatar test');
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:5174/user');
 	await page.locator('h1:has-text("User Profile")').waitFor({ state: 'visible' });
 	await page.locator('button:has-text("Edit Avatar")').click();
 	const fileInput = await page.locator('input[type="file"]');
@@ -39,7 +39,7 @@ test('Edit Avatar', async ({ page }) => {
 test('Delete Avatar', async ({ page }) => {
 	await loginUser(page);
 	console.log('Delete Avatar test');
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:5174/user');
 	await page.locator('button:has-text("Edit Avatar")').click();
 	await page.locator('button.variant-filled-error').click(); // Assuming this is the delete button
 	await page.waitForSelector('img[src*="default-avatar.png"]'); // Wait for the default avatar to reappear
@@ -48,7 +48,7 @@ test('Delete Avatar', async ({ page }) => {
 test('Edit User Details', async ({ page }) => {
 	await loginUser(page);
 	console.log('Edit User Details test');
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:5174/user');
 	await page.locator('button:has-text("Edit User Settings:")').click();
 	await page.locator('#username').fill('Test User');
 	await page.locator('#password').fill('Test123!');
@@ -60,7 +60,7 @@ test('Edit User Details', async ({ page }) => {
 test('Registration Token', async ({ page }) => {
 	await loginUser(page);
 	console.log('Registration Token test');
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:5174/user');
 	await page.locator('span:has-text("Email User Registration token")').click();
 	await page.locator('#email-address').fill('test@test.ge');
 	const roleElement = await page.locator('span.capitalize:has-text("user")');
@@ -74,7 +74,7 @@ test('Registration Token', async ({ page }) => {
 test('Show or Hide User Token', async ({ page }) => {
 	await loginUser(page);
 	console.log('Show or Hide User Token');
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:5174/user');
 	await page.locator('span:has-text("Show User Token")').click();
 	await page.locator('h2:has-text("Token List:")').waitFor({ state: 'visible' });
 	await page.locator('span:has-text("Hide User Token")').click();
@@ -85,7 +85,7 @@ test('Show or Hide User Token', async ({ page }) => {
 test('Show or Hide User List', async ({ page }) => {
 	await loginUser(page);
 	console.log('Show or Hide User List test');
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:5174/user');
 	await page.locator('span:has-text("Show User List")').click();
 	await page.locator('h2:has-text("User List:")').waitFor({ state: 'visible' });
 	await page.locator('span:has-text("Hide User List")').click();

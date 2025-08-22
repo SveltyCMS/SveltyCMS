@@ -10,7 +10,7 @@ import { defineConfig, devices } from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
-	testDir: './tests',
+	testDir: './tests/playwright',
 	/* Run tests in files in parallel */
 	fullyParallel: true,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -24,7 +24,7 @@ export default defineConfig({
 	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
-		baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173',
+		baseURL: process.env.BASE_URL || 'http://localhost:5173',
 
 		launchOptions: {
 			slowMo: parseInt(process.env.SLOW_MO || '0')
@@ -74,10 +74,10 @@ export default defineConfig({
 	],
 
 	/* Run your local dev server before starting the tests */
-	webServer: {
-		command: process.env.CI ? 'bun run build && bun run preview' : 'bun run dev',
-		port: process.env.CI ? 4173 : 5173,
-		timeout: 240000, // Timeout in milliseconds
-		reuseExistingServer: !process.env.CI
-	}
+	// webServer: {
+	// 	command: process.env.CI ? 'npm run build && npm run preview' : 'npm run dev',
+	// 	port: 5174,
+	// 	timeout: 240000, // Timeout in milliseconds
+	// 	reuseExistingServer: !process.env.CI
+	// }
 });

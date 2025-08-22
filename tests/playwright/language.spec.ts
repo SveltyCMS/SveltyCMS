@@ -12,7 +12,7 @@ test.describe('System Language Change', () => {
 
 	test('Login and change system language to EN, FR, DE, ES', async ({ page }) => {
 		// 1. Login
-		await page.goto('http://localhost:5173/login');
+		await page.goto('http://localhost:5174/login');
 		await page
 			.getByRole('button', { name: /sign in/i })
 			.first()

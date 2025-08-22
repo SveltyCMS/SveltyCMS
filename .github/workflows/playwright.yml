@@ -1,6 +1,6 @@
-name: Playwright and Bun Tests
+name: SveltyCMS Tests and Build
 
-# Trigger on pushes to main and next, and on Pull Requests to main
+# Trigger on pushes to main and next, and on Pull Requests to main and next
 on:
   push:
     branches:
@@ -9,7 +9,19 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch: {}
+      - next
+  workflow_dispatch: 
+    inputs:
+      test_type:
+        description: 'Type of test to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - playwright
+        - unit
+        - integration
 
 jobs:
   test:
@@ -18,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         mongodb-version: [latest]
         test-file:
@@ -30,27 +42,35 @@ jobs:
             '/tests/playwright/language.spec.ts',
             '/tests/playwright/login.spec.ts',
             '/tests/playwright/permission-change.spec.ts',
-            '/tests/playwright/user-crud.spec.ts'
+            '/tests/playwright/user-crud.spec.ts',
+            '/tests/playwright/setup.spec.ts',
+            '/tests/playwright/password-reset.spec.ts',
+            '/tests/playwright/collection-builder.spec.ts',
+            '/tests/playwright/media-gallery.spec.ts',
+            '/tests/playwright/widgets-manager.spec.ts',
+            '/tests/playwright/theme-manager.spec.ts',
+            '/tests/playwright/navigation.spec.ts'
           ]
 
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Cache Bun dependencies and Playwright browsers
-        uses: actions/cache@v3
+      - name: Cache dependencies and Playwright browsers
+        uses: actions/cache@v4
         with:
           path: |
-            ~/.bun/install/cache
+            ~/.npm
             ~/.cache/ms-playwright
-          key: ${{ runner.OS }}-bun-playwright-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.OS }}-node-playwright-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.OS }}-bun-playwright-
+            ${{ runner.OS }}-node-playwright-
         continue-on-error: true
 
       - name: Start MongoDB v${{ matrix.mongodb-version }}
@@ -64,22 +84,28 @@ jobs:
         # CORRECTED: Removed the 'if' condition to ensure MongoDB runs for pull requests as well.
 
       - name: Install dependencies
-        run: bun install
+        run: npm ci
 
       - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps
+        run: npx playwright install --with-deps
+
+      - name: Generate SvelteKit files
+        run: npx svelte-kit sync
 
       - name: Run local server
-        run: bun run build && bun run preview &
+        run: npm run build && npm run preview &
+
+      - name: Wait for server to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:4173; do sleep 2; done'
 
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
-          # The loop for running tests in parallel is a good approach.
-          for file in ${{ matrix.test-file }}; do
-            bunx playwright test $file --workers 10 --output=test-results/playwright &
-          done
-          wait
+          # Run test files conditionally based on workflow input
+          if [[ "${{ github.event.inputs.test_type }}" == "playwright" || "${{ github.event.inputs.test_type }}" == "all" || "${{ github.event.inputs.test_type }}" == "" ]]; then
+            npx playwright test ${{ matrix.test-file }} --workers=1 --output-dir=test-results/playwright
+          fi
         env:
           # --- CORRECTED: Private Configuration ---
           # Note: Prefixes like 'privateEnv.' are removed. All values are strings.
@@ -179,20 +205,31 @@ jobs:
           path: test-results/playwright/
           retention-days: 30
 
-  bun-tests:
-    name: SveltyCMS Bun Tests
+  unit-tests:
+    name: SveltyCMS Unit Tests
     runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'unit' || github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
+
+    strategy:
+      matrix:
+        test-category:
+          - 'api'
+          - 'auth' 
+          - 'components'
+          - 'widgets'
+          - 'utils'
 
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Start MongoDB # CORRECTED: Added MongoDB service to this job
+      - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
         with:
           mongodb-version: latest
@@ -202,12 +239,32 @@ jobs:
           mongodb-port: 27017
 
       - name: Install dependencies
-        run: bun install
+        run: npm ci
 
-      - name: Run Bun tests
+      - name: Generate SvelteKit files
+        run: npx svelte-kit sync
+
+      - name: Run Unit Tests
         run: |
-          mkdir -p test-results/bun
-          bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
+          mkdir -p test-results/unit
+          # Run tests based on category
+          case "${{ matrix.test-category }}" in
+            "api")
+              npm run test:bun -- tests/bun/api/ --reporter json > test-results/unit/api-results.json
+              ;;
+            "auth")
+              npm run test:bun -- tests/bun/auth/ --reporter json > test-results/unit/auth-results.json
+              ;;
+            "components")
+              npm run test:bun -- tests/bun/*test.ts --reporter json > test-results/unit/components-results.json
+              ;;
+            "widgets")
+              npm run test:bun -- tests/bun/widgets/ --reporter json > test-results/unit/widgets-results.json
+              ;;
+            "utils")
+              npm run test:bun -- tests/bun/helpers/ tests/bun/mocks/ --reporter json > test-results/unit/utils-results.json
+              ;;
+          esac
         env: # CORRECTED: Added the full environment configuration to this job as well.
           # --- Private Configuration ---
           DB_TYPE: 'mongodb'
@@ -278,6 +335,108 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: bun-test-results
-          path: test-results/bun/
+          name: unit-test-results-${{ matrix.test-category }}
+          path: test-results/unit/
           retention-days: 30
+
+  build-and-publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    needs: [test, unit-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next'
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SvelteKit files
+        run: npx svelte-kit sync
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run check
+
+      - name: Create npm package
+        run: npm pack
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-${{ github.ref_name }}
+          path: '*.tgz'
+          retention-days: 30
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: sveltycms/sveltycms
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [build-and-publish]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next'
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level moderate
+
+      - name: Run security scan
+        uses: securecodewarrior/github-action-add-sarif@v1
+        if: always()
+        with:
+          sarif-file: 'security-scan-results.sarif'

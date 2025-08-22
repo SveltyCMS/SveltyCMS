@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  mongodb-test:
+    image: mongo:7
+    container_name: sveltycms-test-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+      MONGO_INITDB_DATABASE: SveltyCMS_Test
+    volumes:
+      - mongodb_test_data:/data/db
+      - ./tests/fixtures/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    restart: unless-stopped
+    command: --quiet
+
+volumes:
+  mongodb_test_data:

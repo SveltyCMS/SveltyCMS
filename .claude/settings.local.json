@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(rm:*)",
+      "Bash(bun install:*)",
+      "Bash($env:PATH += \";C:\\Users\\Safee\\.bun\\bin\")",
+      "Bash(C:UsersSafee.bunbinbun.exe install)",
+      "Bash(yarn install)",
+      "Bash(yarn install:*)",
+      "Bash(yarn cache:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx svelte-kit sync)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(docker:*)",
+      "Bash(powershell:*)",
+      "Bash(timeout:*)",
+      "Bash(npx playwright test:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\"
+    ]
+  }
+}

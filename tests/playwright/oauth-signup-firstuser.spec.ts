@@ -13,8 +13,8 @@ test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {
 		// Use different URLs for CI vs local testing
 		const testUrl = process.env.CI
-			? 'http://localhost:4173/login' // GitHub Actions uses preview server
-			: 'http://localhost:5173/login'; // Local dev server
+			? 'http://localhost:5174/login' // GitHub Actions uses preview server
+			: 'http://localhost:5174/login'; // Local dev server
 
 		await page.goto(testUrl, { waitUntil: 'domcontentloaded' });
 	});
@@ -63,7 +63,7 @@ test.describe('OAuth First User Signup', () => {
 					status: 302,
 					headers: {
 						Location:
-							'https://accounts.google.com/o/oauth2/v2/auth?access_type=online&scope=email%20profile%20openid&redirect_uri=http://localhost:5173/login/oauth&client_id=test'
+							'https://accounts.google.com/o/oauth2/v2/auth?access_type=online&scope=email%20profile%20openid&redirect_uri=http://localhost:5174/login/oauth&client_id=test'
 					}
 				});
 			} else {
@@ -88,7 +88,7 @@ test.describe('OAuth First User Signup', () => {
 				// Verify the redirect URL contains expected parameters
 				expect(location).toContain('accounts.google.com');
 				expect(location).toContain('oauth2');
-				expect(location).toContain('localhost:5173/login/oauth');
+				expect(location).toContain('localhost:5174/login/oauth');
 			}
 		} else {
 			console.log('❌ OAuth button not found - skipping redirect test');
@@ -174,8 +174,8 @@ test.describe('OAuth First User Signup', () => {
 
 		// Simulate OAuth callback with authorization code
 		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid'
-			: 'http://localhost:5173/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid';
+			? 'http://localhost:5174/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid'
+			: 'http://localhost:5174/login/oauth?code=mock_auth_code_ci_test&scope=email+profile+openid';
 
 		await page.goto(testUrl, {
 			waitUntil: 'networkidle'
@@ -205,8 +205,8 @@ test.describe('OAuth First User Signup', () => {
 
 		// Test invalid OAuth callback URL to ensure proper error handling
 		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?error=access_denied&error_description=User%20denied%20access'
-			: 'http://localhost:5173/login/oauth?error=access_denied&error_description=User%20denied%20access';
+			? 'http://localhost:5174/login/oauth?error=access_denied&error_description=User%20denied%20access'
+			: 'http://localhost:5174/login/oauth?error=access_denied&error_description=User%20denied%20access';
 
 		await page.goto(testUrl);
 
@@ -237,8 +237,8 @@ test.describe('OAuth First User Signup', () => {
 		// Simulate the OAuth callback with invalid grant error
 		// This should reproduce the issue mentioned in the conversation
 		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?code=invalid_code&state=test_state'
-			: 'http://localhost:5173/login/oauth?code=invalid_code&state=test_state';
+			? 'http://localhost:5174/login/oauth?code=invalid_code&state=test_state'
+			: 'http://localhost:5174/login/oauth?code=invalid_code&state=test_state';
 
 		await page.goto(testUrl);
 
@@ -327,8 +327,8 @@ test.describe('OAuth First User Signup', () => {
 
 		// Simulate OAuth callback with avatar-enabled user
 		const testUrl = process.env.CI
-			? 'http://localhost:4173/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid'
-			: 'http://localhost:5173/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid';
+			? 'http://localhost:5174/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid'
+			: 'http://localhost:5174/login/oauth?code=mock_auth_code_avatar_test&scope=email+profile+openid';
 
 		await page.goto(testUrl, {
 			waitUntil: 'networkidle'
@@ -356,7 +356,7 @@ test.describe('OAuth Configuration Check', () => {
 	test('Check if OAuth is properly configured for testing', async ({ page }) => {
 		console.log('Checking OAuth configuration for testing environment');
 
-		const testUrl = process.env.CI ? 'http://localhost:4173/login' : 'http://localhost:5173/login';
+		const testUrl = process.env.CI ? 'http://localhost:5174/login' : 'http://localhost:5174/login';
 
 		await page.goto(testUrl);
 		await page.locator('p:has-text("Sign In")').click();
