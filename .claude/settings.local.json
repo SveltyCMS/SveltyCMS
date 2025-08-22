@@ -18,7 +18,10 @@
       "Bash(timeout:*)",
       "Bash(npx playwright test:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],
