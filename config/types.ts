@@ -28,58 +28,12 @@ export const privateConfigSchema = object({
 	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Optional: Number of retry attempts on connection failure
 	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Optional: Delay in ms between retry attempts
 	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Optional: Database connection pool size
-	MULTI_TENANT: optional(boolean()), // Optional: Set to `true` to enable multi-tenancy
-	// --- SMTP config - See https://nodemailer.com ---
 
-	SMTP_HOST: optional(string()), // SMTP server host for sending emails
-	SMTP_PORT: optional(pipe(number(), minValue(1))), // SMTP server port
-	SMTP_EMAIL: optional(string()), // Email address to send from
-	SMTP_PASSWORD: optional(string()), // Password for the SMTP email account
-	SERVER_PORT: optional(pipe(number(), minValue(1))), // Port for the application server
-	// --- Google OAuth ---
-
-	USE_GOOGLE_OAUTH: boolean(), // Set to `true` to enable Google OAuth for login
-	GOOGLE_CLIENT_ID: optional(string()), // Google OAuth Client ID
-	GOOGLE_CLIENT_SECRET: optional(string()), // Google OAuth Client Secret
-	// --- Redis config ---
-
-	USE_REDIS: boolean(), // Set to `true` to enable Redis for caching
-	REDIS_HOST: optional(string()), // Redis server host address
-	REDIS_PORT: optional(pipe(number(), minValue(1))), // Redis server port number
-	REDIS_PASSWORD: optional(string()), // Optional: Password for Redis server
-	// --- Session configuration ---
-
-	SESSION_CLEANUP_INTERVAL: optional(pipe(number(), minValue(1))), // Interval in ms to clean up expired sessions
-	MAX_IN_MEMORY_SESSIONS: optional(pipe(number(), minValue(1))), // Maximum number of sessions to hold in memory
-	DB_VALIDATION_PROBABILITY: optional(pipe(number(), minValue(0), maxValue(1))), // Probability (0-1) of validating a session against the DB
-	SESSION_EXPIRATION_SECONDS: optional(pipe(number(), minValue(1))), // Duration in seconds until a session expires
-	// --- Mapbox config ---
-
-	USE_MAPBOX: boolean(), // Set to `true` to enable Mapbox integration
-	MAPBOX_API_TOKEN: optional(string()), // Public Mapbox API token (for client-side use)
-	SECRET_MAPBOX_API_TOKEN: optional(string()), // Secret Mapbox API token (for server-side use)
-	// --- Other APIs ---
-
-	GOOGLE_API_KEY: optional(string()), // Google API Key for services like Maps and YouTube
-	TWITCH_TOKEN: optional(string()), // API token for Twitch integration
-	USE_TIKTOK: optional(boolean()), // Set to `true` to enable TikTok integration
-	TIKTOK_TOKEN: optional(string()), // API token for TikTok integration
-	// --- LLM APIs ---
-
-	LLM_APIS: optional(object({})), // Configuration object for Large Language Model APIs
-	// --- Roles and Permissions ---
-
-	ROLES: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one role is required.')), // List of user roles available in the system
-	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one permission is required.')), // List of permissions available in the system
-	// --- JWT Secret ---
-
+	// --- JWT Secret (Essential for startup) ---
 	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')), // Secret key for JWT
 
-	// --- Two-Factor Authentication ---
-
-	USE_2FA: optional(boolean()), // Set to `true` to enable Two-Factor Authentication globally
-	TWO_FACTOR_AUTH_SECRET: optional(string()), // Optional: Secret for 2FA token generation (auto-generated if not provided)
-	TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: optional(pipe(number(), minValue(1), maxValue(50))) // Optional: Number of backup codes to generate (default: 10)
+	// --- Encryption Key (Essential for startup) ---
+	ENCRYPTION_KEY: pipe(string(), minLength(32, 'Encryption Key must be at least 32 characters long for security.')) // Encryption key for sensitive data
 });
 
 /**

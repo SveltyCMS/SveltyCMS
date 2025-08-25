@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+
 	import axios from 'axios';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
@@ -44,6 +44,7 @@
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Define user data and state variables - make it reactive to page data changes
 	const user = $derived(page.data.user);

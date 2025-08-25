@@ -3,7 +3,6 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -23,6 +22,7 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 // Stores
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';

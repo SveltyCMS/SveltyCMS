@@ -13,7 +13,6 @@ Features:
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	import type { PageData } from '../$types';
 
@@ -373,7 +372,6 @@ Features:
 						required
 						bind:value={$form.confirm_password}
 						{showPassword}
-					
 						label={m.confirm_password?.() || m.form_confirmpassword?.()}
 						{...$constraints.confirm_password}
 						icon="mdi:password"
@@ -399,7 +397,6 @@ Features:
 							tabindex={tokenTabIndex}
 							required
 							bind:value={$form.token}
-							
 							label={m.registration_token?.() || m.signup_registrationtoken?.()}
 							{...$constraints.token}
 							icon="mdi:key-chain"

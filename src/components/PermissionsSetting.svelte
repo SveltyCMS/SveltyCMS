@@ -19,6 +19,7 @@ Features:
 <script lang="ts">
 	import type { Role } from '@src/auth/types';
 	import { PermissionAction } from '@src/auth/types';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Skeleton
 	import { showToast } from '@utils/toast';

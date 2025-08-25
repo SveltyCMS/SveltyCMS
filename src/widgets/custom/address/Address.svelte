@@ -17,7 +17,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';

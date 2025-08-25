@@ -3,8 +3,6 @@
 @description - RemoteVideo widget video file.
 */
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
-
 const cache = new Map();
 
 interface YoutubeData {

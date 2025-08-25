@@ -17,7 +17,7 @@
 	import { systemLanguage } from '@stores/store.svelte';
 
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr, Custom } from 'svelte-email-tailwind';
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
 
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';

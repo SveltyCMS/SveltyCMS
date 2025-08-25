@@ -3,7 +3,7 @@
 @description - Rating index file.
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 

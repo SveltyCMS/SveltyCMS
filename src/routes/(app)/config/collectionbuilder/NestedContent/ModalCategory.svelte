@@ -1,12 +1,9 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collection/ModalCategory.svelte
 @component
 **This component displays a modal for editing a category**
 -->
 <script lang="ts">
-	import type { CollectionData } from '@src/content/types';
-	import { v4 as uuidv4 } from 'uuid';
-
 	// Stores
 	import { contentStructure } from '@src/stores/collectionStore.svelte';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';

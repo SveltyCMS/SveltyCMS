@@ -22,8 +22,9 @@
 <script lang="ts">
 	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+
 	import { fade } from 'svelte/transition';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	interface Props {
 		// Props for password and confirm password

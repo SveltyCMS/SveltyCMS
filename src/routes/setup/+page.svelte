@@ -6,7 +6,6 @@
 -
 -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import SiteName from '@components/SiteName.svelte';
 	import { modeCurrent, setInitialClassState, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
 	import type { PageData } from './$types';
@@ -490,14 +489,14 @@
 				isRedirecting = true;
 				setupCompleted = true;
 				clearPersisted();
-				
+
 				// Determine redirect target
 				const target = data.loggedIn && data.redirectPath ? data.redirectPath : '/login';
 				console.log('Redirecting to:', target);
-				
+
 				// Force immediate redirect
 				window.location.href = target;
-				
+
 				// Fallback redirect after a short delay
 				setTimeout(() => {
 					if (window.location.pathname !== target) {
@@ -505,7 +504,7 @@
 						window.location.replace(target);
 					}
 				}, 1000);
-				
+
 				return;
 			}
 
@@ -516,10 +515,10 @@
 				isRedirecting = true;
 				setupCompleted = true;
 				clearPersisted();
-				
+
 				// Force immediate redirect to login
 				window.location.href = '/login';
-				
+
 				// Fallback redirect after a short delay
 				setTimeout(() => {
 					if (window.location.pathname !== '/login') {
@@ -527,7 +526,7 @@
 						window.location.replace('/login');
 					}
 				}, 1000);
-				
+
 				return;
 			}
 

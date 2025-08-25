@@ -22,6 +22,8 @@
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 
+	import { getGlobalSetting } from '@src/stores/globalSettings';
+
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 
@@ -33,7 +35,6 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Local state management with runes
 	let isOpen = $state(false);

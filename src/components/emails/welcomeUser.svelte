@@ -24,7 +24,11 @@
 		languageTag?: string;
 	}
 
-	let { username = '', hostLink = dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD'), languageTag = systemLanguage.value }: Props = $props();
+	let {
+		username = '',
+		hostLink = dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD'),
+		languageTag = systemLanguage.value
+	}: Props = $props();
 </script>
 
 <Html lang={languageTag}>

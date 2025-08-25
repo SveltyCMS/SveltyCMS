@@ -13,7 +13,6 @@
  * - Proper typing for user data
  */
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
 import { publicEnv } from '@src/utils/configMigration';
 
 import { dev } from '$app/environment';
@@ -41,6 +40,7 @@ import { google } from 'googleapis';
 import type { Locale } from '@src/paraglide/runtime';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';

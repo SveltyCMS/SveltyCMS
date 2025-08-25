@@ -9,9 +9,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-
 	// Track last language from URL and user-initiated language changes
 	let lastUrlLanguage = data?.contentLanguage ?? 'en';
 	let userInitiatedLanguageChange = false;
@@ -28,6 +25,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import Loading from '@components/Loading.svelte';

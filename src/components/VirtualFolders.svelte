@@ -30,13 +30,13 @@ Features:
 	import { onMount } from 'svelte';
 	import { showToast } from '@utils/toast';
 	import { goto } from '$app/navigation';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';

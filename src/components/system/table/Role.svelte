@@ -24,7 +24,7 @@
 	let { value } = $props<{ value: string }>();
 
 	// Initialize roles from global settings or DB
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+
 	$effect(() => {
 		roles = getGlobalSetting('ROLES') || [];
 	});

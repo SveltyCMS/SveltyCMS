@@ -32,7 +32,7 @@ This widget fetches and displays real-time disk usage data, including:
 </script>
 
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { Chart, BarController, BarElement, Tooltip, CategoryScale, LinearScale } from 'chart.js';
 	Chart.register(BarController, BarElement, Tooltip, CategoryScale, LinearScale);
 

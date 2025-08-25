@@ -21,6 +21,7 @@ import type { Token } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Type for log additional info
 interface LogAdditionalInfo {

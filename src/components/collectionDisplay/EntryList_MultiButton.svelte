@@ -30,7 +30,6 @@
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { storeListboxValue } from '@stores/store.svelte';
 	import { page } from '$app/stores';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';

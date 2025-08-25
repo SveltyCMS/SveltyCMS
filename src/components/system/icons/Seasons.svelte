@@ -17,12 +17,13 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { Confetti } from 'svelte-confetti';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
+	// Settings helper
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Utility function for date comparison
 	function isDateInRange(date: Date, start: Date, end: Date): boolean {

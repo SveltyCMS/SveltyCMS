@@ -26,7 +26,6 @@
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
-import { getGlobalSetting } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 
 // Adapter
@@ -38,6 +37,7 @@ import type { authDBInterface, PaginationOption } from '../authDBInterface';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Define the User schema
 export const UserSchema = new Schema(

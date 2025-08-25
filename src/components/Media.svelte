@@ -14,7 +14,6 @@
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { debounce } from '@utils/utils';
 	import axios from 'axios';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -14,11 +14,12 @@
 
 import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
-import { getGlobalSetting } from '@src/stores/globalSettings';
+
 import type { LayoutServerLoad } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {

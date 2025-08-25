@@ -16,7 +16,7 @@
 	import { systemLanguage } from '@stores/store.svelte';
 
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr, Custom, Heading } from 'svelte-email-tailwind';
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr, Heading } from 'svelte-email-tailwind';
 
 	interface Props {
 		username?: string;
@@ -24,7 +24,11 @@
 		languageTag?: string;
 	}
 
-	let { username = '', tokenLink = dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD'), languageTag = systemLanguage.value }: Props = $props();
+	let {
+		username = '',
+		tokenLink = dev ? getGlobalSetting('HOST_DEV') : getGlobalSetting('HOST_PROD'),
+		languageTag = systemLanguage.value
+	}: Props = $props();
 </script>
 
 <Html lang={languageTag}>

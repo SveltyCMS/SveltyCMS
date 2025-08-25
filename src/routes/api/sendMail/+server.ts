@@ -46,7 +46,6 @@ import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
 
 // Environment variables for SMTP configuration
-import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Permissions
 

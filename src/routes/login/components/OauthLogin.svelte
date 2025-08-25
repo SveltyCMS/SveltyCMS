@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-
 	// Show OAuth when OAuth is enabled and an admin has sent an invitation
+	import { getGlobalSetting } from '@src/stores/globalSettings';
 	const { showOAuth = true } = $props<{
 		showOAuth?: boolean;
 	}>();
