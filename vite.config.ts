@@ -20,6 +20,36 @@ import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { generateContentTypes } from './src/content/vite';
 import { compile } from './src/utils/compilation/compile';
 
+// Function to generate private config content
+function generatePrivateConfigContent(): string {
+	return `/**
+ * @file config/private.ts
+ * @description Private configuration file - will be populated during setup
+ */
+
+import { createPrivateConfig } from './types';
+
+export const privateEnv = createPrivateConfig({
+	// Database Configuration
+	DB_TYPE: 'mongodb',
+	DB_HOST: '',
+	DB_PORT: 27017,
+	DB_NAME: '',
+	DB_USER: '',
+	DB_PASSWORD: '',
+
+	// Security Keys
+	JWT_SECRET_KEY: '',
+	ENCRYPTION_KEY: '',
+
+	// Multi-tenancy
+	MULTI_TENANT: false
+
+	// If you have any essential static private config, add here. Otherwise, leave empty.
+});
+`;
+}
+
 export default defineConfig(async () => {
 	const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -44,26 +74,21 @@ export default defineConfig(async () => {
 		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
 
 		const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
-		const templatePath = Path.posix.join(process.cwd(), 'templates/private.template.ts');
 
-		// Ensure template‑based private config (never synthesize dynamically here)
+		// Create private config file if it doesn't exist
 		if (!existsSync(privateConfigPath)) {
 			const fs = await import('fs/promises');
 			const configDir = Path.posix.join(process.cwd(), 'config');
 			if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
 			try {
-				if (existsSync(templatePath)) {
-					await fs.copyFile(templatePath, privateConfigPath);
-					console.log(`${LOG_PREFIX} Created initial private config from template -> config/private.ts`);
-				} else {
-					console.error(`${LOG_PREFIX} \x1b[31mTemplate missing:\x1b[0m templates/private.template.ts`);
-					throw new Error('private.template.ts missing');
-				}
+				const configContent = generatePrivateConfigContent();
+				await fs.writeFile(privateConfigPath, configContent);
+				console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
 			} catch (e) {
 				console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
 			}
 		} else {
-			console.log(`${LOG_PREFIX} Existing private config detected – no copy needed.`);
+			console.log(`${LOG_PREFIX} Existing private config detected – no creation needed.`);
 		}
 
 		return {

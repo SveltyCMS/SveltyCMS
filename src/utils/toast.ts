@@ -17,22 +17,31 @@ export type ToastType = 'success' | 'info' | 'warning' | 'error';
  * Displays a toast notification.
  * @param message The message to display. Can include HTML (e.g., iconify-icon).
  * @param type The type of toast (success, info, warning, error). Defaults to 'info'.
+ * @param timeout Custom timeout in milliseconds. Defaults to 3000ms.
  */
-export function showToast(message: string, type: ToastType = 'info'): void {
+export function showToast(message: string, type: ToastType = 'info', timeout?: number): void {
+	console.log('[toast] showToast called with:', { message, type, timeout });
+
 	const backgrounds: Record<ToastType, string> = {
 		success: 'gradient-primary',
 		info: 'gradient-tertiary',
 		warning: 'gradient-warning',
 		error: 'gradient-error'
 	};
+
 	if (!toastStoreRef) {
 		console.warn('[toast] Toast store not initialized. Call setGlobalToastStore(getToastStore()) in a root component.');
 		return;
 	}
+
+	console.log('[toast] Triggering toast with background:', backgrounds[type]);
+
 	toastStoreRef.trigger({
 		message,
 		background: backgrounds[type],
-		timeout: 3000,
-		classes: 'border-1 !rounded-md'
+		timeout: timeout || 3000,
+		classes: '!shadow-2xl !rounded-xl !p-4 !min-w-[320px] !max-w-[400px] !border !border-white/10 !backdrop-blur-sm'
 	});
+
+	console.log('[toast] Toast triggered successfully');
 }

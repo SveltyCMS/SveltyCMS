@@ -25,6 +25,9 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
+	// Toast
+	import { showToast, setGlobalToastStore } from '@utils/toast';
+	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 	const availableLanguages = $derived(
 		(() => {
 			const raw = getPublicSetting('LOCALES');
@@ -138,7 +141,6 @@
 
 	// UI states
 	let isLoading = $state(false);
-	let isRedirecting = $state(false);
 	let errorMessage = $state('');
 	let successMessage = $state('');
 	// Toggle for showing detailed DB test info
@@ -320,6 +322,9 @@
 	onMount(async () => {
 		document.addEventListener('click', outsideLang);
 
+		// Initialize toast store
+		setGlobalToastStore(getToastStore());
+
 		// Initialize theme from server-side data to prevent FOUC
 		if (typeof window !== 'undefined' && data.darkMode !== undefined) {
 			setModeUserPrefers(data.darkMode);
@@ -393,7 +398,7 @@
 		if (!validateStep(0)) return;
 
 		// Don't test database if setup is already completed
-		if (isRedirecting || setupCompleted) {
+		if (setupCompleted) {
 			errorMessage = 'Setup is already completed. Please refresh the page.';
 			return;
 		}
@@ -485,25 +490,33 @@
 			// Handle successful completion (200 or 409 with success=true)
 			if (response.ok || (response.status === 409 && data.success === true)) {
 				console.log('Setup completed successfully');
-				successMessage = m.setup_complete_success();
-				isRedirecting = true;
 				setupCompleted = true;
 				clearPersisted();
+
+				// Clear any existing messages to avoid conflicts
+				successMessage = '';
+				errorMessage = '';
+
+				// Small delay to ensure UI updates are complete before showing toast
+				setTimeout(() => {
+					console.log('Showing success toast...');
+					// Show success toast with improved typography and longer timeout
+					showToast(
+						`<div class="text-lg font-semibold mb-2">🎉 Setup Complete!</div><div class="text-sm opacity-90 mb-2">${m.setup_complete_success()}</div><div class="text-xs opacity-75 border-t border-white/20 pt-2">⏱️ Redirecting in 5 seconds...</div>`,
+						'success',
+						6000
+					);
+					console.log('Success toast triggered');
+				}, 100);
 
 				// Determine redirect target
 				const target = data.loggedIn && data.redirectPath ? data.redirectPath : '/login';
 				console.log('Redirecting to:', target);
 
-				// Force immediate redirect
-				window.location.href = target;
-
-				// Fallback redirect after a short delay
+				// Redirect after a longer delay to allow toast to be seen and read
 				setTimeout(() => {
-					if (window.location.pathname !== target) {
-						console.log('Fallback redirect to:', target);
-						window.location.replace(target);
-					}
-				}, 1000);
+					window.location.href = target;
+				}, 5000);
 
 				return;
 			}
@@ -511,21 +524,27 @@
 			// Handle 409 Conflict (setup already completed)
 			if (response.status === 409) {
 				console.log('Setup already completed (409)');
-				successMessage = 'Setup already completed. Redirecting to login...';
-				isRedirecting = true;
 				setupCompleted = true;
 				clearPersisted();
 
-				// Force immediate redirect to login
-				window.location.href = '/login';
+				// Clear any existing messages to avoid conflicts
+				successMessage = '';
+				errorMessage = '';
 
-				// Fallback redirect after a short delay
+				// Small delay to ensure UI updates are complete before showing toast
 				setTimeout(() => {
-					if (window.location.pathname !== '/login') {
-						console.log('Fallback redirect to /login');
-						window.location.replace('/login');
-					}
-				}, 1000);
+					// Show info toast with improved typography and longer timeout
+					showToast(
+						`<div class="text-lg font-semibold mb-2">ℹ️ Setup Already Complete</div><div class="text-sm opacity-90 mb-2">Redirecting to login...</div><div class="text-xs opacity-75 border-t border-white/20 pt-2">⏱️ Redirecting in 5 seconds...</div>`,
+						'info',
+						6000
+					);
+				}, 100);
+
+				// Redirect to login after a longer delay
+				setTimeout(() => {
+					window.location.href = '/login';
+				}, 5000);
 
 				return;
 			}
@@ -536,7 +555,7 @@
 			console.log('Setup completion error:', e);
 			errorMessage = e instanceof Error ? m.setup_complete_error({ error: e.message }) : m.setup_complete_unknown_error();
 		} finally {
-			if (!isRedirecting) isLoading = false;
+			isLoading = false;
 		}
 	}
 	// (Removed invalidation of dbTestPassed when fields change – once passed it stays enabled as requested)
@@ -676,12 +695,30 @@
 			height: 100%;
 			overflow: auto !important;
 		}
+
+		/* Override Skeleton's default toast positioning */
+		:global(.toast-container) {
+			position: fixed !important;
+			bottom: 1.5rem !important;
+			right: 1.5rem !important;
+			left: auto !important;
+			top: auto !important;
+			transform: none !important;
+			z-index: 99999 !important;
+		}
+
+		:global(.toast) {
+			transform: none !important;
+			animation: none !important;
+		}
 	</style>
 </svelte:head>
 
 <!-- (Markup continues below; removed stray duplicated content) -->
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
+	<!-- Toast component for notifications -->
+	<Toast />
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
 		<!-- Header -->
 		<div class="mb-4 rounded-xl border border-surface-200 bg-white p-4 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
@@ -970,13 +1007,6 @@
 									</svg>
 									<div class="flex-1 pr-4">
 										{successMessage || errorMessage}
-										{#if isRedirecting && successMessage}
-											<div class="mt-2">
-												<button onclick={() => (window.location.href = '/login')} class="variant-filled-primary btn-sm">
-													Click here to continue to login
-												</button>
-											</div>
-										{/if}
 									</div>
 									<button type="button" class="btn-sm ml-auto mt-0.5 flex items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
 										<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
@@ -1091,23 +1121,6 @@
 		</div>
 	</div>
 </div>
-
-<!-- Redirect Loading Overlay -->
-{#if isRedirecting}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-50">
-		<div class="text-center">
-			<!-- Loading Animation -->
-			<div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center">
-				<!-- Outer spinning ring -->
-				<div class="h-16 w-16 animate-spin rounded-full border-4 border-slate-200 border-t-[#ff3e00]"></div>
-			</div>
-
-			<!-- Message -->
-			<h3 class="mb-2 text-lg font-semibold text-slate-800">{m.twofa_setup_complete_title()}</h3>
-			<p class="text-sm text-slate-600">{successMessage}</p>
-		</div>
-	</div>
-{/if}
 
 <style>
 	.fade-in {
