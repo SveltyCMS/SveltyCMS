@@ -313,6 +313,11 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		try {
 			await connectToMongoDB();
 		} catch (err) {
+			// Handle setup mode errors gracefully
+			if (err.message === 'SETUP_MODE_DB_HOST_MISSING') {
+				logger.info('Database connection skipped - running in setup mode');
+				return; // Exit gracefully instead of throwing
+			}
 			logger.error(`MongoDB connection failed: ${err.message}`);
 			throw err;
 		}

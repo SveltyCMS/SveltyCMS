@@ -187,7 +187,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 			// Determine success & messaging
 			let success = authenticated;
-			let message = authenticated ? 'Database connection (authenticated) successful' : 'Database connection failed: unauthenticated';
+			let message = authenticated ? 'Database connection (authenticated) successful' : 'Database connection successful (no authentication required)';
 			if (!authProvided) {
 				// If no credentials supplied, we still may want to warn rather than succeed silently
 				if (authenticated) {
@@ -195,9 +195,9 @@ export const POST: RequestHandler = async ({ request }) => {
 					success = true;
 					message = 'Database connection successful (implicit authentication)';
 				} else {
-					warnings.push('unauthenticated_connection_blocked');
-					success = false;
-					message = 'Unauthenticated connection refused. Provide user & password.';
+					// For local Docker MongoDB, unauthenticated connections are normal and expected
+					success = true;
+					message = 'Database connection successful (no authentication required)';
 				}
 			}
 

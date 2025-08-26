@@ -104,9 +104,16 @@ export async function connectToMongoDB(): Promise<void> {
 	const dbPassword = getPrivateSettingWithFallback('DB_PASSWORD', '');
 	const dbPoolSize = getPrivateSettingWithFallback('DB_POOL_SIZE', 5);
 
+	// Check if database configuration is complete
 	if (!dbHost || String(dbHost).trim().length === 0) {
 		logger.info('Skipping MongoDB connection: DB_HOST not set (setup mode).');
 		throw new Error('SETUP_MODE_DB_HOST_MISSING');
+	}
+
+	// Check if we already have an active connection to avoid multiple connections
+	if (mongoose.connection.readyState === 1) {
+		logger.info('MongoDB already connected, skipping connection attempt');
+		return;
 	}
 
 	const hasScheme = dbHost.startsWith('mongodb://') || dbHost.startsWith('mongodb+srv://');
