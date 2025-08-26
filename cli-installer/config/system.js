@@ -497,7 +497,7 @@ export async function configureSystem(privateConfigData = {}) {
 		const backupCodesInput = await text({
 			message: 'Number of backup codes to generate for 2FA recovery (1-50):',
 			placeholder: '10',
-			initialValue: String(privateConfigData.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT || 10),
+			initialValue: privateConfigData.TWO_FACTOR_AUTH_BACKUP_CODES_COUNT || 10,
 			validate(value) {
 				const num = Number(value);
 				if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 50) {

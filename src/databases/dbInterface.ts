@@ -199,7 +199,9 @@ export interface BatchResult<T> {
 	errors: DatabaseError[];
 }
 
-export type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | { success: false; error: DatabaseError };
+export type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | {
+	message: string; success: false; error: DatabaseError
+};
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds

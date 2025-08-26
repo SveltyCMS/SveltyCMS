@@ -20,8 +20,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Token } from './types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { getGlobalSetting } from '@src/stores/globalSettings';
+import { logger } from '@utils/logger.svelte';
 
 // Type for log additional info
 interface LogAdditionalInfo {
@@ -71,7 +71,7 @@ export async function createNewToken(
 		const token = uuidv4().replace(/-/g, ''); // Remove hyphens for a cleaner token
 		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
-		const tokenData: Partial<Token> = { user_id, token, email, expires: expiresAt };
+		const tokenData: Partial<Token> & { tenantId?: string } = { user_id, token, email, expires: expiresAt };
 		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
 			tokenData.tenantId = tenantId;
 		}

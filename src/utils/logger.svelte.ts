@@ -259,7 +259,7 @@ const scheduleBatchProcessing = (): void => {
 // Server-Side Operations
 const serverFileOps = isServer
 	? {
-			_logStream: null as unknown, // Store the write stream instance
+			_logStream: null as import('node:fs').WriteStream | null, // Store the write stream instance
 			async _getModules() {
 				const fsPromises = await import('node:fs/promises');
 				const path = await import('node:path');
@@ -268,7 +268,7 @@ const serverFileOps = isServer
 				const stream = await import('node:stream/promises');
 				return { fsPromises, path, zlib, fs, stream };
 			},
-			async getLogStream(): Promise<unknown> {
+			async getLogStream(): Promise<import('node:fs').WriteStream> {
 				const { path, fs } = await this._getModules();
 				if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
 					const logFilePath = path.join(config.logDirectory, config.logFileName);
@@ -282,7 +282,7 @@ const serverFileOps = isServer
 						this._logStream = null; // Clear stream reference after it finishes
 					});
 				}
-				return this._logStream;
+				return this._logStream!;
 			},
 			async initializeLogFile(): Promise<void> {
 				const { fsPromises, path } = await this._getModules();

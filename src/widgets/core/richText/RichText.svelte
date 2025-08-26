@@ -16,6 +16,7 @@
 
 <script lang="ts">
 	import { publicEnv } from '@src/utils/configMigration';
+	import { getPublicSetting } from '@src/stores/globalSettings';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { meta_data, debounce, getFieldName, getTextDirection } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';

@@ -76,7 +76,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 	}
 
 	// Create a new user
-	async createUser(userData: Partial<User>): Promise<User> {
+	async createUser(userData: Partial<User>): Promise<DatabaseResult<User>> {
 		try {
 			// Normalize email to lowercase if present
 			const normalizedUserData = {
@@ -112,7 +112,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
-			return savedUser as User;
+			return {
+				success: true,
+				data: savedUser as User
+			};
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -120,7 +123,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				error: err,
 				userData: Object.keys(userData)
 			});
-			throw error(500, message);
+			return {
+				success: false,
+				error: message
+			};
 		}
 	}
 

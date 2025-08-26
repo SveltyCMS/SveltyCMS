@@ -10,6 +10,7 @@
  * - TypeScript support with custom Theme type
  */
 
+import { dbAdapter } from '@src/databases/db';
 import type { Theme } from '@src/databases/dbInterface';
 import { store } from '@utils/reactivity.svelte';
 
@@ -44,8 +45,7 @@ function createThemeStores() {
 		lastUpdateAttempt: null,
 		darkMode:
 			typeof window !== 'undefined'
-				? getCookie('darkMode') === 'true' ||
-					(getCookie('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
+				? getCookie('darkMode') === 'true' || (getCookie('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
 				: false
 	};
 
@@ -99,7 +99,12 @@ function createThemeStores() {
 							path: '',
 							isDefault: false,
 							createdAt: new Date(),
-							updatedAt: new Date()
+							updatedAt: new Date(),
+							isActive: true,
+							config: {
+								tailwindConfigPath: '',
+								assetsPath: ''
+							}
 						}
 					: newTheme;
 

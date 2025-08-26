@@ -44,6 +44,9 @@
 	import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 
 	// Initialize Mapbox
+	import { getGlobalSetting, getPublicSetting } from '@src/stores/globalSettings';
+
+	// Initialize Mapbox
 	const mapboxToken = getGlobalSetting<string>('MAPBOX_API_TOKEN');
 	const isMapboxEnabled = getGlobalSetting<boolean>('USE_MAPBOX') && mapboxToken;
 

@@ -13,7 +13,7 @@ enableSetupMode();
  * Legacy compatibility function that mimics the old publicEnv object.
  * This allows existing code to continue working during the migration.
  */
-export const publicEnv = new Proxy({} as any, {
+export const publicEnv = new Proxy({} as Record<string, unknown>, {
 	get(target, prop) {
 		if (typeof prop === 'string') {
 			try {
@@ -31,7 +31,7 @@ export const publicEnv = new Proxy({} as any, {
  * Legacy compatibility function that mimics the old privateEnv object.
  * This allows existing code to continue working during the migration.
  */
-export const privateEnv = new Proxy({} as any, {
+export const privateEnv = new Proxy({} as Record<string, unknown>, {
 	get(target, prop) {
 		if (typeof prop === 'string') {
 			try {

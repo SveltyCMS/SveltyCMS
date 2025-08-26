@@ -195,7 +195,11 @@ export class Auth {
 	}
 
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
-		return await this.db.getUserByEmail(criteria);
+		const result = await this.db.getUserByEmail(criteria);
+		if (result && result.success) {
+			return result.data;
+		}
+		return null;
 	}
 
 	async updateUser(userId: string, updates: Partial<User>, tenantId?: string): Promise<void> {
@@ -207,7 +211,11 @@ export class Auth {
 	}
 
 	async getAllUsers(options?: { filter?: { tenantId?: string } }): Promise<User[]> {
-		return await this.db.getAllUsers(options);
+		const result = await this.db.getAllUsers(options);
+		if (result && result.success) {
+			return result.data;
+		}
+		return [];
 	}
 
 	async getUserCount(filter?: { tenantId?: string }): Promise<number> {
@@ -247,19 +255,44 @@ export class Auth {
 		return this.roles;
 	}
 
-	async getAllTokens(filter?: { tenantId?: string }): Promise<{ tokens: Token[]; count: number }> {
-		const tokens = await this.db.getAllTokens(filter);
-		return { tokens, count: tokens.length };
-	}
+	async getAllTokens(filter?: { tenantId?: string }): Promise<DatabaseResult<Token[]>> {
+			const result = await this.db.getAllTokens(filter);
+			return result;
+		}
 
 	async createToken(userId: string, expires: Date, type: string = 'access', tenantId?: string): Promise<string> {
 		const user = await this.getUserById(userId, tenantId);
 		if (!user) throw new Error('User not found');
-		return await this.db.createToken({ user_id: userId, email: user.email.toLowerCase(), expires, type, tenantId });
+		const result = await this.db.createToken({ user_id: userId, email: user.email.toLowerCase(), expires, type, tenantId });
+		if (typeof result === 'string') {
+			return result;
+		}
+		if (result && result.success && typeof result.data === 'string') {
+			return result.data;
+		}
+		// If result.success is false, error property may exist
+		if (
+			result &&
+			!result.success &&
+			typeof result === 'object' &&
+			'error' in result &&
+			result.error &&
+			typeof result.error === 'object' &&
+			'message' in result.error &&
+			typeof result.error.message === 'string'
+		) {
+			throw new Error(result.error.message);
+		}
+		throw new Error('Failed to create token');
 	}
 
 	async validateToken(token: string, user_id?: string, type: string = 'access', tenantId?: string): Promise<{ success: boolean; message: string }> {
-		return await this.db.validateToken(token, user_id, type, tenantId);
+		const result = await this.db.validateToken(token, user_id, type, tenantId);
+		if (result.success) {
+			return { success: true, message: result.message ?? 'Token validated' };
+		} else {
+			return { success: false, message: result.error?.message ?? 'Token validation failed' };
+		}
 	}
 
 	async validateRegistrationToken(token: string, tenantId?: string): Promise<{ isValid: boolean; message: string; details?: Token }> {
@@ -273,7 +306,12 @@ export class Auth {
 	}
 
 	async consumeToken(token: string, user_id?: string, type: string = 'access', tenantId?: string): Promise<{ status: boolean; message: string }> {
-		return await this.db.consumeToken(token, user_id, type, tenantId);
+		const result = await this.db.consumeToken(token, user_id, type, tenantId);
+		if (result.success) {
+			return result.data;
+		} else {
+			return { status: false, message: result.error?.message || 'Failed to consume token' };
+		}
 	}
 
 	async consumeRegistrationToken(token: string, tenantId?: string): Promise<{ status: boolean; message: string }> {
@@ -307,9 +345,17 @@ export class Auth {
 
 	async checkUser(fields: { user_id?: string; email?: string; tenantId?: string }): Promise<User | null> {
 		if (fields.email) {
-			return await this.db.getUserByEmail({ email: fields.email, tenantId: fields.tenantId });
+			const result = await this.db.getUserByEmail({ email: fields.email, tenantId: fields.tenantId });
+			if (result && result.success) {
+				return result.data;
+			}
+			return null;
 		} else if (fields.user_id) {
-			return await this.db.getUserById(fields.user_id, fields.tenantId);
+			const result = await this.db.getUserById(fields.user_id, fields.tenantId);
+			if (result && result.success) {
+				return result.data;
+			}
+			return null;
 		}
 		return null;
 	}
