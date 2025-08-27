@@ -20,14 +20,13 @@ export function checkSetup() {
   try {
     const configContent = readFileSync(privateConfigPath, 'utf8');
 
-    const hasDbType = configContent.includes('DB_TYPE:');
-    const hasDbHost = configContent.includes('DB_HOST:');
-    const hasDbName = configContent.includes('DB_NAME:');
+    // Check for required database configuration fields
+    const hasDbHost = /DB_HOST\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m.test(configContent);
+    const hasDbName = /DB_NAME\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m.test(configContent);
+    // DB_USER can be empty for local MongoDB without authentication
+    const hasDbUser = /DB_USER\s*[:=]\s*['"`]\s*([^'"`]*)\s*['"`]/m.test(configContent);
 
-    const dbHostMatch = configContent.match(/DB_HOST:\s*['"`]([^'"`]+)['"`]/);
-    const hasValidDbHost = dbHostMatch && dbHostMatch[1] && dbHostMatch[1].trim() !== '';
-
-    return hasDbType && hasDbHost && hasDbName && hasValidDbHost;
+    return hasDbHost && hasDbName && hasDbUser;
   } catch (error) {
     console.log('⚠️ Could not read private config file:', error.message);
     return false;

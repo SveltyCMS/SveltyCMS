@@ -10,7 +10,6 @@
  *  - Invalidates & reloads global settings cache
  *  - Creates an authenticated session (auto‑login) for the admin user when auth is ready
  *  - Updates `config/private.ts` with DB credentials if they differ
- *  - Writes an installation marker `config/.installed`
  *  - Emits structured logs with a correlationId for traceability
  *
  * Request Body (JSON):
@@ -136,46 +135,36 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		// This prevents re-running setup if it was already completed successfully
 		if (!force) {
 			try {
-				// Check if the setup marker file exists
+				// Check if the private config file exists and is properly populated
 				const fs = await import('fs/promises');
 				const path = await import('path');
-				const markerPath = path.resolve(process.cwd(), 'config', '.installed');
-				const markerExists = await fs
-					.access(markerPath)
+				const privateConfigPath = path.resolve(process.cwd(), 'config', 'private.ts');
+				
+				const privateConfigExists = await fs
+					.access(privateConfigPath)
 					.then(() => true)
 					.catch(() => false);
 
-				logger.info('Checking setup marker file', { correlationId, markerPath, markerExists });
+				logger.info('Checking private config file', { correlationId, privateConfigPath, privateConfigExists });
 
-				if (markerExists) {
-					logger.info('Setup marker file exists, setup already completed', { correlationId });
-					return json(
-						{
-							success: false,
-							error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
-						},
-						{ status: 409 }
-					);
-				}
-
-				// Also check for .svelty_installed in root
-				const sveltyMarkerPath = path.resolve(process.cwd(), '.svelty_installed');
-				const sveltyMarkerExists = await fs
-					.access(sveltyMarkerPath)
-					.then(() => true)
-					.catch(() => false);
-
-				logger.info('Checking Svelty marker file', { correlationId, sveltyMarkerPath, sveltyMarkerExists });
-
-				if (sveltyMarkerExists) {
-					logger.info('Svelty marker file exists, setup already completed', { correlationId });
-					return json(
-						{
-							success: false,
-							error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
-						},
-						{ status: 409 }
-					);
+				if (privateConfigExists) {
+					// Read the file to check if it's properly populated
+					const configContent = await fs.readFile(privateConfigPath, 'utf8');
+					const hasDbHost = /DB_HOST:\s*['"`][^'"`\s]+['"`]/.test(configContent);
+					const hasDbName = /DB_NAME:\s*['"`][^'"`\s]+['"`]/.test(configContent);
+					// DB_USER can be empty for local MongoDB without authentication
+					const hasDbUser = /DB_USER:\s*['"`][^'"`]*['"`]/.test(configContent);
+					
+					if (hasDbHost && hasDbName && hasDbUser) {
+						logger.info('Private config file exists and is properly populated, setup already completed', { correlationId });
+						return json(
+							{
+								success: false,
+								error: 'Setup already completed. Pass force=true to re-run (this will wipe data).'
+							},
+							{ status: 409 }
+						);
+					}
 				}
 			} catch (e) {
 				// Not fatal – continue
@@ -342,19 +331,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			});
 		}
 
-		// Step 7: Write setup marker file (do this BEFORE response)
-		logger.info('Writing setup marker file...', { correlationId });
-		try {
-			const fs = await import('fs/promises');
-			const path = await import('path');
-			const markerPath = path.resolve(process.cwd(), 'config', '.installed');
-			await fs.mkdir(path.dirname(markerPath), { recursive: true });
-			await fs.writeFile(markerPath, JSON.stringify({ completedAt: new Date().toISOString(), correlationId }));
-			logger.info('Setup marker written to config/.installed', { correlationId });
-		} catch (markerErr) {
-			logger.warn('Failed to write setup marker', { correlationId, error: markerErr instanceof Error ? markerErr.message : String(markerErr) });
-			// Don't fail the setup for marker file issues
-		}
+
 
 		// Step 8: Auto-create session for the admin user so they're logged in immediately
 		interface SessionCookieMeta {

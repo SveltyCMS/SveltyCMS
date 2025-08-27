@@ -29,12 +29,24 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	try {
 		const base = process.cwd();
 
-		// 1) Fast marker check: prefer an explicit marker written at the end of setup.
-		// This is the cheapest and most reliable signal for repeat restarts in prod.
-		const markerCandidates = [Path.join(base, 'config', '.installed'), Path.join(base, '.svelty_installed')];
-		if (markerCandidates.some((p) => existsSync(p))) {
-			logger.debug('✅ Setup marker found. Setup is complete.');
-			isSetupComplete = true;
+		// 1) Check if private config file exists and is properly populated
+		// This is the most reliable signal for setup completion
+		const privateConfigPath = Path.join(base, 'config', 'private.ts');
+		if (existsSync(privateConfigPath)) {
+			try {
+				const configContent = readFileSync(privateConfigPath, 'utf8');
+				const hasDbHost = /DB_HOST:\s*['"`][^'"`\s]+['"`]/.test(configContent);
+				const hasDbName = /DB_NAME:\s*['"`][^'"`\s]+['"`]/.test(configContent);
+				// DB_USER can be empty for local MongoDB without authentication
+				const hasDbUser = /DB_USER:\s*['"`][^'"`]*['"`]/.test(configContent);
+				
+				if (hasDbHost && hasDbName && hasDbUser) {
+					logger.debug('✅ Private config file exists and is properly populated. Setup is complete.');
+					isSetupComplete = true;
+				}
+			} catch (readError) {
+				logger.warn('Could not read private config file', { error: readError instanceof Error ? readError.message : String(readError) });
+			}
 		}
 
 		// 2) Environment variables: many cloud deployments provide DB credentials via env.

@@ -31,23 +31,22 @@ import type { RequestHandler } from './$types';
 function detectSetupComplete(): boolean {
 	try {
 		const base = process.cwd();
-		const markerCandidates = [Path.join(base, 'config', '.installed'), Path.join(base, '.svelty_installed')];
-		if (markerCandidates.some((p) => existsSync(p))) return true;
+		
+		// Check environment variables first
 		if (process.env.SVELTY_SETUP_DONE === 'true') return true;
 		if (process.env.DB_HOST && process.env.DB_HOST.trim().length > 0) return true;
-		const candidates = [
-			Path.join(base, 'config', 'private.ts'),
-			Path.join(base, 'config', 'private.js'),
-			Path.join(base, 'config', 'private.cjs'),
-			Path.join(base, 'config', 'private.mjs')
-		];
-		const foundPath = candidates.find((p) => existsSync(p));
-		if (!foundPath) return false;
-		const raw = readFileSync(foundPath, 'utf8');
-		const head = raw.slice(0, 32 * 1024);
-		const dbHostRegex = /DB_HOST\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m;
-		const match = head.match(dbHostRegex);
-		return !!(match && match[1] && match[1].trim().length > 0);
+		
+		// Check if private config file exists and is properly populated
+		const privateConfigPath = Path.join(base, 'config', 'private.ts');
+		if (!existsSync(privateConfigPath)) return false;
+		
+		const configContent = readFileSync(privateConfigPath, 'utf8');
+		const hasDbHost = /DB_HOST\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m.test(configContent);
+		const hasDbName = /DB_NAME\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m.test(configContent);
+		// DB_USER can be empty for local MongoDB without authentication
+		const hasDbUser = /DB_USER\s*[:=]\s*['"`]\s*([^'"`]*)\s*['"`]/m.test(configContent);
+		
+		return hasDbHost && hasDbName && hasDbUser;
 	} catch {
 		return false;
 	}
