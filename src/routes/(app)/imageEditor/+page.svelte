@@ -438,6 +438,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 				{stage}
 				{layer}
 				{imageNode}
+				imageGroup={storeState.imageGroup}
 				onZoomApplied={() => {
 					imageEditorStore.setActiveState('');
 					applyEdit();
