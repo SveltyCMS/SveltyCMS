@@ -98,6 +98,14 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			return;
 		}
 
+		// Clean up any previous stage to avoid memory leaks when loading a new image
+		const { stage } = imageEditorStore.state;
+		if (stage) {
+			stage.destroy();
+			imageEditorStore.reset();
+			// Re-assign containerRef after reset (since reset clears stage references)
+		}
+
 		const img = new window.Image();
 		img.src = imageSrc;
 		img.onload = () => {
@@ -208,8 +216,12 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	function saveState() {
 		const { stage } = imageEditorStore.state;
 		if (!stage) return;
-		const state = stage.toDataURL();
-		imageEditorStore.saveStateHistory(state);
+		try {
+			const state = stage.toDataURL();
+			imageEditorStore.saveStateHistory(state);
+		} catch (e) {
+			console.error('Failed saving editor state snapshot', e);
+		}
 	}
 
 	function handleUndo() {
