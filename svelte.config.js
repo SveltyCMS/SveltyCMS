@@ -9,7 +9,7 @@ const config = {
 
 	// Enable runes mode across your entire SvelteKit app
 	// compilerOptions: {
-	// 	runes: true
+	//  runes: true
 	// },
 
 	kit: {
@@ -21,9 +21,7 @@ const config = {
 			external: ['typescript', 'ts-node', '@typescript-eslint/parser', '@typescript-eslint/eslint-plugin'], // Prevent TypeScript and related modules from being bundled into the server
 			polyfill: false // Disable polyfills as we handle them in Vite config
 		}),
-		csrf: {
-			checkOrigin: false // default: true | Protection against cross-site request forgery (CSRF) attacks.
-		},
+
 		// Removed deprecated kit.files.routes override (default 'src/routes' is used)
 		alias: {
 			'@root': '.',

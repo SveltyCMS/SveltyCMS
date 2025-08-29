@@ -14,7 +14,7 @@
  * Body: { data: [...], format: 'json|csv', options: {...} }
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Database adapter
@@ -22,9 +22,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Content Management
 import { contentManager } from '@src/content/ContentManager';
-
-// Permissions
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -53,16 +50,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		if (!schema) {
 			throw error(404, `Collection '${collectionId}' not found`);
-		}
-
-		// Check permissions
-		if (!hasCollectionPermission(locals.user, 'write', schema)) {
-			logger.warn('Collection import permission denied', {
-				userId: locals.user._id,
-				collectionId,
-				userRole: locals.user.role
-			});
-			throw error(403, 'Forbidden: Insufficient permissions to import into this collection');
 		}
 
 		// Parse request body

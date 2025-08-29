@@ -4,8 +4,8 @@
 -->
 
 <script lang="ts">
-	import { twMerge } from 'tailwind-merge';
 	import { onMount, tick } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
 
 	// Define props using Svelte 5 runes
 	let {
