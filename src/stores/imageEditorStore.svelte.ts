@@ -27,6 +27,13 @@ export interface ImageEditorState {
 	imageNode: Konva.Image | null;
 	activeState: string;
 	stateHistory: string[];
+	/**
+	 * Index pointer for stateHistory (dataURL based). We keep this separate from
+	 * currentHistoryIndex (which is reserved for the functional editHistory based
+	 * undo/redo system) to avoid collisions where invoking one type of undo would
+	 * corrupt the other history cursor.
+	 */
+	stateHistoryIndex: number;
 }
 
 // Create image editor store
@@ -41,15 +48,17 @@ function createImageEditorStore() {
 		layer: null,
 		imageNode: null,
 		activeState: '',
-		stateHistory: []
+		stateHistory: [],
+		stateHistoryIndex: -1
 	});
 
 	// Derived values using $derived rune
 	const canUndo = $derived(state.currentHistoryIndex >= 0);
 	const canRedo = $derived(state.currentHistoryIndex < state.editHistory.length - 1);
 	const hasActiveImage = $derived(!!state.file && !!state.imageNode);
-	const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
-	const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
+	// Snapshot (dataURL) history derived helpers
+	const canUndoState = $derived(state.stateHistoryIndex > 0);
+	const canRedoState = $derived(state.stateHistoryIndex >= 0 && state.stateHistoryIndex < state.stateHistory.length - 1);
 
 	// Methods to update state
 	function setFile(file: File | null) {
@@ -86,13 +95,12 @@ function createImageEditorStore() {
 	}
 
 	function saveStateHistory(stateData: string) {
-		// If we're not at the end of history, truncate it
-		if (state.currentHistoryIndex < state.stateHistory.length - 1) {
-			state.stateHistory = state.stateHistory.slice(0, state.currentHistoryIndex + 1);
+		// If we're not at the end of snapshot history, truncate the forward branch
+		if (state.stateHistoryIndex < state.stateHistory.length - 1) {
+			state.stateHistory = state.stateHistory.slice(0, state.stateHistoryIndex + 1);
 		}
-
 		state.stateHistory.push(stateData);
-		state.currentHistoryIndex = state.stateHistory.length - 1;
+		state.stateHistoryIndex = state.stateHistory.length - 1;
 	}
 
 	function undo() {
@@ -111,20 +119,21 @@ function createImageEditorStore() {
 
 	function undoState(): string | null {
 		if (!canUndoState) return null;
-		state.currentHistoryIndex--;
-		return state.stateHistory[state.currentHistoryIndex];
+		state.stateHistoryIndex--;
+		return state.stateHistory[state.stateHistoryIndex];
 	}
 
 	function redoState(): string | null {
 		if (!canRedoState) return null;
-		state.currentHistoryIndex++;
-		return state.stateHistory[state.currentHistoryIndex];
+		state.stateHistoryIndex++;
+		return state.stateHistory[state.stateHistoryIndex];
 	}
 
 	function clearHistory() {
 		state.editHistory = [];
 		state.currentHistoryIndex = -1;
 		state.stateHistory = [];
+		state.stateHistoryIndex = -1;
 	}
 
 	function reset() {
@@ -137,6 +146,7 @@ function createImageEditorStore() {
 		state.imageNode = null;
 		state.activeState = '';
 		state.stateHistory = [];
+		state.stateHistoryIndex = -1;
 	}
 
 	return {
