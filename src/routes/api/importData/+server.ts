@@ -21,7 +21,7 @@
  * Body: { collections: { collectionName: [entries...] }, options: { overwrite: boolean, validate: boolean } }
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Database adapter for collection operations
@@ -29,9 +29,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Stores
 import { collections } from '@stores/collectionStore.svelte';
-
-// Permissions
-import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -70,21 +67,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const startTime = performance.now();
 
 	try {
-		// Use centralized permission checking
-		const permissionResult = await checkApiPermission(locals.user, {
-			resource: 'system',
-			action: 'write'
-		});
-
-		if (!permissionResult.hasPermission) {
-			logger.warn('Data import permission denied', {
-				userId: locals.user?._id,
-				userRole: locals.user?.role,
-				error: permissionResult.error
-			});
-			throw error(403, permissionResult.error || 'Forbidden: Insufficient permissions');
-		}
-
 		logger.info('Starting collection data import', {
 			userId: locals.user._id,
 			userEmail: locals.user.email

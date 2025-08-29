@@ -11,7 +11,6 @@ const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000;
 
 import { privateEnv } from '@root/config/private';
-import { config } from '@src/lib/config.server';
 
 import mongoose from 'mongoose';
 

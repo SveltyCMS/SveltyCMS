@@ -12,7 +12,7 @@
  * GET /api/collections/{collectionId}/export?format=json&limit=100&offset=0
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Database adapter
@@ -20,9 +20,6 @@ import { dbAdapter } from '@src/databases/db';
 
 // Content Management
 import { contentManager } from '@src/content/ContentManager';
-
-// Permissions
-import { hasCollectionPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -42,16 +39,6 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
 		if (!schema) {
 			throw error(404, `Collection '${collectionId}' not found`);
-		}
-
-		// Check permissions
-		if (!hasCollectionPermission(locals.user, 'read', schema)) {
-			logger.warn('Collection export permission denied', {
-				userId: locals.user._id,
-				collectionId,
-				userRole: locals.user.role
-			});
-			throw error(403, 'Forbidden: Insufficient permissions to export this collection');
 		}
 
 		// Parse query parameters

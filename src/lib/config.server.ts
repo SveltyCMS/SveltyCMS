@@ -18,7 +18,7 @@ import type { PublicSettings, PrivateSettings } from './settings.server';
 // Production-grade configuration service
 export class ConfigService {
 	private static instance: ConfigService;
-	private cache: Map<string, any> = new Map();
+	private cache: Map<string, unknown> = new Map();
 	private cacheExpiry: Map<string, number> = new Map();
 	private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 	private initialized = false;

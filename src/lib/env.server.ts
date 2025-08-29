@@ -10,16 +10,15 @@
  * All other configuration is stored in the database and accessed via config.server.ts
  */
 
-import { PRIVATE_ENV } from '$env/dynamic/private';
-import { PRIVATE_STATIC_ENV } from '$env/static/private';
-import { readFileSync, existsSync } from 'fs';
+import { env } from '$env/dynamic/private';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 // Essential private configuration (server-only, never exposed to client)
 // These are the ONLY environment variables we need for initial setup
 export function getEssentialEnv() {
 	// Try to load environment variables from files directly as fallback
-	let fileEnv: Record<string, string> = {};
+	const fileEnv: Record<string, string> = {};
 	try {
 		const envPath = resolve(process.cwd(), '.env');
 		const envLocalPath = resolve(process.cwd(), '.env.local');
@@ -54,7 +53,7 @@ export function getEssentialEnv() {
 	}
 
 	// Try to load from config/private.ts file
-	let configEnv: Record<string, string> = {};
+	const configEnv: Record<string, string> = {};
 	try {
 		const configPath = resolve(process.cwd(), 'config/private.ts');
 		if (existsSync(configPath)) {
@@ -86,23 +85,23 @@ export function getEssentialEnv() {
 	return {
 		// Database credentials (required for initial connection)
 		// Priority: config/private.ts > .env files > SvelteKit env vars > defaults
-		DB_TYPE: configEnv.DB_TYPE || PRIVATE_ENV?.DB_TYPE || PRIVATE_STATIC_ENV?.DB_TYPE || fileEnv.DB_TYPE || 'mongodb',
-		DB_HOST: configEnv.DB_HOST || PRIVATE_ENV?.DB_HOST || PRIVATE_STATIC_ENV?.DB_HOST || fileEnv.DB_HOST || '',
-		DB_PORT: parseInt(configEnv.DB_PORT || PRIVATE_ENV?.DB_PORT || PRIVATE_STATIC_ENV?.DB_PORT || fileEnv.DB_PORT || '27017'),
-		DB_NAME: configEnv.DB_NAME || PRIVATE_ENV?.DB_NAME || PRIVATE_STATIC_ENV?.DB_NAME || fileEnv.DB_NAME || '',
-		DB_USER: configEnv.DB_USER || PRIVATE_ENV?.DB_USER || PRIVATE_STATIC_ENV?.DB_USER || fileEnv.DB_USER || '',
-		DB_PASSWORD: configEnv.DB_PASSWORD || PRIVATE_ENV?.DB_PASSWORD || PRIVATE_STATIC_ENV?.DB_PASSWORD || fileEnv.DB_PASSWORD || '',
+		DB_TYPE: configEnv.DB_TYPE || env?.DB_TYPE || fileEnv.DB_TYPE || 'mongodb',
+		DB_HOST: configEnv.DB_HOST || env?.DB_HOST || fileEnv.DB_HOST || '',
+		DB_PORT: parseInt(configEnv.DB_PORT || env?.DB_PORT || fileEnv.DB_PORT || '27017'),
+		DB_NAME: configEnv.DB_NAME || env?.DB_NAME || fileEnv.DB_NAME || '',
+		DB_USER: configEnv.DB_USER || env?.DB_USER || fileEnv.DB_USER || '',
+		DB_PASSWORD: configEnv.DB_PASSWORD || env?.DB_PASSWORD || fileEnv.DB_PASSWORD || '',
 
 		// JWT configuration (required for authentication)
-		JWT_SECRET_KEY: configEnv.JWT_SECRET_KEY || PRIVATE_ENV?.JWT_SECRET_KEY || PRIVATE_STATIC_ENV?.JWT_SECRET_KEY || fileEnv.JWT_SECRET_KEY || '',
+		JWT_SECRET_KEY: configEnv.JWT_SECRET_KEY || env?.JWT_SECRET_KEY || fileEnv.JWT_SECRET_KEY || '',
 
 		// Encryption key (required for data security)
-		ENCRYPTION_KEY: configEnv.ENCRYPTION_KEY || PRIVATE_ENV?.ENCRYPTION_KEY || PRIVATE_STATIC_ENV?.ENCRYPTION_KEY || fileEnv.ENCRYPTION_KEY || ''
+		ENCRYPTION_KEY: configEnv.ENCRYPTION_KEY || env?.ENCRYPTION_KEY || fileEnv.ENCRYPTION_KEY || ''
 	} as const;
 }
 
 // For backwards compatibility, export a getter
-export const essentialEnv = new Proxy({} as any, {
+export const essentialEnv = new Proxy({} as EssentialEnv, {
 	get(target, prop) {
 		return getEssentialEnv()[prop as keyof ReturnType<typeof getEssentialEnv>];
 	}
