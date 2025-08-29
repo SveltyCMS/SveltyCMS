@@ -42,7 +42,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
 
 // Config
-import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
+import { privateEnv } from '@root/config/private';
 
 // Types
 import type { ContentNode } from '@src/databases/dbInterface'; // Commented out unused import
@@ -295,7 +295,7 @@ class ContentManager {
 								throw new Error('Model creation failed');
 							} else {
 								// In multi-tenant mode, log tenant context for this collection
-								if (getPrivateSettingWithFallback('MULTI_TENANT', false) && tenantId) {
+								if (privateEnv.MULTI_TENANT && tenantId) {
 									logger.debug(`Collection ${schema.name} loaded for tenant ${tenantId}`);
 								}
 
@@ -361,7 +361,7 @@ class ContentManager {
 			}
 
 			// In multi-tenant mode, ensure tenantId is provided
-			if (getPrivateSettingWithFallback('MULTI_TENANT', false) && !tenantId) {
+			if (privateEnv.MULTI_TENANT && !tenantId) {
 				logger.error('TenantId is required in multi-tenant mode');
 				return null;
 			}
@@ -375,7 +375,7 @@ class ContentManager {
 			// In multi-tenant mode, verify collection belongs to the tenant
 			// This would typically involve checking collection metadata or database records
 			// For now, we log the tenant context for proper multi-tenant implementation
-			if (getPrivateSettingWithFallback('MULTI_TENANT', false) && tenantId) {
+			if (privateEnv.MULTI_TENANT && tenantId) {
 				logger.debug(`Accessing collection ${id} for tenant ${tenantId}`);
 				// TODO: Implement actual tenant validation logic here
 				// This could involve checking collection.tenantId or querying database

@@ -10,7 +10,7 @@
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000;
 
-import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
+import { privateEnv } from '@root/config/private';
 import { config } from '@src/lib/config.server';
 
 import mongoose from 'mongoose';
@@ -91,18 +91,21 @@ export async function connectToMongoDBWithConfig(dbConfig: {
  * Connect to the MongoDB database with retry logic.
  */
 export async function connectToMongoDB(): Promise<void> {
-	// Check if we're in setup mode first
-	if (config.isSetupMode()) {
-		logger.info('Skipping MongoDB connection: Running in setup mode.');
+	// Check if we're in setup mode by checking database credentials directly
+	const dbHost = privateEnv.DB_HOST;
+	const dbUser = privateEnv.DB_USER;
+	const dbPassword = privateEnv.DB_PASSWORD;
+
+	// If database host is not configured, we're in setup mode
+	if (!dbHost || String(dbHost).trim().length === 0) {
+		logger.info('Skipping MongoDB connection: DB_HOST not configured (setup mode).');
 		throw new Error('SETUP_MODE_DB_HOST_MISSING');
 	}
 
-	const dbHost = getPrivateSettingWithFallback('DB_HOST', '');
-	const dbPort = getPrivateSettingWithFallback('DB_PORT', 27017);
-	const dbName = getPrivateSettingWithFallback('DB_NAME', '');
-	const dbUser = getPrivateSettingWithFallback('DB_USER', '');
-	const dbPassword = getPrivateSettingWithFallback('DB_PASSWORD', '');
-	const dbPoolSize = getPrivateSettingWithFallback('DB_POOL_SIZE', 5);
+	// Get database credentials from private config file (NOT from database)
+	const dbPort = privateEnv.DB_PORT;
+	const dbName = privateEnv.DB_NAME;
+	const dbPoolSize = privateEnv.DB_POOL_SIZE || 5;
 
 	// Check if database configuration is complete
 	if (!dbHost || String(dbHost).trim().length === 0) {

@@ -40,7 +40,7 @@ export class ConfigService {
 		if (this.initialized) return;
 
 		try {
-			// Check if we're in setup mode (no environment variables yet)
+			// Check if we're in setup mode (missing essential environment variables)
 			const isSetupMode = !essentialEnv.DB_HOST || !essentialEnv.JWT_SECRET_KEY || !essentialEnv.ENCRYPTION_KEY;
 
 			if (isSetupMode) {
@@ -52,8 +52,14 @@ export class ConfigService {
 			// Validate essential environment variables
 			validateEssentialEnv();
 
-			// Load settings from database
-			await loadSettings();
+			// Try to load settings from database
+			try {
+				await loadSettings();
+				this.setupMode = false;
+			} catch (dbError) {
+				console.warn('Failed to load settings from database, using setup mode:', dbError);
+				this.setupMode = true;
+			}
 
 			this.initialized = true;
 			this.setupMode = false;

@@ -44,7 +44,6 @@
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
 
 	// Define user data and state variables - make it reactive to page data changes
 	const user = $derived(page.data.user);
@@ -89,7 +88,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...(getGlobalSetting('LOCALES') as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(page.data?.settings?.LOCALES || ['en'])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -206,7 +205,7 @@
 	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
+			<span class="text-token relative text-2xl font-bold"><SiteName siteName={page.data?.settings?.SITE_NAME} /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->

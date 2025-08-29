@@ -42,17 +42,12 @@ const setupModeDefaults: Partial<PublicSettings> & Record<string, unknown> = {
 	REDIS_PASSWORD: '',
 
 	// Database Configuration (from config/private.ts)
-	DB_TYPE: 'mongodb',
-	DB_HOST: 'mongodb+srv://cluster0.4aydgs4.mongodb.net',
-	DB_PORT: 27017,
-	DB_NAME: 'SveltyCMS',
-	DB_USER: 'madsaaeq',
-	DB_PASSWORD: 'kEGkk1I9lfr3Hm2Z',
-	DB_POOL_SIZE: 5,
+	// NOTE: These should NEVER be stored in database - only in private config file
+	// DB_TYPE, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD are handled separately
 
 	// Security Keys (from config/private.ts)
-	JWT_SECRET_KEY: '95dae4b9f9c0c26f33f7890ed5848fb14c52abea700cdd04cd430ad730f454f2',
-	ENCRYPTION_KEY: '21a3a0285e7d3ee5c3670baed82f94b8e6d7ce6b29fc1216bd3d318007f61b72',
+	// NOTE: These should NEVER be stored in database - only in private config file
+	// JWT_SECRET_KEY, ENCRYPTION_KEY are handled separately
 
 	// Multi-tenancy
 	MULTI_TENANT: false

@@ -14,7 +14,7 @@
  */
 
 import { building } from '$app/environment';
-import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
+import { privateEnv } from '@root/config/private';
 
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import type { User } from '@src/auth/types';
@@ -50,7 +50,7 @@ const refreshLimiter = new RateLimiter({
 	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'refreshlimit',
-		secret: getPrivateSettingWithFallback('JWT_SECRET_KEY', 'default-secret-key') as string,
+		secret: privateEnv.JWT_SECRET_KEY,
 		rate: [10, 'm'], // 10 requests per minute per cookie
 		preflight: true
 	}

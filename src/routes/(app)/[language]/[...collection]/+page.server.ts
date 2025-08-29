@@ -7,6 +7,7 @@
  */
 
 import { getPublicSettingWithFallback } from '@src/utils/configMigration';
+import { config } from '@src/lib/config.server';
 
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -86,10 +87,19 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, message);
 	}
 
+	// Get site name from config service
+	let siteName = 'SveltyCMS';
+	try {
+		siteName = (await config.getPublic('SITE_NAME')) || 'SveltyCMS';
+	} catch (error) {
+		logger.warn('Failed to load site name from config service, using default:', error);
+	}
+
 	// Return simplified data - hooks.server.ts already provided most of what we need
 	return {
 		theme: theme || DEFAULT_THEME,
 		contentLanguage: language,
+		siteName,
 		collection: {
 			module: currentCollection?.module,
 			name: currentCollection?.name,

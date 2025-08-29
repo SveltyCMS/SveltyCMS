@@ -33,7 +33,10 @@ export const privateConfigSchema = object({
 	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')), // Secret key for JWT
 
 	// --- Encryption Key (Essential for startup) ---
-	ENCRYPTION_KEY: pipe(string(), minLength(32, 'Encryption Key must be at least 32 characters long for security.')) // Encryption key for sensitive data
+	ENCRYPTION_KEY: pipe(string(), minLength(32, 'Encryption Key must be at least 32 characters long for security.')), // Encryption key for sensitive data
+
+	// --- Multi-tenancy (Essential for startup) ---
+	MULTI_TENANT: optional(boolean()) // Enable multi-tenant database support
 });
 
 /**

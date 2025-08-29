@@ -13,7 +13,7 @@
  */
 
 import { building } from '$app/environment';
-import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
+import { privateEnv } from '@root/config/private';
 import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
@@ -26,7 +26,7 @@ const limiter = new RateLimiter({
 	IPUA: [500, 'm'], // 500 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'ratelimit',
-		secret: getPrivateSettingWithFallback('JWT_SECRET_KEY', 'default-secret-key') as string,
+		secret: privateEnv.JWT_SECRET_KEY,
 		rate: [500, 'm'], // 500 requests per minute per cookie
 		preflight: true
 	}

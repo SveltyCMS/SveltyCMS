@@ -141,7 +141,7 @@
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
 		setModeCurrent(prefersDarkMode);
-		
+
 		// Set cookie for server-side persistence
 		document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 		document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
@@ -167,10 +167,10 @@
 			if (parts.length === 2) return parts.pop()?.split(';').shift();
 			return null;
 		};
-		
+
 		const savedTheme = getCookie('theme');
 		const savedDarkMode = getCookie('darkMode');
-		
+
 		if (savedTheme) {
 			const newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
@@ -246,7 +246,6 @@
 
 	// SEO
 	const siteName = $derived(data.settings?.SITE_NAME || 'SveltyCMS');
-	const SeoTitle = $derived(`${siteName}`);
 	const SeoDescription = $derived(
 		`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`
 	);
@@ -258,11 +257,10 @@
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
-	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />
 
 	<!-- Open Graph -->
-	<meta property="og:title" content={SeoTitle} />
+	<meta property="og:title" content={siteName} />
 	<meta property="og:description" content={SeoDescription} />
 	<meta property="og:type" content="website" />
 	<meta property="og:image" content="/SveltyCMS.png" />
@@ -272,7 +270,7 @@
 
 	<!-- Open Graph : Twitter-->
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={SeoTitle} />
+	<meta name="twitter:title" content={siteName} />
 	<meta name="twitter:description" content={SeoDescription} />
 	<meta name="twitter:image" content="/SveltyCMS.png" />
 	<meta property="twitter:domain" content={page.url.origin} />

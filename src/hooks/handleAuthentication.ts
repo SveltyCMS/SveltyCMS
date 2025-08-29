@@ -7,7 +7,7 @@
  * and attaches the database adapter for use in subsequent hooks and endpoints.
  */
 
-import { getPrivateSettingWithFallback } from '@src/utils/configMigration';
+import { privateEnv } from '@root/config/private';
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { error, type Handle } from '@sveltejs/kit';
@@ -23,7 +23,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	locals.dbAdapter = dbAdapter;
 
 	// Handle multi-tenancy if enabled.
-	if (getPrivateSettingWithFallback('MULTI_TENANT', false)) {
+	if (privateEnv.MULTI_TENANT) {
 		const tenantId = getTenantIdFromHostname(url.hostname);
 		if (!tenantId) {
 			throw error(404, `Tenant not found for hostname: ${url.hostname}`);

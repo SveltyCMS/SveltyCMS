@@ -11,38 +11,25 @@
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { page } from '$app/stores';
 
 	interface Props {
 		char?: string | null;
+		siteName?: string;
 	}
 
-	let { char = null }: Props = $props();
+	let { char = null, siteName: propSiteName }: Props = $props();
 
-	// Get site name directly from settings store
-	const siteName = $derived(getPublicSetting('SITE_NAME') || 'SveltyCMS');
-	const targetSiteName = 'SveltyCMS';
-
-	const mainPart = $derived(siteName === targetSiteName ? siteName.slice(0, -3) : siteName);
-	const lastPart = $derived(siteName === targetSiteName ? siteName.slice(-3) : '');
+	// Get site name from prop or fallback to page data or default
+	const siteName = $derived(propSiteName || page.data?.settings?.SITE_NAME || 'SveltyCMS');
 </script>
 
 {#if char !== null}
 	<span class="text-left font-bold">
-		{#if siteName === targetSiteName && mainPart.includes(char)}
-			{char}
-		{:else if siteName === targetSiteName && lastPart.includes(char)}
-			<span class="text-primary-500">{char}</span>
-		{:else}
-			{char}
-		{/if}
+		{char}
 	</span>
 {:else}
 	<span class="text-left font-bold">
-		{#if siteName === targetSiteName}
-			{mainPart}<span class="text-primary-500">{lastPart}</span>
-		{:else}
-			{siteName}
-		{/if}
+		{siteName}
 	</span>
 {/if}
