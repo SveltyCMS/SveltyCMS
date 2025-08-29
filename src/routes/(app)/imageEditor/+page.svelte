@@ -42,14 +42,16 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	const storeState = $derived(imageEditorStore.state);
 
 	// Use reactive statements for better type inference with explicit type assertions
-	let stage: Konva.Stage | null = $state(null);
-	let layer: Konva.Layer | null = $state(null);
-	let imageNode: Konva.Image | null = $state(null);
+	let stage = $derived(storeState.stage);
+	let layer = $derived(storeState.layer);
+	let imageNode = $derived(storeState.imageNode);
+	let imageGroup = $derived(storeState.imageGroup);
 
 	$effect(() => {
 		stage = storeState.stage as Konva.Stage | null;
 		layer = storeState.layer as Konva.Layer | null;
 		imageNode = storeState.imageNode as Konva.Image | null;
+		imageGroup = storeState.imageGroup as Konva.Group | null;
 	});
 
 	onMount(() => {
@@ -69,26 +71,23 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	});
 
 	function handleResize() {
-		const { stage, imageNode } = imageEditorStore.state;
-		if (!stage || !imageNode || !originalImage || !containerRef) return;
+		const { stage, imageNode, imageGroup } = imageEditorStore.state;
+		if (!stage || !imageNode || !imageGroup || !originalImage || !containerRef) return;
 
-		// Update stage dimensions
 		stage.width(containerRef.offsetWidth);
 		stage.height(containerRef.offsetHeight);
 
-		// Recalculate image size and position
 		const containerWidth = Math.max(1, containerRef.offsetWidth);
 		const containerHeight = Math.max(1, containerRef.offsetHeight);
 		const scale = Math.min(containerWidth / originalImage.width, containerHeight / originalImage.height);
-
-		// Update image size while maintaining aspect ratio
-		imageNode.width(Math.max(1, originalImage.width * scale));
-		imageNode.height(Math.max(1, originalImage.height * scale));
-
-		// Center the image
-		imageNode.x((containerWidth - imageNode.width()) / 2);
-		imageNode.y((containerHeight - imageNode.height()) / 2);
-
+		const newW = Math.max(1, originalImage.width * scale);
+		const newH = Math.max(1, originalImage.height * scale);
+		imageNode.width(newW);
+		imageNode.height(newH);
+		// Keep image centered relative to group origin (0,0)
+		imageNode.position({ x: -newW / 2, y: -newH / 2 });
+		// Keep group centered in stage
+		imageGroup.position({ x: stage.width() / 2, y: stage.height() / 2 });
 		imageEditorStore.state.layer?.batchDraw();
 	}
 
@@ -142,21 +141,27 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		const layer = new Konva.Layer();
 		stage.add(layer);
 
+		// Wrap image in group with image centered at group origin for stable rotation
+		const group = new Konva.Group({ name: 'imageGroup' });
+		layer.add(group);
+		const imgW = Math.max(1, img.width * scale);
+		const imgH = Math.max(1, img.height * scale);
 		const imageNode = new Konva.Image({
 			image: img,
-			x: (stageWidth - img.width * scale) / 2,
-			y: (stageHeight - img.height * scale) / 2,
-			width: Math.max(1, img.width * scale),
-			height: Math.max(1, img.height * scale)
+			x: -imgW / 2,
+			y: -imgH / 2,
+			width: imgW,
+			height: imgH
 		});
-
-		layer.add(imageNode);
+		group.add(imageNode);
+		group.position({ x: stageWidth / 2, y: stageHeight / 2 });
 		layer.draw();
 
 		// Update store with Konva objects
 		imageEditorStore.setStage(stage);
 		imageEditorStore.setLayer(layer);
 		imageEditorStore.setImageNode(imageNode);
+		imageEditorStore.setImageGroup(group);
 
 		saveState();
 	}
@@ -166,9 +171,12 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	}
 
 	function handleRotate(angle: number) {
-		const { imageNode, layer } = imageEditorStore.state;
-		imageNode?.rotation(angle);
-		layer?.batchDraw();
+		const { imageGroup, layer } = imageEditorStore.state;
+		if (imageGroup) {
+			const normalized = ((angle % 360) + 360) % 360;
+			imageGroup.rotation(normalized);
+			layer?.batchDraw();
+		}
 	}
 
 	function handleCrop(data: { x: number; y: number; width: number; height: number; shape: string }) {
@@ -214,40 +222,90 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	// Fix for undo/redo functionality
 	function saveState() {
-		const { stage } = imageEditorStore.state;
-		if (!stage) return;
+		const { stage, imageGroup, imageNode } = imageEditorStore.state;
+		if (!stage || !imageNode) return;
 		try {
-			const state = stage.toDataURL();
-			imageEditorStore.saveStateHistory(state);
+			// Store both visual snapshot AND original image properties for quality preservation
+			const dataURL = stage.toDataURL();
+			const snapshot = {
+				dataURL,
+				group: imageGroup
+					? {
+							rotation: imageGroup.rotation(),
+							x: imageGroup.x(),
+							y: imageGroup.y(),
+							scaleX: imageGroup.scaleX(),
+							scaleY: imageGroup.scaleY()
+						}
+					: undefined,
+				// Preserve original image dimensions and source for lossless restoration
+				imageProps: {
+					width: imageNode.width(),
+					height: imageNode.height(),
+					x: imageNode.x(),
+					y: imageNode.y(),
+					// Store reference to original image to avoid compression
+					originalImageSrc: originalImage ? originalImage.src : selectedImage
+				}
+			};
+			imageEditorStore.saveStateHistory(snapshot);
 		} catch (e) {
 			console.error('Failed saving editor state snapshot', e);
 		}
 	}
 
 	function handleUndo() {
-		const stateData = imageEditorStore.undoState();
-		if (stateData) {
-			loadState(stateData);
-		}
+		const snap = imageEditorStore.undoState();
+		if (snap) loadState(snap);
 	}
 
 	function handleRedo() {
-		const stateData = imageEditorStore.redoState();
-		if (stateData) {
-			loadState(stateData);
-		}
+		const snap = imageEditorStore.redoState();
+		if (snap) loadState(snap);
 	}
 
-	function loadState(state: string) {
-		const img = new window.Image();
-		img.onload = () => {
-			const { imageNode, layer } = imageEditorStore.state;
-			if (imageNode) {
-				imageNode.image(img);
-				layer?.draw();
+	function loadState(snapshot: {
+		dataURL: string;
+		group?: { rotation: number; x: number; y: number; scaleX: number; scaleY: number };
+		imageProps?: { width: number; height: number; x: number; y: number; originalImageSrc: string };
+	}) {
+		const { imageNode, layer, imageGroup } = imageEditorStore.state;
+
+		// If we have original image properties, restore using the original image for better quality
+		if (snapshot.imageProps && originalImage && imageNode) {
+			// Use original image to avoid compression artifacts
+			imageNode.image(originalImage);
+			imageNode.setAttrs({
+				width: snapshot.imageProps.width,
+				height: snapshot.imageProps.height,
+				x: snapshot.imageProps.x,
+				y: snapshot.imageProps.y
+			});
+
+			// Restore group transforms
+			if (snapshot.group && imageGroup) {
+				imageGroup.rotation(snapshot.group.rotation);
+				imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
+				imageGroup.scale({ x: snapshot.group.scaleX, y: snapshot.group.scaleY });
 			}
-		};
-		img.src = state;
+
+			layer?.draw();
+		} else {
+			// Fallback to dataURL method for older snapshots
+			const img = new window.Image();
+			img.onload = () => {
+				if (imageNode) {
+					imageNode.image(img);
+				}
+				if (snapshot.group && imageGroup) {
+					imageGroup.rotation(snapshot.group.rotation);
+					imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
+					imageGroup.scale({ x: snapshot.group.scaleX, y: snapshot.group.scaleY });
+				}
+				layer?.draw();
+			};
+			img.src = snapshot.dataURL;
+		}
 	}
 
 	function handleImageUpload(event: Event) {
@@ -283,9 +341,12 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	function toggleTool(tool: string) {
 		const currentState = imageEditorStore.state.activeState;
+		// Cleanup any temporary nodes left by previous tool before switching
+		if (currentState && currentState !== tool) {
+			imageEditorStore.cleanupTempNodes();
+		}
 		const newState = currentState === tool ? '' : tool;
 		imageEditorStore.setActiveState(newState);
-		// UI updates handled by component state
 	}
 </script>
 
@@ -339,6 +400,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 				{stage}
 				{layer}
 				{imageNode}
+				imageGroup={storeState.imageGroup}
 				onRotate={handleRotate}
 				onRotateApplied={() => {
 					imageEditorStore.setActiveState('');

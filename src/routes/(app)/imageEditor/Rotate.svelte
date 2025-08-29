@@ -11,25 +11,31 @@
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
+		// Optional group wrapper if present (preferred for unified transforms)
+		imageGroup?: Konva.Group;
 		onRotate?: (angle: number) => void;
 		onRotateApplied?: () => void;
 		onRotateCancelled?: () => void;
 		onRotateReset?: () => void;
 	}
 
-	const { stage, layer, imageNode, onRotate, onRotateApplied, onRotateCancelled, onRotateReset } = $props() as Props;
+	const { stage, layer, imageNode, imageGroup, onRotate, onRotateApplied, onRotateCancelled, onRotateReset } = $props() as Props;
 
 	let rotationAngle = $state(0);
+	let initialAngle = 0;
 	let gridLayer = $state<Konva.Layer | null>(null);
 
 	// Initialize grid layer
 	$effect.root(() => {
 		createGridLayer();
+		initialAngle = imageGroup ? imageGroup.rotation() : imageNode.rotation();
+		rotationAngle = initialAngle; // Set the slider to current rotation
 		return () => {
 			if (gridLayer) {
 				gridLayer.destroy();
@@ -39,6 +45,7 @@
 
 	function createGridLayer() {
 		gridLayer = new Konva.Layer();
+		imageEditorStore.registerTempNodes(gridLayer);
 
 		const lineColor = 'rgba(211, 211, 211, 0.7)'; // Light gray color with some transparency
 
@@ -72,14 +79,7 @@
 		gridLayer.hide();
 	}
 
-	function centerRotationPoint() {
-		const imageWidth = imageNode.width();
-		const imageHeight = imageNode.height();
-		imageNode.offsetX(imageWidth / 2);
-		imageNode.offsetY(imageHeight / 2);
-		imageNode.x(stage.width() / 2);
-		imageNode.y(stage.height() / 2);
-	}
+	// Group is already centered; no dynamic recenter needed per rotate now
 
 	function rotateLeft() {
 		rotationAngle = (rotationAngle - 90) % 360;
@@ -96,8 +96,9 @@
 	}
 
 	function rotateImage() {
-		centerRotationPoint();
-		imageNode.rotation(rotationAngle);
+		// Normalize to keep angle tidy
+		rotationAngle = ((rotationAngle % 360) + 360) % 360;
+		(imageGroup ?? imageNode).rotation(rotationAngle);
 		layer.batchDraw();
 		gridLayer?.show();
 		gridLayer?.batchDraw();
@@ -111,12 +112,15 @@
 	}
 
 	function exitRotation() {
+		// Restore angle
+		(imageGroup ?? imageNode).rotation(initialAngle);
+		layer.batchDraw();
 		onRotateCancelled?.();
 	}
 
 	function resetRotation() {
 		rotationAngle = 0;
-		imageNode.rotation(0);
+		(imageGroup ?? imageNode).rotation(0);
 		gridLayer?.hide();
 		layer.batchDraw();
 		onRotateReset?.();

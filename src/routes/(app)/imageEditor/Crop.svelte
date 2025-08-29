@@ -13,6 +13,7 @@
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
@@ -57,6 +58,7 @@
 		});
 
 		layer.add(cropOverlay);
+		imageEditorStore.registerTempNodes(cropOverlay);
 
 		// Initialize the crop tool
 		if (cropShape === 'circular') {
@@ -83,6 +85,7 @@
 		}
 
 		layer.add(cropTool);
+		imageEditorStore.registerTempNodes(cropTool);
 
 		// Configure the transformer tool
 		transformer = new Konva.Transformer({
@@ -102,6 +105,7 @@
 		});
 
 		layer.add(transformer);
+		imageEditorStore.registerTempNodes(transformer);
 
 		cropTool.on('transform', () => {
 			if (cropTool instanceof Konva.Circle) {
