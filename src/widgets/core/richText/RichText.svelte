@@ -479,7 +479,6 @@
 							class="w-14 rounded border border-transparent bg-white/90 px-1 text-center text-sm text-black outline-none focus:border-primary-400 dark:bg-surface-600 dark:text-white"
 							bind:value={fontSize}
 							aria-label="Font size"
-							role="spinbutton"
 							aria-valuenow={fontSize}
 							aria-valuemin="8"
 							aria-valuemax="72"
@@ -653,11 +652,6 @@
 			22px 22px,
 			22px 22px;
 		background-position: -1px -1px;
-	}
-
-	.dark .tiptap-editor {
-		background-image:
-			linear-gradient(theme('colors.surface.600') 1px, transparent 1px), linear-gradient(90deg, theme('colors.surface.600') 1px, transparent 1px);
 	}
 
 	/* Placeholder */

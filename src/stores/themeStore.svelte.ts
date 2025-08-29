@@ -10,7 +10,6 @@
  * - TypeScript support with custom Theme type
  */
 
-import { dbAdapter } from '@src/databases/db';
 import type { Theme } from '@src/databases/dbInterface';
 import { store } from '@utils/reactivity.svelte';
 
@@ -61,12 +60,16 @@ function createThemeStores() {
 	const darkMode = store(state().darkMode);
 	const error = store(state().error);
 
-	// Initialize theme from database
+	// Initialize theme from API
 	async function initialize() {
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
-			const theme = await dbAdapter?.getDefaultTheme();
+			const response = await fetch('/api/theme/default');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch theme: ${response.statusText}`);
+			}
+			const theme = await response.json();
 			state.update((s) => ({
 				...s,
 				currentTheme: theme ?? null,
@@ -108,8 +111,18 @@ function createThemeStores() {
 						}
 					: newTheme;
 
-			// Update the theme in the database
-			await dbAdapter?.setDefaultTheme(themeToUpdate.name);
+			// Update the theme via API
+			const response = await fetch('/api/theme/update-theme', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ themeName: themeToUpdate.name })
+			});
+
+			if (!response.ok) {
+				throw new Error(`Failed to update theme: ${response.statusText}`);
+			}
 
 			// Update the local state
 			state.update((s) => ({

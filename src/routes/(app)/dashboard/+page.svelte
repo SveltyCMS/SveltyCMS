@@ -496,7 +496,7 @@
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm">
+				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm" aria-label="Close import/export modal">
 					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
 				</button>
 			</div>

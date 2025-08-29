@@ -10,8 +10,6 @@
  * All other configuration is stored in the database and accessed via config.server.ts
  */
 
-import { PRIVATE_ENV } from '$env/dynamic/private';
-import { PRIVATE_STATIC_ENV } from '$env/static/private';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
@@ -85,19 +83,19 @@ export function getEssentialEnv() {
 
 	return {
 		// Database credentials (required for initial connection)
-		// Priority: config/private.ts > .env files > SvelteKit env vars > defaults
-		DB_TYPE: configEnv.DB_TYPE || PRIVATE_ENV?.DB_TYPE || PRIVATE_STATIC_ENV?.DB_TYPE || fileEnv.DB_TYPE || 'mongodb',
-		DB_HOST: configEnv.DB_HOST || PRIVATE_ENV?.DB_HOST || PRIVATE_STATIC_ENV?.DB_HOST || fileEnv.DB_HOST || '',
-		DB_PORT: parseInt(configEnv.DB_PORT || PRIVATE_ENV?.DB_PORT || PRIVATE_STATIC_ENV?.DB_PORT || fileEnv.DB_PORT || '27017'),
-		DB_NAME: configEnv.DB_NAME || PRIVATE_ENV?.DB_NAME || PRIVATE_STATIC_ENV?.DB_NAME || fileEnv.DB_NAME || '',
-		DB_USER: configEnv.DB_USER || PRIVATE_ENV?.DB_USER || PRIVATE_STATIC_ENV?.DB_USER || fileEnv.DB_USER || '',
-		DB_PASSWORD: configEnv.DB_PASSWORD || PRIVATE_ENV?.DB_PASSWORD || PRIVATE_STATIC_ENV?.DB_PASSWORD || fileEnv.DB_PASSWORD || '',
+		// Priority: config/private.ts > .env files > defaults
+		DB_TYPE: configEnv.DB_TYPE || fileEnv.DB_TYPE || 'mongodb',
+		DB_HOST: configEnv.DB_HOST || fileEnv.DB_HOST || '',
+		DB_PORT: parseInt(configEnv.DB_PORT || fileEnv.DB_PORT || '27017'),
+		DB_NAME: configEnv.DB_NAME || fileEnv.DB_NAME || '',
+		DB_USER: configEnv.DB_USER || fileEnv.DB_USER || '',
+		DB_PASSWORD: configEnv.DB_PASSWORD || fileEnv.DB_PASSWORD || '',
 
 		// JWT configuration (required for authentication)
-		JWT_SECRET_KEY: configEnv.JWT_SECRET_KEY || PRIVATE_ENV?.JWT_SECRET_KEY || PRIVATE_STATIC_ENV?.JWT_SECRET_KEY || fileEnv.JWT_SECRET_KEY || '',
+		JWT_SECRET_KEY: configEnv.JWT_SECRET_KEY || fileEnv.JWT_SECRET_KEY || '',
 
 		// Encryption key (required for data security)
-		ENCRYPTION_KEY: configEnv.ENCRYPTION_KEY || PRIVATE_ENV?.ENCRYPTION_KEY || PRIVATE_STATIC_ENV?.ENCRYPTION_KEY || fileEnv.ENCRYPTION_KEY || ''
+		ENCRYPTION_KEY: configEnv.ENCRYPTION_KEY || fileEnv.ENCRYPTION_KEY || ''
 	} as const;
 }
 

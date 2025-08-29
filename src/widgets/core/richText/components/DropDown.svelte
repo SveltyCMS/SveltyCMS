@@ -21,7 +21,7 @@
 	let dropdownRef = $state<HTMLDivElement>();
 	let buttonRef = $state<HTMLButtonElement>();
 	let dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
-	let listboxId = $state(`${dropdownId}-menu`);
+	let listboxId = $derived(`${dropdownId}-menu`);
 	let focusedIndex = $state(-1); // roving focus index when expanded
 	let itemRefs: Array<HTMLButtonElement | null> = [];
 	let _refresh = $state(0); // force re-render when selection changes
@@ -153,6 +153,7 @@
 			id={listboxId}
 			class="absolute z-20 mt-1 w-fit min-w-full overflow-auto rounded-md border border-surface-400/30 bg-surface-50/95 shadow-lg backdrop-blur-sm focus:outline-none dark:border-surface-300/20 dark:bg-surface-800/90"
 			role="menu"
+			tabindex="-1"
 			aria-labelledby={`${dropdownId}-button`}
 			onkeydown={(e) => {
 				if (e.key === 'Escape') {
@@ -193,7 +194,6 @@
 					class:active={item.active && item.active()}
 					role="menuitem"
 					tabindex={i === focusedIndex ? 0 : -1}
-					aria-checked={item.active ? item.active() : undefined}
 					aria-current={item.active && item.active() ? 'true' : undefined}
 				>
 					{#if item.active && item.active()}

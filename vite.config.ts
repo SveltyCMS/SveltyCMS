@@ -286,6 +286,17 @@ export default defineConfig(async () => {
 			minify: 'esbuild',
 			sourcemap: true,
 			rollupOptions: {
+				onwarn(warning, warn) {
+					// Suppress circular dependency warnings from third-party packages
+					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('zod-to-json-schema')) {
+						return;
+					}
+					// Suppress other non-critical warnings
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
+						return;
+					}
+					warn(warning);
+				},
 				external: [
 					...builtinModules,
 					...builtinModules.map((m) => `node:${m}`),
@@ -294,7 +305,28 @@ export default defineConfig(async () => {
 					'ts-loader',
 					'@typescript-eslint/parser',
 					'@typescript-eslint/eslint-plugin'
-				]
+				],
+				output: {
+					manualChunks: (id) => {
+						// Split large dependencies into separate chunks
+						if (id.includes('node_modules')) {
+							if (id.includes('@skeletonlabs/skeleton')) {
+								return 'skeleton-ui';
+							}
+							if (id.includes('tiptap') || id.includes('@tiptap')) {
+								return 'tiptap-editor';
+							}
+							if (id.includes('mongodb') || id.includes('mongoose')) {
+								return 'database';
+							}
+							if (id.includes('lodash') || id.includes('date-fns')) {
+								return 'utils';
+							}
+							// Group other node_modules into vendor chunk
+							return 'vendor';
+						}
+					}
+				}
 			}
 		},
 
@@ -325,7 +357,8 @@ export default defineConfig(async () => {
 			global: 'globalThis'
 		},
 		optimizeDeps: {
-			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)]
+			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
+			include: ['svelte', '@sveltejs/kit', '@skeletonlabs/skeleton']
 		}
 	};
 });
