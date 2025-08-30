@@ -1,16 +1,18 @@
 /**
- * @file src/databases/seedSettings.ts
- * @description Seeds the database with default system settings.
+ * @file src/routes/api/setup/seed.ts
+ * @description Seeds the database with default system settings
+ *
  * This replaces the static configuration files with database-driven settings.
  */
 
 import type { SystemPreferences } from '@src/databases/dbInterface';
 import { SystemPreferencesModel } from '@src/databases/mongodb/models/systemPreferences';
 
-/**
- * Default public settings that were previously in config/public.ts
- */
-const defaultPublicSettings: Array<{ key: string; value: any; description?: string }> = [
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+// Default public settings that were previously in config/public.ts
+const defaultPublicSettings: Array<{ key: string; value: unknown; description?: string }> = [
 	// Host configuration
 	{ key: 'HOST_DEV', value: 'http://localhost:5173', description: 'Development server URL' },
 	{ key: 'HOST_PROD', value: 'https://yourdomain.com', description: 'Production server URL' },
@@ -21,12 +23,12 @@ const defaultPublicSettings: Array<{ key: string; value: any; description?: stri
 
 	// Language Configuration
 	{ key: 'DEFAULT_CONTENT_LANGUAGE', value: 'en', description: 'Default language for content' },
-	{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: ['en'], description: 'List of available content languages' },
+	{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: ['en', 'de'], description: 'List of available content languages' },
 	{ key: 'BASE_LOCALE', value: 'en', description: 'Default/base locale for the CMS interface' },
 	{ key: 'LOCALES', value: ['en'], description: 'List of available interface locales' },
 
 	// Media configuration
-	{ key: 'MEDIA_FOLDER', value: './static/media', description: 'Server path where media files are stored' },
+	{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Server path where media files are stored' },
 	{ key: 'MEDIA_OUTPUT_FORMAT_QUALITY', value: { format: 'webp', quality: 80 }, description: 'Image format and quality settings' },
 	{ key: 'IMAGE_SIZES', value: { sm: 600, md: 900, lg: 1200 }, description: 'Image sizes for automatic resizing' },
 	{ key: 'MAX_FILE_SIZE', value: 10485760, description: 'Maximum file size for uploads in bytes (10MB)' },
@@ -53,7 +55,7 @@ const defaultPublicSettings: Array<{ key: string; value: any; description?: stri
  * Default private settings that were previously in config/private.ts
  * Note: Sensitive settings like API keys should be set via GUI or CLI
  */
-const defaultPrivateSettings: Array<{ key: string; value: any; description?: string }> = [
+const defaultPrivateSettings: Array<{ key: string; value: unknown; description?: string }> = [
 	// SMTP config
 	{ key: 'SMTP_HOST', value: '', description: 'SMTP server host for sending emails' },
 	{ key: 'SMTP_PORT', value: 587, description: 'SMTP server port' },
@@ -100,8 +102,8 @@ const defaultPrivateSettings: Array<{ key: string; value: any; description?: str
  * Seeds the database with default settings.
  * This should be called during initial setup or when resetting to defaults.
  */
-export async function seedDefaultSettings(): Promise<void> {
-	console.log('🌱 Seeding default settings...');
+export async function seedSettings(): Promise<void> {
+	logger.info('🌱 Seeding default settings...');
 
 	const allSettings = [...defaultPublicSettings, ...defaultPrivateSettings];
 
@@ -123,21 +125,27 @@ export async function seedDefaultSettings(): Promise<void> {
 			// Use upsert to avoid duplicates
 			await SystemPreferencesModel.updateOne({ key: setting.key, scope: 'system' }, { $set: systemPreference }, { upsert: true });
 		} catch (error) {
-			console.error(`Failed to seed setting ${setting.key}:`, error);
+			logger.error(`Failed to seed setting ${setting.key}:`, error);
 		}
 	}
 
-	console.log(`✅ Seeded ${allSettings.length} default settings`);
+	logger.info(`✅ Seeded ${allSettings.length} default settings`);
 }
 
 /**
  * Exports all current settings to a JSON file.
  * This creates a settings snapshot for project templates.
  */
-export async function exportSettingsSnapshot(): Promise<Record<string, any>> {
+type SettingsSnapshot = {
+	version: string;
+	exportedAt: string;
+	settings: Record<string, { value: unknown; visibility: string; description: string }>;
+};
+
+export async function exportSettingsSnapshot(): Promise<SettingsSnapshot> {
 	const settings = await SystemPreferencesModel.find({ scope: 'system' }).lean().exec();
 
-	const snapshot: Record<string, any> = {
+	const snapshot: SettingsSnapshot = {
 		version: '1.0.0',
 		exportedAt: new Date().toISOString(),
 		settings: {}
@@ -158,12 +166,12 @@ export async function exportSettingsSnapshot(): Promise<Record<string, any>> {
  * Imports settings from a snapshot file.
  * This allows restoring settings from a project template.
  */
-export async function importSettingsSnapshot(snapshot: Record<string, any>): Promise<void> {
+export async function importSettingsSnapshot(snapshot: Record<string, unknown>): Promise<void> {
 	if (!snapshot.settings) {
 		throw new Error('Invalid settings snapshot format');
 	}
 
-	console.log('📥 Importing settings snapshot...');
+	logger.info('📥 Importing settings snapshot...');
 
 	for (const [key, settingData] of Object.entries(snapshot.settings)) {
 		const systemPreference: Partial<SystemPreferences> = {
@@ -179,9 +187,9 @@ export async function importSettingsSnapshot(snapshot: Record<string, any>): Pro
 		try {
 			await SystemPreferencesModel.updateOne({ key, scope: 'system' }, { $set: systemPreference }, { upsert: true });
 		} catch (error) {
-			console.error(`Failed to import setting ${key}:`, error);
+			logger.error(`Failed to import setting ${key}:`, error);
 		}
 	}
 
-	console.log('✅ Settings snapshot imported successfully');
+	logger.info('✅ Settings snapshot imported successfully');
 }

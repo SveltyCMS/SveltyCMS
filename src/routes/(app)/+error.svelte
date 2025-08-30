@@ -13,19 +13,17 @@
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 
 	// Stores
 	import { page } from '$app/state';
 	import type { Load } from '@sveltejs/kit';
-
 	// Components
-	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
-
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	import { contentLanguage } from '@root/src/stores/store.svelte';
+	import * as m from '@src/paraglide/messages';
 
 	const speed = 100;
 	const size = 140;
@@ -33,7 +31,7 @@
 	const repeat = 3;
 	const separator = ' • ';
 
-	const siteName = getPublicSetting('SITE_NAME') || 'SveltyCMS';
+	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
 
 	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
 
@@ -42,7 +40,7 @@
 	// Set the error data and SEO information that will be used by the layout
 	export const load: Load = () => {
 		return {
-			SeoTitle: `Error ${page.status} - ${getPublicSetting('SITE_NAME') || 'SveltyCMS'}`,
+			SeoTitle: `Error ${page.status} - ${publicEnv.SITE_NAME || 'SveltyCMS'}`,
 			SeoDescription: `An error occurred while trying to access this page. Status: ${page.status}. ${page.error?.message || m.error_pagenotfound()}`
 		};
 	};

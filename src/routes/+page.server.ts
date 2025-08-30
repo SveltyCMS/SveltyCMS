@@ -8,7 +8,7 @@
  * - Redirects to the first collection with the correct language
  * - Throws an error if there are no collections for the tenant
  */
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 import { privateEnv } from '@root/config/private';
 
 import { redirect, error } from '@sveltejs/kit';
@@ -61,7 +61,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 			if (firstCollection && firstCollection.path) {
 				const contentLanguageCookie = url.searchParams.get('contentLanguage');
 				const userLanguage = user?.systemLanguage;
-				const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+				const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 				// Ensure the collection path has a leading slash
 				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
 				redirectUrl = `/${redirectLanguage}${collectionPath}`;
@@ -75,7 +75,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 						const firstCollectionNode = sortedCollections[0];
 						const contentLanguageCookie = url.searchParams.get('contentLanguage');
 						const userLanguage = user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+						const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 						const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
 						redirectUrl = `/${redirectLanguage}${collectionPath}`;
 					}
@@ -89,7 +89,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 					.then(({ prefetchFirstCollectionData }) => {
 						const contentLanguageCookie = url.searchParams.get('contentLanguage');
 						const userLanguage = user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en';
+						const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 						prefetchFirstCollectionData(redirectLanguage, fetch).catch((err) => {
 							logger.debug('Prefetch failed during root redirect:', err);
 						});

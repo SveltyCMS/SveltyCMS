@@ -15,8 +15,8 @@
 
 <script lang="ts">
 	// Auth
-	import { roles as configRoles, initializeRoles } from '@root/config/roles';
 	import type { Role } from '@src/auth/types';
+	import { privateEnv } from '@src/stores/globalSettings';
 
 	let roles = $state<Role[]>([]);
 
@@ -26,7 +26,7 @@
 	// Initialize roles from global settings or DB
 
 	$effect(() => {
-		roles = getGlobalSetting('ROLES') || [];
+		roles = privateEnv.ROLES || [];
 	});
 
 	// Determine if the roles array is defined and has the required elements

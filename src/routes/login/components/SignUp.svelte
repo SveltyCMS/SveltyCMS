@@ -30,13 +30,12 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	// Lazy-load FloatingPaths for performance on desktop
-	let FloatingPathsComponent = $state<any>(null);
 	import SignupIcon from './icons/SignupIcon.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
 	// Props
@@ -426,7 +425,7 @@ Features:
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !getGlobalSetting<boolean>('USE_GOOGLE_OAUTH') || !showOAuth}
+					{#if !publicEnv.USE_GOOGLE_OAUTH || !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}

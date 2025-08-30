@@ -14,29 +14,20 @@
 
 import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
+import { publicEnv } from '@src/stores/globalSettings';
 
 import type { LayoutServerLoad } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { config } from '@src/lib/config.server';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const { theme, user } = locals;
 	// Get settings from database with error handling
-	let siteName = 'SveltyCMS';
-	let locales = ['en'];
-	let baseLocale = 'en';
-
-	try {
-		siteName = (await config.getPublic('SITE_NAME')) || 'SveltyCMS';
-		locales = (await config.getPublic('LOCALES')) || ['en'];
-		baseLocale = (await config.getPublic('BASE_LOCALE')) || 'en';
-	} catch (error) {
-		logger.warn('Failed to load settings from config service, using defaults:', error);
-		// Use default values if config service fails
-	}
+	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
+	const locales = publicEnv.LOCALES || ['en'];
+	const baseLocale = publicEnv.BASE_LOCALE || 'en';
 
 	try {
 		await contentManager.initialize();

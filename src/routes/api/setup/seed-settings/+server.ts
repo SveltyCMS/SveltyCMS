@@ -4,9 +4,9 @@
  * This is called during initial setup to populate the database with configuration values.
  */
 
-import { seedDefaultSettings } from '@src/databases/seedSettings';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { json } from '@sveltejs/kit';
+import { seedSettings } from '../seed';
 import type { RequestHandler } from './$types';
 
 // System Logger
@@ -17,7 +17,7 @@ export const POST: RequestHandler = async () => {
 		logger.info('🚀 Starting settings seeding process...');
 
 		// Seed the database with default settings
-		await seedDefaultSettings();
+		await seedSettings();
 
 		// Invalidate the settings cache to force a reload
 		invalidateSettingsCache();

@@ -23,26 +23,15 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Config
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 
 	// Stores
-	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { page } from '$app/state';
 	import { storeListboxValue } from '@stores/store.svelte';
-	import { page } from '$app/stores';
-
 	// Components
-	import ScheduleModal from './ScheduleModal.svelte';
-	import { showStatusChangeConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
-
+	import { showCloneModal, showScheduleModal, showStatusChangeConfirm } from '@utils/modalUtils';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-
-	// Initialize the modal store at the top level.
-	const modalStore = getModalStore();
 
 	// Access user data from page context
 	const user = $derived(page.data?.user);
@@ -184,7 +173,7 @@
 			};
 
 			// Handle delete/archive options based on configuration and user role
-			if (getPublicSetting('USE_ARCHIVE_ON_DELETE')) {
+			if (publicEnv.USE_ARCHIVE_ON_DELETE) {
 				// When archiving is enabled
 				if (isAdmin) {
 					// Admins see both archive and delete options

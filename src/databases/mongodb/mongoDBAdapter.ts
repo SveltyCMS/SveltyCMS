@@ -112,6 +112,57 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 	}
 
+	async disconnect(): Promise<DatabaseResult<void>> {
+		try {
+			await mongoose.disconnect();
+			logger.info('MongoDB connection closed');
+			return { success: true, data: undefined };
+		} catch (error) {
+			return {
+				success: false,
+				error: createDatabaseError(error, 'DISCONNECTION_ERROR', 'MongoDB disconnection failed')
+			};
+		}
+	}
+
+	isConnected(): boolean {
+		return mongoose.connection.readyState === 1;
+	}
+
+	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
+		try {
+			const start = Date.now();
+			await mongoose.connection.db.admin().ping();
+			const latency = Date.now() - start;
+			return {
+				success: true,
+				data: {
+					healthy: true,
+					latency,
+					activeConnections: mongoose.connections.length
+				}
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: createDatabaseError(error, 'HEALTH_CHECK_ERROR', 'Connection health check failed')
+			};
+		}
+	}
+
+	getCapabilities() {
+		return {
+			supportsTransactions: true,
+			supportsIndexing: true,
+			supportsFullTextSearch: true,
+			supportsAggregation: true,
+			supportsStreaming: false,
+			supportsPartitioning: false,
+			maxBatchSize: 1000,
+			maxQueryComplexity: 10
+		};
+	}
+
 	// Helper function to normalize collection names for UUID-based collections
 	private normalizeCollectionName(collection: string): string {
 		if (collection.startsWith('collection_')) {

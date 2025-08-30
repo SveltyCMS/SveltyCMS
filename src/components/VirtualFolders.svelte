@@ -27,17 +27,15 @@ Features:
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { showToast } from '@utils/toast';
 	import { goto } from '$app/navigation';
-
+	import { showToast } from '@utils/toast';
+	import { onMount } from 'svelte';
 	// Stores
-	import { get } from 'svelte/store';
-	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { publicEnv } from '@src/stores/globalSettings';
+	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { get } from 'svelte/store';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -54,7 +52,7 @@ Features:
 
 	// Determine if a folder is the root folder
 	export function isRootFolder(folder: { name: string; parent?: string | null }): boolean {
-		return folder.name === getGlobalSetting('MEDIA_FOLDER') && folder.parent === null;
+		return folder.name === publicEnv.MEDIA_FOLDER && folder.parent === null;
 	}
 
 	// Fetch virtual folders from the API

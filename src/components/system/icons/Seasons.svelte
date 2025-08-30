@@ -23,7 +23,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	import * as m from '@src/paraglide/messages';
 
 	// Settings helper
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 
 	// Utility function for date comparison
 	function isDateInRange(date: Date, start: Date, end: Date): boolean {
@@ -133,8 +133,8 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	const isNavratri = Math.abs(date.getTime() - navratri.getTime()) < 9 * 24 * 60 * 60 * 1000; // 9 days
 </script>
 
-{#if getGlobalSetting('SEASONS') === true}
-	{#if getGlobalSetting('SEASON_REGION') === 'Western_Europe'}
+{#if publicEnv.SEASONS === true}
+	{#if publicEnv.SEASON_REGION === 'Western_Europe'}
 		{#if isNewYear && date.getMonth() !== 11}
 			<!-- New Year -->
 			<div class="-translate-y-1/2> absolute -top-28 left-1/2 z-10 -translate-x-1/2">
@@ -200,7 +200,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 	{/if}
 
-	{#if getGlobalSetting('SEASON_REGION') === 'East_Asia'}
+	{#if publicEnv.SEASON_REGION === 'East_Asia'}
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
@@ -238,7 +238,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 	{/if}
 
-	{#if getGlobalSetting('SEASON_REGION') === 'South_Asia'}
+	{#if publicEnv.SEASON_REGION === 'South_Asia'}
 		{#if isDiwali}
 			<!-- Diwali -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">

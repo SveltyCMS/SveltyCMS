@@ -18,9 +18,10 @@ import { error } from '@sveltejs/kit';
 import type { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { Token } from './types';
+import { TokenModel } from '@src/databases/mongo';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 
 // System Logger
-import { getGlobalSetting } from '@src/stores/globalSettings';
 import { logger } from '@utils/logger.svelte';
 
 // Type for log additional info
@@ -56,7 +57,7 @@ export async function createNewToken(
 
 	try {
 		const query: { user_id: string; tenantId?: string } = { user_id };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if (publicEnv.MULTI_TENANT && tenantId) {
 			query.tenantId = tenantId;
 		} // Check if a token for this user_id already exists in the current tenant
 
@@ -72,7 +73,7 @@ export async function createNewToken(
 		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
 		const tokenData: Partial<Token> & { tenantId?: string } = { user_id, token, email, expires: expiresAt };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if (publicEnv.MULTI_TENANT && tenantId) {
 			tokenData.tenantId = tenantId;
 		}
 
@@ -98,7 +99,7 @@ export async function validateToken(
 
 	try {
 		const query: { user_id: string; token: string; tenantId?: string } = { user_id, token };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if (publicEnv.MULTI_TENANT && tenantId) {
 			query.tenantId = tenantId;
 		}
 		const result = await TokenModel.findOne(query);
@@ -133,7 +134,7 @@ export async function consumeToken(
 
 	try {
 		const query: { user_id: string; token: string; tenantId?: string } = { user_id, token };
-		if (getGlobalSetting('MULTI_TENANT') && tenantId) {
+		if (publicEnv.MULTI_TENANT && tenantId) {
 			query.tenantId = tenantId;
 		}
 		const result = await TokenModel.findOne(query);
@@ -157,5 +158,78 @@ export async function consumeToken(
 		const message = `Error in consumeToken: ${err instanceof Error ? err.message : String(err)}`;
 		log('error', message, { user_id, token, tenantId });
 		throw error(500, message);
+	}
+}
+
+/**
+ * Creates a new token for a user
+ * @param user_id
+ * @param tenantId
+ * @returns
+ */
+export async function createToken(user_id: string, tenantId?: string) {
+	const token = randomBytes(32).toString('hex');
+	const data: { user_id: string; token: string; tenantId?: string } = {
+		user_id,
+		token
+	};
+
+	if (publicEnv.MULTI_TENANT && tenantId) {
+		data.tenantId = tenantId;
+	}
+
+	await new TokenModel(data).save();
+	return token;
+}
+
+/**
+ * Validates a token
+ * @param user_id
+ * @param token
+ * @param tenantId
+ * @returns
+ */
+export async function validateToken(user_id: string, token: string, tenantId?: string) {
+	try {
+		const query: { user_id: string; token: string; tenantId?: string } = { user_id, token };
+		if (publicEnv.MULTI_TENANT && tenantId) {
+			query.tenantId = tenantId;
+		}
+		const result = await TokenModel.findOne(query);
+		if (result) {
+			const token_age = Date.now() - result.createdAt.getTime();
+			const token_expiration = privateEnv.PASSWORD_RESET_TIMEOUT;
+			if (token_age < token_expiration) {
+				return true;
+			}
+		}
+		return false;
+	} catch (err) {
+		console.log(err);
+		return false;
+	}
+}
+
+/**
+ * Consumes a token
+ * @param user_id
+ * @param token
+ * @param tenantId
+ * @returns
+ */
+export async function consumeToken(user_id: string, token: string, tenantId?: string) {
+	try {
+		const query: { user_id: string; token: string; tenantId?: string } = { user_id, token };
+		if (publicEnv.MULTI_TENANT && tenantId) {
+			query.tenantId = tenantId;
+		}
+		const result = await TokenModel.findOneAndDelete(query);
+		if (result) {
+			return true;
+		}
+		return false;
+	} catch (err) {
+		console.log(err);
+		return false;
 	}
 }

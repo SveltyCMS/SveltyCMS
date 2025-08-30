@@ -43,7 +43,7 @@ export const privateEnv = createPrivateConfig({
 	ENCRYPTION_KEY: '',
 
 	// Multi-tenancy
-	MULTI_TENANT: false
+	MULTI_TENANT: false,
 
 	// If you have any essential static private config, add here. Otherwise, leave empty.
 });
@@ -53,42 +53,24 @@ export const privateEnv = createPrivateConfig({
 export default defineConfig(async () => {
 	const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
-	// First-run guard: DB settings live in database; only bare-minimum private.ts for bootstrap
-	// Copies template if needed, opens setup wizard, exits early with minimal plugins
 	const useColor = process.stdout.isTTY && process.env.TERM && process.env.TERM !== 'dumb';
 	const LOG_PREFIX = useColor ? '\x1b[36m[SETUP]\x1b[0m' : '[SETUP]';
 
-	let isSetupComplete = false;
-	try {
-		const { checkSetup } = await import('./cli-installer/check-setup.js');
-		isSetupComplete = checkSetup();
-		console.log(`${LOG_PREFIX} Detected setup status: ${isSetupComplete ? 'complete' : 'incomplete'}`);
-	} catch (setupError) {
-		console.warn(`${LOG_PREFIX} Unable to determine setup status (will assume incomplete):`, (setupError as Error).message);
-		const rawUrl = 'http://localhost:5173/setup';
-		const coloredUrl = useColor ? `\x1b[34m${rawUrl}\x1b[0m` : rawUrl;
-		console.log(`${LOG_PREFIX} Visit ${coloredUrl} to complete initial configuration.`);
-	}
+	const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
 
-	if (!isSetupComplete) {
+	if (!existsSync(privateConfigPath)) {
 		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
 
-		const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
-
 		// Create private config file if it doesn't exist
-		if (!existsSync(privateConfigPath)) {
-			const fs = await import('fs/promises');
-			const configDir = Path.posix.join(process.cwd(), 'config');
-			if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
-			try {
-				const configContent = generatePrivateConfigContent();
-				await fs.writeFile(privateConfigPath, configContent);
-				console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
-			} catch (e) {
-				console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
-			}
-		} else {
-			console.log(`${LOG_PREFIX} Existing private config detected – no creation needed.`);
+		const fs = await import('fs/promises');
+		const configDir = Path.posix.join(process.cwd(), 'config');
+		if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
+		try {
+			const configContent = generatePrivateConfigContent();
+			await fs.writeFile(privateConfigPath, configContent);
+			console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
+		} catch (e) {
+			console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
 		}
 
 		return {

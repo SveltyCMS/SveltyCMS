@@ -4,7 +4,7 @@
  */
 
 import type { Locale } from '@src/paraglide/runtime';
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 import { store } from '@utils/reactivity.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 
@@ -47,10 +47,10 @@ const initialTranslationProgress: TranslationProgress = { show: false };
 // Safely handle the languages array to prevent server-side initialization errors
 let availableLanguages: Locale[] = [];
 try {
-	availableLanguages = (getPublicSetting('AVAILABLE_CONTENT_LANGUAGES') as Locale[]) || [];
+	availableLanguages = (publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || [];
 } catch {
 	// If not available (e.g., during server initialization), use empty array
-	console.warn('getPublicSetting not available during store initialization, using empty languages array');
+	console.warn('publicEnv not available during store initialization, using empty languages array');
 	availableLanguages = [];
 }
 
@@ -165,7 +165,7 @@ export const avatarSrc = {
 				return;
 			}
 
-			const MEDIA_FOLDER = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+			const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER || 'mediaFiles';
 
 			// Strip any leading origin or duplicate slashes (defensive)
 			let url = newValue.replace(/^https?:\/\/[^/]+/i, '');
@@ -326,8 +326,8 @@ let initialSystemLanguage: Locale;
 let initialContentLanguage: Locale;
 
 try {
-	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (getPublicSetting('BASE_LOCALE') as Locale) ?? 'en';
-	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (getPublicSetting('DEFAULT_CONTENT_LANGUAGE') as Locale) ?? 'en';
+	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.BASE_LOCALE as Locale) ?? 'en';
+	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale) ?? 'en';
 } catch {
 	// Fallback values for server-side initialization
 	initialSystemLanguage = 'en' as Locale;

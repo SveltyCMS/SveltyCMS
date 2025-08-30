@@ -34,8 +34,8 @@
 
 	// Stores
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
-	import { getPublicSetting } from '@src/stores/globalSettings';
 	// Config
 	import type { Locale } from '@src/paraglide/runtime';
 	// Content processing
@@ -45,7 +45,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard, getModalStore } from '@skeletonlabs/skeleton';
+	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	// Components
@@ -171,7 +171,7 @@
 				const dbFieldName = getFieldName(field, false);
 				const fieldValue = currentCollectionValue[dbFieldName];
 
-				for (const lang of (getPublicSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en']) as Locale[]) {
+				for (const lang of (publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en']) as Locale[]) {
 					if (!progress[lang]) continue;
 					const langValue = fieldValue?.[lang];
 					const isTranslated =

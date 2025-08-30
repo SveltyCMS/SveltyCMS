@@ -13,23 +13,18 @@ Features:
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import type { PageData } from './$types';
-
 	// Components
+	import Seasons from '@components/system/icons/Seasons.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
-	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import Seasons from '@components/system/icons/Seasons.svelte';
-
 	// Stores
 	// ...existing code...
-	import { getLanguageName } from '@utils/languageUtils';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { systemLanguage } from '@stores/store.svelte';
+	import { getLanguageName } from '@utils/languageUtils';
 	// Toast
-	import { showToast } from '@utils/toast';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -47,7 +42,7 @@ Features:
 
 	// Set Initial active state based on conditions (will be updated by effect)
 	let active = $state<undefined | 0 | 1>(
-		getPublicSetting('DEMO') || getPublicSetting('SEASONS')
+		publicEnv.DEMO || publicEnv.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
@@ -73,9 +68,9 @@ Features:
 
 	// Set initial background based on conditions (will be updated reactively)
 	let background = $state<'white' | '#242728'>(
-		getPublicSetting('DEMO')
+		publicEnv.DEMO
 			? '#242728' // Dark background for DEMO mode
-			: getPublicSetting('SEASONS')
+			: publicEnv.SEASONS
 				? 'white' // Light background for SEASONS mode
 				: firstUserExists
 					? 'white' // Light background for existing users

@@ -4,16 +4,16 @@
  *
  * This module provides functionality to:
  * - Receive a reques	// 3. Configure Nodemailer Transporter
-	const smtpPort = Number(getGlobalSetting<string>('SMTP_PORT'));
+	const smtpPort = Number(privateEnv.SMTP_PORT);
 	const secureConnection = smtpPort === 465;
 
-	const transporter = nodemailer.createTransporter({
-		host: getGlobalSetting<string>('SMTP_HOST'),
+	const transporter = nodemailer.createTransport({
+		host: privateEnv.SMTP_HOST,
 		port: smtpPort,
 		secure: secureConnection,
 		auth: {
-			user: getGlobalSetting<string>('SMTP_EMAIL'),
-			pass: getGlobalSetting<string>('SMTP_PASSWORD')
+			user: privateEnv.SMTP_USER,
+			pass: privateEnv.SMTP_PASS
 		}, email based on a template.
  * - Render email content using Svelte components and svelte-email-tailwind.
  * - Send emails using Nodemailer with SMTP configuration from environment variables.
@@ -46,12 +46,12 @@ import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
 
 // Environment variables for SMTP configuration
+import { privateEnv } from '@src/stores/globalSettings';
 
 // Permissions
 
 // Nodemailer for actual email sending
 import nodemailer from 'nodemailer';
-import type Mail from 'nodemailer/lib/mailer';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -181,7 +181,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
 	// Validate SMTP configuration from privateEnv
-	const requiredSmtpVars: (keyof typeof privateEnv)[] = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
+	const requiredSmtpVars: (keyof typeof privateEnv)[] = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
 	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
 
 	if (missingVars.length > 0) {
@@ -233,8 +233,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		port: smtpPort,
 		secure: secureConnection,
 		auth: {
-			user: privateEnv.SMTP_EMAIL,
-			pass: privateEnv.SMTP_PASSWORD
+			user: privateEnv.SMTP_USER,
+			pass: privateEnv.SMTP_PASS
 		},
 		tls: {
 			rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true
@@ -243,11 +243,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	});
 	// 4. Define Mail Options
 
-	const mailOptions: Mail.Options = {
-		from: {
-			name: props?.sitename || getGlobalSetting<string>('SMTP_FROM_NAME') || 'SveltyCMS',
-			address: getGlobalSetting<string>('SMTP_EMAIL')!
-		},
+	const fromName = props?.sitename || 'SveltyCMS';
+	const mailFrom = privateEnv.SMTP_MAIL_FROM;
+	const mailOptions = {
+		from: `"${fromName}" <${mailFrom}>`,
 		to: recipientEmail,
 		subject: subject,
 		text: emailText,

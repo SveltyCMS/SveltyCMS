@@ -15,18 +15,17 @@
  */
 
 import { browser, building } from '$app/environment';
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 
-// Safe getter that handles when settings aren't loaded yet
-function safeGetPublicSetting<T>(key: string, defaultValue: T): T {
+// Helper to safely access publicEnv properties with a default value
+const getEnv = <T>(key: keyof typeof publicEnv, defaultValue: T): T => {
 	try {
-		const value = getPublicSetting<T>(key);
-		return value !== undefined ? value : defaultValue;
+		const value = publicEnv[key];
+		return value !== undefined ? (value as T) : defaultValue;
 	} catch {
-		// Settings not loaded yet, return default
 		return defaultValue;
 	}
-}
+};
 
 // Check if running on the server
 const isServer = !browser;
@@ -79,8 +78,8 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 // Configuration with defaults using $state
 // Defaults are aligned with database settings for consistency, but can be overridden
 const config = $state({
-	logRotationSize: safeGetPublicSetting('LOG_ROTATION_SIZE', 5 * 1024 * 1024), // 5MB
-	logRetentionDays: safeGetPublicSetting('LOG_RETENTION_DAYS', 2), // Default to 2 days
+	logRotationSize: getEnv('LOG_ROTATION_SIZE', 5 * 1024 * 1024), // 5MB
+	logRetentionDays: getEnv('LOG_RETENTION_DAYS', 2), // Default to 2 days
 	logDirectory: 'logs',
 	logFileName: 'app.log',
 	errorTrackingEnabled: false,
@@ -107,7 +106,7 @@ const state = $state({
 // Helper Functions
 const isLogLevelEnabled = (level: LogLevel): boolean => {
 	// Get log levels from database settings, with fallback to default levels
-	const logLevels = safeGetPublicSetting('LOG_LEVELS', ['error', 'warn', 'info', 'debug']);
+	const logLevels = getEnv('LOG_LEVELS', ['error', 'warn', 'info', 'debug']);
 	if (!Array.isArray(logLevels)) {
 		return false; // Or handle as an error/default to a safe level
 	}

@@ -11,8 +11,10 @@ Features:
 
 <script lang="ts">
 	// ParaglideJS
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
+
+	// Skelton
+	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
 	// Popup settings (click event)
 	const popupAdminUsername: PopupSettings = { event: 'click', target: 'popupAdminUsername', placement: 'top' };
@@ -80,7 +82,7 @@ Features:
 				<input
 					id="admin-username"
 					value={adminUser.username}
-					oninput={(e) => (adminUser.username = (e.target as HTMLInputElement).value)}
+					oninput={(e) => (adminUser.username = (e.target as HTMLInputElement).value.trim())}
 					type="text"
 					placeholder={m.setup_admin_placeholder_username?.() || 'Enter username'}
 					class="input w-full rounded {validationErrors.username ? 'border-error-500' : 'border-slate-200'}"
@@ -107,7 +109,7 @@ Features:
 				<input
 					id="admin-email"
 					value={adminUser.email}
-					oninput={(e) => (adminUser.email = (e.target as HTMLInputElement).value)}
+					oninput={(e) => (adminUser.email = (e.target as HTMLInputElement).value.trim())}
 					type="email"
 					placeholder={m.setup_admin_placeholder_email?.() || 'admin@example.com'}
 					class="input w-full rounded {validationErrors.email ? 'border-error-500' : 'border-slate-200'}"
@@ -140,7 +142,7 @@ Features:
 						id="admin-password"
 						value={adminUser.password}
 						oninput={(e) => {
-							adminUser.password = (e.target as HTMLInputElement).value;
+							adminUser.password = (e.target as HTMLInputElement).value.trim();
 							checkPasswordRequirements();
 						}}
 						type={showAdminPassword ? 'text' : 'password'}
@@ -185,7 +187,7 @@ Features:
 						id="admin-confirm-password"
 						value={adminUser.confirmPassword}
 						oninput={(e) => {
-							adminUser.confirmPassword = (e.target as HTMLInputElement).value;
+							adminUser.confirmPassword = (e.target as HTMLInputElement).value.trim();
 							checkPasswordRequirements();
 						}}
 						type={showConfirmPassword ? 'text' : 'password'}

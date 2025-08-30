@@ -16,11 +16,9 @@
 
 <script lang="ts">
 	import { getFieldName } from '@utils/utils';
-	import { preventDefault, run } from 'svelte/legacy';
 	// Stores
-	import { publicEnv } from '@src/utils/configMigration';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { getPublicSetting } from '@src/stores/globalSettings';
 	// Valibot validation
 	import { boolean, number, object, optional, parse, pipe, regex, string, type ValiError } from 'valibot';
 
@@ -47,7 +45,7 @@
 	// Field name for validation store
 	const fieldName = getFieldName(field);
 
-	let _language = $derived((field?.translated ? contentLanguage.value : getPublicSetting('DEFAULT_CONTENT_LANGUAGE') || 'en')?.toLowerCase());
+	let _language = $derived((field?.translated ? contentLanguage.value : publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en')?.toLowerCase());
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
@@ -74,7 +72,7 @@
 		return numberWithDecimalSeparator.substring(1, 2);
 	}
 
-	run(() => {
+	$effect(() => {
 		if (numberInput) {
 			const value = numberInput.value;
 			const decimalSeparator = getDecimalSeparator(_language);
@@ -152,7 +150,7 @@
 			type="text"
 			bind:value={_data[_language]}
 			bind:this={numberInput}
-			oninput={preventDefault(handleInput)}
+			on:input|preventDefault={handleInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

@@ -3,34 +3,36 @@
 @description Professional multi-step setup wizard for SveltyCMS with clean, modern design
 
 ### Features:
--
 -->
 <script lang="ts">
-	import SiteName from '@components/SiteName.svelte';
-	import { modeCurrent, setInitialClassState, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
-	import type { PageData } from './$types';
-	import ThemeToggle from '@components/ThemeToggle.svelte';
-
-	const { data } = $props<{ data: PageData }>();
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	import { setupAdminSchema } from '@src/utils/formSchemas';
-	import { systemLanguage } from '@stores/store.svelte';
-	import { getLanguageName } from '@utils/languageUtils';
 	import { onDestroy, onMount } from 'svelte';
-	import { safeParse } from 'valibot';
+
+	// Stores
+	import { publicEnv } from '@src/stores/globalSettings';
+	import { systemLanguage } from '@stores/store.svelte';
+	// Utils
+	import { setupAdminSchema } from '@utils/formSchemas';
+	import { getLanguageName } from '@utils/languageUtils';
+	// Components
+	import SiteName from '@components/SiteName.svelte';
+	import ThemeToggle from '@components/ThemeToggle.svelte';
 	import AdminConfig from './AdminConfig.svelte';
 	import DatabaseConfig from './DatabaseConfig.svelte';
 	import ReviewConfig from './ReviewConfig.svelte';
 	import SystemConfig from './SystemConfig.svelte';
+	// Validation
+	import { safeParse } from 'valibot';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
+	// Skeleton
+	import { setInitialClassState, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
 	// Toast
-	import { showToast, setGlobalToastStore } from '@utils/toast';
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
+	import { setGlobalToastStore, showToast } from '@utils/toast';
 	const availableLanguages = $derived(
 		(() => {
-			const raw = getPublicSetting('LOCALES');
+			const raw = publicEnv.LOCALES;
 			// Normalize: allow comma/space separated string or array
 			let normalized: string[] = [];
 			if (Array.isArray(raw)) normalized = raw as string[];
@@ -325,31 +327,29 @@
 		// Initialize toast store
 		setGlobalToastStore(getToastStore());
 
-		// Initialize theme from server-side data to prevent FOUC
-		if (typeof window !== 'undefined' && data.darkMode !== undefined) {
-			setModeUserPrefers(data.darkMode);
-			setModeCurrent(data.darkMode);
-		} else {
-			// Fallback to cookies if server data not available
-			const getCookie = (name: string) => {
-				const value = `; ${document.cookie}`;
-				const parts = value.split(`; ${name}=`);
-				if (parts.length === 2) return parts.pop()?.split(';').shift();
-				return null;
-			};
+		// Set dark mode based on user's system preference
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		setModeUserPrefers(prefersDark);
 
-			const savedTheme = getCookie('theme');
-			const savedDarkMode = getCookie('darkMode');
+		// Initialize theme from cookies if server data not available
+		const getCookie = (name: string) => {
+			const value = `; ${document.cookie}`;
+			const parts = value.split(`; ${name}=`);
+			if (parts.length === 2) return parts.pop()?.split(';').shift();
+			return null;
+		};
 
-			if (savedTheme) {
-				const newMode = savedTheme === 'light';
-				setModeUserPrefers(newMode);
-				setModeCurrent(newMode);
-			} else if (savedDarkMode) {
-				const newMode = savedDarkMode === 'true';
-				setModeUserPrefers(newMode);
-				setModeCurrent(newMode);
-			}
+		const savedTheme = getCookie('theme');
+		const savedDarkMode = getCookie('darkMode');
+
+		if (savedTheme) {
+			const newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		} else if (savedDarkMode) {
+			const newMode = savedDarkMode === 'true';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
 		}
 
 		// Initialize storage system then load persisted data (step included)
@@ -359,6 +359,7 @@
 	onDestroy(() => {
 		document.removeEventListener('click', outsideLang);
 	});
+
 	// Validation (optionally non-mutating to avoid reactive loops inside effects)
 	function validateStep(step: number, mutate = true): boolean {
 		const errs: Record<string, string> = {};
@@ -394,13 +395,13 @@
 		}
 		return Object.keys(errs).length === 0;
 	}
-	async function testDatabaseConnection() {
-		if (!validateStep(0)) return;
+	async function testDatabaseConnection(): Promise<boolean> {
+		if (!validateStep(0)) return false;
 
 		// Don't test database if setup is already completed
 		if (setupCompleted) {
 			errorMessage = 'Setup is already completed. Please refresh the page.';
-			return;
+			return false;
 		}
 
 		isLoading = true;
@@ -423,6 +424,7 @@
 				lastTestFingerprint = dbConfigFingerprint; // store fingerprint of tested config
 				dbTestPassed = true;
 				showDbDetails = false; // Don't show details for successful connections
+				return true;
 			} else {
 				const originalError = data.error || '';
 				const userFriendlyError = data.userFriendly || '';
@@ -458,11 +460,13 @@
 				errorMessage = m.setup_db_test_failed({ error: finalError });
 				dbTestPassed = false;
 				showDbDetails = true; // Show details for errors
+				return false;
 			}
 		} catch (e) {
 			errorMessage = e instanceof Error ? m.setup_db_test_error({ error: e.message }) : m.setup_db_test_unknown_error();
 			lastDbTest = { success: false, error: errorMessage };
 			dbTestPassed = false;
+			return false;
 		} finally {
 			isLoading = false;
 		}
@@ -1085,36 +1089,36 @@
 						{/if}
 					</div>
 					<!-- Navigation -->
-					<div
-						class="mt-6 flex flex-col gap-3 border-t border-slate-200 px-4 pb-4 pt-4 sm:mt-8 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:pb-6 sm:pt-6"
-					>
-						<div class="order-2 flex items-center gap-2 sm:order-1">
+					<div class="mt-6 flex items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:mt-8 sm:px-8 sm:pb-6 sm:pt-6">
+						<!-- Previous Button -->
+						<div class="flex-1">
 							{#if currentStep > 0}
 								<button onclick={prevStep} class="variant-filled-tertiary btn dark:variant-filled-primary">
 									<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 									{m.button_previous()}
 								</button>
-							{:else}
-								<!-- Maintain layout -->
-								<div class="w-0"></div>
 							{/if}
 						</div>
-						<div class="order-1 text-center text-sm font-medium sm:order-2">
+
+						<!-- Step Indicator -->
+						<div class="flex-shrink-0 text-center text-sm font-medium">
 							{m.setup_progress_step_of({ current: String(currentStep + 1), total: String(totalSteps) })}
 						</div>
-						{#if currentStep < steps.length - 1}
-							<button
-								onclick={nextStep}
-								disabled={!canProceed}
-								aria-disabled={!canProceed}
-								class="variant-filled-tertiary btn order-3 transition-all dark:variant-filled-primary {canProceed
-									? ''
-									: 'cursor-not-allowed opacity-60'}"
-							>
-								{m.button_next()}
-								<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-							</button>
-						{:else}<div class="order-3"></div>{/if}
+
+						<!-- Next/Complete Button -->
+						<div class="flex flex-1 justify-end">
+							{#if currentStep < steps.length - 1}
+								<button
+									onclick={nextStep}
+									disabled={!canProceed}
+									aria-disabled={!canProceed}
+									class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
+								>
+									{m.button_next()}
+									<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+								</button>
+							{/if}
+						</div>
 					</div>
 				</div>
 			</div>

@@ -67,7 +67,7 @@ export interface CacheOptions {
 	enabled?: boolean;
 }
 
-import type { DatabaseId, BaseEntity, ContentNode } from './types';
+import type { BaseEntity, ContentNode, DatabaseId } from './types';
 
 /** collection **/
 export interface CollectionModel {
@@ -199,9 +199,13 @@ export interface BatchResult<T> {
 	errors: DatabaseError[];
 }
 
-export type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | {
-	message: string; success: false; error: DatabaseError
-};
+export type DatabaseResult<T> =
+	| { success: true; data: T; meta?: QueryMeta }
+	| {
+			message: string;
+			success: false;
+			error: DatabaseError;
+	  };
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds
@@ -273,7 +277,7 @@ export interface DatabaseTransaction {
 }
 
 /** Database Adapter Interface **/
-export interface DatabaseAdapter {
+export interface IDBAdapter {
 	// Performance and Capabilities
 	getCapabilities(): DatabaseCapabilities;
 

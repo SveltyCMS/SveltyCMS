@@ -23,7 +23,7 @@ import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 import type { RequestHandler } from './$types';
 
 // Database adapter for collection queries
@@ -69,7 +69,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 
-		const extractDataPath = getPublicSetting('EXTRACT_DATA_PATH');
+		const extractDataPath = publicEnv.EXTRACT_DATA_PATH;
 		if (!extractDataPath) {
 			logger.error('EXTRACT_DATA_PATH not configured');
 			throw error(500, 'Server configuration error: EXTRACT_DATA_PATH not set');

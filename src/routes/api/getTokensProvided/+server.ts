@@ -39,9 +39,9 @@ export const GET: RequestHandler = async () => {
 	logger.debug('Checking provided tokens...');
 
 	const tokensProvided: TokenStatus = {
-		google: Boolean(getGlobalSetting<string>('GOOGLE_API_KEY')),
-		twitch: Boolean(getGlobalSetting<string>('TWITCH_TOKEN')),
-		tiktok: Boolean(getGlobalSetting<string>('TIKTOK_TOKEN'))
+		google: Boolean(privateEnv.GOOGLE_API_KEY),
+		twitch: Boolean(privateEnv.TWITCH_TOKEN),
+		tiktok: Boolean(privateEnv.TIKTOK_TOKEN)
 	};
 
 	Object.entries(tokensProvided).forEach(([service, isProvided]) => {

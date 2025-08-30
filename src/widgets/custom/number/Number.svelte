@@ -15,27 +15,26 @@
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings';
 	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	import { getFieldName } from '@utils/utils';
 
 	// Valibot validation
 	import {
-		object,
-		string,
-		number as numberSchema,
 		boolean,
-		optional,
-		regex,
-		pipe,
-		parse,
-		transform,
 		custom,
+		number as numberSchema,
+		object,
+		optional,
+		parse,
+		pipe,
+		regex,
+		string,
+		transform,
 		type InferInput,
 		type ValiError
 	} from 'valibot';
@@ -58,7 +57,7 @@
 
 	const fieldName = getFieldName(field);
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
+	const DEFAULT_CONTENT_LANGUAGE = publicEnv.DEFAULT_CONTENT_LANGUAGE ?? 'en';
 	const _language = DEFAULT_CONTENT_LANGUAGE;
 	const language = $contentLanguage;
 

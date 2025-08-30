@@ -32,9 +32,9 @@ import {
 import * as m from '@src/paraglide/messages';
 
 // Global Settings
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 
-const MIN_PPASSWORD_LENGTH = getPublicSetting('PASSWORD_LENGTH') || 8;
+const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
 
 // --- Reusable Username Schemas ---
 const usernameSchema = pipe(

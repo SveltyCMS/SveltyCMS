@@ -15,18 +15,15 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
-	import { onMount, onDestroy } from 'svelte';
-
+	import { onDestroy, onMount } from 'svelte';
+	import type { FieldType } from '.';
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
-
 	// Valibot validation
-	import { string, pipe, parse, type ValiError, nonEmpty } from 'valibot';
+	import { nonEmpty, parse, pipe, string, type ValiError } from 'valibot';
 
 	interface Props {
 		field: FieldType;
@@ -50,7 +47,7 @@
 	// Load default language
 	$effect(async () => {
 		if (!field?.translated) {
-			_defaultLanguage = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+			_defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
 		}
 	});
 

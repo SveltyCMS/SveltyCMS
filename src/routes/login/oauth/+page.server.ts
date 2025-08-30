@@ -20,9 +20,9 @@ import { contentManager } from '@root/src/content/ContentManager';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
-import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';
@@ -50,8 +50,8 @@ async function sendWelcomeEmail(
 ) {
 	try {
 		const userLanguage = (get(systemLanguage) as Locale) || 'en';
-		const hostProd = await getGlobalSetting('HOST_PROD');
-		const siteName = await getGlobalSetting('SITE_NAME');
+		const hostProd = publicEnv.HOST_PROD;
+		const siteName = publicEnv.SITE_NAME;
 		const emailProps = {
 			username,
 			email,
@@ -327,11 +327,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-			const googleAuthClient = new google.auth.OAuth2(
-				getGlobalSetting<string>('GOOGLE_CLIENT_ID'),
-				getGlobalSetting<string>('GOOGLE_CLIENT_SECRET'),
-				redirectUri
-			);
+			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 			const { tokens } = await googleAuthClient.getToken(code);
 			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 
@@ -350,7 +346,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Prefetch first collection data for instant loading (fire and forget)
 			import('@utils/collections-prefetch')
 				.then(async ({ prefetchFirstCollectionData }) => {
-					const defaultLanguage = await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE');
+					const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 					const userLanguage = url.searchParams.get('lang') || defaultLanguage || 'en';
 					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
 						logger.debug('Prefetch failed during OAuth callback:', err);
@@ -364,7 +360,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			let redirectUrl = '/';
 			const firstCollection = contentManager.getFirstCollection();
 			if (firstCollection && firstCollection.path) {
-				const defaultLanguage = (await getGlobalSetting('DEFAULT_CONTENT_LANGUAGE')) || 'en';
+				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 			}
 			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);

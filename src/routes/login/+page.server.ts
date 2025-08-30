@@ -13,7 +13,7 @@
  * - Proper typing for user data
  */
 
-import { publicEnv } from '@src/utils/configMigration';
+import { publicEnv } from '@src/stores/globalSettings';
 
 import { dev } from '$app/environment';
 import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
@@ -40,7 +40,7 @@ import { google } from 'googleapis';
 import type { Locale } from '@src/paraglide/runtime';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';
@@ -58,7 +58,7 @@ const limiter = new RateLimiter({
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'ratelimit',
-		secret: getGlobalSetting<string>('JWT_SECRET_KEY'),
+		secret: privateEnv.JWT_SECRET_KEY,
 		rate: [50, 'm'], // 50 requests per minute per cookie
 		preflight: true
 	}
@@ -183,7 +183,7 @@ async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promis
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
-	if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) {
+	if (!publicEnv.USE_GOOGLE_OAUTH) {
 		return false;
 	}
 
@@ -350,7 +350,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
-		if (getGlobalSetting<boolean>('USE_GOOGLE_OAUTH') && code) {
+		if (publicEnv.USE_GOOGLE_OAUTH && code) {
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
@@ -812,7 +812,7 @@ export const actions: Actions = {
 			logger.debug(`Sign-up OAuth form invalid: ${form.message}`);
 			return fail(400, { form });
 		}
-		if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) throw redirect(303, '/login');
+		if (!publicEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { form, message: 'Too many requests.' });
 		}
@@ -821,7 +821,7 @@ export const actions: Actions = {
 	},
 
 	signInOAuth: async (event) => {
-		if (!getGlobalSetting<boolean>('USE_GOOGLE_OAUTH')) throw redirect(303, '/login');
+		if (!publicEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}

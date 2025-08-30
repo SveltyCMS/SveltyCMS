@@ -3,7 +3,7 @@
  * @description Serves media files from the mediaFiles directory
  */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import { existsSync, readFileSync, statSync } from 'fs';
@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 
 		// Construct the full path to the media file
-		const mediaFolderPath = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+		const mediaFolderPath = publicEnv.MEDIA_FOLDER || 'mediaFiles';
 		const fullPath = join(process.cwd(), mediaFolderPath, filePath);
 
 		// Security check: ensure the file is within the media folder

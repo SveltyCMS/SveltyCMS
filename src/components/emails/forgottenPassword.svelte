@@ -6,19 +6,15 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-
+	import { publicEnv } from '@src/stores/globalSettings';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
-
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
-
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
 
@@ -35,19 +31,19 @@
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Reset your password for {getGlobalSetting('SITE_NAME')}</title>
+		<title>Reset your password for {publicEnv.SITE_NAME}</title>
 	</Head>
 
-	<Preview preview="Reset your password for {getPublicSetting('SITE_NAME') || 'SveltyCMS'}" />
+	<Preview preview="Reset your password for {publicEnv.SITE_NAME || 'SveltyCMS'}" />
 
 	<Body>
 		<Container style={{ fontSize: '16px' }}>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? getPublicSetting('HOST_DEV') : getPublicSetting('HOST_PROD')}>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${getPublicSetting('SITE_NAME') || 'SveltyCMS'} logo`}
+						alt={`${publicEnv.SITE_NAME || 'SveltyCMS'} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
@@ -63,7 +59,7 @@
 
 				<Text style={{ fontSize: '16px' }}>
 					You have requested to <strong>reset your password</strong> to get access to
-					<strong>{getPublicSetting('SITE_NAME') || 'SveltyCMS'}.</strong>
+					<strong>{publicEnv.SITE_NAME || 'SveltyCMS'}.</strong>
 				</Text>
 
 				<!-- Token Information Box -->

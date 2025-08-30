@@ -15,18 +15,15 @@
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings';
+	import { getFieldName } from '@utils/utils';
 	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
-	import { getFieldName } from '@utils/utils';
-
 	// Stores
+	import { collectionValue, mode } from '@stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
-
 	// Valibot validation
-	import { object, string, number, boolean, optional, minLength, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	import { boolean, minLength, number, object, optional, parse, pipe, string, type InferInput, type ValiError } from 'valibot';
 
 	interface Props {
 		field: FieldType;

@@ -10,15 +10,15 @@ Features:
 - Array of uploaded files
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 
 // Media
 import type { MediaType } from '@utils/media/mediaModels';
 
 import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
 
-import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '@widgets/widgetManager.svelte';
+import { type Params, GraphqlSchema, GuiSchema } from './types';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -42,7 +42,7 @@ interface AggregationInfo {
 }
 
 async function getLanguage(info: AggregationInfo): Promise<string> {
-	return info.contentLanguage || ((await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string);
+	return info.contentLanguage || (publicEnv.DEFAULT_CONTENT_LANGUAGE as string);
 }
 
 // Helper function to safely get element by ID

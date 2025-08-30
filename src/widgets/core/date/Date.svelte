@@ -15,16 +15,14 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
-
+	import type { FieldType } from '.';
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
-
 	// Valibot validation
-	import { object, string, number, boolean, optional, regex, pipe, parse, type ValiError, transform } from 'valibot';
+	import { boolean, number, object, optional, parse, pipe, regex, string, transform, type ValiError } from 'valibot';
 
 	interface Props {
 		field: FieldType;
@@ -43,7 +41,7 @@
 
 	// Load default language
 	$effect(async () => {
-		_language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+		_language = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
 	});
 
 	export const WidgetData = async () => _data;

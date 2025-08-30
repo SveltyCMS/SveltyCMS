@@ -15,14 +15,12 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
-
+	import type { FieldType } from '.';
 	// Stores
+	import { mode } from '@stores/collectionStore.svelte';
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
-
 	// valibot validation
 	import * as v from 'valibot';
 
@@ -41,7 +39,7 @@
 
 	// Load default language
 	$effect(async () => {
-		_language = (await getPublicSetting('DEFAULT_CONTENT_LANGUAGE')) as string;
+		_language = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
 	});
 
 	let endDateValue: string | null = $state(null);

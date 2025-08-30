@@ -6,7 +6,7 @@
 import type { ModalSettings, ModalStore } from '@skeletonlabs/skeleton';
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -77,7 +77,7 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 	const collId = collection.value?._id;
 	if (!collId) return;
 
-	const isArchiving = getPublicSetting('USE_ARCHIVE_ON_DELETE') && !isPermanentDelete;
+	const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE && !isPermanentDelete;
 
 	try {
 		if (isArchiving) {
@@ -179,7 +179,7 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 
 	const entryStatus = entry.status || StatusTypes.draft;
 	const isArchived = entryStatus === StatusTypes.archive;
-	const useArchiving = getPublicSetting('USE_ARCHIVE_ON_DELETE');
+	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
 
 	// Determine what options to show based on rules
 	if (!useArchiving) {

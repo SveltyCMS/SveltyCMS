@@ -6,9 +6,7 @@
  * Most authentication and user data is already handled by hooks.server.ts.
  */
 
-import { getPublicSettingWithFallback } from '@src/utils/configMigration';
-import { config } from '@src/lib/config.server';
-
+import { publicEnv } from '@src/stores/globalSettings';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -33,7 +31,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	// Handle user system language preferences
 	const userSystemLanguage = user?.systemLanguage;
-	const availableLanguages = getPublicSettingWithFallback('AVAILABLE_CONTENT_LANGUAGES', ['en']);
+	const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
 	if (userSystemLanguage && userSystemLanguage !== language && availableLanguages.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
 		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
@@ -87,13 +85,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, message);
 	}
 
-	// Get site name from config service
-	let siteName = 'SveltyCMS';
-	try {
-		siteName = (await config.getPublic('SITE_NAME')) || 'SveltyCMS';
-	} catch (error) {
-		logger.warn('Failed to load site name from config service, using default:', error);
-	}
+	// Get site name from publicEnv
+	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
 
 	// Return simplified data - hooks.server.ts already provided most of what we need
 	return {

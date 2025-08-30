@@ -11,7 +11,7 @@
  * - getSanitizedFileName: Sanitizes a file name to remove special characters
  */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 import type { MediaBase } from '@utils/media/mediaModels';
 import { formatBytes, sanitize } from '@utils/utils';
 import { removeExtension } from '../utils';
@@ -77,12 +77,13 @@ function getBrowserMimeType(fileName: string): string | null {
 
 // Convert IMAGE_SIZES to an array of size configurations
 const defaultImageSizes = { sm: { width: 600, height: 600 }, md: { width: 900, height: 900 }, lg: { width: 1200, height: 1200 } };
-const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(getPublicSetting('IMAGE_SIZES') || defaultImageSizes).map(
-	(key) => ({
-		name: key,
-		width: (getPublicSetting('IMAGE_SIZES') || defaultImageSizes)[key].width,
-		height: (getPublicSetting('IMAGE_SIZES') || defaultImageSizes)[key].height
-	})
+const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(publicEnv.IMAGE_SIZES || defaultImageSizes).map(
+	(key) =>
+		({
+			name: key,
+			width: (publicEnv.IMAGE_SIZES || defaultImageSizes)[key].width,
+			height: (publicEnv.IMAGE_SIZES || defaultImageSizes)[key].height
+		}) as { name: string; width: number; height: number }
 );
 
 // Media categories definition
@@ -111,8 +112,8 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 
 	try {
 		let url: string;
-		const mediaServerUrl = getPublicSetting('MEDIASERVER_URL');
-		const mediaFolder = getPublicSetting('MEDIA_FOLDER') || './static/media';
+		const mediaServerUrl = publicEnv.MEDIASERVER_URL;
+		const mediaFolder = publicEnv.MEDIA_FOLDER || './mediaFolder';
 
 		if (mediaServerUrl) {
 			url = `${mediaServerUrl}/${mediaItem.url}`;

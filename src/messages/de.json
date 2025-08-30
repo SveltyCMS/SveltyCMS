@@ -371,7 +371,7 @@
 	"setup_database_name_placeholder": "SveltyCMS",
 	"setup_database_user_placeholder": "Datenbank-Benutzername",
 	"setup_system_site_name_placeholder": "Meine SveltyCMS Seite",
-	"setup_system_media_path_placeholder": "./static/media",
+	"setup_system_media_path_placeholder": "./mediaFolder",
 	"setup_legend_completed": "Vollendet",
 	"setup_legend_current": "Aktueller Schritt",
 	"setup_legend_pending": "Ausstehend",

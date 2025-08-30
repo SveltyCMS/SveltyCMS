@@ -30,39 +30,37 @@ Features:
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus, deleteEntry, batchDeleteEntries } from '@utils/apiClient';
-	import { getCachedCollectionData } from '@utils/collections-prefetch';
+	import { batchDeleteEntries, deleteEntry, getData, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
+	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
-	import { cloneEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
+	// Import centralized actions
 	// Config
-			import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
+	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
-	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
+	import Loading from '@components/Loading.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Status from '@components/system/table/Status.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	import TranslationStatus from './TranslationStatus.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import Loading from '@components/Loading.svelte';
+	import TranslationStatus from './TranslationStatus.svelte';
 	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import { showStatusChangeConfirm, showDeleteConfirm } from '@utils/modalUtils';
-
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -991,7 +989,7 @@ Features:
 			return;
 		}
 
-		const useArchiving = getPublicSetting('USE_ARCHIVE_ON_DELETE') || false;
+		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE || false;
 		const isForArchived = showDeleted || isPermanent;
 		const willDelete = !useArchiving || isForArchived;
 
@@ -1086,7 +1084,7 @@ Features:
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) return;
 
-		const useArchiving = getPublicSetting('USE_ARCHIVE_ON_DELETE') || false;
+		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE || false;
 		const isForArchived = showDeleted;
 		const willDelete = !useArchiving || isForArchived;
 

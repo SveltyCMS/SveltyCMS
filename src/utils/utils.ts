@@ -21,14 +21,13 @@
  * @exports numerous utility functions and constants
  */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
-
-import type { BaseIssue, BaseSchema } from 'valibot';
 import type { Field } from '@src/content/types';
+import { publicEnv } from '@src/stores/globalSettings';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Stores
-import { get } from 'svelte/store';
 import { contentLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
@@ -128,7 +127,7 @@ export function sanitize(str: string) {
 }
 
 // Get the environment variables for image sizes
-const env_sizes = getPublicSetting('IMAGE_SIZES') || {};
+const env_sizes = publicEnv.IMAGE_SIZES || {};
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Takes an object and recursively parses any values that can be converted to JSON

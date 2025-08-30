@@ -1,12 +1,6 @@
 /**
  * @file src/auth/mongoDBAuth/userAdapter.ts
- * @d	resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
-	resetToken: String, // Token for resetting the user's password, optional field
-	lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
-	is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
-	totpSecret: String, // TOTP secret for 2FA (base32 encoded), optional field
-	backupCodes: [String], // Array of hashed backup codes for 2FA recovery, optional field
-	last2FAVerification: { type: Date } // Timestamp of last successful 2FA verification, optional fieldiption MongoDB adapter for user-related operations.
+ * @description MongoDB adapter for user-related operations.
  *
  * This module provides functionality to:
  * - Create, update, delete, and retrieve users
@@ -23,6 +17,8 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
+
+import { privateEnv } from '@src/stores/globalSettings';
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
@@ -37,7 +33,6 @@ import type { authDBInterface, PaginationOption } from '../authDBInterface';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
-import { getGlobalSetting } from '@src/stores/globalSettings';
 
 // Define the User schema
 export const UserSchema = new Schema(
@@ -61,10 +56,14 @@ export const UserSchema = new Schema(
 		resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
 		lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
-		is2FAEnabled: Boolean // Whether the user has 2FA enabled, optional field
+		is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
+		totpSecret: String, // TOTP secret for 2FA (base32 encoded), optional field
+		backupCodes: [String], // Array of hashed backup codes for 2FA recovery, optional field
+		last2FAVerification: { type: Date } // Timestamp of last successful 2FA verification, optional field
 	},
 	{
-		timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
+		timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
+		collection: 'users' // Explicitly set the collection name
 	}
 );
 
@@ -512,7 +511,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			user._id = user._id.toString();
 			// Fetch the role from the file-based roles configuration
-			const role = getGlobalSetting('ROLES').find((r) => r._id === user.role);
+			const role = privateEnv.ROLES.find((r) => r._id === user.role);
 			if (!role) {
 				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 				return [];

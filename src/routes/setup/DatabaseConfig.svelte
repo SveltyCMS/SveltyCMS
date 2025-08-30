@@ -45,10 +45,18 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		isLoading: boolean;
 		showDbPassword: boolean;
 		toggleDbPassword: () => void;
-		testDatabaseConnection: () => void | Promise<void>;
+		testDatabaseConnection: () => Promise<boolean>;
 		dbConfigChangedSinceTest: boolean;
 		clearDbTestError: () => void;
 	}>();
+
+	async function handleTestConnection() {
+		const success = await testDatabaseConnection();
+		if (success) {
+			// Don't await, let it run in the background
+			fetch('/api/setup/seed-settings', { method: 'POST' });
+		}
+	}
 </script>
 
 <div class="fade-in">
@@ -111,7 +119,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					id="db-host"
 					value={dbConfig.host}
 					oninput={(e) => {
-						dbConfig.host = (e.target as HTMLInputElement).value;
+						dbConfig.host = (e.target as HTMLInputElement).value.trim();
 						clearDbTestError();
 					}}
 					type="text"
@@ -139,7 +147,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					id="db-port"
 					value={dbConfig.port}
 					oninput={(e) => {
-						dbConfig.port = (e.target as HTMLInputElement).value;
+						dbConfig.port = (e.target as HTMLInputElement).value.trim();
 						clearDbTestError();
 					}}
 					type="text"
@@ -171,7 +179,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					id="db-name"
 					value={dbConfig.name}
 					oninput={(e) => {
-						dbConfig.name = (e.target as HTMLInputElement).value;
+						dbConfig.name = (e.target as HTMLInputElement).value.trim();
 						clearDbTestError();
 					}}
 					type="text"
@@ -203,7 +211,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					id="db-user"
 					value={dbConfig.user}
 					oninput={(e) => {
-						dbConfig.user = (e.target as HTMLInputElement).value;
+						dbConfig.user = (e.target as HTMLInputElement).value.trim();
 						clearDbTestError();
 					}}
 					type="text"
@@ -235,11 +243,17 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						id="db-password"
 						value={dbConfig.password}
 						oninput={(e) => {
-							dbConfig.password = (e.target as HTMLInputElement).value;
+							dbConfig.password = (e.target as HTMLInputElement).value.trim();
 							clearDbTestError();
 						}}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								handleTestConnection();
+							}
+						}}
 						type={showDbPassword ? 'text' : 'password'}
-						placeholder={m.setup_database_password_placeholder?.() || 'Database password'}
+						placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
 						class="input w-full rounded"
 					/>
 					<button

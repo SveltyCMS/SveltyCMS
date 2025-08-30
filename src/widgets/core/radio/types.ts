@@ -3,13 +3,13 @@
 @description - radio widget types
 */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@root/src/auth';
@@ -66,7 +66,7 @@ export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
 	const typeID = label;
 
 	// Return an object containing the type name and the GraphQL schema
-	const availableLanguages = (await getPublicSetting('AVAILABLE_CONTENT_LANGUAGES')) as string[];
+	const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES as string[];
 	return {
 		typeID: typeID,
 		graphql: /* GraphQL */ `

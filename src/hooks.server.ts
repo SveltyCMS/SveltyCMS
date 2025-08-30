@@ -22,9 +22,6 @@ import { building } from '$app/environment';
 import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
-// Production-grade configuration service
-import { config, getConfigForHooks } from '@src/lib/config.server';
-
 // Cache
 import { sessionCache } from '@src/hooks/utils/session';
 
@@ -107,20 +104,8 @@ const handlePerfLog: Handle = async ({ event, resolve }) => {
 
 // Configuration initialization hook
 const handleConfigInit: Handle = async ({ event, resolve }) => {
-	if (!building) {
-		try {
-			// Initialize configuration service if not already done
-			if (!config.isInitialized()) {
-				await config.initialize();
-			}
-
-			// Make configuration available to all hooks and endpoints
-			event.locals.config = getConfigForHooks();
-		} catch (error) {
-			logger.warn('Configuration initialization failed:', error);
-			// Continue with setup mode
-		}
-	}
+	// This hook is now a placeholder.
+	// Global settings are loaded in db.ts and accessed via stores.
 	return resolve(event);
 };
 
@@ -198,17 +183,16 @@ export const cleanupSessionMetrics = (): void => {
 
 // Load settings from database at server startup
 if (!building) {
-	try {
-		// Initialize configuration service
-		config
-			.initialize()
-			.then(() => {
-				logger.info('✅ Configuration service initialized successfully');
-			})
-			.catch((error) => {
-				logger.warn('⚠️ Configuration service initialization failed, using setup mode:', error);
-			});
-	} catch (error) {
-		logger.warn('⚠️ Could not initialize configuration service:', error);
-	}
+	// The main initialization logic, including settings, is now in `src/databases/db.ts`.
+	// This ensures settings are loaded before any hooks run.
+	// We can import `dbInitPromise` to ensure the database is ready if needed.
+	import('@src/databases/db')
+		.then(({ initializeOnRequest }) => {
+			// We don't call initializeOnRequest() here anymore.
+			// It will be called by the `handleSetup` hook on the first real request.
+			logger.info('✅ DB module loaded. Initialization will occur on first non-setup request.');
+		})
+		.catch((error) => {
+			logger.error('Failed to load db module for initialization:', error);
+		});
 }

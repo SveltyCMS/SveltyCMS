@@ -16,21 +16,19 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';
-
 	// ParaglideJS
 	import type { Locale } from '@src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { getGlobalSetting } from '@src/stores/globalSettings';
-
+	import { contentLanguage } from '@stores/store.svelte';
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import Fields from '@components/collectionDisplay/Fields.svelte';
 	import EntryList from '@components/collectionDisplay/EntryList.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
 
 	interface Props {
 		data: {
@@ -100,7 +98,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		// Only set language from URL if user hasn't initiated a language change
 		if (!userInitiatedLanguageChange) {
-			const availableContentLanguages = getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+			const availableContentLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
 			if (!(availableContentLanguages as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
 				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
 				if (!contentLanguage.value || !(availableContentLanguages as ReadonlyArray<Locale>).includes(contentLanguage.value)) {

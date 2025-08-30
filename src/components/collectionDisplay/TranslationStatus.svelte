@@ -18,11 +18,10 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/utils/configMigration';
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 
-	import { getGlobalSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
@@ -31,7 +30,6 @@
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
@@ -41,7 +39,7 @@
 	let completionTotals = $state({ total: 0, translated: 0 });
 	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
 	let availableLanguages = $derived.by<Locale[]>(() => {
-		return getGlobalSetting('AVAILABLE_CONTENT_LANGUAGES') as Locale[];
+		return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
 	});
 
 	// Track initialization

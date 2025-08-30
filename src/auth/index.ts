@@ -24,7 +24,7 @@ import { logger } from '@utils/logger.svelte';
 // Password utilities
 
 // Import global settings service for DB-based configuration
-import { getGlobalSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 
 export {
 	checkPermissions,
@@ -168,7 +168,7 @@ export class Auth {
 				throw error(400, 'Email and password are required');
 			}
 
-			if (getGlobalSetting('MULTI_TENANT') && !tenantId) {
+			if (publicEnv.MULTI_TENANT && !tenantId) {
 				throw error(400, 'Tenant ID is required in multi-tenant mode');
 			}
 
@@ -256,9 +256,9 @@ export class Auth {
 	}
 
 	async getAllTokens(filter?: { tenantId?: string }): Promise<DatabaseResult<Token[]>> {
-			const result = await this.db.getAllTokens(filter);
-			return result;
-		}
+		const result = await this.db.getAllTokens(filter);
+		return result;
+	}
 
 	async createToken(userId: string, expires: Date, type: string = 'access', tenantId?: string): Promise<string> {
 		const user = await this.getUserById(userId, tenantId);

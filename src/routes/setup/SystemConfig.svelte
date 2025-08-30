@@ -21,6 +21,7 @@ Key Features:
 
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
+	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	// Help popups
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
@@ -39,7 +40,12 @@ Key Features:
 	// Utility: human friendly language label
 	function displayLang(code: string) {
 		try {
+			// Try to find in full ISO list first for content languages
+			const isoLang = iso6391.find((l) => l.code === code);
+			if (isoLang) return `${isoLang.name} (${isoLang.native})`;
+			// Fallback for system languages which might have different source
 			if (availableLanguages.includes(code)) return `${getLanguageName(code)} (${code.toUpperCase()})`;
+			// Final fallback for any other case
 			return /[a-z]{2,}/i.test(code) ? `${code.toLowerCase()} (${code.toUpperCase()})` : code;
 		} catch {
 			return code;
@@ -104,7 +110,7 @@ Key Features:
 	}
 	function addContentLanguage(code: string) {
 		const c = code.toLowerCase();
-		if (!c) return;
+		if (!c || c.length !== 2 || !iso6391.some((lang) => lang.code === c)) return;
 		if (!systemSettings.contentLanguages.includes(c)) {
 			systemSettings.contentLanguages = [...systemSettings.contentLanguages, c];
 			if (!systemSettings.defaultContentLanguage) systemSettings.defaultContentLanguage = c;
@@ -130,13 +136,16 @@ Key Features:
 
 	// Derived available suggestions
 	let systemAvailable = $state<string[]>([]);
-	let contentAvailable = $state<string[]>([]);
+	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
 	$effect(() => {
 		systemAvailable = availableLanguages.filter(
 			(l: string) => !systemSettings.systemLanguages.includes(l) && l.toLowerCase().includes(systemPickerSearch.toLowerCase())
 		);
-		contentAvailable = availableLanguages.filter(
-			(l: string) => !systemSettings.contentLanguages.includes(l) && l.toLowerCase().includes(contentPickerSearch.toLowerCase())
+		const search = contentPickerSearch.toLowerCase();
+		contentAvailable = iso6391.filter(
+			(lang) =>
+				!systemSettings.contentLanguages.includes(lang.code) &&
+				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
 		);
 	});
 	// Per-label popup settings (click for better mobile support; still discoverable via icon hover cursor)
@@ -184,6 +193,7 @@ Key Features:
 					<input
 						id="site-name"
 						bind:value={systemSettings.siteName}
+						oninput={(e) => (systemSettings.siteName = (e.target as HTMLInputElement).value.trim())}
 						type="text"
 						placeholder={m.setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
 						class="input w-full rounded {validationErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
@@ -216,7 +226,7 @@ Key Features:
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
 						type="text"
-						placeholder={m.setup_system_media_path_placeholder?.() || './static/media'}
+						placeholder={m.setup_system_media_path_placeholder?.() || './mediaFolder'}
 						class="input w-full rounded"
 					/>
 				</div>
@@ -449,9 +459,12 @@ Key Features:
 											<button
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
-												onclick={() => addContentLanguage(sug)}
+												onclick={() => addContentLanguage(sug.code)}
 											>
-												<span>{displayLang(sug)}</span>
+												<span
+													>{sug.name} ({sug.code.toUpperCase()})
+													<span class="text-slate-500 dark:text-slate-400"> - {sug.native}</span></span
+												>
 												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
 											</button>
 										{/each}

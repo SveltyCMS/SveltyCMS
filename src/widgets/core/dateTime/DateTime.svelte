@@ -15,18 +15,15 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
-
+	import type { FieldType } from '.';
 	// Stores
+	import { collectionValue, mode } from '@stores/collectionStore.svelte';
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
-
 	// valibot validation
 	import * as v from 'valibot';
-	import { pipe, string, regex, transform, object, optional, boolean, number } from 'valibot';
-	import { parse } from 'valibot';
+	import { boolean, number, object, optional, parse, pipe, regex, string, transform } from 'valibot';
 
 	interface DateTimeField extends FieldType {
 		value?: any;
@@ -42,8 +39,7 @@
 	value = collectionValue.value[fieldName] || value;
 
 	const _data = $state<Record<string, string>>(mode.value === 'create' ? {} : value);
-	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
-	const _language = DEFAULT_CONTENT_LANGUAGE;
+	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE ?? 'en';
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 

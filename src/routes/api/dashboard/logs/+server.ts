@@ -12,7 +12,7 @@
  * - **Multi-Level Filtering:** Supports filtering by log level, search text, and date range.
  */
 
-import { getPublicSetting } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings';
 import { error, json } from '@sveltejs/kit';
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
@@ -213,7 +213,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		const LOG_DIRECTORY = 'logs';
 		const LOG_FILE_NAME = 'app.log';
-		const LOG_RETENTION_DAYS = getPublicSetting('LOG_RETENTION_DAYS') || 30;
+		const LOG_RETENTION_DAYS = publicEnv.LOG_RETENTION_DAYS || 30;
 
 		const startDateTime = params.startDate ? new Date(params.startDate).getTime() : 0;
 		const endDateTime = params.endDate ? new Date(new Date(params.endDate).setHours(23, 59, 59, 999)).getTime() : Infinity;

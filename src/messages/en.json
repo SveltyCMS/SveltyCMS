@@ -372,7 +372,7 @@
 	"setup_database_user_placeholder": "Database username",
 	"setup_database_password_placeholder": "Database password",
 	"setup_system_site_name_placeholder": "My SveltyCMS Site",
-	"setup_system_media_path_placeholder": "./static/media",
+	"setup_system_media_path_placeholder": "./mediaFolder",
 	"setup_legend_completed": "Completed",
 	"setup_legend_current": "Current Step",
 	"setup_legend_pending": "Pending",

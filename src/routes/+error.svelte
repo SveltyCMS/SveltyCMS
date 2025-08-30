@@ -13,8 +13,6 @@
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
-
 	// Stores
 	import { page } from '$app/state';
 	import type { Load } from '@sveltejs/kit';

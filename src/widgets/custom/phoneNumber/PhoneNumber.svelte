@@ -15,72 +15,18 @@
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings';
 	import type { FieldType } from '.';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	import { getFieldName } from '@utils/utils';
 
 	// Valibot validation
-	import { string, regex, pipe, parse, type ValiError } from 'valibot';
-
-	let { field, value = collectionValue.value[getFieldName(field)] || {} }: Props = $props();
-
-	const fieldName = getFieldName(field);
-
-	const _data = $state(mode.value === 'create' ? {} : value);
-	const DEFAULT_CONTENT_LANGUAGE = getPublicSetting('DEFAULT_CONTENT_LANGUAGE') ?? 'en';
-	const _language = DEFAULT_CONTENT_LANGUAGE;
-
-	let validationError: string | null = $state(null);
-	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = $state(null);
-
-	// Create validation schema for phone number
-	const phoneSchema = pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number'));
-
-	// Validation function
-	function validateInput() {
-		try {
-			if (debounceTimeout) clearTimeout(debounceTimeout);
-			debounceTimeout = window.setTimeout(() => {
-				try {
-					const value = _data[_language];
-
-					// First validate if required
-					if (field?.required && (!value || value.trim() === '')) {
-						validationError = 'This field is required';
-						validationStore.setError(fieldName, validationError);
-						return;
-					}
-
-					// Then validate phone format if value exists
-					if (value && value.trim() !== '') {
-						parse(phoneSchema, value);
-					}
-
-					validationError = null;
-					validationStore.clearError(fieldName);
-				} catch (error) {
-					if ((error as ValiError<typeof phoneSchema>).issues) {
-						const valiError = error as ValiError<typeof phoneSchema>;
-						validationError = valiError.issues[0]?.message || 'Invalid input';
-						validationStore.setError(fieldName, validationError);
-					}
-				}
-			}, 300);
-		} catch (error) {
-			console.error('Validation error:', error);
-			validationError = 'An unexpected error occurred during validation';
-			validationStore.setError(fieldName, 'Validation error');
-		}
-	}
-
+	import { parse, pipe, regex, string, type ValiError } from 'valibot';
 	// Focus management
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	interface Props {
 		field: FieldType;
 		value?: any;

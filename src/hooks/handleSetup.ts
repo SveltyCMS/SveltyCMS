@@ -7,7 +7,6 @@
  * them to the '/setup' page, ensuring the application cannot be used until installed.
  */
 
-import { building } from '$app/environment';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { existsSync, readFileSync } from 'fs';
 import Path from 'path';
@@ -39,7 +38,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 				const hasDbName = /DB_NAME:\s*['"`][^'"`\s]+['"`]/.test(configContent);
 				// DB_USER can be empty for local MongoDB without authentication
 				const hasDbUser = /DB_USER:\s*['"`][^'"`]*['"`]/.test(configContent);
-				
+
 				if (hasDbHost && hasDbName && hasDbUser) {
 					logger.debug('✅ Private config file exists and is properly populated. Setup is complete.');
 					isSetupComplete = true;
@@ -89,15 +88,12 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		if (!isSetupComplete) {
 			try {
 				// Check if we can access the configuration service
-				const { config } = await import('@src/lib/config.server');
+				const { publicEnv } = await import('@src/stores/globalSettings');
 
 				// If config service is initialized, check if setup is completed in database
-				if (config.isInitialized() && !config.isSetupMode()) {
-					const setupCompleted = await config.getPublic('SETUP_COMPLETED');
-					if (setupCompleted) {
-						logger.info('✅ Setup completed detected in database. Allowing access.');
-						isSetupComplete = true;
-					}
+				if (publicEnv.SETUP_COMPLETED) {
+					logger.info('✅ Setup completed detected in database. Allowing access.');
+					isSetupComplete = true;
 				}
 			} catch (error) {
 				// If we can't check the database, continue with file-based checks

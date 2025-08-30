@@ -45,31 +45,22 @@ It p			if (result.success) {
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
-
 	// Stores
 	import { mode } from '@src/stores/collectionStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
-
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Utils & Media
+	import { publicEnv } from '@src/stores/globalSettings';
+	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
 	import { config, toFormData } from '@utils/utils';
-	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
-	import { getPublicSetting } from '@src/stores/globalSettings';
-
 	// Components
-	import PageTitle from '@components/PageTitle.svelte';
 	import Breadcrumb from '@components/Breadcrumb.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
-
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
-	const modalStore = getModalStore();
-
-	// Loading state
-	let isLoading = $state(false);
-
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -442,7 +433,7 @@ It p			if (result.success) {
 	// Open add virtual folder modal
 	function openAddFolderModal() {
 		// Default to MEDIA_FOLDER, which should represent the root directory
-		let currentFolderPath = getPublicSetting('MEDIA_FOLDER') || 'mediaFiles';
+		let currentFolderPath = publicEnv.MEDIA_FOLDER || 'mediaFiles';
 
 		// Check if the currentFolder is set (i.e., the user is in a subfolder)
 		if (currentSystemVirtualFolder) {

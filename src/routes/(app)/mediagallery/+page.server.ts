@@ -14,7 +14,7 @@
  */
 
 // Use DB-backed public settings with safe fallbacks
-import { publicEnv } from '@src/utils/configMigration';
+import { publicEnv } from '@src/stores/globalSettings';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 

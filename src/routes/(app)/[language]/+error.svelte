@@ -16,19 +16,15 @@
 -->
 
 <script lang="ts">
-	import { getPublicSetting } from '@src/stores/globalSettings';
-
 	// Stores
 	import { page } from '$app/state';
 	import type { Load } from '@sveltejs/kit';
-
 	// Components
-	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
-
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	import { contentLanguage } from '@root/src/stores/store.svelte';
+	import * as m from '@src/paraglide/messages';
 
 	const speed = 100;
 	const size = 140;
