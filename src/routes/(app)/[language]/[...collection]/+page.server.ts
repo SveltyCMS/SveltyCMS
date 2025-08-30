@@ -6,7 +6,7 @@
  * Most authentication and user data is already handled by hooks.server.ts.
  */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -14,8 +14,8 @@ import type { PageServerLoad } from './$types';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ locals, params, url }) => {
@@ -31,14 +31,15 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	// Handle user system language preferences
 	const userSystemLanguage = user?.systemLanguage;
-	if (userSystemLanguage && userSystemLanguage !== language && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(userSystemLanguage)) {
+	const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
+	if (userSystemLanguage && userSystemLanguage !== language && availableLanguages.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
 		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
 		throw redirect(302, newPath);
 	}
 
 	// Validate language and collection parameters
-	if (!language || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language) || !collection) {
+	if (!language || !availableLanguages.includes(language) || !collection) {
 		const message = 'The language parameter is missing or invalid.';
 		logger.warn(message, { language, collection });
 		throw error(404, message);
@@ -84,10 +85,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, message);
 	}
 
+	// Get site name from publicEnv
+	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
+
 	// Return simplified data - hooks.server.ts already provided most of what we need
 	return {
 		theme: theme || DEFAULT_THEME,
 		contentLanguage: language,
+		siteName,
 		collection: {
 			module: currentCollection?.module,
 			name: currentCollection?.name,

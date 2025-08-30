@@ -13,9 +13,12 @@ import { array, boolean, literal, maxValue, minLength, minValue, number, object,
 
 /**
  * The PRIVATE configuration for the application.
+ *
+ * NOTE: Only essential startup values are kept here. All other settings are now database-driven.
+ * This includes database connection info and JWT secret that are required for the server to start.
  */
 export const privateConfigSchema = object({
-	// --- Database configuration ---
+	// --- Database configuration (Essential for startup) ---
 	DB_TYPE: union([literal('mongodb'), literal('mariadb')]), // Define the database type (e.g., 'mongodb')
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')), // Database host address
 	DB_PORT: pipe(number(), minValue(1)), // Database port number
@@ -25,62 +28,22 @@ export const privateConfigSchema = object({
 	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Optional: Number of retry attempts on connection failure
 	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Optional: Delay in ms between retry attempts
 	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Optional: Database connection pool size
-	MULTI_TENANT: optional(boolean()), // Optional: Set to `true` to enable multi-tenancy
-	// --- SMTP config - See https://nodemailer.com ---
 
-	SMTP_HOST: optional(string()), // SMTP server host for sending emails
-	SMTP_PORT: optional(pipe(number(), minValue(1))), // SMTP server port
-	SMTP_EMAIL: optional(string()), // Email address to send from
-	SMTP_PASSWORD: optional(string()), // Password for the SMTP email account
-	SERVER_PORT: optional(pipe(number(), minValue(1))), // Port for the application server
-	// --- Google OAuth ---
-
-	USE_GOOGLE_OAUTH: boolean(), // Set to `true` to enable Google OAuth for login
-	GOOGLE_CLIENT_ID: optional(string()), // Google OAuth Client ID
-	GOOGLE_CLIENT_SECRET: optional(string()), // Google OAuth Client Secret
-	// --- Redis config ---
-
-	USE_REDIS: boolean(), // Set to `true` to enable Redis for caching
-	REDIS_HOST: optional(string()), // Redis server host address
-	REDIS_PORT: optional(pipe(number(), minValue(1))), // Redis server port number
-	REDIS_PASSWORD: optional(string()), // Optional: Password for Redis server
-	// --- Session configuration ---
-
-	SESSION_CLEANUP_INTERVAL: optional(pipe(number(), minValue(1))), // Interval in ms to clean up expired sessions
-	MAX_IN_MEMORY_SESSIONS: optional(pipe(number(), minValue(1))), // Maximum number of sessions to hold in memory
-	DB_VALIDATION_PROBABILITY: optional(pipe(number(), minValue(0), maxValue(1))), // Probability (0-1) of validating a session against the DB
-	SESSION_EXPIRATION_SECONDS: optional(pipe(number(), minValue(1))), // Duration in seconds until a session expires
-	// --- Mapbox config ---
-
-	USE_MAPBOX: boolean(), // Set to `true` to enable Mapbox integration
-	MAPBOX_API_TOKEN: optional(string()), // Public Mapbox API token (for client-side use)
-	SECRET_MAPBOX_API_TOKEN: optional(string()), // Secret Mapbox API token (for server-side use)
-	// --- Other APIs ---
-
-	GOOGLE_API_KEY: optional(string()), // Google API Key for services like Maps and YouTube
-	TWITCH_TOKEN: optional(string()), // API token for Twitch integration
-	USE_TIKTOK: optional(boolean()), // Set to `true` to enable TikTok integration
-	TIKTOK_TOKEN: optional(string()), // API token for TikTok integration
-	// --- LLM APIs ---
-
-	LLM_APIS: optional(object({})), // Configuration object for Large Language Model APIs
-	// --- Roles and Permissions ---
-
-	ROLES: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one role is required.')), // List of user roles available in the system
-	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one permission is required.')), // List of permissions available in the system
-	// --- JWT Secret ---
-
+	// --- JWT Secret (Essential for startup) ---
 	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')), // Secret key for JWT
 
-	// --- Two-Factor Authentication ---
+	// --- Encryption Key (Essential for startup) ---
+	ENCRYPTION_KEY: pipe(string(), minLength(32, 'Encryption Key must be at least 32 characters long for security.')), // Encryption key for sensitive data
 
-	USE_2FA: optional(boolean()), // Set to `true` to enable Two-Factor Authentication globally
-	TWO_FACTOR_AUTH_SECRET: optional(string()), // Optional: Secret for 2FA token generation (auto-generated if not provided)
-	TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: optional(pipe(number(), minValue(1), maxValue(50))) // Optional: Number of backup codes to generate (default: 10)
+	// --- Multi-tenancy (Essential for startup) ---
+	MULTI_TENANT: optional(boolean()) // Enable multi-tenant database support
 });
 
 /**
  * The PUBLIC configuration for the application.
+ *
+ * NOTE: Most public settings are now stored in the database and loaded dynamically.
+ * This schema only validates essential startup values that must be available immediately.
  */
 export const publicConfigSchema = object({
 	// --- Host configuration ---
@@ -171,7 +134,7 @@ const colors = {
  */
 function formatPath(path: BaseIssue<unknown>['path']): string {
 	if (!path || path.length === 0) return 'root';
-	return path.map((p: { key: string }) => p.key).join('.');
+	return path.map((p) => String(p.key)).join('.');
 }
 
 /**
@@ -198,7 +161,29 @@ function logValidationErrors(issues: BaseIssue<unknown>[], configFile: string): 
  * @param config - The successfully parsed configuration object.
  * @returns An array of human-readable error messages.
  */
-function performConditionalValidation(config: Record<string, unknown>): string[] {
+interface Config {
+	USE_2FA?: boolean;
+	TWO_FACTOR_AUTH_BACKUP_CODES_COUNT?: number;
+	USE_GOOGLE_OAUTH?: boolean;
+	GOOGLE_CLIENT_ID?: string;
+	GOOGLE_CLIENT_SECRET?: string;
+	USE_REDIS?: boolean;
+	REDIS_HOST?: string;
+	REDIS_PORT?: number;
+	USE_MAPBOX?: boolean;
+	MAPBOX_API_TOKEN?: string;
+	USE_TIKTOK?: boolean;
+	TIKTOK_TOKEN?: string;
+	SEASONS?: string[];
+	SEASON_REGION?: string;
+	AVAILABLE_CONTENT_LANGUAGES?: string[];
+	DEFAULT_CONTENT_LANGUAGE?: string;
+	LOCALES?: string[];
+	BASE_LOCALE?: string;
+	// Add other properties as needed
+}
+
+function performConditionalValidation(config: Config): string[] {
 	const errors: string[] = []; // Private Config Checks
 
 	if (config.USE_GOOGLE_OAUTH && (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET)) {
@@ -234,16 +219,17 @@ function performConditionalValidation(config: Record<string, unknown>): string[]
 	if (config.SEASONS && !config.SEASON_REGION) {
 		errors.push(`When ${colors.cyan}SEASONS${colors.reset} is true, a ${colors.cyan}SEASON_REGION${colors.reset} must be selected.`);
 	}
-	if (
-		config.AVAILABLE_CONTENT_LANGUAGES &&
-		Array.isArray(config.AVAILABLE_CONTENT_LANGUAGES) &&
-		!config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)
-	) {
+	if (config.DEFAULT_CONTENT_LANGUAGE && config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)) {
 		errors.push(
 			`The ${colors.cyan}DEFAULT_CONTENT_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_CONTENT_LANGUAGES${colors.reset} array.`
 		);
 	}
-	if (config.LOCALES && Array.isArray(config.LOCALES) && !config.LOCALES.includes(config.BASE_LOCALE)) {
+	if (
+		config.BASE_LOCALE &&
+		config.LOCALES &&
+		Array.isArray(config.LOCALES) &&
+		config.LOCALES.includes(config.BASE_LOCALE)
+	) {
 		errors.push(`The ${colors.cyan}BASE_LOCALE${colors.reset} must be included in the ${colors.cyan}LOCALES${colors.reset} array.`);
 	}
 
@@ -268,7 +254,7 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 
 	if (result.success) {
 		// Perform secondary, cross-field validation
-		const conditionalErrors = performConditionalValidation(result.output as Record<string, unknown>);
+		const conditionalErrors = performConditionalValidation(result.output as Config);
 		if (conditionalErrors.length > 0) {
 			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
 			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);

@@ -3,7 +3,6 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { publicEnv } from '@root/config/public';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -14,13 +13,14 @@ import { google } from 'googleapis';
 import { auth, dbInitPromise } from '@src/databases/db';
 
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks.server';
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Utils
-import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { contentManager } from '@root/src/content/ContentManager';
+import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
@@ -50,11 +50,13 @@ async function sendWelcomeEmail(
 ) {
 	try {
 		const userLanguage = (get(systemLanguage) as Locale) || 'en';
+		const hostProd = publicEnv.HOST_PROD;
+		const siteName = publicEnv.SITE_NAME;
 		const emailProps = {
 			username,
 			email,
-			hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-			sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+			hostLink: hostProd || `https://${request.headers.get('host')}`,
+			sitename: siteName || 'SveltyCMS'
 		};
 
 		await fetchFn('/api/sendMail', {
@@ -322,9 +324,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		try {
 			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
-			// Import and get the private config directly
-			const { privateEnv } = await import('@root/config/private');
-
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
@@ -346,8 +345,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			// Prefetch first collection data for instant loading (fire and forget)
 			import('@utils/collections-prefetch')
-				.then(({ prefetchFirstCollectionData }) => {
-					const userLanguage = url.searchParams.get('lang') || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				.then(async ({ prefetchFirstCollectionData }) => {
+					const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+					const userLanguage = url.searchParams.get('lang') || defaultLanguage || 'en';
 					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
 						logger.debug('Prefetch failed during OAuth callback:', err);
 					});

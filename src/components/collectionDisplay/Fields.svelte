@@ -20,9 +20,10 @@
 -->
 
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { getRevisionDiff, getRevisions } from '@utils/apiClient';
 	import { getFieldName } from '@utils/utils';
-	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
+	import { untrack } from 'svelte';
+	// Improved API client
 
 	// Auth & Page data
 
@@ -33,12 +34,10 @@
 
 	// Stores
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
-
 	// Config
-	import { publicEnv } from '@root/config/public';
 	import type { Locale } from '@src/paraglide/runtime';
-
 	// Content processing
 	import { processModule } from '@src/content/utils';
 
@@ -46,16 +45,13 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	import { showToast } from '@utils/toast';
+	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
 	import { showConfirm } from '@utils/modalUtils';
-	const modalStore = getModalStore();
-
+	import { showToast } from '@utils/toast';
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { widgetFunctions, ensureWidgetsInitialized } from '@src/widgets';
+	import { ensureWidgetsInitialized, widgetFunctions } from '@src/widgets';
 	import { onMount } from 'svelte';
-	import { validationStore } from '@stores/store.svelte';
 
 	// Dynamic import of all widget components using Vite's glob import
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
@@ -175,7 +171,7 @@
 				const dbFieldName = getFieldName(field, false);
 				const fieldValue = currentCollectionValue[dbFieldName];
 
-				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
+				for (const lang of (publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en']) as Locale[]) {
 					if (!progress[lang]) continue;
 					const langValue = fieldValue?.[lang];
 					const isTranslated =
@@ -364,7 +360,7 @@
 		<Tab bind:group={localTabSet} name="edit" value={0}>
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				{m.fields_edit()}
+				{m.button_edit()}
 			</div>
 		</Tab>
 
@@ -390,14 +386,14 @@
 			<Tab bind:group={localTabSet} name="api" value={3}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					                    API
+					API
 				</div>
 			</Tab>
 		{/if}
 
 		<svelte:fragment slot="panel">
 			{#if localTabSet === 0}
-				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
+				<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					{#if isFormDataInitialized}
 						<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">

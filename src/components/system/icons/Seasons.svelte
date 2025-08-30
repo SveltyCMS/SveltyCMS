@@ -2,10 +2,10 @@
 @file src/components/system/icons/Seasons.svelte
 @component Seasons Component
 
-@description 
+@description
 Dynamically displays seasonal greetings and festival-based UI decorations based on the configured `publicEnv.SEASON_REGION`. Supports regional celebrations for Western Europe, East Asia, and South Asia, with conditional rendering of festive messages and animations.
 
-@features 
+@features
 - Regional support: Western Europe, East Asia, South Asia.
 - Detects and highlights key festivals such as:
   - **Western Europe**: New Year, Valentine's Day, Easter, May Day, Halloween, Christmas.
@@ -17,11 +17,13 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
 	import { Confetti } from 'svelte-confetti';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
+	// Settings helper
+	import { publicEnv } from '@src/stores/globalSettings';
 
 	// Utility function for date comparison
 	function isDateInRange(date: Date, start: Date, end: Date): boolean {

@@ -3,12 +3,12 @@
  * @description Serves media files from the mediaFiles directory
  */
 
+import { publicEnv } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
-import { readFileSync, existsSync, statSync } from 'fs';
+import { logger } from '@utils/logger.svelte';
+import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import type { RequestHandler } from './$types';
-import { publicEnv } from '@root/config/public';
-import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {

@@ -88,11 +88,11 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
                 page: Int = 1
                 limit: Int = 50
             }
-            
+
             ${collectionsTypeDefs}
             ${userTypeDefs()}
             ${mediaTypeDefs()}
-            
+
             type AccessManagementPermission {
                 contextId: String!
                 name: String!
@@ -100,7 +100,7 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
                 contextType: String!
                 description: String
             }
-            
+
             type Query {
                 ${collectionsArray
 									.filter((collection) => collection && collection.name && collection._id)

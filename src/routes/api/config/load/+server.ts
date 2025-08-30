@@ -9,8 +9,8 @@
  * gets the most up-to-date data, even immediately after a save operation.
  */
 import { json } from '@sveltejs/kit';
-import { pathToFileURL } from 'url';
 import path from 'path';
+import { pathToFileURL } from 'url';
 
 // Auth
 
@@ -33,7 +33,8 @@ export async function GET({ locals }) {
 		const projectRoot = process.cwd();
 		const privateConfigPath = path.join(projectRoot, 'config', 'private.ts');
 		const publicConfigPath = path.join(projectRoot, 'config', 'public.ts');
-		const guiConfigPath = path.join(projectRoot, 'config', 'guiConfig.ts');
+		// Updated path after moving guiConfig to src/routes/setup
+		const guiConfigPath = path.join(projectRoot, 'src', 'routes', 'setup', 'guiConfig.ts');
 
 		// Dynamically import the modules to get the latest versions from disk
 		const { privateEnv } = await import(getFreshPath(privateConfigPath));

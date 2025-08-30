@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/seo/Seo.svelte
 @component
 **SEO widget for managing meta title, description, and robots meta tags**
@@ -15,14 +15,12 @@
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { publicEnv } from '@root/config/public';
-
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -30,11 +28,11 @@
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 
 	// Components
-	import Heatmap from './Heatmap.svelte';
-	import TitleInput from './TitleInput.svelte';
 	import DescriptionInput from './DescriptionInput.svelte';
+	import Heatmap from './Heatmap.svelte';
 	import RobotsMetaInput from './RobotsMetaInput.svelte';
 	import SeoPreview from './SeoPreview.svelte';
+	import TitleInput from './TitleInput.svelte';
 
 	interface Props {
 		field: any;
@@ -53,7 +51,14 @@
 
 	// State variables
 	let _data = $state(mode.value === 'create' ? {} : value);
-	let _language = $state(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _language = $state(field?.translated ? $contentLanguage : '');
+
+	// Load default language if needed
+	$effect(async () => {
+		if (!field?.translated && !_language) {
+			_language = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
+		}
+	});
 	let title = $state('');
 	let description = $state('');
 	let robotsMeta = $state('index, follow');

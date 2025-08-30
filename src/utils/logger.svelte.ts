@@ -15,13 +15,23 @@
  */
 
 import { browser, building } from '$app/environment';
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
+
+// Helper to safely access publicEnv properties with a default value
+const getEnv = <T>(key: keyof typeof publicEnv, defaultValue: T): T => {
+	try {
+		const value = publicEnv[key];
+		return value !== undefined ? (value as T) : defaultValue;
+	} catch {
+		return defaultValue;
+	}
+};
 
 // Check if running on the server
 const isServer = !browser;
 
 // Type Definitions
-type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
+type LogLevel = string; // Use string instead of relying on publicEnv at compile time
 
 // Define a type for loggable values
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
@@ -66,10 +76,10 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 };
 
 // Configuration with defaults using $state
-// Defaults are aligned with publicEnv for consistency, but can be overridden
+// Defaults are aligned with database settings for consistency, but can be overridden
 const config = $state({
-	logRotationSize: publicEnv.LOG_ROTATION_SIZE || 5 * 1024 * 1024, // 5MB
-	logRetentionDays: publicEnv.LOG_RETENTION_DAYS || 2, // Default to 2 days
+	logRotationSize: getEnv('LOG_ROTATION_SIZE', 5 * 1024 * 1024), // 5MB
+	logRetentionDays: getEnv('LOG_RETENTION_DAYS', 2), // Default to 2 days
 	logDirectory: 'logs',
 	logFileName: 'app.log',
 	errorTrackingEnabled: false,
@@ -95,11 +105,12 @@ const state = $state({
 
 // Helper Functions
 const isLogLevelEnabled = (level: LogLevel): boolean => {
-	// Ensure publicEnv.LOG_LEVELS is properly initialized and includes the level
-	if (!publicEnv.LOG_LEVELS || !Array.isArray(publicEnv.LOG_LEVELS)) {
+	// Get log levels from database settings, with fallback to default levels
+	const logLevels = getEnv('LOG_LEVELS', ['error', 'warn', 'info', 'debug']);
+	if (!Array.isArray(logLevels)) {
 		return false; // Or handle as an error/default to a safe level
 	}
-	return publicEnv.LOG_LEVELS.includes(level);
+	return logLevels.includes(level);
 };
 
 // Format timestamp in gray color
@@ -247,7 +258,7 @@ const scheduleBatchProcessing = (): void => {
 // Server-Side Operations
 const serverFileOps = isServer
 	? {
-			_logStream: null as unknown, // Store the write stream instance
+			_logStream: null as import('node:fs').WriteStream | null, // Store the write stream instance
 			async _getModules() {
 				const fsPromises = await import('node:fs/promises');
 				const path = await import('node:path');
@@ -256,7 +267,7 @@ const serverFileOps = isServer
 				const stream = await import('node:stream/promises');
 				return { fsPromises, path, zlib, fs, stream };
 			},
-			async getLogStream(): Promise<unknown> {
+			async getLogStream(): Promise<import('node:fs').WriteStream> {
 				const { path, fs } = await this._getModules();
 				if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
 					const logFilePath = path.join(config.logDirectory, config.logFileName);
@@ -270,7 +281,7 @@ const serverFileOps = isServer
 						this._logStream = null; // Clear stream reference after it finishes
 					});
 				}
-				return this._logStream;
+				return this._logStream!;
 			},
 			async initializeLogFile(): Promise<void> {
 				const { fsPromises, path } = await this._getModules();

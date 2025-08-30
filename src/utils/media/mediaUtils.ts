@@ -11,9 +11,9 @@
  * - getSanitizedFileName: Sanitizes a file name to remove special characters
  */
 
-import { publicEnv } from '@root/config/public';
-import { sanitize, formatBytes } from '@utils/utils';
+import { publicEnv } from '@src/stores/globalSettings';
 import type { MediaBase } from '@utils/media/mediaModels';
+import { formatBytes, sanitize } from '@utils/utils';
 import { removeExtension } from '../utils';
 
 // System Logger
@@ -76,11 +76,15 @@ function getBrowserMimeType(fileName: string): string | null {
 }
 
 // Convert IMAGE_SIZES to an array of size configurations
-const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(publicEnv.IMAGE_SIZES).map((key) => ({
-	name: key,
-	width: publicEnv.IMAGE_SIZES[key].width,
-	height: publicEnv.IMAGE_SIZES[key].height
-}));
+const defaultImageSizes = { sm: { width: 600, height: 600 }, md: { width: 900, height: 900 }, lg: { width: 1200, height: 1200 } };
+const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(publicEnv.IMAGE_SIZES || defaultImageSizes).map(
+	(key) =>
+		({
+			name: key,
+			width: (publicEnv.IMAGE_SIZES || defaultImageSizes)[key].width,
+			height: (publicEnv.IMAGE_SIZES || defaultImageSizes)[key].height
+		}) as { name: string; width: number; height: number }
+);
 
 // Media categories definition
 export const mediaCategories = {
@@ -92,7 +96,7 @@ export const mediaCategories = {
 } as const;
 
 // Constructs the full media URL based on the environment.
-export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
+export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 	if (!mediaItem?.url) {
 		const message = 'Media item is missing required url property';
 		try {
@@ -108,11 +112,13 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publ
 
 	try {
 		let url: string;
+		const mediaServerUrl = publicEnv.MEDIASERVER_URL;
+		const mediaFolder = publicEnv.MEDIA_FOLDER || './mediaFolder';
 
-		if (publicEnv.MEDIASERVER_URL) {
-			url = `${publicEnv.MEDIASERVER_URL}/${mediaItem.url}`;
+		if (mediaServerUrl) {
+			url = `${mediaServerUrl}/${mediaItem.url}`;
 		} else {
-			const basePath = `${publicEnv.MEDIA_FOLDER}/${mediaItem.url}`.replace(/\/+/g, '/');
+			const basePath = `${mediaFolder}/${mediaItem.url}`.replace(/\/+/g, '/');
 			if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && mediaItem.thumbnails[size]) {
 				url = mediaItem.thumbnails[size].url;
 			} else {

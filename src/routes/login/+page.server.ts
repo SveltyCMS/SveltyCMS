@@ -13,35 +13,34 @@
  * - Proper typing for user data
  */
 
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 
 import { dev } from '$app/environment';
-import { redirect, fail, type Actions, type Cookies } from '@sveltejs/kit';
+import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks.server';
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Superforms
-import { superValidate } from 'sveltekit-superforms/server';
+import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { message } from 'sveltekit-superforms/server';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { message, superValidate } from 'sveltekit-superforms/server';
 
 // Auth
-import { auth, dbInitPromise } from '@src/databases/db';
 import { generateGoogleAuthUrl, googleAuth } from '@src/auth/googleAuth';
-import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
+import { auth, dbInitPromise } from '@src/databases/db';
+import { google } from 'googleapis';
 
 // Stores
-import { get } from 'svelte/store';
-import { systemLanguage } from '@stores/store.svelte';
 import type { Locale } from '@src/paraglide/runtime';
+import { systemLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';
@@ -52,7 +51,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
-import { getFirstCollectionInfo, fetchAndCacheCollectionData } from '@utils/collections-prefetch';
+import { fetchAndCacheCollectionData, getFirstCollectionInfo } from '@utils/collections-prefetch';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -79,14 +78,45 @@ function calculatePasswordStrength(password: string): number {
 }
 
 // Helper function to wait for auth service to be ready
-async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
+async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 	const startTime = Date.now();
+	logger.debug(`Waiting for auth service to be ready (timeout: ${maxWaitMs}ms)...`);
+
 	while (Date.now() - startTime < maxWaitMs) {
-		if (auth && typeof auth.validateSession === 'function') {
-			return true;
+		try {
+			// Check if database initialization is complete
+			if (dbInitPromise) {
+				// Check if the promise is still pending
+				const dbStatus = await Promise.race([dbInitPromise.then(() => 'ready'), new Promise((resolve) => setTimeout(() => resolve('timeout'), 100))]);
+
+				if (dbStatus === 'timeout') {
+					// Database initialization is still in progress
+					logger.debug('Database initialization still in progress...');
+				}
+			}
+
+			// Check if auth service is ready
+			if (auth && typeof auth.validateSession === 'function') {
+				logger.debug(`Auth service ready after ${Date.now() - startTime}ms`);
+				return true;
+			}
+
+			// Log progress every 5 seconds
+			const elapsed = Date.now() - startTime;
+			if (elapsed % 5000 < 100) {
+				logger.debug(
+					`Auth service not ready yet, elapsed: ${elapsed}ms, auth: ${!!auth}, validateSession: ${auth && typeof auth.validateSession === 'function'}`
+				);
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
+		} catch (error) {
+			logger.error(`Error while waiting for auth service: ${error instanceof Error ? error.message : String(error)}`);
+			// Continue waiting even if there's an error
 		}
-		await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
 	}
+
+	logger.error(`Auth service not ready after ${maxWaitMs}ms timeout`);
 	return false;
 }
 
@@ -107,7 +137,9 @@ async function fetchAndRedirectToFirstCollection(language: Locale): Promise<stri
 
 		const firstCollection = contentManager.getFirstCollection();
 		if (firstCollection?.path) {
-			const redirectUrl = `/${language}${firstCollection.path}`;
+			// Ensure the collection path has a leading slash
+			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
+			const redirectUrl = `/${language}${collectionPath}`;
 			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
 			return redirectUrl;
 		}
@@ -151,7 +183,7 @@ async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promis
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
-	if (!privateEnv.USE_GOOGLE_OAUTH) {
+	if (!publicEnv.USE_GOOGLE_OAUTH) {
 		return false;
 	}
 
@@ -228,7 +260,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				forgotForm: await superValidate(wrappedForgotSchema),
 				resetForm: await superValidate(wrappedResetSchema),
 				signUpForm: await superValidate(wrappedSignUpSchema),
-				authNotReady: true
+				authNotReady: true,
+				authNotReadyMessage: 'System is still initializing. Please wait a moment and try again.'
 			};
 		}
 
@@ -317,7 +350,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
-		if (privateEnv.USE_GOOGLE_OAUTH && code) {
+		if (publicEnv.USE_GOOGLE_OAUTH && code) {
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
@@ -545,8 +578,8 @@ export const actions: Actions = {
 	signUp: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -555,17 +588,30 @@ export const actions: Actions = {
 		}
 
 		// Ensure database initialization is complete
-		await dbInitPromise;
-
-		// Wait for auth service to be ready
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for signUp action');
-			return fail(503, {
-				form: await superValidate(event, wrappedSignUpSchema),
-				message: 'Authentication system is not ready. Please try again in a moment.'
-			});
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for signUp');
+		} catch (error) {
+			logger.error('Database initialization failed for signUp:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
+
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for signUp action - auth is null/undefined');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for signUp action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for signUp action');
 
 		const signUpForm = await superValidate(event, wrappedSignUpSchema);
 		if (!signUpForm.valid) {
@@ -766,7 +812,7 @@ export const actions: Actions = {
 			logger.debug(`Sign-up OAuth form invalid: ${form.message}`);
 			return fail(400, { form });
 		}
-		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		if (!publicEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { form, message: 'Too many requests.' });
 		}
@@ -775,7 +821,7 @@ export const actions: Actions = {
 	},
 
 	signInOAuth: async (event) => {
-		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		if (!publicEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
@@ -791,8 +837,8 @@ export const actions: Actions = {
 	signIn: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
@@ -802,15 +848,49 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		// Run initialization and form validation in parallel
-		const [, signInForm] = await Promise.all([dbInitPromise, superValidate(event, wrappedLoginSchema)]);
-
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for signIn action');
-			return fail(503, { form: signInForm, message: 'Authentication system is not ready.' });
+		// Wait for database initialization first
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed');
+		} catch (error) {
+			logger.error('Database initialization failed:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
 
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for signIn action - auth is null/undefined');
+			logger.debug('System state:', {
+				dbInitPromise: !!dbInitPromise,
+				dbInitPromiseState: dbInitPromise ? 'pending' : 'resolved',
+				auth: null,
+				authType: typeof auth
+			});
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for signIn action - missing methods: ${missingMethods.join(', ')}`);
+			logger.debug('Auth service state:', {
+				authType: typeof auth,
+				authKeys: Object.keys(auth),
+				hasValidateSession: typeof auth.validateSession === 'function',
+				hasCreateUser: typeof auth.createUser === 'function',
+				hasGetUserByEmail: typeof auth.getUserByEmail === 'function',
+				hasCreateSession: typeof auth.createSession === 'function',
+				availableMethods: Object.keys(auth).filter((key) => typeof auth[key] === 'function')
+			});
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for signIn action');
+
+		// Validate form
+		const signInForm = await superValidate(event, wrappedLoginSchema);
 		if (!signInForm.valid) return fail(400, { form: signInForm });
 
 		const email = signInForm.data.email.toLowerCase();
@@ -878,13 +958,31 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		await dbInitPromise;
+		// Ensure database initialization is complete
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for verify2FA');
+		} catch (error) {
+			logger.error('Database initialization failed for verify2FA:', error);
+			return fail(503, { message: 'Database system is not ready.' });
+		}
 
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for verify2FA action');
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for verify2FA action - auth is null/undefined');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for verify2FA action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for verify2FA action');
 
 		try {
 			const formData = await event.request.formData();
@@ -951,19 +1049,38 @@ export const actions: Actions = {
 	forgotPW: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-		await dbInitPromise;
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for forgotPW action');
-			return fail(503, { form: await superValidate(event, wrappedForgotSchema), message: 'Authentication system not ready.' });
+		// Ensure database initialization is complete
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for forgotPW');
+		} catch (error) {
+			logger.error('Database initialization failed for forgotPW:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
+
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for forgotPW action - auth is null/undefined');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for forgotPW action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for forgotPW action');
 
 		const pwforgottenForm = await superValidate(event, wrappedForgotSchema);
 		if (!pwforgottenForm.valid) return fail(400, { form: pwforgottenForm });
@@ -1027,19 +1144,38 @@ export const actions: Actions = {
 	resetPW: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-		await dbInitPromise;
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for resetPW action');
-			return fail(503, { form: await superValidate(event, wrappedResetSchema), message: 'Authentication system not ready.' });
+		// Ensure database initialization is complete
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for resetPW');
+		} catch (error) {
+			logger.error('Database initialization failed for resetPW:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
+
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for resetPW action - auth is null/undefined');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for resetPW action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for resetPW action');
 
 		const pwresetForm = await superValidate(event, wrappedResetSchema);
 		if (!pwresetForm.valid) return fail(400, { form: pwresetForm });

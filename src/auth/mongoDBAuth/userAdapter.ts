@@ -1,12 +1,6 @@
 /**
  * @file src/auth/mongoDBAuth/userAdapter.ts
- * @d	resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
-	resetToken: String, // Token for resetting the user's password, optional field
-	lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
-	is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
-	totpSecret: String, // TOTP secret for 2FA (base32 encoded), optional field
-	backupCodes: [String], // Array of hashed backup codes for 2FA recovery, optional field
-	last2FAVerification: { type: Date } // Timestamp of last successful 2FA verification, optional fieldiption MongoDB adapter for user-related operations.
+ * @description MongoDB adapter for user-related operations.
  *
  * This module provides functionality to:
  * - Create, update, delete, and retrieve users
@@ -23,10 +17,11 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
+
+import { privateEnv } from '@src/stores/globalSettings';
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
-import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
 
 // Adapter
@@ -61,10 +56,14 @@ export const UserSchema = new Schema(
 		resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
 		lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
-		is2FAEnabled: Boolean // Whether the user has 2FA enabled, optional field
+		is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
+		totpSecret: String, // TOTP secret for 2FA (base32 encoded), optional field
+		backupCodes: [String], // Array of hashed backup codes for 2FA recovery, optional field
+		last2FAVerification: { type: Date } // Timestamp of last successful 2FA verification, optional field
 	},
 	{
-		timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
+		timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
+		collection: 'users' // Explicitly set the collection name
 	}
 );
 
@@ -76,7 +75,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 	}
 
 	// Create a new user
-	async createUser(userData: Partial<User>): Promise<User> {
+	async createUser(userData: Partial<User>): Promise<DatabaseResult<User>> {
 		try {
 			// Normalize email to lowercase if present
 			const normalizedUserData = {
@@ -112,7 +111,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
-			return savedUser as User;
+			return {
+				success: true,
+				data: savedUser as User
+			};
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, {
@@ -120,7 +122,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				error: err,
 				userData: Object.keys(userData)
 			});
-			throw error(500, message);
+			return {
+				success: false,
+				error: message
+			};
 		}
 	}
 
@@ -440,6 +445,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 	} // Get a user by email
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
 		try {
+			if (!criteria.email || typeof criteria.email !== 'string') {
+				logger.error('getUserByEmail called with invalid email:', { email: criteria.email, tenantId: criteria.tenantId });
+				return null;
+			}
 			const normalizedEmail = criteria.email.toLowerCase();
 			const filter: Record<string, unknown> = { email: normalizedEmail };
 			if (criteria.tenantId) {
@@ -502,7 +511,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			user._id = user._id.toString();
 			// Fetch the role from the file-based roles configuration
-			const role = configRoles.find((r) => r._id === user.role);
+			const role = privateEnv.ROLES.find((r) => r._id === user.role);
 			if (!role) {
 				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 				return [];

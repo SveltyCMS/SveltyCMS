@@ -1,6 +1,6 @@
-<!-- 
-@file src/routes/(app)/mediagallery/+page.svelte 
-@component 
+<!--
+@file src/routes/(app)/mediagallery/+page.svelte
+@component
 **This page is used to display the media gallery page**
 
 This page displays a collection of media files, such as images, documents, audio, and video.
@@ -10,16 +10,22 @@ It p			if (result.success) {
 				// Update current view
 				const parent = currentSystemVirtualFolder?._id ?? null;
 				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
-				
+
 				// Dispatch event to notify Collections component
 				const event = new CustomEvent('folderCreated', {
-					detail: { 
+					detail: {
 						folder: result.folder,
 						parentId: parentId
 					}
 				});
 				document.dispatchEvent(event);
-				
+
+				toastStore.trigger({
+					message: 'Folder created successfully!',
+					background: 'variant-filled-success',
+					timeout: 3000
+				});
+
 				showToast('Folder created successfully!', 'success');
 			} else {er-friendly interface for searching, filtering, and navigating through media files.
 
@@ -28,7 +34,7 @@ It p			if (result.success) {
 - `media` {MediaBase[]} - An array of media files to be displayed.
 
 ### Events:
-- `mediaDeleted` - Emitted when a media file is deleted.	
+- `mediaDeleted` - Emitted when a media file is deleted.
 
 ### Features:
 - Displays a collection of media files based on the specified media type.
@@ -39,31 +45,22 @@ It p			if (result.success) {
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
-
 	// Stores
 	import { mode } from '@src/stores/collectionStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
-
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Utils & Media
+	import { publicEnv } from '@src/stores/globalSettings';
+	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
 	import { config, toFormData } from '@utils/utils';
-	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
-	import { publicEnv } from '@root/config/public';
-
 	// Components
-	import PageTitle from '@components/PageTitle.svelte';
 	import Breadcrumb from '@components/Breadcrumb.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
-
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
-	const modalStore = getModalStore();
-
-	// Loading state
-	let isLoading = $state(false);
-
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -145,7 +142,11 @@ It p			if (result.success) {
 	});
 
 	// Handle user preferences
-	function storeUserPreference(view: 'grid' | 'table', gridSize: 'tiny' | 'small' | 'medium' | 'large', tableSize: 'tiny' | 'small' | 'medium' | 'large') {
+	function storeUserPreference(
+		view: 'grid' | 'table',
+		gridSize: 'tiny' | 'small' | 'medium' | 'large',
+		tableSize: 'tiny' | 'small' | 'medium' | 'large'
+	) {
 		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
 	}
 
@@ -432,7 +433,7 @@ It p			if (result.success) {
 	// Open add virtual folder modal
 	function openAddFolderModal() {
 		// Default to MEDIA_FOLDER, which should represent the root directory
-		let currentFolderPath = publicEnv.MEDIA_FOLDER;
+		let currentFolderPath = publicEnv.MEDIA_FOLDER || 'mediaFiles';
 
 		// Check if the currentFolder is set (i.e., the user is in a subfolder)
 		if (currentSystemVirtualFolder) {
@@ -604,8 +605,7 @@ It p			if (result.success) {
 								aria-label="Tiny"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}
-								></iconify-icon>
+								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Tiny</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/forgottenPassword.svelte
 @component
 **forgottenPassword Email component to reset password**
@@ -6,18 +6,15 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
-
+	import { publicEnv } from '@src/stores/globalSettings';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
-
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr, Custom } from 'svelte-email-tailwind';
-
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
 
@@ -37,7 +34,7 @@
 		<title>Reset your password for {publicEnv.SITE_NAME}</title>
 	</Head>
 
-	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
+	<Preview preview="Reset your password for {publicEnv.SITE_NAME || 'SveltyCMS'}" />
 
 	<Body>
 		<Container style={{ fontSize: '16px' }}>
@@ -46,7 +43,7 @@
 				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${publicEnv.SITE_NAME} logo`}
+						alt={`${publicEnv.SITE_NAME || 'SveltyCMS'} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
@@ -62,7 +59,7 @@
 
 				<Text style={{ fontSize: '16px' }}>
 					You have requested to <strong>reset your password</strong> to get access to
-					<strong>{publicEnv.SITE_NAME}.</strong>
+					<strong>{publicEnv.SITE_NAME || 'SveltyCMS'}.</strong>
 				</Text>
 
 				<!-- Token Information Box -->

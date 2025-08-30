@@ -29,8 +29,8 @@ This widget fetches and displays the latest content items, including:
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+
+
 	import { formatDistanceToNow } from 'date-fns';
 
 	interface ContentItem {

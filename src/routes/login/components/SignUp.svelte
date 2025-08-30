@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/login/components/SignUp.svelte
 @component
 **SignUp component with optional OAuth support**
@@ -13,7 +13,6 @@ Features:
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { privateEnv } from '@root/config/private';
 
 	import type { PageData } from '../$types';
 
@@ -31,13 +30,12 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	// Lazy-load FloatingPaths for performance on desktop
-	let FloatingPathsComponent = $state<any>(null);
 	import SignupIcon from './icons/SignupIcon.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
 	// Props
@@ -305,7 +303,7 @@ Features:
 						tabindex={usernameTabIndex}
 						required
 						bind:value={$form.username}
-						label={m.form_username()}
+						label={m.username()}
 						{...$constraints.username}
 						icon="mdi:user-circle"
 						iconColor="white"
@@ -326,7 +324,7 @@ Features:
 						autocapitalize="none"
 						spellcheck={false}
 						bind:value={$form.email}
-						label={m.form_emailaddress()}
+						label={m.email()}
 						{...$constraints.email}
 						icon="mdi:email"
 						iconColor="white"
@@ -373,7 +371,7 @@ Features:
 						required
 						bind:value={$form.confirm_password}
 						{showPassword}
-						label={m.form_confirmpassword()}
+						label={m.confirm_password?.() || m.form_confirmpassword?.()}
 						{...$constraints.confirm_password}
 						icon="mdi:password"
 						iconColor="white"
@@ -398,7 +396,7 @@ Features:
 							tabindex={tokenTabIndex}
 							required
 							bind:value={$form.token}
-							label={m.signup_registrationtoken()}
+							label={m.registration_token?.() || m.signup_registrationtoken?.()}
 							{...$constraints.token}
 							icon="mdi:key-chain"
 							iconColor="white"
@@ -427,7 +425,7 @@ Features:
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !privateEnv.USE_GOOGLE_OAUTH || !showOAuth}
+					{#if !publicEnv.USE_GOOGLE_OAUTH || !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}

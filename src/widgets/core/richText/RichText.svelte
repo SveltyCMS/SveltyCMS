@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/core/richText/RichText.svelte
 @component
 **RichText TipTap widget component**
@@ -15,41 +15,37 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
-	import { onMount, onDestroy, tick } from 'svelte';
-	import { meta_data, debounce, getFieldName, getTextDirection } from '@utils/utils';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import type { MediaImage } from '@utils/media/mediaModels';
+	import { debounce, getFieldName, getTextDirection, meta_data } from '@utils/utils';
 	import type { ComponentProps } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import type { FieldType } from '.';
-
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { isMobile } from '@stores/screenSizeStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
-
 	// Components
-	import DropDown from './components/DropDown.svelte';
-	import ColorSelector from './components/ColorSelector.svelte';
-	import ImageDescription from './components/ImageDescription.svelte';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
+	import ColorSelector from './components/ColorSelector.svelte';
+	import DropDown from './components/DropDown.svelte';
+	import ImageDescription from './components/ImageDescription.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
-
 	// TipTap
 	import { Editor, Extension } from '@tiptap/core';
-	import { StarterKit } from '@tiptap/starter-kit';
-	import { Link } from '@tiptap/extension-link';
-	import { TextAlign } from '@tiptap/extension-text-align';
-	import { FontFamily } from '@tiptap/extension-font-family';
-	import { Color } from '@tiptap/extension-color';
-	import { Youtube } from '@tiptap/extension-youtube';
 	import { CharacterCount } from '@tiptap/extension-character-count';
+	import { Color } from '@tiptap/extension-color';
+	import { FontFamily } from '@tiptap/extension-font-family';
+	import { Link } from '@tiptap/extension-link';
+	import { Placeholder } from '@tiptap/extension-placeholder';
 	import { Table } from '@tiptap/extension-table';
-	import { TableRow } from '@tiptap/extension-table-row';
 	import { TableCell } from '@tiptap/extension-table-cell';
 	import { TableHeader } from '@tiptap/extension-table-header';
+	import { TableRow } from '@tiptap/extension-table-row';
+	import { TextAlign } from '@tiptap/extension-text-align';
 	import { Underline } from '@tiptap/extension-underline';
-	import { Placeholder } from '@tiptap/extension-placeholder';
-
+	import { Youtube } from '@tiptap/extension-youtube';
+	import { StarterKit } from '@tiptap/starter-kit';
 	// Custom Extensions
 	import ImageResize from './extensions/ImageResize'; // IMPORTANT: You need this custom extension. See implementation below.
 	import TextStyle from './extensions/TextStyle'; // IMPORTANT: You need this custom extension for font size. See implementation below.
@@ -79,7 +75,15 @@
 	let _data = $state(mode.value === 'create' ? { content: {}, header: {} } : value);
 
 	// Language handling
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _defaultLanguage = $state('');
+	let _language = $derived(field?.translated ? $contentLanguage : _defaultLanguage);
+
+	// Load default language
+	$effect(() => {
+		if (!field?.translated) {
+			_defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+		}
+	});
 
 	// Update editor content when language changes
 	$effect(() => {
@@ -470,7 +474,6 @@
 							class="w-14 rounded border border-transparent bg-white/90 px-1 text-center text-sm text-black outline-none focus:border-primary-400 dark:bg-surface-600 dark:text-white"
 							bind:value={fontSize}
 							aria-label="Font size"
-							role="spinbutton"
 							aria-valuenow={fontSize}
 							aria-valuemin="8"
 							aria-valuemax="72"
@@ -644,11 +647,6 @@
 			22px 22px,
 			22px 22px;
 		background-position: -1px -1px;
-	}
-
-	.dark .tiptap-editor {
-		background-image:
-			linear-gradient(theme('colors.surface.600') 1px, transparent 1px), linear-gradient(90deg, theme('colors.surface.600') 1px, transparent 1px);
 	}
 
 	/* Placeholder */

@@ -66,7 +66,6 @@ jobs:
 
       # Only build when running in preview mode
       - name: Build SvelteKit server
-        if: matrix.mode == 'preview'
         run: bunx vite build
 
       # Start the server depending on the mode

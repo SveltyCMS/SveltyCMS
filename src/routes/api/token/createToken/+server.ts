@@ -2,21 +2,6 @@
  * @file: src/routes/api/user/createToken/+server.ts
  * @description: API endpoint for creating user registration tokens and sending invitation emails
  *
- * Thi		// Invalidate the admin cache for tokens so the UI refreshes immediately
-
-		invalidateAdminCache('tokens', tenantId); // Return success response
-
-		return json({
-			success: true,
-			message: emailSkipped 
-				? 'Token created successfully. Email sending skipped (development mode - configure SMTP settings to enable email).'
-				: 'Token created and email sent successfully.',
-			token: { value: token, expires: expires.toISOString() },
-			email_sent: !emailSkipped
-		});provides functionality to:
- * - Create new registration tokens for inviting users, scoped to the current tenant.
- * - Handle token creation requests
- *
  * Features:
  * - **Defense in Depth**: Specific permission checking for token creation.
  * - Input validation using Valibot schemas.
@@ -29,7 +14,7 @@ import { privateEnv } from '@root/config/private';
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth (Database Agnostic)
+// Auth
 import { initializeRoles, roles } from '@root/config/roles';
 import { auth } from '@src/databases/db';
 
@@ -37,7 +22,7 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks.server';
+import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';

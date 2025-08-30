@@ -9,10 +9,10 @@
  * - RichText TipTap widget
  */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
 import type { ModifyRequestParams } from '..';
+import { GraphqlSchema, GuiSchema, toString, type Params } from './types';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -35,13 +35,14 @@ function getContentLanguage(contentLanguage?: string): string {
 // Defines RichText widget Parameters
 const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
-	let display: ((args: { data: Record<string, unknown>; contentLanguage?: string }) => Promise<string> | string) & { default?: boolean };
+	let display: ((args: { data: Record<string, unknown>; contentLanguage?: string }) => string) & { default?: boolean };
 
 	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
+		display = ({ data, contentLanguage }) => {
 			data = data || {}; // Ensure data is not undefined
 			const language = getContentLanguage(contentLanguage);
-			return params.translated ? data[language] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+			return params.translated ? data[language] || m.widgets_nodata() : data[defaultLanguage] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {

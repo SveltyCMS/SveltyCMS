@@ -1,138 +1,177 @@
 <!--
-file src/components/system/buttons/Button.svelte
+@file src/components/system/buttons/Button.svelte
 @component
-**Button component** is a reusable button component that supports different sizes, variants, icons, and rounded corners.
+**Button component** is a reusable button component that supports different sizes, variants, icons, and rounded corners, optimized for CMS use.
 
-#### Props
-- `size` {string} - Size of the button, can be 'sm', 'md', 'lg', or 'xl'
-- `variant` {string} - Variant of the button, can be 'primary', 'secondary', 'ghost', or 'text'
-- `icon` {string} - Icon to be displayed on the button
+### Props
+- `size` {string} - Size of the button: 'sm', 'md', 'lg', or 'xl' (default: 'md')
+- `variant` {string} - Variant of the button: 'primary', 'secondary', 'error', 'ghost', 'text', or 'outline' (default: 'primary')
+- `leadingIcon` {string} - Icon to display before the button content
+- `trailingIcon` {string} - Icon to display after the button content
 - `href` {string} - URL to navigate to when the button is clicked
-- `type` {string} - Type of the button, can be 'button', 'submit', or 'reset'
-- `rounded` {boolean} - Whether the button should have rounded corners
+- `type` {string} - Button type: 'button', 'submit', or 'reset' (default: 'button')
+- `rounded` {boolean} - Whether the button has rounded corners (default: false)
+- `disabled` {boolean} - Whether the button is disabled (default: false)
+- `loading` {boolean} - Whether the button is in a loading state (default: false)
+- `loadingIcon` {string} - Icon to display in place of leadingIcon during loading (default: 'mdi:loading')
+- `replaceTextOnLoading` {boolean} - Whether to hide text/children during loading state (default: false)
+- `labelledBy` {string} - ARIA labelledBy for accessibility
+- `describedBy` {string} - ARIA describedBy for accessibility
+- `[prop: string]` - Any additional DOM attributes or events (e.g., `aria-label`, `onclick`, `data-cms-id`)
 
-#### Slots
-- `default` {string} - Content to be displayed inside the button
+### Note on aria-label
+You can pass `aria-label` directly via the spread operator (...rest) rather than using a separate prop. 
+Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `aria-label` or `labelledBy` is provided.
 
-#### Usage
-```tsx
-<Button size="md" variant="primary">Click Me</Button>
-```
+### Slots
+- `default` - Content to be displayed inside the button
+
+### Usage
+<Button size="md" variant="outline" leadingIcon="mdi:star" onclick={() => alert('clicked')}>
+  Click Me
+</Button>
+
+<Button leadingIcon="mdi:save" aria-label="Save document" loading />
+
+<Button variant="primary" loading replaceTextOnLoading onclick={() => console.log('clicked')}>
+  Submit
+</Button>
 -->
 
 <script lang="ts">
-	//Props
+	// — Types —
+	type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
+	type ButtonVariant = 'primary' | 'secondary' | 'error' | 'ghost' | 'text' | 'outline';
+
+	// — Props —
 	const {
-		size = 'md', // Default size
-		variant = 'primary', // Default variant
-		icon, // Optional icon
-		href, // Optional href for link buttons
-		type = 'button', // Default button type
-		rounded = false, // Rounded corners
-		disabled = false, // Disabled state
-		labelledBy, //ARIA labelledBy
-		describedBy, //ARIA describedBy
-		children, // Snippet for default slot content
-		...rest // Capture all other props
-	} = $props<{
-		size?: 'sm' | 'md' | 'lg' | 'xl'; // Button size options
-		variant?: 'primary' | 'secondary' | 'error' | 'ghost' | 'text'; // Button variants - added 'error'
-		icon?: string; // Icon name (e.g., from Iconify)
-		href?: string; // URL for link buttons
-		type?: 'button' | 'submit' | 'reset'; // Button type
-		rounded?: boolean; // Whether to use rounded corners
-		disabled?: boolean; // Disabled state
-		labelledBy?: string; //ARIA labelledBy
-		describedBy?: string; //ARIA describedBy
-		children?: () => any; // Snippet for default slot content
-	}>();
+		size = 'md' as ButtonSize,
+		variant = 'primary' as ButtonVariant,
+		leadingIcon,
+		trailingIcon,
+		href,
+		type = 'button' as 'button' | 'submit' | 'reset',
+		rounded = false,
+		disabled = false,
+		loading = false,
+		loadingIcon = 'mdi:loading',
+		replaceTextOnLoading = false,
+		labelledBy,
+		describedBy,
+		children,
+		...rest
+	}: {
+		size?: ButtonSize;
+		variant?: ButtonVariant;
+		leadingIcon?: string;
+		trailingIcon?: string;
+		href?: string;
+		type?: 'button' | 'submit' | 'reset';
+		rounded?: boolean;
+		disabled?: boolean;
+		loading?: boolean;
+		loadingIcon?: string;
+		replaceTextOnLoading?: boolean;
+		labelledBy?: string;
+		describedBy?: string;
+		children?: () => any;
+		[prop: string]: unknown;
+	} = $props();
 
-	// Dynamically compute button classes
-	const buttonClasses = $derived(
-		[
-			// Base styles
-			'inline-flex items-center justify-center font-medium transition-colors',
-			'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-			'transform transition-transform hover:scale-105 active:scale-95',
-			rounded ? 'rounded-full' : 'rounded-md', // Rounded corners conditionally
-			// Size classes
-			{
-				sm: 'h-8 px-3 text-sm',
-				md: 'h-10 px-4 text-base',
-				lg: 'h-12 px-5 text-lg',
-				xl: 'h-14 px-6 text-xl'
-			}[size as keyof { sm: string; md: string; lg: string; xl: string }],
-			// Variant classes
-			{
-				primary: 'bg-primary-600 text-white shadow-sm hover:bg-primary-700',
-				secondary: 'bg-secondary-600 text-white shadow-sm hover:bg-secondary-700',
-				error: 'bg-red-600 text-white shadow-sm hover:bg-red-700', // Added error variant
-				ghost: 'hover:bg-gray-100 text-gray-900',
-				text: 'text-gray-900 hover:text-gray-700'
-			}[
-				variant as keyof {
-					primary: string;
-					secondary: string;
-					error: string;
-					ghost: string;
-					text: string;
-				}
-			], // Added error variant to keyof
-			// Disabled state
-			disabled && 'opacity-50 pointer-events-none cursor-not-allowed',
-			// Icon-only padding adjustment
-			!children && icon
-				? {
-						sm: 'px-2',
-						md: 'px-2.5',
-						lg: 'px-3',
-						xl: 'px-3.5'
-					}[size as keyof { sm: string; md: string; lg: string; xl: string }]
-				: ''
-		]
-			.filter(Boolean)
-			.join(' ') // Filter out falsy values and join into a single string
-	);
+	// — Class maps —
+	const sizeClasses: Record<ButtonSize, string> = {
+		sm: 'h-8 px-3 text-sm',
+		md: 'h-10 px-4 text-base',
+		lg: 'h-12 px-5 text-lg',
+		xl: 'h-14 px-6 text-xl'
+	};
 
-	// Icon sizing based on button size - using type-safe key
-	const iconSize = {
+	const variantClasses: Record<ButtonVariant, string> = {
+		primary: 'bg-[var(--primary-color, #2563eb)] text-white shadow-sm hover:bg-[var(--primary-hover, #1e40af)]',
+		secondary: 'bg-[var(--secondary-color, #4b5563)] text-white shadow-sm hover:bg-[var(--secondary-hover, #374151)]',
+		error: 'bg-[var(--error-color, #dc2626)] text-white shadow-sm hover:bg-[var(--error-hover, #b91c1c)]',
+		ghost: 'hover:bg-gray-100 text-gray-900',
+		text: 'text-gray-900 hover:text-gray-700',
+		outline: 'border border-gray-300 bg-transparent text-gray-900 hover:bg-gray-100'
+	};
+
+	const iconSizes: Record<ButtonSize, string> = {
 		sm: 'h-4 w-4',
 		md: 'h-5 w-5',
 		lg: 'h-6 w-6',
 		xl: 'h-7 w-7'
-	} as const;
-	const iconClass = $derived(iconSize[size as keyof typeof iconSize]);
+	};
 
-	// Determine the element type (button or anchor)
+	const iconOnlyPadding: Record<ButtonSize, string> = {
+		sm: 'px-2',
+		md: 'px-2.5',
+		lg: 'px-3',
+		xl: 'px-3.5'
+	};
+
+	// — Element decision —
 	const element = href ? 'a' : 'button';
 
-	// Element-specific props for accessibility
+	// — Derived classes —
+	const buttonClasses = $derived(
+		[
+			'inline-flex items-center justify-center font-medium transition-colors',
+			'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary-color, #2563eb)] focus-visible:ring-offset-2',
+			'transform transition-transform hover:scale-105 active:scale-95',
+			rounded ? 'rounded-full' : 'rounded-md',
+			sizeClasses[size],
+			variantClasses[variant],
+			(disabled || loading) && 'opacity-50 pointer-events-none cursor-not-allowed',
+			loading && 'animate-pulse',
+			!children && (leadingIcon || trailingIcon || loading) ? iconOnlyPadding[size] : ''
+		]
+			.filter(Boolean)
+			.join(' ')
+	);
+
+	const iconClass = $derived(iconSizes[size]);
+
+	// — Loading/icon logic —
+	const effectiveLeadingIcon = $derived(loading ? loadingIcon : leadingIcon);
+	const isIconOnly = $derived(!children && (leadingIcon || trailingIcon || loading));
+
+	// — Element-specific a11y props —
+	const ariaLabelFromRest = rest['aria-label'];
+	const safeAriaLabel = typeof ariaLabelFromRest === 'string' ? ariaLabelFromRest : undefined;
+
 	const elementProps = $derived(
 		element === 'a'
 			? {
-					href: disabled ? undefined : href, // Disable href if button is disabled
-					role: 'button', // Ensure anchor behaves like a button
-					'aria-disabled': disabled, // Accessibility for disabled state
-					tabindex: disabled ? -1 : undefined, // Prevent focus if disabled
+					href: disabled || loading ? undefined : href,
+					role: 'button',
+					'aria-disabled': disabled || loading,
+					tabindex: disabled || loading ? -1 : undefined,
+					'aria-label': safeAriaLabel || (isIconOnly && !labelledBy ? 'Button' : undefined),
 					'aria-labelledby': labelledBy || undefined,
 					'aria-describedby': describedBy || undefined
 				}
 			: {
-					type, // Button type (button, submit, reset)
-					disabled, // Native disabled attribute
-					'aria-disabled': disabled, // Accessibility for disabled state
+					type,
+					disabled: disabled || loading,
+					'aria-disabled': disabled || loading,
+					'aria-label': safeAriaLabel || (isIconOnly && !labelledBy ? 'Button' : undefined),
 					'aria-labelledby': labelledBy || undefined,
 					'aria-describedby': describedBy || undefined
 				}
 	);
 </script>
 
-<!-- Dynamically render the button -->
 <svelte:element this={element} {...rest} {...elementProps} class={buttonClasses}>
-	<!-- Icon (optional) -->
-	{#if icon}
-		<iconify-icon class={`${iconClass} ${children ? 'mr-2' : ''}`} {icon}></iconify-icon>
+	{#if effectiveLeadingIcon}
+		<iconify-icon
+			class={`${iconClass} ${children && !replaceTextOnLoading ? 'mr-2' : ''} ${loading ? 'animate-spin' : ''}`}
+			icon={effectiveLeadingIcon}
+		></iconify-icon>
 	{/if}
-
-	{@render children?.()}
+	{#if !loading || !replaceTextOnLoading}
+		{@render children?.()}
+	{/if}
+	{#if trailingIcon && !loading}
+		<iconify-icon class={`${iconClass} ${children ? 'ml-2' : ''}`} icon={trailingIcon}></iconify-icon>
+	{/if}
 </svelte:element>

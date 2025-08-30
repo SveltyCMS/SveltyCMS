@@ -50,7 +50,7 @@ export interface Field {
 		contentLanguage: string;
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
+	modifyRequest?: (args: ModifyRequestParams<FieldValue>) => Promise<object>;
 }
 
 // Field definition
@@ -137,4 +137,4 @@ export interface CollectionData {
 
 // Collection types for collections registry
 
-export type ContentTypes = {};
+export type ContentTypes = object;

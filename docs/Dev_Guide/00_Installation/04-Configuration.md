@@ -106,6 +106,28 @@ export default {
 };
 ```
 
+## New Architecture (2025+)
+
+- All runtime settings are managed dynamically via the database.
+- Static config files only store DB connection and secrets.
+- Use the admin GUI or API endpoints for all other settings.
+
+## Import/Export
+
+- Export settings: `GET /api/settings/export`
+- Import settings: `POST /api/settings/import`
+- CLI installer supports import/export via `settingsImportExport.js`.
+
+## Legacy Cleanup
+
+- Old config prompts and static config files for runtime settings have been removed.
+- Backup/restore now uses dynamic settings snapshots.
+
+## See Also
+
+- [README.md](../../README.md)
+- [API Docs](../api-test-summary.md)
+
 ## Next Steps
 
 - [Running the CMS](./06-Running.md)

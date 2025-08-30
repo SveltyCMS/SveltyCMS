@@ -20,9 +20,10 @@
 -->
 
 <script lang="ts">
-	import { tweened } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
-	import { publicEnv } from '@root/config/public';
+	import { tweened } from 'svelte/motion';
+
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { fade } from 'svelte/transition';
 
 	interface Props {

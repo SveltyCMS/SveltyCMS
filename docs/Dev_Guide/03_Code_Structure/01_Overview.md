@@ -14,48 +14,46 @@ This document provides a comprehensive overview of the SvelteCMS codebase organi
 
 ```
 SvelteCMS/
+├── config/                 # Core configuration (collections, roles, settings)
+│   ├── collections/        # Collection definitions
+│   ├── public.ts           # Public, non-sensitive settings
+│   └── private.ts          # Private, sensitive settings (gitignored)
 ├── src/                    # Source code
-│   ├── lib/               # Core library components
-│   │   ├── adapters/      # Database adapters
-│   │   ├── auth/          # Authentication system
-│   │   ├── components/    # Reusable Svelte components
-│   │   ├── config/        # Configuration management
-│   │   ├── core/          # Core CMS functionality
-│   │   ├── types/         # TypeScript type definitions
-│   │   ├── utils/         # Utility functions
-│   │   └── widgets/       # CMS widget implementations
-│   ├── routes/            # SvelteKit routes
-│   └── app.html           # Main HTML template
-├── static/                # Static assets
-├── tests/                 # Test files
-├── Docs/                  # Documentation
-└── package.json          # Project dependencies
+│   ├── auth/               # Authentication system (logic, adapters)
+│   ├── components/         # Reusable Svelte components
+│   ├── content/            # Content management (ContentManager)
+│   ├── databases/          # Database adapters and initialization (db.ts)
+│   ├── hooks/              # SvelteKit server hooks
+│   ├── routes/             # SvelteKit routes (UI and API)
+│   ├── stores/             # Svelte stores (including globalSettings.ts)
+│   ├── utils/              # Utility functions
+│   └── widgets/            # CMS widget implementations
+├── static/                 # Static assets
+├── tests/                  # Test files
+└── ...                     # Other project files
 ```
 
 ## Core Components
 
-### 1. Database Layer (`/src/lib/adapters/`)
+### 1. Database Layer (`/src/databases/`)
 
-The database layer provides a flexible interface for different database backends:
+The database layer provides a flexible interface (`dbInterface.ts`) for different database backends. The core `db.ts` file handles the dynamic loading of the appropriate adapter based on the environment configuration.
 
 ```typescript
 interface DatabaseAdapter {
-	connect(): Promise<void>;
-	disconnect(): Promise<void>;
-	query<T>(query: string, params?: any[]): Promise<T[]>;
-	// ... additional methods
+	connect(): Promise<DatabaseResult<void>>;
+	// ... CRUD methods for collections, media, widgets etc.
 }
 ```
 
 Supported adapters:
 
-- MongoDB Adapter
-- Drizzle SQL Adapter (PostgreSQL, MySQL, SQLite)
-- Custom adapter support
+- MongoDB Adapter (`/src/databases/mongodb/`)
+- (Future) SQL-based adapters
 
-### 2. Authentication System (`/src/lib/auth/`)
+### 2. Authentication System (`/src/auth/`)
 
-Handles user authentication and authorization:
+Handles user authentication and authorization. It uses its own adapter interface (`authDBInterface.ts`) which is implemented for each database type (e.g., `/src/auth/mongoDBAuth/`).
 
 - Session management
 - Role-based access control
@@ -71,26 +69,23 @@ Reusable UI components following atomic design principles:
 - Organisms (complex UI sections)
 - Templates (page layouts)
 
-### 4. Configuration System (`/src/lib/config/`)
+### 4. Configuration System (`/config/` and `/src/stores/globalSettings.ts`)
 
-Manages CMS configuration:
+Manages CMS configuration through a combination of static files and a reactive store system:
 
-- Environment-based settings
-- Plugin configuration
-- Theme settings
-- System preferences
+- `/config/public.ts`: Defines the shape and default values for public, non-sensitive settings.
+- `/config/private.ts`: Defines the shape and default values for private, sensitive settings (e.g., API keys, database credentials). This file is in `.gitignore`.
+- `/src/stores/globalSettings.ts`: A reactive Svelte store that loads settings from the database at startup, providing a unified and type-safe way to access configuration throughout the application.
 
-### 5. Core CMS (`/src/lib/core/`)
+### 5. Content Management (`/src/content/`)
 
-Core CMS functionality:
+The `ContentManager` is the core service responsible for:
 
-- Content type management
-- Field validation
-- Plugin system
-- Event handling
-- Cache management
+- Loading collection schemas from `/config/collections/`.
+- Dynamically creating database models for each collection.
+- Providing an API for content operations.
 
-### 6. Widget System (`/src/lib/widgets/`)
+### 6. Widget System (`/src/widgets/`)
 
 Extensible widget framework:
 

@@ -3,7 +3,7 @@
  * @description API endpoint for specific system virtual folder operations
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
 

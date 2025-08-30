@@ -9,8 +9,9 @@ import mongoose from 'mongoose';
 // Auth
 
 export async function POST({ request, locals }) {
-	// Authentication is handled by hooks.server.ts
-	if (!locals.user) {
+	// Allow unauthenticated access in setup mode
+	let isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+	if (!locals.user && !isSetupMode) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
@@ -32,7 +33,7 @@ export async function POST({ request, locals }) {
 			await testConnection.close(); // Close the temporary connection
 
 			return json({ success: true, message: 'MongoDB connection successful!' });
-		} catch (error: unknown) {
+		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			console.error('MongoDB test connection error:', error);
 			return json({ success: false, message: `MongoDB connection failed: ${errorMessage}` }, { status: 400 });

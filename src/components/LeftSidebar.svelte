@@ -1,5 +1,5 @@
-<!-- 
-@file src/components/LeftSidebar.svelte 
+<!--
+@file src/components/LeftSidebar.svelte
 
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
@@ -23,7 +23,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { publicEnv } from '@root/config/public';
+
 	import axios from 'axios';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
@@ -33,13 +33,14 @@
 	import { isDesktop, isMobile, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
-	import { get } from 'svelte/store';
+
 	// Import components and utilities
 	import Collections from '@components/Collections.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// Skeleton components and utilities
-	import { Avatar, modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import ThemeToggle from '@components/ThemeToggle.svelte';
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
@@ -58,11 +59,7 @@
 		target: 'Github',
 		placement: 'right'
 	};
-	const SwitchThemeTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SwitchTheme',
-		placement: 'right'
-	};
+
 	const SignOutTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SignOutButton',
@@ -80,7 +77,7 @@
 	};
 
 	// Define language type based on available languages
-	type AvailableLanguage = typeof publicEnv.LOCALES extends string[] ? (typeof publicEnv.LOCALES)[number] : string;
+	type AvailableLanguage = string;
 
 	let _languageTag = $state(getLocale()); // Get the current language tag
 
@@ -91,7 +88,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...(publicEnv.LOCALES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(page.data?.settings?.LOCALES || ['en'])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -170,14 +167,6 @@
 			$pkgBgColor = 'variant-filled-tertiary';
 		});
 
-	const toggleTheme = () => {
-		const currentMode = get(modeCurrent);
-		const newMode = !currentMode;
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
-		localStorage.setItem('theme', newMode ? 'light' : 'dark');
-	};
-
 	// Navigation handlers - simplified and more direct
 	function handleUserClick() {
 		if (page.url.pathname !== '/user') {
@@ -216,7 +205,7 @@
 	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
+			<span class="text-token relative text-2xl font-bold"><SiteName siteName={page.data?.settings?.SITE_NAME} /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
@@ -318,7 +307,7 @@
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if (publicEnv.LOCALES as string[]).length > 5}
+					{#if availableLanguages.length > 5}
 						<button
 							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'
@@ -384,19 +373,7 @@
 
 			<!-- Light/Dark mode switch -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
-				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
-					{#if !$modeCurrent}
-						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
-					{:else}
-						<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
-					{/if}
-				</button>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SwitchTheme">
-					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-					<div class="variant-filled arrow"></div>
-				</div>
+				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500 hover:text-white" iconSize={22} />
 			</div>
 
 			<!-- Sign Out -->

@@ -9,10 +9,10 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import type { Editor } from '@tiptap/core';
+	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	interface Props {
 		show?: boolean;
@@ -33,7 +33,8 @@
 		}, 200);
 	}
 
-	function handleSubmit() {
+	function handleSubmit(e: Event) {
+		e.preventDefault(); // Prevent the default form submission
 		if (youtube_url && editor) {
 			editor.chain().focus().setYoutubeVideo({ src: youtube_url }).run();
 		}
@@ -55,10 +56,10 @@
 </script>
 
 {#if show}
-	<div transition:fade={{ duration: 150 }} class="fixed inset-0 z-40 bg-black/30" on:click={close} role="presentation"></div>
+	<div transition:fade={{ duration: 150 }} class="fixed inset-0 z-40 bg-black/30" onclick={close} role="presentation"></div>
 
 	<div
-		transition:fade={{ duration: 150, start: 0.5 }}
+		transition:fade={{ duration: 150 }}
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="video-dialog-title"
@@ -70,15 +71,15 @@
 			role="button"
 			aria-label="Close"
 			class="absolute right-3 top-3 z-10 cursor-pointer text-gray-500 hover:text-gray-800"
-			on:click={close}
-			on:keydown={(e) => e.key === 'Enter' && close()}
+			onclick={close}
+			onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && close()}
 			tabindex="0"
 		></iconify-icon>
 
 		<h3 id="video-dialog-title" class="mb-4 text-lg font-medium">Add Video</h3>
 
 		{#if insert_url}
-			<form on:submit|preventDefault={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
+			<form onsubmit={handleSubmit} class="relative mt-2 flex flex-col items-center justify-center gap-4">
 				<FloatingInput bind:value={youtube_url} autofocus={true} textColor="black" name="Youtube URL" label="Youtube URL" />
 				<button type="submit" class="variant-filled-primary btn w-full">Add Video</button>
 			</form>
@@ -88,7 +89,7 @@
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
 					<button class="variant-outline-primary btn w-full" disabled>Browse locally</button>
-					<button class="variant-filled-secondary btn w-full" on:click={() => (insert_url = true)}> YouTube </button>
+					<button class="variant-filled-secondary btn w-full" onclick={() => (insert_url = true)}> YouTube </button>
 				</div>
 			</div>
 		{/if}

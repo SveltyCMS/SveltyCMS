@@ -21,27 +21,23 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { fade } from 'svelte/transition';
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
-	import { publicEnv } from '@root/config/public';
-
+	import { fade } from 'svelte/transition';
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import { getTextDirection } from '@utils/utils';
-
 	// Stores
 	import { contentStructure } from '@stores/collectionStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -50,9 +46,8 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-
 	// Skeleton
-	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	import { setGlobalModalStore } from '@utils/modalUtils';
 	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function
@@ -146,7 +141,10 @@
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
 		setModeCurrent(prefersDarkMode);
-		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
+
+		// Set cookie for server-side persistence
+		document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 	}
 
 	// Keyboard shortcuts
@@ -162,10 +160,23 @@
 		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
 
-		// Check for saved theme preference in localStorage
-		const savedTheme = localStorage.getItem('theme');
+		// Check for saved theme preference in cookies
+		const getCookie = (name: string) => {
+			const value = `; ${document.cookie}`;
+			const parts = value.split(`; ${name}=`);
+			if (parts.length === 2) return parts.pop()?.split(';').shift();
+			return null;
+		};
+
+		const savedTheme = getCookie('theme');
+		const savedDarkMode = getCookie('darkMode');
+
 		if (savedTheme) {
 			const newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		} else if (savedDarkMode) {
+			const newMode = savedDarkMode === 'true';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
 		}
@@ -234,8 +245,10 @@
 	});
 
 	// SEO
-	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
-	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	const siteName = $derived(data.settings?.SITE_NAME || 'SveltyCMS');
+	const SeoDescription = $derived(
+		`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`
+	);
 </script>
 
 <svelte:head>
@@ -244,11 +257,10 @@
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
-	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />
 
 	<!-- Open Graph -->
-	<meta property="og:title" content={SeoTitle} />
+	<meta property="og:title" content={siteName} />
 	<meta property="og:description" content={SeoDescription} />
 	<meta property="og:type" content="website" />
 	<meta property="og:image" content="/SveltyCMS.png" />
@@ -258,7 +270,7 @@
 
 	<!-- Open Graph : Twitter-->
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={SeoTitle} />
+	<meta name="twitter:title" content={siteName} />
 	<meta name="twitter:description" content={SeoDescription} />
 	<meta name="twitter:image" content="/SveltyCMS.png" />
 	<meta property="twitter:domain" content={page.url.origin} />

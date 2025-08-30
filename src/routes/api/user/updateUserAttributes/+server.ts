@@ -135,7 +135,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		}
 
 		// Invalidate admin cache since user data has changed
-		const { invalidateAdminCache } = await import('@src/hooks.server');
+		const { invalidateAdminCache } = await import('@src/hooks/handleAuthorization');
 		invalidateAdminCache('users', tenantId);
 
 		logger.info('User attributes updated successfully', {

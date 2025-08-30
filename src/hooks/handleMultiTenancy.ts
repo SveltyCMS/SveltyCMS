@@ -12,18 +12,13 @@
 
 import { privateEnv } from '@root/config/private';
 import { error, type Handle } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+
 import { getTenantIdFromHostname } from './utils/tenant';
 
-/**
- * Identifies a tenant based on the request hostname.
- * In a real-world application, this would query a database of tenants.
- * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
- * @param hostname The hostname from the request URL.
- * @returns The tenant ID or null if not a tenant-specific domain.
- */
-// shared getTenantIdFromHostname imported
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
+// Identifies a tenant based on the request hostname.
 export const handleMultiTenancy: Handle = async ({ event, resolve }) => {
 	if (privateEnv.MULTI_TENANT) {
 		const tenantId = getTenantIdFromHostname(event.url.hostname);

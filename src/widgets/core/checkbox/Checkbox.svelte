@@ -11,21 +11,19 @@
 - `value`: any
 
 ### Features
-- Translatable	
+- Translatable
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings';
+	import { getFieldName } from '@utils/utils';
 	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
-	import { getFieldName } from '@utils/utils';
-
 	// Stores
+	import { collectionValue, mode } from '@stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@stores/collectionStore.svelte';
-
 	// Valibot validation
-	import { object, string, number, boolean, optional, minLength, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	import { boolean, minLength, number, object, optional, parse, pipe, string, type InferInput, type ValiError } from 'valibot';
 
 	interface Props {
 		field: FieldType;
@@ -42,7 +40,7 @@
 	let debounceTimeout: number | undefined;
 
 	// Computed values
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _language = $derived(field?.translated ? $contentLanguage : DEFAULT_CONTENT_LANGUAGE);
 
 	// Initialize data structure
 	$effect(() => {

@@ -8,13 +8,11 @@
  * - **Input Validation:** Safely validates and caps the `limit` query parameter.
  */
 
+import { error, json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
-import { error, json } from '@sveltejs/kit';
-
-// Auth
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

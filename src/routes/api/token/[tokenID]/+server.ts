@@ -15,24 +15,35 @@
  * }
  * }
  */
-import { json, error, type HttpError } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { privateEnv } from '@root/config/private';
+import { error, json, type HttpError } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Auth
-// Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-// TODO: Remove once updateToken is added to database-agnostic interface
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // Validation
-import { object, any, parse, type ValiError } from 'valibot';
+import { any, object, parse, type ValiError } from 'valibot';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks.server';
+import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
+
+// Minimal shared result type guards (kept local to avoid broad dependencies)
+interface DatabaseResultLike<T> {
+	success: boolean;
+	data?: T;
+	deletedCount?: number;
+}
+interface TokenLike {
+	_id?: string;
+	token?: string;
+}
+function isDatabaseResult<T>(val: unknown): val is DatabaseResultLike<T> {
+	return !!val && typeof val === 'object' && 'success' in val;
+}
 
 const editTokenSchema = object({
 	newTokenData: any() // Keep it flexible, specific validation can be added
@@ -74,8 +85,35 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 			}
 		} // TODO: Use database-agnostic interface once updateToken is implemented
 
-		const tokenAdapter = new TokenAdapter();
-		await tokenAdapter.updateToken(tokenId, newTokenData);
+		// Use database-agnostic interface if available, with graceful fallback
+		let updateResult: unknown = null;
+		const possibleAuth: unknown = auth as unknown;
+		if (
+			possibleAuth &&
+			typeof possibleAuth === 'object' &&
+			'updateToken' in possibleAuth &&
+			typeof (possibleAuth as { updateToken: unknown }).updateToken === 'function'
+		) {
+			updateResult = await (possibleAuth as { updateToken: (id: string, data: unknown) => unknown }).updateToken(tokenId, newTokenData);
+		} else {
+			// Fallback (should not normally execute once interface is standardized)
+			const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
+			const tokenAdapter = new TokenAdapter();
+			updateResult = await tokenAdapter.updateToken(tokenId, newTokenData);
+		}
+
+		// Handle possible return shapes: boolean | Token | DatabaseResult<Token>
+		let updated = false;
+		if (typeof updateResult === 'boolean') {
+			updated = updateResult;
+		} else if (isDatabaseResult<TokenLike>(updateResult)) {
+			updated = updateResult.success === true;
+		} else if (updateResult && typeof updateResult === 'object') {
+			updated = true; // Assume object implies success (token object returned)
+		}
+		if (!updated) {
+			throw error(404, 'Token not found or not modified');
+		}
 
 		logger.info('Token updated successfully', { tokenId, updateData: newTokenData, tenantId }); // Invalidate the tokens cache so the UI updates immediately
 
@@ -128,8 +166,29 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			}
 		}
 
-		const tokenAdapter = new TokenAdapter();
-		await tokenAdapter.deleteTokens([tokenId]); // Invalidate the tokens cache so the deleted token disappears immediately from admin area
+		// Use database-agnostic interface if available, fallback to adapter
+		let deletedCount: number | undefined;
+		const maybeAuth: unknown = auth as unknown;
+		if (
+			maybeAuth &&
+			typeof maybeAuth === 'object' &&
+			'deleteTokens' in maybeAuth &&
+			typeof (maybeAuth as { deleteTokens: unknown }).deleteTokens === 'function'
+		) {
+			const result = await (maybeAuth as { deleteTokens: (ids: string[]) => unknown }).deleteTokens([tokenId]);
+			if (typeof result === 'number') {
+				deletedCount = result;
+			} else if (result && typeof result === 'object' && 'deletedCount' in result) {
+				deletedCount = (result as { deletedCount?: number }).deletedCount;
+			}
+		} else {
+			const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
+			const tokenAdapter = new TokenAdapter();
+			deletedCount = await tokenAdapter.deleteTokens([tokenId]);
+		}
+		if (!deletedCount) {
+			throw error(404, 'Token not found');
+		} // Invalidate the tokens cache so the deleted token disappears immediately from admin area
 
 		invalidateAdminCache('tokens', tenantId);
 

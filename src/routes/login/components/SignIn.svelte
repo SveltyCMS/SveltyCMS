@@ -531,7 +531,7 @@ Features:
 								autocapitalize="none"
 								spellcheck={false}
 								bind:value={$form.email}
-								label={m.form_emailaddress()}
+								label={m.email()}
 								{...$constraints.email}
 								icon="mdi:email"
 								iconColor="black"
@@ -692,7 +692,7 @@ Features:
 								autocapitalize="none"
 								spellcheck={false}
 								bind:value={$forgotForm.email}
-								label={m.form_emailaddress()}
+								label={m.email()}
 								{...$forgotConstraints.email}
 								icon="mdi:email"
 								iconColor="black"
@@ -780,7 +780,7 @@ Features:
 								bind:value={$resetForm.confirm_password}
 								{showPassword}
 								autocomplete="new-password"
-								label={m.form_confirmpassword()}
+								label={m.confirm_password?.() || m.form_confirmpassword?.()}
 								icon="mdi:lock"
 								iconColor="black"
 								textColor="black"
@@ -795,7 +795,7 @@ Features:
 								type="password"
 								bind:value={$resetForm.token}
 								{showPassword}
-								label={m.signin_registrationtoken()}
+								label={m.registration_token?.() || m.signin_registrationtoken?.()}
 								icon="mdi:lock"
 								iconColor="black"
 								textColor="black"
