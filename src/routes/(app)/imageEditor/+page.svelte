@@ -64,9 +64,24 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		// Add window resize event listener
 		window.addEventListener('resize', handleResize);
 
-		// Cleanup event listener on component destroy
+		// Add keyboard event listener for Esc key
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === 'Escape') {
+				const currentState = imageEditorStore.state.activeState;
+				if (currentState) {
+					// Exit current tool
+					imageEditorStore.setActiveState('');
+					imageEditorStore.cleanupTempNodes();
+				}
+			}
+		}
+
+		window.addEventListener('keydown', handleKeyDown);
+
+		// Cleanup event listeners on component destroy
 		return () => {
 			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('keydown', handleKeyDown);
 		};
 	});
 
@@ -181,28 +196,112 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	function handleCrop(data: { x: number; y: number; width: number; height: number; shape: string }) {
 		const { x, y, width, height, shape } = data;
-		const { imageNode, layer } = imageEditorStore.state;
+		console.log('Crop data:', data);
 
-		// Apply the crop to the image
-		imageNode?.setAttrs({
-			x,
-			y,
-			width: Math.max(1, width),
-			height: Math.max(1, height),
-			clip:
-				shape === 'circular'
-					? (ctx: CanvasRenderingContext2D) => {
-							ctx.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
-						}
-					: null
-		});
+		// Save current state before applying crop
+		saveState();
 
-		layer?.batchDraw();
-		imageEditorStore.setActiveState('');
-		applyEdit();
-	}
+		// Get the current imageNode from store state
+		const currentImageNode = storeState.imageNode;
+		if (!currentImageNode) {
+			console.error('No image node available for cropping');
+			return;
+		}
 
-	// Handle watermark applied event
+		try {
+			// Create a new canvas to draw the cropped image
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+			if (!ctx) {
+				console.error('Could not get canvas context');
+				return;
+			}
+
+			// Set canvas size to crop dimensions
+			canvas.width = width;
+			canvas.height = height;
+
+			// Get the current image element
+			const imageElement = currentImageNode.image() as HTMLImageElement;
+			if (!imageElement) {
+				console.error('No image element found');
+				return;
+			}
+
+			if (shape === 'circular') {
+				// For circular crops, create a circular clipping mask
+				ctx.save();
+				ctx.beginPath();
+				ctx.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
+				ctx.clip();
+				ctx.drawImage(imageElement, x, y, width, height, 0, 0, width, height);
+				ctx.restore();
+			} else {
+				// For rectangular crops, draw the cropped portion
+				ctx.drawImage(imageElement, x, y, width, height, 0, 0, width, height);
+			}
+
+			// Create new image from the cropped canvas
+			const croppedImageSrc = canvas.toDataURL('image/png', 1.0);
+			const newImage = new Image();
+
+			newImage.onload = () => {
+				// Update the image node with the new cropped image
+				currentImageNode.image(newImage);
+
+				// Center the cropped image in the editor
+				const stage = storeState.stage;
+				if (stage) {
+					const stageWidth = stage.width();
+					const stageHeight = stage.height();
+
+					// Calculate center position
+					const centerX = stageWidth / 2;
+					const centerY = stageHeight / 2;
+
+					// Reset container transforms first
+					const container = storeState.imageGroup ?? currentImageNode;
+					if (container !== currentImageNode) {
+						container.x(0);
+						container.y(0);
+					}
+					container.scaleX(1);
+					container.scaleY(1);
+					container.rotation(0);
+
+					// Position the image node at center
+					currentImageNode.x(centerX - newImage.width / 2);
+					currentImageNode.y(centerY - newImage.height / 2);
+					
+					// If using a group container, center the group instead
+					if (container !== currentImageNode) {
+						container.x(centerX);
+						container.y(centerY);
+						currentImageNode.x(-newImage.width / 2);
+						currentImageNode.y(-newImage.height / 2);
+					}
+				}
+
+				// Clear any existing clip function
+				currentImageNode.clipFunc(null);
+
+				// Clean up crop tool and temporary nodes
+				imageEditorStore.cleanupTempNodes();
+
+				// Force redraw
+				layer?.batchDraw();
+				console.log('Crop applied successfully');
+
+				// Update store state and apply edit
+				imageEditorStore.setActiveState('');
+				applyEdit();
+			};
+
+			newImage.src = croppedImageSrc;
+		} catch (error) {
+			console.error('Error applying crop:', error);
+		}
+	} // Handle watermark applied event
 	function handleWatermarkApplied() {
 		imageEditorStore.setActiveState('');
 		applyEdit();
@@ -353,41 +452,72 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 <!-- Page Title with Back Button -->
 <PageTitle name="Image Editor" icon="tdesign:image-edit" showBackButton={true} backUrl="/config" />
 
-<div class="my-4">
-	<div class="wrapper !bg-error-500 text-center">
-		<p>Current in Development!!! For testing purposes only</p>
-	</div>
-</div>
+<!-- Compact Controls Bar -->
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-100 p-3 dark:bg-surface-800">
+	<!-- Left side - File upload and warning -->
+	<div class="flex items-center gap-3">
+		<div class="relative">
+			<input id="image-upload" class="peer sr-only" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
+			<label for="image-upload" class="variant-filled-primary btn cursor-pointer px-4 py-2 text-sm font-medium">
+				<iconify-icon icon="mdi:upload" width="18" class="mr-2"></iconify-icon>
+				Choose Image
+			</label>
+		</div>
 
-<div class="mb-2 flex items-center justify-between gap-2">
-	<input class="input my-2 h-10" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
+		<div class="hidden items-center gap-2 text-xs text-warning-600 dark:text-warning-400 sm:flex">
+			<iconify-icon icon="mdi:alert" width="16"></iconify-icon>
+			<span>Dev Mode</span>
+		</div>
+	</div>
+
+	<!-- Right side - Action buttons -->
 	{#if storeState.file}
-		<button
-			onclick={handleUndo}
-			disabled={!imageEditorStore.canUndoState}
-			aria-label="Undo"
-			class="variant-outline-tertiary btn-icon dark:variant-outline-secondary"
-		>
-			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600"></iconify-icon>
-		</button>
-		<button
-			onclick={handleRedo}
-			disabled={!imageEditorStore.canRedoState}
-			aria-label="Redo"
-			class="variant-outline-tertiary btn-icon dark:variant-outline-secondary"
-		>
-			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600"></iconify-icon>
-		</button>
-		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
-		</button>
+		<div class="flex items-center gap-2">
+			<span class="hidden text-sm text-tertiary-600 dark:text-tertiary-400 sm:inline">
+				{storeState.file.name}
+			</span>
+			<div class="flex gap-1">
+				<button
+					onclick={handleUndo}
+					disabled={!imageEditorStore.canUndoState}
+					aria-label="Undo"
+					class="variant-soft-tertiary btn-icon hover:variant-filled-tertiary disabled:opacity-50"
+					title="Undo"
+				>
+					<iconify-icon icon="mdi:undo" width="18"></iconify-icon>
+				</button>
+				<button
+					onclick={handleRedo}
+					disabled={!imageEditorStore.canRedoState}
+					aria-label="Redo"
+					class="variant-soft-tertiary btn-icon hover:variant-filled-tertiary disabled:opacity-50"
+					title="Redo"
+				>
+					<iconify-icon icon="mdi:redo" width="18"></iconify-icon>
+				</button>
+				<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-success btn-icon" title="Save Image">
+					<iconify-icon icon="material-symbols:save" width="18"></iconify-icon>
+				</button>
+			</div>
+		</div>
 	{/if}
 </div>
 
 <!-- Image Editor Container -->
-<div class="flex h-[calc(100vh-315px)] flex-col items-center justify-center overflow-hidden border-2 border-tertiary-500" bind:this={containerRef}>
+<div
+	class="flex h-[calc(100vh-280px)] flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-900"
+	bind:this={containerRef}
+>
 	{#if !storeState.file}
-		<p class=" text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
+		<div class="flex flex-col items-center gap-4 text-center">
+			<div class="rounded-full bg-surface-200 p-6 dark:bg-surface-700">
+				<iconify-icon icon="mdi:image-plus" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
+			</div>
+			<div>
+				<h3 class="text-lg font-medium text-surface-700 dark:text-surface-300">No Image Selected</h3>
+				<p class="mt-1 text-sm text-surface-500 dark:text-surface-400">Choose an image above to start editing</p>
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -428,6 +558,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 				{stage}
 				{layer}
 				{imageNode}
+				imageGroup={storeState.imageGroup}
 				onCrop={handleCrop}
 				onCancelCrop={() => {
 					imageEditorStore.setActiveState('');
