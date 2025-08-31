@@ -1,6 +1,4 @@
-name: Playwright and Bun Tests
-
-# Trigger on pushes to main and next, and on Pull Requests to main
+name: SveltyCMS Playwright and Bun Tests
 on:
   push:
     branches:
@@ -9,30 +7,38 @@ on:
   pull_request:
     branches:
       - main
+      - next
   workflow_dispatch: {}
 
+env:
+  NODE_VERSION: '18.x'
+  DOCKER_IMAGE: sveltycms/testbed:latest
+
 jobs:
-  test:
+  test-playwright:
     name: SveltyCMS Playwright Tests
     timeout-minutes: 60
     runs-on: ubuntu-latest
-
     strategy:
-      fail-fast: true
+      fail-fast: false # Allow all tests to run even if some fail
       matrix:
         mongodb-version: [latest]
         test-file:
-          [
-            '/tests/playwright/signupfirstuser.spec.ts',
-            '/tests/playwright/user.spec.ts',
-            '/tests/playwright/oauth-signup-firstuser.spec.ts',
-            '/tests/playwright/collection.spec.ts',
-            '/tests/playwright/language.spec.ts',
-            '/tests/playwright/login.spec.ts',
-            '/tests/playwright/permission-change.spec.ts',
-            '/tests/playwright/user-crud.spec.ts'
-          ]
-
+          - 'tests/playwright/signupfirstuser.spec.ts'
+          - 'tests/playwright/user.spec.ts'
+          - 'tests/playwright/oauth-signup-firstuser.spec.ts'
+          - 'tests/playwright/collection.spec.ts'
+          - 'tests/playwright/language.spec.ts'
+          - 'tests/playwright/login.spec.ts'
+          - 'tests/playwright/permission-change.spec.ts'
+          - 'tests/playwright/user-crud.spec.ts'
+          - 'tests/playwright/setup.spec.ts' # New
+          - 'tests/playwright/password-reset.spec.ts' # New
+          - 'tests/playwright/collection-builder.spec.ts' # New
+          - 'tests/playwright/media-gallery.spec.ts' # New
+          - 'tests/playwright/widgets-manager.spec.ts' # New
+          - 'tests/playwright/theme-manager.spec.ts' # New
+          - 'tests/playwright/navigation.spec.ts' # New
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -43,241 +49,456 @@ jobs:
           bun-version: latest
 
       - name: Cache Bun dependencies and Playwright browsers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.bun/install/cache
             ~/.cache/ms-playwright
-          key: ${{ runner.OS }}-bun-playwright-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-playwright-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.OS }}-bun-playwright-
-        continue-on-error: true
+            ${{ runner.os }}-bun-playwright-
 
-      - name: Start MongoDB v${{ matrix.mongodb-version }}
-        uses: supercharge/mongodb-github-action@1.10.0
-        with:
-          mongodb-version: ${{ matrix.mongodb-version }}
-          mongodb-username: admin
-          mongodb-password: admin
-          mongodb-db: SveltyCMS
-          mongodb-port: 27017
-        # CORRECTED: Removed the 'if' condition to ensure MongoDB runs for pull requests as well.
+      - name: Build Docker image
+        run: docker build -t ${{ env.DOCKER_IMAGE }} -f Dockerfile.test .
 
-      - name: Install dependencies
-        run: bun install
+      - name: Start MongoDB
+        run: |
+          docker run -d --name mongodb -p 27017:27017 \
+            -e MONGO_INITDB_ROOT_USERNAME=admin \
+            -e MONGO_INITDB_ROOT_PASSWORD=admin \
+            -e MONGO_INITDB_DATABASE=SveltyCMS \
+            mongo:${{ matrix.mongodb-version }}
 
-      - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps
-
-      - name: Run local server
-        run: bun run build && bun run preview &
-
-      - name: Run Playwright tests
+      - name: Run Playwright tests in Docker
         run: |
           mkdir -p test-results/playwright
-          # The loop for running tests in parallel is a good approach.
-          for file in ${{ matrix.test-file }}; do
-            bunx playwright test $file --workers 10 --output=test-results/playwright &
-          done
-          wait
-        env:
-          # --- CORRECTED: Private Configuration ---
-          # Note: Prefixes like 'privateEnv.' are removed. All values are strings.
-          # The application code is expected to parse numbers, booleans, and JSON strings.
-          DB_TYPE: 'mongodb'
-          DB_HOST: 'localhost' # CORRECTED: Use 'localhost', not the full connection string URI
-          DB_PORT: '27017'
-          DB_NAME: 'SveltyCMS'
-          DB_USER: 'admin'
-          DB_PASSWORD: 'admin'
-          DB_RETRY_DELAY: '1000'
-          DB_RETRY_ATTEMPTS: '3'
-          DB_POOL_SIZE: '5'
-          MULTI_TENANT: 'false'
+          docker run --rm --network host \
+            -v $(pwd)/test-results:/app/test-results \
+            -e DB_TYPE=mongodb \
+            -e DB_HOST=localhost \
+            -e DB_PORT=27017 \
+            -e DB_NAME=SveltyCMS \
+            -e DB_USER=admin \
+            -e DB_PASSWORD=admin \
+            -e DB_RETRY_DELAY=1000 \
+            -e DB_RETRY_ATTEMPTS=3 \
+            -e DB_POOL_SIZE=5 \
+            -e MULTI_TENANT=false \
+            -e SMTP_HOST='' \
+            -e SMTP_PORT=587 \
+            -e SMTP_EMAIL='' \
+            -e SMTP_PASSWORD='' \
+            -e SERVER_PORT=4173 \
+            -e USE_GOOGLE_OAUTH=true \
+            -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+            -e USE_REDIS=false \
+            -e SESSION_CLEANUP_INTERVAL=60000 \
+            -e MAX_IN_MEMORY_SESSIONS=1000 \
+            -e DB_VALIDATION_PROBABILITY=0.1 \
+            -e SESSION_EXPIRATION_SECONDS=86400 \
+            -e USE_MAPBOX=false \
+            -e ROLES='["admin", "editor"]' \
+            -e PERMISSIONS='["create", "read", "update", "delete"]' \
+            -e JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
+            -e USE_2FA=false \
+            -e HOST_DEV=http://localhost:5173 \
+            -e HOST_PROD=http://localhost:4173 \
+            -e SITE_NAME='SveltyCMS Test Site' \
+            -e PASSWORD_LENGTH=8 \
+            -e DEFAULT_CONTENT_LANGUAGE=en \
+            -e AVAILABLE_CONTENT_LANGUAGES='["en", "de", "es"]' \
+            -e BASE_LOCALE=en \
+            -e LOCALES='["en", "de"]' \
+            -e MEDIA_FOLDER=ci-media-files \
+            -e MEDIA_OUTPUT_FORMAT_QUALITY='{"format": "webp", "quality": 75}' \
+            -e IMAGE_SIZES='{"thumbnail": 150, "card": 600}' \
+            -e MAX_FILE_SIZE=10485760 \
+            -e BODY_SIZE_LIMIT=104857600 \
+            -e USE_ARCHIVE_ON_DELETE=true \
+            -e LOG_LEVELS='["info", "error", "warn"]' \
+            -e LOG_RETENTION_DAYS=7 \
+            -e LOG_ROTATION_SIZE=5242880 \
+            -e DEMO=true \
+            ${{ env.DOCKER_IMAGE }} bunx playwright test ${{ matrix.test-file }} --workers 4 --output=test-results/playwright
 
-          SMTP_HOST: ''
-          SMTP_PORT: '587'
-          SMTP_EMAIL: ''
-          SMTP_PASSWORD: ''
-          SERVER_PORT: '4173'
-
-          # CORRECTED: Conditional validation for Google OAuth requires these if USE_GOOGLE_OAUTH is true.
-          USE_GOOGLE_OAUTH: 'true'
-          GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
-          GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
-
-          # CORRECTED: Set USE_REDIS to false, so other REDIS variables are not required.
-          USE_REDIS: 'false'
-          REDIS_HOST: ''
-          REDIS_PORT: ''
-          REDIS_PASSWORD: ''
-
-          SESSION_CLEANUP_INTERVAL: '60000'
-          MAX_IN_MEMORY_SESSIONS: '1000'
-          DB_VALIDATION_PROBABILITY: '0.1'
-          SESSION_EXPIRATION_SECONDS: '86400'
-
-          USE_MAPBOX: 'false'
-          MAPBOX_API_TOKEN: ''
-          SECRET_MAPBOX_API_TOKEN: ''
-
-          GOOGLE_API_KEY: ''
-          TWITCH_TOKEN: ''
-          USE_TIKTOK: 'false'
-          TIKTOK_TOKEN: ''
-          LLM_APIS: '{}'
-
-          # CORRECTED: ROLES and PERMISSIONS must be non-empty JSON arrays.
-          ROLES: '["admin", "editor"]'
-          PERMISSIONS: '["create", "read", "update", "delete"]'
-
-          # CORRECTED: JWT_SECRET_KEY must be at least 32 characters long.
-          JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
-
-          USE_2FA: 'false'
-          TWO_FACTOR_AUTH_SECRET: ''
-          TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
-
-          # --- CORRECTED: Public Configuration ---
-          HOST_DEV: 'http://localhost:5173'
-          HOST_PROD: 'http://localhost:4173'
-          SITE_NAME: 'SveltyCMS Test Site'
-          PASSWORD_LENGTH: '8'
-
-          # CORRECTED: DEFAULT_CONTENT_LANGUAGE must be in AVAILABLE_CONTENT_LANGUAGES
-          DEFAULT_CONTENT_LANGUAGE: 'en'
-          AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
-          # CORRECTED: Added missing required BASE_LOCALE and LOCALES
-          BASE_LOCALE: 'en'
-          LOCALES: '["en", "de"]'
-
-          MEDIA_FOLDER: 'ci-media-files'
-          # CORRECTED: Objects must be valid JSON strings.
-          MEDIA_OUTPUT_FORMAT_QUALITY: '{"format": "webp", "quality": 75}'
-          MEDIASERVER_URL: ''
-          IMAGE_SIZES: '{"thumbnail": 150, "card": 600}'
-          MAX_FILE_SIZE: '10485760'
-          BODY_SIZE_LIMIT: '104857600'
-          EXTRACT_DATA_PATH: ''
-          USE_ARCHIVE_ON_DELETE: 'true'
-
-          SEASONS: 'false'
-          SEASON_REGION: '' # Not needed if SEASONS is false
-          PKG_VERSION: 'ci-test-version'
-
-          # CORRECTED: LOG_LEVELS must be a valid JSON array string.
-          LOG_LEVELS: '["info", "error", "warn"]'
-          LOG_RETENTION_DAYS: '7'
-          LOG_ROTATION_SIZE: '5242880' # 5MB
-
-          DEMO: 'true'
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload Playwright test results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: playwright-test-results
+          name: playwright-test-results-${{ matrix.test-file }}
           path: test-results/playwright/
           retention-days: 30
 
-  bun-tests:
+  test-bun:
     name: SveltyCMS Bun Tests
     runs-on: ubuntu-latest
-
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
 
-      - name: Install Bun
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      - name: Start MongoDB # CORRECTED: Added MongoDB service to this job
-        uses: supercharge/mongodb-github-action@1.10.0
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
         with:
-          mongodb-version: latest
-          mongodb-username: admin
-          mongodb-password: admin
-          mongodb-db: SveltyCMS
-          mongodb-port: 27017
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
-      - name: Install dependencies
-        run: bun install
+      - name: Build Docker image
+        run: docker build -t ${{ env.DOCKER_IMAGE }} -f Dockerfile.test .
 
-      - name: Run Bun tests
+      - name: Start MongoDB
+        run: |
+          docker run -d --name mongodb -p 27017:27017 \
+            -e MONGO_INITDB_ROOT_USERNAME=admin \
+            -e MONGO_INITDB_ROOT_PASSWORD=admin \
+            -e MONGO_INITDB_DATABASE=SveltyCMS \
+            mongo:latest
+
+      - name: Run Bun tests in Docker
         run: |
           mkdir -p test-results/bun
-          bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
-        env: # CORRECTED: Added the full environment configuration to this job as well.
-          # --- Private Configuration ---
-          DB_TYPE: 'mongodb'
-          DB_HOST: 'localhost'
-          DB_PORT: '27017'
-          DB_NAME: 'SveltyCMS'
-          DB_USER: 'admin'
-          DB_PASSWORD: 'admin'
-          DB_RETRY_DELAY: '1000'
-          DB_RETRY_ATTEMPTS: '3'
-          DB_POOL_SIZE: '5'
-          MULTI_TENANT: 'false'
-          SMTP_HOST: ''
-          SMTP_PORT: '587'
-          SMTP_EMAIL: ''
-          SMTP_PASSWORD: ''
-          SERVER_PORT: '4173'
-          USE_GOOGLE_OAUTH: 'true'
-          GOOGLE_CLIENT_ID: 'dummy-google-client-id-for-testing.apps.googleusercontent.com'
-          GOOGLE_CLIENT_SECRET: 'GOCSPX-dummy-google-client-secret-for-ci'
-          USE_REDIS: 'false'
-          REDIS_HOST: ''
-          REDIS_PORT: ''
-          REDIS_PASSWORD: ''
-          SESSION_CLEANUP_INTERVAL: '60000'
-          MAX_IN_MEMORY_SESSIONS: '1000'
-          DB_VALIDATION_PROBABILITY: '0.1'
-          SESSION_EXPIRATION_SECONDS: '86400'
-          USE_MAPBOX: 'false'
-          MAPBOX_API_TOKEN: ''
-          SECRET_MAPBOX_API_TOKEN: ''
-          GOOGLE_API_KEY: ''
-          TWITCH_TOKEN: ''
-          USE_TIKTOK: 'false'
-          TIKTOK_TOKEN: ''
-          LLM_APIS: '{}'
-          ROLES: '["admin", "editor"]'
-          PERMISSIONS: '["create", "read", "update", "delete"]'
-          JWT_SECRET_KEY: 'a-super-secret-jwt-key-for-github-actions-that-is-long-enough'
-          USE_2FA: 'false'
-          TWO_FACTOR_AUTH_SECRET: ''
-          TWO_FACTOR_AUTH_BACKUP_CODES_COUNT: '10'
-          # --- Public Configuration ---
-          HOST_DEV: 'http://localhost:5173'
-          HOST_PROD: 'http://localhost:4173'
-          SITE_NAME: 'SveltyCMS Test Site'
-          PASSWORD_LENGTH: '8'
-          DEFAULT_CONTENT_LANGUAGE: 'en'
-          AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
-          BASE_LOCALE: 'en'
-          LOCALES: '["en", "de"]'
-          MEDIA_FOLDER: 'ci-media-files'
-          MEDIA_OUTPUT_FORMAT_QUALITY: '{"format": "webp", "quality": 75}'
-          MEDIASERVER_URL: ''
-          IMAGE_SIZES: '{"thumbnail": 150, "card": 600}'
-          MAX_FILE_SIZE: '10485760'
-          BODY_SIZE_LIMIT: '104857600'
-          EXTRACT_DATA_PATH: ''
-          USE_ARCHIVE_ON_DELETE: 'true'
-          SEASONS: 'false'
-          SEASON_REGION: ''
-          PKG_VERSION: 'ci-test-version'
-          LOG_LEVELS: '["info", "error", "warn"]'
-          LOG_RETENTION_DAYS: '7'
-          LOG_ROTATION_SIZE: '5242880'
-          DEMO: 'true'
+          docker run --rm --network host \
+            -v $(pwd)/test-results:/app/test-results \
+            -e DB_TYPE=mongodb \
+            -e DB_HOST=localhost \
+            -e DB_PORT=27017 \
+            -e DB_NAME=SveltyCMS \
+            -e DB_USER=admin \
+            -e DB_PASSWORD=admin \
+            -e DB_RETRY_DELAY=1000 \
+            -e DB_RETRY_ATTEMPTS=3 \
+            -e DB_POOL_SIZE=5 \
+            -e MULTI_TENANT=false \
+            -e SMTP_HOST='' \
+            -e SMTP_PORT=587 \
+            -e SMTP_EMAIL='' \
+            -e SMTP_PASSWORD='' \
+            -e SERVER_PORT=4173 \
+            -e USE_GOOGLE_OAUTH=true \
+            -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+            -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+            -e USE_REDIS=false \
+            -e SESSION_CLEANUP_INTERVAL=60000 \
+            -e MAX_IN_MEMORY_SESSIONS=1000 \
+            -e DB_VALIDATION_PROBABILITY=0.1 \
+            -e SESSION_EXPIRATION_SECONDS=86400 \
+            -e USE_MAPBOX=false \
+            -e ROLES='["admin", "editor"]' \
+            -e PERMISSIONS='["create", "read", "update", "delete"]' \
+            -e JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
+            -e USE_2FA=false \
+            -e HOST_DEV=http://localhost:5173 \
+            -e HOST_PROD=http://localhost:4173 \
+            -e SITE_NAME='SveltyCMS Test Site' \
+            -e PASSWORD_LENGTH=8 \
+            -e DEFAULT_CONTENT_LANGUAGE=en \
+            -e AVAILABLE_CONTENT_LANGUAGES='["en", "de", "es"]' \
+            -e BASE_LOCALE=en \
+            -e LOCALES='["en", "de"]' \
+            -e MEDIA_FOLDER=ci-media-files \
+            -e MEDIA_OUTPUT_FORMAT_QUALITY='{"format": "webp", "quality": 75}' \
+            -e IMAGE_SIZES='{"thumbnail": 150, "card": 600}' \
+            -e MAX_FILE_SIZE=10485760 \
+            -e BODY_SIZE_LIMIT=104857600 \
+            -e USE_ARCHIVE_ON_DELETE=true \
+            -e LOG_LEVELS='["info", "error", "warn"]' \
+            -e LOG_RETENTION_DAYS=7 \
+            -e LOG_ROTATION_SIZE=5242880 \
+            -e DEMO=true \
+            ${{ env.DOCKER_IMAGE }} bun test tests/bun/api/ --output=test-results/bun
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Bun test results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: bun-test-results
           path: test-results/bun/
           retention-days: 30
+
+  build-and-push-docker:
+    needs: [test-playwright, test-bun]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ env.DOCKER_IMAGE }}
+
+  create-pull-request:
+    needs: [test-playwright, test-bun]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/next'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update tests and workflow for SveltyCMS"
+          title: "Update Automated Tests and Workflow"
+          body: "This PR updates the GitHub Actions workflow and tests for SveltyCMS, including new tests for setup, login with password reset, user edits, collections, media gallery, widgets, theme, and navigation."
+          branch: next
+          base: next
+```
+
+### Dockerfile for Testing
+A `Dockerfile.test` is required for the test environment. Below is a sample:
+
+<xaiArtifact artifact_id="132a6440-e86a-4e88-a611-23767a27ada9" artifact_version_id="ccbe998b-22fd-4541-9ddf-d70e447de655" title="Dockerfile.test" contentType="text/plain">
+```dockerfile
+FROM node:18-slim
+
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN npm install -g bun && bun install
+COPY . .
+RUN bunx playwright install --with-deps
+
+EXPOSE 4173
+CMD ["bun", "run", "preview"]
+```
+
+### New and Updated Tests
+The existing Playwright tests (`signupfirstuser.spec.ts`, `user.spec.ts`, etc.) need updates to reflect code changes. Below are outlines for the new tests and updates to existing ones. These assume a SvelteKit CMS with standard REST APIs and a MongoDB backend.
+
+#### Updated Playwright Tests
+- **signupfirstuser.spec.ts**: Update to verify first-user signup with current API endpoints (e.g., `/api/auth/signup`). Mock Google OAuth responses using Playwright’s `route` to avoid real API calls.
+- **user.spec.ts**: Update to test user profile updates with the latest schema, ensuring token-based authentication.
+- **oauth-signup-firstuser.spec.ts**: Mock OAuth flow with dummy credentials from GitHub Secrets.
+- **collection.spec.ts**: Update CRUD operations for collections, reflecting new API routes (e.g., `/api/collections`).
+- **language.spec.ts**: Ensure language switching aligns with `AVAILABLE_CONTENT_LANGUAGES` and `BASE_LOCALE`.
+- **login.spec.ts**: Update to test login with current auth endpoints, including JWT validation.
+- **permission-change.spec.ts**: Verify permission updates with the latest `ROLES` and `PERMISSIONS` config.
+- **user-crud.spec.ts**: Update to test user CRUD with token-based authentication, avoiding real credential exposure.
+
+#### New Playwright Tests
+Below are sample test outlines for the new features. These should be placed in `tests/playwright/`.
+
+<xaiArtifact artifact_id="aeec5501-66ed-4b5e-9e2f-dfbe1c2add33" artifact_version_id="f2b7d6de-86f6-47cc-8fd3-70c68e35b7f6" title="setup.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Setup', () => {
+  test('should initialize CMS configuration', async ({ page }) => {
+    await page.goto('/setup');
+    await page.fill('#config-input', JSON.stringify({
+      db: { type: 'mongodb', host: 'localhost', port: 27017, name: 'SveltyCMS' },
+      siteName: 'Test CMS'
+    }));
+    await page.click('#submit-config');
+    await expect(page.locator('#setup-success')).toBeVisible();
+    // Note: GUI-based setup will require updated selectors
+  });
+});
+```
+
+<xaiArtifact artifact_id="b88ce5e7-5f8d-42e8-b608-9c78b3fe5e2d" artifact_version_id="8d42a652-ce90-4971-b3f8-7936be1ea1b8" title="password-reset.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Password Reset', () => {
+  test('should reset password via email link', async ({ page, request }) => {
+    await page.goto('/login');
+    await page.click('#forgot-password');
+    await page.fill('#email-input', 'test@example.com');
+    await page.click('#send-reset-link');
+    // Mock email API response
+    await request.post('/api/auth/reset-password', { data: { email: 'test@example.com' } });
+    await expect(page.locator('#reset-link-sent')).toBeVisible();
+  });
+});
+```
+
+<xaiArtifact artifact_id="7174896b-0b17-447a-b88c-1ebcce0072f7" artifact_version_id="a666857b-8921-4c38-be8e-055740574119" title="collection-builder.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Collection Builder', () => {
+  test('should create a new collection', async ({ page }) => {
+    await page.goto('/admin/collections/builder');
+    await page.fill('#collection-name', 'TestCollection');
+    await page.fill('#fields', JSON.stringify([{ name: 'title', type: 'string' }]));
+    await page.click('#create-collection');
+    await expect(page.locator('#collection-created')).toBeVisible();
+  });
+});
+```
+
+<xaiArtifact artifact_id="1523a0d9-a30d-413d-9fca-5c22eb045e57" artifact_version_id="704b0e28-0ab4-4e63-95d8-269e15c76465" title="media-gallery.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Media Gallery', () => {
+  test('should upload and delete media', async ({ page }) => {
+    await page.goto('/admin/media');
+    await page.setInputFiles('#media-upload', 'test-image.jpg');
+    await page.click('#upload-button');
+    await expect(page.locator('#media-list img')).toBeVisible();
+    await page.click('#delete-media');
+    await expect(page.locator('#media-list')).toBeEmpty();
+  });
+});
+```
+
+<xaiArtifact artifact_id="f49b828e-b4da-4ab7-b666-b8fa9711cb05" artifact_version_id="f448731e-d046-4ffc-a8da-6b8a69204dd8" title="widgets-manager.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Widgets Manager', () => {
+  test('should add and configure widget', async ({ page }) => {
+    await page.goto('/admin/widgets');
+    await page.selectOption('#widget-type', 'text');
+    await page.fill('#widget-content', 'Hello World');
+    await page.click('#add-widget');
+    await expect(page.locator('#widget-preview')).toContainText('Hello World');
+  });
+});
+```
+
+<xaiArtifact artifact_id="851d142e-4d89-4cf8-b7fb-73f5f45381ba" artifact_version_id="a473db6a-51cf-45d4-8dfa-e1d588d21813" title="theme-manager.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Theme Manager', () => {
+  test('should apply new theme', async ({ page }) => {
+    await page.goto('/admin/themes');
+    await page.selectOption('#theme-select', 'dark');
+    await page.click('#apply-theme');
+    await expect(page.locator('body')).toHaveClass(/dark-theme/);
+  });
+});
+```
+
+<xaiArtifact artifact_id="e2a25e4f-b487-4b03-b920-8f363e67160f" artifact_version_id="e23424af-857c-43a0-94b6-1c3214fd9b69" title="navigation.spec.ts" contentType="text/javascript">
+```javascript
+import { test, expect } from '@playwright/test';
+
+test.describe('Navigation', () => {
+  test('should create and render navigation menu', async ({ page }) => {
+    await page.goto('/admin/navigation');
+    await page.fill('#menu-item', 'Home');
+    await page.fill('#menu-url', '/');
+    await page.click('#add-menu-item');
+    await page.goto('/');
+    await expect(page.locator('#nav-menu')).toContainText('Home');
+  });
+});
+```
+
+#### Bun Tests
+The `test-bun` job should include API tests for the new features. Below is an example for `tests/bun/api/api-endpoints.test.ts`, updated to include all features.
+
+<xaiArtifact artifact_id="8abd1594-8f00-40d7-b5a5-992762735bfe" artifact_version_id="b661252b-f827-4fde-92ae-122db996b390" title="api-endpoints.test.ts" contentType="text/javascript">
+```javascript
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { MongoClient } from 'mongodb';
+
+const BASE_URL = 'http://localhost:4173/api';
+let client;
+
+beforeAll(async () => {
+  client = await MongoClient.connect('mongodb://admin:admin@localhost:27017/SveltyCMS');
+});
+
+afterAll(async () => {
+  await client.close();
+});
+
+describe('API Endpoints', () => {
+  it('should initialize setup', async () => {
+    const res = await fetch(`${BASE_URL}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.JWT_SECRET_KEY}` },
+      body: JSON.stringify({ db: { type: 'mongodb', host: 'localhost', port: 27017, name: 'SveltyCMS' } })
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('should reset password', async () => {
+    const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test@example.com' })
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('should create user with token', async () => {
+    const res = await fetch(`${BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'user@example.com', password: 'Password123' })
+    });
+    const { token } = await res.json();
+    expect(token).toBeDefined();
+  });
+
+  it('should perform collection CRUD', async () => {
+    const createRes = await fetch(`${BASE_URL}/collections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.JWT_SECRET_KEY}` },
+      body: JSON.stringify({ name: 'TestCollection', fields: [{ name: 'title', type: 'string' }] })
+    });
+    expect(createRes.status).toBe(200);
+  });
+
+  it('should handle media upload', async () => {
+    const formData = new FormData();
+    formData.append('file', new Blob(['test'], { type: 'image/jpeg' }), 'test.jpg');
+    const res = await fetch(`${BASE_URL}/media`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.JWT_SECRET_KEY}` },
+      body: formData
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('should manage widgets', async () => {
+    const res = await fetch(`${BASE_URL}/widgets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.JWT_SECRET_KEY}` },
+      body: JSON.stringify({ type: 'text', content: 'Hello World' })
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('should apply theme', async () => {
+    const res = await fetch(`${BASE_URL}/themes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.JWT_SECRET_KEY}` },
+      body: JSON.stringify({ theme: 'dark' })
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('should create navigation', async () => {
+    const res = await fetch(`${BASE_URL}/navigation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.JWT_SECRET_KEY}` },
+      body: JSON.stringify({ item: 'Home', url: '/' })
+    });
+    expect(res.status).toBe(200);
+  });
+});
