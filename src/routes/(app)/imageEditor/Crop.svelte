@@ -65,59 +65,80 @@
 		const containerY = container.y();
 		const containerScale = container.scaleX();
 
+		// Calculate the actual image bounds in stage coordinates
+		let imageBounds;
+		if (imageGroup) {
+			// When using imageGroup, account for imageNode's position relative to group
+			const imageNodeX = imageNode.x();
+			const imageNodeY = imageNode.y();
+			imageBounds = {
+				x: containerX + imageNodeX * containerScale,
+				y: containerY + imageNodeY * containerScale,
+				width: imageWidth * containerScale,
+				height: imageHeight * containerScale
+			};
+		} else {
+			// When imageNode is used directly without group
+			imageBounds = {
+				x: containerX,
+				y: containerY,
+				width: imageWidth * containerScale,
+				height: imageHeight * containerScale
+			};
+		}
+
 		// Create a sophisticated overlay that highlights the crop area
-		const stage = storeState.stage;
 		if (stage) {
 			cropOverlay = new Konva.Group();
-			
+
 			const stageWidth = stage.width();
 			const stageHeight = stage.height();
-			
+
 			// Create four rectangles to dim everything except the crop area
 			const topRect = new Konva.Rect({
 				x: 0,
 				y: 0,
 				width: stageWidth,
-				height: containerY - (imageHeight * containerScale) / 2,
+				height: imageBounds.y,
 				fill: 'rgba(0, 0, 0, 0.6)',
 				listening: false
 			});
-			
+
 			const bottomRect = new Konva.Rect({
 				x: 0,
-				y: containerY + (imageHeight * containerScale) / 2,
+				y: imageBounds.y + imageBounds.height,
 				width: stageWidth,
-				height: stageHeight - (containerY + (imageHeight * containerScale) / 2),
+				height: stageHeight - (imageBounds.y + imageBounds.height),
 				fill: 'rgba(0, 0, 0, 0.6)',
 				listening: false
 			});
-			
+
 			const leftRect = new Konva.Rect({
 				x: 0,
-				y: containerY - (imageHeight * containerScale) / 2,
-				width: containerX - (imageWidth * containerScale) / 2,
-				height: imageHeight * containerScale,
+				y: imageBounds.y,
+				width: imageBounds.x,
+				height: imageBounds.height,
 				fill: 'rgba(0, 0, 0, 0.6)',
 				listening: false
 			});
-			
+
 			const rightRect = new Konva.Rect({
-				x: containerX + (imageWidth * containerScale) / 2,
-				y: containerY - (imageHeight * containerScale) / 2,
-				width: stageWidth - (containerX + (imageWidth * containerScale) / 2),
-				height: imageHeight * containerScale,
+				x: imageBounds.x + imageBounds.width,
+				y: imageBounds.y,
+				width: stageWidth - (imageBounds.x + imageBounds.width),
+				height: imageBounds.height,
 				fill: 'rgba(0, 0, 0, 0.6)',
 				listening: false
 			});
-			
+
 			cropOverlay.add(topRect, bottomRect, leftRect, rightRect);
 		} else {
 			// Fallback to simple overlay
 			cropOverlay = new Konva.Rect({
-				x: containerX - (imageWidth * containerScale) / 2,
-				y: containerY - (imageHeight * containerScale) / 2,
-				width: imageWidth * containerScale,
-				height: imageHeight * containerScale,
+				x: imageBounds.x,
+				y: imageBounds.y,
+				width: imageBounds.width,
+				height: imageBounds.height,
 				fill: 'rgba(0, 0, 0, 0.4)',
 				listening: false
 			});
@@ -198,20 +219,35 @@
 					return oldBox;
 				}
 
-				// Keep within image bounds
+				// Keep within image bounds - use same logic as applyCrop
 				const container = imageGroup ?? imageNode;
 				const containerX = container.x();
 				const containerY = container.y();
 				const containerScale = container.scaleX();
-				const imageWidth = imageNode.width() * containerScale;
-				const imageHeight = imageNode.height() * containerScale;
+				const imageWidth = imageNode.width();
+				const imageHeight = imageNode.height();
 
-				const bounds = {
-					x: containerX - imageWidth / 2,
-					y: containerY - imageHeight / 2,
-					width: imageWidth,
-					height: imageHeight
-				};
+				// Calculate the actual image bounds in stage coordinates
+				let bounds;
+				if (imageGroup) {
+					// When using imageGroup, account for imageNode's position relative to group
+					const imageNodeX = imageNode.x();
+					const imageNodeY = imageNode.y();
+					bounds = {
+						x: containerX + imageNodeX * containerScale,
+						y: containerY + imageNodeY * containerScale,
+						width: imageWidth * containerScale,
+						height: imageHeight * containerScale
+					};
+				} else {
+					// When imageNode is used directly without group
+					bounds = {
+						x: containerX,
+						y: containerY,
+						width: imageWidth * containerScale,
+						height: imageHeight * containerScale
+					};
+				}
 
 				// Constrain to image bounds
 				if (
@@ -245,50 +281,65 @@
 	function applyCrop() {
 		if (!cropTool) return;
 
-		const container = imageGroup ?? imageNode;
-		const containerX = container.x();
-		const containerY = container.y();
-		const containerScale = container.scaleX();
+		// Use client rect to ensure we capture transformed bounds accurately
+		const client = cropTool.getClientRect({ skipStroke: true });
+		const cropData = {
+			x: client.x,
+			y: client.y,
+			width: client.width,
+			height: client.height,
+			shape: cropShape
+		};
 
-		let cropData;
-
-		if (cropShape === 'circular') {
-			const circle = cropTool as Konva.Circle;
-			const radius = circle.radius();
-			cropData = {
-				x: circle.x() - radius,
-				y: circle.y() - radius,
-				width: radius * 2,
-				height: radius * 2,
-				shape: cropShape
-			};
-		} else {
-			const rect = cropTool as Konva.Rect;
-			cropData = {
-				x: rect.x(),
-				y: rect.y(),
-				width: rect.width(),
-				height: rect.height(),
-				shape: cropShape
-			};
+		// Robust coordinate conversion using Konva's transform matrix.
+		const imageElement = imageNode.image() as HTMLImageElement | null;
+		if (!imageElement) {
+			console.error('No image element found for crop calculation');
+			return;
 		}
 
-		// Convert coordinates relative to the original image
-		const imageWidth = imageNode.width();
-		const imageHeight = imageNode.height();
+		// Determine which node's transform to invert: prefer imageGroup if present so we stay in group-local coords first
+		const target = imageGroup ?? imageNode;
+		const inv = target.getAbsoluteTransform().copy().invert();
 
-		// Calculate relative coordinates within the original image
-		const relativeX = (cropData.x - containerX + (imageWidth * containerScale) / 2) / containerScale;
-		const relativeY = (cropData.y - containerY + (imageHeight * containerScale) / 2) / containerScale;
-		const relativeWidth = cropData.width / containerScale;
-		const relativeHeight = cropData.height / containerScale;
+		// Convert crop rect corners from stage -> target local space
+		const localTL = inv.point({ x: cropData.x, y: cropData.y });
+		const localBR = inv.point({ x: cropData.x + cropData.width, y: cropData.y + cropData.height });
 
-		// Ensure crop bounds are within image bounds
+		// If using group, translate into imageNode local space by subtracting imageNode position
+		let tl = localTL;
+		let br = localBR;
+		if (target === imageGroup) {
+			// imageNode sits inside group; its local origin is imageNode.x(), imageNode.y()
+			tl = { x: tl.x - imageNode.x(), y: tl.y - imageNode.y() };
+			br = { x: br.x - imageNode.x(), y: br.y - imageNode.y() };
+		}
+
+		// Local (display) dimensions of the imageNode
+		const displayW = imageNode.width();
+		const displayH = imageNode.height();
+		const naturalW = imageElement.naturalWidth || displayW;
+		const naturalH = imageElement.naturalHeight || displayH;
+		const scaleXToOriginal = naturalW / displayW;
+		const scaleYToOriginal = naturalH / displayH;
+
+		// Clamp corners within displayed image bounds before scaling to original
+		const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+		const x1 = clamp(Math.min(tl.x, br.x), 0, displayW);
+		const y1 = clamp(Math.min(tl.y, br.y), 0, displayH);
+		const x2 = clamp(Math.max(tl.x, br.x), 0, displayW);
+		const y2 = clamp(Math.max(tl.y, br.y), 0, displayH);
+
+		const pixelX = x1 * scaleXToOriginal;
+		const pixelY = y1 * scaleYToOriginal;
+		const pixelWidth = Math.max(1, (x2 - x1) * scaleXToOriginal);
+		const pixelHeight = Math.max(1, (y2 - y1) * scaleYToOriginal);
+
 		const boundedCrop = {
-			x: Math.max(0, Math.min(relativeX, imageWidth - 1)),
-			y: Math.max(0, Math.min(relativeY, imageHeight - 1)),
-			width: Math.max(1, Math.min(relativeWidth, imageWidth - relativeX)),
-			height: Math.max(1, Math.min(relativeHeight, imageHeight - relativeY)),
+			x: Math.round(pixelX),
+			y: Math.round(pixelY),
+			width: Math.round(pixelWidth),
+			height: Math.round(pixelHeight),
 			shape: cropShape
 		};
 

@@ -47,6 +47,16 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	let imageNode = $derived(storeState.imageNode);
 	let imageGroup = $derived(storeState.imageGroup);
 
+	// Effect to track selectedImage and clean up object URLs
+	$effect(() => {
+		// Cleanup function that runs when selectedImage changes or component unmounts
+		return () => {
+			if (selectedImage && selectedImage.startsWith('blob:')) {
+				URL.revokeObjectURL(selectedImage);
+			}
+		};
+	});
+
 	$effect(() => {
 		stage = storeState.stage as Konva.Stage | null;
 		layer = storeState.layer as Konva.Layer | null;
@@ -55,6 +65,10 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	});
 
 	onMount(() => {
+		// Reset the image editor store when navigating to the page
+		// This ensures clean state when coming back from other pages
+		imageEditorStore.reset();
+
 		const { params } = page;
 		if (params.image) {
 			selectedImage = params.image;
@@ -78,10 +92,17 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 		window.addEventListener('keydown', handleKeyDown);
 
-		// Cleanup event listeners on component destroy
+		// Cleanup event listeners and reset store on component destroy
 		return () => {
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('keydown', handleKeyDown);
+
+			// Clean up Konva stage and reset store when leaving the page
+			const { stage } = imageEditorStore.state;
+			if (stage) {
+				stage.destroy();
+			}
+			imageEditorStore.reset();
 		};
 	});
 
@@ -106,7 +127,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		imageEditorStore.state.layer?.batchDraw();
 	}
 
-	function loadImageAndSetupKonva(imageSrc: string) {
+	function loadImageAndSetupKonva(imageSrc: string, file?: File) {
 		if (!containerRef) {
 			console.error('Container reference is not set');
 			return;
@@ -116,15 +137,19 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		const { stage } = imageEditorStore.state;
 		if (stage) {
 			stage.destroy();
-			imageEditorStore.reset();
-			// Re-assign containerRef after reset (since reset clears stage references)
 		}
+
+		// Reset the store to ensure clean state but allow passing in a file afterwards
+		const existingFile = file ?? imageEditorStore.state.file;
+		imageEditorStore.reset();
+		// Re-attach file (if provided) so UI that depends on it can still render
+		if (existingFile) imageEditorStore.setFile(existingFile);
 
 		const img = new window.Image();
 		img.src = imageSrc;
 		img.onload = () => {
 			if (img.width > 0 && img.height > 0) {
-				console.log('Image loaded successfully with dimensions:', img.width, img.height);
+				// image loaded
 				originalImage = img; // Store original image for resize handling
 				setupKonvaStage(img);
 			} else {
@@ -196,7 +221,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	function handleCrop(data: { x: number; y: number; width: number; height: number; shape: string }) {
 		const { x, y, width, height, shape } = data;
-		console.log('Crop data:', data);
+		// crop data
 
 		// Save current state before applying crop
 		saveState();
@@ -246,53 +271,33 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			const newImage = new Image();
 
 			newImage.onload = () => {
-				// Update the image node with the new cropped image
+				// Replace image content & dimensions
 				currentImageNode.image(newImage);
+				currentImageNode.width(newImage.width);
+				currentImageNode.height(newImage.height);
+				// Update reference original image for future operations (resize, further crops)
+				originalImage = newImage;
 
-				// Center the cropped image in the editor
-				const stage = storeState.stage;
-				if (stage) {
-					const stageWidth = stage.width();
-					const stageHeight = stage.height();
+				const stageRef = storeState.stage;
+				const group = storeState.imageGroup;
 
-					// Calculate center position
-					const centerX = stageWidth / 2;
-					const centerY = stageHeight / 2;
-
-					// Reset container transforms first
-					const container = storeState.imageGroup ?? currentImageNode;
-					if (container !== currentImageNode) {
-						container.x(0);
-						container.y(0);
-					}
-					container.scaleX(1);
-					container.scaleY(1);
-					container.rotation(0);
-
-					// Position the image node at center
-					currentImageNode.x(centerX - newImage.width / 2);
-					currentImageNode.y(centerY - newImage.height / 2);
-					
-					// If using a group container, center the group instead
-					if (container !== currentImageNode) {
-						container.x(centerX);
-						container.y(centerY);
-						currentImageNode.x(-newImage.width / 2);
-						currentImageNode.y(-newImage.height / 2);
-					}
+				if (group) {
+					// Keep group where it already is (it's the visual anchor). Just re-center the image inside.
+					currentImageNode.position({ x: -newImage.width / 2, y: -newImage.height / 2 });
+					group.scale({ x: 1, y: 1 }); // reset any residual scale if needed
+				} else if (stageRef) {
+					// No group wrapper: center directly in stage
+					const cx = stageRef.width() / 2;
+					const cy = stageRef.height() / 2;
+					currentImageNode.position({ x: cx - newImage.width / 2, y: cy - newImage.height / 2 });
 				}
 
-				// Clear any existing clip function
-				currentImageNode.clipFunc(null);
+				// Remove any clip from previous circular crop
+				if (typeof currentImageNode.clipFunc === 'function') currentImageNode.clipFunc(null);
 
-				// Clean up crop tool and temporary nodes
 				imageEditorStore.cleanupTempNodes();
-
-				// Force redraw
 				layer?.batchDraw();
-				console.log('Crop applied successfully');
-
-				// Update store state and apply edit
+				// crop applied & recentered
 				imageEditorStore.setActiveState('');
 				applyEdit();
 			};
@@ -343,8 +348,8 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 					height: imageNode.height(),
 					x: imageNode.x(),
 					y: imageNode.y(),
-					// Store reference to original image to avoid compression
-					originalImageSrc: originalImage ? originalImage.src : selectedImage
+					// Store immutable src string (not object reference) for accurate undo
+					originalImageSrc: originalImage ? '' + originalImage.src : '' + selectedImage
 				}
 			};
 			imageEditorStore.saveStateHistory(snapshot);
@@ -370,32 +375,21 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	}) {
 		const { imageNode, layer, imageGroup } = imageEditorStore.state;
 
-		// If we have original image properties, restore using the original image for better quality
-		if (snapshot.imageProps && originalImage && imageNode) {
-			// Use original image to avoid compression artifacts
-			imageNode.image(originalImage);
-			imageNode.setAttrs({
-				width: snapshot.imageProps.width,
-				height: snapshot.imageProps.height,
-				x: snapshot.imageProps.x,
-				y: snapshot.imageProps.y
-			});
+		if (!imageNode) return;
 
-			// Restore group transforms
-			if (snapshot.group && imageGroup) {
-				imageGroup.rotation(snapshot.group.rotation);
-				imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
-				imageGroup.scale({ x: snapshot.group.scaleX, y: snapshot.group.scaleY });
-			}
-
-			layer?.draw();
-		} else {
-			// Fallback to dataURL method for older snapshots
-			const img = new window.Image();
+		// Prefer lossless restoration using stored originalImageSrc + dimension/position props.
+		if (snapshot.imageProps) {
+			const img = new Image();
 			img.onload = () => {
-				if (imageNode) {
-					imageNode.image(img);
-				}
+				// Update originalImage reference so future crops / resizes use correct image
+				originalImage = img;
+				imageNode.image(img);
+				imageNode.setAttrs({
+					width: snapshot.imageProps!.width,
+					height: snapshot.imageProps!.height,
+					x: snapshot.imageProps!.x,
+					y: snapshot.imageProps!.y
+				});
 				if (snapshot.group && imageGroup) {
 					imageGroup.rotation(snapshot.group.rotation);
 					imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
@@ -403,17 +397,39 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 				}
 				layer?.draw();
 			};
-			img.src = snapshot.dataURL;
+			// Use stored original source; fallback to current imageNode if missing
+			img.src = snapshot.imageProps.originalImageSrc || imageNode.image()?.src || snapshot.dataURL;
+			return;
 		}
+
+		// Fallback: raster snapshot only
+		const img = new Image();
+		img.onload = () => {
+			imageNode.image(img);
+			if (snapshot.group && imageGroup) {
+				imageGroup.rotation(snapshot.group.rotation);
+				imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
+				imageGroup.scale({ x: snapshot.group.scaleX, y: snapshot.group.scaleY });
+			}
+			layer?.draw();
+		};
+		img.src = snapshot.dataURL;
 	}
 
 	function handleImageUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
 			const imageFile = target.files[0];
-			imageEditorStore.setFile(imageFile);
+
+			// Clean up previous image URL if it exists
+			if (selectedImage && selectedImage.startsWith('blob:')) {
+				URL.revokeObjectURL(selectedImage);
+			}
+
+			// Create new object URL and update state
 			selectedImage = URL.createObjectURL(imageFile);
-			loadImageAndSetupKonva(selectedImage);
+			// Pass file so load function can preserve it after internal reset
+			loadImageAndSetupKonva(selectedImage, imageFile);
 		}
 	}
 
@@ -523,7 +539,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 <!-- svelte-ignore a11y_missing_attribute -->
 <div class="relative">
-	{#if stage && layer && imageNode && storeState.file}
+	{#if stage && layer && imageNode}
 		<!-- Conditionally display the tool components based on the active state -->
 		{#if storeState.activeState === 'rotate'}
 			<Rotate
