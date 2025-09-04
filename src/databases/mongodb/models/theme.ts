@@ -89,12 +89,23 @@ themeSchema.statics = {
 	async storeThemes(themes: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>[], generateId: () => string): Promise<void> {
 		try {
 			for (const themeData of themes) {
-				const existingTheme = await this.findOne({ name: themeData.name }).exec();
-				if (existingTheme) {
-					await this.updateOne({ name: themeData.name }, { $set: themeData }).exec();
-				} else {
-					// Use the passed generateId function - V4 UUID - and pass it as argument - remove comment
-					await this.create({ ...themeData, _id: generateId() });
+				try {
+					const existingTheme = await this.findOne({ name: themeData.name }).exec();
+					if (existingTheme) {
+						// Exclude _id, createdAt, and updatedAt from update operation
+						const { _id, createdAt, updatedAt, ...updateData } = themeData as any;
+						await this.updateOne({ name: themeData.name }, { $set: updateData }).exec();
+					} else {
+						// Use the passed generateId function - V4 UUID - and pass it as argument - remove comment
+						await this.create({ ...themeData, _id: generateId() });
+					}
+				} catch (error: any) {
+					// Handle duplicate key error gracefully - theme might have been created by another process
+					if (error.code === 11000 && error.message.includes('duplicate key')) {
+						logger.debug(`Theme '${themeData.name}' already exists, skipping creation`);
+						continue;
+					}
+					throw error;
 				}
 			}
 			logger.info(`Stored /x1b[34m${themes.length}/x1b[0m themes`);

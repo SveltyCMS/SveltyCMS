@@ -34,7 +34,7 @@
 		<title>Reset your password for {publicEnv.SITE_NAME}</title>
 	</Head>
 
-	<Preview preview="Reset your password for {publicEnv.SITE_NAME || 'SveltyCMS'}" />
+	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
 
 	<Body>
 		<Container style={{ fontSize: '16px' }}>
@@ -43,7 +43,7 @@
 				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${publicEnv.SITE_NAME || 'SveltyCMS'} logo`}
+						alt={`${publicEnv.SITE_NAME} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
@@ -59,7 +59,7 @@
 
 				<Text style={{ fontSize: '16px' }}>
 					You have requested to <strong>reset your password</strong> to get access to
-					<strong>{publicEnv.SITE_NAME || 'SveltyCMS'}.</strong>
+					<strong>{publicEnv.SITE_NAME}.</strong>
 				</Text>
 
 				<!-- Token Information Box -->

@@ -2,149 +2,66 @@
  * @file src/hooks/handleSetup.ts
  * @description Middleware to manage the initial application setup process.
  *
- * @summary This hook checks for a valid 'config/private.ts' file once on server startup.
- * If the configuration is missing, it intercepts all incoming requests and redirects
+ * @summary This hook checks for setup completion using a centralized utility.
+ * If setup is not complete, it intercepts all incoming requests and redirects
  * them to the '/setup' page, ensuring the application cannot be used until installed.
  */
 
 import { redirect, type Handle } from '@sveltejs/kit';
-import { existsSync, readFileSync } from 'fs';
-import Path from 'path';
+import { isSetupComplete } from '@utils/setupCheck';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// --- SETUP COMPLETION CHECK (RUNS ON EVERY REQUEST) ---
-
-// Note: Setup completion is now checked on every request to handle dynamic setup completion
-// without requiring server restart. This provides better UX during development.
-
-// --- THE SETUP HOOK ---
-
 export const handleSetup: Handle = async ({ event, resolve }) => {
-	// Check for setup completion on every request to handle dynamic setup completion
-	let isSetupComplete = false;
+	// Check for setup completion using centralized utility
+	const setupComplete = isSetupComplete();
 
+	// If setup is not complete, redirect to setup page (except for setup-related routes)
+	if (!setupComplete) {
+		// Allow setup routes to pass through
+		if (event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup')) {
+			return resolve(event);
+		}
+
+		// Allow static assets to pass through
+		if (
+			event.url.pathname.startsWith('/static') ||
+			event.url.pathname.startsWith('/_app') ||
+			event.url.pathname.endsWith('.ico') ||
+			event.url.pathname.endsWith('.png') ||
+			event.url.pathname.endsWith('.svg') ||
+			event.url.pathname.endsWith('.css') ||
+			event.url.pathname.endsWith('.js')
+		) {
+			return resolve(event);
+		}
+
+		// Redirect to setup page
+		logger.debug(`Setup not complete, redirecting ${event.url.pathname} to /setup`);
+		throw redirect(302, '/setup');
+	}
+
+	// Setup is complete - prevent access to setup routes (except API endpoints)
+	if (event.url.pathname.startsWith('/setup') && !event.url.pathname.startsWith('/api/setup')) {
+		logger.debug(`Setup complete, redirecting ${event.url.pathname} to /login`);
+		throw redirect(302, '/login');
+	}
+
+	// Setup is complete, continue with normal request processing
+	// Initialize the database system on first non-setup request
 	try {
-		const base = process.cwd();
+		const { initializeOnRequest, getSystemStatus } = await import('@src/databases/db');
+		const status = getSystemStatus();
 
-		// 1) Check if private config file exists and is properly populated
-		// This is the most reliable signal for setup completion
-		const privateConfigPath = Path.join(base, 'config', 'private.ts');
-		if (existsSync(privateConfigPath)) {
-			try {
-				const configContent = readFileSync(privateConfigPath, 'utf8');
-				const hasDbHost = /DB_HOST:\s*['"`][^'"`\s]+['"`]/.test(configContent);
-				const hasDbName = /DB_NAME:\s*['"`][^'"`\s]+['"`]/.test(configContent);
-				// DB_USER can be empty for local MongoDB without authentication
-				const hasDbUser = /DB_USER:\s*['"`][^'"`]*['"`]/.test(configContent);
-
-				if (hasDbHost && hasDbName && hasDbUser) {
-					logger.debug('✅ Private config file exists and is properly populated. Setup is complete.');
-					isSetupComplete = true;
-				}
-			} catch (readError) {
-				logger.warn('Could not read private config file', { error: readError instanceof Error ? readError.message : String(readError) });
-			}
+		if (!status.initialized && !status.initializing) {
+			logger.debug('Triggering database initialization after setup completion');
+			await initializeOnRequest();
 		}
-
-		// 2) Environment variables: many cloud deployments provide DB credentials via env.
-		if (!isSetupComplete && process.env.SVELTY_SETUP_DONE === 'true') {
-			logger.debug('✅ SVELTY_SETUP_DONE env var present. Setup is complete.');
-			isSetupComplete = true;
-		}
-		if (!isSetupComplete && process.env.DB_HOST && process.env.DB_HOST.trim().length > 0) {
-			logger.debug('✅ DB_HOST present in environment. Setup is complete.');
-			isSetupComplete = true;
-		}
-
-		// 3) Fallback: look for config/private.* files (dev or built artifacts).
-		if (!isSetupComplete) {
-			const candidates = [
-				Path.join(base, 'config', 'private.ts'),
-				Path.join(base, 'config', 'private.js'),
-				Path.join(base, 'config', 'private.cjs'),
-				Path.join(base, 'config', 'private.mjs')
-			];
-
-			const foundPath = candidates.find((p) => existsSync(p));
-			if (foundPath) {
-				// Lightweight validation: inspect only the head of the file for DB_HOST to avoid
-				// executing any config code and to keep startup fast.
-				const raw = readFileSync(foundPath, 'utf8');
-				const head = raw.slice(0, 32 * 1024); // first 32KB is usually enough
-
-				// Match patterns like DB_HOST: 'value' or DB_HOST = "value" or DB_HOST: `value`
-				const dbHostRegex = /DB_HOST\s*[:=]\s*['"`]\s*([^'"`\s]+)\s*['"`]/m;
-				const match = head.match(dbHostRegex);
-				if (match && match[1] && match[1].trim().length > 0) {
-					logger.debug(`✅ Configuration found (${Path.basename(foundPath)}). Setup is complete.`);
-					isSetupComplete = true;
-				}
-			}
-		}
-
-		// 4) Check database for setup completion (if file checks didn't work)
-		if (!isSetupComplete) {
-			try {
-				// Check if we can access the configuration service
-				const { publicEnv } = await import('@src/stores/globalSettings');
-
-				// If config service is initialized, check if setup is completed in database
-				if (publicEnv.SETUP_COMPLETED) {
-					logger.info('✅ Setup completed detected in database. Allowing access.');
-					isSetupComplete = true;
-				}
-			} catch (error) {
-				// If we can't check the database, continue with file-based checks
-				logger.debug('Could not check database for setup status, continuing with file checks', error);
-			}
-		}
-	} catch (err) {
-		logger.error('⚠️ Error while checking configuration. Entering setup mode.', (err as Error).message);
-		isSetupComplete = false;
+	} catch (error) {
+		logger.error('Failed to initialize database system:', error);
+		// Continue with request processing even if initialization fails
 	}
 
-	// If setup is complete, this hook does nothing and passes the request on.
-	if (isSetupComplete) {
-		// --- Ensure authentication system is re-initialized after setup ---
-		try {
-			const { clearPrivateConfigCache } = await import('@src/databases/db');
-			clearPrivateConfigCache();
-			// Optionally, trigger adapter reload if available
-			if (typeof globalThis.reloadAdapters === 'function') {
-				await globalThis.reloadAdapters();
-			}
-		} catch (err) {
-			logger.warn('Could not clear private config cache or reload adapters after setup:', err);
-		}
-		// If setup is complete and user is trying to access setup routes, redirect to login
-		const { pathname } = event.url;
-		const setupRoutes = ['/setup', '/api/setup/status', '/api/setup/test-database', '/api/setup/complete'];
-		const isSetupRoute = setupRoutes.some((p) => pathname.startsWith(p));
-
-		if (isSetupRoute && pathname !== '/api/setup/status' && pathname !== '/api/setup/complete') {
-			// Allow access to setup status API and complete API but redirect other setup routes
-			throw redirect(302, '/login');
-		}
-
-		return resolve(event);
-	}
-
-	const { pathname } = event.url;
-
-	// Define all routes that are allowed to be accessed during setup mode.
-	const allowedPaths = ['/setup', '/api/setup/status', '/api/setup/test-database', '/api/setup/complete', '/api/setup/status/'];
-	const isSetupRoute = allowedPaths.some((p) => pathname.startsWith(p));
-
-	// Also allow SvelteKit's internal assets and the favicon.
-	const isStaticAsset = pathname.startsWith('/_app/') || pathname.includes('favicon');
-
-	// If the request is for an allowed route, let it proceed.
-	if (isSetupRoute || isStaticAsset) {
-		return resolve(event);
-	}
-
-	// For any other route, forcefully redirect the user to the setup page.
-	throw redirect(307, '/setup'); // 307 (Temporary Redirect) is appropriate here.
+	return resolve(event);
 };

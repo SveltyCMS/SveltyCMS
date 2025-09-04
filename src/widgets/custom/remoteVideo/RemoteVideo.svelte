@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/remoteVideo/RemoteVideo.svelte
 @component
 **RemoteVideo widget to embed remote videos in your content.**
@@ -104,7 +104,7 @@
 	<!-- URL Input -->
 	<input
 		type="url"
-		value={_data[_language] || ''}
+		value={_data[_language] ?? ''}
 		oninput={(e) => {
 			const v = (e.target as HTMLInputElement).value;
 			_data[_language] = v;

@@ -45,7 +45,7 @@
 	// Field name for validation store
 	const fieldName = getFieldName(field);
 
-	let _language = $derived((field?.translated ? contentLanguage.value : publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en')?.toLowerCase());
+	let _language = $derived((field?.translated ? contentLanguage.value : publicEnv.DEFAULT_CONTENT_LANGUAGE)?.toLowerCase());
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
@@ -150,7 +150,7 @@
 			type="text"
 			bind:value={_data[_language]}
 			bind:this={numberInput}
-			on:input|preventDefault={handleInput}
+			oninput={handleInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

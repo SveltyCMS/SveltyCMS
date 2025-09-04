@@ -373,11 +373,17 @@ Key Features:
 						<p>{m.setup_help_default_content_language()}</p>
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
-					<select bind:value={systemSettings.defaultContentLanguage} class="input w-full rounded">
+					<select
+						bind:value={systemSettings.defaultContentLanguage}
+						class="input w-full rounded {validationErrors.defaultContentLanguage ? 'border-error-500' : ''}"
+					>
 						{#each systemSettings.contentLanguages as lang}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
+					{#if validationErrors.defaultContentLanguage}
+						<div class="mt-1 text-xs text-error-500">{validationErrors.defaultContentLanguage}</div>
+					{/if}
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
 							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
@@ -400,7 +406,9 @@ Key Features:
 							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 						</div>
 						<div
-							class="relative flex flex-wrap gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
+							class="relative flex flex-wrap gap-2 rounded border p-2 pr-16 {validationErrors.contentLanguages
+								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
+								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
 							{#each systemSettings.contentLanguages as lang}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
@@ -475,6 +483,9 @@ Key Features:
 						<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
 							{m.setup_note_add_codes_default_cannot_be_removed?.() || 'Add existing or custom codes. Default cannot be removed.'}
 						</p>
+						{#if validationErrors.contentLanguages}
+							<div class="mt-1 text-xs text-error-500">{validationErrors.contentLanguages}</div>
+						{/if}
 					</div>
 				</div>
 			</div>

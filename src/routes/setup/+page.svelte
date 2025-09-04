@@ -12,6 +12,7 @@
 	import { systemLanguage } from '@stores/store.svelte';
 	// Utils
 	import { setupAdminSchema } from '@utils/formSchemas';
+	import { systemConfigSchema } from '@utils/setupValidationSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -295,7 +296,6 @@
 	// Explicit db test pass flag for gating Next button
 	let dbTestPassed = $state(false);
 	// Removed unused UI detail toggles & connection string preview (can reintroduce if needed)
-	let dbNameManuallyChanged = $state(false);
 
 	// Function to clear database test error when config changes
 	function clearDbTestError() {
@@ -315,21 +315,19 @@
 			systemSettings.contentLanguages = [...systemSettings.contentLanguages, systemSettings.defaultContentLanguage];
 		}
 	});
-	$effect(() => {
-		if (!dbNameManuallyChanged && systemSettings.siteName) {
-			const slug = systemSettings.siteName.replace(/[^a-zA-Z0-9_]+/g, '_');
-			dbConfig.name = slug || 'SveltyCMS';
-		}
-	});
+	// Removed automatic database name updating based on site name
+	// Users should set database name independently from site name
+	// $effect(() => {
+	//   Auto-update database name from site name - DISABLED
+	// });
 	onMount(async () => {
 		document.addEventListener('click', outsideLang);
 
 		// Initialize toast store
 		setGlobalToastStore(getToastStore());
 
-		// Set dark mode based on user's system preference
+		// Check device preference
 		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		setModeUserPrefers(prefersDark);
 
 		// Initialize theme from cookies if server data not available
 		const getCookie = (name: string) => {
@@ -346,10 +344,39 @@
 			const newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
+
+			// Immediately apply the theme to the DOM
+			if (newMode) {
+				document.documentElement.classList.remove('dark');
+			} else {
+				document.documentElement.classList.add('dark');
+			}
 		} else if (savedDarkMode) {
 			const newMode = savedDarkMode === 'true';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
+
+			// Immediately apply the theme to the DOM
+			if (newMode) {
+				document.documentElement.classList.remove('dark');
+			} else {
+				document.documentElement.classList.add('dark');
+			}
+		} else {
+			// No saved preference found, use device preference
+			setModeUserPrefers(prefersDark);
+			setModeCurrent(prefersDark);
+
+			// Immediately apply the theme to the DOM
+			if (prefersDark) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+
+			// Save the device preference as the initial user preference
+			document.cookie = `theme=${prefersDark ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+			document.cookie = `darkMode=${prefersDark}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 		}
 
 		// Initialize storage system then load persisted data (step included)
@@ -384,7 +411,18 @@
 				}
 				break;
 			case 2:
-				if (!systemSettings.siteName) errs.siteName = m.setup_validation_sitename_required();
+				// Validate system settings including language configuration
+				const systemValidation = safeParse(systemConfigSchema, {
+					siteName: systemSettings.siteName,
+					defaultContentLanguage: systemSettings.defaultContentLanguage,
+					contentLanguages: systemSettings.contentLanguages
+				});
+				if (!systemValidation.success) {
+					for (const issue of systemValidation.issues) {
+						const path = issue.path?.[0]?.key as string;
+						if (path) errs[path] = issue.message;
+					}
+				}
 				break;
 		}
 		if (mutate) {
@@ -501,26 +539,12 @@
 				successMessage = '';
 				errorMessage = '';
 
-				// Small delay to ensure UI updates are complete before showing toast
-				setTimeout(() => {
-					console.log('Showing success toast...');
-					// Show success toast with improved typography and longer timeout
-					showToast(
-						`<div class="text-lg font-semibold mb-2">🎉 Setup Complete!</div><div class="text-sm opacity-90 mb-2">${m.setup_complete_success()}</div><div class="text-xs opacity-75 border-t border-white/20 pt-2">⏱️ Redirecting in 5 seconds...</div>`,
-						'success',
-						6000
-					);
-					console.log('Success toast triggered');
-				}, 100);
-
 				// Determine redirect target
 				const target = data.loggedIn && data.redirectPath ? data.redirectPath : '/login';
 				console.log('Redirecting to:', target);
 
-				// Redirect after a longer delay to allow toast to be seen and read
-				setTimeout(() => {
-					window.location.href = target;
-				}, 5000);
+				// Redirect immediately
+				window.location.href = target;
 
 				return;
 			}
@@ -535,20 +559,8 @@
 				successMessage = '';
 				errorMessage = '';
 
-				// Small delay to ensure UI updates are complete before showing toast
-				setTimeout(() => {
-					// Show info toast with improved typography and longer timeout
-					showToast(
-						`<div class="text-lg font-semibold mb-2">ℹ️ Setup Already Complete</div><div class="text-sm opacity-90 mb-2">Redirecting to login...</div><div class="text-xs opacity-75 border-t border-white/20 pt-2">⏱️ Redirecting in 5 seconds...</div>`,
-						'info',
-						6000
-					);
-				}, 100);
-
-				// Redirect to login after a longer delay
-				setTimeout(() => {
-					window.location.href = '/login';
-				}, 5000);
+				// Redirect to login immediately
+				window.location.href = '/login';
 
 				return;
 			}
@@ -630,12 +642,39 @@
 		highestStepReached;
 		schedulePersist();
 	});
-	function nextStep() {
+	async function nextStep() {
 		if (!canProceed) return;
 		// For validating steps ensure we commit errors right before advancing
 		if (currentStep === 1 || currentStep === 2) {
 			if (!validateStep(currentStep, true)) return;
 		}
+
+		// Save settings progressively as user advances through steps
+		if (currentStep === 2) {
+			// Save system settings to database when leaving system config step
+			try {
+				const response = await fetch('/api/setup/save-system-settings', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						systemSettings,
+						dbConfig
+					})
+				});
+
+				if (!response.ok) {
+					const error = await response.json();
+					errorMessage = `Failed to save system settings: ${error.error || 'Unknown error'}`;
+					return;
+				}
+
+				console.log('System settings saved successfully');
+			} catch (error) {
+				errorMessage = `Failed to save system settings: ${error instanceof Error ? error.message : 'Unknown error'}`;
+				return;
+			}
+		}
+
 		if (currentStep < steps.length - 1) {
 			currentStep++;
 			// Update highest step reached

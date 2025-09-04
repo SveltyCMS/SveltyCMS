@@ -8,7 +8,17 @@
  * - Establishing database connections with a retry mechanism
  * - Managing initialization of authentication models, media models, and collection models
  * - Setting up default roles and permissions
- * - Configuring Google OAuth2 client if credentials are provided
+ * - Confi		// 4. Initialize ContentManager (loads collection schemas into memory)
+
+		const step4StartTime = performance.now();
+
+		try {
+			await contentManager.initialize(); // ContentManager gets dbAdapter internally
+			const step4Time = performance.now() - step4StartTime;
+			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
+		} catch (contentErr) {
+			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
+			throw contentErr;le OAuth2 client if credentials are provided
  *
  * Multi-Tenancy Note:
  * This file handles the one-time global startup of the server. Tenant-specific
@@ -67,12 +77,11 @@ import { contentManager } from '@src/content/ContentManager';
 
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
-import { SystemSettingModel } from '@src/databases/mongodb/models/systemSetting';
-import { setSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache, setSettingsCache } from '@src/stores/globalSettings';
 import { safeParse } from 'valibot';
 
 // Theme
-import { DEFAULT_THEME } from '@src/databases/themeManager';
+import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -93,30 +102,104 @@ let adaptersLoaded = false; // Internal flag
 export async function loadSettingsFromDB() {
 	try {
 		logger.debug('Loading settings from database...');
-		const settings = await SystemSettingModel.find({}).lean();
 
-		const privateSettings: Record<string, unknown> = {};
-		const publicSettings: Record<string, unknown> = {};
-
-		for (const setting of settings) {
-			if (setting.isPublic) {
-				publicSettings[setting.key] = setting.value;
-			} else {
-				privateSettings[setting.key] = setting.value;
-			}
+		// Check if database adapter is available
+		if (!dbAdapter || !dbAdapter.systemPreferences) {
+			logger.warn('Database adapter not available during settings load. Using empty cache.');
+			invalidateSettingsCache();
+			return;
 		}
+
+		// Get all system settings from database using database-agnostic interface
+		// Since we don't have a "getAll" method, we'll use known system setting keys
+		const knownSystemKeys = [
+			'HOST_DEV',
+			'HOST_PROD',
+			'SITE_NAME',
+			'PASSWORD_LENGTH',
+			'DEFAULT_CONTENT_LANGUAGE',
+			'AVAILABLE_CONTENT_LANGUAGES',
+			'BASE_LOCALE',
+			'LOCALES',
+			'MEDIA_FOLDER',
+			'MEDIA_OUTPUT_FORMAT_QUALITY',
+			'IMAGE_SIZES',
+			'MAX_FILE_SIZE',
+			'BODY_SIZE_LIMIT',
+			'USE_ARCHIVE_ON_DELETE',
+			'SEASONS',
+			'SEASON_REGION',
+			'PKG_VERSION',
+			'LOG_LEVELS',
+			'LOG_RETENTION_DAYS',
+			'LOG_ROTATION_SIZE'
+		];
+
+		const settingsResult = await dbAdapter.systemPreferences.getMany(knownSystemKeys, 'system');
+
+		if (!settingsResult.success) {
+			logger.error('Failed to load settings from database:', settingsResult.error);
+			logger.error('Settings keys attempted:', knownSystemKeys);
+			logger.error('Database adapter status:', {
+				hasAdapter: !!dbAdapter,
+				hasSystemPrefs: !!dbAdapter?.systemPreferences,
+				hasGetMany: !!dbAdapter?.systemPreferences?.getMany
+			});
+			throw new Error(`Could not load settings from DB: ${settingsResult.error?.message || 'Unknown error'}`);
+		}
+
+		const settings = settingsResult.data || {};
+
+		// If no settings exist (initial setup), use empty objects and skip validation
+		if (Object.keys(settings).length === 0) {
+			logger.info('No settings found in database (initial setup). Using empty cache.');
+			// During initial setup, bypass validation by calling invalidateSettingsCache
+			// which sets empty cache without validation
+			invalidateSettingsCache();
+			return;
+		}
+
+		// All system settings are public in the current implementation
+		const publicSettings: Record<string, unknown> = settings;
+		const databasePrivateSettings: Record<string, unknown> = {};
+
+		// Import private config file settings (infrastructure settings)
+		const { privateEnv } = await import('@root/config/private');
+
+		// Merge private config file settings with database private settings
+		// Private config contains infrastructure settings (DB_*, JWT_*, ENCRYPTION_*)
+		// Database contains application private settings (SMTP_*, GOOGLE_*, etc.)
+		const privateSettings = {
+			...privateEnv, // Infrastructure settings from config file
+			...databasePrivateSettings // Application settings from database
+		};
 
 		// Validate and parse the settings against the schemas
 		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
 		const parsedPrivate = safeParse(privateConfigSchema, privateSettings);
 
-		if (!parsedPublic.success) {
-			logger.error('Public settings validation failed', parsedPublic.issues);
-			throw new Error('Public settings from DB are invalid.');
-		}
-		if (!parsedPrivate.success) {
-			logger.error('Private settings validation failed', parsedPrivate.issues);
-			throw new Error('Private settings from DB are invalid.');
+		// If validation fails, it might be during setup with incomplete settings
+		// In this case, just use empty cache to allow setup to continue
+		if (!parsedPublic.success || !parsedPrivate.success) {
+			logger.warn('Settings validation failed - clearing corrupted settings and using empty cache for setup mode');
+			if (!parsedPublic.success) {
+				logger.debug('Public settings validation issues:', parsedPublic.issues);
+			}
+			if (!parsedPrivate.success) {
+				logger.debug('Private settings validation issues:', parsedPrivate.issues);
+			}
+
+			// Clear corrupted settings from database during setup
+			try {
+				logger.info('Clearing corrupted settings from database...');
+				await SystemSettingModel.deleteMany({});
+				logger.info('Corrupted settings cleared successfully');
+			} catch (clearError) {
+				logger.warn('Failed to clear corrupted settings:', clearError);
+			}
+
+			invalidateSettingsCache();
+			return;
 		}
 
 		// Populate the cache with validated settings
@@ -253,9 +336,25 @@ async function initializeDefaultTheme(): Promise<void> {
 	}
 }
 
+// Initialize ThemeManager
+async function initializeThemeManager(): Promise<void> {
+	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
+	try {
+		logger.debug('Initializing \x1b[34mThemeManager\x1b[0m...');
+		const themeManager = ThemeManager.getInstance();
+		await themeManager.initialize(dbAdapter);
+		logger.debug('ThemeManager initialized successfully.');
+	} catch (err) {
+		const message = `Error initializing ThemeManager: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw new Error(message);
+	}
+}
+
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
-	const mediaFolderPath = publicEnv.MEDIA_FOLDER;
+	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
+	const mediaFolderPath = publicEnv.MEDIA_FOLDER || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
@@ -291,9 +390,10 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (systemVirtualFolders.length === 0) {
 			logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
+			const defaultMediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
 			const rootFolderData = {
-				name: publicEnv.MEDIA_FOLDER,
-				path: publicEnv.MEDIA_FOLDER, // parentId is undefined for root folders
+				name: defaultMediaFolder,
+				path: defaultMediaFolder, // parentId is undefined for root folders
 				order: 0
 			};
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
@@ -370,12 +470,21 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		try {
 			if (!dbAdapter) throw new Error('Database adapter failed to load.');
 			const result = await dbAdapter.connect();
-			if (!result.ok) {
+			if (!result.success) {
 				const dbError = result.error;
-				const connectionError = new Error(`[${dbError.code}] ${dbError.message}`);
-				// if (dbError.originalError) {
-				// 	connectionError.stack = dbError.originalError.stack;
-				// }
+				let errorMessage = 'Database connection failed';
+
+				if (dbError) {
+					if (typeof dbError === 'object' && 'code' in dbError && 'message' in dbError) {
+						errorMessage = `[${dbError.code}] ${dbError.message}`;
+					} else if (dbError instanceof Error) {
+						errorMessage = dbError.message;
+					} else {
+						errorMessage = String(dbError);
+					}
+				}
+
+				const connectionError = new Error(errorMessage);
 				throw connectionError;
 			}
 		} catch (err) {
@@ -396,7 +505,8 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			await Promise.all([
 				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
 				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
-				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete'))
+				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete')),
+				dbAdapter.system.setupSystemModels().then(() => logger.debug('\x1b[34mSystem models\x1b[0m setup complete'))
 			]);
 
 			const step2Time = performance.now() - step2StartTime;
@@ -409,7 +519,13 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		const step3StartTime = performance.now();
 
 		try {
-			await Promise.all([initializeMediaFolder(), initializeDefaultTheme(), initializeRevisions(), initializeVirtualFolders()]);
+			await Promise.all([
+				initializeMediaFolder(),
+				initializeDefaultTheme(),
+				initializeThemeManager(),
+				initializeRevisions(),
+				initializeVirtualFolders()
+			]);
 
 			const step3Time = performance.now() - step3StartTime;
 			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
@@ -421,7 +537,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		const step4StartTime = performance.now();
 
 		try {
-			await contentManager.initialize(dbAdapter);
+			await contentManager.initialize();
 			const step4Time = performance.now() - step4StartTime;
 			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
 		} catch (contentErr) {
@@ -533,6 +649,10 @@ export function getSystemStatus() {
 		authReady: !!auth,
 		initializing: !!initializationPromise && !isInitialized
 	};
+}
+
+export function getAuth() {
+	return auth;
 }
 
 export async function reinitializeSystem(force = false): Promise<{ status: string; error?: string }> {

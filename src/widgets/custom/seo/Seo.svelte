@@ -78,9 +78,9 @@
 		if (!_data[_language]) {
 			_data[_language] = {};
 		}
-		title = _data[_language].title || '';
-		description = _data[_language].description || '';
-		robotsMeta = _data[_language].robotsMeta || 'index, follow';
+		title = _data[_language].title ?? '';
+		description = _data[_language].description ?? '';
+		robotsMeta = _data[_language].robotsMeta ?? 'index, follow';
 	});
 
 	// Update progress when score changes

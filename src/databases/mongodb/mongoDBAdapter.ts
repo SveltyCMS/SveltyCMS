@@ -65,6 +65,7 @@ import { dateToISODateString, normalizeDateInput } from '../../utils/dateUtils';
 import type {
 	BaseEntity,
 	CollectionModel,
+	ConnectionPoolOptions,
 	DatabaseAdapter,
 	DatabaseError,
 	DatabaseId,
@@ -93,17 +94,63 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
 
-	async connect(): Promise<DatabaseResult<void>> {
+	// Overloaded connect method for setup operations with custom connection parameters
+	async connect(connectionString: string, options?: any): Promise<DatabaseResult<void>>;
+	async connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
+	async connect(connectionStringOrPoolOptions?: string | ConnectionPoolOptions, options?: any): Promise<DatabaseResult<void>> {
 		try {
-			if (!mongoose.connection.readyState) {
-				await mongoose.connect(process.env.MONGODB_URI || '', {
-					serverSelectionTimeoutMS: 5000,
-					socketTimeoutMS: 45000
+			if (typeof connectionStringOrPoolOptions === 'string') {
+				// Use provided connection string and options for setup
+				const connectionString = connectionStringOrPoolOptions;
+				await mongoose.connect(connectionString, {
+					serverSelectionTimeoutMS: options?.serverSelectionTimeoutMS || 15000,
+					socketTimeoutMS: options?.socketTimeoutMS || 45000,
+					maxPoolSize: options?.maxPoolSize || 10,
+					retryWrites: options?.retryWrites !== false,
+					authSource: options?.authSource,
+					user: options?.user,
+					pass: options?.pass,
+					dbName: options?.dbName
 				});
-				logger.info('MongoDB connection established');
+				logger.info('MongoDB connection established with custom parameters');
+				return { success: true, data: undefined };
+			} else {
+				// Use default connection method with private config
+				if (!mongoose.connection.readyState) {
+					// Import private config to construct connection string
+					const { privateEnv } = await import('@root/config/private');
+
+					let connectionString;
+					if (process.env.MONGODB_URI) {
+						// Use environment variable if available
+						connectionString = process.env.MONGODB_URI;
+					} else {
+						// Construct from private config
+						const { DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } = privateEnv;
+
+						if (DB_HOST.startsWith('mongodb+srv://')) {
+							if (DB_USER && DB_PASSWORD) {
+								connectionString = `mongodb+srv://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASSWORD)}@${DB_HOST.replace('mongodb+srv://', '')}/${DB_NAME}?retryWrites=true&w=majority`;
+							} else {
+								connectionString = `mongodb+srv://${DB_HOST.replace('mongodb+srv://', '')}/${DB_NAME}?retryWrites=true&w=majority`;
+							}
+						} else {
+							if (DB_USER && DB_PASSWORD) {
+								connectionString = `mongodb://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASSWORD)}@${DB_HOST.replace('mongodb://', '')}:${DB_PORT}/${DB_NAME}?authSource=admin`;
+							} else {
+								connectionString = `mongodb://${DB_HOST}:${DB_PORT}/${DB_NAME}`;
+							}
+						}
+					}
+
+					await mongoose.connect(connectionString, {
+						serverSelectionTimeoutMS: 5000,
+						socketTimeoutMS: 45000
+					});
+					logger.info('MongoDB connection established');
+				}
 				return { success: true, data: undefined };
 			}
-			return { success: true, data: undefined };
 		} catch (error) {
 			return {
 				success: false,
@@ -1690,6 +1737,246 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', 'Failed to clear preferences');
 			}
+		},
+
+		// Interface-compliant methods for database-agnostic operations
+		get: async <T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>> => {
+			try {
+				if (scope === 'system' || !scope) {
+					// Handle system settings
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					const setting = await SystemSettingModel.findOne({ key }).lean();
+					if (setting) {
+						// Extract the actual value from the metadata wrapper structure
+						// If value is an object with 'data' property, extract it; otherwise use the value directly
+						let actualValue = setting.value;
+						if (actualValue && typeof actualValue === 'object' && 'data' in actualValue) {
+							actualValue = (actualValue as any).data;
+						}
+						return { success: true, data: actualValue as T };
+					}
+					return {
+						success: false,
+						error: createDatabaseError(new Error('Setting not found'), 'SETTING_NOT_FOUND', `System setting '${key}' not found`)
+					};
+				} else {
+					// Handle user preferences
+					if (!userId) {
+						return {
+							success: false,
+							error: createDatabaseError(new Error('User ID required'), 'USER_ID_REQUIRED', 'User ID is required for user preferences')
+						};
+					}
+					const preferences = await SystemPreferencesModel.getSystemPreferences(userId.toString());
+					const value = preferences[key] as T;
+					if (value !== undefined) {
+						return { success: true, data: value };
+					}
+					return {
+						success: false,
+						error: createDatabaseError(new Error('Preference not found'), 'PREFERENCE_NOT_FOUND', `User preference '${key}' not found`)
+					};
+				}
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCE_GET_ERROR', 'Failed to get preference') };
+			}
+		},
+
+		getMany: async <T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>> => {
+			try {
+				const result: Record<string, T> = {};
+
+				if (scope === 'system' || !scope) {
+					// Handle system settings
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					const settings = await SystemSettingModel.find({ key: { $in: keys } }).lean();
+
+					logger.debug(`getMany: Requested ${keys.length} settings, found ${settings.length} in database`);
+					logger.debug(`getMany: Requested keys: ${keys.join(', ')}`);
+					logger.debug(`getMany: Found keys: ${settings.map((s) => s.key).join(', ')}`);
+
+					settings.forEach((setting) => {
+						// Extract the actual value from the metadata wrapper structure
+						// If value is an object with 'data' property, extract it; otherwise use the value directly
+						let actualValue = setting.value;
+						if (actualValue && typeof actualValue === 'object' && 'data' in actualValue) {
+							actualValue = (actualValue as any).data;
+						}
+						result[setting.key] = actualValue as T;
+					});
+				} else {
+					// Handle user preferences
+					if (!userId) {
+						return {
+							success: false,
+							error: createDatabaseError(new Error('User ID required'), 'USER_ID_REQUIRED', 'User ID is required for user preferences')
+						};
+					}
+					const preferences = await SystemPreferencesModel.getSystemPreferences(userId.toString());
+					keys.forEach((key) => {
+						if (preferences[key] !== undefined) {
+							result[key] = preferences[key] as T;
+						}
+					});
+				}
+
+				return { success: true, data: result };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCES_GET_MANY_ERROR', 'Failed to get preferences') };
+			}
+		},
+
+		set: async <T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				if (scope === 'system' || !scope) {
+					// Handle system settings
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					await SystemSettingModel.findOneAndUpdate({ key }, { key, value, scope: 'system', updatedAt: new Date() }, { upsert: true, new: true });
+				} else {
+					// Handle user preferences
+					if (!userId) {
+						return {
+							success: false,
+							error: createDatabaseError(new Error('User ID required'), 'USER_ID_REQUIRED', 'User ID is required for user preferences')
+						};
+					}
+					const preferences = { [key]: value };
+					await SystemPreferencesModel.setUserPreferences(userId.toString(), preferences);
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCE_SET_ERROR', 'Failed to set preference') };
+			}
+		},
+
+		setMany: async <T>(
+			preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId }>
+		): Promise<DatabaseResult<void>> => {
+			try {
+				// Group preferences by scope and user
+				const systemPrefs = preferences.filter((p) => p.scope === 'system' || !p.scope);
+				const userPrefsMap = new Map<string, Array<{ key: string; value: T }>>();
+
+				preferences
+					.filter((p) => p.scope === 'user')
+					.forEach((p) => {
+						if (!p.userId) throw new Error('User ID required for user preferences');
+						const userId = p.userId.toString();
+						if (!userPrefsMap.has(userId)) {
+							userPrefsMap.set(userId, []);
+						}
+						userPrefsMap.get(userId)!.push({ key: p.key, value: p.value });
+					});
+
+				// Handle system settings
+				if (systemPrefs.length > 0) {
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					const bulkOps = systemPrefs.map((pref) => ({
+						updateOne: {
+							filter: { key: pref.key },
+							update: { key: pref.key, value: pref.value, scope: 'system', updatedAt: new Date() },
+							upsert: true
+						}
+					}));
+					await SystemSettingModel.bulkWrite(bulkOps);
+				}
+
+				// Handle user preferences
+				for (const [userId, userPrefs] of userPrefsMap) {
+					const prefsObj = userPrefs.reduce(
+						(acc, pref) => {
+							acc[pref.key] = pref.value;
+							return acc;
+						},
+						{} as Record<string, T>
+					);
+					await SystemPreferencesModel.setUserPreferences(userId, prefsObj);
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCES_SET_MANY_ERROR', 'Failed to set preferences') };
+			}
+		},
+
+		delete: async (key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				if (scope === 'system' || !scope) {
+					// Handle system settings
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					await SystemSettingModel.deleteOne({ key });
+				} else {
+					// Handle user preferences
+					if (!userId) {
+						return {
+							success: false,
+							error: createDatabaseError(new Error('User ID required'), 'USER_ID_REQUIRED', 'User ID is required for user preferences')
+						};
+					}
+					// Note: SystemPreferencesModel doesn't have a direct delete method for individual keys
+					// This would need to be implemented in the model or handled differently
+					return {
+						success: false,
+						error: createDatabaseError(new Error('Method not implemented'), 'METHOD_NOT_IMPLEMENTED', 'User preference deletion not implemented')
+					};
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCE_DELETE_ERROR', 'Failed to delete preference') };
+			}
+		},
+
+		deleteMany: async (keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				if (scope === 'system' || !scope) {
+					// Handle system settings
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					await SystemSettingModel.deleteMany({ key: { $in: keys } });
+				} else {
+					// Handle user preferences
+					if (!userId) {
+						return {
+							success: false,
+							error: createDatabaseError(new Error('User ID required'), 'USER_ID_REQUIRED', 'User ID is required for user preferences')
+						};
+					}
+					// Note: SystemPreferencesModel doesn't have a direct delete method for individual keys
+					// This would need to be implemented in the model or handled differently
+					return {
+						success: false,
+						error: createDatabaseError(new Error('Method not implemented'), 'METHOD_NOT_IMPLEMENTED', 'User preference deletion not implemented')
+					};
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCES_DELETE_MANY_ERROR', 'Failed to delete preferences') };
+			}
+		},
+
+		clear: async (scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				if (scope === 'system' || !scope) {
+					// Handle system settings
+					const { SystemSettingModel } = await import('./models/systemSetting');
+					await SystemSettingModel.deleteMany({ scope: 'system' });
+				} else {
+					// Handle user preferences
+					if (!userId) {
+						return {
+							success: false,
+							error: createDatabaseError(new Error('User ID required'), 'USER_ID_REQUIRED', 'User ID is required for user preferences')
+						};
+					}
+					await SystemPreferencesModel.deletePreferencesByUser(userId.toString());
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', 'Failed to clear preferences') };
+			}
 		}
 	};
 
@@ -1835,6 +2122,29 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 	};
 
+	//  System Model Management
+	system = {
+		// Set up system models
+		setupSystemModels: async (): Promise<void> => {
+			try {
+				// Import system setting schema
+				const { SystemSettingModel } = await import('./models/systemSetting');
+
+				// Ensure the SystemSetting model is properly registered
+				if (!mongoose.models.SystemSetting) {
+					logger.debug('SystemSetting model not found, will be created on first use');
+				} else {
+					logger.debug('SystemSetting model already exists');
+				}
+
+				logger.info('System models set up successfully.');
+			} catch (error) {
+				logger.error('Failed to set up system models: ' + error.message);
+				throw new Error('Failed to set up system models');
+			}
+		}
+	};
+
 	// Query Builder Entry Point
 	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T> {
 		try {
@@ -1850,21 +2160,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		} catch (error) {
 			logger.error(`Error creating QueryBuilder for collection ${collection}:`, { error });
 			throw error;
-		}
-	}
-
-	//  Disconnect Method
-	// Disconnect from MongoDB
-	async disconnect(): Promise<DatabaseResult<void>> {
-		try {
-			await mongoose.disconnect();
-			logger.info('MongoDB connection closed');
-			return { success: true, data: undefined };
-		} catch (error) {
-			return {
-				success: false,
-				error: createDatabaseError(error, 'DISCONNECTION_ERROR', 'MongoDB disconnection failed')
-			};
 		}
 	}
 }

@@ -6,7 +6,7 @@
  * It maintains enhanced, developer-friendly error reporting.
  */
 
-import type { BaseSchema, InferOutput, BaseIssue } from 'valibot';
+import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
 import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
@@ -23,8 +23,8 @@ export const privateConfigSchema = object({
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')), // Database host address
 	DB_PORT: pipe(number(), minValue(1)), // Database port number
 	DB_NAME: pipe(string(), minLength(1, 'Database name is required.')), // Database name
-	DB_USER: pipe(string(), minLength(1, 'Database user is required.')), // Database username
-	DB_PASSWORD: pipe(string(), minLength(1, 'Database password is required.')), // Database password
+	DB_USER: string(), // Database username (optional for some databases like Docker MongoDB without auth)
+	DB_PASSWORD: string(), // Database password (optional for some databases like Docker MongoDB without auth)
 	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Optional: Number of retry attempts on connection failure
 	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Optional: Delay in ms between retry attempts
 	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Optional: Database connection pool size
@@ -224,12 +224,7 @@ function performConditionalValidation(config: Config): string[] {
 			`The ${colors.cyan}DEFAULT_CONTENT_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_CONTENT_LANGUAGES${colors.reset} array.`
 		);
 	}
-	if (
-		config.BASE_LOCALE &&
-		config.LOCALES &&
-		Array.isArray(config.LOCALES) &&
-		config.LOCALES.includes(config.BASE_LOCALE)
-	) {
+	if (config.BASE_LOCALE && config.LOCALES && Array.isArray(config.LOCALES) && config.LOCALES.includes(config.BASE_LOCALE)) {
 		errors.push(`The ${colors.cyan}BASE_LOCALE${colors.reset} must be included in the ${colors.cyan}LOCALES${colors.reset} array.`);
 	}
 

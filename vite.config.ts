@@ -19,6 +19,7 @@ import { defineConfig } from 'vite';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { generateContentTypes } from './src/content/vite';
 import { compile } from './src/utils/compilation/compile';
+import { isSetupComplete } from './src/utils/setupCheck';
 
 // Function to generate private config content
 function generatePrivateConfigContent(): string {
@@ -58,7 +59,7 @@ export default defineConfig(async () => {
 
 	const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
 
-	if (!existsSync(privateConfigPath)) {
+	if (!isSetupComplete()) {
 		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
 
 		// Create private config file if it doesn't exist
@@ -174,49 +175,35 @@ export default defineConfig(async () => {
 										}
 
 										// Mock POST to /api/content-structure to trigger sync
-										{
-											const maxRetries = 3;
-											let retryCount = 0;
-											const syncContentStructure = async () => {
-												try {
-													const req = {
-														method: 'POST',
-														url: '/api/content-structure',
-														originalUrl: '/api/content-structure',
-														headers: { 'content-type': 'application/json' },
-														body: JSON.stringify({ action: 'recompile' }),
-														on: (event, callback) => {
-															if (event === 'data') callback(Buffer.from(req.body || ''));
-															if (event === 'end') callback();
-														}
-													};
-
-													const res = {
-														writeHead: () => {},
-														setHeader: () => {},
-														getHeader: () => {},
-														write: () => {},
-														end: () => {},
-														statusCode: 200
-													};
-
-													await new Promise<void>((resolveMiddleware) => {
-														server.middlewares(req as IncomingMessage, res as ServerResponse, () => resolveMiddleware());
-													});
-
-													console.log('🔄 Content structure sync triggered successfully');
-												} catch (syncError) {
-													if (retryCount < maxRetries) {
-														retryCount++;
-														console.log(`🔄 Retrying content structure sync (attempt ${retryCount})...`);
-														await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
-														await syncContentStructure();
-													} else {
-														console.error('❌ Failed to trigger content structure sync after retries:', syncError);
-													}
+										try {
+											const req = {
+												method: 'POST',
+												url: '/api/content-structure',
+												originalUrl: '/api/content-structure',
+												headers: { 'content-type': 'application/json' },
+												body: JSON.stringify({ action: 'recompile' }),
+												on: (event, callback) => {
+													if (event === 'data') callback(Buffer.from(req.body || ''));
+													if (event === 'end') callback();
 												}
 											};
-											await syncContentStructure();
+
+											const res = {
+												writeHead: () => {},
+												setHeader: () => {},
+												getHeader: () => {},
+												write: () => {},
+												end: () => {},
+												statusCode: 200
+											};
+
+											await new Promise<void>((resolveMiddleware) => {
+												server.middlewares(req as IncomingMessage, res as ServerResponse, () => resolveMiddleware());
+											});
+
+											console.log('🔄 Content structure sync triggered successfully');
+										} catch (syncError) {
+											console.error('❌ Failed to trigger content structure sync:', syncError);
 										}
 
 										// (Removed WS event 'collections-updated' - no active listeners)

@@ -31,6 +31,13 @@
 		setModeUserPrefers(newMode);
 		setModeCurrent(newMode);
 
+		// Immediately apply the theme to the DOM
+		if (newMode) {
+			document.documentElement.classList.remove('dark');
+		} else {
+			document.documentElement.classList.add('dark');
+		}
+
 		// Set cookie for server-side persistence
 		document.cookie = `theme=${newMode ? 'light' : 'dark'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 		document.cookie = `darkMode=${newMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;

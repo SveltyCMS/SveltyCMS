@@ -113,7 +113,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 	try {
 		let url: string;
 		const mediaServerUrl = publicEnv.MEDIASERVER_URL;
-		const mediaFolder = publicEnv.MEDIA_FOLDER || './mediaFolder';
+		const mediaFolder = publicEnv.MEDIA_FOLDER;
 
 		if (mediaServerUrl) {
 			url = `${mediaServerUrl}/${mediaItem.url}`;

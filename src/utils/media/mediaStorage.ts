@@ -57,7 +57,7 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	try {
 		const fs = await getFs();
-		const fullPath = Path.join(publicEnv.MEDIA_FOLDER || 'mediaFiles', url);
+		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
 		const dir = Path.dirname(fullPath);
 
 		logger.debug('Creating directory for file', {
@@ -190,7 +190,7 @@ export async function deleteFile(url: string): Promise<void> {
 
 	try {
 		const fs = await getFs();
-		const filePath = Path.join(publicEnv.MEDIA_FOLDER || 'mediaFiles', url);
+		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
 
 		logger.debug('Deleting file', {
 			url,
@@ -219,7 +219,7 @@ export async function deleteFile(url: string): Promise<void> {
 // Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER || 'mediaFiles', url);
+	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
 	const buffer = await fs.promises.readFile(filePath);
 	logger.info('File retrieved from disk', { url });
 	return buffer;
@@ -230,7 +230,7 @@ export async function getFile(url: string): Promise<Buffer> {
  */
 export async function fileExists(url: string): Promise<boolean> {
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER || 'mediaFiles', url);
+	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
 	try {
 		await fs.promises.access(filePath);
 		return true;
@@ -242,7 +242,7 @@ export async function fileExists(url: string): Promise<boolean> {
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+	const mediaFolder = publicEnv.MEDIA_FOLDER;
 
 	// Normalize various possible forms:
 	// - /files/avatars/...
@@ -403,7 +403,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 
 		const fs = await getFs();
 		// Create avatars directory under the media folder
-		const avatarsPath = Path.join(process.cwd(), publicEnv.MEDIA_FOLDER || 'mediaFiles', 'avatars');
+		const avatarsPath = Path.join(process.cwd(), publicEnv.MEDIA_FOLDER, 'avatars');
 		if (!fs.existsSync(avatarsPath)) {
 			await fs.promises.mkdir(avatarsPath, { recursive: true });
 		}
@@ -424,7 +424,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 			if (mediaServerUrl) {
 				fileUrl = `${mediaServerUrl}/${fileUrl}`;
 			} else {
-				fileUrl = `${publicEnv.MEDIA_FOLDER || 'mediaFiles'}/${fileUrl}`;
+				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -541,7 +541,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		}
 
 		// Return the URL for serving to the client - this will be saved to user.avatar field
-		const fileUrl = `/${publicEnv.MEDIA_FOLDER || 'mediaFiles'}/${avatarUrl}`;
+		const fileUrl = `/${publicEnv.MEDIA_FOLDER}/${avatarUrl}`;
 
 		logger.info('Avatar saved successfully to disk', {
 			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId,

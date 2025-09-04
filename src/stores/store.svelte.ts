@@ -165,7 +165,7 @@ export const avatarSrc = {
 				return;
 			}
 
-			const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+			const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER;
 
 			// Strip any leading origin or duplicate slashes (defensive)
 			let url = newValue.replace(/^https?:\/\/[^/]+/i, '');

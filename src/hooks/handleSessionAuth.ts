@@ -97,7 +97,6 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 	// Skip database initialization for setup routes
 	const isSetupRoute = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
 	if (isSetupRoute) {
-		logger.debug(`Skipping database initialization for setup route: ${event.url.pathname}`);
 		return resolve(event);
 	}
 

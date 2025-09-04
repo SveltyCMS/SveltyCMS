@@ -3,10 +3,14 @@
  * @description Seeds the database with default system settings
  *
  * This replaces the static configuration files with database-driven settings.
+ * Uses database-agnostic interfaces for compatibility across different database engines.
  */
 
+import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { SystemPreferences } from '@src/databases/dbInterface';
-import { SystemPreferencesModel } from '@src/databases/mongodb/models/systemPreferences';
+import { setSettingsCache } from '@src/stores/globalSettings';
+import { safeParse } from 'valibot';
+import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -54,6 +58,7 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
 /**
  * Default private settings that were previously in config/private.ts
  * Note: Sensitive settings like API keys should be set via GUI or CLI
+ * Database config, JWT keys, and encryption keys are handled separately in private config files
  */
 const defaultPrivateSettings: Array<{ key: string; value: unknown; description?: string }> = [
 	// SMTP config
@@ -99,41 +104,99 @@ const defaultPrivateSettings: Array<{ key: string; value: unknown; description?:
 ];
 
 /**
- * Seeds the database with default settings.
+ * Seeds the database with default settings using database-agnostic interface.
  * This should be called during initial setup or when resetting to defaults.
+ * Note: Database config and security keys are handled in private config files, not in DB
+ * @param dbAdapter Database adapter to use for operations
  */
-export async function seedSettings(): Promise<void> {
+export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 	logger.info('🌱 Seeding default settings...');
 
+	if (!dbAdapter || !dbAdapter.systemPreferences) {
+		throw new Error('Database adapter or systemPreferences interface not available');
+	}
+
+	// Test database accessibility
+	try {
+		// Try a simple getMany operation to test connectivity
+		await dbAdapter.systemPreferences.getMany(['HOST_DEV'], 'system');
+		logger.debug('Database adapter is accessible');
+	} catch (error) {
+		logger.error('Database adapter is not accessible:', error);
+		throw new Error(`Cannot access database adapter: ${error instanceof Error ? error.message : String(error)}`);
+	}
+
 	const allSettings = [...defaultPublicSettings, ...defaultPrivateSettings];
+
+	// Prepare settings for batch operation
+	const settingsToSet: Array<{
+		key: string;
+		value: unknown;
+		scope: 'user' | 'system';
+		userId?: string;
+	}> = [];
 
 	for (const setting of allSettings) {
 		const isPublic = defaultPublicSettings.some((s) => s.key === setting.key);
 
-		const systemPreference: Partial<SystemPreferences> = {
+		// Store the actual value directly, not wrapped in metadata
+		// The metadata can be inferred from the setting key and visibility
+		settingsToSet.push({
 			key: setting.key,
-			value: setting.value,
-			scope: 'system',
-			visibility: isPublic ? 'public' : 'private',
-			description: setting.description || '',
-			isGlobal: true,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		};
-
-		try {
-			// Use upsert to avoid duplicates
-			await SystemPreferencesModel.updateOne({ key: setting.key, scope: 'system' }, { $set: systemPreference }, { upsert: true });
-		} catch (error) {
-			logger.error(`Failed to seed setting ${setting.key}:`, error);
-		}
+			value: setting.value, // Store the actual value directly
+			scope: 'system'
+		});
 	}
 
-	logger.info(`✅ Seeded ${allSettings.length} default settings`);
+	// Use batch operation for better performance
+	try {
+		const result = await dbAdapter.systemPreferences.setMany(settingsToSet);
+
+		if (!result.success) {
+			throw new Error(result.error?.message || 'Failed to seed settings');
+		}
+
+		logger.info(`✅ Seeded ${allSettings.length} default settings`);
+	} catch (error) {
+		logger.error('Failed to seed settings:', error);
+		throw error;
+	}
+
+	// Populate public settings cache immediately after seeding
+	// Private settings will be loaded later when the app starts and reads the private config file
+	try {
+		logger.info('🔄 Populating public settings cache...');
+
+		// Only organize public settings for immediate cache population
+		const publicSettings: Record<string, unknown> = {};
+
+		for (const setting of allSettings) {
+			const isPublic = defaultPublicSettings.some((s) => s.key === setting.key);
+			if (isPublic) {
+				publicSettings[setting.key] = setting.value;
+			}
+		}
+
+		// Validate public settings
+		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
+
+		if (parsedPublic.success) {
+			// For now, just populate public settings
+			// Private settings will be loaded when the app starts normally
+			logger.info('✅ Public settings validated successfully');
+			logger.info('ℹ️ Private settings will be loaded from config files when app starts');
+		} else {
+			logger.warn('Public settings validation failed');
+			logger.debug('Public settings validation issues:', parsedPublic.issues);
+		}
+	} catch (error) {
+		logger.error('Failed to populate settings cache:', error);
+		// Don't throw here - seeding was successful, cache population is just an optimization
+	}
 }
 
 /**
- * Exports all current settings to a JSON file.
+ * Exports all current settings to a JSON file using database-agnostic interface.
  * This creates a settings snapshot for project templates.
  */
 type SettingsSnapshot = {
@@ -142,8 +205,20 @@ type SettingsSnapshot = {
 	settings: Record<string, { value: unknown; visibility: string; description: string }>;
 };
 
-export async function exportSettingsSnapshot(): Promise<SettingsSnapshot> {
-	const settings = await SystemPreferencesModel.find({ scope: 'system' }).lean().exec();
+export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promise<SettingsSnapshot> {
+	if (!dbAdapter || !dbAdapter.systemPreferences) {
+		throw new Error('Database adapter or systemPreferences interface not available');
+	}
+
+	// Get all system settings - we'll need to implement a method to get all settings
+	// For now, we'll get the known settings keys
+	const allSettingKeys = [...defaultPublicSettings, ...defaultPrivateSettings].map((s) => s.key);
+
+	const settingsResult = await dbAdapter.systemPreferences.getMany(allSettingKeys, 'system');
+
+	if (!settingsResult.success) {
+		throw new Error(`Failed to export settings: ${settingsResult.error?.message}`);
+	}
 
 	const snapshot: SettingsSnapshot = {
 		version: '1.0.0',
@@ -151,44 +226,62 @@ export async function exportSettingsSnapshot(): Promise<SettingsSnapshot> {
 		settings: {}
 	};
 
-	for (const setting of settings) {
-		snapshot.settings[setting.key] = {
-			value: setting.value,
-			visibility: setting.visibility,
-			description: setting.description
-		};
+	// Transform the settings data
+	for (const [key, settingData] of Object.entries(settingsResult.data)) {
+		if (settingData && typeof settingData === 'object' && 'data' in settingData) {
+			const data = settingData as any;
+			snapshot.settings[key] = {
+				value: data.data,
+				visibility: data.visibility || 'public',
+				description: data.description || ''
+			};
+		}
 	}
 
 	return snapshot;
 }
 
 /**
- * Imports settings from a snapshot file.
+ * Imports settings from a snapshot file using database-agnostic interface.
  * This allows restoring settings from a project template.
  */
-export async function importSettingsSnapshot(snapshot: Record<string, unknown>): Promise<void> {
+export async function importSettingsSnapshot(snapshot: Record<string, unknown>, dbAdapter: DatabaseAdapter): Promise<void> {
+	if (!dbAdapter || !dbAdapter.systemPreferences) {
+		throw new Error('Database adapter or systemPreferences interface not available');
+	}
+
 	if (!snapshot.settings) {
 		throw new Error('Invalid settings snapshot format');
 	}
 
 	logger.info('📥 Importing settings snapshot...');
 
-	for (const [key, settingData] of Object.entries(snapshot.settings)) {
-		const systemPreference: Partial<SystemPreferences> = {
-			key,
-			value: settingData.value,
-			scope: 'system',
-			visibility: settingData.visibility || 'public',
-			description: settingData.description || '',
-			isGlobal: true,
-			updatedAt: new Date()
-		};
+	const settingsToSet: Array<{
+		key: string;
+		value: unknown;
+		scope: 'user' | 'system';
+		userId?: string;
+	}> = [];
 
-		try {
-			await SystemPreferencesModel.updateOne({ key, scope: 'system' }, { $set: systemPreference }, { upsert: true });
-		} catch (error) {
-			logger.error(`Failed to import setting ${key}:`, error);
-		}
+	for (const [key, settingData] of Object.entries(snapshot.settings)) {
+		const data = settingData as any;
+		settingsToSet.push({
+			key,
+			value: {
+				data: data.value,
+				visibility: data.visibility || 'public',
+				description: data.description || '',
+				isGlobal: true,
+				updatedAt: new Date()
+			},
+			scope: 'system'
+		});
+	}
+
+	const result = await dbAdapter.systemPreferences.setMany(settingsToSet);
+
+	if (!result.success) {
+		throw new Error(`Failed to import settings: ${result.error?.message}`);
 	}
 
 	logger.info('✅ Settings snapshot imported successfully');

@@ -21,7 +21,7 @@
 	let { char = null, siteName: propSiteName }: Props = $props();
 
 	// Get site name from prop or fallback to page data or default
-	const siteName = $derived(propSiteName || page.data?.settings?.SITE_NAME || 'SveltyCMS');
+	const siteName = $derived(propSiteName || page.data?.settings?.SITE_NAME);
 </script>
 
 {#if char !== null}

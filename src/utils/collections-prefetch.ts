@@ -90,7 +90,7 @@ export async function fetchAndCacheCollectionData(language: string = 'en', fetch
 			} else {
 				const hostDev = publicEnv.HOST_DEV;
 				const hostProd = publicEnv.HOST_PROD;
-				baseUrl = dev ? hostDev || 'http://localhost:5176' : hostProd || 'https://localhost';
+				baseUrl = dev ? hostDev : hostProd;
 			}
 		}
 

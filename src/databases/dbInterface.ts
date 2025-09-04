@@ -310,6 +310,11 @@ export interface IDBAdapter {
 		setupAuthModels(): Promise<void>;
 	};
 
+	// System
+	system: {
+		setupSystemModels(): Promise<void>;
+	};
+
 	//  System Preferences
 	systemPreferences: {
 		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;

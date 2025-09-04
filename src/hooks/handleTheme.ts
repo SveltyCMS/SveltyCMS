@@ -10,9 +10,8 @@
  * - Cookie-based theme storage
  */
 
+import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 import type { Handle } from '@sveltejs/kit';
-import { ThemeManager } from '@src/databases/themeManager';
-import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -39,16 +38,30 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 			// Only log as warning if it's not a setup mode scenario
 			if (!event.url.pathname.startsWith('/setup')) {
 				logger.warn('Failed to initialize ThemeManager, using default theme:', error);
-			} else {
-				logger.debug('ThemeManager not available in setup mode, using default theme');
 			}
+			// In setup mode, silently use default theme (no need for debug message)
 		}
 
 		// Set theme in locals
 		event.locals.theme = theme;
 
+		// Determine dark mode preference
+		let isDarkMode = false;
+
+		if (darkModePreference !== undefined) {
+			// Use saved preference if available
+			isDarkMode = darkModePreference === 'true';
+		} else if (themePreference !== undefined) {
+			// Use saved theme preference if available
+			isDarkMode = themePreference === 'dark';
+		} else {
+			// No saved preference, try to detect device preference from Accept header or other hints
+			// This is a fallback for server-side rendering, but client-side detection is more reliable
+			isDarkMode = false; // Default to light mode for server-side, client will correct it
+		}
+
 		// Set dark mode preference in locals for client-side use
-		event.locals.darkMode = darkModePreference === 'true';
+		event.locals.darkMode = isDarkMode;
 
 		// If we have a theme preference cookie, set it in the response
 		if (themePreference) {

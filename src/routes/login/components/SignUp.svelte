@@ -73,6 +73,7 @@ Features:
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
+	let FloatingPathsComponent = $state<any>(null);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;

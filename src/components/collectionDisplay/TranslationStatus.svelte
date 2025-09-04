@@ -39,7 +39,7 @@
 	let completionTotals = $state({ total: 0, translated: 0 });
 	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
 	let availableLanguages = $derived.by<Locale[]>(() => {
-		return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
+		return (publicEnv?.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || ['en'];
 	});
 
 	// Track initialization

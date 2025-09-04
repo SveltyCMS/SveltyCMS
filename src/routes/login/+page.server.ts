@@ -13,8 +13,6 @@
  * - Proper typing for user data
  */
 
-import { publicEnv } from '@src/stores/globalSettings';
-
 import { dev } from '$app/environment';
 import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -38,9 +36,9 @@ import { google } from 'googleapis';
 
 // Stores
 import type { Locale } from '@src/paraglide/runtime';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
-import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';

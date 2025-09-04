@@ -88,7 +88,7 @@
 	// Update editor content when language changes
 	$effect(() => {
 		if (editor && _language) {
-			const newContent = _data.content[_language] || value?.content?.[_language] || '';
+			const newContent = _data.content[_language] ?? value?.content?.[_language] ?? '';
 			// Only update if content is different to prevent losing cursor position
 			if (editor.getHTML() !== newContent) {
 				editor.commands.setContent(newContent, false);
@@ -168,7 +168,7 @@
 					}
 				})
 			],
-			content: _data.content[_language] || value?.content?.[_language] || '',
+			content: _data.content[_language] ?? value?.content?.[_language] ?? '',
 			editorProps: {
 				attributes: {
 					dir: getTextDirection(_language)

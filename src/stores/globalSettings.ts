@@ -27,4 +27,24 @@ export function invalidateSettingsCache(): void {
 	publicEnv = {};
 }
 
+/**
+ * Gets a public setting value by key with optional fallback.
+ * @param key - The key of the public setting to retrieve.
+ * @param fallback - Optional fallback value if the key is not found.
+ * @returns The value of the public setting or the fallback.
+ */
+export function getPublicSetting<T = unknown>(key: string, fallback?: T): T {
+	return (publicEnv as any)[key] ?? fallback;
+}
+
+/**
+ * Gets a private setting value by key with optional fallback.
+ * @param key - The key of the private setting to retrieve.
+ * @param fallback - Optional fallback value if the key is not found.
+ * @returns The value of the private setting or the fallback.
+ */
+export function getPrivateSetting<T = unknown>(key: string, fallback?: T): T {
+	return (privateEnv as any)[key] ?? fallback;
+}
+
 export { privateEnv, publicEnv };

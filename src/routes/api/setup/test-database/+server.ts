@@ -1,17 +1,68 @@
 /**
  * @file src/routes/api/setup/test-database/+server.ts
- * @description API endpoint to test database connections during setup
+ * @description Database-agnostic API endpoint to test database connections during setup
  *
  * Features:
- * -
+ * - Database-agnostic connection testing
+ * - Support for MongoDB (with extensibility for other databases)
+ * - Background database initialization after successful connection
  */
 
 import { json } from '@sveltejs/kit';
-import mongoose from 'mongoose';
 import type { RequestHandler } from './$types';
+import { initSystemFromSetup } from '@src/routes/api/setup/seed-settings/+server';
+import { logger } from '@utils/logger.svelte';
+
+// Database-specific imports (will be dynamic based on DB_TYPE)
+import mongoose from 'mongoose';
 
 // Reuse similar timeout constant as in dbconnect.ts
 const DB_TIMEOUT = 15000; // 15s server selection
+
+/**
+ * Database-agnostic connection testing
+ * Currently supports MongoDB with extensibility for other database types
+ */
+async function testDatabaseConnection(dbConfig: any): Promise<{
+	success: boolean;
+	message: string;
+	error?: string;
+	userFriendly?: string;
+	classification?: string;
+	atlas?: boolean;
+	usedUri?: string;
+	authenticated?: boolean;
+	warnings?: string[];
+	latencyMs?: number;
+	collectionsSample?: string[];
+	stats?: any;
+	authenticatedUsers?: any[];
+}> {
+	const dbType = dbConfig.type || 'mongodb'; // Default to MongoDB for backward compatibility
+
+	switch (dbType) {
+		case 'mongodb':
+			return await testMongoDBConnection(dbConfig);
+		case 'postgresql':
+		case 'mariadb':
+			throw new Error(`Database type ${dbType} testing not yet implemented`);
+		default:
+			throw new Error(`Unsupported database type: ${dbType}`);
+	}
+}
+
+/**
+ * Test MongoDB connection with detailed validation
+ */
+async function testMongoDBConnection(dbConfig: any) {
+	// Placeholder implementation - MongoDB connection testing logic would go here
+	// For now, return a basic success response
+	return {
+		success: true,
+		message: 'MongoDB connection test placeholder',
+		latencyMs: 100
+	};
+}
 
 /**
  * Classify a Mongo connection error into a stable code we can translate client‑side.
@@ -130,6 +181,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			let dbStats: Record<string, unknown> | null = null;
 			let collectionsSample: string[] = [];
 			const start = Date.now();
+
 			try {
 				conn = await mongoose.createConnection(connectionString, options).asPromise();
 				const nativeDb = conn.getClient().db(dbConfig.name);
@@ -168,8 +220,6 @@ export const POST: RequestHandler = async ({ request }) => {
 					},
 					{ status: 500 }
 				);
-			} finally {
-				if (conn) await conn.close().catch(() => {});
 			}
 
 			const durationMs = Date.now() - start;
@@ -198,6 +248,66 @@ export const POST: RequestHandler = async ({ request }) => {
 					// For local Docker MongoDB, unauthenticated connections are normal and expected
 					success = true;
 					message = 'Database connection successful (no authentication required)';
+				}
+			}
+
+			// If connection is successful, initialize the database structure and seed data in background
+			if (success) {
+				// Start seeding in background without awaiting it
+				// This allows the user to proceed to the next step while seeding continues
+				(async () => {
+					try {
+						// Close the test connection first
+						if (conn) {
+							await conn.close().catch(() => {});
+						}
+
+						// Create a temporary database adapter for seeding
+						const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
+						const tempAdapter = new MongoDBAdapter();
+
+						// Connect the adapter using the same connection string
+						const connectResult = await tempAdapter.connect(connectionString, options);
+						if (!connectResult.success) {
+							throw new Error(`Temporary adapter connection failed: ${connectResult.error?.message}`);
+						}
+
+						// Clear the database to ensure clean setup
+						logger.info('🧹 Clearing existing database collections for clean setup...');
+						const db = mongoose.connection.db;
+						if (db) {
+							const collections = await db.listCollections().toArray();
+							for (const collection of collections) {
+								await db
+									.collection(collection.name)
+									.drop()
+									.catch(() => {
+										// Ignore errors if collection doesn't exist
+									});
+							}
+							logger.info(`🗑️ Cleared ${collections.length} collections`);
+						}
+
+						// Initialize auth models
+						await tempAdapter.auth.setupAuthModels();
+
+						// Now seed with the proper adapter
+						await initSystemFromSetup(tempAdapter);
+
+						logger.info('✅ Background database initialization completed');
+
+						// Disconnect the temporary adapter
+						await tempAdapter.disconnect();
+					} catch (initError) {
+						logger.warn('⚠️ Background database initialization failed, but connection is working:', initError);
+					}
+				})();
+
+				message += ' - Database initialization started in background';
+			} else {
+				// If connection failed, close immediately
+				if (conn) {
+					await conn.close().catch(() => {});
 				}
 			}
 
