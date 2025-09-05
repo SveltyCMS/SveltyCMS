@@ -25,13 +25,13 @@
 		description: string;
 		hostUrl: string;
 		SeoPreviewToggle: boolean;
-		'on:togglePreview'?: () => void;
+		ontogglePreview?: () => void;
 	}
 
-	let { title, description, hostUrl, SeoPreviewToggle, 'on:togglePreview': onTogglePreview = () => {} }: Props = $props();
+	let { title, description, hostUrl, SeoPreviewToggle, ontogglePreview = () => {} }: Props = $props();
 
 	function handleTogglePreview() {
-		onTogglePreview();
+		ontogglePreview();
 	}
 </script>
 

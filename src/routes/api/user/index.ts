@@ -31,29 +31,6 @@ import { privateEnv } from '@root/config/private';
 import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const { user, tenantId } = locals;
-	try {
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
-		if (privateEnv.MULTI_TENANT && !tenantId) {
-			throw error(400, 'Tenant could not be identified for this operation.');
-		} // **SECURITY**: Check permissions for listing users
-
-		// Authentication is handled by hooks.server.ts - user presence confirms access		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
-		const users = await auth.getAllUsers({ filter });
-		logger.info('Fetched all users successfully', { count: users.length, requestedBy: user?._id, tenantId });
-		return json(users);
-	} catch (err) {
-		const httpError = err as HttpError;
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || 'Internal Server Error';
-		logger.error('Error fetching users:', { error: message, status, tenantId });
-		throw error(status, message);
-	}
-};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;
@@ -102,9 +79,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const newUser = await auth.createUser({
 			email,
 			role,
-			...(privateEnv.MULTI_TENANT && { tenantId }),
-			lastAuthMethod: 'password',
-			isRegistered: false
+			...(privateEnv.MULTI_TENANT && { tenantId })
 		});
 		const expiresAt = new Date(Date.now() + expirationTime * 1000);
 		const token = await auth.createToken(newUser._id, expiresAt, tenantId);

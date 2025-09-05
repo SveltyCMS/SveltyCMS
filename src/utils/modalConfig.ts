@@ -15,7 +15,7 @@ import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';
 
 // ParaglideJS
-import { m } from '@src/messages/messages';
+import * as m from '@src/paraglide/messages';
 
 // Modal themes and configurations
 export interface ModalTheme {
@@ -55,8 +55,8 @@ export function createConfirmModal(config: ActionModalConfig, onConfirm: () => v
 		type: 'confirm',
 		title: config.title,
 		body: config.body,
-		buttonTextConfirm: config.confirmText || m.get('common.confirm'),
-		buttonTextCancel: config.cancelText || m.get('common.cancel'),
+		buttonTextConfirm: config.confirmText || m.button_confirm(),
+		buttonTextCancel: config.cancelText || m.button_cancel(),
 
 		// Styling
 		modalClasses: `!bg-${theme.color}-500/10 !border-${theme.color}-500/20`,
@@ -101,8 +101,8 @@ export function createDeleteModal(itemType: string, itemName: string | string[],
 		{
 			title,
 			body: body + warning,
-			confirmText: m.get('modal.delete.confirm'),
-			cancelText: m.get('common.cancel'),
+			confirmText: m.button_confirm(),
+			cancelText: m.button_cancel(),
 			theme: DEFAULT_THEMES.delete,
 			icon: 'fa-trash',
 			showIcon: true
@@ -125,8 +125,8 @@ export function createArchiveModal(itemType: string, itemName: string | string[]
 		{
 			title,
 			body,
-			confirmText: m.get('modal.archive.confirm'),
-			cancelText: m.get('common.cancel'),
+			confirmText: m.button_confirm(),
+			cancelText: m.button_cancel(),
 			theme: DEFAULT_THEMES.archive,
 			icon: 'fa-archive',
 			showIcon: true
@@ -144,8 +144,8 @@ export function createStatusModal(fromStatus: string, toStatus: string, itemType
 		{
 			title,
 			body,
-			confirmText: m.get('modal.status.confirm', { status: toStatus }),
-			cancelText: m.get('common.cancel'),
+			confirmText: m.button_confirm(),
+			cancelText: m.button_cancel(),
 			theme: DEFAULT_THEMES[toStatus] || DEFAULT_THEMES.default,
 			icon: getStatusIcon(toStatus),
 			showIcon: true
@@ -168,7 +168,7 @@ export function createScheduleModal(itemType: string, itemName: string, onConfir
 				theme: DEFAULT_THEMES.schedule
 			}
 		},
-		buttonTextCancel: m.get('common.cancel'),
+		buttonTextCancel: m.button_cancel(),
 		modalClasses: '!bg-tertiary-500/10 !border-tertiary-500/20'
 	};
 }
@@ -193,7 +193,7 @@ export function createBatchModal(
 				onAction
 			}
 		},
-		buttonTextCancel: m.get('common.cancel'),
+		buttonTextCancel: m.button_cancel(),
 		modalClasses: '!bg-primary-500/10 !border-primary-500/20'
 	};
 }
