@@ -97,6 +97,11 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 	// Skip database initialization for setup routes
 	const isSetupRoute = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
 	if (isSetupRoute) {
+		logger.warn('Auth service not ready, bypassing authentication for setup route');
+		// For setup routes, we still want to have the dbAdapter available if it exists
+		if (!event.locals.dbAdapter && dbAdapter) {
+			event.locals.dbAdapter = dbAdapter;
+		}
 		return resolve(event);
 	}
 

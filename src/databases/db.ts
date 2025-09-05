@@ -93,7 +93,17 @@ export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
-export const dbInitPromise = initializeOnRequest(); // Exported promise for hooks
+
+// Create a proper Promise for lazy initialization
+let _dbInitPromise: Promise<void> | null = null;
+export function getDbInitPromise(): Promise<void> {
+	if (!_dbInitPromise) {
+		_dbInitPromise = initializeOnRequest();
+	}
+	return _dbInitPromise;
+}
+// Export a real Promise that will be initialized on first access
+export const dbInitPromise = getDbInitPromise();
 let adaptersLoaded = false; // Internal flag
 
 /**
@@ -628,7 +638,21 @@ export function initializeOnRequest(): Promise<void> {
 	if (!building && !isBuildProcess) {
 		if (!initializationPromise) {
 			logger.debug('Creating system initialization promise on first request...');
-			initializationPromise = initializeSystem();
+
+			// Check if we're in setup mode before attempting to initialize
+			initializationPromise = (async () => {
+				// First check if we're in setup mode by checking the private config
+				const privateConfig = await loadPrivateConfig();
+				const setupModeDetected = !privateConfig || !privateConfig.DB_TYPE || !privateConfig.DB_HOST;
+
+				if (setupModeDetected) {
+					logger.info('Setup mode detected - skipping database connection and initialization');
+					return Promise.resolve();
+				}
+
+				// Only run full initialization if we're not in setup mode
+				return initializeSystem();
+			})();
 
 			initializationPromise.catch((err) => {
 				logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
