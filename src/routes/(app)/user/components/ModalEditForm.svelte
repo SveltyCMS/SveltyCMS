@@ -206,7 +206,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				<FloatingInput
 					type="text"
 					name="username"
-					label={m.form_username()}
+					label={m.username()}
 					bind:value={formData.username}
 					onkeydown={() => (errorStatus.username.status = false)}
 					required
@@ -274,7 +274,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						type="password"
 						name="confirm_password"
 						id="confirm_password"
-						label={m.form_confirmpassword()}
+						label={m.confirm_password?.() || m.form_confirmpassword?.()}
 						bind:value={formData.confirmPassword}
 						bind:showPassword
 						onkeydown={() => (errorStatus.confirm.status = false)}
@@ -290,7 +290,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<PermissionGuard config={modaleEditFormConfig} silent={true}>
 				{#if !isOwnProfile}
 					<div class="flex flex-col gap-2 sm:flex-row">
-						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.role()}</div>
 						<div class="flex-auto">
 							<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 								{#if roles && roles.length > 0}
@@ -312,7 +312,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					</div>
 				{:else}
 					<div class="flex flex-col gap-2 sm:flex-row">
-						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.role()}</div>
 						<div class="flex-auto">
 							<div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
 								<div class="flex items-center">

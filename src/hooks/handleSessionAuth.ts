@@ -18,7 +18,7 @@ import { privateEnv } from '@root/config/private';
 
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import type { User } from '@src/auth/types';
-import { auth, dbInitPromise } from '@src/databases/db';
+import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { type Handle, type RequestEvent } from '@sveltejs/kit';
 
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -50,7 +50,7 @@ const refreshLimiter = new RateLimiter({
 	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'refreshlimit',
-		secret: privateEnv.JWT_SECRET_KEY as string,
+		secret: privateEnv.JWT_SECRET_KEY,
 		rate: [10, 'm'], // 10 requests per minute per cookie
 		preflight: true
 	}
@@ -94,10 +94,25 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
+	// Skip database initialization for setup routes
+	const isSetupRoute = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
+	if (isSetupRoute) {
+		logger.warn('Auth service not ready, bypassing authentication for setup route');
+		// For setup routes, we still want to have the dbAdapter available if it exists
+		if (!event.locals.dbAdapter && dbAdapter) {
+			event.locals.dbAdapter = dbAdapter;
+		}
+		return resolve(event);
+	}
+
 	try {
 		// Wait for database initialization
 		await dbInitPromise;
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
+		// Expose dbAdapter early (adapter-agnostic)
+		if (!event.locals.dbAdapter && dbAdapter) {
+			event.locals.dbAdapter = dbAdapter;
+		}
 		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user: User | null = session_id ? await getUserFromSessionId(session_id, authServiceReady, event.locals.tenantId) : null;
 		event.locals.user = user;

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/Collections.svelte
 @component
 **Enhanced Collections component with improved performance, accessibility, and UX.**

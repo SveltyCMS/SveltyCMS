@@ -1,39 +1,41 @@
-<!-- 
-@file src/routes/(app)/[language]/[collection]/+page.svelte  
+<!--
+@file src/routes/(app)/[language]/[collection]/+page.svelte
 @component
 **This component handles the content and logic for a specific page within the application**
 
 ## Features:
-It dynamically fetches and displays data based on the current language and collection route parameters. 
+It dynamically fetches and displays data based on the current language and collection route parameters.
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	// Track last language from URL and user-initiated language changes
+	let lastUrlLanguage = data?.contentLanguage ?? 'en';
+	let userInitiatedLanguageChange = false;
 
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';
-
 	// ParaglideJS
 	import type { Locale } from '@src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-
+	import { contentLanguage } from '@stores/store.svelte';
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import Fields from '@components/collectionDisplay/Fields.svelte';
 	import EntryList from '@components/collectionDisplay/EntryList.svelte';
+	import Fields from '@components/collectionDisplay/Fields.svelte';
 
 	interface Props {
 		data: {
 			collection: Schema & { module: string | undefined };
 			contentLanguage: string;
 			user: User;
+			siteName: string;
 		};
 	}
 
@@ -73,8 +75,42 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	});
 
 	$effect(() => {
-		if (!contentLanguage.value) {
-			contentLanguage.set(data.contentLanguage as Locale);
+		const handleLanguageChange = (event: CustomEvent) => {
+			// console.log('[PAGE DEBUG] User-initiated language change detected:', event.detail.language);
+			userInitiatedLanguageChange = true;
+		};
+
+		if (typeof window !== 'undefined') {
+			window.addEventListener('languageChanged', handleLanguageChange as EventListener);
+			return () => {
+				window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
+			};
+		}
+	});
+
+	$effect(() => {
+		// Reset the flag if the URL language has actually changed (navigation)
+		if (data.contentLanguage !== lastUrlLanguage) {
+			// console.log('[PAGE DEBUG] URL language changed from', lastUrlLanguage, 'to', data.contentLanguage, '- resetting user flag');
+			userInitiatedLanguageChange = false;
+			lastUrlLanguage = data.contentLanguage;
+		}
+
+		// Only set language from URL if user hasn't initiated a language change
+		if (!userInitiatedLanguageChange) {
+			const availableContentLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
+			if (!(availableContentLanguages as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
+				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
+				if (!contentLanguage.value || !(availableContentLanguages as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
+					console.log('[PAGE DEBUG] Setting invalid language fallback to en');
+					contentLanguage.set('en');
+				}
+			} else {
+				console.log('[PAGE DEBUG] Setting language from URL data:', data.contentLanguage);
+				contentLanguage.set(data.contentLanguage as Locale);
+			}
+		} else {
+			console.log('[PAGE DEBUG] Skipping language set from URL due to user-initiated change');
 		}
 	});
 
@@ -88,7 +124,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 </script>
 
 <svelte:head>
-	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - Your Site Title</title>
+	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - {data.siteName}</title>
 	<meta name="description" content={`View and manage entries for ${collection.value?.name?.toString()}.`} />
 </svelte:head>
 <div class="content h-full">

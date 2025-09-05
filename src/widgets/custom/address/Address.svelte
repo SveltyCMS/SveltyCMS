@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/address/Address.svelte
 @component
 **Address widget**
@@ -15,26 +15,20 @@
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { privateEnv } from '@root/config/private';
-
+	import { onDestroy, onMount } from 'svelte';
 	// Stores
-	import { validationStore } from '@stores/store.svelte';
 	import { type Field } from '@src/content/types';
-
+	import { validationStore } from '@stores/store.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Import Mapbox CSS at the top level
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 	import 'mapbox-gl/dist/mapbox-gl.css';
-
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem, Autocomplete } from '@skeletonlabs/skeleton';
-
+	import { Autocomplete, ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton';
 	// Valibot validation
 	import * as v from 'valibot';
 
@@ -45,8 +39,11 @@
 	import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 
 	// Initialize Mapbox
+	import { privateEnv, publicEnv } from '@src/stores/globalSettings';
+
+	// Initialize Mapbox
 	const mapboxToken = privateEnv.MAPBOX_API_TOKEN;
-	const isMapboxEnabled = privateEnv.USE_MAPBOX && mapboxToken;
+	const isMapboxEnabled = publicEnv.USE_MAPBOX && mapboxToken;
 
 	interface Props {
 		field?: Field;

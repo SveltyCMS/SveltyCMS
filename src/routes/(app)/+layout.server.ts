@@ -12,16 +12,22 @@
  * - Fetches and returns the content structure for the website
  */
 
-import type { LayoutServerLoad } from './$types';
 import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
+import { publicEnv } from '@src/stores/globalSettings';
+
+import type { LayoutServerLoad } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
-	const { theme, user, isAdmin, hasManageUsersPermission, permissions, roles } = locals;
+	const { theme, user } = locals;
+	// Get settings from database with error handling
+	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
+	const locales = publicEnv.LOCALES || ['en'];
+	const baseLocale = publicEnv.BASE_LOCALE || 'en';
 
 	try {
 		await contentManager.initialize();
@@ -54,10 +60,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			theme: theme || DEFAULT_THEME,
 			contentStructure: contentStructure,
 			user: freshUser,
-			isAdmin,
-			hasManageUsersPermission,
-			permissions,
-			roles
+			settings: {
+				SITE_NAME: siteName,
+				LOCALES: locales,
+				BASE_LOCALE: baseLocale
+			}
 		};
 	} catch (error) {
 		logger.error('Failed to load layout data:', error);
@@ -68,10 +75,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			user,
 			contentStructure: [],
 			error: 'Failed to load collection data',
-			isAdmin: isAdmin || false,
-			hasManageUsersPermission: hasManageUsersPermission || false,
-			permissions: permissions || [],
-			roles: roles || []
+			settings: {
+				SITE_NAME: siteName,
+				LOCALES: locales,
+				BASE_LOCALE: baseLocale
+			}
 		};
 	}
 };

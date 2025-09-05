@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/updatedPassword.svelte
 @component
 **updatedPassword Email component to confirm password change**
@@ -6,17 +6,15 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
-
+	import { publicEnv } from '@src/stores/globalSettings';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
-
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr, Custom, Heading } from 'svelte-email-tailwind';
+	import { Body, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 
 	interface Props {
 		username?: string;

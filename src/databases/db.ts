@@ -8,7 +8,17 @@
  * - Establishing database connections with a retry mechanism
  * - Managing initialization of authentication models, media models, and collection models
  * - Setting up default roles and permissions
- * - Configuring Google OAuth2 client if credentials are provided
+ * - Confi		// 4. Initialize ContentManager (loads collection schemas into memory)
+
+		const step4StartTime = performance.now();
+
+		try {
+			await contentManager.initialize(); // ContentManager gets dbAdapter internally
+			const step4Time = performance.now() - step4StartTime;
+			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
+		} catch (contentErr) {
+			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
+			throw contentErr;le OAuth2 client if credentials are provided
  *
  * Multi-Tenancy Note:
  * This file handles the one-time global startup of the server. Tenant-specific
@@ -17,11 +27,41 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 
-// MongoDB
-import { connectToMongoDB } from './mongodb/dbconnect';
+// Handle private config that might not exist during setup
+let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// Function to load private config when needed
+async function loadPrivateConfig(forceReload = false) {
+	if (privateEnv && !forceReload) return privateEnv;
+
+	try {
+		logger.debug('Loading private config...');
+		const module = await import('@root/config/private');
+		privateEnv = module.privateEnv;
+		logger.debug('Private config loaded successfully', {
+			hasConfig: !!privateEnv,
+			dbType: privateEnv?.DB_TYPE,
+			dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+		});
+		return privateEnv;
+	} catch (error) {
+		// Private config doesn't exist during setup - this is expected
+		logger.debug('Private config not found during setup - this is expected during initial setup', {
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return null;
+	}
+}
+
+// Function to clear private config cache (used after setup completion)
+export function clearPrivateConfigCache() {
+	logger.debug('Clearing private config cache');
+	privateEnv = null;
+	adaptersLoaded = false;
+	logger.debug('Private config cache cleared');
+}
 
 // Auth
 import { Auth } from '@root/src/auth';
@@ -31,17 +71,17 @@ import { getDefaultSessionStore } from '@src/auth/sessionStore';
 import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { DatabaseAdapter } from './dbInterface';
 
-// MongoDB Adapters
-import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-
 // Content Manager
 import { getAllPermissions } from '@src/auth/permissions';
 import { contentManager } from '@src/content/ContentManager';
 
+// Settings loader
+import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
+import { invalidateSettingsCache, setSettingsCache } from '@src/stores/globalSettings';
+import { safeParse } from 'valibot';
+
 // Theme
-import { DEFAULT_THEME } from '@src/databases/themeManager';
+import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -53,7 +93,137 @@ export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
+
+// Create a proper Promise for lazy initialization
+let _dbInitPromise: Promise<void> | null = null;
+export function getDbInitPromise(): Promise<void> {
+	if (!_dbInitPromise) {
+		_dbInitPromise = initializeOnRequest();
+	}
+	return _dbInitPromise;
+}
+// Export a real Promise that will be initialized on first access
+export const dbInitPromise = getDbInitPromise();
 let adaptersLoaded = false; // Internal flag
+
+/**
+ * Loads all settings from the database and populates the in-memory cache.
+ * This function should only be called from a server-side context.
+ */
+export async function loadSettingsFromDB() {
+	try {
+		logger.debug('Loading settings from database...');
+
+		// Check if database adapter is available
+		if (!dbAdapter || !dbAdapter.systemPreferences) {
+			logger.warn('Database adapter not available during settings load. Using empty cache.');
+			invalidateSettingsCache();
+			return;
+		}
+
+		// Get all system settings from database using database-agnostic interface
+		// Since we don't have a "getAll" method, we'll use known system setting keys
+		const knownSystemKeys = [
+			'HOST_DEV',
+			'HOST_PROD',
+			'SITE_NAME',
+			'PASSWORD_LENGTH',
+			'DEFAULT_CONTENT_LANGUAGE',
+			'AVAILABLE_CONTENT_LANGUAGES',
+			'BASE_LOCALE',
+			'LOCALES',
+			'MEDIA_FOLDER',
+			'MEDIA_OUTPUT_FORMAT_QUALITY',
+			'IMAGE_SIZES',
+			'MAX_FILE_SIZE',
+			'BODY_SIZE_LIMIT',
+			'USE_ARCHIVE_ON_DELETE',
+			'SEASONS',
+			'SEASON_REGION',
+			'PKG_VERSION',
+			'LOG_LEVELS',
+			'LOG_RETENTION_DAYS',
+			'LOG_ROTATION_SIZE'
+		];
+
+		const settingsResult = await dbAdapter.systemPreferences.getMany(knownSystemKeys, 'system');
+
+		if (!settingsResult.success) {
+			logger.error('Failed to load settings from database:', settingsResult.error);
+			logger.error('Settings keys attempted:', knownSystemKeys);
+			logger.error('Database adapter status:', {
+				hasAdapter: !!dbAdapter,
+				hasSystemPrefs: !!dbAdapter?.systemPreferences,
+				hasGetMany: !!dbAdapter?.systemPreferences?.getMany
+			});
+			throw new Error(`Could not load settings from DB: ${settingsResult.error?.message || 'Unknown error'}`);
+		}
+
+		const settings = settingsResult.data || {};
+
+		// If no settings exist (initial setup), use empty objects and skip validation
+		if (Object.keys(settings).length === 0) {
+			logger.info('No settings found in database (initial setup). Using empty cache.');
+			// During initial setup, bypass validation by calling invalidateSettingsCache
+			// which sets empty cache without validation
+			invalidateSettingsCache();
+			return;
+		}
+
+		// All system settings are public in the current implementation
+		const publicSettings: Record<string, unknown> = settings;
+		const databasePrivateSettings: Record<string, unknown> = {};
+
+		// Import private config file settings (infrastructure settings)
+		const { privateEnv } = await import('@root/config/private');
+
+		// Merge private config file settings with database private settings
+		// Private config contains infrastructure settings (DB_*, JWT_*, ENCRYPTION_*)
+		// Database contains application private settings (SMTP_*, GOOGLE_*, etc.)
+		const privateSettings = {
+			...privateEnv, // Infrastructure settings from config file
+			...databasePrivateSettings // Application settings from database
+		};
+
+		// Validate and parse the settings against the schemas
+		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
+		const parsedPrivate = safeParse(privateConfigSchema, privateSettings);
+
+		// If validation fails, it might be during setup with incomplete settings
+		// In this case, just use empty cache to allow setup to continue
+		if (!parsedPublic.success || !parsedPrivate.success) {
+			logger.warn('Settings validation failed - clearing corrupted settings and using empty cache for setup mode');
+			if (!parsedPublic.success) {
+				logger.debug('Public settings validation issues:', parsedPublic.issues);
+			}
+			if (!parsedPrivate.success) {
+				logger.debug('Private settings validation issues:', parsedPrivate.issues);
+			}
+
+			// Clear corrupted settings from database during setup
+			try {
+				logger.info('Clearing corrupted settings from database...');
+				await SystemSettingModel.deleteMany({});
+				logger.info('Corrupted settings cleared successfully');
+			} catch (clearError) {
+				logger.warn('Failed to clear corrupted settings:', clearError);
+			}
+
+			invalidateSettingsCache();
+			return;
+		}
+
+		// Populate the cache with validated settings
+		setSettingsCache(parsedPrivate.output, parsedPublic.output);
+
+		logger.info('✅ System settings loaded and cached from database.');
+	} catch (error) {
+		logger.error('Failed to load settings from database:', error);
+		// In a real-world scenario, you might want to throw this error
+		// to prevent the application from starting with invalid settings.
+		throw new Error('Could not load settings from DB.');
+	}
+}
 
 // Load database and authentication adapters
 async function loadAdapters() {
@@ -61,17 +231,31 @@ async function loadAdapters() {
 		logger.debug('Adapters already loaded, skipping');
 		return;
 	}
-	logger.debug(`🔌 Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+
+	// Load private config when needed (force reload to pick up changes after setup)
+	const config = await loadPrivateConfig(true);
+
+	// If private config doesn't exist yet (during setup), we can't load adapters
+	if (!config || !config.DB_TYPE) {
+		logger.debug('Private config not available yet - skipping adapter loading during setup');
+		return;
+	}
+
+	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
 
 	try {
-		switch (privateEnv.DB_TYPE) {
+		switch (config.DB_TYPE) {
 			case 'mongodb': {
 				logger.debug('Importing MongoDB adapter...');
 				const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
 				dbAdapter = new MongoDBAdapter();
 				logger.debug('MongoDB adapter created');
 
-				logger.debug('Creating auth adapters...');
+				logger.debug('Importing and creating MongoDB auth adapters...');
+				const { UserAdapter } = await import('@src/auth/mongoDBAuth/userAdapter');
+				const { SessionAdapter } = await import('@src/auth/mongoDBAuth/sessionAdapter');
+				const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
+
 				const userAdapter = new UserAdapter();
 				const sessionAdapter = new SessionAdapter();
 				const tokenAdapter = new TokenAdapter();
@@ -84,8 +268,9 @@ async function loadAdapters() {
 					getUserById: userAdapter.getUserById.bind(userAdapter),
 					getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 					getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-					getUserCount: userAdapter.getUserCount.bind(userAdapter), // Session Management Methods
+					getUserCount: userAdapter.getUserCount.bind(userAdapter),
 
+					// Session Management Methods
 					createSession: sessionAdapter.createSession.bind(sessionAdapter),
 					updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
 					deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
@@ -95,10 +280,10 @@ async function loadAdapters() {
 					getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
 					getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
 					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
-					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter), // Add rotateToken binding
-					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter), // Add cleanup binding
-					// Token Management Methods
+					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter),
+					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter),
 
+					// Token Management Methods
 					createToken: tokenAdapter.createToken.bind(tokenAdapter),
 					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
 					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
@@ -106,8 +291,11 @@ async function loadAdapters() {
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter), // Permission Management Methods (Imported)
+					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
+					blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
+					unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter),
 
+					// Permission Management Methods (Imported)
 					getAllPermissions
 				};
 				logger.debug('Auth adapters created and bound');
@@ -118,8 +306,8 @@ async function loadAdapters() {
 				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
 				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 			default:
-				logger.error(`Unknown DB_TYPE: ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+				logger.error(`Unknown DB_TYPE: ${config.DB_TYPE}`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 		}
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');
@@ -159,9 +347,25 @@ async function initializeDefaultTheme(): Promise<void> {
 	}
 }
 
+// Initialize ThemeManager
+async function initializeThemeManager(): Promise<void> {
+	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
+	try {
+		logger.debug('Initializing \x1b[34mThemeManager\x1b[0m...');
+		const themeManager = ThemeManager.getInstance();
+		await themeManager.initialize(dbAdapter);
+		logger.debug('ThemeManager initialized successfully.');
+	} catch (err) {
+		const message = `Error initializing ThemeManager: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw new Error(message);
+	}
+}
+
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
-	const mediaFolderPath = publicEnv.MEDIA_FOLDER;
+	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
+	const mediaFolderPath = publicEnv.MEDIA_FOLDER || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
@@ -197,9 +401,10 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (systemVirtualFolders.length === 0) {
 			logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
+			const defaultMediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
 			const rootFolderData = {
-				name: publicEnv.MEDIA_FOLDER,
-				path: publicEnv.MEDIA_FOLDER, // parentId is undefined for root folders
+				name: defaultMediaFolder,
+				path: defaultMediaFolder, // parentId is undefined for root folders
 				order: 0
 			};
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
@@ -233,7 +438,7 @@ async function initializeRevisions(): Promise<void> {
 }
 
 // Core Initialization Logic
-async function initializeSystem(): Promise<void> {
+async function initializeSystem(forceReload = false): Promise<void> {
 	// Prevent re-initialization
 	if (isInitialized) {
 		logger.debug('System already initialized. Skipping.');
@@ -244,22 +449,62 @@ async function initializeSystem(): Promise<void> {
 	logger.info('Starting SvelteCMS System Initialization...');
 
 	try {
-		// 1. Connect to Database & Load Adapters (Concurrently)
+		// 1. Check for setup mode first
 		const step1StartTime = performance.now();
 
-		await Promise.all([
-			connectToMongoDB().catch((err) => {
-				logger.error(`MongoDB connection failed: ${err.message}`);
-				throw err;
-			}),
-			loadAdapters().catch((err) => {
-				logger.error(`Adapter loading failed: ${err.message}`);
-				throw err;
-			})
-		]);
+		// Check if we're in setup mode by trying to load private config
+		const privateConfig = await loadPrivateConfig(forceReload);
+		const setupModeDetected = !privateConfig || !privateConfig.DB_TYPE;
+
+		logger.debug('Setup mode detection', {
+			hasPrivateConfig: !!privateConfig,
+			hasDbType: !!privateConfig?.DB_TYPE,
+			setupModeDetected
+		});
+
+		if (setupModeDetected) {
+			logger.info('Private config not available – running in setup mode (skipping full system initialization).');
+			// Do NOT mark isConnected / isInitialized; leave system minimal for setup endpoints only
+			logger.debug('Setup mode detected – aborting remaining initialization steps (models, themes, content).');
+			return;
+		}
+
+		// 2. Load Adapters (only if not in setup mode)
+		try {
+			await loadAdapters();
+		} catch (err) {
+			logger.error(`Adapter loading failed: ${err.message}`);
+			throw err;
+		}
+
+		// 3. Connect to Database (only if not in setup mode)
+		try {
+			if (!dbAdapter) throw new Error('Database adapter failed to load.');
+			const result = await dbAdapter.connect();
+			if (!result.success) {
+				const dbError = result.error;
+				let errorMessage = 'Database connection failed';
+
+				if (dbError) {
+					if (typeof dbError === 'object' && 'code' in dbError && 'message' in dbError) {
+						errorMessage = `[${dbError.code}] ${dbError.message}`;
+					} else if (dbError instanceof Error) {
+						errorMessage = dbError.message;
+					} else {
+						errorMessage = String(dbError);
+					}
+				}
+
+				const connectionError = new Error(errorMessage);
+				throw connectionError;
+			}
+		} catch (err) {
+			logger.error(`Database connection failed: ${err.message}`);
+			throw err;
+		}
 		isConnected = true; // Mark connected after DB connection succeeds
 		const step1Time = performance.now() - step1StartTime;
-		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
+		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`);
 
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
@@ -271,7 +516,8 @@ async function initializeSystem(): Promise<void> {
 			await Promise.all([
 				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
 				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
-				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete'))
+				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete')),
+				dbAdapter.system.setupSystemModels().then(() => logger.debug('\x1b[34mSystem models\x1b[0m setup complete'))
 			]);
 
 			const step2Time = performance.now() - step2StartTime;
@@ -284,7 +530,13 @@ async function initializeSystem(): Promise<void> {
 		const step3StartTime = performance.now();
 
 		try {
-			await Promise.all([initializeMediaFolder(), initializeDefaultTheme(), initializeRevisions(), initializeVirtualFolders()]);
+			await Promise.all([
+				initializeMediaFolder(),
+				initializeDefaultTheme(),
+				initializeThemeManager(),
+				initializeRevisions(),
+				initializeVirtualFolders()
+			]);
 
 			const step3Time = performance.now() - step3StartTime;
 			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
@@ -352,6 +604,10 @@ async function initializeSystem(): Promise<void> {
 			throw authErr;
 		}
 
+		// Load settings from the database into the cache
+		await loadSettingsFromDB();
+
+		// Set initialization flag
 		isInitialized = true;
 		isConnected = true;
 
@@ -370,30 +626,89 @@ async function initializeSystem(): Promise<void> {
 	}
 }
 
-// Automatically initialize the system, but only at runtime.
-// We check process.argv to detect if a build-related command is running.
-// Note: 'preview' is NOT a build process - it runs the actual application serving built files
-const isBuildProcess = typeof process !== 'undefined' && process.argv?.some((arg) => ['build', 'check'].includes(arg));
+// --- Status & Reinitialization Helpers ---
 
-if (!building && !isBuildProcess) {
-	if (!initializationPromise) {
-		logger.debug('Creating system initialization promise...');
-		initializationPromise = initializeSystem(); // Handle initialization errors
+/**
+ * Initializes the system on the first non-setup request.
+ * This prevents the server from trying to connect to the DB during setup.
+ */
+export function initializeOnRequest(): Promise<void> {
+	const isBuildProcess = typeof process !== 'undefined' && process.argv?.some((arg) => ['build', 'check'].includes(arg));
 
-		initializationPromise.catch((err) => {
-			logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-			logger.error('Clearing initialization promise to allow retry'); // Ensure promise variable is cleared so retries might be possible if the app handles it
-			initializationPromise = null;
-		});
-	} else {
-		logger.debug('Initialization promise already exists');
+	if (!building && !isBuildProcess) {
+		if (!initializationPromise) {
+			logger.debug('Creating system initialization promise on first request...');
+
+			// Check if we're in setup mode before attempting to initialize
+			initializationPromise = (async () => {
+				// First check if we're in setup mode by checking the private config
+				const privateConfig = await loadPrivateConfig();
+				const setupModeDetected = !privateConfig || !privateConfig.DB_TYPE || !privateConfig.DB_HOST;
+
+				if (setupModeDetected) {
+					logger.info('Setup mode detected - skipping database connection and initialization');
+					return Promise.resolve();
+				}
+
+				// Only run full initialization if we're not in setup mode
+				return initializeSystem();
+			})();
+
+			initializationPromise.catch((err) => {
+				logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
+				logger.error('Clearing initialization promise to allow retry');
+				initializationPromise = null;
+			});
+		}
+	} else if (!initializationPromise) {
+		logger.debug('Skipping system initialization during build process.');
+		initializationPromise = Promise.resolve();
 	}
-} else {
-	logger.debug('Skipping system initialization during build process.');
-	initializationPromise = Promise.resolve();
+	return initializationPromise;
 }
 
-// --- Full System Ready Promise (including ContentManager) ---
+export function getSystemStatus() {
+	return {
+		initialized: isInitialized,
+		connected: isConnected,
+		authReady: !!auth,
+		initializing: !!initializationPromise && !isInitialized
+	};
+}
 
-// Export the initialization promise so other modules can wait for system readiness
-export { initializationPromise as dbInitPromise };
+export function getAuth() {
+	return auth;
+}
+
+export async function reinitializeSystem(force = false): Promise<{ status: string; error?: string }> {
+	if (isInitialized && !force) {
+		return { status: 'already-initialized' };
+	}
+
+	// If force is true, clear any existing initialization promise and reload config
+	if (force) {
+		logger.info('Force reinitialization requested - clearing existing initialization promise and reloading config');
+		initializationPromise = null;
+		isInitialized = false;
+		isConnected = false;
+		auth = null;
+		// Force reload private config
+		await loadPrivateConfig(true);
+	}
+
+	if (initializationPromise) {
+		return { status: 'initialization-in-progress' };
+	}
+
+	try {
+		logger.info(`Manual reinitialization requested${force ? ' (force)' : ''}`);
+		initializationPromise = initializeSystem(force);
+		await initializationPromise;
+		return { status: 'initialized' };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		// Clear the failed promise so retries are possible
+		initializationPromise = null;
+		return { status: 'failed', error: message };
+	}
+}

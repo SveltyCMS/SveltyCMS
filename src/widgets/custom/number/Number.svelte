@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/custom/number/Number.svelte
 @component
 **Number widget component that allows users to enter a number**
@@ -15,27 +15,26 @@
 -->
 
 <script lang="ts">
+	import { publicEnv } from '@src/stores/globalSettings';
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
-
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	import { getFieldName } from '@utils/utils';
 
 	// Valibot validation
 	import {
-		object,
-		string,
-		number as numberSchema,
 		boolean,
-		optional,
-		regex,
-		pipe,
-		parse,
-		transform,
 		custom,
+		number as numberSchema,
+		object,
+		optional,
+		parse,
+		pipe,
+		regex,
+		string,
+		transform,
 		type InferInput,
 		type ValiError
 	} from 'valibot';
@@ -58,7 +57,8 @@
 
 	const fieldName = getFieldName(field);
 	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const DEFAULT_CONTENT_LANGUAGE = publicEnv.DEFAULT_CONTENT_LANGUAGE ?? 'en';
+	const _language = DEFAULT_CONTENT_LANGUAGE;
 	const language = $contentLanguage;
 
 	export const WidgetData = async () => _data;

@@ -15,26 +15,25 @@
 
 <script lang="ts">
 	// Auth
-	import { roles as configRoles, initializeRoles } from '@root/config/roles';
 	import type { Role } from '@src/auth/types';
+	import { privateEnv } from '@src/stores/globalSettings';
 
 	let roles = $state<Role[]>([]);
 
 	// Ensure roles is an array
 	let { value } = $props<{ value: string }>();
 
-	// Initialize roles from config
+	// Initialize roles from global settings or DB
+
 	$effect(() => {
-		initializeRoles().then(() => {
-			roles = configRoles;
-		});
+		roles = privateEnv.ROLES || [];
 	});
 
 	// Determine if the roles array is defined and has the required elements
 	const roleClasses = (roleId: string) => {
 		const role = roles.find((r) => r._id === roleId);
 		if (!role) {
-			const defaultRole = configRoles.find((r) => r._id === 'user');
+			const defaultRole = roles.find((r) => r._id === 'user');
 			return defaultRole?.color || 'text-white';
 		}
 		return role.color || 'text-white';
@@ -43,7 +42,7 @@
 	const iconForRole = (roleId: string) => {
 		const role = roles.find((r) => r._id === roleId);
 		if (!role) {
-			const defaultRole = configRoles.find((r) => r._id === 'user');
+			const defaultRole = roles.find((r) => r._id === 'user');
 			return defaultRole?.icon || 'material-symbols:person';
 		}
 		return role.icon || 'material-symbols:person';
@@ -52,7 +51,7 @@
 	const roleName = (roleId: string) => {
 		const role = roles.find((r) => r._id === roleId);
 		if (!role) {
-			const defaultRole = configRoles.find((r) => r._id === 'user');
+			const defaultRole = roles.find((r) => r._id === 'user');
 			return defaultRole?.name || 'User';
 		}
 		return role.name || 'User';

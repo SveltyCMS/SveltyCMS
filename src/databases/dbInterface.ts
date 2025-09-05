@@ -67,7 +67,7 @@ export interface CacheOptions {
 	enabled?: boolean;
 }
 
-import type { DatabaseId, BaseEntity, ContentNode } from './types';
+import type { BaseEntity, ContentNode, DatabaseId } from './types';
 
 /** collection **/
 export interface CollectionModel {
@@ -160,6 +160,7 @@ export interface SystemPreferences extends BaseEntity {
 	value: unknown; // The value of the preference (can be any type)
 	scope: 'user' | 'system' | 'widget'; // The scope of the preference
 	userId?: DatabaseId; // The user ID if the scope is 'user'
+	visibility: 'public' | 'private'; // Visibility of the preference
 }
 
 /** Query Support Types **/
@@ -198,7 +199,13 @@ export interface BatchResult<T> {
 	errors: DatabaseError[];
 }
 
-export type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | { success: false; error: DatabaseError };
+export type DatabaseResult<T> =
+	| { success: true; data: T; meta?: QueryMeta }
+	| {
+			message: string;
+			success: false;
+			error: DatabaseError;
+	  };
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds
@@ -270,7 +277,7 @@ export interface DatabaseTransaction {
 }
 
 /** Database Adapter Interface **/
-export interface DatabaseAdapter {
+export interface IDBAdapter {
 	// Performance and Capabilities
 	getCapabilities(): DatabaseCapabilities;
 
@@ -301,6 +308,11 @@ export interface DatabaseAdapter {
 	// Auth
 	auth: {
 		setupAuthModels(): Promise<void>;
+	};
+
+	// System
+	system: {
+		setupSystemModels(): Promise<void>;
 	};
 
 	//  System Preferences

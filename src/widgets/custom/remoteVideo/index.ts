@@ -3,9 +3,9 @@
 @description - remoteVideo index file.
 */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
+import { GraphqlSchema, GuiSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -23,8 +23,9 @@ const widget = (params: Params & { widgetId?: string }) => {
 		display = async ({ data }) => {
 			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
 			// Return the data for the default content language or a message indicating no data entry
-			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+			return data[defaultLanguage] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {

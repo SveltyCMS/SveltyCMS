@@ -3,8 +3,6 @@
 @description - RemoteVideo widget video file.
 */
 
-import { privateEnv } from '@root/config/private';
-
 const cache = new Map();
 
 interface YoutubeData {

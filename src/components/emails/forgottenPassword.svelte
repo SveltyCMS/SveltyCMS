@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/forgottenPassword.svelte
 @component
 **forgottenPassword Email component to reset password**
@@ -6,18 +6,15 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
-
+	import { publicEnv } from '@src/stores/globalSettings';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
-
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr, Custom } from 'svelte-email-tailwind';
-
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
 

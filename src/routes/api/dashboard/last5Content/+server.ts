@@ -11,14 +11,14 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
+import { privateEnv } from '@root/config/private';
 import { error, json } from '@sveltejs/kit';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
 
 import { contentManager } from '@src/content/ContentManager';
-import { dbAdapter } from '@src/databases/db';
 import { StatusTypes } from '@src/content/types';
+import { dbAdapter } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -40,7 +40,6 @@ const ContentItemSchema = v.object({
 });
 
 // --- API Handler ---
-
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { user, tenantId } = locals;
 	try {

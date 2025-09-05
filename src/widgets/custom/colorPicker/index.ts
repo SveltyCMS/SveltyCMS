@@ -3,9 +3,9 @@
 @description - colorPicker index file.
 */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+import { type Params, GraphqlSchema, GuiSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';

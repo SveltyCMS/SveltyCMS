@@ -16,7 +16,7 @@
 import { privateEnv } from '@root/config/private';
 
 import type { RequestHandler } from '@sveltejs/kit';
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
@@ -25,13 +25,14 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
-import { object, string, parse, email, optional, type ValiError } from 'valibot';
+import { email, object, optional, parse, string, type ValiError } from 'valibot';
 
 // Define a schema for the incoming user data to ensure type safety and prevent invalid data.
 const createUserSchema = object({
 	email: string([email('Please provide a valid email address.')]),
 	role: string('A role ID must be provided.'),
-	username: optional(string())
+	username: optional(string()),
+	password: string()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {

@@ -7,6 +7,9 @@ import { json } from '@sveltejs/kit';
 import { getHealthMetrics } from '@src/hooks.server.js';
 import type { RequestHandler } from './$types';
 
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const metrics = getHealthMetrics();
@@ -34,7 +37,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		return json(metrics);
 	} catch (error) {
-		console.error('Dashboard metrics error:', error);
+		logger.error('Dashboard metrics error:', error);
 		return json({ error: 'Failed to fetch dashboard metrics' }, { status: 500 });
 	}
 };

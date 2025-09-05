@@ -1,15 +1,15 @@
 /**
-@file src/widgets/custom/remoteVideo/types.ts
-@description - RemoteVideo widget types
-*/
+ * @file src/widgets/custom/remoteVideo/types.ts
+ * @description Defines RemoteVideo widget types and GraphQL schema
+ */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@root/src/auth';
@@ -60,16 +60,17 @@ export const GuiSchema = {
 /**
  * Define RemoteVideo GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
-	// Use sanitized field name as GraphQL type ID
+export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
+	// Use the sanitized field name as the type ID
 	const typeID = label;
 
 	// Return an object containing the type name and the GraphQL schema
+	const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES as string[];
 	return {
 		typeID: typeID,
 		graphql: /* GraphQL */ `
         type ${typeID} {
-			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
+			${availableLanguages.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
 		}
         `
 	};

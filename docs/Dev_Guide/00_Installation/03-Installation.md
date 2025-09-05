@@ -95,6 +95,17 @@ ADMIN_EMAIL=admin@example.com
    - Create a new database
    - Update DATABASE_URL in `.env` if needed
 
+## SveltyCMS Installation (2025+)
+
+### Steps
+1. Run the CLI installer to set up DB connection and secrets.
+2. All other settings are managed via the admin GUI or API.
+3. Use import/export endpoints for backup/restore.
+
+### CLI Installer
+- Prompts only for DB/secrets.
+- Use `settingsImportExport.js` for settings import/export.
+
 ## Next Steps
 
 - [Configuration Guide](./04-Configuration.md)

@@ -20,19 +20,17 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { motion } from '@src/utils/utils';
-	import { fade } from 'svelte/transition';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
-	import { tick, onMount, onDestroy } from 'svelte';
-
+	import { fade } from 'svelte/transition';
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Stores
-	import { page } from '$app/stores';
 	import { mode } from '@stores/collectionStore.svelte';
 	import { toggleUIElement } from '@stores/UIStore.svelte';
-
 	// Skeleton UI - Import popup action and modal store
 	import { getModalStore, popup } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -53,7 +51,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	let firstCircle: HTMLDivElement;
 	const circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
-	let user: User = $page.data.user;
+	let user: User = page.data.user;
 
 	// Motion preferences
 	let prefersReducedMotion = false;
@@ -135,7 +133,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	}
 
 	function getBasePath(pathname: string) {
-		const params = Object.values($page.params);
+		const params = Object.values(page.params);
 		const replaced = params.reduce((acc, param) => {
 			return acc.replace(param, '');
 		}, pathname);
@@ -151,7 +149,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		MOTION_MS = prefersReducedMotion ? 0 : 200;
-		const key = getBasePath($page.url.pathname);
+		const key = getBasePath(page.url.pathname);
 		const saved = navigation_info[key];
 		if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
 			buttonInfo = { x: saved.x, y: saved.y, radius: buttonRadius };
@@ -250,7 +248,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			node.releasePointerCapture(e.pointerId);
 			if (!moved) return;
 			const distance = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
-			let promise: Promise<void>;
+			let promise: Promise<void> = Promise.resolve();
 			switch (distance.indexOf(Math.min(...distance))) {
 				case 0: {
 					promise = motion([buttonInfo.x], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
@@ -288,7 +286,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			await tick();
 			if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 			await promise;
-			navigation_info = { ...navigation_info, ...{ [getBasePath($page.url.pathname)]: buttonInfo } };
+			navigation_info = { ...navigation_info, ...{ [getBasePath(page.url.pathname)]: buttonInfo } };
 			localStorage.setItem('navigation', JSON.stringify(navigation_info));
 		};
 	}
@@ -325,8 +323,8 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	}
 
 	$: if (!showRoutes) reverse();
-	function keepAlive(node, { delay = 0, duration = 200, easing: easing$1 = linear } = {}) {
-		return { delay, duration, easing: easing$1, css: (t) => `` };
+	function keepAlive(_node: HTMLElement, { delay = 0, duration = 200, easing: easing$1 = linear } = {}) {
+		return { delay, duration, easing: easing$1, css: (_: number) => `` };
 	}
 
 	function isRightToLeft() {
@@ -339,6 +337,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	<div class="variant-filled-surface arrow"></div>
 </div>
 
+<!-- Main navigation button -->
 <div
 	bind:this={firstCircle}
 	use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
@@ -347,6 +346,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	aria-label="Open Navigation Menu"
 	role="button"
 	aria-expanded={showRoutes}
+	tabindex="0"
 	use:drag
 	class="circle flex touch-none items-center justify-center bg-tertiary-500 [&>*]:pointer-events-none"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;left:{(Math.min(
@@ -355,12 +355,17 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	) /
 		window.innerWidth) *
 		100}%;width:{buttonRadius * 2}px;height:{buttonRadius * 2}px"
+	on:keydown={(event) => {
+		if (event.key === 'Enter' || event.key === 'Space') {
+			toggleMenuOpen();
+		}
+	}}
 >
 	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white"></iconify-icon>
 </div>
 
 {#if showRoutes}
-	<button out:keepAlive|local on:click|self={closeMenu} class=" fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
+	<button out:keepAlive|local on:click|self={closeMenu} class="fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
 			{#each endpointsWithPos.slice(1, endpointsWithPos.length) as endpoint}
@@ -413,6 +418,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 				on:mouseleave={() => (activeTooltipText = '')}
 				role="button"
 				aria-label={endpoint.tooltip}
+				tabindex="0"
 				on:click={() => {
 					if (endpoint?.url?.external) {
 						window.open(endpoint?.url?.path || '/', '_blank');
@@ -420,6 +426,16 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 						goto(endpoint?.url?.path || '/');
 					}
 					showRoutes = false;
+				}}
+				on:keydown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						if (endpoint?.url?.external) {
+							window.open(endpoint?.url?.path || '/', '_blank');
+						} else {
+							goto(endpoint?.url?.path || '/');
+						}
+						showRoutes = false;
+					}
 				}}
 				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
 				style="top:{endpoint.y}px;left:{endpoint.x}px;animation: showEndPoints 0.2s 0.4s forwards"

@@ -24,15 +24,13 @@ Key features:
 
 <script lang="ts">
 	// Utils
-	import { formatBytes } from '@utils/utils';
-	import { getMediaUrlSafe } from '@utils/media/mediaUtils';
-	import { publicEnv } from '@root/config/public';
 	import type { MediaBase, MediaTypeEnum } from '@utils/media/mediaModels';
-
+	import { getMediaUrlSafe } from '@utils/media/mediaUtils';
+	import { formatBytes } from '@utils/utils';
 	// Components
-	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
+	import TablePagination from '@components/system/table/TablePagination.svelte';
 
 	interface Props {
 		filteredFiles?: MediaBase[];

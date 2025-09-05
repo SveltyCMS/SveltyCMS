@@ -3,13 +3,13 @@
 @description - number widget types
 */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@root/src/auth';
@@ -77,16 +77,19 @@ export const GuiSchema = {
 /**
  * Define Number GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
+export const GraphqlSchema: GraphqlSchema = async ({ label }) => {
 	// Use the sanitized field name as the type ID
 	const typeID = label;
+
+	const languages = publicEnv.LOCALES;
+	const graphqlFields = languages ? languages.map((contentLanguage) => `${contentLanguage}: String`).join('\n') : 'en: String';
 
 	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeID: typeID,
 		graphql: /* GraphQL */ `
         type ${typeID} {
-			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
+			${graphqlFields}
 		}
         `
 	};

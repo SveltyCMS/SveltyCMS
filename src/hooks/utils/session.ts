@@ -7,8 +7,10 @@ import { privateEnv } from '@root/config/private';
 import type { User } from '@src/auth/types';
 import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS, cacheService } from '@src/databases/CacheService';
 import type { RequestEvent } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
 import type { RateLimiter } from 'sveltekit-rate-limiter/server';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 // Session caches and metrics shared across hooks
 export const sessionCache = new Map<string, { user: User; timestamp: number }>();

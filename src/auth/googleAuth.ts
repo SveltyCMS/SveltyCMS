@@ -8,8 +8,8 @@
  */
 
 import { dev } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
+
 import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
@@ -28,7 +28,7 @@ function getOAuthRedirectUri(): string {
 }
 
 // Google OAuth
-let googleAuthClient: OAuth2Client | null = null;
+let googleAuthClient: any;
 
 // Initialize Google OAuth client with ID, secret, and redirect URL
 async function googleAuth(): Promise<OAuth2Client | null> {

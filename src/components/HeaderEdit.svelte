@@ -1,10 +1,10 @@
-<!-- 
+<!--
  @file  src/components/HeaderEdit.svelte
  @component
  **HeaderEdit component**
- The HeaderEdit component manages the collection entry header for both "edit" and "view" modes. 
- It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling, 
- and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views 
+ The HeaderEdit component manages the collection entry header for both "edit" and "view" modes.
+ It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling,
+ and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views
  and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
 
 @example
@@ -28,18 +28,16 @@
 -->
 
 <script lang="ts">
-	import { saveEntry, deleteCurrentEntry } from '@utils/entryActions'; // Import centralized delete function
+	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
+	// Import centralized delete function
 	// Types
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { StatusTypes } from '@src/content/types';
-	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
+	import { createEntry, invalidateCollectionCache, updateEntryStatus } from '@src/utils/apiClient';
 	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import TranslationStatus from './collectionDisplay/TranslationStatus.svelte';
 	import Toggles from './system/inputs/Toggles.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { showToast } from '@utils/toast';
-	import { invalidateCollectionCache, batchUpdateEntries, updateEntryStatus, createEntry } from '@src/utils/apiClient';
-	import { publicEnv } from '@root/config/public';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -47,18 +45,12 @@
 	const modalStore = getModalStore();
 
 	// Modal types import
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode, statusMap } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
-	import { contentLanguage, headerActionButton, tabSet, validationStore, shouldShowNextButton } from '@stores/store.svelte';
-
-	// Subscribe to shouldShowNextButton store for use in markup (runes mode)
-	let shouldShowNextButtonValue = $derived(shouldShowNextButton);
-
+	import { contentLanguage, headerActionButton, shouldShowNextButton, tabSet, validationStore } from '@stores/store.svelte';
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { StatusType } from '@src/content/types';

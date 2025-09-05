@@ -13,8 +13,8 @@
 	},
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"typescript.enablePromptUseWorkspaceTsdk": true,
-	"typescript.validate.enable": false,
-	"javascript.validate.enable": false,
+	"typescript.validate.enable": true,
+	"javascript.validate.enable": true,
 	"[typescript]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	}

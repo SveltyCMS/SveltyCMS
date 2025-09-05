@@ -13,6 +13,8 @@
 import { hasApiPermission } from '@src/auth/apiPermissions';
 import { cacheService } from '@src/databases/CacheService';
 import { error, type Handle } from '@sveltejs/kit';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Cache TTL for API responses (centralized)

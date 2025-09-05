@@ -1,6 +1,6 @@
-<!-- 
+<!--
 @file src/widgets/core/radio/Radio.svelte
-@component 
+@component
 **Radio widget component that allows users to select a single option from a list of options.**
 
 @example
@@ -15,17 +15,15 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { getFieldName } from '@utils/utils';
-	import { onMount, onDestroy } from 'svelte';
-
+	import { onDestroy, onMount } from 'svelte';
+	import type { FieldType } from '.';
 	// Stores
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
-
 	// Valibot validation
-	import { string, pipe, parse, type ValiError, nonEmpty } from 'valibot';
+	import { nonEmpty, parse, pipe, string, type ValiError } from 'valibot';
 
 	interface Props {
 		field: FieldType;
@@ -43,7 +41,15 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 
 	// Computed values
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _defaultLanguage = $state('');
+	let _language = $derived(field?.translated ? $contentLanguage : _defaultLanguage);
+
+	// Load default language
+	$effect(async () => {
+		if (!field?.translated) {
+			_defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
+		}
+	});
 
 	// Translation progress is now handled by the Fields.svelte component
 	// No need for individual widget components to update it

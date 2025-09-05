@@ -15,34 +15,15 @@
  * - Locale management
  * - Security headers
  * - Performance monitoring
+ * - Integration with production-grade configuration system
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
-// Core authentication and database
-import { initializeRoles, roles } from '@root/config/roles';
-import { SESSION_COOKIE_NAME } from '@src/auth/constants';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import type { User } from '@src/auth/types';
-
-// Dynamically import db stuff only when not building
-let dbModule, dbInitPromise;
-if (!building) {
-	dbModule = await import('@src/databases/db');
-	dbInitPromise = dbModule.dbInitPromise;
-} else {
-	dbInitPromise = Promise.resolve();
-}
-
-// Stores (removed unused imports)
-
 // Cache
-import { cacheService } from '@src/databases/CacheService';
-import { sessionCache, sessionMetrics, getUserFromSessionId as sharedGetUserFromSessionId } from '@src/hooks/utils/session';
-import { getTenantIdFromHostname } from '@src/hooks/utils/tenant';
+import { sessionCache } from '@src/hooks/utils/session';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -50,44 +31,18 @@ import { logger } from '@utils/logger.svelte';
 // Import middleware modules
 import { addSecurityHeaders } from './hooks/addSecurityHeaders';
 import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleAuthorization } from './hooks/handleAuthorization';
 import { handleLocale } from './hooks/handleLocale';
+import { handleMultiTenancy } from './hooks/handleMultiTenancy';
 import { handleRateLimit } from './hooks/handleRateLimit';
+import { handleSessionAuth } from './hooks/handleSessionAuth';
+import { handleSetup } from './hooks/handleSetup';
 import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+import { handleTheme } from './hooks/handleTheme';
 
 // Cache TTLs (centralized)
-import {
-	SESSION_CACHE_TTL_MS as CACHE_TTL_MS,
-	USER_COUNT_CACHE_TTL_MS,
-	USER_COUNT_CACHE_TTL_S,
-	USER_PERM_CACHE_TTL_MS,
-	USER_PERM_CACHE_TTL_S
-} from '@src/databases/CacheService';
-const SESSION_TTL = CACHE_TTL_MS;
-
-// Performance Caches - Optimized for memory management
-let userCountCache: { count: number; timestamp: number } | null = null;
-const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
-
-// Session metrics and cache imported from shared session utils
-
-// Request deduplication for expensive operations
-const pendingOperations = new Map<string, Promise<unknown>>();
-
-// Helper function to deduplicate expensive async operations
-async function deduplicate<T>(key: string, operation: () => Promise<T>): Promise<T> {
-	if (pendingOperations.has(key)) {
-		return pendingOperations.get(key) as Promise<T>;
-	}
-
-	const promise = operation().finally(() => {
-		pendingOperations.delete(key);
-	});
-
-	pendingOperations.set(key, promise);
-	return promise;
-}
-
-// Circuit breaker logic is handled where needed; not used directly here after refactor
+import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS } from '@src/databases/CacheService';
+const SESSION_TTL = CACHE_TTL_MS; // for metrics cleanup
 
 // Health metrics for monitoring
 const healthMetrics = {
@@ -112,442 +67,132 @@ setInterval(
 	60 * 60 * 1000
 );
 
-// Utility functions
-const isStaticAsset = (pathname: string): boolean =>
-	pathname.startsWith('/static/') ||
-	pathname.startsWith('/_app/') ||
-	pathname.endsWith('.js') ||
-	pathname.endsWith('.css') ||
-	pathname === '/favicon.ico';
-
-const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login') && pathname.includes('OAuth');
-
-const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
-	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
-};
-
-const getClientIp = (event: RequestEvent): string => {
-	try {
-		return (
-			event.getClientAddress() ||
-			event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-			event.request.headers.get('x-real-ip') ||
-			'127.0.0.1'
-		);
-	} catch {
-		return '127.0.0.1';
-	}
-};
-
-/**
- * Identifies a tenant based on the request hostname.
- * In a real-world application, this would query a database of tenants.
- * This placeholder assumes a subdomain-based tenancy model (e.g., `my-tenant.example.com`).
- */
-
 // Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
+	if (responseTime < 75) return '🚀';
+	if (responseTime < 250) return '⚡';
+	if (responseTime < 750) return '⏱️';
+	if (responseTime < 2000) return '🕰️';
+	return '🐢';
 };
 
-// Optimized user count getter with caching and deduplication (now tenant-aware)
-const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string): Promise<number> => {
-	const now = Date.now();
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	// Try distributed cache first
-	try {
-		const cached = await cacheService.get<{ count: number; timestamp: number }>(cacheKey, tenantId);
-		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
-			userCountCache = cached;
-			return cached.count;
-		}
-	} catch (err) {
-		logger.warn(`Failed to read user count from distributed cache: ${err.message}`);
+// Extend locals typing for performance marker
+declare module '@sveltejs/kit' {
+	interface Locals {
+		__reqStart?: number;
 	}
+}
 
-	// Return local cached value if still valid (fallback)
-	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
-		return userCountCache.count;
-	}
-
-	// Use deduplication for expensive database operations
-	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
-		let userCount = -1;
-		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
-
-		if (authServiceReady && dbModule.auth) {
-			try {
-				userCount = await dbModule.auth.getUserCount(filter);
-			} catch (err) {
-				logger.warn(`Failed to get user count from auth service: ${err.message}`);
-			}
-		} else if (dbModule.authAdapter && typeof dbModule.authAdapter.getUserCount === 'function') {
-			try {
-				userCount = await dbModule.authAdapter.getUserCount(filter);
-			} catch (err) {
-				logger.warn(`Failed to get user count from adapter: ${err.message}`);
-			}
-		}
-
-		// Cache the result in both distributed and local cache
-		if (userCount >= 0) {
-			const dataToCache = { count: userCount, timestamp: now };
-
-			try {
-				await cacheService.set(cacheKey, dataToCache, USER_COUNT_CACHE_TTL_S, tenantId);
-			} catch (err) {
-				logger.error(`Failed to write user count to distributed cache: ${err.message}`);
-			}
-
-			userCountCache = dataToCache;
-		}
-
-		return userCount;
-	});
+// Perf start hook (very cheap)
+const handlePerfStart: Handle = async ({ event, resolve }) => {
+	event.locals.__reqStart = performance.now();
+	return resolve(event);
 };
 
-// Get user from session ID with optimized caching (now tenant-aware)
-const getUserFromSessionId = (session_id: string | undefined, authServiceReady: boolean = false, tenantId?: string) =>
-	sharedGetUserFromSessionId(session_id, authServiceReady, tenantId, dbModule.auth);
-
-// Optimized admin data loading with caching (now tenant-aware)
-const getAdminDataCached = async (user: User | null, cacheKey: string, tenantId?: string): Promise<unknown> => {
-	const now = Date.now();
-	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
-	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-
-	// 1. Try in-memory cache first (fastest)
-	const memCached = adminDataCache.get(inMemoryCacheKey);
-	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL_MS) {
-		return memCached.data;
+// Perf end hook (logs duration)
+const handlePerfLog: Handle = async ({ event, resolve }) => {
+	const res = await resolve(event);
+	const start = event.locals.__reqStart;
+	if (typeof start === 'number') {
+		const dt = performance.now() - start;
+		const emoji = getPerformanceEmoji(dt);
+		// Colorize URL (blue) and duration (green) for better scanability
+		logger.debug(`Request \x1b[34m${event.url.pathname}\x1b[0m \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
 	}
-
-	// 2. Try distributed cache (e.g., Redis) if enabled
-	if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
-		try {
-			const redisCached = await cacheService.get<{ data: unknown; timestamp: number }>(distributedCacheKey);
-			if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL_MS) {
-				adminDataCache.set(inMemoryCacheKey, redisCached);
-				return redisCached.data;
-			}
-		} catch (err) {
-			logger.warn(`Failed to read admin data (\x1b[34m${cacheKey}\x1b[0m) from distributed cache: ${err.message}`);
-		}
-	}
-
-	let data = null;
-	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
-
-	if (dbModule.auth) {
-		try {
-			if (cacheKey === 'roles') {
-				data = await dbModule.auth.getAllRoles();
-				if (!data || data.length === 0) {
-					await initializeRoles();
-					data = roles;
-				}
-			} else if (cacheKey === 'users') {
-				data = await dbModule.auth.getAllUsers(filter);
-			} else if (cacheKey === 'tokens') {
-				data = await dbModule.auth.getAllTokens(filter.filter);
-			}
-
-			if (data) {
-				// Cache in-memory
-				adminDataCache.set(inMemoryCacheKey, { data, timestamp: now });
-
-				// Cache in distributed store if enabled
-				if (cacheKey === 'roles' || cacheKey === 'users' || cacheKey === 'tokens') {
-					try {
-						await cacheService.set(distributedCacheKey, { data, timestamp: now }, USER_PERM_CACHE_TTL_S);
-					} catch (err) {
-						logger.error(`Failed to write admin data (\x1b[34m${cacheKey}\x1b[0m) to distributed cache: ${err.message}`);
-					}
-				}
-			}
-		} catch (err) {
-			logger.warn(`Failed to load admin data from DB (\x1b[34m${cacheKey}\x1b[0m): ${err.message}`);
-
-			// Specific fallback for roles if DB fetch fails
-			if (cacheKey === 'roles') {
-				try {
-					await initializeRoles();
-					data = roles;
-				} catch (roleErr) {
-					logger.warn(`Failed to initialize config roles fallback: \x1b[34m${roleErr.message}\x1b[0m`);
-				}
-			}
-		}
-	} else {
-		// Fallback to config roles if auth service is not available
-		if (cacheKey === 'roles') {
-			try {
-				await initializeRoles();
-				data = roles;
-			} catch (roleErr) {
-				logger.warn(`Failed to initialize config roles: \x1b[34m${roleErr.message}\x1b[0m`);
-			}
-		}
-	}
-
-	return data || [];
+	return res;
 };
 
-// Main authentication and authorization middleware
-const handleAuth: Handle = async ({ event, resolve }) => {
-	if (building) return resolve(event);
-
-	const requestStartTime = performance.now();
-	const { url, cookies, locals } = event;
-
-	// Track request metrics
-	healthMetrics.requests.total++;
-
-	// Skip auth entirely for static assets during initialization
-	if (isStaticAsset(url.pathname)) {
-		logger.debug(`Skipping auth for static asset: \x1b[34m${url.pathname}\x1b[0m`);
-		return resolve(event);
-	}
-
-	try {
-		// Multi-tenancy logic (only if enabled)
-		if (privateEnv.MULTI_TENANT) {
-			// Process multi-tenancy within the main auth handler to avoid duplication
-			const tenantId = getTenantIdFromHostname(url.hostname);
-			if (!tenantId) {
-				throw error(404, `Tenant not found for hostname: \x1b[34m${url.hostname}\x1b[0m`);
-			}
-			locals.tenantId = tenantId;
-			logger.debug(`Request identified for tenant: \x1b[34m${tenantId}\x1b[0m`);
-		}
-
-		// Wait for database initialization
-		await dbInitPromise;
-
-		// Get the current dbAdapter from the module (it might have been updated during initialization)
-		const currentDbAdapter = dbModule.dbAdapter;
-
-		// Ensure dbAdapter is properly initialized before making it available
-		if (!currentDbAdapter) {
-			logger.error('Database adapter is null after initialization', {
-				dbModuleExists: !!dbModule,
-				dbAdapterFromModule: !!dbModule.dbAdapter,
-				dbInitPromiseCompleted: true
-			});
-			throw error(503, 'Service Unavailable: Database service is not properly initialized. Please try again shortly.');
-		}
-
-		// Make the dbAdapter available to all subsequent handlers and endpoints
-		locals.dbAdapter = currentDbAdapter;
-
-		// Debug: Log dbAdapter status
-		logger.debug('Database adapter status in hooks', {
-			dbAdapterExists: !!currentDbAdapter,
-			dbAdapterType: currentDbAdapter?.constructor?.name || 'null'
-		});
-
-		// Check if auth service is ready
-		const authServiceReady = dbModule.auth !== null && typeof dbModule.auth.validateSession === 'function';
-
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		const user = await getUserFromSessionId(session_id, authServiceReady, locals.tenantId);
-
-		locals.user = user;
-		locals.permissions = user?.permissions || [];
-		locals.session_id = user ? session_id : undefined;
-
-		// Optimized first user check with caching
-		const userCount = await getCachedUserCount(authServiceReady, locals.tenantId);
-		const isFirstUser = userCount === 0;
-		locals.isFirstUser = isFirstUser;
-
-		// Load roles and other admin data conditionally and with caching
-		if (authServiceReady) {
-			// First, load roles for everyone (guests might need to see public roles)
-			locals.roles = (await getAdminDataCached(user, 'roles', locals.tenantId)) as unknown[];
-
-			if (locals.user) {
-				// This block now ONLY runs for logged-in users
-				const userRole = locals.roles.find((role: unknown) => (role as { _id: string; isAdmin?: boolean })?._id === locals.user.role);
-				const isAdmin = !!(userRole as { isAdmin?: boolean })?.isAdmin;
-
-				locals.isAdmin = isAdmin;
-				locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(locals.user, 'manage', 'user', undefined, locals.roles);
-
-				// Conditionally load other admin data
-				if (
-					(isAdmin || locals.hasManageUsersPermission) &&
-					(url.pathname.startsWith('/api/') || url.pathname.includes('/admin') || url.pathname.includes('/user'))
-				) {
-					const [allUsers, allTokens] = await Promise.all([
-						getAdminDataCached(locals.user, 'users', locals.tenantId),
-						getAdminDataCached(locals.user, 'tokens', locals.tenantId)
-					]);
-					locals.allUsers = allUsers as unknown[];
-					locals.allTokens = allTokens;
-				} else {
-					locals.allUsers = [];
-					locals.allTokens = [];
-				}
-			} else {
-				// This block runs for guests (user is null)
-				locals.isAdmin = false;
-				locals.hasManageUsersPermission = false;
-				locals.allUsers = [];
-				locals.allTokens = [];
-			}
-		} else {
-			// If auth service not ready, set safe defaults and fall back to config roles
-			await initializeRoles();
-			locals.roles = roles;
-			locals.isAdmin = false;
-			locals.hasManageUsersPermission = false;
-			locals.allUsers = [];
-			locals.allTokens = [];
-		}
-
-		// Performance logging for the request duration
-		const responseTime = performance.now() - requestStartTime;
-		logger.debug(
-			`Route \x1b[34m${url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`
-		);
-
-		// Authorization checks
-		const isPublic = isPublicOrOAuthRoute(url.pathname);
-		const isApi = url.pathname.startsWith('/api/');
-
-		if (isOAuthRoute(url.pathname)) {
-			logger.debug('OAuth route detected, passing through');
-			return resolve(event);
-		}
-
-		if (authServiceReady) {
-			if (!locals.user && !isPublic && !isFirstUser) {
-				logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
-				if (isApi) throw error(401, 'Unauthorized');
-				throw redirect(302, '/login');
-			}
-
-			if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-				logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
-				throw redirect(302, '/');
-			}
-		} else {
-			logger.warn(`Auth service not ready, bypassing authentication for ${url.pathname}`);
-			if (!isPublic) {
-				throw error(503, 'Service Unavailable: Authentication service is initializing. Please try again shortly.');
-			}
-		}
-
-		return resolve(event);
-	} catch (err) {
-		// Track error metrics
-		healthMetrics.requests.errors++;
-
-		if (err && typeof err === 'object' && 'status' in err) {
-			// This is a SvelteKit error or redirect already handled
-			throw err;
-		}
-
-		const clientIp = getClientIp(event);
-		logger.error(
-			`Unhandled error in handleAuth for \x1b[34m${url.pathname}\x1b[0m (IP: \x1b[34m${clientIp}\x1b[0m): ${err instanceof Error ? err.message : JSON.stringify(err)}`,
-			{
-				stack: err instanceof Error ? err.stack : undefined
-			}
-		);
-
-		// Provide a generic, safe error message to the client
-		if (url.pathname.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Internal Server Error', message: 'An unexpected server error occurred.' }), {
-				status: 500,
-				headers: { 'Content-Type': 'application/json' }
-			});
-		}
-		throw error(500, 'An unexpected error occurred. Please try again later.');
-	}
+// Configuration initialization hook
+const handleConfigInit: Handle = async ({ event, resolve }) => {
+	// This hook is now a placeholder.
+	// Global settings are loaded in db.ts and accessed via stores.
+	return resolve(event);
 };
 
 // Build the middleware sequence based on configuration
 const buildMiddlewareSequence = (): Handle[] => {
 	const middleware: Handle[] = [];
 
-	// Always include static asset caching first for performance
+	// 0. Configuration initialization
+	middleware.push(handleConfigInit);
+	// 1. Perf start marker
+	middleware.push(handlePerfStart);
+	// 2. Setup gate
+	middleware.push(handleSetup);
+	// 3. Static asset caching
 	middleware.push(handleStaticAssetCaching);
-
-	// Add rate limiting (always enabled for security)
+	// 4. Rate limiting
 	middleware.push(handleRateLimit);
-
-	// Add multi-tenancy middleware if enabled (integrated into auth handler for efficiency)
-	// No separate middleware needed as it's handled in handleAuth
-
-	// Add authentication and authorization
-	middleware.push(handleAuth);
-
-	// Add API request handling
+	// 5. Multi-tenancy (sets locals.tenantId)
+	middleware.push(handleMultiTenancy);
+	// 6. Session auth / rotation
+	middleware.push(handleSessionAuth);
+	// 7. Authorization & admin data
+	middleware.push(handleAuthorization);
+	// 8. API request handling & caching
 	middleware.push(handleApiRequests);
-
-	// Add locale handling
+	// 9. Theme management
+	middleware.push(handleTheme);
+	// 10. Locale management
 	middleware.push(handleLocale);
-
-	// Always add security headers last
+	// 11. Security headers
 	middleware.push(addSecurityHeaders);
+	// 12. Perf logging (after all other mutations)
+	middleware.push(handlePerfLog);
 
 	return middleware;
 };
 
-// Combine all hooks using the optimized sequence
+// Export the main handle function
 export const handle: Handle = sequence(...buildMiddlewareSequence());
 
 // Export utility functions for external use
 export const getHealthMetrics = () => ({ ...healthMetrics });
 
-export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void => {
-	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-	const distributedCacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${cacheKey}` : `adminData:${cacheKey}`;
-
-	if (cacheKey) {
-		adminDataCache.delete(inMemoryCacheKey);
-		cacheService
-			.delete(distributedCacheKey)
-			.catch((err) => logger.error(`Failed to delete distributed admin cache for \x1b[34m${cacheKey}\x1b[0m: ${err.message}`));
-		logger.debug(`Admin cache invalidated for: \x1b[34m${cacheKey}\x1b[0m on tenant \x1b[34m${tenantId || 'global'}\x1b[0m`);
-	} else {
-		adminDataCache.clear();
-		['roles', 'users', 'tokens'].forEach((key) => {
-			const distKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:adminData:${key}` : `adminData:${key}`;
-			cacheService.delete(distKey).catch((err) => logger.error(`Failed to delete distributed admin cache for ${key}: ${err.message}`));
-		});
-		logger.debug('All admin cache cleared');
-	}
+// Cache invalidation helpers (now integrated with config service)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const invalidateAdminCache = (_cacheKey?: 'roles' | 'users' | 'tokens', _tenantId?: string): void => {
+	// This is now handled in the handleAuthorization hook
+	// Keeping for backward compatibility
 };
 
-export const invalidateUserCountCache = (tenantId?: string): void => {
-	userCountCache = null;
-	const cacheKey = privateEnv.MULTI_TENANT && tenantId ? `tenant:${tenantId}:userCount` : 'global:userCount';
-	cacheService.delete(cacheKey).catch((err) => logger.error(`Failed to delete distributed user count cache: ${err.message}`));
-	logger.debug('User count cache invalidated');
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const invalidateUserCountCache = (_tenantId?: string): void => {
+	// This is now handled in the handleAuthorization hook
+	// Keeping for backward compatibility
 };
 
 export const cleanupSessionMetrics = (): void => {
 	const now = Date.now();
-	const METRIC_EXPIRY_THRESHOLD = 2 * SESSION_TTL;
+	const expiredSessions: string[] = [];
 
-	let cleanedCount = 0;
-	for (const [sessionId, timestamp] of sessionMetrics.lastActivity) {
-		if (now - timestamp > METRIC_EXPIRY_THRESHOLD) {
-			sessionMetrics.lastActivity.delete(sessionId);
-			sessionMetrics.activeExtensions.delete(sessionId);
-			sessionMetrics.rotationAttempts.delete(sessionId);
-			cleanedCount++;
+	for (const [sessionId, session] of sessionCache.entries()) {
+		if (now - session.lastActivity > SESSION_TTL) {
+			expiredSessions.push(sessionId);
 		}
 	}
-	if (cleanedCount > 0) {
-		logger.info(`Cleaned up metrics for \x1b[34m${cleanedCount}\x1b[0m stale sessions.`);
+
+	for (const sessionId of expiredSessions) {
+		sessionCache.delete(sessionId);
+	}
+
+	if (expiredSessions.length > 0) {
+		logger.debug(`Cleaned up ${expiredSessions.length} expired sessions`);
 	}
 };
+
+// Load settings from database at server startup
+if (!building) {
+	// The main initialization logic, including settings, is now in `src/databases/db.ts`.
+	// This ensures settings are loaded before any hooks run.
+	// We can import `dbInitPromise` to ensure the database is ready if needed.
+	import('@src/databases/db')
+		.then(({ initializeOnRequest }) => {
+			// We don't call initializeOnRequest() here anymore.
+			// It will be called by the `handleSetup` hook on the first real request.
+			logger.info('✅ DB module loaded. Initialization will occur on first non-setup request.');
+		})
+		.catch((error) => {
+			logger.error('Failed to load db module for initialization:', error);
+		});
+}

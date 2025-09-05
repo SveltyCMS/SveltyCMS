@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/userToken.svelte
 @component
 **userToken Email component to send user token invite to email**
@@ -6,8 +6,7 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
-
+	import { publicEnv } from '@src/stores/globalSettings';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
@@ -18,7 +17,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 
 	interface Props {
 		email?: string;

@@ -3,9 +3,9 @@
 @description - Relation widget index file.
 */
 
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
+import { GraphqlSchema, GuiSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -20,7 +20,7 @@ const widget = (params: Params & { widgetId?: string }) => {
 	let display: any;
 
 	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
+		display = ({ data, contentLanguage }) => {
 			data = data ? data : {}; // Ensure data is not undefined
 			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
 		};
