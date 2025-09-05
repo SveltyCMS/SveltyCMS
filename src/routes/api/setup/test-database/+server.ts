@@ -10,7 +10,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { initSystemFromSetup } from '@src/routes/api/setup/seed-settings/+server';
+import { initSystemFromSetup } from '../seed';
 import { logger } from '@utils/logger.svelte';
 
 // Database-specific imports (will be dynamic based on DB_TYPE)

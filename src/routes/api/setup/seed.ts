@@ -8,12 +8,32 @@
 
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import type { SystemPreferences } from '@src/databases/dbInterface';
-import { setSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache, setSettingsCache } from '@src/stores/globalSettings';
 import { safeParse } from 'valibot';
 import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+/**
+ * Initialize system from setup using database-agnostic interface
+ * @param adapter Database adapter to use for operations
+ */
+export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<void> {
+	logger.info('🚀 Starting system initialization from setup...');
+
+	if (!adapter) {
+		throw new Error('Database adapter not available. Database must be initialized first.');
+	}
+
+	// Seed the database with default settings using database-agnostic interface
+	await seedSettings(adapter);
+
+	// Invalidate the settings cache to force a reload
+	invalidateSettingsCache();
+
+	logger.info('✅ System initialization completed');
+}
 
 // Default public settings that were previously in config/public.ts
 const defaultPublicSettings: Array<{ key: string; value: unknown; description?: string }> = [

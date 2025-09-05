@@ -93,6 +93,7 @@ export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
+export const dbInitPromise = initializeOnRequest(); // Exported promise for hooks
 let adaptersLoaded = false; // Internal flag
 
 /**
