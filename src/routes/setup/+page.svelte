@@ -12,8 +12,8 @@
 	import { systemLanguage } from '@stores/store.svelte';
 	// Utils
 	import { setupAdminSchema } from '@utils/formSchemas';
-	import { systemConfigSchema } from '@utils/setupValidationSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { systemConfigSchema } from '@utils/setupValidationSchemas';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -31,15 +31,23 @@
 	// Toast
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 	import { setGlobalToastStore, showToast } from '@utils/toast';
+
 	const availableLanguages = $derived(
 		(() => {
 			const raw = publicEnv.LOCALES;
-			// Normalize: allow comma/space separated string or array
 			let normalized: string[] = [];
-			if (Array.isArray(raw)) normalized = raw as string[];
-			else if (typeof raw === 'string') normalized = raw.split(/[ ,;]+/).filter(Boolean);
+
+			if (typeof raw === 'string') {
+				normalized = raw.split(/[ ,;]+/).filter(Boolean);
+			} else if (Array.isArray(raw)) {
+				normalized = raw;
+			}
+
 			// If we only have a single locale (likely setup mode default), fall back to full Paraglide list
-			if (normalized.length <= 1) normalized = [...paraglideLocales];
+			if (normalized.length <= 1) {
+				normalized = [...paraglideLocales];
+			}
+
 			// Ensure uniqueness and stable sort by English name
 			return [...new Set(normalized)].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 		})()
@@ -110,7 +118,15 @@
 	];
 
 	// Form state
-	let dbConfig = $state({ type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '' });
+	let dbConfig = $state({
+		type: 'mongodb',
+		host: 'localhost',
+		port: '27017',
+		name: 'SveltyCMS',
+		user: '',
+		password: '',
+		isAtlas: false
+	});
 	let adminUser = $state({ username: '', email: '', password: '', confirmPassword: '' });
 	let systemSettings = $state({
 		siteName: 'SveltyCMS',
@@ -288,7 +304,8 @@
 			port: dbConfig.port,
 			name: dbConfig.name,
 			user: dbConfig.user,
-			password: dbConfig.password
+			password: dbConfig.password,
+			isAtlas: dbConfig.isAtlas
 		})
 	);
 	let lastTestFingerprint = $state<string | null>(null);
@@ -539,12 +556,16 @@
 				successMessage = '';
 				errorMessage = '';
 
+				showToast('Setup complete! Redirecting...', 'success');
+
 				// Determine redirect target
 				const target = data.loggedIn && data.redirectPath ? data.redirectPath : '/login';
 				console.log('Redirecting to:', target);
 
-				// Redirect immediately
-				window.location.href = target;
+				// Redirect after a short delay to allow toast to be seen
+				setTimeout(() => {
+					window.location.href = target;
+				}, 1500);
 
 				return;
 			}

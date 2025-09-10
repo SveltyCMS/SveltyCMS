@@ -16,10 +16,10 @@ export interface SystemSetting {
 
 const SystemSettingSchema = new Schema<SystemSetting>(
 	{
-		key: { type: String, required: true, unique: true },
+		key: { type: String, required: true, index: true, unique: true },
 		value: { type: Schema.Types.Mixed, required: true },
-		scope: { type: String, default: 'system' },
-		visibility: { type: String, enum: ['public', 'private'], default: 'public' },
+		scope: { type: String, default: 'system', index: true },
+		visibility: { type: String, enum: ['public', 'private'], default: 'public', index: true },
 		isGlobal: { type: Boolean, default: true },
 		updatedAt: { type: Date, default: Date.now }
 	},
@@ -29,10 +29,6 @@ const SystemSettingSchema = new Schema<SystemSetting>(
 		strict: true
 	}
 );
-
-SystemSettingSchema.index({ key: 1 }, { unique: true });
-SystemSettingSchema.index({ scope: 1 });
-SystemSettingSchema.index({ visibility: 1 });
 
 export const SystemSettingModel =
 	(mongoose.models?.SystemSetting as mongoose.Model<SystemSetting> | undefined) ||

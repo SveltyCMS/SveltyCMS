@@ -30,16 +30,18 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 			const themeManager = ThemeManager.getInstance();
 			if (themeManager.isInitialized()) {
 				theme = await themeManager.getTheme(event.locals.tenantId);
-			} else {
-				// ThemeManager not initialized (likely in setup mode), use default theme
-				logger.debug('ThemeManager not initialized, using default theme for setup mode');
+			} else if (!event.url.pathname.startsWith('/setup')) {
+				// ThemeManager not initialized, but not in setup.
+				// This can happen during the first request after setup completes and the server restarts.
+				// Silently use the default theme; the manager will be ready on the next navigation.
+				logger.debug('ThemeManager not ready, using default theme. This is normal after initial setup.');
 			}
 		} catch (error) {
 			// Only log as warning if it's not a setup mode scenario
 			if (!event.url.pathname.startsWith('/setup')) {
-				logger.warn('Failed to initialize ThemeManager, using default theme:', error);
+				logger.warn('Failed to get theme from ThemeManager, using default theme:', error);
 			}
-			// In setup mode, silently use default theme (no need for debug message)
+			// In setup mode, silently use default theme
 		}
 
 		// Set theme in locals

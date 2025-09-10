@@ -4,17 +4,22 @@
  * This is called during initial setup to populate the database with configuration values.
  */
 
+import { getDb, initConnection } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 import { initSystemFromSetup } from '../seed';
 import type { RequestHandler } from './$types';
-import { dbAdapter } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const POST: RequestHandler = async () => {
+export const POST: RequestHandler = async ({ request }) => {
 	try {
-		// Ensure database is connected before seeding
+		const dbConfig = await request.json();
+
+		// Initialize a temporary connection for seeding
+		await initConnection(dbConfig);
+		const dbAdapter = getDb();
+
 		if (!dbAdapter) {
 			throw new Error('Database adapter not initialized. Please check database connection.');
 		}

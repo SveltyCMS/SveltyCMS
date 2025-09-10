@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 
 export async function POST({ request, locals }) {
 	// Allow unauthenticated access in setup mode
-	let isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
+	const isSetupMode = typeof globalThis.setupMode !== 'undefined' ? globalThis.setupMode : false;
 	if (!locals.user && !isSetupMode) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}

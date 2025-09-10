@@ -24,45 +24,32 @@ ENHANCEMENTS:
 	const modalStore = getModalStore();
 
 	// --- ENHANCED SAVE PROCESS ---
-	async function saveConfig(configData: { [key: string]: any }, isPrivate: boolean) {
-		const toast = (message: string, background: string) => {
-			// Map legacy backgrounds to showToast types via our adapter where possible
-			if (background?.includes('success') || background === 'gradient-success') showToast(message, 'success');
-			else if (background?.includes('error') || background === 'gradient-error') showToast(message, 'error');
-			else if (background?.includes('warning') || background === 'gradient-warning' || background === 'variant-filled-warning')
-				showToast(message, 'warning');
-			else showToast(message, 'info');
-		};
+	async function saveConfig(configData: { [key: string]: any }) {
+		showToast('Saving new configuration...', 'info');
 
 		try {
-			// Step 1: Back up the current configuration
-			toast('Backing up current configuration...', 'gradient-tertiary');
-			const backupResponse = await fetch('/api/config/backup', { method: 'POST' });
-
-			if (!backupResponse.ok) {
-				const backupResult = await backupResponse.json();
-				throw new Error(backupResult.message || 'Failed to create configuration backup.');
-			}
-			toast('Backup successful!', 'gradient-primary');
-
-			// Step 2: Save the new configuration
-			toast('Saving new configuration...', 'gradient-tertiary');
-			const saveResponse = await fetch('/api/save-config', {
+			// Save the new configuration to the database
+			const response = await fetch('/api/settings/update', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ settings: configData, isPrivate })
+				body: JSON.stringify(configData)
 			});
-			if (!saveResponse.ok) {
-				const saveResult = await saveResponse.json();
-				throw new Error(saveResult.message || 'Failed to save new settings.');
-			}
-			toast('Configuration saved successfully!', 'gradient-primary');
 
-			// Step 3: Trigger server restart
-			await triggerRestart();
+			const result = await response.json();
+
+			if (!response.ok) {
+				throw new Error(result.message || 'Failed to save new settings.');
+			}
+
+			showToast('Configuration saved successfully!', 'success');
+
+			// If the saved data includes database credentials, we might need to restart
+			if (Object.keys(configData).some((key) => key.startsWith('DB_'))) {
+				await triggerRestart();
+			}
 		} catch (error: any) {
 			console.error('Error in save process:', error);
-			toast(error.message, 'gradient-error');
+			showToast(error.message, 'error');
 		}
 	}
 
@@ -102,7 +89,7 @@ ENHANCEMENTS:
 				parent: {
 					onClose: () => modalStore.close(),
 					onSave: async (formData: { [key: string]: any }) => {
-						await saveConfig(formData, isPrivate);
+						await saveConfig(formData);
 						modalStore.close();
 					}
 				}

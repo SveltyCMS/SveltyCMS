@@ -8,61 +8,17 @@
  * - Background database initialization after successful connection
  */
 
+import * as m from '@src/paraglide/messages';
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import { initSystemFromSetup } from '../seed';
 import { logger } from '@utils/logger.svelte';
+import { initSystemFromSetup } from '../seed';
+import type { RequestHandler } from './$types';
 
 // Database-specific imports (will be dynamic based on DB_TYPE)
 import mongoose from 'mongoose';
 
 // Reuse similar timeout constant as in dbconnect.ts
 const DB_TIMEOUT = 15000; // 15s server selection
-
-/**
- * Database-agnostic connection testing
- * Currently supports MongoDB with extensibility for other database types
- */
-async function testDatabaseConnection(dbConfig: any): Promise<{
-	success: boolean;
-	message: string;
-	error?: string;
-	userFriendly?: string;
-	classification?: string;
-	atlas?: boolean;
-	usedUri?: string;
-	authenticated?: boolean;
-	warnings?: string[];
-	latencyMs?: number;
-	collectionsSample?: string[];
-	stats?: any;
-	authenticatedUsers?: any[];
-}> {
-	const dbType = dbConfig.type || 'mongodb'; // Default to MongoDB for backward compatibility
-
-	switch (dbType) {
-		case 'mongodb':
-			return await testMongoDBConnection(dbConfig);
-		case 'postgresql':
-		case 'mariadb':
-			throw new Error(`Database type ${dbType} testing not yet implemented`);
-		default:
-			throw new Error(`Unsupported database type: ${dbType}`);
-	}
-}
-
-/**
- * Test MongoDB connection with detailed validation
- */
-async function testMongoDBConnection(dbConfig: any) {
-	// Placeholder implementation - MongoDB connection testing logic would go here
-	// For now, return a basic success response
-	return {
-		success: true,
-		message: 'MongoDB connection test placeholder',
-		latencyMs: 100
-	};
-}
 
 /**
  * Classify a Mongo connection error into a stable code we can translate client‑side.
@@ -76,70 +32,70 @@ function classifyMongoError(err: unknown): { classification: string; raw: string
 		return {
 			classification: 'authentication_failed',
 			raw,
-			userFriendly: 'Authentication failed. Please check your username and password.'
+			userFriendly: m.api_db_test_auth_failed
 		};
 	}
 	if (/not authorized|unauthorized|permission/i.test(lower)) {
 		return {
 			classification: 'not_authorized',
 			raw,
-			userFriendly: 'Access denied. The user does not have permission to access this database.'
+			userFriendly: m.api_db_test_auth_denied
 		};
 	}
 	if (/ecconnrefused|connection refused/i.test(lower)) {
 		return {
 			classification: 'connection_refused',
 			raw,
-			userFriendly: 'Connection refused. Please check if the database server is running and the port is correct.'
+			userFriendly: m.api_db_test_conn_refused
 		};
 	}
 	if (/enotfound|getaddrinfo|dns/i.test(lower)) {
 		return {
 			classification: 'dns_not_found',
 			raw,
-			userFriendly: 'Host not found. Please check the hostname or IP address.'
+			userFriendly: m.api_db_test_host_not_found
 		};
 	}
 	if (/timed out|timeout|server selection timed out/i.test(lower)) {
 		return {
 			classification: 'timeout',
 			raw,
-			userFriendly: 'Connection timed out. Please check if the database server is reachable.'
+			userFriendly: m.api_db_test_timeout
 		};
 	}
 	if (/tls|ssl|certificate/i.test(lower)) {
 		return {
 			classification: 'tls_error',
 			raw,
-			userFriendly: 'TLS/SSL connection error. Please check your security settings.'
+			userFriendly: m.api_db_test_tls_error
 		};
 	}
 	if (/uri malformed|invalid connection string|must begin with|invalid scheme/i.test(lower)) {
 		return {
 			classification: 'invalid_uri',
 			raw,
-			userFriendly: 'Invalid connection string. Please check your host and port configuration.'
+			userFriendly: m.api_db_test_invalid_uri
 		};
 	}
 	if (/unable to parse|invalid port|port.*invalid/i.test(lower)) {
 		return {
 			classification: 'invalid_port',
 			raw,
-			userFriendly: 'Invalid port number. Please enter a valid port (e.g., 27017 for MongoDB).'
+			userFriendly: m.api_db_test_invalid_port
 		};
 	}
 	if (/invalid hostname|hostname.*invalid/i.test(lower)) {
 		return {
 			classification: 'invalid_hostname',
 			raw,
-			userFriendly: 'Invalid hostname. Please check the hostname or IP address format.'
+			userFriendly: m.api_db_test_invalid_hostname
 		};
 	}
 
 	return {
 		classification: 'unknown',
 		raw,
-		userFriendly: 'An unexpected error occurred. Please check your configuration and try again.'
+		userFriendly: m.api_db_test_unexpected_error
 	};
 }
 
@@ -225,29 +181,38 @@ export const POST: RequestHandler = async ({ request }) => {
 			const durationMs = Date.now() - start;
 			const authProvided = Boolean(dbConfig.user || dbConfig.password);
 			const authenticated = authenticatedUsers.length > 0;
-			if (!authProvided && authenticated) {
-				warnings.push('unexpected_authenticated_without_credentials');
-			}
-			if (!authProvided && !authenticated) {
-				warnings.push('unauthenticated_connection');
-			}
-			if (authProvided && !authenticated) {
-				warnings.push('credentials_not_authenticated');
-			}
 
-			// Determine success & messaging
-			let success = authenticated;
-			let message = authenticated ? 'Database connection (authenticated) successful' : 'Database connection successful (no authentication required)';
-			if (!authProvided) {
-				// If no credentials supplied, we still may want to warn rather than succeed silently
-				if (authenticated) {
-					// Edge case: server auto-auth (X509 / mechanism) – treat as success
-					success = true;
-					message = 'Database connection successful (implicit authentication)';
+			let success = false;
+			let message = '';
+
+			if (authenticated) {
+				success = true;
+				message = authProvided ? m.api_db_test_success_authenticated : m.api_db_test_success_implicit_auth;
+				if (!authProvided) {
+					warnings.push('unexpected_authenticated_without_credentials');
+				}
+			} else {
+				// Not authenticated
+				if (authProvided) {
+					// Provided credentials, but failed to authenticate
+					success = false;
+					message = m.api_db_test_auth_failed;
+					warnings.push('credentials_not_authenticated');
 				} else {
-					// For local Docker MongoDB, unauthenticated connections are normal and expected
-					success = true;
-					message = 'Database connection successful (no authentication required)';
+					// No credentials provided, and not authenticated.
+					warnings.push('unauthenticated_connection');
+					// Check if we have permissions to do anything.
+					const canListCollections = !warnings.includes('listCollections_failed');
+
+					if (canListCollections) {
+						// Likely a local DB with no auth. This is a success case for setup.
+						success = true;
+						message = m.api_db_test_success_no_auth;
+					} else {
+						// Connected but can't do anything. This is a failure.
+						success = false;
+						message = m.api_db_test_conn_unauthorized;
+					}
 				}
 			}
 
@@ -299,11 +264,11 @@ export const POST: RequestHandler = async ({ request }) => {
 						// Disconnect the temporary adapter
 						await tempAdapter.disconnect();
 					} catch (initError) {
-						logger.warn('⚠️ Background database initialization failed, but connection is working:', initError);
+						logger.warn('⚠️  Background database initialization failed, but connection is working:', initError);
 					}
 				})();
 
-				message += ' - Database initialization started in background';
+				message += m.api_db_test_init_background;
 			} else {
 				// If connection failed, close immediately
 				if (conn) {
@@ -327,7 +292,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Placeholder for future database engines
 			return json({
 				success: false,
-				error: 'Database type not yet supported for testing'
+				error: m.api_db_test_unsupported_db
 			});
 		}
 	} catch (error) {

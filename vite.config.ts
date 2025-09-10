@@ -21,6 +21,12 @@ import { generateContentTypes } from './src/content/vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
 
+// Force exit on SIGINT to prevent hanging processes, this needs to be at top level
+process.on('SIGINT', () => {
+	console.log('\n[VITE] Received SIGINT, forcing exit...');
+	process.exit(0);
+});
+
 // Function to generate private config content
 function generatePrivateConfigContent(): string {
 	return `/**
@@ -51,6 +57,8 @@ export const privateEnv = createPrivateConfig({
 `;
 }
 
+const setupComplete = isSetupComplete();
+
 export default defineConfig(async () => {
 	const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
@@ -59,19 +67,21 @@ export default defineConfig(async () => {
 
 	const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
 
-	if (!isSetupComplete()) {
+	if (!setupComplete) {
 		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
 
 		// Create private config file if it doesn't exist
 		const fs = await import('fs/promises');
 		const configDir = Path.posix.join(process.cwd(), 'config');
 		if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
-		try {
-			const configContent = generatePrivateConfigContent();
-			await fs.writeFile(privateConfigPath, configContent);
-			console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
-		} catch (e) {
-			console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
+		if (!existsSync(privateConfigPath)) {
+			try {
+				const configContent = generatePrivateConfigContent();
+				await fs.writeFile(privateConfigPath, configContent);
+				console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
+			} catch (e) {
+				console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
+			}
 		}
 
 		return {
@@ -106,7 +116,12 @@ export default defineConfig(async () => {
 					}
 				}
 			],
-			server: { fs: { allow: ['static', '.'] } },
+			server: {
+				fs: { allow: ['static', '.'] },
+				watch: {
+					ignored: ['**/config/private.ts', '**/config/private.backup.*.ts']
+				}
+			},
 			define: {
 				__VERSION__: JSON.stringify(pkg.version),
 				SUPERFORMS_LEGACY: true,
@@ -307,7 +322,10 @@ export default defineConfig(async () => {
 		},
 
 		server: {
-			fs: { allow: ['static', '.'] }
+			fs: { allow: ['static', '.'] },
+			watch: {
+				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts']
+			}
 		},
 		resolve: {
 			alias: {
