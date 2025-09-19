@@ -86,14 +86,10 @@ export class Auth {
 
 	constructor(db: authDBInterface, sessionStore: SessionStore) {
 		this.db = db;
-		this.sessionStore = sessionStore; // Make all adapter methods available on the Auth instance
+		this.sessionStore = sessionStore;
+	}
 
-		for (const key in db) {
-			if (typeof db[key] === 'function') {
-				this[key] = db[key];
-			}
-		}
-	} // Role management
+	// Role management
 
 	getRoles(): Role[] {
 		return this.roles;
@@ -179,11 +175,11 @@ export class Auth {
 				hashedPassword = await argon2.hash(password, { ...argon2Attributes, type: argon2.argon2id });
 			}
 
-			const user = await this.db.createUser({ ...userData, email: normalizedEmail, password: hashedPassword });
-			if (!user || !user._id) {
+			const result = await this.db.createUser({ ...userData, email: normalizedEmail, password: hashedPassword });
+			if (!result || !result.success || !result.data || !result.data._id) {
 				throw error(500, 'User creation failed');
 			}
-			return user;
+			return result.data;
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
 			throw error(500, `Failed to create user: ${errMsg}`);
@@ -191,23 +187,33 @@ export class Auth {
 	}
 
 	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
-		return await this.db.getUserById(user_id, tenantId);
-	}
-
-	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
-		const result = await this.db.getUserByEmail(criteria);
+		const result = await this.db.getUserById(user_id, tenantId);
 		if (result && result.success) {
 			return result.data;
 		}
 		return null;
 	}
 
+	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
+		const result = await this.db.getUserByEmail(criteria);
+		if (result && result.success === true) {
+			return result.data;
+		}
+		return null;
+	}
+
 	async updateUser(userId: string, updates: Partial<User>, tenantId?: string): Promise<void> {
-		await this.db.updateUserAttributes(userId, updates, tenantId);
+		const result = await this.db.updateUserAttributes(userId, updates, tenantId);
+		if (!result || !result.success) {
+			throw error(500, 'Failed to update user');
+		}
 	}
 
 	async deleteUser(user_id: string, tenantId?: string): Promise<void> {
-		await this.db.deleteUser(user_id, tenantId);
+		const result = await this.db.deleteUser(user_id, tenantId);
+		if (!result || !result.success) {
+			throw error(500, 'Failed to delete user');
+		}
 	}
 
 	async getAllUsers(options?: { filter?: { tenantId?: string } }): Promise<User[]> {
@@ -219,14 +225,22 @@ export class Auth {
 	}
 
 	async getUserCount(filter?: { tenantId?: string }): Promise<number> {
-		return await this.db.getUserCount(filter);
+		const result = await this.db.getUserCount(filter);
+		if (result && result.success) {
+			return result.data;
+		}
+		return 0;
 	}
 
 	async createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<Session> {
-		const session = await this.db.createSession(sessionData);
-		const user = await this.db.getUserById(sessionData.user_id, sessionData.tenantId);
-		if (user) {
-			await this.sessionStore.set(session._id, user, sessionData.expires);
+		const sessionResult = await this.db.createSession(sessionData);
+		if (!sessionResult || !sessionResult.success) {
+			throw error(500, 'Session creation failed');
+		}
+		const session = sessionResult.data;
+		const userResult = await this.db.getUserById(sessionData.user_id, sessionData.tenantId);
+		if (userResult && userResult.success && userResult.data) {
+			await this.sessionStore.set(session._id, userResult.data, sessionData.expires);
 		} else {
 			throw error(404, `User not found for ID: ${sessionData.user_id}`);
 		}
@@ -234,7 +248,11 @@ export class Auth {
 	}
 
 	async validateSession(session_id: string): Promise<User | null> {
-		return await this.db.validateSession(session_id);
+		const result = await this.db.validateSession(session_id);
+		if (result && result.success) {
+			return result.data;
+		}
+		return null;
 	}
 
 	async destroySession(session_id: string): Promise<void> {
@@ -243,12 +261,20 @@ export class Auth {
 	}
 
 	async getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null> {
-		return await this.db.getSessionTokenData(session_id);
+		const result = await this.db.getSessionTokenData(session_id);
+		if (result && result.success) {
+			return result.data;
+		}
+		return null;
 	}
 
 	async rotateToken(oldToken: string, expires: Date): Promise<string> {
 		if (!this.db.rotateToken) throw error(500, 'Token rotation not supported');
-		return await this.db.rotateToken(oldToken, expires);
+		const result = await this.db.rotateToken(oldToken, expires);
+		if (result && result.success) {
+			return result.data;
+		}
+		throw error(500, 'Token rotation failed');
 	}
 
 	async getAllRoles(): Promise<Role[]> {
@@ -288,20 +314,21 @@ export class Auth {
 
 	async validateToken(token: string, user_id?: string, type: string = 'access', tenantId?: string): Promise<{ success: boolean; message: string }> {
 		const result = await this.db.validateToken(token, user_id, type, tenantId);
-		if (result.success) {
-			return { success: true, message: result.message ?? 'Token validated' };
+		if (result && result.success && result.data) {
+			return { success: true, message: result.data.message ?? 'Token validated' };
 		} else {
-			return { success: false, message: result.error?.message ?? 'Token validation failed' };
+			return { success: false, message: result?.error?.message ?? 'Token validation failed' };
 		}
 	}
 
 	async validateRegistrationToken(token: string, tenantId?: string): Promise<{ isValid: boolean; message: string; details?: Token }> {
 		const result = await this.db.validateToken(token, undefined, 'user-invite', tenantId);
-		if (result.success) {
-			const tokenDoc = await this.db.getTokenByValue(token, tenantId);
-			return { isValid: true, message: result.message, details: tokenDoc };
+		if (result && result.success && result.data) {
+			const tokenResult = await this.db.getTokenByValue(token, tenantId);
+			const tokenDoc = tokenResult && tokenResult.success ? tokenResult.data : undefined;
+			return { isValid: true, message: result.data.message, details: tokenDoc };
 		} else {
-			return { isValid: false, message: result.message };
+			return { isValid: false, message: result?.error?.message || 'Token validation failed' };
 		}
 	}
 
@@ -315,7 +342,12 @@ export class Auth {
 	}
 
 	async consumeRegistrationToken(token: string, tenantId?: string): Promise<{ status: boolean; message: string }> {
-		return await this.db.consumeToken(token, undefined, 'user-invite', tenantId);
+		const result = await this.db.consumeToken(token, undefined, 'user-invite', tenantId);
+		if (result && result.success && result.data) {
+			return result.data;
+		} else {
+			return { status: false, message: result?.error?.message || 'Failed to consume token' };
+		}
 	}
 
 	async authenticate(email: string, password: string, tenantId?: string): Promise<{ user: User; sessionId: string } | null> {
@@ -368,7 +400,11 @@ export class Auth {
 		if (attributes.email === null) {
 			attributes.email = undefined;
 		}
-		return await this.db.updateUserAttributes(user_id, attributes, tenantId);
+		const result = await this.db.updateUserAttributes(user_id, attributes, tenantId);
+		if (result && result.success) {
+			return result.data;
+		}
+		throw error(500, 'Failed to update user attributes');
 	}
 
 	createSessionCookie(sessionId: string): { name: string; value: string; attributes: unknown } {

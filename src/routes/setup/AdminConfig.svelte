@@ -16,23 +16,37 @@ Features:
 	// Skelton
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
+	// Types from setupStore
+	import type { AdminUser } from '@stores/setupStore.svelte';
+
 	// Popup settings (click event)
 	const popupAdminUsername: PopupSettings = { event: 'click', target: 'popupAdminUsername', placement: 'top' };
 	const popupAdminEmail: PopupSettings = { event: 'click', target: 'popupAdminEmail', placement: 'top' };
 	const popupAdminPassword: PopupSettings = { event: 'click', target: 'popupAdminPassword', placement: 'top' };
 	const popupAdminConfirmPassword: PopupSettings = { event: 'click', target: 'popupAdminConfirmPassword', placement: 'top' };
 
-	type AdminUser = { username: string; email: string; password: string; confirmPassword: string };
-	type ValidationErrors = { username?: string; email?: string; password?: string; confirmPassword?: string; [key: string]: string | undefined };
-	type PasswordRequirements = { length: boolean; letter: boolean; number: boolean; special: boolean; match: boolean };
+	type ValidationErrors = {
+		username?: string;
+		email?: string;
+		password?: string;
+		confirmPassword?: string;
+		[key: string]: string | undefined;
+	};
+	type PasswordRequirements = {
+		length: boolean;
+		letter: boolean;
+		number: boolean;
+		special: boolean;
+		match: boolean;
+	};
 
 	// Receive reactive state & handlers from parent via $props to safely mutate nested fields
 	let {
 		adminUser = $bindable(),
 		validationErrors,
 		passwordRequirements,
-		showAdminPassword,
-		showConfirmPassword,
+		showAdminPassword = $bindable(),
+		showConfirmPassword = $bindable(),
 		toggleAdminPassword,
 		toggleConfirmPassword,
 		checkPasswordRequirements

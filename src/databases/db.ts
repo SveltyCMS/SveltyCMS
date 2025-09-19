@@ -37,7 +37,7 @@ async function loadPrivateConfig(forceReload = false) {
 	if (privateEnv && !forceReload) return privateEnv;
 
 	try {
-		logger.debug('Loading private config...');
+		logger.debug('Loading \x1b[34m/config/private.ts\x1b[0m configuration...');
 		const module = await import('@root/config/private');
 		privateEnv = module.privateEnv;
 		logger.debug('Private config loaded successfully', {
@@ -710,5 +710,74 @@ export async function reinitializeSystem(force = false): Promise<{ status: strin
 		// Clear the failed promise so retries are possible
 		initializationPromise = null;
 		return { status: 'failed', error: message };
+	}
+}
+
+/**
+ * Get the current database adapter instance
+ * @returns The database adapter or null if not initialized
+ */
+export function getDb(): DatabaseAdapter | null {
+	return dbAdapter;
+}
+
+/**
+ * Initialize a database connection for seeding purposes
+ * @param dbConfig Database configuration
+ */
+export async function initConnection(dbConfig: {
+	type: string;
+	host: string;
+	port: string;
+	name: string;
+	user?: string;
+	password?: string;
+}): Promise<void> {
+	// For seeding, we need to create a temporary adapter instance
+	// This is a simplified version that works with the existing MongoDB setup
+
+	if (!dbConfig || !dbConfig.type) {
+		throw new Error('Database configuration is required');
+	}
+
+	if (dbConfig.type !== 'mongodb') {
+		throw new Error(`Database type '${dbConfig.type}' is not supported for seeding yet`);
+	}
+
+	try {
+		// Import MongoDB adapter
+		const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+
+		// Create a new adapter instance for seeding
+		const tempAdapter = new MongoDBAdapter();
+
+		// Build connection string like the test endpoint does
+		const { buildDatabaseConnectionString } = await import('../routes/api/setup/utils');
+		const connectionString = buildDatabaseConnectionString(dbConfig);
+		const isAtlas = connectionString.startsWith('mongodb+srv://');
+
+		const options = {
+			user: dbConfig.user || undefined,
+			pass: dbConfig.password || undefined,
+			dbName: dbConfig.name,
+			authSource: isAtlas ? undefined : 'admin',
+			retryWrites: true,
+			serverSelectionTimeoutMS: 15000,
+			maxPoolSize: 1 // Use a minimal pool for seeding
+		};
+
+		// Connect using the custom connection string and options
+		const connectResult = await tempAdapter.connect(connectionString, options);
+		if (!connectResult.success) {
+			throw new Error(`Database connection failed: ${connectResult.error?.message || 'Unknown error'}`);
+		}
+
+		// Set this as the global adapter for seeding
+		dbAdapter = tempAdapter;
+
+		logger.info('Database connection initialized for seeding');
+	} catch (error) {
+		logger.error('Failed to initialize database connection for seeding:', error);
+		throw error;
 	}
 }

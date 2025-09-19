@@ -2,66 +2,64 @@
  * @file src/hooks/handleSetup.ts
  * @description Middleware to manage the initial application setup process.
  *
- * @summary This hook checks for setup completion using a centralized utility.
- * If setup is not complete, it intercepts all incoming requests and redirects
- * them to the '/setup' page, ensuring the application cannot be used until installed.
+ * This hook uses a memoized check for setup completion. If setup is not complete,
+ * it efficiently intercepts requests and redirects to the '/setup' page.
  */
 
 import { redirect, type Handle } from '@sveltejs/kit';
-import { isSetupComplete } from '@utils/setupCheck';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+import { isSetupComplete } from '@utils/setupCheck';
+
+// Get the setup status once. This is now extremely fast.
+const isSetupCompleteCached = isSetupComplete();
+
+// Log the initial status only once per server start.
+if (!isSetupCompleteCached) {
+	logger.warn('System setup is not complete. Redirecting all non-essential traffic to /setup.');
+}
+
+// Regex to quickly identify asset requests that should always be allowed.
+const ASSET_REGEX = /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|.*\.(svg|png|jpg|jpeg|gif|css|js))/;
+
 export const handleSetup: Handle = async ({ event, resolve }) => {
-	// Check for setup completion using centralized utility
-	const setupComplete = isSetupComplete();
-
-	// If setup is not complete, redirect to setup page (except for setup-related routes)
-	if (!setupComplete) {
-		// Allow setup routes to pass through
-		if (event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup')) {
-			return resolve(event);
+	// --- Branch 1: Setup is NOT complete ---
+	if (!isSetupCompleteCached) {
+		// Allow requests to the setup page, its API, and essential assets to pass through.
+		if (event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup') || ASSET_REGEX.test(event.url.pathname)) {
+			// For setup-related paths, resolve immediately and skip the rest of the middleware pipeline.
+			// This prevents warnings from auth/theme hooks that are not yet configured.
+			return resolve(event, {
+				filterSerializedResponseHeaders: (name) => name.toLowerCase().startsWith('content-') || name.toLowerCase().startsWith('etag')
+			});
 		}
 
-		// Allow static assets to pass through
-		if (
-			event.url.pathname.startsWith('/static') ||
-			event.url.pathname.startsWith('/_app') ||
-			event.url.pathname.endsWith('.ico') ||
-			event.url.pathname.endsWith('.png') ||
-			event.url.pathname.endsWith('.svg') ||
-			event.url.pathname.endsWith('.css') ||
-			event.url.pathname.endsWith('.js')
-		) {
-			return resolve(event);
-		}
-
-		// Redirect to setup page
-		logger.debug(`Setup not complete, redirecting ${event.url.pathname} to /setup`);
+		// For everything else, redirect to the setup page.
 		throw redirect(302, '/setup');
 	}
 
-	// Setup is complete - prevent access to setup routes (except API endpoints)
+	// --- Branch 2: Setup IS complete ---
+
+	// Prevent access to the setup page UI after completion.
 	if (event.url.pathname.startsWith('/setup') && !event.url.pathname.startsWith('/api/setup')) {
-		logger.debug(`Setup complete, redirecting ${event.url.pathname} to /login`);
 		throw redirect(302, '/login');
 	}
 
-	// Setup is complete, continue with normal request processing
-	// Initialize the database system on first non-setup request
+	// Initialize the database on the first real request *after* setup is complete.
 	try {
 		const { initializeOnRequest, getSystemStatus } = await import('@src/databases/db');
 		const status = getSystemStatus();
 
 		if (!status.initialized && !status.initializing) {
-			logger.debug('Triggering database initialization after setup completion');
 			await initializeOnRequest();
 		}
 	} catch (error) {
 		logger.error('Failed to initialize database system:', error);
-		// Continue with request processing even if initialization fails
+		// Decide if you want to throw an error page here or allow the app to continue.
 	}
 
+	// Proceed with the request chain.
 	return resolve(event);
 };

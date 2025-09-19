@@ -334,6 +334,9 @@ export interface IDBAdapter {
 		install(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>>; // Install a new theme
 		uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>>; // Uninstall a theme
 		update(themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>>; // Update a theme
+		getAllThemes(): Promise<Theme[]>; // Get all themes
+		storeThemes(themes: Theme[]): Promise<void>; // Store multiple themes
+		getDefaultTheme(tenantId?: string): Promise<Theme | null>; // Get the default theme for a tenant
 	};
 
 	// Widget System

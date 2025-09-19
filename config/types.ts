@@ -102,7 +102,21 @@ export const publicConfigSchema = object({
 	DEMO: optional(boolean()) // Set to `true` to enable demo mode, which may restrict certain features
 });
 
+/**
+ * Defines the structure for database connection configuration used during setup.
+ * Supports MongoDB (including Atlas SRV), PostgreSQL, MySQL, and MariaDB.
+ */
+export const databaseConfigSchema = object({
+	type: union([literal('mongodb'), literal('mongodb+srv'), literal('postgresql'), literal('mysql'), literal('mariadb')]),
+	host: pipe(string(), minLength(1)),
+	port: pipe(number(), minValue(1)),
+	name: pipe(string(), minLength(1)),
+	user: string(),
+	password: string()
+});
+
 // ----------------- TYPES & HELPERS -----------------
+export type DatabaseConfig = InferOutput<typeof databaseConfigSchema>;
 export type PrivateConfig = InferOutput<typeof privateConfigSchema>;
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;
 

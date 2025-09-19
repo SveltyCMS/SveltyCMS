@@ -3,32 +3,41 @@
  * @description Validation schemas for setup configuration
  */
 
-import * as m from '@src/paraglide/messages';
 import { array, check, minLength, object, pipe, string } from 'valibot';
-import { isValidLanguageCode } from './languageValidation';
+
+// NOTE: Error messages are plain strings for universal (client/server) compatibility.
+const isValidLanguageCode = (code: string) => typeof code === 'string' && code.length >= 2;
 
 /**
  * Validation schema for system configuration during setup
  */
 export const systemConfigSchema = object({
-	siteName: pipe(string(), minLength(1, m.setup_validation_sitename_required)),
-	defaultContentLanguage: pipe(
-		string(),
-		minLength(1, m.setup_validation_language_required),
-		check(isValidLanguageCode, m.setup_validation_language_invalid)
+	siteName: pipe(string(), minLength(1, 'Site name is required')),
+	defaultSystemLanguage: pipe(string(), minLength(1, 'Default system language is required'), check(isValidLanguageCode, 'Invalid language code')),
+	systemLanguages: pipe(
+		array(string()),
+		check((langs) => langs.length > 0, 'At least one system language is required'),
+		check((langs) => langs.every(isValidLanguageCode), 'Invalid system language code')
 	),
+	defaultContentLanguage: pipe(string(), minLength(1, 'Default content language is required'), check(isValidLanguageCode, 'Invalid language code')),
 	contentLanguages: pipe(
 		array(string()),
-		check((langs) => langs.length > 0, m.setup_validation_languages_required),
-		check((langs) => langs.every(isValidLanguageCode), m.setup_validation_languages_invalid)
-	)
+		check((langs) => langs.length > 0, 'At least one content language is required'),
+		check((langs) => langs.every(isValidLanguageCode), 'Invalid content language code')
+	),
+	mediaFolder: pipe(string(), minLength(1, 'Media folder is required')),
+	timezone: pipe(string(), minLength(1, 'Timezone is required'))
 });
 
 /**
- * Type for system configuration
+ * Type for system configuration - should match SystemSettings from setupStore
  */
 export type SystemConfigSchema = {
 	siteName: string;
+	defaultSystemLanguage: string;
+	systemLanguages: string[];
 	defaultContentLanguage: string;
 	contentLanguages: string[];
+	mediaFolder: string;
+	timezone: string;
 };

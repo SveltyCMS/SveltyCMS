@@ -25,6 +25,8 @@ Key Features:
 	import { getLanguageName } from '@utils/languageUtils';
 	// Help popups
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	// Types from setupStore
+	import type { SystemSettings } from '@stores/setupStore.svelte';
 
 	// Props (runes)
 	const {
@@ -32,7 +34,7 @@ Key Features:
 		validationErrors,
 		availableLanguages = []
 	} = $props<{
-		systemSettings: any;
+		systemSettings: SystemSettings;
 		validationErrors: Record<string, string>;
 		availableLanguages?: string[];
 	}>();

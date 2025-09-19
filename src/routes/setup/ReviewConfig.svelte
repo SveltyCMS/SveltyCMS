@@ -18,18 +18,13 @@ Key Features:
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	// Types from setupStore
+	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte';
+
 	// Props passed from parent setup page
-	export let dbConfig: { type: string; host?: string; port?: string; name?: string; user?: string };
-	export let adminUser: { username: string; email: string; password: string; confirmPassword: string };
-	export let systemSettings: {
-		siteName: string;
-		defaultSystemLanguage: string;
-		systemLanguages: string[];
-		defaultContentLanguage: string;
-		contentLanguages: string[];
-		mediaFolder: string;
-		timezone: string;
-	};
+	export let dbConfig: DbConfig;
+	export let adminUser: AdminUser;
+	export let systemSettings: SystemSettings;
 </script>
 
 <div class="fade-in">

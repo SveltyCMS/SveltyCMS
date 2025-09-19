@@ -682,5 +682,9 @@
 	"api_db_test_success_no_auth": "Database connection successful (no authentication required)",
 	"api_db_test_conn_unauthorized": "Connection successful, but not authorized. Please provide user credentials with permissions to proceed.",
 	"api_db_test_init_background": " - Database initialization started in background",
-	"api_db_test_unsupported_db": "Database type not yet supported for testing"
+	"api_db_test_unsupported_db": "Database type not yet supported for testing",
+	"api_install_driver_already_installed": "Driver for {driver} is already installed",
+	"api_install_driver_success": "Successfully installed driver for {driver}",
+	"api_install_driver_failed": "Failed to install driver for {driver}: {error}",
+	"api_db_test_db_not_found": "Database not found. Please check the database name and ensure it exists."
 }

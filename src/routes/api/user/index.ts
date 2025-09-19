@@ -30,7 +30,10 @@ import { privateEnv } from '@root/config/private';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async () => {
+	// TODO: Implement GET handler logic here, or return a placeholder response
+	return json({ message: 'GET /api/user not implemented' }, { status: 501 });
+};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;

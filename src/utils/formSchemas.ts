@@ -28,22 +28,17 @@ import {
 	type InferInput
 } from 'valibot';
 
-// ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-// Global Settings
-import { publicEnv } from '@src/stores/globalSettings';
-
-const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
+// NOTE: Error messages are plain strings for universal (client/server) compatibility.
+const MIN_PPASSWORD_LENGTH = 8;
 
 // --- Reusable Username Schemas ---
 const usernameSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value ?? ''),
-	minLength(2, m.formSchemas_username_min()),
-	maxLength(24, m.formSchemas_username_max()),
-	regex(/^[a-zA-Z0-9@$!%*#]+$/, m.formSchemas_usernameregex())
+	minLength(2, 'Username must be at least 2 characters'),
+	maxLength(24, 'Username must be at most 24 characters'),
+	regex(/^[a-zA-Z0-9@$!%*#]+$/, 'Username contains invalid characters')
 );
 
 // --- Reusable Email Schemas ---
@@ -51,8 +46,8 @@ const emailSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value ?? ''),
-	transform((value) => value.toLowerCase()), // Normalize email to lowercase
-	emailValidator(m.formSchemas_Emailvalid())
+	transform((value) => value.toLowerCase()),
+	emailValidator('Invalid email address')
 );
 
 // --- Reusable Password Schemas ---
@@ -60,10 +55,10 @@ const passwordSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value ?? ''),
-	minLength(MIN_PPASSWORD_LENGTH, m.formSchemas_PasswordMessage({ passwordStrength: MIN_PPASSWORD_LENGTH })),
+	minLength(MIN_PPASSWORD_LENGTH, `Password must be at least ${MIN_PPASSWORD_LENGTH} characters and include a letter, number, and special character`),
 	regex(
-		new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PPASSWORD_LENGTH},}$`),
-		m.formSchemas_PasswordMessage({ passwordStrength: MIN_PPASSWORD_LENGTH })
+		new RegExp(`^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[@$!%*#?&])[A-Za-z0-9@$!%*#?&]{${MIN_PPASSWORD_LENGTH},}$`),
+		`Password must be at least ${MIN_PPASSWORD_LENGTH} characters and include a letter, number, and special character`
 	)
 );
 
@@ -79,7 +74,7 @@ const tokenSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value ?? ''),
-	minLength(16, m.formSchemas_Emailvalid())
+	minLength(16, 'Token must be at least 16 characters')
 );
 
 // Form Schemas------------------------------------
@@ -108,7 +103,7 @@ export const resetFormSchema = pipe(
 		email: emailSchema
 	}),
 	forward(
-		partialCheck([['password'], ['confirm_password']], (input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch()),
+		partialCheck([['password'], ['confirm_password']], (input) => input.password === input.confirm_password, 'Passwords do not match'),
 		['confirm_password']
 	)
 );
@@ -122,7 +117,7 @@ export const signUpFormSchema = pipe(
 		confirm_password: confirmPasswordSchema,
 		token: optional(nullable(string()))
 	}),
-	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+	check((input) => input.password === input.confirm_password, 'Passwords do not match')
 );
 
 // Google OAuth Token Schema
@@ -163,7 +158,7 @@ export const setupAdminSchema = pipe(
 		password: passwordSchema,
 		confirmPassword: confirmPasswordSchema
 	}),
-	check((input) => input.password === input.confirmPassword, m.formSchemas_Passwordmatch())
+	check((input) => input.password === input.confirmPassword, 'Passwords do not match')
 );
 
 // Type Exports

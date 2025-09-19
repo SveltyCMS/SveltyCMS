@@ -6,6 +6,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 <script lang="ts">
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
+	import type { DbConfig } from '@stores/setupStore.svelte';
 
 	// Popup settings (click to toggle)
 	const popupDbType: PopupSettings = { event: 'click', target: 'popupDbType', placement: 'top' };
@@ -15,26 +16,22 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	const popupDbUser: PopupSettings = { event: 'click', target: 'popupDbUser', placement: 'top' };
 	const popupDbPassword: PopupSettings = { event: 'click', target: 'popupDbPassword', placement: 'top' };
 
-	// Props from parent wizard (destructure via $props to allow internal mutation without warnings)
-	interface DbConfig {
-		type: string;
-		host: string;
-		port: string;
-		name: string;
-		user: string;
-		password: string;
-	}
-	interface ValidationErrors {
+	// Type definitions for validation errors and component props
+	type ValidationErrors = {
 		host?: string;
 		port?: string;
 		name?: string;
+		user?: string;
+		password?: string;
 		[key: string]: string | undefined;
-	}
+	};
+
+	// Props from parent wizard (destructure via $props to allow internal mutation without warnings)
 	let {
 		dbConfig = $bindable(),
 		validationErrors,
 		isLoading,
-		showDbPassword,
+		showDbPassword = $bindable(),
 		toggleDbPassword,
 		testDatabaseConnection,
 		dbConfigChangedSinceTest,
@@ -45,24 +42,56 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		isLoading: boolean;
 		showDbPassword: boolean;
 		toggleDbPassword: () => void;
-		testDatabaseConnection: () => Promise<boolean>;
+		testDatabaseConnection: () => Promise<void>;
 		dbConfigChangedSinceTest: boolean;
 		clearDbTestError: () => void;
+		installDatabaseDriver?: (dbType: string) => Promise<void>;
 	}>();
 
 	let unsupportedDbSelected = $state(false);
 	let isAtlas = $derived(dbConfig.type === 'mongodb+srv');
+	let isInstallingDriver = $state(false);
+	let installError = $state('');
+	let installSuccess = $state('');
 
-	async function handleTestConnection() {
-		const success = await testDatabaseConnection();
-		if (success) {
-			// Don't await, let it run in the background
-			fetch('/api/setup/seed-settings', {
+	// Expose installDatabaseDriver to parent
+	export async function installDatabaseDriver(dbType: string) {
+		if (!dbType || dbType === 'mongodb' || dbType === 'mongodb+srv') {
+			// MongoDB drivers are always available, no installation needed
+			return;
+		}
+
+		isInstallingDriver = true;
+		installError = '';
+		installSuccess = '';
+
+		try {
+			const response = await fetch('/api/setup/install-driver', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(dbConfig)
+				body: JSON.stringify({ dbType })
 			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				installSuccess = data.message || `Successfully installed driver for ${dbType}`;
+				if (data.alreadyInstalled) {
+					installSuccess = `Driver for ${dbType} is already installed`;
+				}
+			} else {
+				installError = data.error || `Failed to install driver for ${dbType}`;
+			}
+		} catch (error) {
+			installError = `Network error while installing driver: ${error instanceof Error ? error.message : String(error)}`;
+		} finally {
+			isInstallingDriver = false;
 		}
+	}
+
+	async function handleTestConnection() {
+		await installDatabaseDriver(dbConfig.type);
+		await testDatabaseConnection();
 	}
 
 	$effect(() => {
@@ -72,13 +101,14 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		} else if (dbConfig.type === 'mongodb' && !dbConfig.port) {
 			dbConfig.port = '27017'; // Default port for standard MongoDB
 		}
-		unsupportedDbSelected = ['postgresql', 'mysql'].includes(dbConfig.type);
+		unsupportedDbSelected = false; // All database types are now supported
+		// No automatic driver install here
 	});
 </script>
 
 <div class="fade-in">
 	<div class="mb-6 sm:mb-8">
-		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
+		<p class="text-center text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{m.setup_database_intro()}
 		</p>
 	</div>
@@ -109,31 +139,35 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<option value="postgresql">PostgreSQL</option>
 					<option value="mysql">MySQL</option>
 				</select>
-				{#if unsupportedDbSelected}
+				{#if isInstallingDriver}
+					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+						<iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
+						<span>Installing database driver...</span>
+					</div>
+				{/if}
+				{#if installSuccess}
+					<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+						<iconify-icon icon="mdi:check-circle" width="16"></iconify-icon>
+						<span>{installSuccess}</span>
+					</div>
+				{/if}
+				{#if installError}
 					<div
-						class="mt-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300"
+						class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
 					>
-						<p class="font-semibold">Coming Soon!</p>
-						<p class="mt-1">
-							Support for {dbConfig.type === 'postgresql' ? 'PostgreSQL' : 'MySQL'} is under development. We are looking for contributors to help accelerate
-							this process.
-						</p>
-						<p class="mt-2">
-							If you're interested in helping, please visit our
-							<a
-								href="https://github.com/SveltyCMS/SveltyCMS"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="font-medium underline hover:text-blue-600 dark:hover:text-blue-200"
-							>
-								GitHub repository
-							</a>.
+						<div class="flex items-center gap-2">
+							<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+							<span class="font-medium">Driver Installation Failed</span>
+						</div>
+						<p class="mt-1">{installError}</p>
+						<p class="mt-2 text-xs">
+							You can install the driver manually or continue with the setup (connection test will show installation instructions).
 						</p>
 					</div>
 				{/if}
 			</div>
 
-			{#if !unsupportedDbSelected}
+			{#if true}
 				<div>
 					<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -157,8 +191,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						id="db-host"
 						bind:value={dbConfig.host}
 						type="text"
+						onchange={clearDbTestError}
 						placeholder={isAtlas ? 'my-cluster.abcde.mongodb.net' : 'localhost'}
-						class="input w-full rounded {validationErrors.host ? 'border-error-500' : 'border-slate-200'}"
+						class="input w-full rounded {validationErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					/>
 					{#if validationErrors.host}<div class="mt-1 text-xs text-error-500">{validationErrors.host}</div>{/if}
 				</div>
@@ -183,8 +218,11 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							id="db-port"
 							bind:value={dbConfig.port}
 							type="text"
+							onchange={clearDbTestError}
 							placeholder={m.setup_database_port_placeholder?.() || '27017'}
-							class="input w-full rounded {validationErrors.port ? 'border-error-500' : 'border-slate-200'}"
+							class="input w-full rounded {validationErrors.port
+								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
+								: 'border-slate-200'}"
 						/>
 						{#if validationErrors.port}<div class="mt-1 text-xs text-error-500">{validationErrors.port}</div>{/if}
 					</div>
@@ -212,8 +250,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						id="db-name"
 						bind:value={dbConfig.name}
 						type="text"
+						onchange={clearDbTestError}
 						placeholder={m.setup_database_name_placeholder?.() || 'SveltyCMS'}
-						class="input w-full rounded {validationErrors.name ? 'border-error-500' : 'border-slate-200'}"
+						class="input w-full rounded {validationErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					/>
 					{#if validationErrors.name}<div class="mt-1 text-xs text-error-500">{validationErrors.name}</div>{/if}
 				</div>
@@ -240,9 +279,11 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						id="db-user"
 						bind:value={dbConfig.user}
 						type="text"
+						onchange={clearDbTestError}
 						placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
-						class="input rounded"
+						class="input rounded {validationErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					/>
+					{#if validationErrors.user}<div class="mt-1 text-xs text-error-500">{validationErrors.user}</div>{/if}
 				</div>
 				<div>
 					<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -267,6 +308,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						<input
 							id="db-password"
 							bind:value={dbConfig.password}
+							onchange={clearDbTestError}
 							onkeydown={(e) => {
 								if (e.key === 'Enter') {
 									e.preventDefault();
@@ -275,7 +317,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							}}
 							type={showDbPassword ? 'text' : 'password'}
 							placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
-							class="input w-full rounded"
+							class="input w-full rounded {validationErrors.password
+								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
+								: 'border-slate-200'}"
 						/>
 						<button
 							type="button"
@@ -286,11 +330,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18"></iconify-icon>
 						</button>
 					</div>
+					{#if validationErrors.password}<div class="mt-1 text-xs text-error-500">{validationErrors.password}</div>{/if}
 				</div>
 			{/if}
 		</div>
 		{#if !unsupportedDbSelected}
-			<button onclick={testDatabaseConnection} disabled={isLoading} class="variant-filled-tertiary btn w-full dark:variant-filled-primary">
+			<button onclick={handleTestConnection} disabled={isLoading} class="variant-filled-tertiary btn w-full dark:variant-filled-primary">
 				{#if isLoading}
 					<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"></div>
 					Testing Connection...

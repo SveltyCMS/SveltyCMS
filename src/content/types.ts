@@ -70,7 +70,7 @@ export interface Translation {
 }
 
 export interface Schema {
-	_id: string; // UUID from collection file header
+	_id?: string; // UUID from collection file header
 	name?: ContentTypes | string; // Collection name can be from registry or dynamic
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection

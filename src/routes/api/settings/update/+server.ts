@@ -3,7 +3,7 @@
  * @description API endpoint to update system settings in the database.
  */
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getDBAdapter } from '@src/databases/db';
+import { getDb } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 
@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// 2. Get database adapter
-		const db = getDBAdapter();
+		const db = getDb();
 
 		// 3. Update settings in the database
 		// The db.settings.updateSettings method should handle updating one or more settings.

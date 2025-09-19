@@ -65,7 +65,7 @@ export function createDebouncedEffect(fn: () => void, dependencies: () => unknow
 		}
 
 		// Set new timeout
-		timeoutId = setTimeout(fn, delay);
+		timeoutId = setTimeout(fn, delay) as unknown as number;
 
 		// Cleanup function
 		return () => {
@@ -97,7 +97,7 @@ export function createThrottledEffect(fn: () => void, dependencies: () => unknow
 					fn();
 				},
 				delay - (now - lastRun)
-			);
+			) as unknown as number;
 		}
 
 		return () => {

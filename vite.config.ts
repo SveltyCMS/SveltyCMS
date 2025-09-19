@@ -1,325 +1,251 @@
 /**
  * @file vite.config.ts
  * @description This configuration file defines the Vite setup for a SvelteKit project.
- * It includes checks & validation for required configuration files (private.ts and public.ts),
- * a custom plugin for dynamic collection handling (compilation, type generation, hot reloading),
- * dynamic role and permission handling with hot reloading, Tailwind CSS purging
- * and Paraglide integration for internationalization. The configuration also initializes
- * compilation tasks, sets up environment variables, and defines alias paths for the project
+ * It uses a unified config structure that conditionally applies plugins for initial setup
+ * or the full dev		plugins: [
+			sveltekit(),
+			!setupComplete ? setupWizardPlugin() : collectionsWatcherPlugin(),
+
+			paraglideVitePlugin({
+				project: './project.inlang',
+				outdir: './src/paraglide'
+			}),
+			svelteEmailTailwind({
+				pathToEmailFolder: './src/components/emails'
+			})
+		],ronment, preventing server reloads.
+ * It includes dynamic collection compilation, role/permission hot-reloading,
+ * and Paraglide integration.
  */
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, promises as fs, readFileSync } from 'fs';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { builtinModules } from 'module';
-import Path, { resolve } from 'path';
+import path from 'path';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
+import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
-import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { generateContentTypes } from './src/content/vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
 
-// Force exit on SIGINT to prevent hanging processes, this needs to be at top level
+// --- Constants ---
+const LOG_PREFIX = process.stdout.isTTY ? '\x1b[36m[SVELTYCMS]\x1b[0m' : '[SVELTYCMS]';
+const CWD = process.cwd();
+const PKG = JSON.parse(readFileSync(path.resolve(CWD, 'package.json'), 'utf8'));
+
+// --- Paths ---
+const configDir = path.resolve(CWD, 'config');
+const privateConfigPath = path.resolve(configDir, 'private.ts');
+const userCollectionsPath = path.resolve(CWD, 'config/collections');
+const compiledCollectionsPath = path.resolve(CWD, 'compiledCollections');
+
+// Force exit on SIGINT to prevent hanging processes
 process.on('SIGINT', () => {
-	console.log('\n[VITE] Received SIGINT, forcing exit...');
+	console.log(`\n${LOG_PREFIX} Received SIGINT, forcing exit...`);
 	process.exit(0);
 });
 
-// Function to generate private config content
-function generatePrivateConfigContent(): string {
-	return `/**
+// --- Plugins ---
+
+/**
+ * A lightweight plugin to handle the initial setup wizard.
+ * It creates a default private.ts and opens the setup page in the browser.
+ */
+function setupWizardPlugin(): Plugin {
+	let serverInstance: ViteDevServer | null = null;
+	const useColor = process.stdout.isTTY;
+
+	return {
+		name: 'svelte-cms-setup-wizard',
+		async buildStart() {
+			console.log(`${LOG_PREFIX} Setup not complete. Preparing setup wizard...`);
+			// Ensure config directory and default private config exist.
+			if (!existsSync(privateConfigPath)) {
+				const content = `
+/**
  * @file config/private.ts
  * @description Private configuration file - will be populated during setup
  */
-
 import { createPrivateConfig } from './types';
-
 export const privateEnv = createPrivateConfig({
-	// Database Configuration
 	DB_TYPE: 'mongodb',
 	DB_HOST: '',
 	DB_PORT: 27017,
 	DB_NAME: '',
 	DB_USER: '',
 	DB_PASSWORD: '',
-
-	// Security Keys
 	JWT_SECRET_KEY: '',
 	ENCRYPTION_KEY: '',
-
-	// Multi-tenancy
 	MULTI_TENANT: false,
-
-	// If you have any essential static private config, add here. Otherwise, leave empty.
 });
 `;
+				try {
+					await fs.mkdir(configDir, { recursive: true });
+					await fs.writeFile(privateConfigPath, content);
+					console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
+				} catch (e) {
+					console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
+				}
+			}
+		},
+		configureServer(server) {
+			serverInstance = server;
+			// We need to hook into the listen method to get the final port.
+			const originalListen = server.listen;
+			server.listen = function (port?: number, isRestart?: boolean) {
+				const result = originalListen.apply(this, [port, isRestart]);
+				result.then(() => {
+					setTimeout(async () => {
+						if (!serverInstance?.httpServer) return;
+						const address = serverInstance.httpServer.address();
+						const resolvedPort = typeof address === 'object' && address ? address.port : 5173;
+						const setupUrl = `http://localhost:${resolvedPort}/setup`;
+
+						try {
+							const open = (await import('open')).default;
+							console.log(`${LOG_PREFIX} Opening \x1b[34msetup wizard\x1b[0m in your browser...`);
+							await open(setupUrl);
+						} catch {
+							const coloredUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
+							console.log(`${LOG_PREFIX} Please open this URL to continue setup: ${coloredUrl}`);
+						}
+					}, 1000); // Small delay to ensure server is ready
+				});
+				return result;
+			};
+		}
+	};
 }
 
-const setupComplete = isSetupComplete();
+/**
+ * Plugin to compile collections and sync content structure on file changes.
+ */
+function collectionsWatcherPlugin(): Plugin {
+	let compileTimeout: NodeJS.Timeout;
+	let lastUnlink = { file: '', time: 0 };
 
-export default defineConfig(async () => {
-	const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-
-	const useColor = process.stdout.isTTY && process.env.TERM && process.env.TERM !== 'dumb';
-	const LOG_PREFIX = useColor ? '\x1b[36m[SETUP]\x1b[0m' : '[SETUP]';
-
-	const privateConfigPath = Path.posix.join(process.cwd(), 'config/private.ts');
-
-	if (!setupComplete) {
-		console.log(`${LOG_PREFIX} Setup not complete – launching lightweight dev server for wizard...`);
-
-		// Create private config file if it doesn't exist
-		const fs = await import('fs/promises');
-		const configDir = Path.posix.join(process.cwd(), 'config');
-		if (!existsSync(configDir)) await fs.mkdir(configDir, { recursive: true });
-		if (!existsSync(privateConfigPath)) {
-			try {
-				const configContent = generatePrivateConfigContent();
-				await fs.writeFile(privateConfigPath, configContent);
-				console.log(`${LOG_PREFIX} Created initial private config -> config/private.ts`);
-			} catch (e) {
-				console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
-			}
-		}
-
-		return {
-			plugins: [
-				sveltekit(),
-				{
-					name: 'setup-wizard-opener',
-					configureServer(server) {
-						// Open setup wizard after server starts with correct port
-						const originalListen = server.listen;
-						server.listen = function (...args) {
-							const result = originalListen.apply(this, args);
-
-							// Get the actual port after server starts
-							setTimeout(async () => {
-								const address = server.httpServer?.address();
-								const port = typeof address === 'object' && address ? address.port : 5173;
-								const setupUrl = `http://localhost:${port}/setup`;
-
-								try {
-									const open = (await import('open')).default;
-									console.log(`${LOG_PREFIX} Opening setup wizard in default browser...`);
-									await open(setupUrl);
-								} catch {
-									const coloredSetupUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
-									console.log(`${LOG_PREFIX} Manual navigation required: ${coloredSetupUrl}`);
-								}
-							}, 1500);
-
-							return result;
-						};
-					}
-				}
-			],
-			server: {
-				fs: { allow: ['static', '.'] },
-				watch: {
-					ignored: ['**/config/private.ts', '**/config/private.backup.*.ts']
-				}
-			},
-			define: {
-				__VERSION__: JSON.stringify(pkg.version),
-				SUPERFORMS_LEGACY: true,
-				global: 'globalThis'
+	const triggerContentSync = async (server: ViteDevServer) => {
+		const req = {
+			method: 'POST',
+			url: '/api/content-structure',
+			headers: { 'content-type': 'application/json', 'x-vite-plugin-request': 'true' },
+			body: JSON.stringify({ action: 'recompile' }),
+			on: (event: string, callback: (chunk?: Buffer) => void) => {
+				if (event === 'data') callback(Buffer.from(req.body || ''));
+				if (event === 'end') callback();
 			}
 		};
-	}
+		const res = {
+			writeHead: () => {},
+			setHeader: () => {},
+			getHeader: () => {},
+			write: () => {},
+			end: () => {},
+			statusCode: 200
+		};
 
-	console.log(`${LOG_PREFIX} Setup complete – proceeding with full development environment initialization.\n`);
+		try {
+			await new Promise<void>((resolve) => {
+				server.middlewares(req as unknown as IncomingMessage, res as unknown as ServerResponse, resolve);
+			});
+			console.log('🔄 Content structure sync triggered successfully.');
+		} catch (e) {
+			console.error('❌ Failed to trigger content structure sync:', e);
+		}
+	};
 
-	const userCollections = Path.posix.join(process.cwd(), 'config/collections');
-	const compiledCollections = Path.posix.join(process.cwd(), 'compiledCollections');
+	return {
+		name: 'svelte-cms-collections-watcher',
+		enforce: 'post',
+		async buildStart() {
+			console.log(`${LOG_PREFIX} Performing initial collection compilation...`);
+			try {
+				await compile({ userCollections: userCollectionsPath, compiledCollections: compiledCollectionsPath });
+				console.log('\x1b[32m✅ Initial compilation successful!\x1b[0m');
+			} catch (error) {
+				console.error('\x1b[31m❌ Initial compilation failed:\x1b[0m', error);
+				throw error;
+			}
+		},
+		configureServer(server) {
+			server.watcher.on('all', (event, file) => {
+				const isCollectionFile = file.startsWith(userCollectionsPath) && /\.(ts|js)$/.test(file);
+				const isRolesFile = file === path.resolve(configDir, 'roles.ts');
 
-	let compileTimeout: NodeJS.Timeout;
+				if (!isCollectionFile && !isRolesFile) return;
+
+				if (isCollectionFile) {
+					console.log(`📁 Collection file event: \x1b[33m${event}\x1b[0m - \x1b[34m${path.basename(file)}\x1b[0m`);
+					clearTimeout(compileTimeout);
+					compileTimeout = setTimeout(async () => {
+						try {
+							const now = Date.now();
+							if (event === 'unlink') lastUnlink = { file, time: now };
+							else if (event === 'add' && now - lastUnlink.time < 100) {
+								console.log(`🔄 Detected rename: ${path.basename(lastUnlink.file)} -> ${path.basename(file)}`);
+							}
+
+							await compile({ userCollections: userCollectionsPath, compiledCollections: compiledCollectionsPath });
+							console.log('\x1b[32m✅ Re-compilation successful!\x1b[0m');
+							await generateContentTypes(server);
+							await triggerContentSync(server);
+						} catch (error) {
+							console.error(`❌ Error on collection file ${event}:`, error);
+						}
+					}, 100); // Debounce changes
+				}
+
+				if (isRolesFile) {
+					console.log(`🔒 Roles file changed: \x1b[34m${path.basename(file)}\x1b[0m`);
+					(async () => {
+						try {
+							// Find the roles.ts module in Vite's module graph
+							const rolesModule = await server.moduleGraph.getModuleByUrl('/config/roles.ts');
+
+							// Invalidate the module to ensure a fresh import
+							if (rolesModule) {
+								server.moduleGraph.invalidateModule(rolesModule);
+							}
+
+							// Re-import the invalidated modules. No cache-buster needed!
+							const { roles } = await server.ssrLoadModule('./config/roles.ts');
+							const { setLoadedRoles } = await server.ssrLoadModule('./src/auth/types.ts');
+
+							setLoadedRoles(roles);
+							server.ws.send({ type: 'full-reload', path: '*' });
+							console.log('✅ Roles reloaded and client updated.');
+						} catch (err) {
+							console.error('❌ Error reloading roles.ts:', err);
+						}
+					})();
+				}
+			});
+		}
+	};
+}
+
+// --- Main Config ---
+const setupComplete = isSetupComplete();
+
+export default defineConfig((): UserConfig => {
+	console.log(setupComplete ? `\n${LOG_PREFIX} Setup complete. Initializing full dev environment...` : `\n${LOG_PREFIX} Starting in setup mode...`);
 
 	return {
 		plugins: [
 			sveltekit(),
-			{
-				name: 'collection-watcher',
-				async buildStart() {
-					try {
-						await compile({ userCollections, compiledCollections });
-						console.log('\x1b[32m✅ Initial compilation successful!\x1b[0m\n');
-					} catch (error) {
-						console.error('\x1b[31m❌ Initial compilation failed:\x1b[0m', error);
-						throw error;
-					}
-				},
-				configureServer(server) {
-					let lastUnlinkFile: string | null = null;
-					let lastUnlinkTime = 0;
+			!setupComplete ? setupWizardPlugin() : collectionsWatcherPlugin(),
 
-					return () => {
-						server.watcher.on('all', async (event, file) => {
-							if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
-								console.log(`📁 Collection file event: \x1b[33m${event}\x1b[0m - \x1b[34m${file}\x1b[0m`);
-
-								clearTimeout(compileTimeout);
-								compileTimeout = setTimeout(async () => {
-									try {
-										const currentTime = Date.now();
-										console.log(`⚡ Processing collection change: \x1b[33m${event}\x1b[0m for \x1b[34m${file}\x1b[0m`);
-
-										if (event === 'unlink' || event === 'unlinkDir') {
-											lastUnlinkFile = file;
-											lastUnlinkTime = currentTime;
-										} else if (event === 'add') {
-											const isRename = lastUnlinkFile && currentTime - lastUnlinkTime < 100;
-											if (isRename) {
-												console.log(`🔄 Detected rename: \x1b[33m${lastUnlinkFile}\x1b[0m -> \x1b[32m${file}\x1b[0m`);
-												lastUnlinkFile = null;
-											}
-										}
-
-										await compile({ userCollections, compiledCollections });
-										console.log('\x1b[32m✅ Compilation and cleanup successful!\x1b[0m\n');
-
-										if (event === 'add' || event === 'change') {
-											try {
-												await generateContentTypes(server);
-												console.log(`📝 Collection types updated for: \x1b[32m${file}\x1b[0m`);
-											} catch (error) {
-												console.error('❌ Error updating collection types:', error);
-											}
-										}
-
-										// Mock POST to /api/content-structure to trigger sync
-										try {
-											const req = {
-												method: 'POST',
-												url: '/api/content-structure',
-												originalUrl: '/api/content-structure',
-												headers: { 'content-type': 'application/json' },
-												body: JSON.stringify({ action: 'recompile' }),
-												on: (event, callback) => {
-													if (event === 'data') callback(Buffer.from(req.body || ''));
-													if (event === 'end') callback();
-												}
-											};
-
-											const res = {
-												writeHead: () => {},
-												setHeader: () => {},
-												getHeader: () => {},
-												write: () => {},
-												end: () => {},
-												statusCode: 200
-											};
-
-											await new Promise<void>((resolveMiddleware) => {
-												server.middlewares(req as IncomingMessage, res as ServerResponse, () => resolveMiddleware());
-											});
-
-											console.log('🔄 Content structure sync triggered successfully');
-										} catch (syncError) {
-											console.error('❌ Failed to trigger content structure sync:', syncError);
-										}
-
-										// (Removed WS event 'collections-updated' - no active listeners)
-									} catch (error) {
-										console.error(`❌ Error processing collection file ${event}:`, error);
-									}
-								}, 50);
-							}
-
-							if (file.startsWith(Path.posix.join(process.cwd(), 'config/roles.ts'))) {
-								console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
-
-								try {
-									const rolesPath = `file://${Path.posix.resolve(process.cwd(), 'config', 'roles.ts')}`;
-									const { roles } = await import(rolesPath + `?update=${Date.now()}`);
-									const { setLoadedRoles } = await import('./src/auth/types');
-									setLoadedRoles(roles);
-									server.ws.send({ type: 'full-reload' });
-									console.log('Roles updated successfully');
-								} catch (error) {
-									console.error('Error reloading roles:', error);
-								}
-							}
-						});
-					};
-				},
-				config() {
-					return {
-						define: {
-							'import.meta.env.userCollectionsPath': JSON.stringify(userCollections)
-						}
-					};
-				},
-				enforce: 'post'
-			},
-			purgeCss(),
 			paraglideVitePlugin({
 				project: './project.inlang',
-				outdir: './src/paraglide',
-				strategy: ['cookie', 'baseLocale']
+				outdir: './src/paraglide'
 			}),
 			svelteEmailTailwind({
 				pathToEmailFolder: './src/components/emails'
 			})
 		],
-
-		build: {
-			target: 'esnext',
-			minify: 'esbuild',
-			sourcemap: true,
-			rollupOptions: {
-				onwarn(warning, warn) {
-					// Suppress circular dependency warnings from third-party packages
-					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('zod-to-json-schema')) {
-						return;
-					}
-					// Suppress other non-critical warnings
-					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
-						return;
-					}
-					warn(warning);
-				},
-				external: [
-					...builtinModules,
-					...builtinModules.map((m) => `node:${m}`),
-					'typescript',
-					'ts-node',
-					'ts-loader',
-					'@typescript-eslint/parser',
-					'@typescript-eslint/eslint-plugin'
-				],
-				output: {
-					manualChunks: (id) => {
-						// Split large dependencies into separate chunks
-						if (id.includes('node_modules')) {
-							if (id.includes('@skeletonlabs/skeleton')) {
-								return 'skeleton-ui';
-							}
-							if (id.includes('tiptap') || id.includes('@tiptap')) {
-								return 'tiptap-editor';
-							}
-							if (id.includes('mongodb') || id.includes('mongoose')) {
-								return 'database';
-							}
-							if (id.includes('lodash') || id.includes('date-fns')) {
-								return 'utils';
-							}
-							// Group other node_modules into vendor chunk
-							return 'vendor';
-						}
-					}
-				}
-			}
-		},
-
-		esbuild: {
-			target: 'esnext',
-			supported: {
-				'top-level-await': true
-			}
-		},
 
 		server: {
 			fs: { allow: ['static', '.'] },
@@ -327,25 +253,52 @@ export default defineConfig(async () => {
 				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts']
 			}
 		},
+
 		resolve: {
 			alias: {
-				'@root': resolve(process.cwd(), './'),
-				'@src': resolve(process.cwd(), './src'),
-				'@components': resolve(process.cwd(), './src/components'),
-				'@content': resolve(process.cwd(), './src/content'),
-				'@utils': resolve(process.cwd(), './src/utils'),
-				'@stores': resolve(process.cwd(), './src/stores'),
-				'@widgets': resolve(process.cwd(), './src/widgets')
+				'@root': path.resolve(CWD, './'),
+				'@src': path.resolve(CWD, './src'),
+				'@components': path.resolve(CWD, './src/components'),
+				'@content': path.resolve(CWD, './src/content'),
+				'@utils': path.resolve(CWD, './src/utils'),
+				'@stores': path.resolve(CWD, './src/stores'),
+				'@widgets': path.resolve(CWD, './src/widgets')
 			}
 		},
+
 		define: {
-			__VERSION__: JSON.stringify(pkg.version),
+			__VERSION__: JSON.stringify(PKG.version),
 			SUPERFORMS_LEGACY: true,
 			global: 'globalThis'
 		},
+
+		build: {
+			target: 'esnext',
+			minify: 'esbuild',
+			sourcemap: true,
+			rollupOptions: {
+				onwarn(warning, warn) {
+					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('zod-to-json-schema')) return;
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
+					warn(warning);
+				},
+				external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'typescript', 'ts-node'],
+				output: {
+					manualChunks: (id: string) => {
+						if (id.includes('node_modules')) {
+							if (id.includes('@skeletonlabs/skeleton')) return 'skeleton-ui';
+							if (id.includes('tiptap')) return 'tiptap-editor';
+							if (id.includes('mongodb') || id.includes('mongoose')) return 'database';
+							return 'vendor';
+						}
+					}
+				}
+			}
+		},
+
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
-			include: ['svelte', '@sveltejs/kit', '@skeletonlabs/skeleton']
+			include: ['@skeletonlabs/skeleton']
 		}
 	};
 });

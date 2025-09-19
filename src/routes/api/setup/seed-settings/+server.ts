@@ -24,6 +24,23 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw new Error('Database adapter not initialized. Please check database connection.');
 		}
 
+		// Check if database is already seeded
+		try {
+			const existingSettings = await dbAdapter.systemPreferences?.getMany(['HOST_DEV'], 'system');
+			if (existingSettings && Object.keys(existingSettings).length > 0) {
+				logger.info('ℹ️ Database already seeded, skipping seeding');
+				return json({
+					success: true,
+					message: 'Database already seeded',
+					timestamp: new Date().toISOString(),
+					alreadySeeded: true
+				});
+			}
+		} catch {
+			// If we can't check existing settings, continue with seeding
+			logger.debug('Could not check existing settings, proceeding with seeding');
+		}
+
 		await initSystemFromSetup(dbAdapter);
 
 		return json({

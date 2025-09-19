@@ -682,5 +682,9 @@
 	"api_db_test_success_no_auth": "Datenbankverbindung erfolgreich (keine Authentifizierung erforderlich)",
 	"api_db_test_conn_unauthorized": "Verbindung erfolgreich, aber nicht autorisiert. Bitte geben Sie Benutzeranmeldeinformationen mit Berechtigungen ein, um fortzufahren.",
 	"api_db_test_init_background": " - Datenbankinitialisierung im Hintergrund gestartet",
-	"api_db_test_unsupported_db": "Datenbanktyp wird zum Testen noch nicht unterstützt"
+	"api_db_test_unsupported_db": "Datenbanktyp wird zum Testen noch nicht unterstützt",
+	"api_install_driver_already_installed": "Treiber für {driver} ist bereits installiert",
+	"api_install_driver_success": "Treiber für {driver} erfolgreich installiert",
+	"api_install_driver_failed": "Treiberinstallation für {driver} : {error}",
+	"api_db_test_db_not_found": "Datenbank nicht gefunden. Bitte überprüfen Sie den Datenbanknamen und stellen Sie sicher, dass er existiert."
 }

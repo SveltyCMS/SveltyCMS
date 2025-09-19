@@ -271,7 +271,9 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		const last = authNotReadyLogCache.get(url.pathname) || 0;
 		if (now - last > AUTH_NOT_READY_SUPPRESS_MS) {
 			authNotReadyLogCache.set(url.pathname, now);
-			logger.warn(`Auth service not ready, bypassing authentication for \x1b[34m${url.pathname}\x1b[0m`);
+			// During setup, the auth service is not ready, so we allow the request.
+			// This is expected and safe because the setup routes do not grant any privileges.
+			logger.debug(`Auth service not ready, allowing setup request to ${url.pathname}`);
 		}
 	}
 
