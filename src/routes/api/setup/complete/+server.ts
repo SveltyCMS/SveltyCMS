@@ -57,13 +57,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ success: false, error: `Invalid admin user data: ${issues}` }, { status: 400 });
 		}
 
-		// 1.1 Validate DB credentials presence for engines requiring auth (Mongo local often requires auth)
-		if ((database.type === 'mongodb' || database.type === 'mongodb+srv') && (!database.user || !database.password)) {
+		// 1.1 Validate DB credentials presence only for Atlas/remote MongoDB requiring auth
+		// Local MongoDB might not require authentication, so we allow empty credentials
+		// This matches the behavior of the test-database endpoint
+		if (database.type === 'mongodb+srv' && (!database.user || !database.password)) {
 			return json(
 				{
 					success: false,
-					error: 'Credentials required for MongoDB setup finalization',
-					userFriendly: 'Provide a database username and password to complete setup.'
+					error: 'Credentials required for MongoDB Atlas connections',
+					userFriendly: 'MongoDB Atlas requires a username and password. Please provide valid credentials.'
 				},
 				{ status: 400 }
 			);
@@ -73,58 +75,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { adapter: tempDbAdapter } = await getSetupDatabaseAdapter(database);
 		logger.info('Database connection established for setup finalization', { correlationId });
 
-		// 3. Set up auth models and compose a proper auth adapter for MongoDB
-		// We cannot use tempDbAdapter.auth directly (it only exposes setup hooks).
+		// 3. Set up auth models and get a DB-agnostic auth adapter
 		await tempDbAdapter.auth.setupAuthModels();
-
-		let authAdapter: authDBInterface;
-		if (database.type === 'mongodb' || database.type === 'mongodb+srv') {
-			const { UserAdapter } = await import('@src/auth/mongoDBAuth/userAdapter');
-			const { SessionAdapter } = await import('@src/auth/mongoDBAuth/sessionAdapter');
-			const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
-
-			const userAdapter = new UserAdapter();
-			const sessionAdapter = new SessionAdapter();
-			const tokenAdapter = new TokenAdapter();
-
-			authAdapter = {
-				// User Management Methods
-				createUser: userAdapter.createUser.bind(userAdapter),
-				updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
-				deleteUser: userAdapter.deleteUser.bind(userAdapter),
-				getUserById: userAdapter.getUserById.bind(userAdapter),
-				getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
-				getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-				getUserCount: userAdapter.getUserCount.bind(userAdapter),
-
-				// Session Management Methods
-				createSession: sessionAdapter.createSession.bind(sessionAdapter),
-				updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
-				deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
-				deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
-				validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
-				invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
-				getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
-				getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
-				getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
-				rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter),
-				cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions?.bind(sessionAdapter),
-
-				// Token Management Methods
-				createToken: tokenAdapter.createToken.bind(tokenAdapter),
-				updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-				validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
-				consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-				getTokenByValue: tokenAdapter.getTokenByValue.bind(tokenAdapter),
-				getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
-				deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
-				deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
-				blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
-				unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter)
-			} as authDBInterface;
-		} else {
-			throw new Error(`Setup completion currently supports only MongoDB. Received: ${database.type}`);
-		}
+		const { getAuthAdapter } = await import('../utils');
+		const authAdapter = await getAuthAdapter(database.type, tempDbAdapter.db);
 
 		// 4. Create a temporary full Auth instance using the composed adapter
 		const tempAuth = new Auth(authAdapter, createSessionStore());

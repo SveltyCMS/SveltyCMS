@@ -112,6 +112,26 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{m.setup_database_intro()}
 		</p>
 	</div>
+	{#if dbConfig.type === 'postgresql' || dbConfig.type === 'mysql'}
+		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+			<p class="font-semibold">Coming Soon!</p>
+			<p class="mt-1">
+				Support for {dbConfig.type === 'postgresql' ? 'PostgreSQL' : 'MySQL'} is under development. We are looking for contributors to help accelerate
+				this process.
+			</p>
+			<p class="mt-2">
+				If you're interested in helping, please visit our
+				<a
+					href="https://github.com/SveltyCMS/SveltyCMS"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="font-medium underline hover:text-blue-600 dark:hover:text-blue-200"
+				>
+					GitHub repository
+				</a>.
+			</p>
+		</div>
+	{/if}
 	<div class="space-y-4 sm:space-y-6">
 		<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
 			<div>

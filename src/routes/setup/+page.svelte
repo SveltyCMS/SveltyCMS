@@ -4,34 +4,44 @@
 
 ### Features:
 - Type-safe Svelte 5 rune-based state management
-- Responsive design with mobile/desktop step indicators  
+- Responsive design with mobile/desktop step indicators
 - Professional visual design with icons and animations
 - Integration with setupStore for persistence
+- Database-agnostic integration with IDBAdapter and authDBInterface
+@note Code is organized into numbered sections for clarity:
+      1. Imports
+      2. State Management
+      3. Type Definitions
+      4. Local UI State
+      5. Lifecycle Hooks
+      6. Derived State
+      7. Core Logic & API Calls
+      8. UI Handlers
+      9. Lazy Component State & Error Handling
 -->
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings';
+	// --- 1. IMPORTS ---
 	import { onDestroy, onMount } from 'svelte';
-	// Stores and Types
+	// Stores
+	import { publicEnv } from '@src/stores/globalSettings';
 	import { setupStore } from '@stores/setupStore.svelte';
 	import { systemLanguage } from '@stores/store.svelte';
-	// Components
+	// Componets
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
-	import AdminConfig from './AdminConfig.svelte';
-	import DatabaseConfig from './DatabaseConfig.svelte';
-	import ReviewConfig from './ReviewConfig.svelte';
-	import SystemConfig from './SystemConfig.svelte';
-	// Utils, Validation & i18n
+	// Skeleton
 	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
-	import { getLanguageName } from '@utils/languageUtils';
-	import { setGlobalToastStore, showToast } from '@utils/toast';
-	import { safeParse } from 'valibot';
-	// NOTE: For client-side validation, we use lightweight duplicates of the schemas.
-	// All critical validation is performed server-side. Do NOT import server-only schemas here.
+	// utils
 	import { setupAdminSchema } from '@utils/formSchemas';
+	import { getLanguageName } from '@utils/languageUtils';
 	import { systemConfigSchema } from '@utils/setupValidationSchemas';
+	import { setGlobalToastStore, showToast } from '@utils/toast';
+	// Valiation
+	import { safeParse } from 'valibot';
 
 	// --- 1. STATE MANAGEMENT ---
 	const { wizard, load: loadStore, clear: clearStore, setupPersistence } = setupStore;
@@ -81,10 +91,37 @@
 	// --- 4. LIFECYCLE HOOKS ---
 	onMount(() => {
 		setGlobalToastStore(getToastStore());
-		fetch('/api/setup/reset-client', { method: 'POST' }).finally(() => {
-			clearStore();
-			loadStore();
+
+		// Load existing data first to check if this is a fresh install
+		loadStore();
+
+		// Debug: Log the current state after loading
+		console.log('Setup data after loading:', {
+			currentStep: wizard.currentStep,
+			dbHost: wizard.dbConfig.host,
+			adminUsername: wizard.adminUser.username,
+			siteName: wizard.systemSettings.siteName
 		});
+
+		// Only reset client state if there's no existing setup data (truly fresh install)
+		const hasExistingData =
+			wizard.currentStep > 0 ||
+			wizard.dbConfig.host !== 'localhost' ||
+			wizard.adminUser.username !== '' ||
+			wizard.systemSettings.siteName !== 'SveltyCMS';
+
+		console.log('Has existing data:', hasExistingData);
+
+		if (!hasExistingData) {
+			// This appears to be a fresh install, reset client state
+			console.log('Resetting client state for fresh install');
+			fetch('/api/setup/reset-client', { method: 'POST' }).catch((err) => {
+				console.warn('Failed to reset client state:', err);
+			});
+		} else {
+			console.log('Preserving existing setup data');
+		}
+
 		document.addEventListener('click', outsideLang);
 
 		// Initialize persistence effect now that we're in component context
@@ -130,6 +167,8 @@
 		wizard.highestStepReached > 2 && validateStep(2, false),
 		false
 	]);
+
+	const progressPercent = $derived<number>((stepCompleted.filter(Boolean).length / totalSteps) * 100);
 
 	// Derived per-step clickability (allows navigation to completed steps, current step, and next available step)
 	const stepClickable = $derived<boolean[]>([
@@ -430,6 +469,61 @@
 	function checkPasswordRequirements() {
 		// Password requirements are already computed in derived state
 	}
+
+	// --- 9. LAZY COMPONENT STATE & ERROR HANDLING ---
+	let DatabaseConfig: any = null;
+	let AdminConfig: any = null;
+	let SystemConfig: any = null;
+	let ReviewConfig: any = null;
+	let stepLoadError = $state('');
+	let CurrentStepComponent = $state<any>(null);
+
+	$effect(() => {
+		stepLoadError = '';
+		const loadStep = async (step: number) => {
+			try {
+				switch (step) {
+					case 0:
+						if (!DatabaseConfig) DatabaseConfig = (await import('./DatabaseConfig.svelte')).default;
+						break;
+					case 1:
+						if (!AdminConfig) AdminConfig = (await import('./AdminConfig.svelte')).default;
+						break;
+					case 2:
+						if (!SystemConfig) SystemConfig = (await import('./SystemConfig.svelte')).default;
+						break;
+					case 3:
+						if (!ReviewConfig) ReviewConfig = (await import('./ReviewConfig.svelte')).default;
+						break;
+				}
+			} catch (err) {
+				stepLoadError = `Failed to load step component. Please reload or contact support. (${err instanceof Error ? err.message : String(err)})`;
+			}
+		};
+		// Load current step
+		loadStep(wizard.currentStep).then(() => {
+			switch (wizard.currentStep) {
+				case 0:
+					CurrentStepComponent = DatabaseConfig;
+					break;
+				case 1:
+					CurrentStepComponent = AdminConfig;
+					break;
+				case 2:
+					CurrentStepComponent = SystemConfig;
+					break;
+				case 3:
+					CurrentStepComponent = ReviewConfig;
+					break;
+				default:
+					CurrentStepComponent = null;
+			}
+		});
+		// Prefetch next step in background
+		if (wizard.currentStep < 3) {
+			loadStep(wizard.currentStep + 1);
+		}
+	});
 </script>
 
 <svelte:head>
@@ -440,14 +534,7 @@
 		rel="stylesheet"
 	/>
 	<style>
-		html,
-		body {
-			height: 100%;
-			overflow: auto !important;
-		}
-
-		/* Override Skeleton's default toast positioning */
-		:global(.toast-container) {
+		:global(.setup-page .toast-container) {
 			position: fixed !important;
 			bottom: 1.5rem !important;
 			right: 1.5rem !important;
@@ -456,18 +543,20 @@
 			transform: none !important;
 			z-index: 99999 !important;
 		}
-
-		:global(.toast) {
+		:global(.setup-page .toast) {
 			transform: none !important;
 			animation: none !important;
 		}
 	</style>
 </svelte:head>
 
-<div class="bg-surface-50-900 min-h-screen w-full transition-colors">
-	<!-- Toast component for notifications -->
+<div class="setup-page bg-surface-50-900 min-h-screen w-full transition-colors">
 	<Toast />
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+		<!-- Progress Bar -->
+		<div class="mb-4 h-2 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
+			<div class="h-full bg-primary-500 transition-all duration-500 ease-out" style="width: {progressPercent}%"></div>
+		</div>
 		<!-- Header -->
 		<div class="mb-4 rounded-xl border border-surface-200 bg-white p-4 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
 			<div class="flex items-center justify-between gap-4">
@@ -707,9 +796,10 @@
 
 					<!-- Card Content -->
 					<div class="p-4 sm:p-6 lg:p-8">
-						{#if wizard.currentStep === 0}
-							<DatabaseConfig
-								bind:this={dbConfigComponent}
+						{#if stepLoadError}
+							<div class="mb-4 rounded bg-red-100 p-4 text-red-700">{stepLoadError}</div>
+						{:else if CurrentStepComponent}
+							<CurrentStepComponent
 								bind:dbConfig={wizard.dbConfig}
 								{validationErrors}
 								{isLoading}
@@ -718,39 +808,20 @@
 								{testDatabaseConnection}
 								{dbConfigChangedSinceTest}
 								{clearDbTestError}
+								bind:this={dbConfigComponent}
+								bind:adminUser={wizard.adminUser}
+								{passwordRequirements}
+								bind:showAdminPassword
+								bind:showConfirmPassword
+								{toggleAdminPassword}
+								{toggleConfirmPassword}
+								{checkPasswordRequirements}
+								systemSettings={wizard.systemSettings}
+								{availableLanguages}
+								{completeSetup}
 							/>
-						{:else if wizard.currentStep === 1}
-							<div class="fade-in">
-								<!-- Admin User -->
-								<AdminConfig
-									bind:adminUser={wizard.adminUser}
-									{validationErrors}
-									{passwordRequirements}
-									bind:showAdminPassword
-									bind:showConfirmPassword
-									{toggleAdminPassword}
-									{toggleConfirmPassword}
-									{checkPasswordRequirements}
-								/>
-							</div>
-						{:else if wizard.currentStep === 2}
-							<!-- System Settings -->
-							<div class="fade-in">
-								<SystemConfig systemSettings={wizard.systemSettings} {validationErrors} {availableLanguages} />
-							</div>
-						{:else if wizard.currentStep === 3}
-							<!-- Review & Complete via component -->
-							<div class="fade-in space-y-6">
-								<ReviewConfig dbConfig={wizard.dbConfig} adminUser={wizard.adminUser} systemSettings={wizard.systemSettings} />
-								<button onclick={completeSetup} disabled={isLoading} class="variant-filled-tertiary btn w-full dark:variant-filled-primary">
-									{#if isLoading}
-										<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"></div>
-										Completing Setup...
-									{:else}
-										{m.setup_button_complete()}
-									{/if}
-								</button>
-							</div>
+						{:else}
+							<div class="animate-pulse">Loading step...</div>
 						{/if}
 
 						<!-- Status Messages -->
@@ -877,6 +948,16 @@
 									{m.button_next()}
 									<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 								</button>
+							{:else if wizard.currentStep === steps.length - 1}
+								<button
+									onclick={completeSetup}
+									disabled={isLoading}
+									aria-disabled={isLoading}
+									class="variant-filled-success btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+								>
+									{isLoading ? 'Completing...' : m.button_complete?.() || 'Complete'}
+									<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+								</button>
 							{/if}
 						</div>
 					</div>
@@ -885,19 +966,3 @@
 		</div>
 	</div>
 </div>
-
-<style>
-	.fade-in {
-		animation: fadeIn 0.3s ease-in-out;
-	}
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-			transform: translateY(10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-</style>
