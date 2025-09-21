@@ -7,14 +7,17 @@
  * and what to do when importing types
  */
 
-import type { PipelineStage } from 'mongoose';
+import type { Role, Token, User } from '@src/auth/types'; // Import the actual types
 import type { Theme } from '@src/databases/dbInterface'; // Ensure correct import path
-import type { User, Role, Token } from '@src/auth/types'; // Import the actual types
-
-declare const __VERSION__: string; // Declare __VERSION__
+import type { PipelineStage } from 'mongoose';
 
 declare global {
 	/// <reference path="./types/**/*.d.ts" />
+
+	// Vite global variables
+	const __VERSION__: string;
+	const __FRESH_INSTALL__: boolean;
+
 	declare type Item = import('svelte-dnd-action').Item;
 	declare type DndEvent<ItemType = Item> = import('svelte-dnd-action').DndEvent<ItemType>;
 	declare namespace svelteHTML {

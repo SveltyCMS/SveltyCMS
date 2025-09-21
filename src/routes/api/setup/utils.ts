@@ -19,8 +19,24 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 			const isSrv = config.type === 'mongodb+srv';
 			const protocol = isSrv ? 'mongodb+srv' : 'mongodb';
 			const port = isSrv || !config.port ? '' : `:${config.port}`;
-			const user = config.user && config.password ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
-			return `${protocol}://${user}${config.host}${port}/${config.name}`;
+
+			// Check if this is localhost without auth
+			const isLocalhost = config.host === 'localhost' || config.host === '127.0.0.1';
+			const hasCredentials = config.user && config.password;
+
+			const user = hasCredentials ? `${encodeURIComponent(config.user)}:${encodeURIComponent(config.password)}@` : '';
+
+			// For MongoDB Atlas (mongodb+srv), add standard query parameters
+			// For regular MongoDB with auth, add authSource=admin
+			// For localhost without auth, no query params needed
+			let queryParams = '';
+			if (isSrv && hasCredentials) {
+				queryParams = '?retryWrites=true&w=majority';
+			} else if (!isSrv && hasCredentials && !isLocalhost) {
+				queryParams = '?authSource=admin';
+			}
+
+			return `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
 		}
 		case 'postgresql': {
 			const user = config.user ? encodeURIComponent(config.user) : '';
@@ -54,55 +70,88 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	logger.info(`Creating setup database adapter for ${config.type}`, { correlationId });
 
 	const connectionString = buildDatabaseConnectionString(config);
+	logger.info(`Connection string built for ${config.type}`, {
+		correlationId,
+		host: config.host,
+		port: config.port,
+		name: config.name,
+		hasUser: !!config.user,
+		hasPassword: !!config.password,
+		// Only log sanitized connection string (without password)
+		connectionStringPreview: connectionString.replace(/:[^:@]+@/, ':***@')
+	});
+
 	let dbAdapter: IDBAdapter;
 	let authAdapter: authDBInterface;
 
 	switch (config.type) {
 		case 'mongodb':
 		case 'mongodb+srv': {
-			// Use UserAdapter as the main MongoDB auth adapter
+			// Use the complete MongoDB auth adapter
 			const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
-			const { UserAdapter } = await import('@src/auth/mongoDBAuth/userAdapter');
-			dbAdapter = new MongoDBAdapter();
-			const connectResult = await dbAdapter.connect(connectionString);
+			const { MongoDBAuthAdapter } = await import('@src/auth/mongoDBAuth/mongoDBAuthAdapter');
+			dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
+
+			// Prepare connection options for MongoDB
+			const connectionOptions = {
+				serverSelectionTimeoutMS: 15000,
+				socketTimeoutMS: 45000,
+				maxPoolSize: 10,
+				retryWrites: true,
+				...(config.user &&
+					config.password && {
+						user: config.user,
+						pass: config.password,
+						dbName: config.name,
+						authSource: config.type === 'mongodb+srv' ? undefined : 'admin'
+					})
+			};
+
+			const connectResult = await dbAdapter.connect(connectionString, connectionOptions);
 			if (!connectResult.success) {
 				logger.error(`MongoDB connection failed: ${connectResult.error.message}`, { correlationId });
 				throw new Error(`Database connection failed: ${connectResult.error.message}`);
 			}
-			authAdapter = new UserAdapter(dbAdapter); // Pass dbAdapter directly
+
+			// Use the proper MongoDB auth adapter that implements the complete authDBInterface
+			authAdapter = new MongoDBAuthAdapter();
 			break;
 		}
 		case 'postgresql': {
 			// TODO: Implement DrizzlePostgresAdapter and DrizzlePostgresAuthAdapter
-			// @ts-expect-error: Module may not exist yet
-			const { DrizzlePostgresAdapter } = await import('@src/databases/drizzle/drizzlePostgresAdapter');
-			// @ts-expect-error: Module may not exist yet
-			const { DrizzlePostgresAuthAdapter } = await import('@src/auth/drizzleAuth/drizzlePostgresAuthAdapter');
-			dbAdapter = new DrizzlePostgresAdapter();
-			const connectResult = await dbAdapter.connect(connectionString);
-			if (!connectResult.success) {
-				logger.error(`PostgreSQL connection failed: ${connectResult.error.message}`, { correlationId });
-				throw new Error(`Database connection failed: ${connectResult.error.message}`);
+			try {
+				const { DrizzlePostgresAdapter } = await import('@src/databases/drizzle/drizzlePostgresAdapter');
+				const { DrizzlePostgresAuthAdapter } = await import('@src/auth/drizzleAuth/drizzlePostgresAuthAdapter');
+				dbAdapter = new DrizzlePostgresAdapter() as unknown as IDBAdapter;
+				const connectResult = await dbAdapter.connect(connectionString);
+				if (!connectResult.success) {
+					logger.error(`PostgreSQL connection failed: ${connectResult.error.message}`, { correlationId });
+					throw new Error(`Database connection failed: ${connectResult.error.message}`);
+				}
+				authAdapter = new DrizzlePostgresAuthAdapter() as unknown as authDBInterface;
+			} catch (err) {
+				logger.error(`PostgreSQL adapter not implemented yet: ${err instanceof Error ? err.message : String(err)}`, { correlationId });
+				throw new Error(`PostgreSQL database adapter is not yet implemented`);
 			}
-			// @ts-expect-error: Adapter may not exist yet
-			authAdapter = new DrizzlePostgresAuthAdapter(dbAdapter);
 			break;
 		}
 		case 'mysql':
 		case 'mariadb': {
 			// TODO: Implement DrizzleMySQLAdapter and DrizzleMySQLAuthAdapter
-			// @ts-expect-error: Module may not exist yet
-			const { DrizzleMySQLAdapter } = await import('@src/databases/drizzle/drizzleMySQLAdapter');
-			// @ts-expect-error: Module may not exist yet
-			const { DrizzleMySQLAuthAdapter } = await import('@src/auth/drizzleAuth/drizzleMySQLAuthAdapter');
-			dbAdapter = new DrizzleMySQLAdapter();
-			const connectResult = await dbAdapter.connect(connectionString);
-			if (!connectResult.success) {
-				logger.error(`MySQL connection failed: ${connectResult.error.message}`, { correlationId });
-				throw new Error(`Database connection failed: ${connectResult.error.message}`);
+			try {
+				const { DrizzleMySQLAdapter } = await import('../../../databases/drizzle/drizzleMySQLAdapter');
+				const { DrizzleMySQLAuthAdapter } = await import('../../../auth/drizzleAuth/drizzleMySQLAuthAdapter');
+				dbAdapter = new DrizzleMySQLAdapter() as unknown as IDBAdapter;
+				const connectResult = await dbAdapter.connect(connectionString);
+				if (!connectResult.success) {
+					logger.error(`MySQL connection failed: ${connectResult.error.message}`, { correlationId });
+					throw new Error(`Database connection failed: ${connectResult.error.message}`);
+				}
+				authAdapter = new DrizzleMySQLAuthAdapter(dbAdapter) as unknown as authDBInterface;
+			} catch (err) {
+				logger.error(`MySQL adapter not implemented yet: ${err instanceof Error ? err.message : String(err)}`, { correlationId });
+				throw new Error(`MySQL database adapter is not yet implemented`);
 			}
-			// @ts-expect-error: Adapter may not exist yet
-			authAdapter = new DrizzleMySQLAuthAdapter(dbAdapter);
 			break;
 		}
 		default:

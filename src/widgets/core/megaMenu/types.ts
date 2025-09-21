@@ -5,16 +5,15 @@
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@root/src/auth';
-
-import widgets, { type WidgetType } from '../../index';
-type Fields = ReturnType<WidgetType[keyof WidgetType]>[][];
 import { getFieldName } from '@utils/utils';
+
+export type Fields = Record<string, unknown>[][];
 
 /**
  * Defines MegaMenu widget Parameters

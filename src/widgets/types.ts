@@ -3,10 +3,11 @@
  * @description Widget types for the widget system
  */
 
-import type { User, WidgetId } from '@root/src/auth';
-import type { Schema, Field, FullField } from '../content/types';
-import type { SvelteComponent } from 'svelte';
+import type { User } from '@root/src/auth';
+import type { WidgetId } from '@root/src/auth/types';
 import type { GuiFieldConfig } from '@utils/utils';
+import type { SvelteComponent } from 'svelte';
+import type { Field, Schema } from '../content/types';
 
 export type WidgetStatus = 'active' | 'inactive';
 
@@ -27,7 +28,7 @@ export interface Widget {
 	component?: typeof SvelteComponent;
 	config?: Record<string, unknown>;
 	validateWidget: () => Promise<string | null>; // Required validation method
-	updateTranslationStatus: (value: unknown, field: FullField, language: string) => void; // Required translation status
+	updateTranslationStatus: (value: unknown, field: Field, language: string) => void; // Required translation status
 	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
 	GuiFields?: unknown;
 	Icon?: string;
@@ -47,6 +48,8 @@ export interface WidgetFunction {
 	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
 	dependencies?: string[];
 	toString?: () => string;
+	__widgetId?: string; // For unique widget identification
+	__isCore?: boolean; // To track if widget is core or custom
 }
 
 export interface WidgetModule {

@@ -12,9 +12,9 @@
  * - Widget configuration
  */
 
-import type { WidgetFunction, WidgetModule } from './types';
-import type { GuiSchema } from './core/group/types';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID generator for unique widget IDs
+import { registerWidget } from './registry'; // Import widget registry
+import type { WidgetFunction, WidgetModule } from './types';
 
 // Reactive stores
 import { store } from '@utils/reactivity.svelte'; // Import reactive store utility
@@ -28,7 +28,7 @@ function checkDependencies(widget: WidgetFunction): boolean {
 		return true; // No dependencies, so it's valid
 	}
 	for (const dep of widget.dependencies) {
-		if (!widgetFunctions.get().has(dep)) {
+		if (!widgetFunctions().has(dep)) {
 			logger.info(`Checking dependencies for widget: ${widget.Name} - missing dependency: ${dep}`);
 			return false; // Dependency is missing
 		}
@@ -49,7 +49,7 @@ const activeWidgetList = store<Set<string>>(new Set()); // Store for active widg
 let initialized = false; // Initialization status
 let dbInitPromise: Promise<void> | null = null; // Database initialization promise
 
-export function getGuiFields(params: Record<string, unknown>, schema: GuiSchema) {
+export function getGuiFields(params: Record<string, unknown>, schema: Record<string, unknown>) {
 	return schema.properties;
 }
 
@@ -138,6 +138,26 @@ export async function initializeWidgets(): Promise<void> {
 					newWidgetFunctions.set(capitalizedName, widgetFn);
 					widgets[capitalizedName] = widgetFn;
 					loadedWidgetNames.add(capitalizedName);
+
+					// Register widget in the registry for circular dependency resolution
+					try {
+						const widgetInstance: import('./types').Widget = {
+							__widgetId: widgetFn.__widgetId || uuidv4().replace(/-/g, ''),
+							Name: capitalizedName,
+							dependencies: widgetFn.dependencies,
+							modifyRequest: widgetFn.modifyRequest,
+							Icon: widgetFn.Icon,
+							Description: widgetFn.Description,
+							aggregations: widgetFn.aggregations,
+							validateWidget: () => Promise.resolve(null), // Default implementation
+							updateTranslationStatus: () => {} // Default implementation
+						};
+						registerWidget(widgetInstance);
+					} catch (regError) {
+						logger.warn(
+							`Failed to register widget ${capitalizedName} in registry: ${regError instanceof Error ? regError.message : 'Unknown error'}`
+						);
+					}
 				} catch (error) {
 					logger.warn(`Skipping widget ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
 					continue;

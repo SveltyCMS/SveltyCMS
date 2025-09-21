@@ -57,13 +57,19 @@ process.on('SIGINT', () => {
 function setupWizardPlugin(): Plugin {
 	let serverInstance: ViteDevServer | null = null;
 	const useColor = process.stdout.isTTY;
+	let wasPrivateConfigMissing = false;
 
 	return {
 		name: 'svelte-cms-setup-wizard',
 		async buildStart() {
+			console.log(`${LOG_PREFIX} Starting in setup mode...`);
 			console.log(`${LOG_PREFIX} Setup not complete. Preparing setup wizard...`);
+
+			// Check if private config exists before creating it
+			wasPrivateConfigMissing = !existsSync(privateConfigPath);
+
 			// Ensure config directory and default private config exist.
-			if (!existsSync(privateConfigPath)) {
+			if (wasPrivateConfigMissing) {
 				const content = `
 /**
  * @file config/private.ts
@@ -90,6 +96,11 @@ export const privateEnv = createPrivateConfig({
 					console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
 				}
 			}
+		},
+		config(config) {
+			// Pass information about fresh install to the frontend
+			if (!config.define) config.define = {};
+			config.define.__FRESH_INSTALL__ = JSON.stringify(wasPrivateConfigMissing);
 		},
 		configureServer(server) {
 			serverInstance = server;
@@ -268,6 +279,7 @@ export default defineConfig((): UserConfig => {
 
 		define: {
 			__VERSION__: JSON.stringify(PKG.version),
+			__FRESH_INSTALL__: false, // Default value, overridden by setupWizardPlugin if needed
 			SUPERFORMS_LEGACY: true,
 			global: 'globalThis'
 		},
@@ -279,6 +291,8 @@ export default defineConfig((): UserConfig => {
 			rollupOptions: {
 				onwarn(warning, warn) {
 					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('zod-to-json-schema')) return;
+					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('node_modules/mongodb')) return;
+					if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.message.includes('node_modules/mongoose')) return;
 					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
 					warn(warning);
 				},

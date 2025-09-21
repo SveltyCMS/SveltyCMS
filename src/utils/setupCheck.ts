@@ -49,3 +49,11 @@ export function isSetupComplete(): boolean {
 		return setupStatus;
 	}
 }
+
+/**
+ * Invalidates the cached setup status, forcing a recheck on the next call to isSetupComplete().
+ * This should be called after setup completion to ensure the cache is updated.
+ */
+export function invalidateSetupCache(): void {
+	setupStatus = null;
+}

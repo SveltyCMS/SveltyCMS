@@ -89,8 +89,12 @@
 	let langSearch = $state('');
 
 	// --- 4. LIFECYCLE HOOKS ---
-	onMount(() => {
+	onMount(async () => {
 		setGlobalToastStore(getToastStore());
+
+		// Check if this is a completely fresh installation
+		// __FRESH_INSTALL__ is set by Vite config based on private.ts existence
+		const isFreshInstall = typeof __FRESH_INSTALL__ !== 'undefined' ? __FRESH_INSTALL__ : false;
 
 		// Load existing data first to check if this is a fresh install
 		loadStore();
@@ -100,26 +104,87 @@
 			currentStep: wizard.currentStep,
 			dbHost: wizard.dbConfig.host,
 			adminUsername: wizard.adminUser.username,
-			siteName: wizard.systemSettings.siteName
+			siteName: wizard.systemSettings.siteName,
+			isFreshInstall
 		});
 
-		// Only reset client state if there's no existing setup data (truly fresh install)
-		const hasExistingData =
-			wizard.currentStep > 0 ||
-			wizard.dbConfig.host !== 'localhost' ||
-			wizard.adminUser.username !== '' ||
-			wizard.systemSettings.siteName !== 'SveltyCMS';
+		if (isFreshInstall) {
+			// This is a completely fresh installation - reset everything
+			console.log('Fresh installation detected (no private.ts found) - resetting all client state');
+			try {
+				const response = await fetch('/api/setup/reset-client', { method: 'POST' });
+				if (response.ok) {
+					const result = await response.json();
+					if (result.success && result.clearLocalStorage) {
+						// Clear specified localStorage keys
+						result.clearLocalStorage.forEach((key: string) => {
+							try {
+								localStorage.removeItem(key);
+							} catch (e) {
+								console.warn(`Failed to clear localStorage key ${key}:`, e);
+							}
+						});
 
-		console.log('Has existing data:', hasExistingData);
+						// Clear all sessionStorage if requested
+						if (result.clearSessionStorage) {
+							try {
+								sessionStorage.clear();
+							} catch (e) {
+								console.warn('Failed to clear sessionStorage:', e);
+							}
+						}
 
-		if (!hasExistingData) {
-			// This appears to be a fresh install, reset client state
-			console.log('Resetting client state for fresh install');
-			fetch('/api/setup/reset-client', { method: 'POST' }).catch((err) => {
+						console.log('Client state reset complete');
+					}
+				}
+			} catch (err) {
 				console.warn('Failed to reset client state:', err);
-			});
+			}
 		} else {
-			console.log('Preserving existing setup data');
+			// Check if we have existing setup data
+			const hasExistingData =
+				wizard.currentStep > 0 ||
+				wizard.dbConfig.host !== 'localhost' ||
+				wizard.adminUser.username !== '' ||
+				wizard.systemSettings.siteName !== 'SveltyCMS';
+
+			console.log('Private.ts exists, checking for existing setup data:', hasExistingData);
+
+			if (!hasExistingData) {
+				// Private.ts exists but no setup data - might be a resumed setup
+				console.log('Resetting client state for resumed setup');
+				try {
+					const response = await fetch('/api/setup/reset-client', { method: 'POST' });
+					if (response.ok) {
+						const result = await response.json();
+						if (result.success && result.clearLocalStorage) {
+							// Clear specified localStorage keys
+							result.clearLocalStorage.forEach((key: string) => {
+								try {
+									localStorage.removeItem(key);
+								} catch (e) {
+									console.warn(`Failed to clear localStorage key ${key}:`, e);
+								}
+							});
+
+							// Clear all sessionStorage if requested
+							if (result.clearSessionStorage) {
+								try {
+									sessionStorage.clear();
+								} catch (e) {
+									console.warn('Failed to clear sessionStorage:', e);
+								}
+							}
+
+							console.log('Client state reset complete');
+						}
+					}
+				} catch (err) {
+					console.warn('Failed to reset client state:', err);
+				}
+			} else {
+				console.log('Preserving existing setup data');
+			}
 		}
 
 		document.addEventListener('click', outsideLang);
@@ -167,8 +232,6 @@
 		wizard.highestStepReached > 2 && validateStep(2, false),
 		false
 	]);
-
-	const progressPercent = $derived<number>((stepCompleted.filter(Boolean).length / totalSteps) * 100);
 
 	// Derived per-step clickability (allows navigation to completed steps, current step, and next available step)
 	const stepClickable = $derived<boolean[]>([
@@ -279,6 +342,31 @@
 				errorMessage = ''; // Clear any previous errors
 				showDbDetails = false; // Hide details on success
 				validationErrors = {}; // Clear any field-specific errors
+
+				// Trigger database seeding after successful test
+				try {
+					console.log('Triggering database seeding...');
+					const seedResponse = await fetch('/api/setup/seed-settings', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(wizard.dbConfig)
+					});
+
+					const seedData = await seedResponse.json();
+					if (seedData.success) {
+						if (seedData.alreadySeeded) {
+							console.log('Database already seeded:', seedData.message);
+						} else {
+							console.log('Database seeded successfully:', seedData.message);
+						}
+					} else {
+						console.warn('Database seeding failed:', seedData.error);
+						// Don't fail the test, just log the warning
+					}
+				} catch (seedError) {
+					console.warn('Error during database seeding:', seedError);
+					// Don't fail the test, just log the warning
+				}
 			} else {
 				// Use userFriendly message first, then technical error as fallback
 				errorMessage = data.userFriendly || data.error || 'Database connection failed. Please check your configuration.';
@@ -534,6 +622,15 @@
 		rel="stylesheet"
 	/>
 	<style>
+		:global(#svelte) {
+			height: auto !important;
+			min-height: 100vh !important;
+		}
+		:global(.setup-page) {
+			min-height: 100vh !important;
+			overflow-y: auto !important;
+			position: relative !important;
+		}
 		:global(.setup-page .toast-container) {
 			position: fixed !important;
 			bottom: 1.5rem !important;
@@ -553,12 +650,8 @@
 <div class="setup-page bg-surface-50-900 min-h-screen w-full transition-colors">
 	<Toast />
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-		<!-- Progress Bar -->
-		<div class="mb-4 h-2 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-			<div class="h-full bg-primary-500 transition-all duration-500 ease-out" style="width: {progressPercent}%"></div>
-		</div>
 		<!-- Header -->
-		<div class="mb-4 rounded-xl border border-surface-200 bg-white p-4 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
+		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-4 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex flex-1 items-center gap-4 sm:gap-5">
 					<div class="flex flex-shrink-0 items-center">
@@ -633,12 +726,10 @@
 		</div>
 
 		<!-- Main Content with Left Side Steps -->
-		<div class="flex flex-col gap-4 lg:min-h-[560px] lg:flex-row lg:gap-6">
+		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
 			<!-- Step Indicator (Left Side) - Horizontal on mobile, vertical on desktop -->
 			<div class="w-full shrink-0 lg:w-72">
-				<div
-					class="flex h-full flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800 lg:sticky lg:top-8"
-				>
+				<div class="flex flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
 					<!-- Mobile: Horizontal step indicator -->
 					<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
 						{#each steps as _step, i}
@@ -761,9 +852,9 @@
 
 			<!-- Main Card (Right Side) -->
 			<div class="flex flex-1 flex-col rounded-xl border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
-				<div class="flex h-full flex-col overflow-hidden rounded-xl border">
+				<div class="flex flex-col rounded-xl border">
 					<!-- Card Header with Step Title -->
-					<div class="flex justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
+					<div class="flex flex-shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
 						<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
 							{#if wizard.currentStep === 0}
 								<iconify-icon icon="mdi:database" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
@@ -920,7 +1011,7 @@
 						{/if}
 					</div>
 					<!-- Navigation -->
-					<div class="mt-6 flex items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:mt-8 sm:px-8 sm:pb-6 sm:pt-6">
+					<div class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
 						<!-- Previous Button -->
 						<div class="flex-1">
 							{#if wizard.currentStep > 0}

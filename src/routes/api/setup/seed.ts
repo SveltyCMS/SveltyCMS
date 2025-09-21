@@ -7,11 +7,11 @@
  */
 
 import { publicConfigSchema } from '@root/config/types';
-import { safeParse } from 'valibot';
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
+import type { DatabaseId, ISODateString } from '@src/databases/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
-import type { Theme } from '@src/types/theme';
 import { logger } from '@utils/logger.svelte';
+import { safeParse } from 'valibot';
 
 // Type for setting data in snapshots
 interface SettingData {
@@ -21,12 +21,18 @@ interface SettingData {
 }
 
 // Default theme that matches the ThemeManager's DEFAULT_THEME
-const defaultTheme: Omit<Theme, '_id'> = {
+const defaultTheme: Theme = {
+	_id: '670e8b8c4d123456789abcde' as DatabaseId, // MongoDB ObjectId-style string
 	name: 'SveltyCMSTheme',
 	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css',
+	isActive: false,
 	isDefault: true,
-	createdAt: new Date(),
-	updatedAt: new Date()
+	config: {
+		tailwindConfigPath: '',
+		assetsPath: ''
+	},
+	createdAt: new Date().toISOString() as ISODateString,
+	updatedAt: new Date().toISOString() as ISODateString
 };
 
 /**
@@ -204,7 +210,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 		key: string;
 		value: unknown;
 		scope: 'user' | 'system';
-		userId?: string;
+		userId?: DatabaseId;
 	}> = [];
 
 	for (const setting of allSettings) {
@@ -329,7 +335,7 @@ export async function importSettingsSnapshot(snapshot: Record<string, unknown>, 
 		key: string;
 		value: unknown;
 		scope: 'user' | 'system';
-		userId?: string;
+		userId?: DatabaseId;
 	}> = [];
 
 	for (const [key, settingData] of Object.entries(snapshot.settings)) {

@@ -11,6 +11,8 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # secrets
+.env
+.env.*
 /config/private.ts
 /config/public.ts
 /data.json

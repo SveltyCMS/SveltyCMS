@@ -102,6 +102,18 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			if (typeof connectionStringOrPoolOptions === 'string') {
 				// Use provided connection string and options for setup
 				const connectionString = connectionStringOrPoolOptions;
+				logger.info('Attempting MongoDB connection with custom parameters', {
+					// Only log sanitized connection string (without password)
+					connectionStringPreview: connectionString.replace(/:[^:@]+@/, ':***@'),
+					hasOptions: !!options,
+					serverSelectionTimeoutMS: options?.serverSelectionTimeoutMS || 15000,
+					socketTimeoutMS: options?.socketTimeoutMS || 45000,
+					maxPoolSize: options?.maxPoolSize || 10,
+					authSource: options?.authSource,
+					hasUser: !!options?.user,
+					hasPass: !!options?.pass,
+					dbName: options?.dbName
+				});
 				await mongoose.connect(connectionString, {
 					serverSelectionTimeoutMS: options?.serverSelectionTimeoutMS || 15000,
 					socketTimeoutMS: options?.socketTimeoutMS || 45000,

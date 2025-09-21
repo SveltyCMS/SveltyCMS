@@ -7,16 +7,16 @@
 		<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
 		<script>
 			var global = global || window;
-			
+
 			// Set theme class before page renders to prevent FOUC
-			(function() {
+			(function () {
 				function getCookie(name) {
 					const value = `; ${document.cookie}`;
 					const parts = value.split(`; ${name}=`);
 					if (parts.length === 2) return parts.pop().split(';').shift();
 					return null;
 				}
-				
+
 				const darkMode = getCookie('darkMode');
 				if (darkMode === 'true') {
 					document.documentElement.classList.add('dark');
@@ -30,7 +30,7 @@
 				}
 			})();
 		</script>
-		<meta name="viewport" content="width=device-width" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		%sveltekit.head%
 	</head>
 

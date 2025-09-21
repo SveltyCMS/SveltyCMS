@@ -13,20 +13,18 @@ import { logger } from '@utils/logger.svelte';
 
 import { isSetupComplete } from '@utils/setupCheck';
 
-// Get the setup status once. This is now extremely fast.
-const isSetupCompleteCached = isSetupComplete();
-
-// Log the initial status only once per server start.
-if (!isSetupCompleteCached) {
-	logger.warn('System setup is not complete. Redirecting all non-essential traffic to /setup.');
-}
-
 // Regex to quickly identify asset requests that should always be allowed.
 const ASSET_REGEX = /^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|.*\.(svg|png|jpg|jpeg|gif|css|js))/;
 
 export const handleSetup: Handle = async ({ event, resolve }) => {
+	// Check setup status dynamically (not cached at module level)
+	const isSetupCompleteCached = isSetupComplete();
+
 	// --- Branch 1: Setup is NOT complete ---
 	if (!isSetupCompleteCached) {
+		// Log the initial status only when needed.
+		logger.warn('System setup is not complete. Redirecting all non-essential traffic to /setup.');
+
 		// Allow requests to the setup page, its API, and essential assets to pass through.
 		if (event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup') || ASSET_REGEX.test(event.url.pathname)) {
 			// For setup-related paths, resolve immediately and skip the rest of the middleware pipeline.

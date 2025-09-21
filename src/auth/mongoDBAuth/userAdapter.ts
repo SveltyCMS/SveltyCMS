@@ -63,7 +63,7 @@ export const UserSchema = new Schema(
 	},
 	{
 		timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
-		collection: 'users' // Explicitly set the collection name
+		collection: 'auth_users' // Explicitly set the collection name to match model registration
 	}
 );
 

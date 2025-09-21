@@ -71,8 +71,8 @@ import type { BaseEntity, ContentNode, DatabaseId } from './types';
 
 /** collection **/
 export interface CollectionModel {
-	findOne: (query: FilterQuery<Document>) => Promise<Document | null>;
-	aggregate: (pipeline: AggregationPipeline[]) => Promise<unknown[]>;
+	findOne: (query: Record<string, unknown>) => Promise<Record<string, unknown> | null>;
+	aggregate: (pipeline: Record<string, unknown>[]) => Promise<unknown[]>;
 }
 
 /** Nested Content Structure **/
@@ -282,6 +282,7 @@ export interface IDBAdapter {
 	getCapabilities(): DatabaseCapabilities;
 
 	// Connection Management with Pooling
+	connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
 	connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
 	disconnect(): Promise<DatabaseResult<void>>;
 	isConnected(): boolean;
@@ -524,6 +525,9 @@ export interface IDBAdapter {
 		}
 	): Promise<DatabaseResult<Record<string, unknown[]>>>;
 }
+
+// Type alias for backward compatibility
+export type DatabaseAdapter = IDBAdapter;
 
 /** Virtual Folder Types **/
 export interface SystemVirtualFolder extends BaseEntity {
