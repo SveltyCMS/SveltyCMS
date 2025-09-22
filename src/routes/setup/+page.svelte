@@ -448,6 +448,7 @@
 			const response = await fetch('/api/setup/complete', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
 				body: JSON.stringify({
 					database: wizard.dbConfig,
 					admin: wizard.adminUser,
@@ -464,8 +465,8 @@
 			clearStore();
 
 			setTimeout(() => {
-				window.location.href = data.redirectPath || '/login';
-			}, 1500);
+				location.replace(data.redirectPath || '/login');
+			}, 1200);
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during finalization.';
 		} finally {
@@ -622,15 +623,6 @@
 		rel="stylesheet"
 	/>
 	<style>
-		:global(#svelte) {
-			height: auto !important;
-			min-height: 100vh !important;
-		}
-		:global(.setup-page) {
-			min-height: 100vh !important;
-			overflow-y: auto !important;
-			position: relative !important;
-		}
 		:global(.setup-page .toast-container) {
 			position: fixed !important;
 			bottom: 1.5rem !important;

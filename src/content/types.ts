@@ -135,6 +135,67 @@ export interface CollectionData {
 	links?: Array<ContentTypes>; // Optional links to other collections
 }
 
+// Dashboard types
+export interface WidgetSize {
+	w: number; // Width in grid units
+	h: number; // Height in grid units
+}
+
+export interface DashboardWidgetConfig {
+	id: string; // Unique widget identifier
+	component: string; // Svelte component name
+	label: string; // Display label for the widget
+	icon: string; // Icon identifier (iconify icon)
+	size: WidgetSize; // Widget dimensions
+	settings: Record<string, unknown>; // Widget-specific settings
+	gridPosition?: number; // Optional position in the grid layout
+	order?: number; // Optional order for sorting
+}
+
+export interface Layout {
+	id: string; // Layout identifier
+	name: string; // Human-readable layout name
+	preferences: DashboardWidgetConfig[]; // Array of widget configurations
+}
+
+export interface SystemPreferences {
+	preferences: DashboardWidgetConfig[]; // Current widget preferences
+	loading: boolean; // Loading state
+	error: string | null; // Error message if any
+}
+
+export interface SystemPreferencesDocument {
+	_id: string; // Document ID (combination of userId and layoutId)
+	userId?: string; // Optional user ID for user-scoped preferences
+	layoutId: string; // Layout identifier
+	layout: Layout; // Complete layout configuration
+	scope: 'user' | 'system' | 'widget'; // Preference scope
+	createdAt: Date; // Creation timestamp
+	updatedAt: Date; // Last update timestamp
+}
+
+export interface DropIndicator {
+	show: boolean;
+	position: number;
+	targetIndex?: number; // Optional target index for drop operations
+}
+
+export interface WidgetComponent {
+	component: unknown; // Svelte component
+	props: Record<string, unknown>;
+}
+
+export interface WidgetMeta {
+	id: string;
+	label: string;
+	icon: string;
+	component: string;
+	defaultSize: WidgetSize;
+	name?: string; // Optional widget name
+	description?: string; // Optional widget description
+	settings?: Record<string, unknown>; // Optional default settings
+}
+
 // Collection types for collections registry
 
 export type ContentTypes = object;

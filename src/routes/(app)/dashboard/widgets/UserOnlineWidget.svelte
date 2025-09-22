@@ -47,7 +47,7 @@ Features:
 		icon = 'mdi:account-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = (newSize) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;

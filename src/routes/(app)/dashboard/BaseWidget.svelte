@@ -28,8 +28,7 @@
 		resizable = true,
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
-		onDataLoaded = (_fetchedData: any) => {},
-		...rest
+		onDataLoaded = (_fetchedData: any) => {}
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -94,7 +93,7 @@
 		};
 	});
 
-	let widgetEl: HTMLDivElement | undefined = $state();
+	let widgetEl: HTMLElement | undefined = $state();
 	let showSizeMenu = $state(false);
 	const availableSizes: WidgetSize[] = [
 		{ w: 1, h: 1 },

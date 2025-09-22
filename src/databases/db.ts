@@ -530,13 +530,11 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		const step3StartTime = performance.now();
 
 		try {
-			await Promise.all([
-				initializeMediaFolder(),
-				initializeDefaultTheme(),
-				initializeThemeManager(),
-				initializeRevisions(),
-				initializeVirtualFolders()
-			]);
+			// Initialize unrelated components in parallel
+			await Promise.all([initializeMediaFolder(), initializeRevisions(), initializeVirtualFolders()]);
+			// Seed default theme first, then initialize ThemeManager to avoid race conditions
+			await initializeDefaultTheme();
+			await initializeThemeManager();
 
 			const step3Time = performance.now() - step3StartTime;
 			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);

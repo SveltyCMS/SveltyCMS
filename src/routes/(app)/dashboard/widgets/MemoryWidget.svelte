@@ -33,10 +33,10 @@ Features:
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
-	import { onDestroy } from 'svelte';
-	import { Chart, PieController, ArcElement, Tooltip } from 'chart.js';
 	import type { ChartConfiguration, Plugin } from 'chart.js';
+	import { ArcElement, Chart, PieController, Tooltip } from 'chart.js';
+	import { onDestroy } from 'svelte';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	Chart.register(PieController, ArcElement, Tooltip);
 
@@ -47,7 +47,7 @@ Features:
 		icon = 'mdi:memory',
 		widgetId = undefined,
 		size = { w: 1, h: 2 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
@@ -63,7 +63,7 @@ Features:
 	let chart = $state<Chart<'pie', number[], string> | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
-	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
+	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
 
 		return {
@@ -179,7 +179,17 @@ Features:
 	});
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/systemInfo?type=memory" pollInterval={10000} {icon} {onCloseRequest}>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/systemInfo?type=memory"
+	pollInterval={10000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	{onCloseRequest}
+>
 	{#snippet children({ data: fetchedData }: { data: any | undefined })}
 		{#if fetchedData?.memoryInfo?.total}
 			{@const totalMemGB = (fetchedData.memoryInfo.total.totalMemMb || 0) / 1024}

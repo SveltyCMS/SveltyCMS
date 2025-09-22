@@ -18,12 +18,14 @@
 - Accessible widget addition, removal, and layout switching
 -->
 <script lang="ts">
+	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
+	import { modeCurrent } from '@skeletonlabs/skeleton';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
+	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
-	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import type { DashboardWidgetConfig, DropIndicator, WidgetSize, WidgetComponent, WidgetMeta } from '@config/types';
+	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
 
@@ -81,25 +83,6 @@
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
 	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
 
-	// Helper function to calculate grid position from mouse coordinates
-	function getGridPositionFromCoords(x: number, y: number, gridContainer: HTMLElement) {
-		const rect = gridContainer.getBoundingClientRect();
-		const relativeX = x - rect.left;
-		const relativeY = y - rect.top;
-
-		const gap = 16; // 1rem gap
-		const cellWidth = (rect.width - gap * (MAX_COLUMNS - 1)) / MAX_COLUMNS;
-		const cellHeight = 180 + gap; // grid-auto-rows: 180px + gap
-
-		const col = Math.floor(relativeX / (cellWidth + gap));
-		const row = Math.floor(relativeY / cellHeight);
-
-		return {
-			col: Math.max(0, Math.min(MAX_COLUMNS - 1, col)),
-			row: Math.max(0, row)
-		};
-	}
-
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
 		const gridContainer = mainContainerEl?.querySelector('.responsive-dashboard-grid') as HTMLElement;
@@ -154,16 +137,6 @@
 		}
 
 		return insertIndex;
-	}
-
-	async function saveLayout() {
-		try {
-			if (!data.pageData?.user) return;
-			await systemPreferences.setPreference(data.pageData.user.id, currentPreferences);
-		} catch (err) {
-			console.error('Failed to save layout:', err);
-			loadError = 'Failed to save layout.';
-		}
 	}
 
 	// Ensure all widgets have proper order values
@@ -313,6 +286,8 @@
 			const currentIndex = currentPreferences.findIndex((p) => p.id === dragState.item?.id);
 			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
 				dropIndicator = {
+					show: true,
+					position: insertionIndex,
 					targetIndex: insertionIndex > currentIndex ? insertionIndex - 1 : insertionIndex
 				};
 			} else {
@@ -340,9 +315,9 @@
 		}
 
 		// Handle repositioning based on drop indicator
-		if (dropIndicator && dragState.item) {
+		if (dropIndicator && dragState.item && dropIndicator.targetIndex !== undefined) {
 			console.log('Performing drop with targetIndex:', dropIndicator.targetIndex);
-			performDrop(dragState.item, dropIndicator);
+			performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
 		}
 
 		dragState = { item: null, element: null, offset: { x: 0, y: 0 }, isActive: false };

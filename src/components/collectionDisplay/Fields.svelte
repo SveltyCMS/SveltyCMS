@@ -119,7 +119,8 @@
 			const fieldName = getFieldName(safeField, false);
 			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
 				// Initialize with proper default value based on field type
-				tempCollectionValue[fieldName] = field.translated ? {} : '';
+				const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+				tempCollectionValue[fieldName] = isTranslated ? {} : '';
 			}
 		}
 		return tempCollectionValue;
@@ -158,7 +159,7 @@
 		const currentCollectionValue = collectionValue.value;
 		const fields = collection.value?.fields;
 
-		if (!fields || !currentCollectionValue) return;
+		if (!fields || !currentCollectionValue || !collection.value?.name) return;
 
 		// This is the logic from the deleted `updateTranslationProgress` function,
 		// now correctly placed within a component's effect.
@@ -166,17 +167,19 @@
 		let hasUpdates = false;
 
 		for (const field of fields) {
-			if (field.translated) {
-				const fieldName = `${collection.value.name}.${getFieldName(field)}`;
-				const dbFieldName = getFieldName(field, false);
+			// Check if field has translated property (for widget-based fields)
+			const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+
+			if (isTranslated && collection.value?.name) {
+				const fieldName = `${collection.value.name}.${getFieldName(field as any)}`;
+				const dbFieldName = getFieldName(field as any, false);
 				const fieldValue = currentCollectionValue[dbFieldName];
 
 				for (const lang of (publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en']) as Locale[]) {
 					if (!progress[lang]) continue;
-					const langValue = fieldValue?.[lang];
+					const langValue = (fieldValue as Record<string, any>)?.[lang];
 					const isTranslated =
 						langValue !== null && langValue !== undefined && (typeof langValue === 'string' ? langValue.trim() !== '' : Boolean(langValue));
-
 					const wasTranslated = progress[lang]!.translated.has(fieldName);
 
 					if (isTranslated && !wasTranslated) {
@@ -289,7 +292,8 @@
 				const safeField = ensureFieldProperties(field);
 				const fieldName = getFieldName(safeField, false);
 				if (initialValue[fieldName] === undefined) {
-					initialValue[fieldName] = field.translated ? {} : '';
+					const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+					initialValue[fieldName] = isTranslated ? {} : '';
 				}
 			}
 			currentCollectionValue = initialValue;
@@ -400,6 +404,8 @@
 							{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
 								{#if rawField.widget}
 									{@const field = ensureFieldProperties(rawField)}
+									{@const isTranslated =
+										(field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated)}
 									<div
 										class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 										style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
@@ -412,7 +418,7 @@
 											</p>
 
 											<div class="flex gap-2">
-												{#if field.translated}
+												{#if isTranslated}
 													<div class="flex items-center gap-1 px-2">
 														<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"></iconify-icon>
 														<div class="text-xs font-normal text-error-500">

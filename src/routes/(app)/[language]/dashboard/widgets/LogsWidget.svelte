@@ -23,8 +23,8 @@
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import TablePagination from '@src/components/system/table/TablePagination.svelte';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface LogEntryDisplay {
 		timestamp: string;
@@ -47,7 +47,7 @@
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
 		size = { w: 2, h: 2 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {},
 		endpoint = '/api/dashboard/logs',
 		pollInterval = 15000
@@ -64,8 +64,6 @@
 	}>();
 
 	// Internal state for logs data
-	let logs: LogEntryDisplay[] = $state([]);
-	let totalLogs = $state(0);
 	let currentPage = $state(1);
 	let logsPerPage = $state(20); // Default logs per page
 
@@ -176,7 +174,7 @@
 		let openSpans = 0;
 		const escapePatterns = [/\x1b\[([0-9;]*)m/g, /\u001b\[([0-9;]*)m/g];
 		for (const pattern of escapePatterns) {
-			result = result.replace(pattern, (match, codes) => {
+			result = result.replace(pattern, (_, codes) => {
 				if (codes === '0' || codes === '') {
 					const closeSpans = '</span>'.repeat(openSpans);
 					openSpans = 0;
@@ -197,7 +195,7 @@
 	};
 </script>
 
-<BaseWidget {label} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
+<BaseWidget {label} {theme} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
 			<div class="flex flex-1 gap-2">

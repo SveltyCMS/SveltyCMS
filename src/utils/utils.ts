@@ -21,7 +21,7 @@
  * @exports numerous utility functions and constants
  */
 
-import type { Field } from '@src/content/types';
+import type { Field, FieldValue } from '@src/content/types';
 import { publicEnv } from '@src/stores/globalSettings';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
@@ -86,7 +86,7 @@ export const obj2formData = (obj: Record<string, unknown>) => {
 	for (const key in obj) {
 		const value = obj[key];
 		if (value !== undefined) {
-			formData.append(key, transformValue(key, value));
+			formData.append(key, transformValue(value));
 		}
 	}
 
@@ -235,9 +235,9 @@ export async function extractData(fieldsData: Record<string, Field>): Promise<Re
 	const result: Record<string, unknown> = {};
 	for (const [key, field] of Object.entries(fieldsData)) {
 		if (field.callback) {
-			result[key] = await field.callback({ data: field });
+			result[key] = await field.callback({ data: field as unknown as Record<string, FieldValue> });
 		} else {
-			result[key] = field;
+			result[key] = field.default ?? null;
 		}
 	}
 	return result;
@@ -406,7 +406,7 @@ interface StringHelperParams {
 
 export function toStringHelper({ data }: StringHelperParams): string {
 	if (!Array.isArray(data)) return '';
-	return data.map((item) => item.toString()).join(', ');
+	return data.map((item: unknown) => String(item)).join(', ');
 }
 
 // Get random hex string
@@ -453,21 +453,41 @@ export async function sha256(buffer: ArrayBuffer): Promise<string> {
 	return arrayBuffer2hex(hashBuffer);
 }
 
-export function debounce(delay?: number) {
+// Enhanced debounce utility with flexible patterns
+export function debounce(delay: number = 300, immediate: boolean = false) {
 	let timer: NodeJS.Timeout | undefined;
-	let first = true;
+	let hasExecuted = false;
+
 	return (fn: () => void) => {
-		if (first) {
+		const shouldExecuteImmediately = immediate && !hasExecuted;
+
+		if (shouldExecuteImmediately) {
 			fn();
-			first = false;
+			hasExecuted = true;
 			return;
 		}
+
 		clearTimeout(timer);
 		timer = setTimeout(() => {
 			fn();
 		}, delay);
 	};
 }
+
+// Traditional debounce pattern - takes function and delay, returns debounced version
+debounce.create = function <T extends (...args: unknown[]) => unknown>(func: T, wait: number = 300): (...args: Parameters<T>) => void {
+	let timeout: ReturnType<typeof setTimeout>;
+
+	return function executedFunction(...args: Parameters<T>) {
+		const later = () => {
+			clearTimeout(timeout);
+			func(...args);
+		};
+
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+	};
+};
 
 // Validates data against a Valibot schema, returning errors or null if valid
 export function validateValibot<T>(schema: BaseSchema<T, T, BaseIssue<unknown>>, value?: T): null | { [P in keyof T]?: string[] } {

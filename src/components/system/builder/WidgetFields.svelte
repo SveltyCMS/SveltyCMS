@@ -15,7 +15,7 @@
 	import { debounce } from '@utils/utils';
 
 	// Props
-	let { fields = [], onFieldsUpdate = (newFields: any[]) => {} } = $props<{
+	let { fields = [], onFieldsUpdate = () => {} } = $props<{
 		fields: any[];
 		onFieldsUpdate: (newFields: any[]) => void;
 	}>();

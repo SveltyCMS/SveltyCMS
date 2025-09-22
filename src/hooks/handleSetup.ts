@@ -30,7 +30,12 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 			// For setup-related paths, resolve immediately and skip the rest of the middleware pipeline.
 			// This prevents warnings from auth/theme hooks that are not yet configured.
 			return resolve(event, {
-				filterSerializedResponseHeaders: (name) => name.toLowerCase().startsWith('content-') || name.toLowerCase().startsWith('etag')
+				// Allow Set-Cookie so setup API endpoints (e.g., /api/setup/complete)
+				// can establish the initial admin session before redirecting out of setup.
+				filterSerializedResponseHeaders: (name) => {
+					const lower = name.toLowerCase();
+					return lower.startsWith('content-') || lower.startsWith('etag') || lower === 'set-cookie';
+				}
 			});
 		}
 

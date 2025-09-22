@@ -26,8 +26,8 @@
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import { formatDisplayDate } from '@utils/dateUtils';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface MediaFile {
 		id: string;
@@ -47,7 +47,7 @@
 		icon = 'mdi:image-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;

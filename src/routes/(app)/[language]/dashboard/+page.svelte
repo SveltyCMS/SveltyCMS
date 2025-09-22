@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/dashboard/+page.svelte
+@file src/routes/(app)/[language]/dashboard/+page.svelte
 @component
 **Dashboard page providing a user-friendly interface for managing system resources and system messages**
 
@@ -18,12 +18,14 @@
 - Accessible widget addition, removal, and layout switching
 -->
 <script lang="ts">
+	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
+	import { modeCurrent } from '@skeletonlabs/skeleton';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
+	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
-	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import type { DashboardWidgetConfig, DropIndicator, WidgetSize, WidgetComponent, WidgetMeta } from '@config/types';
+	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
 
@@ -313,6 +315,8 @@
 			const currentIndex = currentPreferences.findIndex((p) => p.id === dragState.item?.id);
 			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
 				dropIndicator = {
+					show: true,
+					position: insertionIndex,
 					targetIndex: insertionIndex > currentIndex ? insertionIndex - 1 : insertionIndex
 				};
 			} else {
@@ -340,9 +344,9 @@
 		}
 
 		// Handle repositioning based on drop indicator
-		if (dropIndicator && dragState.item) {
+		if (dropIndicator && dragState.item && dropIndicator.targetIndex !== undefined) {
 			console.log('Performing drop with targetIndex:', dropIndicator.targetIndex);
-			performDrop(dragState.item, dropIndicator);
+			performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
 		}
 
 		dragState = { item: null, element: null, offset: { x: 0, y: 0 }, isActive: false };

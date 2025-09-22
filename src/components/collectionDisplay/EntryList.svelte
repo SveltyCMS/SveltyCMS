@@ -33,13 +33,13 @@ Features:
 	import { batchDeleteEntries, deleteEntry, getData, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
-	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
+	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	// Import centralized actions
 	// Config
 	import { publicEnv } from '@src/stores/globalSettings';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes, type StatusType } from '@src/content/types';
 	// Stores
 	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
@@ -381,6 +381,7 @@ Features:
 
 	// Add client-side caching with size limits to reduce API calls
 	let clientCache = $state<Map<string, { items: any[]; totalPages: number; total: number; timestamp: number }>>(new Map());
+	let retryCache = $state<Map<string, number>>(new Map()); // Separate cache for retry timestamps
 	const MAX_CACHE_SIZE = 50; // Limit cache entries
 	const CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
 
@@ -388,7 +389,6 @@ Features:
 	let lastFetchParams = $state<string | null>(null);
 	let lastFetchTime = $state<number>(0);
 	let currentRequestId = $state<string | null>(null);
-	const MIN_REFRESH_INTERVAL = 1000; // Minimum 1 second between refreshes
 
 	// Generate a cache key for current fetch parameters
 	function getCurrentFetchKey(): string {
@@ -593,7 +593,7 @@ Features:
 					return;
 				}
 
-				if (result.success) {
+				if (result.success && result.data) {
 					data = result.data;
 					rawData = data;
 					tableData = data.items || [];
@@ -638,12 +638,11 @@ Features:
 					}
 					// Smart retry for empty data with rate limiting
 					if (tableData.length === 0 && !lastFetchParams) {
-						const retryKey = `retry_${currentCollId}_${now}`;
-						const lastRetry = clientCache.get('lastRetryTime');
+						const lastRetry = retryCache.get('lastRetryTime') ?? 0;
 						const retryInterval = 5000; // 5 seconds between retries
 
-						if (!lastRetry || now - lastRetry > retryInterval) {
-							clientCache.set('lastRetryTime', now);
+						if (now - lastRetry > retryInterval) {
+							retryCache.set('lastRetryTime', now);
 							setTimeout(() => {
 								if (currentCollection?._id === currentCollId && tableData.length === 0) {
 									refreshTableData(true);
@@ -746,17 +745,21 @@ Features:
 	});
 
 	// Debounce utility for filter and refresh with smart timing
-	const filterDebounce = debounceUtil(300);
-	const refreshDebounce = debounceUtil(100); // Reduced debounce for better responsiveness
+	const filterDebounce = debounce(300);
+	const refreshDebounce = debounce(100); // Reduced debounce for better responsiveness
 
 	// Consolidated effect that handles all refresh scenarios efficiently
 	$effect(() => {
 		// Track all dependencies that should trigger a refresh
 		const currentCollId = currentCollection?._id;
-		const { currentPage, rowsPerPage, filters, sorting } = entryListPaginationSettings;
-		const language = currentLanguage;
+		const { currentPage, rowsPerPage, filters, sorting } = entryListPaginationSettings; // Used by getCurrentFetchKey
+		const language = currentLanguage; // Used by getCurrentFetchKey
 		const mode = currentMode;
 		const currentFetchKey = getCurrentFetchKey();
+
+		// Explicitly reference tracked variables to prevent unused warnings
+		// These variables are used indirectly by getCurrentFetchKey()
+		void [currentPage, rowsPerPage, filters, sorting, language];
 
 		// Determine what type of refresh is needed
 		const isCollectionSwitch = lastCollectionId !== currentCollId;
@@ -787,9 +790,6 @@ Features:
 			}
 		}
 	}); // Simplified debug effect to track only significant loading changes
-	$effect(() => {
-		const isLoading = globalLoadingStore.isLoadingReason(loadingOperations.dataFetch);
-	});
 
 	// Handle language changes specifically for cache invalidation
 	let lastLanguage = $state<string | null>(null);
@@ -956,9 +956,14 @@ Features:
 		const newEntry: Record<string, any> = {};
 		if (currentCollection?.fields) {
 			for (const field of currentCollection.fields) {
-				const fieldName = getFieldName(field, false);
-				// Set a default value based on the field type or widget
-				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
+				// Check if field is actually a Field (not WidgetPlaceholder)
+				if ('label' in field && 'type' in field) {
+					const fieldName = getFieldName(field, false);
+					// Set a default value based on the field type or widget
+					// Note: We can't determine if field is translatable from type definition,
+					// so we'll set simple null value. Translation initialization handled elsewhere.
+					newEntry[fieldName] = null;
+				}
 			}
 		}
 		// Set the default status from collection schema for new entries
@@ -993,9 +998,7 @@ Features:
 		const isForArchived = showDeleted || isPermanent;
 		const willDelete = !useArchiving || isForArchived;
 
-		const actionName = willDelete ? 'Delete' : 'Archive';
 		const actionVerb = willDelete ? 'delete' : 'archive';
-		const actionColor = willDelete ? 'error' : 'warning';
 
 		showDeleteConfirm({
 			isArchive: !willDelete,
@@ -1042,7 +1045,7 @@ Features:
 	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess);
 
 	// FIX: Schedule handler now correctly processes date and calls the action
-	const onSchedule = (date: string, action: string) => {
+	const onSchedule = (date: string) => {
 		const payload = { _scheduled: new Date(date).getTime() };
 		// The `action` variable from the modal can be used here if your backend
 		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
@@ -1050,81 +1053,81 @@ Features:
 	};
 
 	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
-	function legacyOnPublish() {
-		console.log('onPublish called - will show modal');
-		modifyEntry.value(StatusTypes.publish);
-	}
-	function legacyOnUnpublish() {
-		console.log('onUnpublish called - will show modal');
-		modifyEntry.value(StatusTypes.unpublish);
-	}
-	function legacyOnSchedule() {
-		console.log('onSchedule called - will show modal');
-		modifyEntry.value(StatusTypes.schedule);
-	}
+	// function legacyOnPublish() {
+	// 	console.log('onPublish called - will show modal');
+	// 	modifyEntry.value(StatusTypes.publish);
+	// }
+	// function legacyOnUnpublish() {
+	// 	console.log('onUnpublish called - will show modal');
+	// 	modifyEntry.value(StatusTypes.unpublish);
+	// }
+	// function legacyOnSchedule() {
+	// 	console.log('onSchedule called - will show modal');
+	// 	modifyEntry.value(StatusTypes.schedule);
+	// }
 
 	// Direct action functions for MultiButton (bypass modals)
-	async function executePublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
-	}
-	async function executeUnpublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	}
-	async function executeSchedule() {
-		// This needs a modal to select a date, so direct execution is not simple.
-		// For now, it will open the schedule modal.
-		legacyOnSchedule();
-	}
-	async function executeTest() {
-		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess);
-	}
+	// async function executePublish() {
+	// 	await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
+	// }
+	// async function executeUnpublish() {
+	// 	await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
+	// }
+	// async function executeSchedule() {
+	// 	// This needs a modal to select a date, so direct execution is not simple.
+	// 	// For now, it will open the schedule modal.
+	// 	legacyOnSchedule();
+	// }
+	// async function executeTest() {
+	// 	await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess);
+	// }
 
 	// Helper function to execute status changes without modals
-	async function executeDelete() {
-		const selectedIds = getSelectedIds();
-		if (!selectedIds.length) return;
+	// async function executeDelete() {
+	// 	const selectedIds = getSelectedIds();
+	// 	if (!selectedIds.length) return;
 
-		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE || false;
-		const isForArchived = showDeleted;
-		const willDelete = !useArchiving || isForArchived;
+	// 	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE || false;
+	// 	const isForArchived = showDeleted;
+	// 	const willDelete = !useArchiving || isForArchived;
 
-		try {
-			if (willDelete) {
-				// Use batch delete API with fallback to individual deletes
-				try {
-					const collId = collection.value?._id;
-					if (collId) {
-						const result = await batchDeleteEntries(collId, selectedIds);
-						if (!result.success) {
-							throw new Error('Batch delete failed');
-						}
-					}
-				} catch (batchError) {
-					// Fallback to individual deletes
-					console.warn('Batch delete failed, using individual deletes:', batchError);
-					await Promise.all(
-						selectedIds.map((entryId) => {
-							const collId = collection.value?._id;
-							if (collId) {
-								return deleteEntry(collId, entryId);
-							}
-							return Promise.resolve();
-						})
-					);
-				}
-			} else {
-				// Archive entries
-				await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
-			}
-			onActionSuccess();
-		} catch (error) {
-			showToast(`Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`, 'error');
-		}
-	}
+	// 	try {
+	// 		if (willDelete) {
+	// 			// Use batch delete API with fallback to individual deletes
+	// 			try {
+	// 				const collId = collection.value?._id;
+	// 				if (collId) {
+	// 					const result = await batchDeleteEntries(collId, selectedIds);
+	// 					if (!result.success) {
+	// 						throw new Error('Batch delete failed');
+	// 					}
+	// 				}
+	// 			} catch (batchError) {
+	// 				// Fallback to individual deletes
+	// 				console.warn('Batch delete failed, using individual deletes:', batchError);
+	// 				await Promise.all(
+	// 					selectedIds.map((entryId) => {
+	// 						const collId = collection.value?._id;
+	// 						if (collId) {
+	// 							return deleteEntry(collId, entryId);
+	// 						}
+	// 						return Promise.resolve();
+	// 					})
+	// 				);
+	// 			}
+	// 		} else {
+	// 			// Archive entries
+	// 			await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
+	// 		}
+	// 		onActionSuccess();
+	// 	} catch (error) {
+	// 		showToast(`Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`, 'error');
+	// 	}
+	// }
 	// Legacy onClone function - now calls centralized action
-	function legacyOnClone() {
-		onClone();
-	}
+	// function legacyOnClone() {
+	// 	onClone();
+	// }
 
 	// Show content as soon as we have a collection, with improved logic to prevent flicker
 	let shouldShowContent = $derived(
@@ -1168,9 +1171,6 @@ Features:
 			lastFetchParams !== getCurrentFetchKey() // Only show when fetch parameters changed
 	);
 
-	// Use regular visibleTableHeaders - no need for complex transition logic
-	let tableColspan = $derived((renderHeaders?.length ?? 0) + 1);
-
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
 		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
 	}
@@ -1189,7 +1189,7 @@ Features:
 		}
 		// By re-assigning the settings to a fresh default object, we trigger the reactive effects
 		// that will reset the column order, filters, sorting, and pagination.
-		entryListPaginationSettings = defaultPaginationSettings(currentCollId);
+		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
 	}
 </script>
 
@@ -1479,20 +1479,6 @@ Features:
 													}
 
 													// Create modal with same styling as multibutton modals
-													const getStatusColor = (status: string) => {
-														switch (status) {
-															case StatusTypes.publish:
-																return { color: 'primary', name: 'Publication' };
-															case StatusTypes.unpublish:
-																return { color: 'yellow', name: 'Unpublication' };
-															case StatusTypes.draft:
-																return { color: 'surface', name: 'Draft' };
-															default:
-																return { color: 'primary', name: 'Status Change' };
-														}
-													};
-
-													const statusInfo = getStatusColor(nextStatus);
 													showStatusChangeConfirm({
 														status: String(nextStatus),
 														count: 1,

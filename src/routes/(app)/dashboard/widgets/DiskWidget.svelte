@@ -32,12 +32,13 @@ This widget fetches and displays real-time disk usage data, including:
 </script>
 
 <script lang="ts">
+	import { BarController, BarElement, CategoryScale, Chart, LinearScale } from 'chart.js';
 	import { onDestroy } from 'svelte';
-	import { Chart, BarController, BarElement, Tooltip, CategoryScale, LinearScale } from 'chart.js';
-	Chart.register(BarController, BarElement, Tooltip, CategoryScale, LinearScale);
-
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
+
+	// Register Chart.js components
+	Chart.register(BarController, BarElement, CategoryScale, LinearScale);
 
 	// Type definitions
 	interface DiskInfo {
@@ -62,7 +63,7 @@ This widget fetches and displays real-time disk usage data, including:
 		icon = 'mdi:harddisk',
 		widgetId = undefined,
 		size = '1/4',
-		onSizeChange = (newSize) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
@@ -78,7 +79,7 @@ This widget fetches and displays real-time disk usage data, including:
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 	let chart = $state<Chart<'bar', number[], string> | undefined>(undefined);
 
-	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
+	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
 
 		return {
@@ -90,20 +91,12 @@ This widget fetches and displays real-time disk usage data, including:
 	// Move diskInfo extraction to script for chart logic
 	let diskInfo: any = undefined;
 	let totalGB = 0,
-		usedGB = 0,
-		freeGB = 0,
-		usedPercentage = 0,
-		freePercentage = 0,
-		usageLevel = 'low';
+		usedPercentage = 0;
 	$effect(() => {
 		if (currentData?.diskInfo?.root) {
 			diskInfo = currentData.diskInfo.root;
 			totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0;
-			usedGB = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : diskInfo.usedGb || 0;
-			freeGB = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : diskInfo.freeGb || 0;
 			usedPercentage = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : diskInfo.usedPercentage || 0;
-			freePercentage = 100 - usedPercentage;
-			usageLevel = usedPercentage > 85 ? 'high' : usedPercentage > 70 ? 'medium' : 'low';
 		}
 	});
 	$effect(() => {
@@ -114,7 +107,6 @@ This widget fetches and displays real-time disk usage data, including:
 		const used = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : Number(diskInfo.usedGb) || 0;
 		const free = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : Number(diskInfo.freeGb) || 0;
 		const usedPercent = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : Number(diskInfo.usedPercentage) || 0;
-		const freePercent = 100 - usedPercent;
 
 		if (chart) {
 			chart.data.datasets[0].data = [used];
@@ -129,7 +121,7 @@ This widget fetches and displays real-time disk usage data, including:
 
 			const diskBarLabelPlugin = {
 				id: 'diskBarLabelPlugin',
-				afterDatasetsDraw(chart) {
+				afterDatasetsDraw(chart: any) {
 					const ctx = chart.ctx;
 					const { chartArea } = chart;
 					ctx.save();

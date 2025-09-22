@@ -35,8 +35,7 @@ import type { SystemPreferences } from '@stores/systemPreferences.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Types
-import type { Layout } from '@config/dashboard.types';
-import type { CollectionConfig } from '@src/content/types';
+import type { CollectionConfig, Layout } from '@src/content/types';
 import type { MediaType } from '@utils/media/mediaModels';
 import type { ContentStructureNode as ContentNode } from './models/contentStructure';
 

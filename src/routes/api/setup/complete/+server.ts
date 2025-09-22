@@ -38,7 +38,7 @@ interface AdminConfig {
 	confirmPassword: string;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
 	try {
 		const setupData = await request.json();
@@ -103,6 +103,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		invalidateSetupCache();
 		logger.info('Setup status cache invalidated', { correlationId });
 
+		// 8.1 Clear private config module cache so new DB credentials are loaded
+		try {
+			const { clearPrivateConfigCache } = await import('@src/databases/db');
+			clearPrivateConfigCache();
+			logger.info('Private config cache cleared after setup completion', { correlationId });
+		} catch (cacheErr) {
+			logger.warn('Failed to clear private config cache after setup completion', {
+				correlationId,
+				error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
+			});
+		}
+
 		// 9. Create a session for the new admin user
 		const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 		logger.info('Creating session for admin user', { correlationId, userId: adminUser._id, userIdType: typeof adminUser._id });
@@ -121,11 +133,16 @@ export const POST: RequestHandler = async ({ request }) => {
 			loggedIn: true
 		});
 
-		// 10. Set the session cookie
-		response.headers.set(
-			'Set-Cookie',
-			`${sessionCookie.name}=${sessionCookie.value}; Path=${sessionCookie.attributes.path}; HttpOnly; SameSite=${sessionCookie.attributes.sameSite}; Max-Age=${sessionCookie.attributes.maxAge}${!dev ? '; Secure' : ''}`
-		);
+		// 10. Set the session cookie using SvelteKit cookies API
+		// Extract maxAge safely with a typed fallback
+		const cookieAttrs = sessionCookie.attributes as { maxAge?: number } | undefined;
+		cookies.set(sessionCookie.name, sessionCookie.value, {
+			path: '/',
+			httpOnly: true,
+			secure: url.protocol === 'https:' || !dev,
+			maxAge: cookieAttrs?.maxAge ?? 60 * 60 * 24,
+			sameSite: 'lax'
+		});
 
 		return response;
 	} catch (err) {
@@ -221,12 +238,31 @@ async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: st
 				errorType: 'duplicate_key'
 			});
 
-			// Since we know the user exists (duplicate key proves it), just return a minimal user object
-			// The setup process can continue - the user already exists in the database
-			logger.info('User already exists, continuing with setup', { correlationId, email: admin.email });
+			// Attempt to retrieve the existing user to get a valid _id for session creation
+			try {
+				const existing = await auth.getUserByEmail({ email: admin.email });
+				const existingId: string | undefined =
+					existing?._id ?? (existing && 'id' in existing ? (existing as unknown as { id?: string }).id : undefined);
+				if (existing && existingId) {
+					logger.info('Existing user retrieved after duplicate detection', {
+						correlationId,
+						email: admin.email,
+						userId: existingId
+					});
+					return existing;
+				}
+			} catch (lookupErr) {
+				logger.warn('Failed to retrieve existing user after duplicate detection', {
+					correlationId,
+					email: admin.email,
+					error: lookupErr instanceof Error ? lookupErr.message : String(lookupErr)
+				});
+			}
 
+			// Fallback: return a minimal user object if lookup failed (session creation may fail)
+			logger.info('User already exists but could not retrieve details; continuing with minimal user object', { correlationId, email: admin.email });
 			return {
-				_id: 'existing-user', // Placeholder ID since we know user exists
+				_id: 'existing-user',
 				email: admin.email,
 				username: admin.username,
 				role: 'admin',

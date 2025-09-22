@@ -69,6 +69,9 @@ export interface CacheOptions {
 
 import type { BaseEntity, ContentNode, DatabaseId } from './types';
 
+// Re-export commonly used types
+export type { BaseEntity, ContentNode, DatabaseId } from './types';
+
 /** collection **/
 export interface CollectionModel {
 	findOne: (query: Record<string, unknown>) => Promise<Record<string, unknown> | null>;

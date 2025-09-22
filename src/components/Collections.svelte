@@ -28,15 +28,17 @@ Features:
 	import type { Schema } from '@src/content/types';
 	// Update ContentNode type to include the path property
 	import type { ContentNode } from '@src/databases/dbInterface';
-
+	import type { Translation } from '@src/databases/types';
 	// Stores
-	import { get } from 'svelte/store';
-	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
-	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
+	import { get } from 'svelte/store';
 
 	import { constructNestedStructure } from '../content/utils';
+	// Utils
+	import { debounce } from '@utils/utils';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
@@ -78,7 +80,6 @@ Features:
 
 	// State management
 	let search = $state('');
-	let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let debouncedSearch = $state('');
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
@@ -86,6 +87,14 @@ Features:
 	let systemVirtualFolderNodes: CollectionTreeNode[] = $state([]);
 	let selectedSystemVirtualFolder = $state<string | null>(null);
 	let hasLoadedSystemVirtualFolders = $state(false);
+
+	// Use enhanced global debounce for search
+	const debouncedSearchUpdate = debounce.create(
+		((searchValue: string) => {
+			debouncedSearch = searchValue.toLowerCase().trim();
+		}) as (...args: unknown[]) => unknown,
+		150
+	);
 
 	// Derived states with memoization
 	let lastContentStructure: any = null;
@@ -103,22 +112,10 @@ Features:
 	let isMediaMode = $derived(mode.value === 'media');
 	let isFullSidebar = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
 
-	// Optimized debounced search effect
+	// Optimized debounced search effect with Svelte 5 reactive patterns
 	$effect(() => {
-		if (searchDebounceTimer) {
-			clearTimeout(searchDebounceTimer);
-		}
-
-		// Use shorter debounce for better responsiveness
-		searchDebounceTimer = setTimeout(() => {
-			debouncedSearch = search.toLowerCase().trim();
-		}, 150);
-
-		return () => {
-			if (searchDebounceTimer) {
-				clearTimeout(searchDebounceTimer);
-			}
-		};
+		// React to search changes and debounce the update
+		debouncedSearchUpdate(search);
 	});
 
 	// Collection counting with persistent caching
@@ -180,7 +177,7 @@ Features:
 		function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category';
 			// Get translation for current language or fallback to default name
-			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
+			const translation = node.translations?.find((trans: Translation) => trans.languageTag === contentLanguage.value);
 			const label = translation?.translationName || node.name;
 
 			const nodeId = node._id;
@@ -363,6 +360,7 @@ Features:
 		}
 
 		if ('nodeType' in selectedCollection) {
+			// selectedCollection is ExtendedContentNode here
 			if (selectedCollection.nodeType === 'collection') {
 				// Check if this collection is already selected to avoid unnecessary navigation
 				const currentCollectionId = collection.value?._id;
@@ -398,9 +396,6 @@ Features:
 	function clearSearch() {
 		search = '';
 		debouncedSearch = '';
-		if (searchDebounceTimer) {
-			clearTimeout(searchDebounceTimer);
-		}
 	}
 
 	// Keyboard navigation support
@@ -608,9 +603,6 @@ Features:
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
-			if (searchDebounceTimer) {
-				clearTimeout(searchDebounceTimer);
-			}
 			if (navigationTimeout) {
 				clearTimeout(navigationTimeout);
 			}

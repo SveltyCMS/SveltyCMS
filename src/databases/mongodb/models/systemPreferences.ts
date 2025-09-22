@@ -3,11 +3,12 @@
  * @description MongoDB schema and model for System Preferences, supporting user-specific dashboard layouts.
  */
 
-import mongoose, { Schema } from 'mongoose';
+import type { DashboardWidgetConfig, Layout, SystemPreferencesDocument } from '@src/content/types';
 import type { DatabaseResult } from '@src/databases/dbInterface';
 import type { FilterQuery, Model } from 'mongoose';
-import type { Layout } from '@stores/systemPreferences.svelte';
-import type { DashboardWidgetConfig } from '@config/dashboard.types';
+import mongoose, { Schema } from 'mongoose';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Widget schema aligned with +server.ts
@@ -22,7 +23,8 @@ const WidgetSchema = new Schema<DashboardWidgetConfig>(
 			h: { type: Number, required: true }
 		},
 		settings: { type: Schema.Types.Mixed, default: {} },
-		gridPosition: { type: Number, required: true }
+		gridPosition: { type: Number, required: false }, // Optional to match TypeScript types
+		order: { type: Number, required: false } // Optional order field used by dashboard
 	},
 	{ _id: false }
 );
@@ -62,7 +64,7 @@ SystemPreferencesSchema.statics = {
 	// Get preference by layoutId and userId
 	async getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>> {
 		try {
-			const query: FilterQuery<any> = { userId, layoutId, scope: 'user' };
+			const query: FilterQuery<SystemPreferencesDocument> = { userId, layoutId, scope: 'user' };
 			const doc = await this.findOne(query).lean().exec();
 			if (!doc) {
 				logger.debug(`No preference found for userId: ${userId}, layoutId: ${layoutId}`);
@@ -82,15 +84,38 @@ SystemPreferencesSchema.statics = {
 		}
 	},
 
-	// Set preference for a specific layout
-	async setPreference(userId: string, layoutId: string, layout: Layout): Promise<DatabaseResult<void>> {
+	// Set preference for a specific layout with optional widget validation
+	async setPreference(
+		userId: string,
+		layoutId: string,
+		layout: Layout,
+		options?: {
+			validateWidgets?: boolean;
+			getActiveWidgets?: () => Promise<string[]>;
+		}
+	): Promise<DatabaseResult<{ layout: Layout; warnings?: string[] }>> {
 		try {
-			const query: FilterQuery<SystemPreferences> = { userId, layoutId, scope: 'user' };
+			let finalLayout = layout;
+			const warnings: string[] = [];
+
+			// Widget validation if requested and function provided
+			if (options?.validateWidgets && options?.getActiveWidgets) {
+				const activeWidgets = await options.getActiveWidgets();
+				const validatedResult = this.validateLayoutWidgets(layout, activeWidgets);
+				finalLayout = validatedResult.layout;
+				warnings.push(...validatedResult.warnings);
+			}
+
+			const query: FilterQuery<SystemPreferencesDocument> = { userId, layoutId, scope: 'user' };
 			// The _id for the document should be a combination of userId and layoutId for uniqueness
 			const documentId = `${userId}_${layoutId}`;
-			await this.updateOne(query, { $set: { layout, _id: documentId } }, { upsert: true }).exec();
+			await this.updateOne(query, { $set: { layout: finalLayout, _id: documentId } }, { upsert: true }).exec();
 			logger.debug(`Set system preference for userId: ${userId}, layoutId: ${layoutId}`);
-			return { success: true, data: undefined };
+
+			return {
+				success: true,
+				data: { layout: finalLayout, warnings: warnings.length > 0 ? warnings : undefined }
+			};
 		} catch (error) {
 			logger.error(`Error setting system preference for userId: ${userId}, layoutId: ${layoutId}`, error);
 			return {
@@ -101,6 +126,28 @@ SystemPreferencesSchema.statics = {
 				}
 			};
 		}
+	},
+
+	// Validate widgets in a layout
+	validateLayoutWidgets(layout: Layout, activeWidgets: string[]): { layout: Layout; warnings: string[] } {
+		const warnings: string[] = [];
+		const validatedPreferences: DashboardWidgetConfig[] = [];
+
+		for (const widget of layout.preferences) {
+			if (!activeWidgets.includes(widget.component)) {
+				warnings.push(`Widget '${widget.component}' is not active, removing from layout`);
+				continue;
+			}
+			validatedPreferences.push(widget);
+		}
+
+		return {
+			layout: {
+				...layout,
+				preferences: validatedPreferences
+			},
+			warnings
+		};
 	},
 
 	// Delete preferences for a user
@@ -124,4 +171,5 @@ SystemPreferencesSchema.statics = {
 
 // Create and export the SystemPreferencesModel
 export const SystemPreferencesModel =
-	(mongoose.models?.SystemPreferences as Model<any> | undefined) || mongoose.model('SystemPreferences', SystemPreferencesSchema);
+	(mongoose.models?.SystemPreferences as Model<SystemPreferencesDocument> | undefined) ||
+	mongoose.model<SystemPreferencesDocument>('SystemPreferences', SystemPreferencesSchema);

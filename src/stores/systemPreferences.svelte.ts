@@ -11,8 +11,8 @@
  * - TypeScript support with aligned WidgetPreference type
  */
 
+import type { DashboardWidgetConfig, SystemPreferences } from '@src/content/types';
 import { writable } from 'svelte/store';
-import type { DashboardWidgetConfig, SystemPreferences } from '@config/dashboard.types';
 
 // Initial state
 const initialState: SystemPreferences = {

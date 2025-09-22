@@ -17,8 +17,9 @@
 -->
 
 <script lang="ts">
-	import { fade } from 'svelte/transition';
+	import { debounce } from '@utils/utils';
 	import { tick } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	interface HeatmapData {
 		heatmapData: Array<{ word: string; heatLevel: number; isKeyword: boolean }>;
@@ -37,7 +38,11 @@
 
 	let heatmapData = $state<Array<{ word: string; heatLevel: number; isKeyword: boolean }>>([]);
 	let keywordDensity = $state<Record<string, number>>({});
-	let debounceTimer = $state<number | undefined>();
+
+	// Use global debounce for content analysis
+	const debouncedAnalysis = debounce.create(() => {
+		generateHeatmap();
+	}, 300);
 
 	async function generateHeatmap() {
 		if (!content) {
@@ -92,12 +97,15 @@
 		keywordDensity = result;
 	}
 
-	// Effect to handle content changes with debounce
-	$effect.root(() => {
-		clearTimeout(debounceTimer);
-		debounceTimer = window.setTimeout(() => {
-			generateHeatmap();
-		}, 300);
+	// Effect to handle content changes with debounced analysis
+	$effect(() => {
+		// React to content, language, or keywords changes
+		void content;
+		void language;
+		void keywords;
+
+		// Use the debounced analysis function
+		debouncedAnalysis();
 	});
 </script>
 

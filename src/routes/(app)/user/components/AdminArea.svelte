@@ -5,9 +5,8 @@
 -->
 
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { debounce } from '@utils/utils';
-
+	import { untrack } from 'svelte';
 	// Stores
 	import { avatarSrc } from '@stores/store.svelte';
 
@@ -27,7 +26,7 @@
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
-	import { showModal, showConfirm } from '@utils/modalUtils';
+	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
 	import { PermissionAction, PermissionType } from '@root/src/auth/types';
@@ -152,8 +151,8 @@
 	let columnShow = $state(false);
 	let selectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
-	let tableData = $derived.by(() => {
-		if (!adminData) return [] as UserData[];
+	let tableData = $derived.by<(UserData | TokenData)[]>(() => {
+		if (!adminData) return [];
 		if (showUserList) {
 			return adminData.users as UserData[];
 		} else if (showUsertoken) {
@@ -169,6 +168,7 @@
 				});
 			}
 		}
+		return []; // Return empty array if neither condition is met
 	});
 	// Derived rows to display and selection will be defined below
 	let density = $state(
@@ -496,7 +496,7 @@
 
 	// --- DERIVED STATE: filter, sort, paginate ---
 	let filteredAndSortedData = $derived.by<(UserData | TokenData)[]>(() => {
-		let filtered = tableData;
+		let filtered = [...tableData]; // Create a copy to avoid mutation
 
 		// Global search
 		const searchLower = (globalSearchValue || '').toLowerCase();
@@ -517,7 +517,7 @@
 		}
 
 		// Sorting
-		if (sorting.sortedBy && sorting.isSorted !== 0) {
+		if (sorting.sortedBy && sorting.isSorted !== 0 && filtered.length > 0) {
 			const { sortedBy, isSorted } = sorting;
 			filtered = [...filtered].sort((a: any, b: any) => {
 				const aValue = String(a?.[sortedBy] ?? '').toLowerCase();
@@ -542,7 +542,7 @@
 			Object.entries(selectedMap)
 				.filter(([_, isSelected]) => isSelected)
 				.map(([index]) => paginatedData[parseInt(index)])
-				.filter(Boolean) as (UserData | TokenData)[]
+				.filter((item) => item !== undefined && item !== null) as (UserData | TokenData)[]
 	);
 
 	// Reset selection and page when the data source changes

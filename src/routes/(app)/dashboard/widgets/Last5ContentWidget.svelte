@@ -30,7 +30,6 @@ This widget fetches and displays the latest content items, including:
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 
-
 	import { formatDistanceToNow } from 'date-fns';
 
 	interface ContentItem {
@@ -50,7 +49,7 @@ This widget fetches and displays the latest content items, including:
 		icon = 'mdi:file-document-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;

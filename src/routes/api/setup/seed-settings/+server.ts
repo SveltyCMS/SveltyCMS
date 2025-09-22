@@ -27,7 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Check if database is already seeded
 		try {
 			const existingSettings = await dbAdapter.systemPreferences?.getMany(['HOST_DEV'], 'system');
-			if (existingSettings && Object.keys(existingSettings).length > 0) {
+			if (existingSettings?.success && existingSettings.data && Object.keys(existingSettings.data).length > 0) {
 				logger.info('ℹ️ Database already seeded, skipping seeding');
 				return json({
 					success: true,
