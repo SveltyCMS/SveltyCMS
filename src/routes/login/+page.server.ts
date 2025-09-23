@@ -98,9 +98,9 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 /**
  * Constructs a redirect URL to the first available collection, prefixed with the given language.
- * @param language The validated user language (e.g., 'en', 'de').
+ * @param language The validated user language (e.g., 'en', 'de'). @param isFirstUser Optional flag to indicate if this is a first user signup
  */
-async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
+async function fetchAndRedirectToFirstCollection(language: Locale, isFirstUser?: boolean): Promise<string> {
 	try {
 		await dbInitPromise;
 		logger.debug(`Fetching first collection path for language: ${language}`);
@@ -113,10 +113,19 @@ async function fetchAndRedirectToFirstCollection(language: Locale): Promise<stri
 		}
 
 		logger.warn('No collections found via getFirstCollection(), falling back to structure scan.');
+		// For first users with no collections, redirect to config page to set up collections
+		if (isFirstUser) {
+			logger.info("First user with no collections found, redirecting to config page for setup");
+			return "/config";
+		}
 		return '/'; // Fallback if no collections are configured
 	} catch (err) {
 		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return '/'; // Fallback on error
+		// For first users, still redirect to config even on error
+		if (isFirstUser) {
+			return "/config";
+		}
+		return "/"; // Fallback on error
 	}
 }
 
@@ -124,19 +133,20 @@ async function fetchAndRedirectToFirstCollection(language: Locale): Promise<stri
  * A cached version of fetchAndRedirectToFirstCollection to avoid redundant lookups.
  * The cache is language-aware.
  * @param language The validated user language.
+ * @param isFirstUser Optional flag to indicate if this is a first user signup
  */
-async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promise<string> {
+async function fetchAndRedirectToFirstCollectionCached(language: Locale, isFirstUser?: boolean): Promise<string> {
 	const now = Date.now();
 	const cachedEntry = cachedFirstCollectionPaths.get(language);
 
 	// Return cached result if still valid
-	if (cachedEntry && now < cachedEntry.expiry) {
+	if (cachedEntry && now < cachedEntry.expiry && !isFirstUser) {
 		logger.debug(`Returning cached path for language '${language}': ${cachedEntry.path}`);
 		return cachedEntry.path;
 	}
 
 	// Fetch fresh data
-	const result = await fetchAndRedirectToFirstCollection(language);
+	const result = await fetchAndRedirectToFirstCollection(language, isFirstUser);
 
 	// Cache the result if it's not the fallback path
 	if (result !== '/') {
@@ -237,7 +247,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if user is already authenticated
 		if (locals.user) {
 			logger.debug('User is already authenticated in load, attempting to redirect to collection');
-			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage, false);
 			throw redirect(302, redirectPath);
 		}
 
@@ -441,7 +451,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				if (user && user._id) {
 					await createSessionAndSetCookie(user._id, cookies);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google', lastLogin: new Date() });
-					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage, false);
 					throw redirect(303, redirectPath);
 				}
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
@@ -637,7 +647,7 @@ export const actions: Actions = {
 						logger.debug('Data caching failed during first user signup:', err);
 					});
 
-					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage, true);
 					throw redirect(303, redirectPath);
 				} else {
 					logger.warn(`Admin sign-up failed: ${resp.message || 'Unknown reason'}`);
@@ -745,7 +755,7 @@ export const actions: Actions = {
 					// Silently fail if module can't be loaded
 				});
 
-			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage, false);
 			throw redirect(303, redirectPath);
 		} catch (e) {
 			// Check if this is a redirect (which is expected and successful)
@@ -824,7 +834,7 @@ export const actions: Actions = {
 			// Run authentication and collection path retrieval in parallel for faster response
 			const [authResult, collectionPath] = await Promise.all([
 				signInUser(email, password, isToken, event.cookies),
-				fetchAndRedirectToFirstCollectionCached(userLanguage) // Use cached version
+				fetchAndRedirectToFirstCollectionCached(userLanguage, false) // Use cached version
 			]);
 
 			resp = authResult;
@@ -930,7 +940,7 @@ export const actions: Actions = {
 			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
 
 			// Get redirect path
-			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage, false);
 
 			// Trigger data prefetch
 			fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
