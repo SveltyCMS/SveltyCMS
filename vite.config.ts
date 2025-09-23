@@ -42,6 +42,9 @@ const privateConfigPath = path.resolve(configDir, 'private.ts');
 const userCollectionsPath = path.resolve(CWD, 'config/collections');
 const compiledCollectionsPath = path.resolve(CWD, 'compiledCollections');
 
+// Flag to prevent duplicate setup mode logs
+let setupModeLogged = false;
+
 // Force exit on SIGINT to prevent hanging processes
 process.on('SIGINT', () => {
 	console.log(`\n${LOG_PREFIX} Received SIGINT, forcing exit...`);
@@ -62,7 +65,10 @@ function setupWizardPlugin(): Plugin {
 	return {
 		name: 'svelte-cms-setup-wizard',
 		async buildStart() {
-			console.log(`${LOG_PREFIX} Starting in setup mode...`);
+			if (!setupModeLogged) {
+				console.log(`${LOG_PREFIX} Starting in setup mode...`);
+				setupModeLogged = true;
+			}
 			console.log(`${LOG_PREFIX} Setup not complete. Preparing setup wizard...`);
 
 			// Check if private config exists before creating it
@@ -132,6 +138,7 @@ export const privateEnv = createPrivateConfig({
 						const setupUrl = `http://localhost:${resolvedPort}/setup`;
 
 						try {
+							// @ts-expect-error - open package has built-in types but dynamic import causes TS error
 							const open = (await import('open')).default;
 							console.log(`${LOG_PREFIX} Opening \x1b[34msetup wizard\x1b[0m in your browser...`);
 							await open(setupUrl);

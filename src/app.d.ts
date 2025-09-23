@@ -8,7 +8,7 @@
  */
 
 import type { Role, Token, User } from '@src/auth/types'; // Import the actual types
-import type { Theme } from '@src/databases/dbInterface'; // Ensure correct import path
+import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface'; // Ensure correct import path
 import type { PipelineStage } from 'mongoose';
 
 declare global {
@@ -53,6 +53,8 @@ declare global {
 			theme: Theme | null; // Ensure 'theme' is correctly typed
 			tenantId?: string; // Added for multi-tenancy support
 			darkMode: boolean; // Dark mode preference from cookies
+			__reqStart?: number; // Performance monitoring start time
+			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations
 		}
 	}
 

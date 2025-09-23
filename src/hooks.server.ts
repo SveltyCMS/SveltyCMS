@@ -23,7 +23,7 @@ import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
 // Cache
-import { sessionCache } from '@src/hooks/utils/session';
+import { sessionCache, sessionMetrics } from '@src/hooks/utils/session';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -76,13 +76,6 @@ const getPerformanceEmoji = (responseTime: number): string => {
 	return '🐢';
 };
 
-// Extend locals typing for performance marker
-declare module '@sveltejs/kit' {
-	interface Locals {
-		__reqStart?: number;
-	}
-}
-
 // Perf start hook (very cheap)
 const handlePerfStart: Handle = async ({ event, resolve }) => {
 	event.locals.__reqStart = performance.now();
@@ -96,8 +89,13 @@ const handlePerfLog: Handle = async ({ event, resolve }) => {
 	if (typeof start === 'number') {
 		const dt = performance.now() - start;
 		const emoji = getPerformanceEmoji(dt);
-		// Colorize URL (blue) and duration (green) for better scanability
-		logger.debug(`Request \x1b[34m${event.url.pathname}\x1b[0m \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
+		// Only log requests that are slow (>100ms) or errors, or not setup-related
+		const isSetupRelated = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
+		const shouldLog = dt > 100 || res.status >= 400 || !isSetupRelated;
+		if (shouldLog) {
+			// Colorize URL (blue) and duration (green) for better scanability
+			logger.debug(`Request ${event.url.pathname}${event.url.search} \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
+		}
 	}
 	return res;
 };
@@ -167,7 +165,8 @@ export const cleanupSessionMetrics = (): void => {
 	const expiredSessions: string[] = [];
 
 	for (const [sessionId, session] of sessionCache.entries()) {
-		if (now - session.lastActivity > SESSION_TTL) {
+		const lastActivity = sessionMetrics.lastActivity.get(sessionId) || session.timestamp;
+		if (now - lastActivity > SESSION_TTL) {
 			expiredSessions.push(sessionId);
 		}
 	}
@@ -187,7 +186,7 @@ if (!building) {
 	// This ensures settings are loaded before any hooks run.
 	// We can import `dbInitPromise` to ensure the database is ready if needed.
 	import('@src/databases/db')
-		.then(({ initializeOnRequest }) => {
+		.then(() => {
 			// We don't call initializeOnRequest() here anymore.
 			// It will be called by the `handleSetup` hook on the first real request.
 			logger.info('✅ DB module loaded. Initialization will occur on first non-setup request.');

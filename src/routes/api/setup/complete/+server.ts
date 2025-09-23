@@ -20,7 +20,7 @@ import { dev } from '$app/environment';
 
 import type { DatabaseConfig } from '@root/config/types';
 import { Auth, hashPassword } from '@src/auth';
-import { createSessionStore } from '@src/auth/sessionStore';
+import { getDefaultSessionStore } from '@src/auth/sessionStore';
 import type { User } from '@src/auth/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { setupAdminSchema } from '@src/utils/formSchemas';
@@ -78,18 +78,12 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// Models are already initialized by getSetupDatabaseAdapter
 
 		// 4. Create a temporary full Auth instance using the composed adapter
-		const tempAuth = new Auth(authAdapter, createSessionStore());
+		const tempAuth = new Auth(authAdapter, getDefaultSessionStore());
 		logger.info('Temporary Auth service created for setup finalization', { correlationId });
 
 		// 5. Create or update the admin user
 		const adminUser = await createAdminUser(admin, tempAuth, correlationId);
 		logger.info('Admin user created/updated', { correlationId, userId: adminUser._id, userIdType: typeof adminUser._id });
-
-		// Ensure user._id is a string
-		if (adminUser._id && typeof adminUser._id !== 'string') {
-			logger.warn('Converting adminUser._id to string', { correlationId, originalType: typeof adminUser._id });
-			adminUser._id = adminUser._id.toString();
-		}
 
 		// 6. Update the private config file with database credentials
 		await updatePrivateConfig(database, correlationId);
@@ -113,6 +107,27 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				correlationId,
 				error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
 			});
+		}
+
+		// 8.2 Reinitialize the system with new database configuration
+		try {
+			const { reinitializeSystem } = await import('@src/databases/db');
+			const reinitResult = await reinitializeSystem(true);
+			if (reinitResult.status === 'initialized') {
+				logger.info('System reinitialized successfully after setup completion', { correlationId });
+			} else {
+				logger.warn('System reinitialization failed or was already in progress', {
+					correlationId,
+					status: reinitResult.status,
+					error: reinitResult.error
+				});
+			}
+		} catch (reinitErr) {
+			logger.error('Failed to reinitialize system after setup completion', {
+				correlationId,
+				error: reinitErr instanceof Error ? reinitErr.message : String(reinitErr)
+			});
+			// Don't fail the setup if reinitialization fails - the system might still work
 		}
 
 		// 9. Create a session for the new admin user
@@ -175,16 +190,15 @@ async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: st
 		});
 
 		// Check if user exists - be more lenient about the _id check
-		if (existingUser && (existingUser._id || existingUser.id)) {
-			const userId = existingUser._id || existingUser.id;
+		if (existingUser && existingUser._id) {
+			const userId = existingUser._id;
 			logger.info('Updating existing admin user', { correlationId, email: admin.email, userId: userId });
 
 			await auth.updateUserAttributes(userId, {
 				username: admin.username,
 				password: hashedPassword,
 				role: 'admin',
-				isRegistered: true,
-				updatedAt: new Date()
+				isRegistered: true
 			});
 
 			logger.info('Admin user updated successfully', { correlationId, email: admin.email });
@@ -285,8 +299,8 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig, correlationId: stri
 	const path = await import('path');
 	const privateConfigPath = path.resolve(process.cwd(), 'config', 'private.ts');
 
-	// Generate a random JWT secret key if not present
-	const jwtSecret = dbConfig.jwtSecretKey || generateRandomKey();
+	// Generate a random JWT secret key
+	const jwtSecret = generateRandomKey();
 
 	// Generate a random encryption key if not present
 	const encryptionKey = generateRandomKey();

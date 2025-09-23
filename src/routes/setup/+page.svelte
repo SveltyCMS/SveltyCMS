@@ -31,7 +31,6 @@
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	// Skeleton
 	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
@@ -92,100 +91,8 @@
 	onMount(async () => {
 		setGlobalToastStore(getToastStore());
 
-		// Check if this is a completely fresh installation
-		// __FRESH_INSTALL__ is set by Vite config based on private.ts existence
-		const isFreshInstall = typeof __FRESH_INSTALL__ !== 'undefined' ? __FRESH_INSTALL__ : false;
-
-		// Load existing data first to check if this is a fresh install
+		// Load existing data from localStorage
 		loadStore();
-
-		// Debug: Log the current state after loading
-		console.log('Setup data after loading:', {
-			currentStep: wizard.currentStep,
-			dbHost: wizard.dbConfig.host,
-			adminUsername: wizard.adminUser.username,
-			siteName: wizard.systemSettings.siteName,
-			isFreshInstall
-		});
-
-		if (isFreshInstall) {
-			// This is a completely fresh installation - reset everything
-			console.log('Fresh installation detected (no private.ts found) - resetting all client state');
-			try {
-				const response = await fetch('/api/setup/reset-client', { method: 'POST' });
-				if (response.ok) {
-					const result = await response.json();
-					if (result.success && result.clearLocalStorage) {
-						// Clear specified localStorage keys
-						result.clearLocalStorage.forEach((key: string) => {
-							try {
-								localStorage.removeItem(key);
-							} catch (e) {
-								console.warn(`Failed to clear localStorage key ${key}:`, e);
-							}
-						});
-
-						// Clear all sessionStorage if requested
-						if (result.clearSessionStorage) {
-							try {
-								sessionStorage.clear();
-							} catch (e) {
-								console.warn('Failed to clear sessionStorage:', e);
-							}
-						}
-
-						console.log('Client state reset complete');
-					}
-				}
-			} catch (err) {
-				console.warn('Failed to reset client state:', err);
-			}
-		} else {
-			// Check if we have existing setup data
-			const hasExistingData =
-				wizard.currentStep > 0 ||
-				wizard.dbConfig.host !== 'localhost' ||
-				wizard.adminUser.username !== '' ||
-				wizard.systemSettings.siteName !== 'SveltyCMS';
-
-			console.log('Private.ts exists, checking for existing setup data:', hasExistingData);
-
-			if (!hasExistingData) {
-				// Private.ts exists but no setup data - might be a resumed setup
-				console.log('Resetting client state for resumed setup');
-				try {
-					const response = await fetch('/api/setup/reset-client', { method: 'POST' });
-					if (response.ok) {
-						const result = await response.json();
-						if (result.success && result.clearLocalStorage) {
-							// Clear specified localStorage keys
-							result.clearLocalStorage.forEach((key: string) => {
-								try {
-									localStorage.removeItem(key);
-								} catch (e) {
-									console.warn(`Failed to clear localStorage key ${key}:`, e);
-								}
-							});
-
-							// Clear all sessionStorage if requested
-							if (result.clearSessionStorage) {
-								try {
-									sessionStorage.clear();
-								} catch (e) {
-									console.warn('Failed to clear sessionStorage:', e);
-								}
-							}
-
-							console.log('Client state reset complete');
-						}
-					}
-				} catch (err) {
-					console.warn('Failed to reset client state:', err);
-				}
-			} else {
-				console.log('Preserving existing setup data');
-			}
-		}
 
 		document.addEventListener('click', outsideLang);
 
@@ -618,10 +525,6 @@
 <svelte:head>
 	<title>SveltyCMS Setup</title>
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
-	<link
-		href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&display=swap"
-		rel="stylesheet"
-	/>
 	<style>
 		:global(.setup-page .toast-container) {
 			position: fixed !important;
@@ -639,7 +542,7 @@
 	</style>
 </svelte:head>
 
-<div class="setup-page bg-surface-50-900 min-h-screen w-full transition-colors">
+<div class="bg-surface-50-900 min-h-screen w-full transition-colors">
 	<Toast />
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
 		<!-- Header -->
@@ -1036,7 +939,7 @@
 									onclick={completeSetup}
 									disabled={isLoading}
 									aria-disabled={isLoading}
-									class="variant-filled-success btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+									class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
 								>
 									{isLoading ? 'Completing...' : m.button_complete?.() || 'Complete'}
 									<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>

@@ -12,10 +12,8 @@ Features:
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Skelton
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-
 	// Types from setupStore
 	import type { AdminUser } from '@stores/setupStore.svelte';
 
@@ -232,7 +230,7 @@ Features:
 				<li class="flex items-center {passwordRequirements.length ? 'text-primary-600' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.length
-							? 'border-primary-300 bg-emerald-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-600'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.length}
@@ -244,7 +242,7 @@ Features:
 				<li class="flex items-center {passwordRequirements.letter ? 'text-primary-600' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.letter
-							? 'border-primary-300 bg-emerald-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-600'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.letter}
@@ -268,7 +266,7 @@ Features:
 				<li class="flex items-center {passwordRequirements.special ? 'text-primary-600' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.special
-							? 'border-primary-300 bg-emerald-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-600'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.special}
@@ -280,7 +278,7 @@ Features:
 				<li class="flex items-center {passwordRequirements.match ? 'text-primary-600' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.match
-							? 'border-primary-300 bg-emerald-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-600'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.match}

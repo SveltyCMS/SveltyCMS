@@ -72,7 +72,6 @@ function getStorage(): Storage | null {
 function createSetupStore() {
 	const storage = getStorage();
 	let isLoaded = false;
-	let persistTimer: number | undefined;
 
 	const wizard = $state({
 		dbConfig: { ...initialDbConfig },
@@ -87,20 +86,17 @@ function createSetupStore() {
 	function setupPersistence() {
 		$effect(() => {
 			if (!isLoaded) return;
-			clearTimeout(persistTimer);
-			persistTimer = window.setTimeout(() => {
-				if (!storage) return;
-				try {
-					storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
-					storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
-					storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
-					storage.setItem(KEYS.step, String(wizard.currentStep));
-					storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
-					storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
-				} catch (e) {
-					console.error('Failed to persist setup state:', e);
-				}
-			}, 300);
+			if (!storage) return;
+			try {
+				storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
+				storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
+				storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
+				storage.setItem(KEYS.step, String(wizard.currentStep));
+				storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
+				storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
+			} catch (e) {
+				console.error('Failed to persist setup state:', e);
+			}
 		});
 	}
 

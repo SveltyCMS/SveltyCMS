@@ -34,8 +34,6 @@ Features:
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
 	const firstCollection = $state(data.firstCollection);
-	const authNotReady = $state(data.authNotReady || false);
-	const authNotReadyMessage = $state(data.authNotReadyMessage || 'System is initializing...');
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
@@ -272,176 +270,157 @@ Features:
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
-	<!-- Auth Not Ready State -->
-	{#if authNotReady}
-		<div class="flex min-h-lvh w-full items-center justify-center bg-surface-50 dark:bg-surface-900">
-			<div class="text-center">
-				<!-- Message -->
-				<h3 class="mb-6 text-3xl font-bold text-surface-800 dark:text-surface-200">🚀 System Initializing</h3>
-				<p class="mb-8 text-lg leading-relaxed text-surface-600 dark:text-surface-400">{authNotReadyMessage}</p>
+	<!-- SignIn and SignUp Forms -->
+	<SignIn
+		bind:active
+		FormSchemaLogin={data.loginForm}
+		FormSchemaForgot={data.forgotForm}
+		FormSchemaReset={data.resetForm}
+		onClick={handleSignInClick}
+		onPointerEnter={handleSignInPointerEnter}
+		onBack={resetToInitialState}
+	/>
 
-				<!-- Auto-retry in progress -->
-				<div class="flex items-center justify-center gap-3">
-					<div
-						class="border-3 h-6 w-6 animate-spin rounded-full border-surface-300 border-t-surface-600 dark:border-surface-600 dark:border-t-surface-400"
-					></div>
-					<span class="text-base font-medium text-surface-600 dark:text-surface-400">Retrying automatically...</span>
-				</div>
-			</div>
-		</div>
-	{:else}
-		<!-- SignIn and SignUp Forms -->
-		<SignIn
-			bind:active
-			FormSchemaLogin={data.loginForm}
-			FormSchemaForgot={data.forgotForm}
-			FormSchemaReset={data.resetForm}
-			onClick={handleSignInClick}
-			onPointerEnter={handleSignInPointerEnter}
-			onBack={resetToInitialState}
-		/>
+	<SignUp
+		bind:active
+		FormSchemaSignUp={data.signUpForm}
+		isInviteFlow={data.isInviteFlow || false}
+		token={data.token || ''}
+		invitedEmail={data.invitedEmail || ''}
+		inviteError={data.inviteError || ''}
+		onClick={handleSignUpClick}
+		onPointerEnter={handleSignUpPointerEnter}
+		onBack={resetToInitialState}
+	/>
 
-		<SignUp
-			bind:active
-			FormSchemaSignUp={data.signUpForm}
-			isInviteFlow={data.isInviteFlow || false}
-			token={data.token || ''}
-			invitedEmail={data.invitedEmail || ''}
-			inviteError={data.inviteError || ''}
-			onClick={handleSignUpClick}
-			onPointerEnter={handleSignUpPointerEnter}
-			onBack={resetToInitialState}
-		/>
-
-		{#if active == undefined}
-			{#if getPublicSetting('DEMO')}
-				<!-- DEMO MODE -->
-				<div
-					class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
-					class:opacity-50={isTransitioning}
-					aria-live="polite"
-					aria-atomic="true"
-					role="status"
-					aria-label="Demo mode active. Timer showing time remaining until next reset."
-				>
-					<p class="text-2xl font-bold">{m.login_demo_title()}</p>
-					<p>{m.login_demo_message()}</p>
-					<p class="text-xl font-bold">
-						{m.login_demo_nextreset()}
-						<!-- Announce remaining time in an accessible format -->
-						<span aria-label="Time remaining: {timeRemaining.minutes} minutes and {timeRemaining.seconds} seconds">
-							{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
-						</span>
-					</p>
-				</div>
-			{/if}
-
-			<!-- CMS Logo -->
-			<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
-				<SveltyCMSLogoFull />
-				<!-- Seasons -->
-				<Seasons />
-			</div>
-
-			<!-- Language Select -->
+	{#if active == undefined}
+		{#if getPublicSetting('DEMO')}
+			<!-- DEMO MODE -->
 			<div
-				class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
+				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
 				class:opacity-50={isTransitioning}
+				aria-live="polite"
+				aria-atomic="true"
+				role="status"
+				aria-label="Demo mode active. Timer showing time remaining until next reset."
 			>
-				{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
-					<div class="relative">
-						<!-- Current Language Display -->
-						<button
-							class="flex items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
-							onclick={handleDropdownToggle}
-						>
-							<span>{getLanguageName(currentLanguage)} ({currentLanguage.toUpperCase()})</span>
-							<svg
-								class="h-5 w-5 transition-transform duration-300 {isDropdownOpen ? 'rotate-180' : ''}"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						</button>
-
-						<!-- Dropdown -->
-						{#if isDropdownOpen}
-							<div class="absolute -left-6 -top-3 z-10 mt-2 w-48 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
-								<!-- Search Input -->
-								<div class="border-b border-gray-700 p-2">
-									<input
-										type="text"
-										bind:this={searchInput}
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:outline-none focus:ring-2"
-									/>
-								</div>
-
-								<!-- Language List -->
-								<div class="max-h-48 divide-y divide-gray-700 overflow-y-auto py-1">
-									{#each filteredLanguages as lang}
-										<button
-											class="flex w-full items-center justify-between px-4 py-2 text-left text-white transition-colors duration-300 hover:bg-[#363a3b] {currentLanguage ===
-											lang
-												? 'bg-[#363a3b]'
-												: ''}"
-											onclick={() => handleLanguageSelection(lang)}
-										>
-											<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
-										</button>
-									{/each}
-								</div>
-							</div>
-						{/if}
-					</div>
-				{:else}
-					<!-- Simple dropdown for 5 or fewer languages -->
-					<select
-						bind:value={systemLanguage.value}
-						class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
-						onchange={(e: Event) => {
-							const target = e.target as HTMLSelectElement;
-							if (target) {
-								const lang = target.value;
-								handleLanguageSelection(lang);
-							}
-						}}
-					>
-						{#each availableLanguages as lang}
-							<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
-						{/each}
-					</select>
-				{/if}
+				<p class="text-2xl font-bold">{m.login_demo_title()}</p>
+				<p>{m.login_demo_message()}</p>
+				<p class="text-xl font-bold">
+					{m.login_demo_nextreset()}
+					<!-- Announce remaining time in an accessible format -->
+					<span aria-label="Time remaining: {timeRemaining.minutes} minutes and {timeRemaining.seconds} seconds">
+						{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
+					</span>
+				</p>
 			</div>
+		{/if}
 
-			<!-- CMS Version -->
-			{#if !isDropdownOpen}
-				<!-- Collection Preview -->
-				{#if firstCollection && (active === 0 || active === 1)}
-					<div
-						class="absolute bottom-16 left-1/2 z-0 flex min-w-[200px] max-w-[300px] -translate-x-1/2 transform flex-col items-center gap-2 rounded-lg bg-gradient-to-r from-surface-50/10 to-[#242728]/10 p-3 text-center transition-opacity duration-300"
-						class:opacity-50={isTransitioning}
+		<!-- CMS Logo -->
+		<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+			<SveltyCMSLogoFull />
+			<!-- Seasons -->
+			<Seasons />
+		</div>
+
+		<!-- Language Select -->
+		<div
+			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
+			class:opacity-50={isTransitioning}
+		>
+			{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
+				<div class="relative">
+					<!-- Current Language Display -->
+					<button
+						class="flex items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
+						onclick={handleDropdownToggle}
 					>
-						<div class="text-xs text-gray-300">After login, you'll go to:</div>
-						<div class="text-sm font-medium text-white">{firstCollection.name}</div>
-					</div>
-				{/if}
+						<span>{getLanguageName(currentLanguage)} ({currentLanguage.toUpperCase()})</span>
+						<svg
+							class="h-5 w-5 transition-transform duration-300 {isDropdownOpen ? 'rotate-180' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
 
-				<a
-					href="https://github.com/SveltyCMS/SveltyCMS"
-					target="_blank"
-					rel="noopener"
-					class="absolute bottom-5 left-1/2 right-1/3 z-0 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20 transition-opacity duration-300"
-					class:opacity-50={isTransitioning}
-					tabindex={isTransitioning ? -1 : 0}
+					<!-- Dropdown -->
+					{#if isDropdownOpen}
+						<div class="absolute -left-6 -top-3 z-10 mt-2 w-48 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
+							<!-- Search Input -->
+							<div class="border-b border-gray-700 p-2">
+								<input
+									type="text"
+									bind:this={searchInput}
+									bind:value={searchQuery}
+									placeholder="Search language..."
+									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:outline-none focus:ring-2"
+								/>
+							</div>
+
+							<!-- Language List -->
+							<div class="max-h-48 divide-y divide-gray-700 overflow-y-auto py-1">
+								{#each filteredLanguages as lang}
+									<button
+										class="flex w-full items-center justify-between px-4 py-2 text-left text-white transition-colors duration-300 hover:bg-[#363a3b] {currentLanguage ===
+										lang
+											? 'bg-[#363a3b]'
+											: ''}"
+										onclick={() => handleLanguageSelection(lang)}
+									>
+										<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<!-- Simple dropdown for 5 or fewer languages -->
+				<select
+					bind:value={systemLanguage.value}
+					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
+					onchange={(e: Event) => {
+						const target = e.target as HTMLSelectElement;
+						if (target) {
+							const lang = target.value;
+							handleLanguageSelection(lang);
+						}
+					}}
 				>
-					<p class="text-[#242728]">Ver.</p>
-					<p class="text-white">{pkg}</p>
-				</a>
+					{#each availableLanguages as lang}
+						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
+					{/each}
+				</select>
 			{/if}
+		</div>
+
+		<!-- CMS Version -->
+		{#if !isDropdownOpen}
+			<!-- Collection Preview -->
+			{#if firstCollection && (active === 0 || active === 1)}
+				<div
+					class="absolute bottom-16 left-1/2 z-0 flex min-w-[200px] max-w-[300px] -translate-x-1/2 transform flex-col items-center gap-2 rounded-lg bg-gradient-to-r from-surface-50/10 to-[#242728]/10 p-3 text-center transition-opacity duration-300"
+					class:opacity-50={isTransitioning}
+				>
+					<div class="text-xs text-gray-300">After login, you'll go to:</div>
+					<div class="text-sm font-medium text-white">{firstCollection.name}</div>
+				</div>
+			{/if}
+
+			<a
+				href="https://github.com/SveltyCMS/SveltyCMS"
+				target="_blank"
+				rel="noopener"
+				class="absolute bottom-5 left-1/2 right-1/3 z-0 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20 transition-opacity duration-300"
+				class:opacity-50={isTransitioning}
+				tabindex={isTransitioning ? -1 : 0}
+			>
+				<p class="text-[#242728]">Ver.</p>
+				<p class="text-white">{pkg}</p>
+			</a>
 		{/if}
 	{/if}
 </div>

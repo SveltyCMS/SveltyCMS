@@ -5,7 +5,7 @@
  * correct language and user/tenant context for the entire application.
  */
 // Use server-side settings service with setup-safe fallbacks
-import { publicEnv } from '@src/stores/globalSettings';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ cookies, locals }) => {
@@ -13,7 +13,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 	const siteName = publicEnv.SITE_NAME;
 	const baseLocale = publicEnv.BASE_LOCALE;
 	const defaultContentLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	const isMultiTenant = publicEnv.MULTI_TENANT;
+	const isMultiTenant = privateEnv.MULTI_TENANT;
 
 	// Determine the system language from cookies or fall back to the database default.
 	const systemLanguage = (cookies.get('systemLanguage') as Locale) ?? baseLocale;
