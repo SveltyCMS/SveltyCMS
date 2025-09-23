@@ -231,7 +231,7 @@ export type WidgetId = string; // Unique identifier for a widget
 export declare const permissionMap: Map<string, Permission>;
 export type PermissionId = string;
 export type ConfigPermissionAction = string;
-export type Field = any;
+export type Field = unknown;
 
 // Schema Interface
 export interface Schema {

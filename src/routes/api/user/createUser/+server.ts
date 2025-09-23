@@ -13,7 +13,7 @@
  * - Comprehensive logging and secure error responses.
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { error, json, type HttpError } from '@sveltejs/kit';

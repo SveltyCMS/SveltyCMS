@@ -17,13 +17,12 @@
  * POST /api/user - Create a new user (requires 'create:user:any' permission)
  */
 
-import { json, type RequestHandler } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
-import { superValidate } from 'sveltekit-superforms/server';
+import { privateEnv } from '@src/stores/globalSettings';
+import { error, json, type HttpError, type RequestHandler } from '@sveltejs/kit';
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { error, type HttpError } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { superValidate } from 'sveltekit-superforms/server';
 
 // Auth and permission helpers
 
@@ -35,7 +34,7 @@ export const GET: RequestHandler = async () => {
 	return json({ message: 'GET /api/user not implemented' }, { status: 501 });
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, url }) => {
 	const { user, tenantId } = locals;
 	try {
 		if (!auth) {
@@ -85,17 +84,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			...(privateEnv.MULTI_TENANT && { tenantId })
 		});
 		const expiresAt = new Date(Date.now() + expirationTime * 1000);
-		const token = await auth.createToken(newUser._id, expiresAt, tenantId);
+		const token = await auth.createToken(newUser._id, expiresAt, 'user-invite', tenantId);
 
 		logger.info('User created successfully', { userId: newUser._id, tenantId }); // Send token via email. Pass the request origin for server-side fetch.
 
-		await sendUserToken(request.url.origin, email, token, role, expirationTime);
+		await sendUserToken(url.origin, email, token, role, expirationTime);
 
 		return json(newUser, { status: 201 }); // 201 Created
 	} catch (err) {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
-		const message = httpError.body?.message || `Error creating user: ${err.message}`;
+		const errMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
+		const message = httpError.body?.message || `Error creating user: ${errMsg}`;
 		logger.error('Error creating user', { error: message, status, tenantId });
 		return json({ success: false, error: message }, { status });
 	}
@@ -132,7 +132,8 @@ async function sendUserToken(origin: string, email: string, token: string, role:
 
 		logger.info('User token email sent successfully', { email });
 	} catch (err) {
-		logger.error('Error sending user token email', { error: err.message, email }); // Re-throw the error to be caught and handled by the main POST handler.
+		const errMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
+		logger.error('Error sending user token email', { error: errMsg, email });
 		throw err;
 	}
 }

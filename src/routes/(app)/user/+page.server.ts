@@ -16,19 +16,20 @@
  * It prepares data and handles form validation for the client-side rendering.
  */
 
-import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
 // Auth
-import type { User, Role, Token } from '@root/src/auth';
+import type { Role, Token, User } from '@root/src/auth';
 import type { PermissionConfig } from '@src/auth/permissions';
 
 // Superforms
-import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
+import { superValidate } from 'sveltekit-superforms/server';
 
 // System Logger
+import { getUntypedSetting } from '@src/stores/globalSettings';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async (event) => {
@@ -126,6 +127,7 @@ export const load: PageServerLoad = async (event) => {
 			addUserForm,
 			changePasswordForm,
 			isFirstUser,
+			is2FAEnabledGlobal: Boolean(getUntypedSetting('USE_2FA')),
 			manageUsersPermissionConfig,
 			adminData,
 			permissions: {

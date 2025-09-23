@@ -10,7 +10,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // GraphQL Yoga

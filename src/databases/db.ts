@@ -72,7 +72,6 @@ import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { DatabaseAdapter } from './dbInterface';
 
 // Content Manager
-import { getAllPermissions } from '@src/auth/permissions';
 import { contentManager } from '@src/content/ContentManager';
 
 // Settings loader
@@ -161,6 +160,29 @@ export async function loadSettingsFromDB() {
 
 		const settings = settingsResult.data || {};
 
+		// Load dynamic private settings that live in DB (feature flags, integrations)
+		const privateDynamicKeys = [
+			'USE_GOOGLE_OAUTH',
+			'GOOGLE_CLIENT_ID',
+			'GOOGLE_CLIENT_SECRET',
+			'USE_REDIS',
+			'REDIS_HOST',
+			'REDIS_PORT',
+			'USE_MAPBOX',
+			'MAPBOX_API_TOKEN',
+			'SECRET_MAPBOX_API_TOKEN',
+			'USE_TIKTOK',
+			'TIKTOK_TOKEN',
+			'SMTP_HOST',
+			'SMTP_PORT',
+			'SMTP_EMAIL',
+			'SMTP_PASSWORD',
+			'USE_2FA',
+			'TWO_FACTOR_AUTH_BACKUP_CODES_COUNT'
+		];
+		const privateDynResult = await dbAdapter.systemPreferences.getMany(privateDynamicKeys, 'system');
+		const privateDynamic = privateDynResult.success ? privateDynResult.data || {} : {};
+
 		// If no settings exist (initial setup), use empty objects and skip validation
 		if (Object.keys(settings).length === 0) {
 			logger.info('No settings found in database (initial setup). Using empty cache.');
@@ -213,8 +235,9 @@ export async function loadSettingsFromDB() {
 			return;
 		}
 
-		// Populate the cache with validated settings
-		setSettingsCache(parsedPrivate.output, parsedPublic.output);
+		// Populate the cache with validated settings, merging dynamic private flags into unified cache
+		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as Record<string, unknown>;
+		setSettingsCache(mergedPrivate, parsedPublic.output as Record<string, unknown>);
 
 		logger.info('✅ System settings loaded and cached from database.');
 	} catch (error) {
@@ -251,54 +274,10 @@ async function loadAdapters() {
 				dbAdapter = new MongoDBAdapter();
 				logger.debug('MongoDB adapter created');
 
-				logger.debug('Importing and creating MongoDB auth adapters...');
-				const { UserAdapter } = await import('@src/auth/mongoDBAuth/userAdapter');
-				const { SessionAdapter } = await import('@src/auth/mongoDBAuth/sessionAdapter');
-				const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
-
-				const userAdapter = new UserAdapter();
-				const sessionAdapter = new SessionAdapter();
-				const tokenAdapter = new TokenAdapter();
-
-				authAdapter = {
-					// User Management Methods
-					createUser: userAdapter.createUser.bind(userAdapter),
-					updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
-					deleteUser: userAdapter.deleteUser.bind(userAdapter),
-					getUserById: userAdapter.getUserById.bind(userAdapter),
-					getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
-					getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-					getUserCount: userAdapter.getUserCount.bind(userAdapter),
-
-					// Session Management Methods
-					createSession: sessionAdapter.createSession.bind(sessionAdapter),
-					updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
-					deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
-					deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
-					validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
-					invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
-					getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
-					getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
-					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
-					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter),
-					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter),
-
-					// Token Management Methods
-					createToken: tokenAdapter.createToken.bind(tokenAdapter),
-					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
-					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-					getTokenByValue: tokenAdapter.getTokenByValue.bind(tokenAdapter),
-					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
-					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
-					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
-					blockTokens: tokenAdapter.blockTokens.bind(tokenAdapter),
-					unblockTokens: tokenAdapter.unblockTokens.bind(tokenAdapter),
-
-					// Permission Management Methods (Imported)
-					getAllPermissions
-				};
-				logger.debug('Auth adapters created and bound');
+				logger.debug('Composing MongoDB auth adapter...');
+				const { composeMongoAuthAdapter } = await import('@src/auth/mongoDBAuth/composeAuthAdapter');
+				authAdapter = composeMongoAuthAdapter();
+				logger.debug('Auth adapter composed');
 				break;
 			}
 			case 'mariadb':

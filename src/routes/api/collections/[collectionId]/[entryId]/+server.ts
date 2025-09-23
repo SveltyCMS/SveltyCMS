@@ -13,7 +13,7 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // Databases
 

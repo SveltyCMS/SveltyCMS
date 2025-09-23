@@ -10,7 +10,7 @@
  * - Efficient tenant ID extraction from request context
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { error, type Handle } from '@sveltejs/kit';
 
 import { getTenantIdFromHostname } from './utils/tenant';

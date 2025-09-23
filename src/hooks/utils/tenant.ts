@@ -3,7 +3,7 @@
  * @description Shared tenant utilities for multi-tenant support
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 export const getTenantIdFromHostname = (hostname: string): string | null => {
 	if (!privateEnv.MULTI_TENANT) return null;

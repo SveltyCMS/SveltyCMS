@@ -17,7 +17,7 @@ import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
 import type { Theme } from '@src/databases/dbInterface';
 import { json, error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // Permission checking
 

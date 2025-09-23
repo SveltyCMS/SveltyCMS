@@ -10,7 +10,7 @@
  */
 
 import { browser } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

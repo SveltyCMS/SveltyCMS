@@ -24,7 +24,7 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Superforms
-import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
 import { message, superValidate } from 'sveltekit-superforms/server';
 
@@ -185,11 +185,6 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 		return false;
 	}
 
-	// Always show OAuth for the first user (no invitation needed)
-	if (isFirstUser) {
-		return true;
-	}
-
 	// If there's an invite token, show OAuth (invited user can choose OAuth)
 	if (hasInviteToken) {
 		return true;
@@ -231,7 +226,6 @@ const wrappedLoginSchema = valibot(loginFormSchema);
 const wrappedForgotSchema = valibot(forgotFormSchema);
 const wrappedResetSchema = valibot(resetFormSchema);
 const wrappedSignUpSchema = valibot(signUpFormSchema);
-const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	// --- START: Language Validation Logic ---
@@ -363,6 +357,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const { data: googleUser } = await oauth2.userinfo.get();
 				logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
+				// Invite token comes back via OAuth state param
+				const stateParam = url.searchParams.get('state');
+				const inviteToken = stateParam ? decodeURIComponent(stateParam) : null;
+
 				const getUser = async (): Promise<[User | null, boolean]> => {
 					const email = googleUser.email;
 					if (!email) throw Error('Google did not return an email address.');
@@ -370,101 +368,72 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const existingUser = await auth.checkUser({ email });
 					if (existingUser) return [existingUser, false];
 
-					const isFirst = locals.isFirstUser === true;
-					logger.info(`OAuth: isFirstUser check: ${isFirst}`);
-
-					if (isFirst) {
-						const adminRole = roles.find((role) => role.isAdmin === true);
-						if (!adminRole) throw Error('Admin role not found in roles configuration');
-
-						const user = await auth.createUser({
-							email,
-							username: googleUser.name || email.split('@')[0],
-							role: adminRole._id,
-							permissions: adminRole.permissions,
-							blocked: false,
-							isRegistered: true,
-							lastAuthMethod: 'google'
-						});
-						logger.info(`OAuth: First user created: ${user?.username}`);
-
-						// Send Welcome email using fetch to /api/sendMail
-						const emailProps = {
-							username: googleUser.name || user?.username || '',
-							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-						};
-						try {
-							const mailResponse = await fetch('/api/sendMail', {
-								// Use SvelteKit's fetch
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									recipientEmail: email,
-									subject: `Welcome to ${emailProps.sitename}`,
-									templateName: 'welcomeUser',
-									props: emailProps,
-									languageTag: userLanguage // Pass languageTag if your API uses it
-								})
-							});
-							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
-									email,
-									responseText: await mailResponse.text()
-								});
-							} else {
-								logger.info(`OAuth: Welcome email request sent via API`, { email });
-							}
-						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail`, { email, error: emailError });
-						}
-						return [user, false];
-					} else {
-						// For non-first users, check if we should allow registration
-						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
-						if (!defaultRole) throw new Error('Default user role not found.');
-
-						const newUser = await auth.createUser({
-							email,
-							username: googleUser.name || email.split('@')[0],
-							role: defaultRole._id,
-							permissions: defaultRole.permissions,
-							isRegistered: true,
-							lastAuthMethod: 'google'
-						});
-						logger.info(`OAuth: New non-first user created: ${newUser?.username}`);
-						const emailProps = {
-							username: googleUser.name || newUser?.username || '',
-							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-						};
-						try {
-							const mailResponse = await fetch('/api/sendMail', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									recipientEmail: email,
-									subject: `Welcome to ${emailProps.sitename}`,
-									templateName: 'welcomeUser',
-									props: emailProps,
-									languageTag: userLanguage
-								})
-							});
-							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
-									email,
-									responseText: await mailResponse.text()
-								});
-							} else {
-								logger.info(`OAuth: Welcome email request sent to new user via API`, { email });
-							}
-						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail for new user`, { email, error: emailError });
-						}
-						return [newUser, false];
+					// For non-first users (or any users), allow only invite-based registration
+					if (!inviteToken) {
+						logger.warn('OAuth registration attempt without invite token in state');
+						return [null, false];
 					}
+
+					const tokenData = await auth.validateRegistrationToken(inviteToken);
+					if (!tokenData.isValid || !tokenData.details) {
+						logger.warn('Invalid/expired invite token used in OAuth registration');
+						return [null, false];
+					}
+
+					// Ensure email matches invitation
+					if (tokenData.details.email.toLowerCase() !== email.toLowerCase()) {
+						logger.warn('Invite token email mismatch in OAuth registration', {
+							tokenEmail: tokenData.details.email,
+							googleEmail: email
+						});
+						return [null, false];
+					}
+
+					const roleId = tokenData.details.role || (roles.find((r) => r.isDefault)?._id ?? 'user');
+
+					const newUser = await auth.createUser({
+						email,
+						username: googleUser.name || email.split('@')[0],
+						role: roleId,
+						permissions: roles.find((r) => r._id === roleId)?.permissions,
+						isRegistered: true,
+						lastAuthMethod: 'google'
+					});
+
+					// Consume the invitation token after successful registration
+					await auth.consumeRegistrationToken(inviteToken);
+
+					logger.info(`OAuth: Invited user created: ${newUser?.username}`);
+					const emailProps = {
+						username: googleUser.name || newUser?.username || '',
+						email: email,
+						hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
+						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					};
+					try {
+						const mailResponse = await fetch('/api/sendMail', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								recipientEmail: email,
+								subject: `Welcome to ${emailProps.sitename}`,
+								templateName: 'welcomeUser',
+								props: emailProps,
+								languageTag: userLanguage
+							})
+						});
+						if (!mailResponse.ok) {
+							logger.error(`OAuth: Failed to send welcome email to invited user via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
+								email,
+								responseText: await mailResponse.text()
+							});
+						} else {
+							logger.info(`OAuth: Welcome email request sent to invited user via API`, { email });
+						}
+					} catch (emailError) {
+						logger.error(`OAuth: Error fetching /api/sendMail for invited user`, { email, error: emailError });
+					}
+					return [newUser, false];
 				};
 
 				const [user] = await getUser();
@@ -475,6 +444,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 					throw redirect(303, redirectPath);
 				}
+
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
 				// Check if OAuth should be shown for error case
 				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
@@ -619,87 +589,6 @@ export const actions: Actions = {
 
 		const { email, username, password, token } = signUpForm.data;
 
-		// Check if this is the first user (admin setup)
-		let isFirst = event.locals.isFirstUser === true;
-		if (event.locals.isFirstUser === undefined) {
-			try {
-				isFirst = (await auth.getUserCount()) === 0;
-			} catch (err) {
-				logger.error('Error fetching user count in signUp:', err);
-				return fail(500, { form: signUpForm, message: 'An error occurred.' });
-			}
-		}
-
-		// Handle first user (admin) registration - no token required
-		if (isFirst) {
-			logger.info(`Attempting to register first user (admin): ${username}`);
-			try {
-				const resp = await FirstUsersignUp(username, email, password, event.cookies);
-
-				if (resp.status && resp.user) {
-					logger.debug(`Sign Up successful for ${resp.user.username}.`);
-
-					// Invalidate user count cache so the system knows a user now exists
-					invalidateUserCountCache();
-
-					const emailProps = {
-						username: resp.user.username,
-						email: resp.user.email,
-						hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-					};
-
-					try {
-						const mailResponse = await event.fetch('/api/sendMail', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								recipientEmail: resp.user.email,
-								subject: `Welcome to ${emailProps.sitename}`,
-								templateName: 'welcomeUser',
-								props: emailProps,
-								languageTag: userLanguage
-							})
-						});
-						if (!mailResponse.ok) {
-							logger.error(
-								`Failed to send welcome email via API to ${resp.user.email} after signup. Status: \x1b[34m${mailResponse.status}\x1b[0m`,
-								await mailResponse.text()
-							);
-						} else {
-							logger.info(`Welcome email request sent via API to ${resp.user.email} after signup.`);
-						}
-					} catch (emailError) {
-						logger.error(`Error fetching /api/sendMail for ${resp.user.email} after signup:`, emailError);
-					}
-
-					message(signUpForm, resp.message || 'Admin user created successfully!');
-
-					// ENHANCEMENT: Trigger the data prefetch immediately after successful signup.
-					// This is a non-blocking call to warm up the cache for the next page load.
-					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-						logger.debug('Data caching failed during first user signup:', err);
-					});
-
-					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
-					throw redirect(303, redirectPath);
-				} else {
-					logger.warn(`Admin sign-up failed: ${resp.message || 'Unknown reason'}`);
-					return message(signUpForm, resp.message || 'Admin sign-up failed. Please check your details.', { status: 400 });
-				}
-			} catch (e) {
-				// Check if this is a redirect (which is expected and successful)
-				if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
-					// Re-throw the redirect - this is the expected flow
-					throw e;
-				}
-
-				const err = e as Error;
-				logger.error('Unexpected error in admin signUp:', { message: err.message, stack: err.stack });
-				return message(signUpForm, 'An unexpected server error occurred.', { status: 500 });
-			}
-		}
-
 		// For non-first users: The sign-up action now ONLY works for invited users.
 		// Security: This action MUST have a valid token to proceed.
 		if (!token) {
@@ -736,28 +625,22 @@ export const actions: Actions = {
 			// Invalidate user count cache so the system knows a new user now exists
 			invalidateUserCountCache();
 
-			// Invalidate the token immediately after use
+			// Consume the invitation token immediately after use
 			await auth.consumeRegistrationToken(token);
 
-			// Log the new user in by creating a session
-			const session = await auth.createSession({ user_id: newUser._id });
-			const sessionCookie = auth.createSessionCookie(session._id);
-			event.cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
-
-			// Send welcome email
-			const emailProps = {
-				username: newUser.username,
-				email: newUser.email,
-				hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-				sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-			};
-
+			// Send welcome email (best-effort; do not fail signup on email issues)
 			try {
+				const emailProps = {
+					username: username || email,
+					email,
+					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
+					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+				};
 				const mailResponse = await event.fetch('/api/sendMail', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
-						recipientEmail: newUser.email,
+						recipientEmail: email,
 						subject: `Welcome to ${emailProps.sitename}`,
 						templateName: 'welcomeUser',
 						props: emailProps,
@@ -765,69 +648,39 @@ export const actions: Actions = {
 					})
 				});
 				if (!mailResponse.ok) {
-					logger.error(
-						`Failed to send welcome email via API to ${newUser.email} after invite signup. Status: \x1b[34m${mailResponse.status}\x1b[0m`,
-						await mailResponse.text()
-					);
+					logger.error(`Failed to send welcome email via API. Status: ${mailResponse.status}`, {
+						email,
+						responseText: await mailResponse.text()
+					});
 				} else {
-					logger.info(`Welcome email sent to ${newUser.email} after invite signup.`);
+					logger.info(`Welcome email request sent via API`, { email });
 				}
 			} catch (emailError) {
-				logger.error(`Error sending welcome email for ${newUser.email}:`, emailError);
+				logger.error(`Error invoking /api/sendMail for invited user`, { email, error: emailError });
 			}
 
-			logger.info(`Invited user ${username} registered successfully and logged in.`);
+			// Create session and update last login
+			await createSessionAndSetCookie(newUser._id as string, event.cookies);
+			auth
+				.updateUserAttributes(newUser._id as string, { lastAuthMethod: 'password', lastLogin: new Date() })
+				.catch((err) => logger.error('Failed to update user attributes after signup', err));
 
-			// Fetch and cache first collection data for instant loading (fire and forget)
-			import('@utils/collections-prefetch')
-				.then(({ fetchAndCacheCollectionData }) => {
-					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-						logger.debug('Data caching failed during invited user signup:', err);
-					});
-				})
-				.catch(() => {
-					// Silently fail if module can't be loaded
-				});
-
-			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+			// Redirect to first collection
+			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
 			throw redirect(303, redirectPath);
-		} catch (e) {
-			// Check if this is a redirect (which is expected and successful)
-			if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
-				// Re-throw the redirect - this is the expected flow
-				throw e;
-			}
-
-			const err = e as Error;
-			logger.error('Error during invite signup:', err);
-			return message(signUpForm, err.message, { status: 500 });
+		} catch (error) {
+			const err = error as Error;
+			logger.error('Error during invited user signup', { email, message: err.message, stack: err.stack });
+			return message(signUpForm, 'Failed to create account. Please try again later.', { status: 500 });
 		}
-	},
-
-	OAuth: async (event) => {
-		const form = await superValidate(event.request, wrappedSignUpOAuthSchema);
-		if (!form.valid) {
-			logger.debug(`Sign-up OAuth form invalid: ${form.message}`);
-			return fail(400, { form });
-		}
-		if (!publicEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
-		if (await limiter.isLimited(event)) {
-			return fail(429, { form, message: 'Too many requests.' });
-		}
-		const authUrl = await generateGoogleAuthUrl(null, 'consent');
-		throw redirect(303, authUrl);
 	},
 
 	signInOAuth: async (event) => {
-		if (!publicEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		// Rate-limit and kickoff OAuth with optional invite_token in state
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-
-		// The OAuth sign-in action is now also "smart"
 		const inviteToken = event.url.searchParams.get('invite_token');
-		// If an invite token is present in the URL, pass it in the 'state' to the OAuth provider.
-		// This securely links the OAuth attempt back to our specific invitation.
 		const authUrl = await generateGoogleAuthUrl(inviteToken, undefined);
 		throw redirect(303, authUrl);
 	},
@@ -1267,7 +1120,7 @@ export const actions: Actions = {
 	}
 };
 
-// Helper functions (createSessionAndSetCookie, signInUser, FirstUsersignUp, finishRegistration, forgotPWCheck, resetPWCheck)
+// Helper functions (createSessionAndSetCookie, signInUser, finishRegistration, forgotPWCheck, resetPWCheck)
 // remain largely the same as your provided code, with minor logging/error handling adjustments.
 // Ensure they are robust and correctly interact with your `auth` service.
 
@@ -1363,57 +1216,6 @@ async function signInUser(
 		const err = error as Error;
 		logger.error(`Error in signInUser`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during sign-in.' };
-	}
-}
-
-async function FirstUsersignUp(
-	username: string,
-	email: string,
-	password: string,
-	cookies: Cookies
-): Promise<{ status: boolean; message?: string; user?: User }> {
-	logger.debug(`FirstUsersignUp called`, { email });
-	if (!auth) {
-		logger.error('Auth system not initialized for FirstUsersignUp');
-		return { status: false, message: 'Authentication system unavailable.' };
-	}
-	try {
-		if (typeof auth.getUserCount === 'function') {
-			const userCount = await auth.getUserCount();
-			if (userCount > 0) {
-				logger.warn('Attempted FirstUsersignUp when users already exist.');
-				return { status: false, message: 'An admin user already exists.' };
-			}
-		}
-		const adminRole = roles.find((role) => role.isAdmin === true);
-		if (!adminRole) {
-			logger.error('Admin role not found in roles configuration for FirstUsersignUp');
-			return { status: false, message: 'Server configuration error: Admin role not found.' };
-		}
-		if (calculatePasswordStrength(password) < 1) {
-			return { status: false, message: 'Password is too weak.' };
-		}
-		const user = await auth.createUser({
-			email,
-			username,
-			password,
-			role: adminRole._id,
-			permissions: adminRole.permissions,
-			lastAuthMethod: 'password',
-			isRegistered: true,
-			failedAttempts: 0
-		});
-		if (!user || !user._id) {
-			logger.error('First user creation failed: No user object returned or missing _id.');
-			return { status: false, message: 'Failed to create admin user.' };
-		}
-		await createSessionAndSetCookie(user._id, cookies);
-		logger.info(`First admin user ${username} created and session started.`);
-		return { status: true, message: 'Admin user created successfully.', user };
-	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error in FirstUsersignUp`, { email, message: err.message, stack: err.stack });
-		return { status: false, message: 'An internal error occurred creating the admin user.' };
 	}
 }
 

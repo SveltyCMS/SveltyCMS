@@ -15,16 +15,13 @@
 -->
 
 <script lang="ts">
-	import { privateEnv } from '@root/config/private';
 	import { invalidateAll } from '$app/navigation';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
-
 	// Auth
 	import type { User } from '@src/auth/types';
 	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -32,24 +29,22 @@
 	import '@stores/store.svelte';
 	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
-
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { showModal, showConfirm } from '@utils/modalUtils';
-	import { showToast } from '@utils/toast';
 	import { collection } from '@src/stores/collectionStore.svelte';
+	import { showConfirm, showModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
-	let { user: serverUser, isFirstUser, isMultiTenant } = $derived(data);
+	let { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
 	// Make user data reactive
 	let user = $derived<User>({
@@ -240,7 +235,7 @@
 		</div>
 	</div>
 
-	{#if privateEnv.USE_2FA}
+	{#if is2FAEnabledGlobal}
 		<!-- Two-Factor Authentication Section -->
 		<div class="wrapper2 mb-4">
 			<TwoFactorAuth {user} />

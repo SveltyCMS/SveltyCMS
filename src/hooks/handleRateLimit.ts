@@ -13,7 +13,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 

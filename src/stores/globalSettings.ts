@@ -1,10 +1,21 @@
+/**
+ * @file src/stores/globalSettings.ts
+ * @description
+ *
+ * ### Features
+ *
+ */
+
 import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
 import { type InferOutput } from 'valibot';
+// Use the direct Valibot types. This is your contract.
+type PrivateEnv = InferOutput<typeof privateConfigSchema>;
+type PublicEnv = InferOutput<typeof publicConfigSchema>;
 
-// In-memory cache for settings
+// In-memory cache for settings (final merged configuration: static + dynamic)
 let cacheLoaded = false;
-let privateEnv: InferOutput<typeof privateConfigSchema> = {};
-let publicEnv: InferOutput<typeof publicConfigSchema> = {};
+let privateEnv: PrivateEnv = {} as PrivateEnv;
+let publicEnv: PublicEnv = {} as PublicEnv;
 
 /**
  * A boolean indicating whether the settings cache has been loaded.
@@ -18,7 +29,8 @@ export function isCacheLoaded(): boolean {
  * @param newPrivate - The private settings object.
  * @param newPublic - The public settings object.
  */
-export function setSettingsCache(newPrivate: InferOutput<typeof privateConfigSchema>, newPublic: InferOutput<typeof publicConfigSchema>) {
+export function setSettingsCache(newPrivate: PrivateEnv, newPublic: PublicEnv) {
+	// Expects complete, validated objects that match the schemas
 	privateEnv = newPrivate;
 	publicEnv = newPublic;
 	cacheLoaded = true;
@@ -30,8 +42,8 @@ export function setSettingsCache(newPrivate: InferOutput<typeof privateConfigSch
  */
 export function invalidateSettingsCache(): void {
 	cacheLoaded = false;
-	privateEnv = {};
-	publicEnv = {};
+	privateEnv = {} as PrivateEnv;
+	publicEnv = {} as PublicEnv;
 }
 
 /**
@@ -41,14 +53,8 @@ export function invalidateSettingsCache(): void {
  * @param fallback - Optional fallback value if the key is not found.
  * @returns The value of the public setting or the fallback.
  */
-export function getPublicSetting<K extends keyof InferOutput<typeof publicConfigSchema>, T = InferOutput<typeof publicConfigSchema>[K]>(
-	key: K,
-	fallback?: T
-): T {
-	if (key in publicEnv && publicEnv[key] !== undefined) {
-		return publicEnv[key] as T;
-	}
-	return fallback as T;
+export function getPublicSetting<K extends keyof PublicEnv>(key: K): PublicEnv[K] {
+	return publicEnv[key];
 }
 
 /**
@@ -58,14 +64,65 @@ export function getPublicSetting<K extends keyof InferOutput<typeof publicConfig
  * @param fallback - Optional fallback value if the key is not found.
  * @returns The value of the private setting or the fallback.
  */
-export function getPrivateSetting<K extends keyof InferOutput<typeof privateConfigSchema>, T = InferOutput<typeof privateConfigSchema>[K]>(
-	key: K,
-	fallback?: T
-): T {
-	if (key in privateEnv && privateEnv[key] !== undefined) {
-		return privateEnv[key] as T;
+export function getPrivateSetting<K extends keyof PrivateEnv>(key: K): PrivateEnv[K] {
+	return privateEnv[key];
+}
+
+/**
+ * Gets a setting that is NOT defined in the schema.
+ * Use this as an escape hatch only when necessary. It's not type-safe.
+ * @param key The string key of the setting to retrieve.
+ * @returns The value of the setting, or undefined if not found.
+ */
+export function getUntypedSetting<T = unknown>(key: string): T | undefined {
+	if ((publicEnv as Record<string, unknown>)[key] !== undefined) {
+		return (publicEnv as Record<string, T>)[key];
 	}
-	return fallback as T;
+	if ((privateEnv as Record<string, unknown>)[key] !== undefined) {
+		return (privateEnv as Record<string, T>)[key];
+	}
+	return undefined;
 }
 
 export { privateEnv, publicEnv };
+
+// --- Snapshot Utilities ---
+/**
+ * Returns a merged view of all current settings for export.
+ */
+export async function getAllSettings(): Promise<Record<string, unknown>> {
+	return {
+		public: { ...publicEnv },
+		private: { ...privateEnv }
+	} as Record<string, unknown>;
+}
+
+/**
+ * Applies a snapshot to the database via systemPreferences adapter.
+ * Note: This function delegates to the DB layer; the store only invalidates cache after updates.
+ */
+export async function updateSettingsFromSnapshot(snapshot: Record<string, unknown>): Promise<{ updated: number }> {
+	const { dbAdapter } = await import('@src/databases/db');
+	if (!dbAdapter || !dbAdapter.systemPreferences) {
+		throw new Error('Database adapter not available');
+	}
+
+	type SnapshotRecord = Record<string, unknown>;
+	type Snapshot = { settings?: SnapshotRecord } | SnapshotRecord;
+	const snap = snapshot as Snapshot;
+	const settings: SnapshotRecord = (snap as { settings?: SnapshotRecord }).settings ?? (snap as SnapshotRecord);
+
+	const ops: Array<{ key: string; value: unknown; scope: 'user' | 'system' }> = [];
+	function isValueWrapper(v: unknown): v is { value: unknown } {
+		return typeof v === 'object' && v !== null && 'value' in (v as Record<string, unknown>);
+	}
+	for (const [key, value] of Object.entries(settings)) {
+		const v = isValueWrapper(value) ? value.value : value;
+		ops.push({ key, value: v, scope: 'system' });
+	}
+
+	const res = await dbAdapter.systemPreferences.setMany(ops);
+	if (!res.success) throw new Error(res.error?.message || 'Failed to update settings');
+	invalidateSettingsCache();
+	return { updated: ops.length };
+}

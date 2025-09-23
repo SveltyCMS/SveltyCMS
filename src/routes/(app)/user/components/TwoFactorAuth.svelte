@@ -28,16 +28,12 @@ This component provides a user interface for managing 2FA settings:
 	// Auth
 	import type { User } from '@src/auth/types';
 
-	// Config
-	import { privateEnv } from '@root/config/private';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
 	import TwoFactorSetupModal from './TwoFactorSetupModal.svelte';
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
-
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -47,7 +43,8 @@ This component provides a user interface for managing 2FA settings:
 	// Props
 	let { user } = $props<{ user: User }>();
 
-	const modalStore = getModalStore();
+	// Note: modalStore is not directly used; kept to ensure modal system initializes if required
+	getModalStore();
 
 	// State
 	let isLoading = $state(false);
@@ -191,7 +188,8 @@ This component provides a user interface for managing 2FA settings:
 	}
 </script>
 
-{#if privateEnv.USE_2FA}
+<!-- TwoFactorAuth is rendered conditionally by parent based on is2FAEnabledGlobal -->
+{#if true}
 	<div class="card p-6 shadow-md">
 		<div class="mb-4 flex items-center justify-between">
 			<div class="flex items-center gap-3">
@@ -298,15 +296,5 @@ This component provides a user interface for managing 2FA settings:
 {/if}
 
 <style>
-	.alert {
-		@apply rounded-lg border p-4;
-	}
-
-	.alert-message {
-		@apply flex-1;
-	}
-
-	.alert-message h4 {
-		@apply mb-1 font-semibold;
-	}
+	/* Tailwind styles are applied via class attributes directly */
 </style>

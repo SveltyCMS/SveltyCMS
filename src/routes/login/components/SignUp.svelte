@@ -35,7 +35,6 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Screen size store
-	import { publicEnv } from '@src/stores/globalSettings';
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
 	// Props
@@ -305,7 +304,8 @@ Features:
 						required
 						bind:value={$form.username}
 						label={m.username()}
-						{...$constraints.username}
+						minlength={($constraints.username as { minlength?: number })?.minlength}
+						maxlength={($constraints.username as { maxlength?: number })?.maxlength}
 						icon="mdi:user-circle"
 						iconColor="white"
 						textColor="white"
@@ -326,7 +326,8 @@ Features:
 						spellcheck={false}
 						bind:value={$form.email}
 						label={m.email()}
-						{...$constraints.email}
+						minlength={($constraints.email as { minlength?: number })?.minlength}
+						maxlength={($constraints.email as { maxlength?: number })?.maxlength}
 						icon="mdi:email"
 						iconColor="white"
 						textColor="white"
@@ -349,13 +350,14 @@ Features:
 						tabindex={passwordTabIndex}
 						required
 						bind:value={$form.password}
-						{showPassword}
+						bind:showPassword
 						label={m.form_password()}
-						{...$constraints.password}
+						minlength={($constraints.password as { minlength?: number })?.minlength}
+						maxlength={($constraints.password as { maxlength?: number })?.maxlength}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
-						showPasswordBackgroundColor="dark"
+						passwordIconColor="white"
 						inputClass="text-white"
 						autocomplete="new-password"
 					/>
@@ -371,13 +373,14 @@ Features:
 						tabindex={confirmPasswordTabIndex}
 						required
 						bind:value={$form.confirm_password}
-						{showPassword}
+						bind:showPassword
 						label={m.confirm_password?.() || m.form_confirmpassword?.()}
-						{...$constraints.confirm_password}
+						minlength={($constraints.confirm_password as { minlength?: number })?.minlength}
+						maxlength={($constraints.confirm_password as { maxlength?: number })?.maxlength}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
-						showPasswordBackgroundColor="dark"
+						passwordIconColor="white"
 						inputClass="text-white"
 						autocomplete="new-password"
 					/>
@@ -398,11 +401,12 @@ Features:
 							required
 							bind:value={$form.token}
 							label={m.registration_token?.() || m.signup_registrationtoken?.()}
-							{...$constraints.token}
+							minlength={($constraints.token as { minlength?: number })?.minlength}
+							maxlength={($constraints.token as { maxlength?: number })?.maxlength}
 							icon="mdi:key-chain"
 							iconColor="white"
 							textColor="white"
-							showPasswordBackgroundColor="dark"
+							passwordIconColor="white"
 							inputClass="text-white"
 							autocomplete="one-time-code"
 						/>
@@ -426,7 +430,7 @@ Features:
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !publicEnv.USE_GOOGLE_OAUTH || !showOAuth}
+					{#if !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}

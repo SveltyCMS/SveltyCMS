@@ -138,6 +138,10 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
  * Database config, JWT keys, and encryption keys are handled separately in private config files
  */
 const defaultPrivateSettings: Array<{ key: string; value: unknown; description?: string }> = [
+	// Security / 2FA
+	{ key: 'USE_2FA', value: false, description: 'Enable Two-Factor Authentication globally' },
+	{ key: 'TWO_FACTOR_AUTH_BACKUP_CODES_COUNT', value: 10, description: 'Backup codes count for 2FA (1-50)' },
+
 	// SMTP config
 	{ key: 'SMTP_HOST', value: '', description: 'SMTP server host for sending emails' },
 	{ key: 'SMTP_PORT', value: 587, description: 'SMTP server port' },
@@ -256,10 +260,8 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
 
 		if (parsedPublic.success) {
-			// For now, just populate public settings
 			// Private settings will be loaded when the app starts normally
 			logger.info('✅ Public settings validated successfully');
-			logger.info('ℹ️ Private settings will be loaded from config files when app starts');
 		} else {
 			logger.warn('Public settings validation failed');
 			logger.debug('Public settings validation issues:', parsedPublic.issues);

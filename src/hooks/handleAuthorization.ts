@@ -13,7 +13,7 @@
  * - Multi-layer caching strategy
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { initializeRoles, roles } from '@root/config/roles';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import type { User } from '@src/auth/types';

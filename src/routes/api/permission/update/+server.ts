@@ -10,7 +10,7 @@
  * - Validate and transform incoming roles/permissions data
  * - Handle authorization and access control
  */
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';

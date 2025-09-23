@@ -18,7 +18,7 @@
 
 import { dbAdapter } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

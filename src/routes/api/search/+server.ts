@@ -11,7 +11,7 @@
  * * Permission-aware results
  * * Performance optimized with QueryBuilder
  */
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 

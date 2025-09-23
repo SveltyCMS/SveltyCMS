@@ -13,7 +13,7 @@
  * - Permission checking
  * - Enhanced error handling
  */
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // Database
 import { dbAdapter, dbInitPromise } from '@src/databases/db';

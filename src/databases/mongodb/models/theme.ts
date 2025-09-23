@@ -4,9 +4,9 @@
  *
  * This module defines the `themeSchema` and `ThemeModel` for managing themes in the CMS
  */
-import mongoose, { Schema } from 'mongoose';
+import type { ISODateString, Theme } from '@src/databases/dbInterface';
 import type { Model } from 'mongoose';
-import type { Theme, ISODateString } from '@src/databases/dbInterface';
+import mongoose, { Schema } from 'mongoose';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -92,25 +92,24 @@ themeSchema.statics = {
 				try {
 					const existingTheme = await this.findOne({ name: themeData.name }).exec();
 					if (existingTheme) {
-						// Exclude _id, createdAt, and updatedAt from update operation
-						const { _id, createdAt, updatedAt, ...updateData } = themeData as any;
-						await this.updateOne({ name: themeData.name }, { $set: updateData }).exec();
+						// Update existing theme with new data (excluding system fields)
+						await this.updateOne({ name: themeData.name }, { $set: themeData }).exec();
 					} else {
 						// Use the passed generateId function - V4 UUID - and pass it as argument - remove comment
 						await this.create({ ...themeData, _id: generateId() });
 					}
-				} catch (error: any) {
+				} catch (error: unknown) {
 					// Handle duplicate key error gracefully - theme might have been created by another process
-					if (error.code === 11000 && error.message.includes('duplicate key')) {
+					if (error instanceof Error && 'code' in error && error.code === 11000 && error.message.includes('duplicate key')) {
 						logger.debug(`Theme '${themeData.name}' already exists, skipping creation`);
 						continue;
 					}
 					throw error;
 				}
 			}
-			logger.info(`Stored /x1b[34m${themes.length}/x1b[0m themes`);
+			logger.info(`Stored \x1b[34m${themes.length}\x1b[0m themes`);
 		} catch (error) {
-			logger.error(`Error storing themes: /x1b[31m${error.message}/x1b[0m`);
+			logger.error(`Error storing themes: \x1b[31m${error instanceof Error ? error.message : String(error)}\x1b[0m`);
 			throw error;
 		}
 	},

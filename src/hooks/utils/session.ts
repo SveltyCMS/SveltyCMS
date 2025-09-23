@@ -3,7 +3,7 @@
  * @description Shared session utilities for authentication across hooks
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import type { User } from '@src/auth/types';
 import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS, cacheService } from '@src/databases/CacheService';
 import type { RequestEvent } from '@sveltejs/kit';

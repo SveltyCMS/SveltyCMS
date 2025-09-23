@@ -13,7 +13,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { publicEnv, getPublicSetting } from '@src/stores/globalSettings';
+	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings';
 	import type { PageData } from './$types';
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';
@@ -114,7 +114,6 @@ Features:
 	);
 
 	// Package version
-	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
 
 	// Language selection
@@ -241,12 +240,6 @@ Features:
 	// Handle dropdown toggle
 	function handleDropdownToggle() {
 		isDropdownOpen = !isDropdownOpen;
-	}
-
-	// Handle auth not ready retry
-	async function handleAuthRetry() {
-		// Reload the page to retry auth initialization
-		window.location.reload();
 	}
 
 	// Prefetch when active state changes to SignIn (0) or SignUp (1)

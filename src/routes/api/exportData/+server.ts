@@ -18,7 +18,7 @@
  *
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';

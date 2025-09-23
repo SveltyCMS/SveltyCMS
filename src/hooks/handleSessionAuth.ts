@@ -14,7 +14,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import type { User } from '@src/auth/types';

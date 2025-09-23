@@ -19,7 +19,7 @@
  * Used by the main GraphQL setup to generate collection-specific schemas and resolvers
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import { getFieldName } from '@utils/utils';
 import widgets from '@widgets';

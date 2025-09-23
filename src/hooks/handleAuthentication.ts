@@ -7,7 +7,7 @@
  * and attaches the database adapter for use in subsequent hooks and endpoints.
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { SESSION_COOKIE_NAME } from '@src/auth/constants';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { error, type Handle } from '@sveltejs/kit';

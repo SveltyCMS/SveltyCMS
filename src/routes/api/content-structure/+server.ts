@@ -12,7 +12,7 @@
  * Utilizes Redis caching for performance, now tenant-aware.
  */
 import { browser } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 import type { ContentNodeOperation } from '@root/src/content/types';

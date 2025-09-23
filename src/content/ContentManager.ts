@@ -42,7 +42,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
 
 // Config
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // Types
 import type { ContentNode } from '@src/databases/dbInterface'; // Commented out unused import

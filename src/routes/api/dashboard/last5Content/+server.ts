@@ -11,7 +11,7 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { error, json } from '@sveltejs/kit';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';

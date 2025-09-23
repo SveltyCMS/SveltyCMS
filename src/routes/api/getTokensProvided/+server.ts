@@ -16,7 +16,7 @@
  * Requires: Admin authentication or system permissions
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 // Permissions

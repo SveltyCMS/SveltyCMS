@@ -5,7 +5,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 import * as v from 'valibot';

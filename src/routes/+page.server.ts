@@ -9,7 +9,7 @@
  * - Throws an error if there are no collections for the tenant
  */
 import { publicEnv } from '@src/stores/globalSettings';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import { redirect, error } from '@sveltejs/kit';
 import { dbInitPromise } from '@src/databases/db';

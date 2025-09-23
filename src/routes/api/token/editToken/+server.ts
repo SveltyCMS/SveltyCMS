@@ -17,7 +17,7 @@
  * Body: JSON object with 'tokenId' and 'newTokenData' properties
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

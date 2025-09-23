@@ -24,7 +24,8 @@ import { logger } from '@utils/logger.svelte';
 // Password utilities
 
 // Import global settings service for DB-based configuration
-import { publicEnv } from '@src/stores/globalSettings';
+import type { DatabaseResult } from '@src/databases/dbInterface';
+import { privateEnv } from '@src/stores/globalSettings';
 
 export {
 	checkPermissions,
@@ -164,7 +165,7 @@ export class Auth {
 				throw error(400, 'Email and password are required');
 			}
 
-			if (publicEnv.MULTI_TENANT && !tenantId) {
+			if (privateEnv.MULTI_TENANT && !tenantId) {
 				throw error(400, 'Tenant ID is required in multi-tenant mode');
 			}
 
@@ -187,19 +188,23 @@ export class Auth {
 	}
 
 	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
-		const result = await this.db.getUserById(user_id, tenantId);
-		if (result && result.success) {
-			return result.data;
+		const result = (await this.db.getUserById(user_id, tenantId)) as unknown;
+		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
+			const r = result as DatabaseResult<User | null>;
+			if (r.success) return r.data;
+			return null;
 		}
-		return null;
+		return (result as User | null) ?? null;
 	}
 
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
-		const result = await this.db.getUserByEmail(criteria);
-		if (result && result.success === true) {
-			return result.data;
+		const result = (await this.db.getUserByEmail(criteria)) as unknown;
+		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
+			const r = result as DatabaseResult<User | null>;
+			if (r.success === true) return r.data;
+			return null;
 		}
-		return null;
+		return (result as User | null) ?? null;
 	}
 
 	async updateUser(userId: string, updates: Partial<User>, tenantId?: string): Promise<void> {
@@ -233,17 +238,36 @@ export class Auth {
 	}
 
 	async createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<Session> {
-		const sessionResult = await this.db.createSession(sessionData);
-		if (!sessionResult || !sessionResult.success) {
-			throw error(500, 'Session creation failed');
-		}
-		const session = sessionResult.data;
-		const userResult = await this.db.getUserById(sessionData.user_id, sessionData.tenantId);
-		if (userResult && userResult.success && userResult.data) {
-			await this.sessionStore.set(session._id, userResult.data, sessionData.expires);
+		const sr = (await this.db.createSession(sessionData)) as unknown;
+		let session: Session | null = null;
+		if (sr && typeof sr === 'object' && sr !== null && 'success' in (sr as Record<string, unknown>)) {
+			const sessionResult = sr as DatabaseResult<Session>;
+			if (!sessionResult || !sessionResult.success) {
+				throw error(500, 'Session creation failed');
+			}
+			session = sessionResult.data;
 		} else {
+			session = sr as Session;
+		}
+
+		if (!session) throw error(500, 'Session creation failed');
+
+		const ur = (await this.db.getUserById(sessionData.user_id, sessionData.tenantId)) as unknown;
+		let user: User | null = null;
+		if (ur && typeof ur === 'object' && ur !== null && 'success' in (ur as Record<string, unknown>)) {
+			const userResult = ur as DatabaseResult<User | null>;
+			if (userResult && userResult.success && userResult.data) {
+				user = userResult.data;
+			}
+		} else {
+			user = (ur as User) ?? null;
+		}
+
+		if (!user) {
 			throw error(404, `User not found for ID: ${sessionData.user_id}`);
 		}
+
+		await this.sessionStore.set(session._id, user, sessionData.expires);
 		return session;
 	}
 
@@ -286,59 +310,88 @@ export class Auth {
 		return result;
 	}
 
-	async createToken(userId: string, expires: Date, type: string = 'access', tenantId?: string): Promise<string> {
-		const user = await this.getUserById(userId, tenantId);
-		if (!user) throw new Error('User not found');
-		const result = await this.db.createToken({ user_id: userId, email: user.email.toLowerCase(), expires, type, tenantId });
-		if (typeof result === 'string') {
-			return result;
+	// Overloaded createToken: support (userId, expires, type, tenantId) and ({ user_id, email, expires, type, tenantId })
+	async createToken(
+		arg1: string | { user_id: string; email: string; expires: Date; type: string; tenantId?: string },
+		expires?: Date,
+		type: string = 'access',
+		tenantId?: string
+	): Promise<string> {
+		if (typeof arg1 === 'string') {
+			const userId = arg1;
+			const user = await this.getUserById(userId, tenantId);
+			if (!user) throw new Error('User not found');
+			const result = await this.db.createToken({ user_id: userId, email: user.email.toLowerCase(), expires: expires as Date, type, tenantId });
+			if (typeof result === 'string') return result;
+			if (result && result.success && typeof result.data === 'string') return result.data;
+			if (result && !result.success && result.error?.message) throw new Error(result.error.message);
+			throw new Error('Failed to create token');
+		} else {
+			const payload = arg1;
+			const result = await this.db.createToken(payload);
+			if (typeof result === 'string') return result;
+			if (result && result.success && typeof result.data === 'string') return result.data;
+			if (result && !result.success && result.error?.message) throw new Error(result.error.message);
+			throw new Error('Failed to create token');
 		}
-		if (result && result.success && typeof result.data === 'string') {
-			return result.data;
-		}
-		// If result.success is false, error property may exist
-		if (
-			result &&
-			!result.success &&
-			typeof result === 'object' &&
-			'error' in result &&
-			result.error &&
-			typeof result.error === 'object' &&
-			'message' in result.error &&
-			typeof result.error.message === 'string'
-		) {
-			throw new Error(result.error.message);
-		}
-		throw new Error('Failed to create token');
+	}
+
+	// Token management wrappers for interface completeness
+	async updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<Token> {
+		const result = await this.db.updateToken(token_id, tokenData, tenantId);
+		if (result && result.success) return result.data;
+		throw error(500, !result || result.success ? 'Failed to update token' : result.message || 'Failed to update token');
+	}
+
+	async deleteTokens(token_ids: string[], tenantId?: string): Promise<{ deletedCount: number }> {
+		const result = await this.db.deleteTokens(token_ids, tenantId);
+		if (result && result.success) return result.data;
+		throw error(500, !result || result.success ? 'Failed to delete tokens' : result.message || 'Failed to delete tokens');
+	}
+
+	async blockTokens(token_ids: string[], tenantId?: string): Promise<{ modifiedCount: number }> {
+		const result = await this.db.blockTokens(token_ids, tenantId);
+		if (result && result.success) return result.data;
+		throw error(500, !result || result.success ? 'Failed to block tokens' : result.message || 'Failed to block tokens');
+	}
+
+	async unblockTokens(token_ids: string[], tenantId?: string): Promise<{ modifiedCount: number }> {
+		const result = await this.db.unblockTokens(token_ids, tenantId);
+		if (result && result.success) return result.data;
+		throw error(500, !result || result.success ? 'Failed to unblock tokens' : result.message || 'Failed to unblock tokens');
+	}
+
+	async getTokenByValue(token: string, tenantId?: string): Promise<Token | null> {
+		const result = await this.db.getTokenByValue(token, tenantId);
+		if (result && result.success) return result.data;
+		throw error(500, !result || result.success ? 'Failed to get token' : result.message || 'Failed to get token');
 	}
 
 	async validateToken(token: string, user_id?: string, type: string = 'access', tenantId?: string): Promise<{ success: boolean; message: string }> {
 		const result = await this.db.validateToken(token, user_id, type, tenantId);
 		if (result && result.success && result.data) {
 			return { success: true, message: result.data.message ?? 'Token validated' };
-		} else {
-			return { success: false, message: result?.error?.message ?? 'Token validation failed' };
 		}
+		return { success: false, message: !result || result.success ? 'Token validation failed' : result.message || 'Token validation failed' };
 	}
 
 	async validateRegistrationToken(token: string, tenantId?: string): Promise<{ isValid: boolean; message: string; details?: Token }> {
 		const result = await this.db.validateToken(token, undefined, 'user-invite', tenantId);
 		if (result && result.success && result.data) {
 			const tokenResult = await this.db.getTokenByValue(token, tenantId);
-			const tokenDoc = tokenResult && tokenResult.success ? tokenResult.data : undefined;
-			return { isValid: true, message: result.data.message, details: tokenDoc };
+			const tokenDoc = tokenResult && tokenResult.success ? tokenResult.data : null;
+			return { isValid: true, message: result.data.message, details: tokenDoc ?? undefined };
 		} else {
-			return { isValid: false, message: result?.error?.message || 'Token validation failed' };
+			return { isValid: false, message: !result || result.success ? 'Token validation failed' : result.message || 'Token validation failed' };
 		}
 	}
 
 	async consumeToken(token: string, user_id?: string, type: string = 'access', tenantId?: string): Promise<{ status: boolean; message: string }> {
 		const result = await this.db.consumeToken(token, user_id, type, tenantId);
-		if (result.success) {
+		if (result && result.success) {
 			return result.data;
-		} else {
-			return { status: false, message: result.error?.message || 'Failed to consume token' };
 		}
+		return { status: false, message: !result || result.success ? 'Failed to consume token' : result.message || 'Failed to consume token' };
 	}
 
 	async consumeRegistrationToken(token: string, tenantId?: string): Promise<{ status: boolean; message: string }> {
@@ -346,7 +399,7 @@ export class Auth {
 		if (result && result.success && result.data) {
 			return result.data;
 		} else {
-			return { status: false, message: result?.error?.message || 'Failed to consume token' };
+			return { status: false, message: !result || result.success ? 'Failed to consume token' : result.message || 'Failed to consume token' };
 		}
 	}
 

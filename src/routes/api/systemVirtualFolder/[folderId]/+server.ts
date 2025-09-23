@@ -5,7 +5,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -18,6 +18,14 @@ import { constructMediaUrl } from '@utils/media/mediaUtils';
 
 // Types
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+type MediaDoc = {
+	_id?: string;
+	filename?: string;
+	virtualFolderId?: string | null;
+	thumbnailWidth?: number;
+	thumbnailHeight?: number;
+	[key: string]: unknown;
+};
 
 // GET /api/systemVirtualFolder/[folderId] - Fetches contents of a specific virtual folder
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -36,7 +44,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		let currentFolder: SystemVirtualFolder | null = null;
 		let folders: SystemVirtualFolder[] = [];
-		let files: any[] = [];
+		let files: MediaDoc[] = [];
 
 		const tenantFilter = privateEnv.MULTI_TENANT ? { tenantId } : {};
 

@@ -8,7 +8,7 @@
  * - Consistent date handling across the application
  */
 
-import type { ISODateString } from '../databases/dbInterface';
+import type { ISODateString } from '../databases/types';
 import { logger } from '@utils/logger.svelte';
 
 // Type guard for ISODateString

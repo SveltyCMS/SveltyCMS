@@ -73,19 +73,35 @@ function setupWizardPlugin(): Plugin {
 				const content = `
 /**
  * @file config/private.ts
- * @description Private configuration file - will be populated during setup
+ * @description Private configuration file containing essential bootstrap variables.
+ * These values are required for the server to start and connect to the database.
+ * This file will be populated during the initial setup process.
  */
 import { createPrivateConfig } from './types';
+
 export const privateEnv = createPrivateConfig({
-	DB_TYPE: 'mongodb',
-	DB_HOST: '',
-	DB_PORT: 27017,
-	DB_NAME: '',
-	DB_USER: '',
-	DB_PASSWORD: '',
-	JWT_SECRET_KEY: '',
-	ENCRYPTION_KEY: '',
-	MULTI_TENANT: false,
+    // --- Core Database Connection ---
+    DB_TYPE: 'mongodb', // or 'mariadb', etc.
+    DB_HOST: '',
+    DB_PORT: 27017,
+    DB_NAME: '',
+    DB_USER: '',
+    DB_PASSWORD: '',
+
+    // --- Connection Behavior ---
+    DB_RETRY_ATTEMPTS: 5,
+    DB_RETRY_DELAY: 3000, // 3 seconds
+
+    // --- Core Security Keys ---
+    JWT_SECRET_KEY: '',
+    ENCRYPTION_KEY: '',
+
+    // --- Fundamental Architectural Mode ---
+    MULTI_TENANT: false,
+
+    /* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
+     * are loaded dynamically from the database after the application starts.
+     */
 });
 `;
 				try {

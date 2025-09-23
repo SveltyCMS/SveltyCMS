@@ -17,7 +17,7 @@
  * - Allows querying of user data through the GraphQL API
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 

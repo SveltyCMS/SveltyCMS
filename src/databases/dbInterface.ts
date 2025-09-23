@@ -69,8 +69,9 @@ export interface CacheOptions {
 
 import type { BaseEntity, ContentNode, DatabaseId } from './types';
 
-// Re-export commonly used types
+// Re-export commonly used types (including ISODateString for convenience)
 export type { BaseEntity, ContentNode, DatabaseId } from './types';
+export type { ISODateString } from './types';
 
 /** collection **/
 export interface CollectionModel {
@@ -208,7 +209,7 @@ export type DatabaseResult<T> =
 			message: string;
 			success: false;
 			error: DatabaseError;
-	  };
+ };
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds

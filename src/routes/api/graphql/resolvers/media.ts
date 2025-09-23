@@ -20,7 +20,7 @@
  * - Provides the foundation for querying media data through the GraphQL API
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 // System Logs

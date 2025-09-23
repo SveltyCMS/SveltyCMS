@@ -18,7 +18,7 @@
  * Body: JSON object with 'user_id' and 'newUserData' properties.
  */
 
-import { privateEnv } from '@root/config/private';
+import { privateEnv } from '@src/stores/globalSettings';
 
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';

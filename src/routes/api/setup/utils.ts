@@ -87,9 +87,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	switch (config.type) {
 		case 'mongodb':
 		case 'mongodb+srv': {
-			// Use the complete MongoDB auth adapter
 			const { MongoDBAdapter } = await import('@src/databases/mongodb/mongoDBAdapter');
-			const { MongoDBAuthAdapter } = await import('@src/auth/mongoDBAuth/mongoDBAuthAdapter');
 			dbAdapter = new MongoDBAdapter() as unknown as IDBAdapter;
 
 			// Prepare connection options for MongoDB
@@ -113,8 +111,9 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 				throw new Error(`Database connection failed: ${connectResult.error.message}`);
 			}
 
-			// Use the proper MongoDB auth adapter that implements the complete authDBInterface
-			authAdapter = new MongoDBAuthAdapter();
+			// Compose auth adapter via shared helper to avoid duplication
+			const { composeMongoAuthAdapter } = await import('@src/auth/mongoDBAuth/composeAuthAdapter');
+			authAdapter = composeMongoAuthAdapter();
 			break;
 		}
 		case 'postgresql': {

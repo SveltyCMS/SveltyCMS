@@ -293,21 +293,37 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig, correlationId: stri
 
 	// Generate the updated private.ts content
 	const privateConfigContent = `
-/**
+**
  * @file config/private.ts
- * @description Private configuration file - populated during setup
+ * @description Private configuration file containing essential bootstrap variables.
+ * These values are required for the server to start and connect to the database.
+ * This file will be populated during the initial setup process.
  */
 import { createPrivateConfig } from './types';
+
 export const privateEnv = createPrivateConfig({
+	// --- Core Database Connection ---
 	DB_TYPE: '${dbConfig.type}',
 	DB_HOST: '${dbConfig.host}',
 	DB_PORT: ${dbConfig.port},
 	DB_NAME: '${dbConfig.name}',
 	DB_USER: '${dbConfig.user}',
 	DB_PASSWORD: '${dbConfig.password}',
+
+	// --- Connection Behavior ---
+	DB_RETRY_ATTEMPTS: 5,
+	DB_RETRY_DELAY: 3000, // 3 seconds
+
+	// --- Core Security Keys ---
 	JWT_SECRET_KEY: '${jwtSecret}',
 	ENCRYPTION_KEY: '${encryptionKey}',
+
+	// --- Fundamental Architectural Mode ---
 	MULTI_TENANT: false,
+
+	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
+	 * are loaded dynamically from the database after the application starts.
+	 */
 });
 `;
 
