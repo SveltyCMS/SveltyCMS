@@ -10,8 +10,11 @@
  * All relevant methods now include an optional `tenantId` to support multi-tenancy.
  */
 
-import type { User, Session, Token } from './types';
 import type { DatabaseResult } from '@src/databases/dbInterface';
+import type { Session, Token, User } from './types';
+
+// Re-export DatabaseResult for convenience in implementing classes
+export type { DatabaseResult };
 
 // Pagination and Sorting Options Types
 type SortOption = { [key: string]: 'asc' | 'desc' } | [string, 'asc' | 'desc'][];

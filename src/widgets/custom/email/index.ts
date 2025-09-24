@@ -1,96 +1,65 @@
 /**
-@file src/widgets/custom/email/index.ts
-@description - Email index file.
-*/
-
-import { publicEnv } from '@src/stores/globalSettings';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GraphqlSchema, GuiSchema } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'Email' as const;
-
-/**
- * Defines Email widget Parameters
+ * @file src/widgets/custom/email/index.ts
+ * @description Email Widget Definition.
+ *
+ * Implements a robust email input widget using the Three Pillars Architecture.
+ *
+ * @features
+ * - **Email Validation**: Uses Valibot's `email()` validator for strong format checking.
+ * - **Simple Data Contract**: Stores a single, clean email string.
+ * - **Non-Translatable**: Correctly treats email addresses as universal, non-translatable data.
+ * - **Configurable GUI**: `GuiSchema` allows for easy setup in the Collection Builder.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-			// Return the data for the default content language or a message indicating no data entry
-			return data[defaultLanguage] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
+
+import type { FieldInstance } from '@src/content/types';
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { email, minLength, optional, pipe, string, type Input as ValibotInput } from 'valibot';
+import type { EmailProps } from './types';
+
+// The validation schema is a function to create rules based on the field config.
+const validationSchema = (field: FieldInstance) => {
+	// Start with a base string schema that requires a valid email format.
+	let schema = pipe(string(), email('Please enter a valid email address.'));
+
+	// If the field is required, also ensure it's not empty.
+	if (field.required) {
+		schema = pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'));
 	}
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions,
-
-		// widget specific
-		placeholder: params.placeholder
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
+	// If not required, wrap the schema to allow it to be optional.
+	return field.required ? schema : optional(schema, '');
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const EmailWidget = createWidget<EmailProps, ReturnType<typeof validationSchema>>({
+	Name: 'Email',
+	Icon: 'ic:outline-email',
+	Description: m.widget_email_description(),
+	inputComponentPath: '/src/widgets/custom/email/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/email/Display.svelte',
+	validationSchema,
 
-// Widget icon and helper text
-widget.Icon = 'ic:outline-email';
-widget.Description = m.widget_email_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Set widget-specific defaults.
+	defaults: {
+		translated: false // An email address should not be translatable.
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// Define the UI for configuring this widget in the Collection Builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		placeholder: { widget: Input, required: false }
+	}
+});
+
+export default EmailWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof EmailWidget>;
+export type EmailWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

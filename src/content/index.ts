@@ -9,23 +9,20 @@
  * - Error handling
  */
 
-import axios from 'axios';
-import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
-//import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
+import { error } from '@sveltejs/kit';
+import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-//import { getCollectionModels } from '@src/databases/db';
-//import { dbAdapter } from '@src/databases/db';
 
 // Stores
-import { contentStructure, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+import { collection, collections, collectionValue, contentStructure, mode, unAssigned } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
 import { ensureWidgetsInitialized } from '@widgets';
 
 // Types
-import type { Schema, ContentTypes, Category } from './types';
+import type { Category, ContentTypes, Schema } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

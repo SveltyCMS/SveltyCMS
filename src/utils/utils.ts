@@ -21,7 +21,7 @@
  * @exports numerous utility functions and constants
  */
 
-import type { Field, FieldValue } from '@src/content/types';
+import type { Field, FieldInstance, FieldValue } from '@src/content/types';
 import { publicEnv } from '@src/stores/globalSettings';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
@@ -183,8 +183,13 @@ export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> =
 };
 
 // Returns field's database field name or label
-export function getFieldName(field: Field, rawName = false): string {
+export function getFieldName(field: Field | FieldInstance, rawName = false): string {
 	if (!field) return '';
+
+	// Use explicit db_fieldName if available
+	if (field.db_fieldName) {
+		return rawName ? field.db_fieldName : field.db_fieldName;
+	}
 
 	// Special field name mappings
 	const specialMappings: Record<string, string> = {
@@ -192,7 +197,17 @@ export function getFieldName(field: Field, rawName = false): string {
 		'Last Name': 'last_name'
 	};
 
-	const name = field.label || field.type;
+	// Get the field name from label, or fallback to widget name
+	let name = field.label;
+	if (!name && 'widget' in field && field.widget?.Name) {
+		name = field.widget.Name;
+	}
+	if (!name && 'type' in field) {
+		name = field.type;
+	}
+	if (!name) {
+		name = 'unknown_field';
+	}
 
 	// Return raw UI name if requested
 	if (rawName) return name;

@@ -2,4 +2,4 @@
 
 [test]
 # This tells Bun to run our mock file before executing any tests.
-preload = []
+preload = ["./tests/bun/mocks/setup.ts"]

@@ -17,13 +17,13 @@
  * Utilized by the auth system to manage user sessions in a MongoDB database
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Types, Model } from 'mongoose';
 import { error } from '@sveltejs/kit';
+import type { Model, Types } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // Types
+import type { authDBInterface, DatabaseResult } from '../authDBInterface';
 import type { Session, User } from '../types';
-import type { authDBInterface } from '../authDBInterface';
 
 // Auth
 import { UserAdapter } from './userAdapter';
@@ -54,64 +54,154 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	}
 
 	// Validate token signature and claims
-	async validateToken(token: string): Promise<boolean> {
+	async validateToken(
+		token: string,
+		user_id?: string,
+		_type?: string,
+		tenantId?: string
+	): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>> {
 		try {
 			const session = await this.SessionModel.findById(token).lean();
-			if (!session) return false;
+			if (!session) {
+				return {
+					success: true,
+					data: { success: false, message: 'Session not found' }
+				};
+			}
 
 			// Check if token is expired
 			if (new Date(session.expires) <= new Date()) {
 				await this.SessionModel.findByIdAndDelete(token);
-				return false;
+				return {
+					success: true,
+					data: { success: false, message: 'Session expired' }
+				};
 			}
 
-			return true;
+			// Additional validation if user_id is provided
+			if (user_id && session.user_id !== user_id) {
+				return {
+					success: true,
+					data: { success: false, message: 'Session does not match user' }
+				};
+			}
+
+			// Check tenant isolation if tenantId is provided
+			if (tenantId && session.tenantId !== tenantId) {
+				return {
+					success: true,
+					data: { success: false, message: 'Session does not match tenant' }
+				};
+			}
+
+			return {
+				success: true,
+				data: { success: true, message: 'Token is valid' }
+			};
 		} catch (err) {
 			logger.error(`Token validation failed: ${err instanceof Error ? err.message : String(err)}`);
-			return false;
+			return {
+				success: false,
+				message: `Token validation failed: ${err instanceof Error ? err.message : String(err)}`,
+				error: {
+					code: 'VALIDATION_ERROR',
+					message: err instanceof Error ? err.message : String(err)
+				}
+			};
 		}
 	}
 
 	// Create a new session
-	async createSession(
+	async createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<DatabaseResult<Session>> {
+		try {
+			// Create the new session
+			const session = new this.SessionModel(sessionData);
+			await session.save();
+			logger.info(`Session created for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
+			const sessionObj = session.toObject();
+			return {
+				success: true,
+				data: this.formatSession({
+					_id: sessionObj._id,
+					user_id: sessionObj.user_id,
+					expires: sessionObj.expires,
+					...sessionObj
+				})
+			};
+		} catch (err) {
+			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			return {
+				success: false,
+				message,
+				error: {
+					code: 'CREATE_SESSION_ERROR',
+					message: err instanceof Error ? err.message : String(err)
+				}
+			};
+		}
+	}
+
+	// Create a new session with options (internal method)
+	async createSessionWithOptions(
 		sessionData: { user_id: string; expires: Date; tenantId?: string },
 		options: { invalidateOthers?: boolean } = {}
 	): Promise<Session> {
 		try {
 			// Only invalidate all sessions if not explicitly skipped
 			if (options.invalidateOthers !== false) {
-				await this.invalidateAllUserSessions(sessionData.user_id);
+				const invalidationResult = await this.invalidateAllUserSessions(sessionData.user_id, sessionData.tenantId);
+				if (!invalidationResult.success) {
+					logger.warn(`Failed to invalidate existing sessions: ${invalidationResult.message}`);
+				}
 			}
 
 			// Then create the new session
-			const session = new this.SessionModel(sessionData);
-			await session.save();
-			logger.info(`Session created for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
-			return this.formatSession(session.toObject());
+			const sessionResult = await this.createSession(sessionData);
+			if (!sessionResult.success) {
+				throw new Error(sessionResult.message);
+			}
+			return sessionResult.data;
 		} catch (err) {
-			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;
+			const message = `Error in SessionAdapter.createSessionWithOptions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
 			throw error(500, message);
 		}
 	}
 
 	// Rotate token - create new session and gracefully transition from old one
-	async rotateToken(oldToken: string, expires: Date): Promise<string> {
+	async rotateToken(oldToken: string, expires: Date): Promise<DatabaseResult<string>> {
 		try {
 			// Get old session data
 			const oldSession = await this.SessionModel.findById(oldToken).lean();
 			if (!oldSession) {
-				throw error(404, `Session not found: ${oldToken}`);
+				return {
+					success: false,
+					message: `Session not found: ${oldToken}`,
+					error: {
+						code: 'SESSION_NOT_FOUND',
+						message: `Session not found: ${oldToken}`,
+						statusCode: 404
+					}
+				};
 			}
 
 			// Check if token is already expired
 			if (new Date(oldSession.expires) <= new Date()) {
 				logger.warn(`Attempting to rotate expired session: ${oldToken}`);
-				throw error(400, `Cannot rotate expired session: ${oldToken}`);
+				return {
+					success: false,
+					message: `Cannot rotate expired session: ${oldToken}`,
+					error: {
+						code: 'SESSION_EXPIRED',
+						message: `Cannot rotate expired session: ${oldToken}`,
+						statusCode: 400
+					}
+				};
 			}
 
-			// Create new session, do NOT invalidate all others
-			const newSession = await this.createSession(
+			// Create new session using createSessionWithOptions to avoid invalidating all others
+			const newSession = await this.createSessionWithOptions(
 				{
 					user_id: oldSession.user_id,
 					expires,
@@ -132,44 +222,83 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			});
 
 			logger.info(`Token rotated successfully - old: ${oldToken} (grace period until ${graceExpiry.toISOString()}), new: ${newSession._id}`);
-			return newSession._id;
+			return {
+				success: true,
+				data: newSession._id
+			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.rotateToken: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: {
+					code: 'ROTATE_TOKEN_ERROR',
+					message: err instanceof Error ? err.message : String(err)
+				}
+			};
 		}
 	}
 
 	// Update the expiry of an existing session
-	async updateSessionExpiry(session_id: string, newExpiry: Date): Promise<Session> {
+	async updateSessionExpiry(session_id: string, newExpiry: Date): Promise<DatabaseResult<Session>> {
 		try {
 			const session = await this.SessionModel.findByIdAndUpdate(session_id, { expires: newExpiry }, { new: true }).lean();
 			if (!session) {
-				throw error(404, `Session not found: ${session_id}`);
+				return {
+					success: false,
+					message: `Session not found: ${session_id}`,
+					error: {
+						code: 'SESSION_NOT_FOUND',
+						message: `Session not found: ${session_id}`,
+						statusCode: 404
+					}
+				};
 			}
 			logger.debug('Session expiry updated', { session_id });
-			return this.formatSession(session);
+			return {
+				success: true,
+				data: this.formatSession(session)
+			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.updateSessionExpiry: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: {
+					code: 'UPDATE_SESSION_ERROR',
+					message: err instanceof Error ? err.message : String(err)
+				}
+			};
 		}
 	}
 
 	// Delete a session
-	async deleteSession(session_id: string): Promise<void> {
+	async deleteSession(session_id: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.SessionModel.findByIdAndDelete(session_id);
 			logger.info(`Session deleted: ${session_id}`);
+			return {
+				success: true,
+				data: undefined
+			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.deleteSession: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: {
+					code: 'DELETE_SESSION_ERROR',
+					message: err instanceof Error ? err.message : String(err)
+				}
+			};
 		}
 	}
 
 	// Delete expired sessions (enhanced to clean up rotated sessions)
-	async deleteExpiredSessions(): Promise<number> {
+	async deleteExpiredSessions(): Promise<DatabaseResult<number>> {
 		try {
 			const now = new Date();
 
@@ -177,27 +306,37 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			const result = await this.SessionModel.deleteMany({ expires: { $lte: now } });
 
 			logger.info('Expired sessions deleted', { deletedCount: result.deletedCount });
-			return result.deletedCount;
+			return {
+				success: true,
+				data: result.deletedCount
+			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.deleteExpiredSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: {
+					code: 'DELETE_EXPIRED_SESSIONS_ERROR',
+					message: err instanceof Error ? err.message : String(err)
+				}
+			};
 		}
 	}
 
 	// Validate a session (enhanced to handle rotated sessions)
-	async validateSession(session_id: string): Promise<User | null> {
+	async validateSession(session_id: string): Promise<DatabaseResult<User | null>> {
 		try {
 			const session = await this.SessionModel.findById(session_id).lean();
 			if (!session) {
 				logger.warn('Session not found', { session_id });
-				return null;
+				return { success: true, data: null };
 			}
 
 			if (new Date(session.expires) <= new Date()) {
 				await this.SessionModel.findByIdAndDelete(session_id);
 				logger.warn('Expired session', { session_id });
-				return null;
+				return { success: true, data: null };
 			}
 
 			// If this is a rotated session, check if we should redirect to the new session
@@ -207,54 +346,91 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			}
 
 			logger.debug('Session validated', { session_id });
-			return await this.userAdapter.getUserById(session.user_id);
+			// getUserById may throw errors, we need to handle them
+			try {
+				const user = await this.userAdapter.getUserById(session.user_id);
+				return { success: true, data: user };
+			} catch (userErr) {
+				const userMessage = `Error getting user in validateSession: ${userErr instanceof Error ? userErr.message : String(userErr)}`;
+				logger.error(userMessage);
+				return {
+					success: false,
+					message: userMessage,
+					error: { code: 'USER_RETRIEVAL_ERROR', message: userMessage }
+				};
+			}
 		} catch (err) {
 			const message = `Error in SessionAdapter.validateSession: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: { code: 'VALIDATION_ERROR', message }
+			};
 		}
 	}
 
 	// Invalidate all sessions for a user (enhanced to handle rotated sessions)
-	async invalidateAllUserSessions(user_id: string): Promise<void> {
+	async invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>> {
 		try {
 			const now = new Date();
-			const result = await this.SessionModel.deleteMany({
+			const filter: Record<string, unknown> = {
 				user_id,
 				expires: { $gt: now }, // Only delete active (non-expired) sessions
 				$or: [
 					{ rotated: { $ne: true } }, // Delete non-rotated sessions
 					{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000) } } // Delete rotated sessions close to expiry
 				]
-			});
+			};
+
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			const result = await this.SessionModel.deleteMany(filter);
 			logger.debug(
 				`InvalidateAllUserSessions: Attempted to delete sessions for user_id=\x1b[34m${user_id}\x1b[0m at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
 			);
+			return { success: true, data: undefined };
 		} catch (err) {
 			const message = `Error in SessionAdapter.invalidateAllUserSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: { code: 'INVALIDATION_ERROR', message }
+			};
 		}
 	}
 
 	// Get active sessions for a user (enhanced to show rotation status)
-	async getActiveSessions(user_id: string): Promise<{ success: boolean; data: Session[]; error?: string }> {
+	async getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>> {
 		try {
-			const sessions = await this.SessionModel.find({
+			const filter: Record<string, unknown> = {
 				user_id,
 				expires: { $gt: new Date() }
-			}).lean();
+			};
+
+			if (tenantId) {
+				filter.tenantId = tenantId;
+			}
+
+			const sessions = await this.SessionModel.find(filter).lean();
 			logger.debug('Active sessions retrieved for user', { user_id, count: sessions.length });
 			return { success: true, data: sessions.map((session) => this.formatSession(session)) };
 		} catch (err) {
 			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			return { success: false, data: [], error: message };
+			return {
+				success: false,
+				message,
+				error: { code: 'RETRIEVAL_ERROR', message }
+			};
 		}
 	}
 
 	// Get all active sessions for all users (for online users widget)
-	async getAllActiveSessions(tenantId?: string): Promise<{ success: boolean; data: Session[]; error?: string }> {
+	async getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>> {
 		try {
 			const query: Record<string, unknown> = {
 				expires: { $gt: new Date() }
@@ -271,34 +447,48 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in SessionAdapter.getAllActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			return { success: false, data: [], error: message };
+			return {
+				success: false,
+				message,
+				error: { code: 'RETRIEVAL_ERROR', message }
+			};
 		}
 	}
 
 	// Get session token metadata including expiration (enhanced to handle rotated sessions)
-	async getSessionTokenData(token: string): Promise<{ expiresAt: Date; user_id: string } | null> {
+	async getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: Date; user_id: string } | null>> {
 		try {
-			const session = await this.SessionModel.findById(token).lean();
-			if (!session) return null;
+			const session = await this.SessionModel.findById(session_id).lean();
+			if (!session) {
+				return { success: true, data: null };
+			}
 
 			// Check if token is expired
 			if (new Date(session.expires) <= new Date()) {
-				await this.SessionModel.findByIdAndDelete(token);
-				return null;
+				await this.SessionModel.findByIdAndDelete(session_id);
+				return { success: true, data: null };
 			}
 
 			return {
-				expiresAt: new Date(session.expires),
-				user_id: session.user_id // Include user_id as required by authDBInterface
+				success: true,
+				data: {
+					expiresAt: new Date(session.expires),
+					user_id: session.user_id // Include user_id as required by authDBInterface
+				}
 			};
 		} catch (err) {
-			logger.error(`Failed to get token data: ${err instanceof Error ? err.message : String(err)}`);
-			return null;
+			const message = `Failed to get token data: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			return {
+				success: false,
+				message,
+				error: { code: 'TOKEN_DATA_ERROR', message }
+			};
 		}
 	}
 
 	// Clean up rotated sessions that have passed their grace period
-	async cleanupRotatedSessions(): Promise<number> {
+	async cleanupRotatedSessions(): Promise<DatabaseResult<number>> {
 		try {
 			const now = new Date();
 			const result = await this.SessionModel.deleteMany({
@@ -310,19 +500,23 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				logger.info(`Cleaned up ${result.deletedCount} rotated sessions past grace period`);
 			}
 
-			return result.deletedCount;
+			return { success: true, data: result.deletedCount };
 		} catch (err) {
 			const message = `Error in SessionAdapter.cleanupRotatedSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			return {
+				success: false,
+				message,
+				error: { code: 'CLEANUP_ERROR', message }
+			};
 		}
 	}
 
-	private formatSession(session: { _id: Types.ObjectId; user_id: string; expires: Date }): Session {
+	private formatSession(session: { _id: Types.ObjectId | string; user_id: string; expires: Date; [key: string]: unknown }): Session {
 		return {
 			...session,
-			_id: session._id.toString(),
+			_id: typeof session._id === 'string' ? session._id : session._id.toString(),
 			expires: new Date(session.expires) // Ensure expires is a Date object
-		};
+		} as Session;
 	}
 }

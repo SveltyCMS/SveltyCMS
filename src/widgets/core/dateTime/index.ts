@@ -1,93 +1,79 @@
 /**
-@file src/widgets/core/dateTime/index.ts
-@description - dateTime index file.
-*/
+ * @file src/widgets/core/datetime/index.ts
+ * @description DateTime Widget Definition.
+ *
+ * Implements the DateTime widget using the Three Pillars Architecture.
+ * Stores datetimes in ISO 8601 UTC format to ensure timezone consistency,
+ * while providing a localized, native datetime input experience for the user.
+ *
+ * @features
+ * - **Timezone Normalization**: Converts user's local time to UTC for storage.
+ * - **ISO 8601 Storage**: All datetimes stored in standardized UTC format.
+ * - **Valibot Validation**: Ensures data is a valid ISO 8601 datetime string.
+ * - **Native DateTime Picker**: Uses browser's `datetime-local` input for optimal UX.
+ * - **Database Aggregation**: Supports time-aware filtering and sorting.
+ * - **Localized Display**: Automatically formats UTC dates into the user's local time.
+ */
 
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+import { createWidget } from '@src/widgets/factory';
+import { isoDateTime, minLength, pipe, string, type Input } from 'valibot';
+import type { DateTimeProps } from './types';
 
-//ParaglideJS
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-const WIDGET_NAME = 'DateTime' as const;
+// Define the validation schema for the data this widget stores.
+const DateTimeValidationSchema = pipe(
+	string('A value is required.'),
+	minLength(1, 'This datetime is required.'),
+	isoDateTime('The datetime must be a valid ISO 8601 string.')
+);
 
-/**
- * Defines DateTime widget Parameters
- */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: unknown;
+// Create the widget definition using the factory.
+const DateTimeWidget = createWidget<DateTimeProps, typeof DateTimeValidationSchema>({
+	Name: 'DateTime',
+	Icon: 'mdi:calendar-clock',
+	Description: m.widget_datetime_description(),
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
-			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
+	// Define paths to the dedicated Svelte components.
+	inputComponentPath: '/src/widgets/core/datetime/Input.svelte',
+	displayComponentPath: '/src/widgets/core/datetime/Display.svelte',
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
+	// Assign the validation schema.
+	validationSchema: DateTimeValidationSchema,
 
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
+	// Set widget-specific defaults. A datetime is typically not translated.
+	defaults: {
+		translated: false
+	},
 
-		// permissions
-		permissions: params.permissions
+	// Define correct database aggregation logic for datetimes.
+	aggregations: {
+		filters: async ({ field, filter }) => {
+			const fieldName = field.db_fieldName;
+			const [startDateStr, endDateStr] = filter.split('_');
+			const startDate = new Date(startDateStr);
+			if (isNaN(startDate.getTime())) return [];
 
-		// widget specific
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
-};
-
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
-
-// Widget icon and helper text
-widget.Icon = 'formkit:datetime';
-widget.Description = m.widget_DateTime_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
+			if (endDateStr) {
+				const endDate = new Date(endDateStr);
+				if (!isNaN(endDate.getTime())) {
+					return [{ $match: { [fieldName]: { $gte: startDate, $lte: endDate } } }];
 				}
 			}
-		];
-	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
+			// If only one date is provided, filter for that entire day.
+			const endOfDay = new Date(startDate);
+			endOfDay.setUTCHours(23, 59, 59, 999);
+			return [{ $match: { [fieldName]: { $gte: startDate, $lte: endOfDay } } }];
+		},
+		sorts: async ({ field, sortDirection }) => ({
+			[field.db_fieldName]: sortDirection
+		})
 	}
-} as Aggregations;
+});
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+export default DateTimeWidget;
+
+// Export helper types for use in Svelte components.
+export type FieldType = ReturnType<typeof DateTimeWidget>;
+export type DateTimeWidgetData = Input<typeof DateTimeValidationSchema>;

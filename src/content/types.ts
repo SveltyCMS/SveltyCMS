@@ -1,11 +1,15 @@
 /**
  * @file src/content/types.ts
  * @description Content Type Definition for Content Manager
+ *
+ * This file defines the core TypeScript types and interfaces for the SveltyCMS content manager.
+ * It includes type definitions for widgets, fields, collections, categories, dashboard widgets,
+ * system preferences, and related content management structures.
  */
 
 import type { WidgetPlaceholder } from '@src/widgets/types';
 import type widgets from '@widgets';
-import type { ModifyRequestParams } from '@widgets';
+import type { BaseSchema } from 'valibot';
 
 // Auth
 import type { RolePermissions } from '@src/auth/types';
@@ -32,25 +36,74 @@ export const StatusTypes = {
 
 export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];
 
-// Extended field definition
-export interface Field {
-	widget: WidgetTypes;
-	type: WidgetKeys;
-	config: WidgetTypes;
+// Widget Architecture
+// ========================
+
+// Widget Definition - Metadata about a widget type
+export interface WidgetDefinition {
+	widgetId: string;
+	Name: string;
+	Icon?: string;
+	Description?: string;
+
+	// --- ENTERPRISE-READY PROPERTIES ---
+	/** Path to the interactive INPUT component used in the editor. */
+	inputComponentPath: string;
+
+	/** Path to the lightweight DISPLAY component for lists and previews. */
+	displayComponentPath: string;
+
+	/** A Valibot schema defining the widget's data shape and rules. */
+	validationSchema: BaseSchema;
+
+	/** Default values for the widget's custom properties. */
+	defaults?: Record<string, unknown>;
+	// -----------------------------------
+
+	GuiFields: Record<string, unknown>;
+	componentPath?: string; // Legacy - kept for backward compatibility
+	dependencies?: string[];
+	aggregations?: {
+		filters?: (info: { field: FieldInstance; filter: string; contentLanguage: string }) => Promise<Record<string, unknown>[]>;
+		sorts?: (info: { field: FieldInstance; sortDirection: number; contentLanguage: string }) => Promise<Record<string, number>>;
+	};
+}
+
+// Field Instance - An actual field using a widget with specific configuration
+export interface FieldInstance {
+	/** A reference to the widget's immutable definition. */
+	widget: WidgetDefinition;
+
+	// Field properties
 	label: string;
-	required?: boolean;
+	db_fieldName: string; // Now required (factory sets default)
+	translated: boolean; // Now required (factory sets default)
+	required: boolean; // Now required (factory sets default)
 	unique?: boolean;
 	default?: FieldValue;
+
+	// UI properties
+	icon?: string;
+	width?: number;
+	helper?: string;
+
+	// Permissions
+	permissions?: Record<string, Record<string, boolean>>;
+
+	// Functions
 	validate?: (value: FieldValue) => boolean | Promise<boolean>;
 	display?: (args: {
 		data: Record<string, FieldValue>;
-		collection: string;
-		field: Field;
-		entry: Record<string, FieldValue>;
-		contentLanguage: string;
+		collection?: string;
+		field?: FieldInstance;
+		entry?: Record<string, FieldValue>;
+		contentLanguage?: string;
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams<FieldValue>) => Promise<object>;
+	modifyRequest?: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+
+	/** Widget-specific properties, now strongly typed by the factory. */
+	[key: string]: unknown;
 }
 
 // Field definition

@@ -2,9 +2,9 @@
  * @file src/routes/api/collections/widgets/required/+server.ts
  * @description API endpoint for getting widgets required by collections
  */
-import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@src/content/ContentManager';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.svelte';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -28,11 +28,23 @@ export const GET: RequestHandler = async ({ locals }) => {
 			if (!collection.fields) continue;
 
 			for (const field of collection.fields) {
-				if (field && typeof field === 'object' && 'type' in field && field.type) {
-					const widgetType = String(field.type);
-					// Capitalize the widget name to match the store convention
-					const capitalizedWidget = widgetType.charAt(0).toUpperCase() + widgetType.slice(1);
-					widgetSet.add(capitalizedWidget);
+				if (field && typeof field === 'object') {
+					let widgetType: string | undefined;
+
+					// Modern architecture: get widget name from widget.Name
+					if ('widget' in field && field.widget && typeof field.widget === 'object' && 'Name' in field.widget) {
+						widgetType = String(field.widget.Name);
+					}
+					// Legacy compatibility: fallback to type property
+					else if ('type' in field && field.type) {
+						widgetType = String(field.type);
+					}
+
+					if (widgetType) {
+						// Capitalize the widget name to match the store convention
+						const capitalizedWidget = widgetType.charAt(0).toUpperCase() + widgetType.slice(1);
+						widgetSet.add(capitalizedWidget);
+					}
 				}
 			}
 		}

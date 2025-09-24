@@ -7,14 +7,17 @@
  */
 
 import type { IDBAdapter } from '@src/databases/dbInterface';
-import { DrizzleAuthAdapter } from '../drizzelDBAuth/drizzleAuthAdapter';
+import { DrizzleAuthAdapter } from './drizzleAuthAdapter';
 
 // Re-export the general adapter with a MySQL-specific name
 export class DrizzleMySQLAuthAdapter extends DrizzleAuthAdapter {
-	constructor(_dbAdapter: IDBAdapter) {
+	constructor(dbAdapter?: IDBAdapter) {
 		super();
 		// Any MySQL/MariaDB-specific initialization can go here
-		// The _dbAdapter parameter is included for interface compatibility but not used yet
+		// The dbAdapter parameter is included for interface compatibility but not used yet
+		if (dbAdapter) {
+			// Future: Use dbAdapter for MySQL-specific optimizations
+		}
 	}
 }
 

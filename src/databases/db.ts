@@ -65,7 +65,7 @@ export function clearPrivateConfigCache() {
 
 // Auth
 import { Auth } from '@root/src/auth';
-import { getDefaultSessionStore } from '@src/auth/sessionStore';
+import { getDefaultSessionStore } from '@src/auth/sessionManager';
 
 // Adapters Interfaces
 import type { authDBInterface } from '@src/auth/authDBInterface';

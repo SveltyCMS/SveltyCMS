@@ -1,101 +1,85 @@
 /**
-@file src/widgets/custom/address/index.ts
-@description - Address index file.
-*/
+ * @file src/widgets/custom/address/index.ts
+ * @description Address Widget Definition.
+ *
+ * A comprehensive widget for capturing and displaying structured address data,
+ * optionally integrated with an interactive map for geocoding.
+ *
+ * @features
+ * - **Structured Data**: Stores a complete, well-defined address object.
+ * - **Configurable GUI**: `GuiSchema` provides a UI for setting widget-specific props.
+ * - **Geocoding Support**: Integrates with Mapbox for visual location picking.
+ * - **Valibot Schema**: Ensures all parts of the address are correctly formatted.
+ */
 
-import { publicEnv } from '@src/stores/globalSettings';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GraphqlSchema, GuiSchema, type Params } from './types';
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-//ParaglideJS
+import { createWidget } from '@src/widgets/factory';
+import { object, string, number, minLength, optional, type Input as ValibotInput } from 'valibot';
+import type { AddressProps } from './types';
 import * as m from '@src/paraglide/messages';
 
-const WIDGET_NAME = 'Address' as const;
+// Define the validation schema for the address data object.
+const AddressValidationSchema = object({
+	street: string([minLength(1, 'Street is required.')]),
+	houseNumber: string(),
+	postalCode: string([minLength(1, 'Postal code is required.')]),
+	city: string([minLength(1, 'City is required.')]),
+	country: string([minLength(2, 'Country is required.')]),
+	latitude: number(),
+	longitude: number()
+});
 
-// Import DISPLAY type from app.d.ts
-type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
+// Create the widget definition using the factory.
+const AddressWidget = createWidget<AddressProps, typeof AddressValidationSchema>({
+	Name: 'Address',
+	Icon: 'mdi:home-map-marker',
+	Description: m.widget_address_description(),
+	inputComponentPath: '/src/widgets/custom/address/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/address/Display.svelte',
+	validationSchema: AddressValidationSchema,
 
-/**
- * Defines the Address widget Parameters
- */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: DISPLAY;
+	// Define the UI for configuring this widget's properties in the Collection Builder.
+	GuiSchema: {
+		// Standard fields
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		width: { widget: Input, required: false },
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			data = data ? data : {}; // Ensure data is not undefined
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
-			// Return the data for the default content language or a message indicating no data entry
-			return data[defaultLanguage] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
-
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions,
-
-		// widget specific
-		mapCenter: params.mapCenter || { lat: 51.34, lng: 6.57 }, // Default to Krefeld, Germany
-		zoom: params.zoom || 12,
-		defaultCountry: params.defaultCountry || 'Germany',
-		hiddenFields: params.hiddenFields || []
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
-};
-
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
-
-// Widget icon and helper text
-widget.Icon = 'mdi:home-map-marker';
-widget.Description = 'description';
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+		// Widget-specific fields from AddressProps
+		defaultCountry: {
+			widget: Input,
+			required: false,
+			helper: "Default 2-letter country code (e.g., 'DE', 'US')."
+		},
+		mapCenter: {
+			widget: Input,
+			required: false,
+			helper: "Default map center (e.g., '51.34,6.57')."
+		},
+		zoom: { widget: Input, required: false, helper: 'Default map zoom level (e.g., 12).' },
+		hiddenFields: {
+			widget: Input,
+			required: false,
+			helper: "Comma-separated list of fields to hide (e.g., 'latitude,longitude')."
+		}
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// Set widget-specific defaults.
+	defaults: {
+		mapCenter: { lat: 51.34, lng: 6.57 },
+		zoom: 12,
+		defaultCountry: 'DE',
+		hiddenFields: [],
+		translated: false
+	}
+});
+
+export default AddressWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof AddressWidget>;
+export type AddressWidgetData = ValibotInput<typeof AddressValidationSchema>;

@@ -1,0 +1,249 @@
+# Modern Widget Architecture Guide
+
+## Overview
+
+SveltyCMS has been upgraded with a modern, enterprise-grade widget architecture that provides type-safe widget development, multi-language support, and advanced database operations.
+
+## Architecture Components
+
+### 1. Widget Factory System
+
+The modern architecture separates concerns between:
+
+- **Widget Definitions**: Blueprint of what a widget can do
+- **Field Instances**: Specific implementation of a widget in a collection
+
+```typescript
+// Create a widget definition
+const widgetFactory = createWidget({
+	Name: 'TextInput',
+	Icon: 'mdi:text',
+	Description: 'Text input widget with validation',
+	componentPath: '/src/widgets/core/input/Input.svelte',
+	GuiSchema: {
+		properties: {
+			label: { type: 'string' },
+			placeholder: { type: 'string' },
+			maxlength: { type: 'number' }
+		}
+	}
+});
+
+// Create a field instance
+const titleField = widgetFactory({
+	label: 'Article Title',
+	db_fieldName: 'title',
+	required: true,
+	placeholder: 'Enter title here',
+	maxlength: 100
+});
+```
+
+### 2. Type Safety
+
+All widgets now use TypeScript interfaces:
+
+```typescript
+interface WidgetDefinition {
+	widgetId: string;
+	Name: string;
+	Icon?: string;
+	Description?: string;
+	GuiFields: Record<string, unknown>;
+	componentPath?: string;
+	aggregations?: WidgetAggregations;
+}
+
+interface FieldInstance {
+	widget: WidgetDefinition;
+	label: string;
+	db_fieldName?: string;
+	translated?: boolean;
+	required?: boolean;
+	// ... widget-specific properties
+}
+```
+
+### 3. Language Support
+
+The architecture provides built-in multi-language support:
+
+```typescript
+// For translated widgets (stores data per language)
+const translatedDisplay = createDefaultDisplay(true);
+
+// For non-translated widgets (single language storage)
+const defaultDisplay = createDefaultDisplay(false);
+```
+
+### 4. Database Aggregations
+
+Widgets can define database operations for filtering and sorting:
+
+```typescript
+const widgetFactory = createWidget({
+	Name: 'SearchableText',
+	aggregations: {
+		filters: async (info) => [
+			{
+				$match: {
+					[`${info.field.db_fieldName}.${info.contentLanguage}`]: {
+						$regex: info.filter,
+						$options: 'i'
+					}
+				}
+			}
+		],
+		sorts: async (info) => ({
+			[`${info.field.db_fieldName}.${info.contentLanguage}`]: info.sortDirection
+		})
+	}
+});
+```
+
+## Widget Development
+
+### Creating a New Widget
+
+1. **Create the widget directory**:
+
+   ```
+   src/widgets/custom/mywidget/
+   ├── index.ts          # Widget factory and configuration
+   ├── MyWidget.svelte   # Svelte component
+   └── types.ts          # TypeScript types
+   ```
+
+2. **Define the widget factory** (`index.ts`):
+
+   ```typescript
+   import { createWidget, createDefaultDisplay } from '@src/widgets/factory';
+   import { GuiSchema, GraphqlSchema, type Params } from './types';
+
+   const WIDGET_NAME = 'MyWidget' as const;
+
+   const widgetFactory = createWidget({
+   	Name: WIDGET_NAME,
+   	Icon: 'mdi:my-icon',
+   	Description: 'My custom widget',
+   	componentPath: '/src/widgets/custom/mywidget/MyWidget.svelte',
+   	GuiSchema,
+   	GraphqlSchema
+   });
+
+   const widget = (params: Params) => {
+   	const display = params.display || createDefaultDisplay(params.translated);
+
+   	return widgetFactory({
+   		label: params.label,
+   		db_fieldName: params.db_fieldName,
+   		translated: params.translated,
+   		required: params.required
+   		// ... widget-specific properties
+   	});
+   };
+
+   export default widget;
+   ```
+
+3. **Create the Svelte component** (`MyWidget.svelte`):
+
+   ```svelte
+   <script lang="ts">
+   	import type { FieldInstance } from '@src/content/types';
+   	import { getFieldName } from '@utils/utils';
+
+   	interface Props {
+   		field: FieldInstance;
+   		value?: any;
+   	}
+
+   	let { field, value }: Props = $props();
+
+   	const fieldName = getFieldName(field);
+   	// Component logic here
+   </script>
+
+   <!-- Widget UI here -->
+   ```
+
+### Widget Guidelines
+
+1. **Always use TypeScript**: Define proper interfaces for props and types
+2. **Follow naming conventions**: Use PascalCase for widget names
+3. **Implement display functions**: For showing data in lists and previews
+4. **Add proper validation**: Use schema validation for user inputs
+5. **Support translations**: Use the `translated` parameter correctly
+6. **Document thoroughly**: Add JSDoc comments and examples
+
+## Testing Widgets
+
+### Unit Tests
+
+```typescript
+import { test, expect } from 'bun:test';
+import { createWidget } from '@src/widgets/factory';
+
+test('should create widget with proper configuration', () => {
+	const widget = createWidget({
+		Name: 'TestWidget',
+		Description: 'Test widget'
+	});
+
+	const field = widget({
+		label: 'Test Field',
+		db_fieldName: 'test'
+	});
+
+	expect(field.label).toBe('Test Field');
+	expect(field.widget.Name).toBe('TestWidget');
+});
+```
+
+### Integration Tests
+
+Test widgets within the collection builder context using Playwright tests.
+
+## Migration from Legacy Widgets
+
+The system includes utilities to detect and migrate legacy widgets:
+
+```typescript
+import { isModernField, ensureModernField } from '@src/widgets/factory';
+
+// Check if field uses modern architecture
+if (isModernField(field)) {
+	// Handle modern field
+} else {
+	// Migrate or handle legacy field
+}
+```
+
+## Performance Considerations
+
+1. **Lazy Loading**: Widgets are loaded on-demand
+2. **Caching**: Widget definitions are cached in memory
+3. **Bundle Splitting**: Each widget is a separate module
+4. **Tree Shaking**: Unused widgets are excluded from builds
+
+## Best Practices
+
+1. **Keep widgets focused**: One widget should do one thing well
+2. **Use proper validation**: Validate inputs at the widget level
+3. **Support accessibility**: Include proper ARIA attributes
+4. **Handle errors gracefully**: Provide meaningful error messages
+5. **Test thoroughly**: Include unit and integration tests
+6. **Document behavior**: Explain widget functionality and configuration options
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Widget not appearing**: Check if widget is activated in Widget Management
+2. **Type errors**: Ensure proper TypeScript interfaces are used
+3. **Display issues**: Verify display function implementation
+4. **Validation errors**: Check schema definitions and validation logic
+
+### Debugging
+
+Use the browser dev tools to inspect widget state and the widget store for debugging issues.

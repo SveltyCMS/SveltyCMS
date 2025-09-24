@@ -20,7 +20,7 @@ import { dev } from '$app/environment';
 
 import type { DatabaseConfig } from '@root/config/types';
 import { Auth, hashPassword } from '@src/auth';
-import { getDefaultSessionStore } from '@src/auth/sessionStore';
+import { getDefaultSessionStore } from '@src/auth/sessionManager';
 import type { User } from '@src/auth/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { setupAdminSchema } from '@src/utils/formSchemas';
@@ -139,7 +139,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		logger.info('Admin user created and session established, redirecting to dashboard', { correlationId });
 
 		// 9. Determine redirect path
-		const redirectPath = `/`; // Redirect to dashboard
+		const redirectPath = `/config/collectionbuilder`; // Go straight to collection builder after setup
 
 		const response = json({
 			success: true,

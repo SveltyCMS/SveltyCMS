@@ -1,97 +1,73 @@
 /**
-@file src/widgets/core/widgets/radio/index.ts
-@description - Radio index file.
-*/
-
-import { publicEnv } from '@src/stores/globalSettings';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GraphqlSchema, GuiSchema } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'Radio' as const;
-
-/**
- * Defines Radio widget Parameters
+ * @file src/widgets/core/radio/index.ts
+ * @description Radio Widget Definition.
+ *
+ * Implements a radio button group for selecting a single option from a list.
+ *
+ * @features
+ * - **Dynamic Options**: Configurable with a list of `label`/`value` pairs.
+ * - **Strict Validation**: Valibot schema ensures the selected value is one of the allowed options.
+ * - **Accessible**: The `Input.svelte` component uses `fieldset` and `legend` for accessibility.
+ * - **Clean Data Storage**: Stores only the primitive value of the selected option.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
-			// Return the data for the default content language or a message indicating no data entry
-			return data[defaultLanguage] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
+import type { FieldInstance } from '@src/content/types';
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { literal, optional, union, type Input as ValibotInput } from 'valibot';
+import type { RadioProps } from './types';
 
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
+// The validation schema is a function that generates rules based on the configured options.
+const validationSchema = (field: FieldInstance) => {
+	// Extract the allowed values from the field's options array.
+	const allowedValues = field.options?.map((opt: { value: any }) => literal(opt.value)) || [];
 
-		// permissions
-		permissions: params.permissions,
+	// Create a schema that only allows one of the specified literal values.
+	// This provides powerful, automatic validation.
+	const schema = union(allowedValues as any, 'Please select a valid option.');
 
-		// widget specific
-		color: params.color,
-		readonly: params.readonly
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
+	// If the field is not required, the value can be null or undefined.
+	return field.required ? schema : optional(schema);
 };
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const RadioWidget = createWidget<RadioProps, ReturnType<typeof validationSchema>>({
+	Name: 'Radio',
+	Icon: 'mdi:radiobox-marked',
+	Description: m.widget_radio_description(),
 
-// Widget icon and helper text
-widget.Icon = 'ci:radio-fill';
-widget.Description = m.widget_radio_description();
+	// Define paths to the dedicated Svelte components.
+	inputComponentPath: '/src/widgets/core/radio/Input.svelte',
+	displayComponentPath: '/src/widgets/core/radio/Display.svelte',
 
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Assign the dynamic validation schema.
+	validationSchema,
+
+	// Set widget-specific defaults.
+	defaults: {
+		options: [],
+		translated: false // A single selection is not typically translated.
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// GuiSchema allows a simple text area for defining options in the collection builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		options: {
+			widget: Input, // Using a simple textarea for JSON/JS array input
+			required: true,
+			helper: "Enter an array of objects, e.g., [{label: 'First', value: 1}, {label: 'Second', value: 2}]"
+		}
+	}
+});
+
+export default RadioWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof RadioWidget>;
+export type RadioWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

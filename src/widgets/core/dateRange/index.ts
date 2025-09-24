@@ -1,95 +1,105 @@
 /**
-@file src/widgets/core/dateRange/index.ts
-@description - dateRange index file.
-*/
+ * @file src/widgets/core/daterange/index.ts
+ * @description DateRange Widget Definition.
+ *
+ * Implements a robust date range widget using the Three Pillars Architecture.
+ * Stores a start and end date object in ISO 8601 UTC format.
+ *
+ * @features
+ * - **Complex Object Storage**: Manages a `{ start, end }` data structure.
+ * - **Advanced Validation**: Uses Valibot `refine` to ensure end date is after start date.
+ * - **Timezone Consistency**: Stores all dates in UTC to prevent timezone bugs.
+ * - **Database Aggregation**: Powerful filter to find entries where a date falls within the range.
+ * - **Native Date Pickers**: Uses two native date inputs for a lightweight and accessible UX.
+ */
 
-import { publicEnv } from '@src/stores/globalSettings';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GraphqlSchema, GuiSchema } from './types';
+// Components needed for the GuiSchema
+import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
+
+import { createWidget } from '@src/widgets/factory';
+import { isoDate, minLength, object, pipe, refine, string } from 'valibot';
+
+import type { DateRangeProps } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-const WIDGET_NAME = 'DateRange' as const;
-
-/**
- * Defines DateRange widget Parameters
- */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
-
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
-			// Return the data for the default content language or a message indicating no data entry
-			return data[defaultLanguage] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
-
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions
-
-		// widget specific
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
-};
-
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
-
-// Widget icon and helper text
-widget.Icon = 'ic:outline-date-range';
-widget.Description = m.widget_dateRange_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+// Define the validation schema for the `{ start, end }` object.
+const DateRangeValidationSchema = object(
+	{
+		start: pipe(string(), minLength(1, 'Start date is required.'), isoDate()),
+		end: pipe(string(), minLength(1, 'End date is required.'), isoDate())
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
+	// Use `refine` to add a cross-field validation rule.
+	[
+		refine((data) => new Date(data.start) <= new Date(data.end), {
+			message: 'End date must be on or after the start date.'
+		})
+	]
+);
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+// Create the widget definition using the factory.
+const DateRangeWidget = createWidget<DateRangeProps, typeof DateRangeValidationSchema>({
+	Name: 'DateRange',
+	Icon: 'mdi:calendar-range',
+	Description: m.widget_daterange_description(),
+
+	// Define paths to the dedicated Svelte components.
+	inputComponentPath: '/src/widgets/core/daterange/Input.svelte',
+	displayComponentPath: '/src/widgets/core/daterange/Display.svelte',
+
+	// Assign the validation schema.
+	validationSchema: DateRangeValidationSchema,
+
+	// Set widget-specific defaults.
+	defaults: {
+		translated: false
+	},
+
+	// Pass the GuiSchema directly into the widget's definition.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		icon: { widget: IconifyPicker, required: false },
+		helper: { widget: Input, required: false },
+		width: { widget: Input, required: false },
+		permissions: { widget: PermissionsSetting, required: false }
+	},
+
+	// Define database aggregation logic for date ranges.
+	aggregations: {
+		/**
+		 * Filters for entries where the provided date falls within the entry's date range.
+		 * Expects filter string format: "YYYY-MM-DD"
+		 */
+		filters: async ({ field, filter }) => {
+			const fieldName = field.db_fieldName;
+			const filterDate = new Date(filter);
+			if (isNaN(filterDate.getTime())) return [];
+
+			// Find documents where the filterDate is between the start and end fields.
+			return [
+				{
+					$match: {
+						[`${fieldName}.start`]: { $lte: filterDate },
+						[`${fieldName}.end`]: { $gte: filterDate }
+					}
+				}
+			];
+		},
+		// Sorting will be based on the start date of the range.
+		sorts: async ({ field, sortDirection }) => ({
+			[`${field.db_fieldName}.start`]: sortDirection
+		})
+	}
+});
+
+export default DateRangeWidget;
+
+// Export helper types for use in Svelte components.
+export type FieldType = ReturnType<typeof DateRangeWidget>;
+export type DateRangeWidgetData = Input<typeof DateRangeValidationSchema>;

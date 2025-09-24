@@ -21,10 +21,8 @@ Features:
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	// Stores
-	// ...existing code...
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
-	// Toast
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -38,7 +36,7 @@ Features:
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
 
-	// Set Initial active state based on conditions (will be updated by effect)
+	// Set Initial active state based on conditions
 	let active = $state<undefined | 0 | 1>(
 		publicEnv.DEMO || publicEnv.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo

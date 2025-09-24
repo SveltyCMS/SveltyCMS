@@ -6,7 +6,7 @@
  * Currently re-exports the general DrizzleAuthAdapter which supports both MariaDB and PostgreSQL.
  */
 
-import { DrizzleAuthAdapter } from '../drizzelDBAuth/drizzleAuthAdapter';
+import { DrizzleAuthAdapter } from './drizzleAuthAdapter';
 
 // Re-export the general adapter with a PostgreSQL-specific name
 export class DrizzlePostgresAuthAdapter extends DrizzleAuthAdapter {

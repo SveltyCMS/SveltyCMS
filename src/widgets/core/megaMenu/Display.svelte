@@ -1,0 +1,54 @@
+<!--
+@file src/widgets/core/megaMenu/Display.svelte
+@component
+**MegaMenu Widget Display Component**
+
+Renders hierarchical menu structures as nested lists with multilingual support.
+Part of the Three Pillars Architecture for enterprise-ready widget system.
+
+@example
+<MegaMenuDisplay value={menuItems} />
+Renders: Nested <ul> structure with proper hierarchy and localization
+
+### Props
+- `value: MenuItem[] | null | undefined` - Array of menu items to display
+
+### Features
+- **Recursive List Rendering**: Self-referencing component for nested menu display
+- **Multilingual Display**: Shows menu titles in current content language
+- **Semantic HTML**: Uses proper `<ul>` and `<li>` structure for accessibility
+- **Language Awareness**: Respects content language store for localization
+- **Fallback Handling**: Graceful handling of missing titles and empty menus
+- **Clean Styling**: PostCSS styling with proper list indentation
+- **Screen Reader Friendly**: Semantic markup for assistive technology
+-->
+
+<script lang="ts">
+	import type { MenuItem } from './types';
+	import { contentLanguage } from '@src/stores/store.svelte';
+
+	let { value }: { value: MenuItem[] | null | undefined } = $props();
+	const lang = $derived($contentLanguage);
+</script>
+
+{#if value && value.length > 0}
+	<ul class="menu-display-list">
+		{#each value as item (item._id)}
+			<li>
+				<span>{item._fields?.title?.[lang] || 'Untitled'}</span>
+				{#if item.children.length > 0}
+					<svelte:self value={item.children} />
+				{/if}
+			</li>
+		{/each}
+	</ul>
+{:else}
+	<span>–</span>
+{/if}
+
+<style lang="postcss">
+	ul {
+		list-style: none;
+		padding-left: 1rem;
+	}
+</style>

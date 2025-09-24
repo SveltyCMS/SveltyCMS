@@ -5,8 +5,9 @@
 -->
 
 <script lang="ts">
-	// Components
-	import widgets from '@widgets';
+	// Modern widget system
+	import { widgetFunctions, activeWidgets, widgetStoreActions } from '@stores/widgetStore.svelte';
+	import { onMount } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -27,20 +28,26 @@
 	// Define the search term variable
 	let searchTerm: string = $state('');
 
-	// Define the widget type
-	type WidgetType = keyof typeof widgets;
+	// Get available widgets from the modern store
+	const availableWidgets = $derived($widgetFunctions || {});
+	const activeWidgetList = $derived($activeWidgets || []);
 
-	// Get the keys of the widgets object
-	const widget_keys = Object.keys(widgets) as WidgetType[];
+	// Get only active widgets for the collection builder
+	const widget_keys = $derived(Object.keys(availableWidgets).filter((key) => activeWidgetList.includes(key)));
 
 	// Define the selected widget variable
-	let selected: WidgetType | null = $state(null);
+	let selected: string | null = $state(null);
+
+	// Initialize widgets on mount
+	onMount(async () => {
+		await widgetStoreActions.initializeWidgets();
+	});
 
 	// Log changes in an effect
 	$effect(() => {
-		console.log('Widget keys:', widget_keys);
+		console.log('Available widgets:', widget_keys);
 		console.log('Search term:', searchTerm);
-		console.log('widgets', widgets);
+		console.log('Active widgets:', activeWidgetList);
 	});
 
 	// We've created a custom submit function to pass the response and close the modal.

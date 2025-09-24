@@ -7,10 +7,11 @@ const config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 
-	// Enable runes mode across your entire SvelteKit app
-	// compilerOptions: {
-	//  runes: true
-	// },
+	// ✅ **ACTION REQUIRED**: Uncomment this to enable Svelte 5 runes mode!
+	// This is essential for using the latest Svelte 5 features.
+	compilerOptions: {
+		runes: true
+	},
 
 	kit: {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
@@ -33,6 +34,9 @@ const config = {
 			'@databases': './src/databases',
 			'@utils': './src/utils',
 			'@stores': './src/stores',
+			'@content': './src/content',
+			'@themes': './src/themes',
+			'@hooks': './src/hooks',
 			'@static': './static',
 			$paraglide: './src/paraglide',
 			'@types': './src/types',

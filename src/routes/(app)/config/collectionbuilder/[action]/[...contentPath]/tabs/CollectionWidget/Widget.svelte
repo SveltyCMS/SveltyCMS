@@ -11,9 +11,9 @@
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
+	import { widgetFunctions, activeWidgets, widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Components
-	import widgets from '@widgets';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';

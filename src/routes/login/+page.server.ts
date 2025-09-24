@@ -142,11 +142,11 @@ async function fetchAndRedirectToFirstCollection(language: Locale): Promise<stri
 			return redirectUrl;
 		}
 
-		logger.warn('No collections found via getFirstCollection(), falling back to structure scan.');
-		return '/'; // Fallback if no collections are configured
+		logger.warn('No collections found via getFirstCollection(), returning null.');
+		return null; // Return null if no collections are configured
 	} catch (err) {
 		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return '/'; // Fallback on error
+		return null; // Return null on error
 	}
 }
 
@@ -168,8 +168,8 @@ async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promis
 	// Fetch fresh data
 	const result = await fetchAndRedirectToFirstCollection(language);
 
-	// Cache the result if it's not the fallback path
-	if (result !== '/') {
+	// Cache the result if it's a valid path (not null)
+	if (result && result !== '/') {
 		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
 		logger.debug(`Cached new path for language '${language}': ${result}`);
 	}
@@ -772,7 +772,15 @@ export const actions: Actions = {
 				});
 			} else if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
-				redirectPath = collectionPath;
+				// If no collection, redirect based on permission
+				if (!collectionPath) {
+					// Import hasPermissionWithRoles dynamically to avoid circular deps
+					const { hasPermissionWithRoles } = await import('@src/auth/permissions');
+					const isAdmin = hasPermissionWithRoles(resp.user, 'config:collectionbuilder', roles);
+					redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+				} else {
+					redirectPath = collectionPath;
+				}
 
 				// Trigger the data prefetch immediately after successful login.
 				fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
@@ -879,7 +887,13 @@ export const actions: Actions = {
 			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
 
 			// Get redirect path
-			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+			const user = await auth.getUserById(userId);
+			let redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+			if (!redirectPath) {
+				const { hasPermissionWithRoles } = await import('@src/auth/permissions');
+				const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
+				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+			}
 
 			// Trigger data prefetch
 			fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {

@@ -9,7 +9,7 @@ It handles widget configuration, permissions, and specific options.
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
-	import widgets from '@widgets';
+	import { widgetFunctions, activeWidgets } from '@stores/widgetStore.svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
@@ -36,8 +36,9 @@ It handles widget configuration, permissions, and specific options.
 
 	// Local variables
 	let modalData = $derived($modalStore[0]);
-	let widgetKey = $derived(modalData?.value?.widget?.key as keyof typeof widgets);
-	let guiSchema = $derived(widgets[widgetKey]?.GuiSchema || widgets);
+	let widgetKey = $derived(modalData?.value?.widget?.key as string);
+	let availableWidgets = $derived($widgetFunctions || {});
+	let guiSchema = $derived(availableWidgets[widgetKey]?.GuiSchema || {});
 
 	// Derive options from guiSchema
 	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);

@@ -1,95 +1,110 @@
 /**
-@file src/widgets/core/date/index.ts
-@description - date index file.
-*/
+ * @file src/widgets/core/date/index.ts
+ * @description Date Widget Definition
+ *
+ * Implements date widget using the Three Pillars Architecture.
+ * Stores dates in ISO 8601 UTC format for consistency across timezones while
+ * providing localized display and native HTML date input experience.
+ *
+ * @features
+ * - **ISO 8601 Storage**: All dates stored in standardized UTC format
+ * - **Valibot Validation**: Type-safe validation with runtime checking
+ * - **Three Pillars Architecture**: Separated Definition/Input/Display components
+ * - **Timezone Consistency**: Handles user timezones transparently
+ * - **Database Aggregation**: Advanced filtering and sorting for date ranges
+ * - **Localized Display**: Automatic formatting based on user's browser locale
+ * - **Native Date Picker**: Uses browser's built-in date input for optimal UX
+ * - **Error Handling**: Deterministic IDs, proper error handling
+ */
 
-import { publicEnv } from '@src/stores/globalSettings';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GraphqlSchema, GuiSchema, type Params } from './types';
+// Components needed for the GuiSchema
+import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-//ParaglideJS
+import { createWidget } from '@src/widgets/factory';
+import { isoDate, minLength, pipe, string } from 'valibot';
+
+import type { DateProps } from './types';
+
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-const WIDGET_NAME = 'Date' as const;
+// Define the validation schema for the data this widget stores.
+const DateValidationSchema = pipe(
+	string('A value is required.'), // This message shows if the value is not a string
+	minLength(1, 'This date is required.'), // This message shows for empty strings
+	isoDate('The date must be a valid ISO 8601 string.')
+);
 
-/**
- * Defines Date widget Parameters
- */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
+// Create the widget definition using the factory.
+const DateWidget = createWidget<DateProps, typeof DateValidationSchema>({
+	Name: 'Date',
+	Icon: 'mdi:calendar',
+	Description: m.widget_date_description(),
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE as string;
-			// Return the data for the default content language or a message indicating no data entry
-			return data[defaultLanguage] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
+	// Define paths to the dedicated Svelte components.
+	inputComponentPath: '/src/widgets/core/date/Input.svelte',
+	displayComponentPath: '/src/widgets/core/date/Display.svelte',
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
+	// Assign the validation schema.
+	validationSchema: DateValidationSchema,
 
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
+	// Set widget-specific defaults. A date is typically not translated.
+	defaults: {
+		translated: false
+	},
 
-		// permissions
-		permissions: params.permissions
+	// Pass the GuiSchema directly into the widget's definition.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		icon: { widget: IconifyPicker, required: false },
+		helper: { widget: Input, required: false },
+		width: { widget: Input, required: false },
+		permissions: { widget: PermissionsSetting, required: false }
+	},
 
-		// widget specific
-	};
+	// Define correct database aggregation logic for dates.
+	aggregations: {
+		/**
+		 * Filters entries based on a date or date range.
+		 * Expects filter string format: "YYYY-MM-DD" or "YYYY-MM-DD_YYYY-MM-DD"
+		 */
+		filters: async ({ field, filter }) => {
+			const fieldName = field.db_fieldName;
+			const [startDateStr, endDateStr] = filter.split('_');
 
-	// Return the field and widget objects
-	return { ...field, widget };
-};
+			const startDate = new Date(startDateStr);
+			startDate.setUTCHours(0, 0, 0, 0); // Start of the day
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+			if (isNaN(startDate.getTime())) return []; // Invalid date
 
-// Widget icon and helper text
-widget.Icon = 'mdi:calendar';
-widget.Description = m.widget_date_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
+			// Handle date range
+			if (endDateStr) {
+				const endDate = new Date(endDateStr);
+				endDate.setUTCHours(23, 59, 59, 999); // End of the day
+				if (!isNaN(endDate.getTime())) {
+					return [{ $match: { [fieldName]: { $gte: startDate, $lte: endDate } } }];
 				}
 			}
-		];
-	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+			// Handle single day
+			const endOfDay = new Date(startDate);
+			endOfDay.setUTCHours(23, 59, 59, 999);
+			return [{ $match: { [fieldName]: { $gte: startDate, $lte: endOfDay } } }];
+		},
+		// Sorts entries by the date field.
+		sorts: async ({ field, sortDirection }) => ({
+			[field.db_fieldName]: sortDirection
+		})
+	}
+});
+
+export default DateWidget;
+
+// Export helper types for use in Svelte components
+export type FieldType = ReturnType<typeof DateWidget>;
+export type DateWidgetData = Input<typeof DateValidationSchema>;

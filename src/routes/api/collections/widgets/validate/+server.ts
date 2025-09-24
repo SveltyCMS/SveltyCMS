@@ -2,9 +2,9 @@
  * @file src/routes/api/collections/widgets/validate/+server.ts
  * @description API endpoint for validating collections against current widget state
  */
-import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@src/content/ContentManager';
+import { error, json } from '@sveltejs/kit';
+import { logger } from '@utils/logger.svelte';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, request, url }) => {
@@ -36,13 +36,25 @@ export const GET: RequestHandler = async ({ locals, request, url }) => {
 			const missingWidgets: string[] = [];
 
 			for (const field of collection.fields) {
-				if (field && typeof field === 'object' && 'type' in field && field.type) {
-					const widgetType = String(field.type);
-					const capitalizedWidget = widgetType.charAt(0).toUpperCase() + widgetType.slice(1);
+				if (field && typeof field === 'object') {
+					let widgetType: string | undefined;
 
-					if (!activeWidgets.includes(capitalizedWidget)) {
-						missingWidgets.push(capitalizedWidget);
-						collectionValid = false;
+					// Modern architecture: get widget name from widget.Name
+					if ('widget' in field && field.widget && typeof field.widget === 'object' && 'Name' in field.widget) {
+						widgetType = String(field.widget.Name);
+					}
+					// Legacy compatibility: fallback to type property
+					else if ('type' in field && field.type) {
+						widgetType = String(field.type);
+					}
+
+					if (widgetType) {
+						const capitalizedWidget = widgetType.charAt(0).toUpperCase() + widgetType.slice(1);
+
+						if (!activeWidgets.includes(capitalizedWidget)) {
+							missingWidgets.push(capitalizedWidget);
+							collectionValid = false;
+						}
 					}
 				}
 			}

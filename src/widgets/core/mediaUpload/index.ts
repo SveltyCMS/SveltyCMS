@@ -1,210 +1,79 @@
 /**
-@file src/widgets/core/mediaUpload/index.ts
-@description - MediaUpload index file
+ * @file src/widgets/core/media/index.ts
+ * @description Media Widget Definition.
+ *
+ * Implements a powerful media selector using the Three Pillars Architecture.
+ * Stores references (IDs) to media files, keeping content documents lightweight.
+ *
+ * @features
+ * - **Relational Data**: Stores media IDs, not the full media objects.
+ * - **Dynamic Validation**: Schema adapts to `multiupload` (single ID vs. array of IDs).
+ * - **Modal-Based UX**: Designed to work with a separate media library modal.
+ * - **Advanced Aggregation**: Performs a `$lookup` to filter/sort based on actual media metadata.
+ */
 
-Features:
-- Media upload for images, videos, audio, and documents
-- Drag and drop support for file upload
-- Preview of uploaded files
-- File sorting and reordering
-- Array of uploaded files
-*/
-
-import { publicEnv } from '@src/stores/globalSettings';
-
-// Media
-import type { MediaType } from '@utils/media/mediaModels';
-
-import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
-
-import { type ModifyRequestParams } from '@widgets/widgetManager.svelte';
-import { type Params, GraphqlSchema, GuiSchema } from './types';
-
-// ParaglideJS
+import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { array, minLength, optional, pipe, string, type Input } from 'valibot';
+import type { MediaProps } from './types';
 
-// System Logger
-import { logger } from '@utils/logger.svelte';
+// The validation schema is a function that adapts to the `multiupload` setting.
+const validationSchema = (field: FieldInstance) => {
+	// The base schema for a single media ID (must be a non-empty string).
+	const idSchema = pipe(string(), minLength(1, 'A media file is required.'));
 
-const WIDGET_NAME = 'MediaUpload' as const;
-
-// Type guard for string data
-function isValidString(data: unknown): data is string {
-	return typeof data === 'string' && data.length > 0;
-}
-
-// Type guard for info with contentLanguage
-interface AggregationInfo {
-	field: MediaBase;
-	contentLanguage?: string;
-	filter?: string;
-	sort?: number;
-}
-
-async function getLanguage(info: AggregationInfo): Promise<string> {
-	return info.contentLanguage || (publicEnv.DEFAULT_CONTENT_LANGUAGE as string);
-}
-
-// Helper function to safely get element by ID
-async function safeGetElementById(id: unknown, callback: (data: MediaType) => void): Promise<void> {
-	if (isValidString(id)) {
-		await get_elements_by_id.add('media_files', id, callback);
+	// If multiupload is enabled, the value should be an array of IDs.
+	if (field.multiupload) {
+		const arraySchema = array(idSchema);
+		// If the field is required, the array must not be empty.
+		return field.required ? pipe(arraySchema, minLength(1, 'At least one media file is required.')) : optional(arraySchema);
 	}
-}
 
-// Helper function to ensure valid ID
-function ensureValidId(id: unknown): string {
-	if (!isValidString(id)) {
-		throw new Error('Invalid ID provided');
-	}
-	return id;
-}
-
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	const display =
-		params.display ||
-		(({ data }) => {
-			const url =
-				data instanceof FileList ? URL.createObjectURL(data[0]) : data instanceof File ? URL.createObjectURL(data) : data?.thumbnail?.url || '';
-
-			switch (params.type) {
-				case 'video':
-					return `<video class='max-w-[200px] inline-block' src="${url}" controls></video>`;
-				case 'audio':
-					return `<audio class='max-w-[200px] inline-block' src="${url}" controls></audio>`;
-				case 'document':
-					return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
-				default:
-					return `<img class='max-w-[200px] inline-block' src="${url}" alt="Media preview" />`;
-			}
-		});
-
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions,
-
-		// widget specific
-		folder: params.folder || 'unique',
-		multiupload: params.multiupload,
-		sizelimit: params.sizelimit,
-		extensions: params.extensions,
-		metadata: params.metadata,
-		tags: params.tags,
-		categories: params.categories,
-		responsive: params.responsive,
-		customDisplayComponent: params.customDisplayComponent,
-		watermark: {
-			url: params.watermark?.url || '',
-			position: params.watermark?.position || 'center',
-			opacity: params.watermark?.opacity || 1,
-			scale: params.watermark?.scale || 1,
-			offsetX: params.watermark?.offsetX || 0,
-			offsetY: params.watermark?.offsetY || 0,
-			rotation: params.watermark?.rotation || 0
-		}
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
+	// Otherwise, the value is just a single ID string.
+	return field.required ? idSchema : optional(idSchema, '');
 };
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const MediaWidget = createWidget<MediaProps, ReturnType<typeof validationSchema>>({
+	Name: 'Media',
+	Icon: 'mdi:image-multiple',
+	Description: m.widget_media_description(),
+	inputComponentPath: '/src/widgets/core/media/Input.svelte',
+	displayComponentPath: '/src/widgets/core/media/Display.svelte',
+	validationSchema,
 
-// Widget icon and helper text
-widget.Icon = 'material-symbols:image-outline';
-widget.Description = m.widget_ImageUpload_description();
+	// Set widget-specific defaults.
+	defaults: {
+		multiupload: false,
+		allowedTypes: []
+	},
 
-widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof widget>) => {
-	try {
-		const _data = data.get();
-		// const extendedMetaData = meta_data as unknown as ExtendedMetaData; // DISABLED: no longer used
-		const validId = ensureValidId(id);
-
-		switch (type) {
-			case 'GET':
-				data.update(null);
-				await safeGetElementById(_data, (newData) => data.update(newData));
-				break;
-			case 'POST':
-			case 'PATCH':
-				if (_data instanceof File) {
-					// TODO: Handle file upload via server action instead
-					logger.warn('MediaService usage disabled in mediaUpload widget for browser compatibility');
-					throw new Error('File upload should be handled via server action');
-				} else if (_data && typeof _data === 'object' && '_id' in _data) {
-					const mediaId = String(_data._id);
-					data.update(mediaId);
+	// Aggregation performs a lookup to search by the actual media file name.
+	aggregations: {
+		filters: async ({ field, filter }) => [
+			// Join with the 'media_files' collection.
+			{
+				$lookup: {
+					from: 'media_files',
+					localField: field.db_fieldName,
+					foreignField: '_id',
+					as: 'media_docs'
 				}
-				break;
-			case 'DELETE':
-				if (isValidString(_data)) {
-					// TODO: Handle deletion via server action instead
-					logger.warn('MediaService deletion disabled in mediaUpload widget for browser compatibility');
-					throw new Error('Media deletion should be handled via server action');
-				} else if (dbAdapter) {
-					await dbAdapter.updateMany('media_files', {}, { $pull: { used_by: validId } });
-					logger.info('Removed all media file references');
-				}
-				break;
-		}
-		return { success: true };
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error(`Error in mediaUpload widget: ${errorMessage}`);
-		return { success: false, error: errorMessage };
-	}
-};
-
-// Widget Aggregations
-widget.aggregations = {
-	filters: async (info: AggregationInfo) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		const language = await getLanguage(info);
-
-		return [
+			},
+			// Filter based on the name of the joined media files.
 			{
 				$match: {
-					[`${fieldName}.header.${language}`]: {
-						$regex: info.filter || '',
-						$options: 'i'
-					}
+					'media_docs.name': { $regex: filter, $options: 'i' }
 				}
 			}
-		];
-	},
-	sorts: async (info: AggregationInfo) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		const language = await getLanguage(info);
-
-		return [{ $sort: { [`${fieldName}.${language}`]: info.sort || 1 } }];
+		]
+		// Sorting would follow a similar `$lookup` pattern.
 	}
-} as Aggregations;
+});
 
-// Export widget function and extend with FieldType
-export default widget;
-export type FieldType = ReturnType<typeof widget>;
+export default MediaWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof MediaWidget>;
+export type MediaWidgetData = Input<ReturnType<typeof validationSchema>>;

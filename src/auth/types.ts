@@ -96,6 +96,8 @@ export interface Session {
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires (ISO date string)
 	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
+	rotated?: boolean; // Flag to mark rotated sessions
+	rotatedTo?: string; // ID of the new session this was rotated to
 }
 
 // Token Interface
