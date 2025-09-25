@@ -23,7 +23,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	// --- Branch 1: Setup is NOT complete ---
 	if (!isSetupCompleteCached) {
 		// Log the initial status only when needed.
-		logger.warn('System setup is not complete. Redirecting all non-essential traffic to /setup.');
+		logger.warn('System setup is not complete. Starting Setup again...');
 
 		// Allow requests to the setup page, its API, and essential assets to pass through.
 		if (event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup') || ASSET_REGEX.test(event.url.pathname)) {

@@ -25,7 +25,8 @@ User selects date → automatically converts to ISO 8601 UTC format
 <script lang="ts">
 	import type { FieldType } from './';
 
-	let { field, value }: { field: FieldType; value: string | null | undefined } = $props();
+	// Accept `error` as a prop from the parent (string or null/undefined)
+	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null | undefined } = $props();
 
 	// The native date input requires 'YYYY-MM-DD' format.
 	// We derive this from our stored ISO string value.

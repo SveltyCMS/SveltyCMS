@@ -307,7 +307,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 			authNotReadyLogCache.set(url.pathname, now);
 			// During setup, the auth service is not ready, so we allow the request.
 			// This is expected and safe because the setup routes do not grant any privileges.
-			logger.debug(`Auth service not ready, allowing setup request to ${url.pathname}`);
+			logger.debug(`Auth service not ready, allowing setup request to \x1b[34m${url.pathname}\x1b[0m`);
 		}
 	}
 

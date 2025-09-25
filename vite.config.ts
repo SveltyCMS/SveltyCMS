@@ -2,18 +2,7 @@
  * @file vite.config.ts
  * @description This configuration file defines the Vite setup for a SvelteKit project.
  * It uses a unified config structure that conditionally applies plugins for initial setup
- * or the full dev		plugins: [
-			sveltekit(),
-			!setupComplete ? setupWizardPlugin() : collectionsWatcherPlugin(),
 
-			paraglideVitePlugin({
-				project: './project.inlang',
-				outdir: './src/paraglide'
-			}),
-			svelteEmailTailwind({
-				pathToEmailFolder: './src/components/emails'
-			})
-		],ronment, preventing server reloads.
  * It includes dynamic collection compilation, role/permission hot-reloading,
  * and Paraglide integration.
  */

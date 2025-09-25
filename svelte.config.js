@@ -9,9 +9,9 @@ const config = {
 
 	// ✅ **ACTION REQUIRED**: Uncomment this to enable Svelte 5 runes mode!
 	// This is essential for using the latest Svelte 5 features.
-	compilerOptions: {
-		runes: true
-	},
+	// compilerOptions: {
+	// 	runes: true
+	// },
 
 	kit: {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
