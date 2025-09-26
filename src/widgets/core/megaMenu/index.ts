@@ -12,10 +12,10 @@
  * - **Clean Data Contract**: Stores a clean, predictable array of `MenuItem` objects.
  */
 
-import { createWidget } from '@src/widgets/factory';
-import { object, string, array, any, lazy, minLength, type Input } from 'valibot';
-import type { MegaMenuProps, MenuItem } from './types';
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { any, array, lazy, minLength, object, string, type Input } from 'valibot';
+import type { MegaMenuProps } from './types';
 
 // Define a base schema for a single menu item's data.
 const MenuItemSchema = object({
@@ -31,7 +31,7 @@ const MegaMenuValidationSchema = array(MenuItemSchema);
 const MegaMenuWidget = createWidget<MegaMenuProps, typeof MegaMenuValidationSchema>({
 	Name: 'MegaMenu',
 	Icon: 'lucide:menu-square',
-	Description: m.widget_megamenu_description(),
+	Description: m.widget_megaMenu_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/megamenu/Input.svelte',

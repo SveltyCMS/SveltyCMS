@@ -4,6 +4,7 @@
  *
  * This module defines the `themeSchema` and `ThemeModel` for managing themes in the CMS
  */
+
 import type { ISODateString, Theme } from '@src/databases/dbInterface';
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
@@ -30,8 +31,8 @@ export const themeSchema = new Schema<Theme>(
 			}
 		},
 		previewImage: String,
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now },
+		createdAt: { type: String, default: () => new Date().toISOString() },
+		updatedAt: { type: String, default: () => new Date().toISOString() },
 		translations: [
 			{
 				languageTag: { type: String, required: true },
@@ -44,7 +45,7 @@ export const themeSchema = new Schema<Theme>(
 	},
 	{
 		timestamps: true,
-		collection: 'system_themes',
+		collection: 'system_theme',
 		strict: true
 	}
 );
@@ -65,7 +66,7 @@ themeSchema.statics = {
 			}
 			return theme;
 		} catch (error) {
-			logger.error(`Error retrieving active theme: ${error.message}`);
+			logger.error(`Error retrieving active theme: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	},
@@ -80,7 +81,7 @@ themeSchema.statics = {
 			}
 			return theme;
 		} catch (error) {
-			logger.error(`Error retrieving theme by name: ${error.message}`);
+			logger.error(`Error retrieving theme by name: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	},
@@ -124,7 +125,7 @@ themeSchema.statics = {
 				return theme;
 			});
 		} catch (error) {
-			logger.error(`Error retrieving all themes: ${error.message}`);
+			logger.error(`Error retrieving all themes: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	}

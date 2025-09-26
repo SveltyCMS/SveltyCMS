@@ -233,7 +233,11 @@ function performConditionalValidation(config: Config): string[] {
 	if (config.SEASONS && !config.SEASON_REGION) {
 		errors.push(`When ${colors.cyan}SEASONS${colors.reset} is true, a ${colors.cyan}SEASON_REGION${colors.reset} must be selected.`);
 	}
-	if (config.DEFAULT_CONTENT_LANGUAGE && config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)) {
+	if (
+		config.DEFAULT_CONTENT_LANGUAGE &&
+		config.AVAILABLE_CONTENT_LANGUAGES &&
+		!config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)
+	) {
 		errors.push(
 			`The ${colors.cyan}DEFAULT_CONTENT_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_CONTENT_LANGUAGES${colors.reset} array.`
 		);

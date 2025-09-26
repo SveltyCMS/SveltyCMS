@@ -12,12 +12,16 @@
  */
 
 import { publicEnv } from '@src/stores/globalSettings';
-import type { MediaBase } from '@utils/media/mediaModels';
+import type { MediaBase, Thumbnail } from '@utils/media/mediaModels';
 import { formatBytes, sanitize } from '@utils/utils';
 import { removeExtension } from '../utils';
 
 // System Logger
 import { logger } from '../logger.svelte';
+
+// Define types for image sizes
+type ImageSizeConfig = { width: number; height: number };
+type ImageSizes = Record<string, ImageSizeConfig>;
 
 // Browser-compatible MIME type lookup
 function getBrowserMimeType(fileName: string): string | null {
@@ -76,13 +80,23 @@ function getBrowserMimeType(fileName: string): string | null {
 }
 
 // Convert IMAGE_SIZES to an array of size configurations
-const defaultImageSizes = { sm: { width: 600, height: 600 }, md: { width: 900, height: 900 }, lg: { width: 1200, height: 1200 } };
-const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(publicEnv.IMAGE_SIZES || defaultImageSizes).map(
+const defaultImageSizes: ImageSizes = { sm: { width: 600, height: 600 }, md: { width: 900, height: 900 }, lg: { width: 1200, height: 1200 } };
+
+// Helper function to safely get image sizes configuration
+function getImageSizesConfig(): ImageSizes {
+	const envSizes = publicEnv.IMAGE_SIZES;
+	if (envSizes && typeof envSizes === 'object' && !Array.isArray(envSizes)) {
+		return envSizes as ImageSizes;
+	}
+	return defaultImageSizes;
+}
+
+const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(getImageSizesConfig()).map(
 	(key) =>
 		({
 			name: key,
-			width: (publicEnv.IMAGE_SIZES || defaultImageSizes)[key].width,
-			height: (publicEnv.IMAGE_SIZES || defaultImageSizes)[key].height
+			width: getImageSizesConfig()[key].width,
+			height: getImageSizesConfig()[key].height
 		}) as { name: string; width: number; height: number }
 );
 
@@ -119,8 +133,8 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: string): string {
 			url = `${mediaServerUrl}/${mediaItem.url}`;
 		} else {
 			const basePath = `${mediaFolder}/${mediaItem.url}`.replace(/\/+/g, '/');
-			if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && mediaItem.thumbnails[size]) {
-				url = mediaItem.thumbnails[size].url;
+			if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && (mediaItem.thumbnails as Record<string, Thumbnail>)[size]) {
+				url = (mediaItem.thumbnails as Record<string, Thumbnail>)[size].url;
 			} else {
 				url = basePath;
 			}

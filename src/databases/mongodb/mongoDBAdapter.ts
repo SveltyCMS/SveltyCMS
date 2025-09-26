@@ -31,7 +31,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import type { SystemPreferences } from '@stores/systemPreferences.svelte';
+import type { SystemPreferences } from '@src/content/types';
 import type { Unsubscriber } from 'svelte/store';
 
 // Types
@@ -47,7 +47,6 @@ import { RevisionModel } from './models/revision';
 import { SystemPreferencesModel } from './models/systemPreferences';
 import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { ThemeModel } from './models/theme';
-import { WidgetModel, widgetSchema } from './models/widget';
 import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 // System Logging
@@ -77,6 +76,18 @@ import type {
 	Widget
 } from '../dbInterface';
 
+// MongoDB connection options type
+interface MongoConnectionOptions {
+	serverSelectionTimeoutMS?: number;
+	socketTimeoutMS?: number;
+	maxPoolSize?: number;
+	retryWrites?: boolean;
+	authSource?: string;
+	user?: string;
+	pass?: string;
+	dbName?: string;
+}
+
 // Utility function to handle DatabaseErrors consistently
 const createDatabaseError = (error: unknown, code: string, message: string): DatabaseError => {
 	logger.error(`${code}: ${message}`, error);
@@ -94,9 +105,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	private collectionsInitialized = false;
 
 	// Overloaded connect method for setup operations with custom connection parameters
-	async connect(connectionString: string, options?: any): Promise<DatabaseResult<void>>;
+	async connect(connectionString: string, options?: MongoConnectionOptions): Promise<DatabaseResult<void>>;
 	async connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
-	async connect(connectionStringOrPoolOptions?: string | ConnectionPoolOptions, options?: any): Promise<DatabaseResult<void>> {
+	async connect(connectionStringOrPoolOptions?: string | ConnectionPoolOptions, options?: MongoConnectionOptions): Promise<DatabaseResult<void>> {
 		try {
 			if (typeof connectionStringOrPoolOptions === 'string') {
 				// Use provided connection string and options for setup
@@ -165,6 +176,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		} catch (error) {
 			return {
 				success: false,
+				message: 'MongoDB connection failed',
 				error: createDatabaseError(error, 'CONNECTION_ERROR', 'MongoDB connection failed')
 			};
 		}
@@ -190,6 +202,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
 		try {
 			const start = Date.now();
+			if (!mongoose.connection.db) {
+				throw new Error('MongoDB connection is not established.');
+			}
 			await mongoose.connection.db.admin().ping();
 			const latency = Date.now() - start;
 			return {
@@ -203,6 +218,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		} catch (error) {
 			return {
 				success: false,
+				message: 'Connection health check failed',
 				error: createDatabaseError(error, 'HEALTH_CHECK_ERROR', 'Connection health check failed')
 			};
 		}
@@ -278,7 +294,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						}
 					}
 				} catch (error) {
-					logger.error(`Error scanning directory ${dirPath}: ${error.message}`);
+					const errorMsg = error instanceof Error ? error.message : String(error);
+					logger.error(`Error scanning directory ${dirPath}: ${errorMsg}`);
 				}
 				return collectionFiles;
 			},
@@ -333,52 +350,56 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						logger.info(`Created content structure: \x1b[34m${contentData.path}\x1b[0m with UUID: \x1b[34m${contentData._id}\x1b[0m`);
 					}
 				} catch (error) {
-					logger.error(`Error creating/updating content structure: ${error.message}`);
+					logger.error(`Error creating/updating content structure: ${error instanceof Error ? error.message : String(error)}`);
 					throw new Error(`Error creating/updating content structure`);
 				}
 			},
 			upsertContentStructureNode: async (contentData: ContentNode): Promise<ContentNode> => {
 				if (contentData.nodeType === 'collection') {
-					return ContentStructureModel.upsertCollection(contentData);
+					// Upsert for collection node
+					return ContentStructureModel.findOneAndUpdate({ _id: contentData._id }, { $set: contentData }, { new: true, upsert: true }).lean().exec();
+				} else {
+					// Upsert for category node (since upsertCategory does not exist)
+					return ContentStructureModel.findOneAndUpdate({ _id: contentData._id }, { $set: contentData }, { new: true, upsert: true }).lean().exec();
 				}
-				return ContentStructureModel.upsertCategory(contentData);
 			},
 
 			getContentByPath: async (path: string): Promise<Document | null> => {
-				return ContentStructureModel.getContentByPath(path);
+				return await ContentStructureModel.findOne({ path }).lean().exec();
 			},
 
 			getContentStructureById: async (id: string): Promise<Document | null> => {
-				return ContentStructureModel.getContentStructureById(id);
+				return ContentStructureModel.findById(id).lean().exec();
 			},
 
 			getStructure: async (): Promise<ContentNode[]> => {
-				return ContentStructureModel.getContentStructure();
+				// If getContentStructure is not a static method, use a standard query to fetch all nodes
+				return ContentStructureModel.find().lean().exec() as Promise<ContentNode[]>;
 			},
 
 			getContentStructureChildren: async (parentId: string): Promise<Document[]> => {
-				return ContentStructureModel.getContentStructureChildren(parentId);
+				return ContentStructureModel.find({ parentId }).lean().exec();
 			},
 
 			updateContentStructure: async (contentId: string, updateData: Partial<ContentNode>): Promise<Document | null> => {
-				return ContentStructureModel.updateContentStructure(contentId, updateData);
+				return ContentStructureModel.findByIdAndUpdate(contentId, updateData, { new: true }).lean().exec();
 			},
 
 			deleteContentStructure: async (contentId: string): Promise<boolean> => {
-				return ContentStructureModel.deleteContentStructure(contentId);
+				return ContentStructureModel.findByIdAndDelete(contentId).then((result) => !!result);
 			}
 		}
 	};
 
 	//  Collection Management
 	collection = {
-		models: new Map<string, Model<unknown>>(),
+		models: new Map<string, CollectionModel>(),
 		// Get collection models
-		getModelsMap: async <T = unknown>(): Promise<Map<string, Model<T>>> => {
+		getModelsMap: async (): Promise<Map<string, CollectionModel>> => {
 			try {
-				return this.collection.models as Map<string, Model<T>>;
+				return this.collection.models as Map<string, CollectionModel>;
 			} catch (error) {
-				logger.error('Failed to get collection models: ' + error.message);
+				logger.error('Failed to get collection models: ' + (error instanceof Error ? error.message : String(error)));
 				throw new Error('Failed to get collection models');
 			}
 		},
@@ -410,7 +431,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				if (mongoose.models[collectionName]) {
 					logger.debug(`Model \x1b[34m${collectionName}\x1b[0m already exists in Mongoose`);
 					this.collection.models.set(collectionUuid, mongoose.models[collectionName]);
-					return mongoose.models[collectionName] as CollectionModel;
+					return mongoose.models[collectionName] as unknown as CollectionModel;
 				}
 
 				// Clear existing model from Mongoose's cache if it exists
@@ -491,18 +512,21 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
 				// Add indexes for the main collection
-				schema.index({ createdAt: -1 });
-				schema.index({ status: 1, createdAt: -1 });
+				schema.index({ createdAt: -1 }, { background: true });
+				schema.index({ status: 1, createdAt: -1 }, { background: true });
 
-				// Performance optimization: create indexes in background
-				schema.set('backgroundIndexing', true);
 				// Create and return the new model
 				const model = mongoose.model(collectionName, schema);
 				logger.info(
 					`Collection model \x1b[34m${collectionName}\x1b[0m created successfully with \x1b[34m${collection.fields?.length || 0}\x1b[0m fields.`
 				);
-				this.collection.models.set(collectionUuid, model);
-				return model;
+				const wrappedModel: CollectionModel = Object.assign(Object.create(model), model, {
+					aggregate: async (pipeline: Record<string, unknown>[]) => {
+						return await model.aggregate(pipeline as mongoose.PipelineStage[]).exec();
+					}
+				});
+				this.collection.models.set(collectionUuid, wrappedModel);
+				return wrappedModel;
 			} catch (error) {
 				logger.error('Error creating collection model:', error instanceof Error ? error.stack : error);
 				logger.error('Collection config that caused error:', JSON.stringify(collection, null, 2));
@@ -513,7 +537,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	//  CRUD Operations
 	crud = {
-		// Implementing findOne method
 		// Implementing findOne method to match dbInterface signature
 		findOne: async <T extends BaseEntity>(
 			collection: string,
@@ -539,6 +562,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					logger.error(`findOne failed. Collection ${collectionName} does not exist.`);
 					return {
 						success: false,
+						message: `findOne failed. Collection ${collectionName} does not exist.`,
 						error: createDatabaseError(
 							new Error(`Collection ${collectionName} not found`),
 							'COLLECTION_NOT_FOUND',
@@ -585,6 +609,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				logger.error(`Error in findOne for collection ${collection}:`, { error });
 				return {
 					success: false,
+					message: `Error in findOne for collection ${collection}: ${error.message}`,
 					error: createDatabaseError(error, 'FIND_ONE_ERROR', `Error in findOne for collection ${collection}: ${error.message}`)
 				};
 			}
@@ -615,6 +640,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					logger.error(`findMany failed. Collection ${collectionName} does not exist.`);
 					return {
 						success: false,
+						message: `findMany failed. Collection ${collectionName} does not exist.`,
 						error: createDatabaseError(
 							new Error(`Collection ${collectionName} not found`),
 							'COLLECTION_NOT_FOUND',
@@ -718,35 +744,36 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				};
 			} catch (error) {
 				// More detailed error handling
-				if (error.name === 'ValidationError') {
-					const validationErrors = error.errors
-						? Object.keys(error.errors).map((key) => ({
+				if (typeof error === 'object' && error !== null && 'name' in error && (error as { name: string }).name === 'ValidationError') {
+					const validationError = error as import('mongoose').Error.ValidationError;
+					const validationErrors = validationError.errors
+						? Object.keys(validationError.errors).map((key) => ({
 								field: key,
-								message: error.errors[key].message,
-								kind: error.errors[key].kind
+								message: validationError.errors[key]?.message,
+								kind: (validationError.errors[key] as { kind?: string })?.kind
 							}))
 						: [];
 
 					logger.error(`Validation error inserting into ${collection}:`, {
-						message: error.message,
+						message: validationError.message,
 						validationErrors,
 						document: doc
 					});
 					return {
 						success: false,
-						error: createDatabaseError(error, 'VALIDATION_ERROR', `Validation error: ${error.message}`)
+						error: createDatabaseError(error, 'VALIDATION_ERROR', `Validation error: ${validationError.message}`)
 					};
 				}
 
-				if (error.code === 11000) {
+				if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 11000) {
 					logger.error(`Duplicate key error inserting into ${collection}:`, {
-						message: error.message,
-						keyPattern: error.keyPattern,
-						keyValue: error.keyValue
+						message: (error as { message?: string }).message,
+						keyPattern: (error as { keyPattern?: unknown }).keyPattern,
+						keyValue: (error as { keyValue?: unknown }).keyValue
 					});
 					return {
 						success: false,
-						error: createDatabaseError(error, 'DUPLICATE_KEY_ERROR', `Duplicate key error: ${error.message}`)
+						error: createDatabaseError(error, 'DUPLICATE_KEY_ERROR', `Duplicate key error: ${(error as { message?: string }).message}`)
 					};
 				}
 
@@ -755,7 +782,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					message: error.message,
 					name: error.name,
 					code: error.code,
-					stack: error.stack,
+					stack: typeof error === 'object' && error !== null && 'stack' in error ? (error as { stack?: string }).stack : undefined,
 					fullError: error
 				});
 				return {
@@ -786,6 +813,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					logger.error(`insertMany failed. Collection ${collectionName} does not exist.`);
 					return {
 						success: false,
+						message: `insertMany failed. Collection ${collectionName} does not exist.`,
 						error: createDatabaseError(
 							new Error(`Collection ${collectionName} not found`),
 							'COLLECTION_NOT_FOUND',
@@ -818,16 +846,17 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					});
 					return {
 						success: false,
+						message: `insertMany ValidationError: ${error.message}`,
 						error: createDatabaseError(error, 'VALIDATION_ERROR', `insertMany ValidationError: ${error.message}`)
 					};
 				} else {
 					logger.error(`Error inserting many documents into ${collection}:`, {
 						message: error?.message,
-						stack: error?.stack,
-						error
+						stack: error?.stack
 					});
 					return {
 						success: false,
+						message: `Error inserting many documents into ${collection}`,
 						error: createDatabaseError(error, 'INSERT_MANY_ERROR', `Error inserting many documents into ${collection}`)
 					};
 				}
@@ -919,6 +948,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					logger.error(`updateMany failed. Collection ${collectionName} does not exist.`);
 					return {
 						success: false,
+						message: `updateMany failed. Collection ${collectionName} does not exist.`,
 						error: createDatabaseError(
 							new Error(`Collection ${collectionName} not found`),
 							'COLLECTION_NOT_FOUND',
@@ -943,6 +973,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				logger.error(`Error updating many documents in ${collection}:`, { error });
 				return {
 					success: false,
+					message: `Error updating many documents in ${collection}: ${error.message}`,
 					error: createDatabaseError(error, 'UPDATE_MANY_ERROR', `Error updating many documents in ${collection}: ${error.message}`)
 				};
 			}
@@ -1600,69 +1631,247 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	//  Widget Management
 	widgets = {
+		// Set up widget models
 		setupWidgetModels: async (): Promise<void> => {
-			// This will ensure that the Widget model is created or reused
-			if (!mongoose.models.Widget) {
-				mongoose.model('Widget', widgetSchema);
-				logger.info('Widget model created.');
-			} else {
-				logger.info('Widget model already exists.');
+			try {
+				// Ensure the Widget model is properly registered
+				if (!mongoose.models.Widget) {
+					logger.debug('Widget model not found, will be created on first use');
+				} else {
+					logger.debug('Widget model already exists');
+				}
+
+				logger.info('Widget models set up successfully.');
+			} catch (error) {
+				logger.error('Failed to set up widget models: ' + error.message);
+				throw new Error('Failed to set up widget models');
 			}
-			logger.info('Widget models set up successfully.');
 		},
 
-		// Install a new widget
-		installWidget: async (widgetData: { name: string; isActive?: boolean }): Promise<void> => {
-			return WidgetModel.installWidget(widgetData);
-		},
+		// Register a new widget
+		register: async (widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>> => {
+			try {
+				const WidgetModel = mongoose.models['Widget'] as Model<Widget>;
+				if (!WidgetModel) {
+					return { success: false, error: { code: 'MODEL_NOT_FOUND', message: 'Widget model not initialized' } };
+				}
 
-		// Fetch all widgets
-		getAllWidgets: async (): Promise<Widget[]> => {
-			return WidgetModel.getAllWidgets();
-		},
+				const newWidget = new WidgetModel({
+					...widget,
+					_id: this.utils.generateId()
+				});
 
-		// Fetch active widgets
-		getActiveWidgets: async (): Promise<string[]> => {
-			return WidgetModel.getActiveWidgets();
+				const savedWidget = await newWidget.save();
+				return { success: true, data: savedWidget.toObject() as Widget };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'WIDGET_REGISTER_FAILED', 'Failed to register widget') };
+			}
 		},
 
 		// Activate a widget
-		activateWidget: async (widgetName: string): Promise<void> => {
-			return WidgetModel.activateWidget(widgetName);
+		activate: async (widgetId: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				const WidgetModel = mongoose.models['Widget'] as Model<Widget>;
+				if (!WidgetModel) {
+					return { success: false, error: { code: 'MODEL_NOT_FOUND', message: 'Widget model not initialized' } };
+				}
+
+				const result = await WidgetModel.findByIdAndUpdate(widgetId, { $set: { isActive: true } }).exec();
+				if (!result) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Widget not found' } };
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to activate widget') };
+			}
 		},
 
 		// Deactivate a widget
-		deactivateWidget: async (widgetName: string): Promise<void> => {
-			return WidgetModel.deactivateWidget(widgetName);
+		deactivate: async (widgetId: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				const WidgetModel = mongoose.models['Widget'] as Model<Widget>;
+				if (!WidgetModel) {
+					return { success: false, error: { code: 'MODEL_NOT_FOUND', message: 'Widget model not initialized' } };
+				}
+
+				const result = await WidgetModel.findByIdAndUpdate(widgetId, { $set: { isActive: false } }).exec();
+				if (!result) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Widget not found' } };
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to deactivate widget') };
+			}
 		},
 
-		// Update a widget
-		updateWidget: async (widgetName: string, updateData: Partial<Widget>): Promise<void> => {
-			return WidgetModel.updateWidget(widgetName, updateData);
+		// Update widget
+		update: async (widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>> => {
+			try {
+				const WidgetModel = mongoose.models['Widget'] as Model<Widget>;
+				if (!WidgetModel) {
+					return { success: false, error: { code: 'MODEL_NOT_FOUND', message: 'Widget model not initialized' } };
+				}
+
+				const updatedWidget = await WidgetModel.findByIdAndUpdate(widgetId, { $set: widget }, { new: true }).lean().exec();
+				if (!updatedWidget) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Widget not found' } };
+				}
+
+				return { success: true, data: updatedWidget as Widget };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to update widget') };
+			}
+		},
+
+		// Delete widget
+		delete: async (widgetId: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				const WidgetModel = mongoose.models['Widget'] as Model<Widget>;
+				if (!WidgetModel) {
+					return { success: false, error: { code: 'MODEL_NOT_FOUND', message: 'Widget model not initialized' } };
+				}
+
+				const result = await WidgetModel.findByIdAndDelete(widgetId).exec();
+				if (!result) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Widget not found' } };
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'WIDGET_DELETE_FAILED', 'Failed to delete widget') };
+			}
 		}
 	};
 
 	//  Theme Management
 	themes = {
-		// Set the default theme
-		setDefaultTheme: async (themeName: string): Promise<void> => {
-			return ThemeModel.setDefaultTheme(themeName);
+		// Set up theme models
+		setupThemeModels: async (): Promise<void> => {
+			try {
+				// Ensure the Theme model is properly registered
+				if (!mongoose.models.Theme) {
+					logger.debug('Theme model not found, will be created on first use');
+				} else {
+					logger.debug('Theme model already exists');
+				}
+
+				logger.info('Theme models set up successfully.');
+			} catch (error) {
+				logger.error('Failed to set up theme models: ' + (error instanceof Error ? error.message : String(error)));
+				throw new Error('Failed to set up theme models');
+			}
 		},
 
-		// Fetch the default theme
-		getDefaultTheme: async (): Promise<Theme | null> => {
-			return ThemeModel.getDefaultTheme();
+		// Get active theme
+		getActive: async (): Promise<DatabaseResult<Theme>> => {
+			try {
+				const activeTheme = await ThemeModel.findOne({ isActive: true }).lean().exec();
+				if (!activeTheme) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'No active theme found' } };
+				}
+
+				return { success: true, data: activeTheme as Theme };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'THEME_FETCH_FAILED', 'Failed to get active theme') };
+			}
 		},
 
-		// Store themes in the database
-		storeThemes: async (themes: Theme[]): Promise<void> => {
-			logger.debug('MongoDBAdapter.themes.storeThemes called'); // Add this line to confirm method is reached
-			return ThemeModel.storeThemes(themes, this.utils.generateId); // Delegation to ThemeModel
+		// Set theme as default
+		setDefault: async (themeId: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				// First, unset all default flags
+				await ThemeModel.updateMany({}, { $set: { isDefault: false } }).exec();
+
+				// Then set the specified theme as default
+				const result = await ThemeModel.findByIdAndUpdate(themeId, { $set: { isDefault: true } }).exec();
+
+				if (!result) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Theme not found' } };
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'THEME_UPDATE_FAILED', 'Failed to set default theme') };
+			}
 		},
 
-		// Fetch all themes
+		// Install a new theme
+		install: async (theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>> => {
+			try {
+				const newTheme = new ThemeModel({
+					...theme,
+					_id: this.utils.generateId()
+				});
+
+				const savedTheme = await newTheme.save();
+				return { success: true, data: savedTheme.toObject() as Theme };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'THEME_INSTALL_FAILED', 'Failed to install theme') };
+			}
+		},
+
+		// Uninstall a theme
+		uninstall: async (themeId: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				const result = await ThemeModel.findByIdAndDelete(themeId).exec();
+				if (!result) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Theme not found' } };
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'THEME_UNINSTALL_FAILED', 'Failed to uninstall theme') };
+			}
+		},
+
+		// Update a theme
+		update: async (themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>> => {
+			try {
+				const updatedTheme = await ThemeModel.findByIdAndUpdate(themeId, { $set: theme }, { new: true }).lean().exec();
+				if (!updatedTheme) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Theme not found' } };
+				}
+
+				return { success: true, data: updatedTheme as Theme };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'THEME_UPDATE_FAILED', 'Failed to update theme') };
+			}
+		},
+
+		// Get all themes
 		getAllThemes: async (): Promise<Theme[]> => {
-			return ThemeModel.getAllThemes();
+			try {
+				const themes = await ThemeModel.find().sort({ order: 1 }).lean().exec();
+				return themes as Theme[];
+			} catch (error) {
+				logger.error('Failed to get all themes:', error);
+				return [];
+			}
+		},
+
+		// Store multiple themes
+		storeThemes: async (themes: Theme[]): Promise<void> => {
+			try {
+				await ThemeModel.insertMany(themes);
+				logger.info(`Successfully stored ${themes.length} themes`);
+			} catch (error) {
+				logger.error('Failed to store themes:', error);
+				throw error;
+			}
+		},
+
+		// Get default theme for tenant
+		getDefaultTheme: async (): Promise<Theme | null> => {
+			try {
+				// For now, ignore tenantId and just return the default theme
+				const defaultTheme = await ThemeModel.findOne({ isDefault: true }).lean().exec();
+				return defaultTheme as Theme | null;
+			} catch (error) {
+				logger.error('Failed to get default theme:', error);
+				return null;
+			}
 		}
 	};
 
@@ -1671,7 +1880,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Set user preferences for a specific layout
 		setUserPreferences: async (userId: string, layoutId: string, layout: Layout): Promise<void> => {
 			try {
-				await SystemPreferencesModel.setPreference(userId, layoutId, layout);
+				await SystemPreferencesModel.setUserPreferences(userId, { [layoutId]: layout });
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save user preferences');
 			}
@@ -1762,7 +1971,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						// If value is an object with 'data' property, extract it; otherwise use the value directly
 						let actualValue = setting.value;
 						if (actualValue && typeof actualValue === 'object' && 'data' in actualValue) {
-							actualValue = (actualValue as any).data;
+							actualValue = (actualValue as { data: unknown }).data;
 						}
 						return { success: true, data: actualValue as T };
 					}
@@ -1811,7 +2020,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						// If value is an object with 'data' property, extract it; otherwise use the value directly
 						let actualValue = setting.value;
 						if (actualValue && typeof actualValue === 'object' && 'data' in actualValue) {
-							actualValue = (actualValue as any).data;
+							actualValue = (actualValue as { data: unknown }).data;
 						}
 						result[setting.key] = actualValue as T;
 					});
@@ -2138,9 +2347,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Set up system models
 		setupSystemModels: async (): Promise<void> => {
 			try {
-				// Import system setting schema
-				const { SystemSettingModel } = await import('./models/systemSetting');
-
 				// Ensure the SystemSetting model is properly registered
 				if (!mongoose.models.SystemSetting) {
 					logger.debug('SystemSetting model not found, will be created on first use');
@@ -2148,9 +2354,20 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					logger.debug('SystemSetting model already exists');
 				}
 
+				// Ensure the Theme model is properly registered
+				if (!mongoose.models.Theme) {
+					logger.debug('Theme model not found, registering it');
+					// ThemeModel is already created when imported, so it should be available
+					if (!mongoose.models.Theme) {
+						throw new Error('Failed to register Theme model');
+					}
+				} else {
+					logger.debug('Theme model already exists');
+				}
+
 				logger.info('System models set up successfully.');
 			} catch (error) {
-				logger.error('Failed to set up system models: ' + error.message);
+				logger.error('Failed to set up system models: ' + (error instanceof Error ? error.message : String(error)));
 				throw new Error('Failed to set up system models');
 			}
 		}

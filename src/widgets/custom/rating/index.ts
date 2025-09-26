@@ -19,7 +19,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { maxValue, minValue, number, optional, pipe, type Input as ValibotInput } from 'valibot';
+import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { RatingProps } from './types';
 
 // The validation schema is a function to create rules based on the field config.

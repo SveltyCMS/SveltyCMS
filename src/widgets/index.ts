@@ -90,6 +90,12 @@ export async function initializeWidgets(): Promise<void> {
 					// eslint-disable-next-line @typescript-eslint/no-unused-vars
 					const [_fullMatch, folderType, name] = match;
 
+					// Validate extracted name
+					if (!name || typeof name !== 'string' || name.trim() === '') {
+						logger.warn(`Skipping widget module: ${path} - Invalid widget name extracted: ${name}`);
+						return null;
+					}
+
 					// Capitalize the first letter of the widget name
 					const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
 

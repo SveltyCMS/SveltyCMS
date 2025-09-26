@@ -18,19 +18,17 @@
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
-import { createWidget } from '@src/widgets/factory';
-import { object, string, url, minLength, optional, array, pipe, literal, union, type Input as ValibotInput } from 'valibot';
-import type { RemoteVideoProps, RemoteVideoData, VideoPlatform } from './types';
-import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { literal, minLength, number, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
 
 // Define the validation schema for the RemoteVideoData object.
 const RemoteVideoDataSchema = object({
 	platform: union([literal('youtube'), literal('vimeo'), literal('twitch'), literal('tiktok'), literal('other')]),
-	url: string([url('Must be a valid video URL.')]),
-	videoId: string([minLength(1, 'Video ID is required.')]),
-	title: string([minLength(1, 'Video title is required.')]),
-	thumbnailUrl: string([url('Must be a valid thumbnail URL.')]),
+	url: pipe(string(), url('Must be a valid video URL.')),
+	videoId: pipe(string(), minLength(1, 'Video ID is required.')),
+	title: pipe(string(), minLength(1, 'Video title is required.')),
+	thumbnailUrl: pipe(string(), url('Must be a valid thumbnail URL.')),
 	channelTitle: optional(string()),
 	duration: optional(string()),
 	width: optional(number()),
@@ -38,32 +36,11 @@ const RemoteVideoDataSchema = object({
 	publishedAt: optional(string())
 });
 
-// The dynamic validation schema ensures the input URL matches allowed platforms and has content.
-const validationSchema = (field: FieldInstance) => {
-	let schema = RemoteVideoDataSchema; // Validate the entire data object.
-
-	// If the field is required, ensure the `url` property is not empty.
-	if (field.required) {
-		// Use a refine to check if the 'url' inside the data object is non-empty.
-		schema = pipe(
-			schema,
-			refine((data) => data.url.length > 0, 'Video URL is required.')
-		);
-	}
-
-	// Add platform-specific validation if `allowedPlatforms` is configured.
-	if (field.allowedPlatforms && field.allowedPlatforms.length > 0) {
-		schema = pipe(
-			schema,
-			refine((data) => field.allowedPlatforms.includes(data.platform), `Only ${field.allowedPlatforms.join(', ')} videos are allowed.`)
-		);
-	}
-
-	return field.required ? schema : optional(schema);
-};
+// The validation schema for the remote video data.
+const validationSchema = RemoteVideoDataSchema;
 
 // Create the widget definition using the factory.
-const RemoteVideoWidget = createWidget<RemoteVideoProps, ReturnType<typeof validationSchema>>({
+const RemoteVideoWidget = createWidget({
 	Name: 'RemoteVideo',
 	Icon: 'mdi:video-vintage',
 	Description: m.widget_remoteVideo_description(),
@@ -123,4 +100,4 @@ export default RemoteVideoWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof RemoteVideoWidget>;
-export type RemoteVideoWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+export type RemoteVideoWidgetData = ValibotInput<typeof validationSchema>;

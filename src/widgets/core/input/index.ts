@@ -19,7 +19,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 import { createWidget } from '@src/widgets/factory';
-import { string, pipe, minLength, maxLength, optional, type Input as ValibotInput } from 'valibot';
+import { string, pipe, minLength, maxLength, optional, type InferInput as ValibotInput } from 'valibot';
 import type { TextProps } from './types';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';

@@ -499,6 +499,7 @@
 	"widget_address_name": "Name",
 	"widget_address_street": "Straßenadresse",
 	"widget_address_zip": "Postleitzahl",
+	"widget_address_description": "Dieses Adress-Widget ermöglicht die Erfassung von Benutzeradressdaten für Zwecke wie Versand, Rechnungsstellung und standortbasierte Dienste.",
 	"widget_checkbox_description": "Mit diesem Widget können Sie ein Kontrollkästchen erstellen, das Benutzer aktivieren oder deaktivieren können. Sie können Beschriftung, Farbe und Größe des Kontrollkästchens anpassen. Nutzen Sie dieses Widget, um Interaktivität zu schaffen und Feedback von Ihren Benutzern zu sammeln.",
 	"widget_colorPicker_description": "Dieses Farbauswahl-Widget ermöglicht Benutzern die einfache Auswahl einer Farbe. Nutzen Sie es für Interaktivität und Benutzereingaben.",
 	"widget_currency_description": "Dieses Währungs-Widget ermöglicht die Erfassung von Benutzerwährungsdaten für Zwecke wie Zahlungen, Wechselkurse und Transaktionen.",
@@ -507,6 +508,7 @@
 	"widget_date_description": "Dieses Datums-Widget ermöglicht die Erfassung von Benutzerdaten für Zwecke wie Geburtstage, Registrierungen und Feedback.",
 	"widget_email_description": "Dieses E-Mail-Widget ermöglicht die Erfassung von Benutzer-E-Mail-Adressen für Zwecke wie Newsletter, Registrierungen und Feedback.",
 	"widget_fileUpload_description": "Dieses FileUpload-Widget ermöglicht die Erfassung von Benutzerdateidaten für Zwecke wie Dateien, Bilder und Dokumente.",
+	"widget_media_description": "Dieses Medien-Widget ermöglicht die Erfassung von Benutzermediendateien für Zwecke wie Bilder, Videos und Dokumente.",
 	"widget_megaMenu_description": "Dieses MegaMenu-Widget ermöglicht mehrstufige Menüs zur Navigation.",
 	"widget_megamenu_title": "Mega-Menü",
 	"widget_management": "Widget-Verwaltung",
@@ -516,7 +518,7 @@
 	"widget_rating_description": "Dieses Bewertungs-Widget ermöglicht die Erfassung von Benutzerbewertungsdaten für Zwecke wie Feedback, Rezensionen und Bewertungen.",
 	"widget_relation_description": "Mit diesem Beziehungs-Widget können Sie Einträge aus einer anderen Sammlung verknüpfen, um auf verwandte Inhalte zu verweisen.",
 	"widget_remoteVideo_description": "Dieses RemoteVideo-Widget ermöglicht die Erfassung von Benutzervideodaten für Zwecke wie Termine, Erinnerungen und Ereignisse.",
-	"widget_richtText_description": "Mit diesem RichText-Widget erstellen Sie Rich-Text-Inhalte. Sie können Beschriftung, Farbe und Größe des Textes anpassen. Nutzen Sie dieses Widget, um Interaktivität zu schaffen und Feedback von Ihren Benutzern zu sammeln.",
+	"widget_richText_description": "Mit diesem RichText-Widget erstellen Sie Rich-Text-Inhalte. Sie können Beschriftung, Farbe und Größe des Textes anpassen. Nutzen Sie dieses Widget, um Interaktivität zu schaffen und Feedback von Ihren Benutzern zu sammeln.",
 	"widget_seo_ctakeywords": "Handeln, Kaufen, Anrufen, Klicken, Kontaktieren, Entdecken, Herunterladen, Finden, Erhalten, Beitreten, Lernen, Bestellen, Registrieren, Anfordern, Sehen, Verkaufen, Anmelden, Abonnieren, Ausprobieren, Anzeigen",
 	"widget_seo_description": "Dieses SEO-Widget ermöglicht die Erfassung von SEO-Benutzerdaten für Zwecke wie Suchmaschinenoptimierung (SEO), soziale Medien und Werbung.",
 	"widget_seo_powerwords": "erstaunlich, attraktiv, werden, am besten, steigern, aktuell, aktuelle Nachrichten, günstig, entdecken, direkt, einfach, exklusiv, frisch, voll, kostenlos, kostenlose Testversion, gewinnen, erhalten, wachsen, beeilen, Glück, Gesundheit, heiß, verbessern, Verbesserung, innovativ, sofort, beitreten, neuste, begrenzt, zeitlich begrenzte Zeit, Liebe, neu, berichtenswert, leistungsstark, beliebt, bewährt, Qualität, schnell, revolutionär, sparen, Verkauf, Sicherheit, anmelden, speziell, Sonderangebot, Lösungen, Erfolg, Unterstützung, heute, im Trend, Vertrauen, dringend, viral, wann, Gewinner, weltweit, Reichtum",
@@ -686,5 +688,6 @@
 	"api_install_driver_already_installed": "Treiber für {driver} ist bereits installiert",
 	"api_install_driver_success": "Treiber für {driver} erfolgreich installiert",
 	"api_install_driver_failed": "Treiberinstallation für {driver} : {error}",
-	"api_db_test_db_not_found": "Datenbank nicht gefunden. Bitte überprüfen Sie den Datenbanknamen und stellen Sie sicher, dass er existiert."
+	"api_db_test_db_not_found": "Datenbank nicht gefunden. Bitte überprüfen Sie den Datenbanknamen und stellen Sie sicher, dass er existiert.",
+	"widget_richtText_description": "Mit diesem RichText-Widget erstellen Sie Rich-Text-Inhalte. Sie können Beschriftung, Farbe und Größe des Textes anpassen. Nutzen Sie dieses Widget, um Interaktivität zu schaffen und Feedback von Ihren Benutzern zu sammeln."
 }

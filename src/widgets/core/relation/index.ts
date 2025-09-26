@@ -15,16 +15,15 @@
 // Import components needed for the GuiSchema
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-// You will need to create these two simple components for your collection builder UI
 import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
 import FieldPicker from '@components/system/builder/FieldPicker.svelte';
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { minLength, optional, pipe, string, type Input as ValibotInput } from 'valibot';
+import { minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { RelationProps } from './types';
 
 // The validation schema ensures the value is a string ID.

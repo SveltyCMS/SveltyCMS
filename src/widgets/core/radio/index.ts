@@ -18,7 +18,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { literal, optional, union, type Input as ValibotInput } from 'valibot';
+import { literal, optional, union, type InferInput as ValibotInput } from 'valibot';
 import type { RadioProps } from './types';
 
 // The validation schema is a function that generates rules based on the configured options.

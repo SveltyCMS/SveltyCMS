@@ -10,6 +10,7 @@
  */
 
 import type { FieldInstance, WidgetDefinition } from '@src/content/types';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
@@ -32,9 +33,16 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 	/** Type-safe default values for the widget's custom properties. */
 	defaults?: Partial<TProps>;
 
+	/** Valibot validation schema for the widget's data. */
+	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>>;
+
 	// Optional advanced features
 	GuiSchema?: Record<string, unknown>;
-	GraphqlSchema?: Record<string, unknown>;
+	GraphqlSchema?: (params: { field: unknown; label: string; collection: unknown; collectionNameMapping?: Map<string, string> }) => {
+		typeID: string | null;
+		graphql: string;
+		resolver?: Record<string, unknown>;
+	};
 	aggregations?: WidgetDefinition['aggregations'];
 }
 
@@ -68,8 +76,9 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		Name: config.Name,
 		Icon: config.Icon,
 		Description: config.Description,
-		inputComponentPath: config.inputComponentPath,
-		displayComponentPath: config.displayComponentPath,
+		inputComponentPath: config.inputComponentPath || '',
+		displayComponentPath: config.displayComponentPath || '',
+		validationSchema: config.validationSchema,
 		defaults: config.defaults,
 		GuiFields: config.GuiSchema?.properties || ({} as Record<string, unknown>),
 		aggregations: config.aggregations

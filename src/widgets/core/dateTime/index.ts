@@ -16,7 +16,7 @@
  */
 
 import { createWidget } from '@src/widgets/factory';
-import { isoDateTime, minLength, pipe, string, type Input } from 'valibot';
+import { isoDateTime, minLength, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { DateTimeProps } from './types';
 
 // ParaglideJS
@@ -30,10 +30,10 @@ const DateTimeValidationSchema = pipe(
 );
 
 // Create the widget definition using the factory.
-const DateTimeWidget = createWidget<DateTimeProps, typeof DateTimeValidationSchema>({
+const DateTimeWidget = createWidget<DateTimeProps>({
 	Name: 'DateTime',
 	Icon: 'mdi:calendar-clock',
-	Description: m.widget_datetime_description(),
+	Description: m.widget_DateTime_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/datetime/Input.svelte',
@@ -41,11 +41,6 @@ const DateTimeWidget = createWidget<DateTimeProps, typeof DateTimeValidationSche
 
 	// Assign the validation schema.
 	validationSchema: DateTimeValidationSchema,
-
-	// Set widget-specific defaults. A datetime is typically not translated.
-	defaults: {
-		translated: false
-	},
 
 	// Define correct database aggregation logic for datetimes.
 	aggregations: {
@@ -76,4 +71,4 @@ export default DateTimeWidget;
 
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof DateTimeWidget>;
-export type DateTimeWidgetData = Input<typeof DateTimeValidationSchema>;
+export type DateTimeWidgetData = ValibotInput<typeof DateTimeValidationSchema>;

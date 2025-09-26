@@ -225,7 +225,11 @@ export async function loadSettingsFromDB() {
 			// Clear corrupted settings from database during setup
 			try {
 				logger.info('Clearing corrupted settings from database...');
-				await SystemSettingModel.deleteMany({});
+				if (dbAdapter && dbAdapter.systemPreferences && typeof dbAdapter.systemPreferences.deleteMany === 'function') {
+					await dbAdapter.systemPreferences.deleteMany([]);
+				} else {
+					logger.warn('System preferences model is not available for deleting corrupted settings.');
+				}
 				logger.info('Corrupted settings cleared successfully');
 			} catch (clearError) {
 				logger.warn('Failed to clear corrupted settings:', clearError);
@@ -237,7 +241,7 @@ export async function loadSettingsFromDB() {
 
 		// Populate the cache with validated settings, merging dynamic private flags into unified cache
 		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as Record<string, unknown>;
-		setSettingsCache(mergedPrivate, parsedPublic.output as Record<string, unknown>);
+		setSettingsCache(mergedPrivate as typeof privateEnv, parsedPublic.output);
 
 		logger.info('✅ System settings loaded and cached from database.');
 	} catch (error) {
@@ -271,7 +275,7 @@ async function loadAdapters() {
 			case 'mongodb': {
 				logger.debug('Importing MongoDB adapter...');
 				const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
-				dbAdapter = new MongoDBAdapter();
+				dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
 				logger.debug('MongoDB adapter created');
 
 				logger.debug('Composing MongoDB auth adapter...');
@@ -452,7 +456,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		try {
 			await loadAdapters();
 		} catch (err) {
-			logger.error(`Adapter loading failed: ${err.message}`);
+			logger.error(`Adapter loading failed: ${err instanceof Error ? err.message : String(err)}`);
 			throw err;
 		}
 
@@ -467,8 +471,13 @@ async function initializeSystem(forceReload = false): Promise<void> {
 				if (dbError) {
 					if (typeof dbError === 'object' && 'code' in dbError && 'message' in dbError) {
 						errorMessage = `[${dbError.code}] ${dbError.message}`;
-					} else if (dbError instanceof Error) {
-						errorMessage = dbError.message;
+					} else if (
+						typeof dbError === 'object' &&
+						dbError !== null &&
+						'message' in dbError &&
+						typeof (dbError as { message?: unknown }).message === 'string'
+					) {
+						errorMessage = (dbError as { message: string }).message;
 					} else {
 						errorMessage = String(dbError);
 					}
@@ -478,7 +487,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 				throw connectionError;
 			}
 		} catch (err) {
-			logger.error(`Database connection failed: ${err.message}`);
+			logger.error(`Database connection failed: ${err instanceof Error ? err.message : String(err)}`);
 			throw err;
 		}
 		isConnected = true; // Mark connected after DB connection succeeds
@@ -496,13 +505,14 @@ async function initializeSystem(forceReload = false): Promise<void> {
 				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
 				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
 				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete')),
+				dbAdapter.themes.setupThemeModels().then(() => logger.debug('\x1b[34mTheme models\x1b[0m setup complete')),
 				dbAdapter.system.setupSystemModels().then(() => logger.debug('\x1b[34mSystem models\x1b[0m setup complete'))
 			]);
 
 			const step2Time = performance.now() - step2StartTime;
 			logger.debug(`\x1b[32mStep 2 completed:\x1b[0m Database models setup in \x1b[32m${step2Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelSetupErr) {
-			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
+			logger.error(`Database model setup failed: ${modelSetupErr instanceof Error ? modelSetupErr.message : String(modelSetupErr)}`);
 			throw modelSetupErr;
 		} // 3. Initialize remaining components in parallel
 
@@ -518,7 +528,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			const step3Time = performance.now() - step3StartTime;
 			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
 		} catch (componentErr) {
-			logger.error(`Component initialization failed: ${componentErr.message}`);
+			logger.error(`Component initialization failed: ${componentErr instanceof Error ? componentErr.message : String(componentErr)}`);
 			throw componentErr;
 		} // 4. Initialize ContentManager (loads collection schemas into memory)
 
@@ -529,7 +539,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			const step4Time = performance.now() - step4StartTime;
 			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
 		} catch (contentErr) {
-			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
+			logger.error(`ContentManager initialization failed: ${contentErr instanceof Error ? contentErr.message : String(contentErr)}`);
 			throw contentErr;
 		} // 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
 
@@ -564,20 +574,25 @@ async function initializeSystem(forceReload = false): Promise<void> {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
 			} // Verify auth methods are available
 
-			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
-			logger.debug(
-				`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
-				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
-			); // Test auth functionality
-
-			if (typeof auth.validateSession !== 'function') {
-				throw new Error('Auth instance missing validateSession method');
+			let authMethods: Array<keyof Auth> = [];
+			if (auth !== null) {
+				authMethods = (Object.keys(auth) as Array<keyof Auth>).filter((key) => typeof (auth as Auth)[key] === 'function');
+				logger.debug(
+					`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
+					authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
+				);
+				// Test auth functionality
+				if (typeof (auth as Auth).validateSession !== 'function') {
+					throw new Error('Auth instance missing validateSession method');
+				}
+			} else {
+				throw new Error('Auth instance is null after initialization');
 			}
 
 			const step6Time = performance.now() - step6StartTime;
 			logger.debug(`\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified in \x1b[32m${step6Time.toFixed(2)}ms\x1b[0m`);
 		} catch (authErr) {
-			logger.error(`Auth initialization failed: ${authErr.message}`);
+			logger.error(`Auth initialization failed: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
 			throw authErr;
 		}
 
@@ -730,7 +745,14 @@ export async function initConnection(dbConfig: {
 
 		// Build connection string like the test endpoint does
 		const { buildDatabaseConnectionString } = await import('../routes/api/setup/utils');
-		const connectionString = buildDatabaseConnectionString(dbConfig);
+		const connectionString = buildDatabaseConnectionString({
+			type: dbConfig.type as 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb',
+			host: dbConfig.host,
+			port: Number(dbConfig.port),
+			name: dbConfig.name,
+			user: dbConfig.user ?? '',
+			password: dbConfig.password ?? ''
+		});
 		const isAtlas = connectionString.startsWith('mongodb+srv://');
 
 		const options = {
@@ -750,7 +772,7 @@ export async function initConnection(dbConfig: {
 		}
 
 		// Set this as the global adapter for seeding
-		dbAdapter = tempAdapter;
+		dbAdapter = tempAdapter as unknown as DatabaseAdapter;
 
 		logger.info('Database connection initialized for seeding');
 	} catch (error) {

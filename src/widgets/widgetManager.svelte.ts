@@ -52,8 +52,10 @@ export async function resolveWidgetPlaceholder(placeholder: {
 		return {
 			__widgetId: placeholder.__widgetId,
 			Name: placeholder.__widgetName,
-			component: mount(MissingWidget, { props: { config: placeholder } }),
-			config: placeholder.__widgetConfig
+			component: MissingWidget as unknown as typeof import('svelte').SvelteComponent,
+			config: placeholder.__widgetConfig,
+			validateWidget: async () => null,
+			updateTranslationStatus: () => {}
 		};
 	}
 

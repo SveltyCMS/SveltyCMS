@@ -73,6 +73,11 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<voi
 		throw new Error('Database adapter not available. Database must be initialized first.');
 	}
 
+	// Set up system models first
+	if (adapter.system?.setupSystemModels) {
+		await adapter.system.setupSystemModels();
+	}
+
 	// Seed the database with default settings using database-agnostic interface
 	await seedSettings(adapter);
 

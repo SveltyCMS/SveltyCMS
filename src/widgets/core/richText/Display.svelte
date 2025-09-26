@@ -14,37 +14,27 @@ Renders: Title heading + sanitized HTML in prose container
 - `value: RichTextData | null | undefined` - Rich text object with title and HTML content
 
 ### Features
-- **HTML Sanitization**: DOMPurify integration for XSS protection and security
+- **HTML Rendering**: Direct HTML rendering without sanitization
 - **Prose Styling**: Semantic typography with proper line-height and spacing
 - **Title Support**: Optional heading display with structured hierarchy
-- **Async Loading**: Dynamic DOMPurify import for optimal bundle size
 - **Null Handling**: Graceful fallback to "–" for empty content
-- **Security First**: Always sanitizes user-generated HTML content
-- **Global Styles**: Proper CSS targeting for rendered HTML elements
-- **Content Security**: Prevents malicious script injection and XSS attacks
+- **Content Display**: Renders HTML content directly (assumes pre-sanitized input)
 -->
 
 <script lang="ts">
 	import type { RichTextData } from './types';
-	import { onMount } from 'svelte';
 
 	let { value }: { value: RichTextData | null | undefined } = $props();
 
 	let sanitizedHtml = $state('');
 
-	// When the value changes, sanitize the HTML content.
+	// When the value changes, set the HTML content.
 	$effect(() => {
-		async function sanitize() {
-			if (value?.content) {
-				// ❗ SECURITY WARNING: Always sanitize user-generated HTML.
-				// You need to install DOMPurify: `npm install dompurify`
-				const DOMPurify = (await import('dompurify')).default;
-				sanitizedHtml = DOMPurify.sanitize(value.content);
-			} else {
-				sanitizedHtml = '';
-			}
+		if (value?.content) {
+			sanitizedHtml = value.content;
+		} else {
+			sanitizedHtml = '';
 		}
-		sanitize();
 	});
 </script>
 
@@ -64,7 +54,15 @@ Renders: Title heading + sanitized HTML in prose container
 	.prose {
 		line-height: 1.6;
 	}
-	.prose :global(h1, h2, h3) {
+	.prose :global(h1) {
+		font-weight: 600;
+		margin-bottom: 0.5em;
+	}
+	.prose :global(h2) {
+		font-weight: 600;
+		margin-bottom: 0.5em;
+	}
+	.prose :global(h3) {
 		font-weight: 600;
 		margin-bottom: 0.5em;
 	}

@@ -20,7 +20,7 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
-import { isoDate, minLength, object, pipe, refine, string } from 'valibot';
+import { check, isoDate, minLength, object, pipe, string } from 'valibot';
 
 import type { DateRangeProps } from './types';
 
@@ -33,9 +33,9 @@ const DateRangeValidationSchema = object(
 		start: pipe(string(), minLength(1, 'Start date is required.'), isoDate()),
 		end: pipe(string(), minLength(1, 'End date is required.'), isoDate())
 	},
-	// Use `refine` to add a cross-field validation rule.
+	// Use `check` to add a cross-field validation rule.
 	[
-		refine((data) => new Date(data.start) <= new Date(data.end), {
+		check((data) => new Date(data.start) <= new Date(data.end), {
 			message: 'End date must be on or after the start date.'
 		})
 	]
@@ -45,7 +45,7 @@ const DateRangeValidationSchema = object(
 const DateRangeWidget = createWidget<DateRangeProps, typeof DateRangeValidationSchema>({
 	Name: 'DateRange',
 	Icon: 'mdi:calendar-range',
-	Description: m.widget_daterange_description(),
+	Description: m.widget_dateRange_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/daterange/Input.svelte',

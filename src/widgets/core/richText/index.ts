@@ -12,11 +12,11 @@
  * - **Translatable**: Fully supports multilingual content by default.
  */
 
-import { createWidget } from '@src/widgets/factory';
-import { object, string, minLength, optional, refine, type Input } from 'valibot';
-import type { RichTextProps, RichTextData } from './types';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { check, object, optional, string, type Input } from 'valibot';
+import type { RichTextProps } from './types';
 
 // Helper to check if HTML content is effectively empty.
 const isContentEmpty = (html: string) => {
@@ -33,9 +33,9 @@ const validationSchema = (field: FieldInstance) => {
 		content: string() // HTML content.
 	});
 
-	// If the field is required, use `refine` to check if the content is truly empty.
+	// If the field is required, use `check` to check if the content is truly empty.
 	if (field.required) {
-		return refine(schema, (data) => !isContentEmpty(data.content), {
+		return check(schema, (data) => !isContentEmpty(data.content), {
 			message: 'Content is required.'
 		});
 	}
@@ -47,7 +47,7 @@ const validationSchema = (field: FieldInstance) => {
 const RichTextWidget = createWidget<RichTextProps, ReturnType<typeof validationSchema>>({
 	Name: 'RichText',
 	Icon: 'mdi:format-pilcrow-arrow-right',
-	Description: m.widget_richtext_description(),
+	Description: m.widget_richText_description(),
 
 	// Define paths to the dedicated Svelte components.
 	inputComponentPath: '/src/widgets/core/richtext/Input.svelte',
