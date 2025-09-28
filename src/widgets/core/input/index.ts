@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/text/index.ts
+ * @file src/widgets/core/input/index.ts
  * @description Text Widget Definition.
  *
  * Implements a versatile text input widget using the Three Pillars Architecture.
@@ -21,37 +21,41 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { maxLength, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import { maxLength, minLength, optional, pipe, string, type BaseIssue, type BaseSchema, type InferInput as ValibotInput } from 'valibot';
 import type { TextProps } from './types';
 
 // The validation schema is a function that receives the field config and returns a schema.
 const validationSchema = (field: FieldInstance) => {
-	// Start with a base string schema and trim whitespace.
-	let schema = pipe(string(), (input) => input.trim());
+	// Build the list of validation actions
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const actions: any[] = [];
 
-	// Dynamically add validation rules based on the field's configuration.
-	if (field.required) {
-		schema = pipe(schema, minLength(1, 'This field is required.'));
-	}
 	if (field.minLength) {
-		schema = pipe(schema, minLength(field.minLength, `Must be at least ${field.minLength} characters.`));
+		actions.push(minLength(field.minLength as number, `Must be at least ${field.minLength} characters.`));
 	}
 	if (field.maxLength) {
-		schema = pipe(schema, maxLength(field.maxLength, `Must be no more than ${field.maxLength} characters.`));
+		actions.push(maxLength(field.maxLength as number, `Must be no more than ${field.maxLength} characters.`));
+	}
+	if (field.required) {
+		actions.push(minLength(1, 'This field is required.'));
 	}
 
+	// Create the schema with the actions
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const baseSchema = actions.length > 0 ? pipe(string(), ...(actions as any)) : string();
+
 	// If the field is not required, wrap the schema to allow empty/optional values.
-	return field.required ? schema : optional(schema);
+	return field.required ? baseSchema : optional(baseSchema);
 };
 
 // Create the widget definition using the factory.
-const TextWidget = createWidget<TextProps, ReturnType<typeof validationSchema>>({
+const TextWidget = createWidget<TextProps>({
 	Name: 'Input',
 	Icon: 'mdi:format-text',
 	Description: m.widget_text_description(),
 	inputComponentPath: '/src/widgets/core/input/Input.svelte',
 	displayComponentPath: '/src/widgets/core/input/Display.svelte',
-	validationSchema,
+	validationSchema: validationSchema as unknown as BaseSchema<unknown, unknown, BaseIssue<unknown>>,
 
 	// Set widget-specific defaults.
 	defaults: {
@@ -70,7 +74,10 @@ const TextWidget = createWidget<TextProps, ReturnType<typeof validationSchema>>(
 		permissions: { widget: PermissionsSetting, required: false },
 		placeholder: { widget: Input, required: false },
 		minLength: { widget: Input, required: false },
-		maxLength: { widget: Input, required: false }
+		maxLength: { widget: Input, required: false },
+		prefix: { widget: Input, required: false },
+		suffix: { widget: Input, required: false },
+		count: { widget: Input, required: false }
 	},
 
 	// Aggregations for text search and sorting.

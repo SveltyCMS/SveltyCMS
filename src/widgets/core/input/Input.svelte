@@ -1,113 +1,393 @@
 <!--
 @file src/widgets/core/input/Input.svelte
 @component
-**Text Input Widget Input Component**
-
-Provides multilingual text input with character counting and validation.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+**Enhanced Input Widget Component with improved validation integration**
 
 @example
-<TextInput bind:value={textValue} field={fieldDefinition} />
- Supports both translated and non-translated text input 
+<Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
 
 ### Props
-- `field: FieldType` - Widget field definition with validation rules and metadata
-- `value: Record<string, string> | null | undefined` - Multilingual text object (bindable)
-- `error?: string | null` - Validation error message for display
+- `field`: FieldType (configuration for the input, e.g., label, required, translated)
+- `value`: any (object storing input values, e.g., { en: "Hello", fr: "" })
 
 ### Features
-- **Multilingual Support**: Handles translated content with language-specific values
-- **Character Counting**: Real-time character count with max length validation
-- **Input Validation**: HTML5 validation with minLength/maxLength constraints
-- **Error Handling**: Accessible error display with ARIA attributes
-- **Reactive Language**: Automatically switches language based on content store
-- **Immutable Updates**: Ensures proper Svelte reactivity with object updates
-- **Accessibility**: Full ARIA support for screen readers and assistive technology
+- **Enhanced Validation**: Integration with improved validation store
+- **Multilingual Support**: Handles translatable fields with reactive updates
+- **Touch State Management**: Proper error display based on interaction
+- **Async Validation**: Support for server-side validation
+- **Performance Optimized**: Debounced validation with cleanup
 -->
 
 <script lang="ts">
-	import { contentLanguage } from '@src/stores/store.svelte';
-	import type { FieldType } from './';
+	import { publicEnv } from '@src/stores/globalSettings';
+	import type { FieldType } from '.';
+	// Utils
+	import { getFieldName } from '@src/utils/utils';
+	import { untrack } from 'svelte';
+	// Valibot validation
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
+	import { nonEmpty, nullable, parse, pipe, string, transform, type ValiError } from 'valibot';
 
-	let { field, value, error }: { field: FieldType; value: Record<string, string> | null | undefined; error?: string | null } = $props();
+	let { field, value = $bindable() }: { field: FieldType; value?: any } = $props();
 
-	// Determine the current language for this translatable field.
-	const lang = $derived(field.translated ? $contentLanguage : 'default');
+	// Initialize value if null/undefined
+	$effect(() => {
+		if (!value) {
+			if (field?.translated) {
+				value = { [contentLanguage.value.toLowerCase()]: '' };
+			} else {
+				value = { [(publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase()]: '' };
+			}
+		}
+	});
 
-	// Get the text for the current language, defaulting to an empty string.
-	let text = $derived(value?.[lang] ?? '');
+	// Field name for validation
+	const fieldName = getFieldName(field);
 
-	// Extract placeholder from field (it might be nested in different places)
-	const placeholder = $derived((field.placeholder as string) || (field as any)?.widget?.placeholder || (field as any)?.config?.placeholder || '');
+	// Language handling - with safe fallback
+	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
 
-	// Debug logging removed - placeholder should now work correctly
+	// Safe value access with fallback
+	let safeValue = $derived(value?.[_language] ?? '');
 
-	// When the user types, update the parent's `value` object immutably.
-	function handleInput(event: Event & { currentTarget: HTMLInputElement }) {
-		const newText = event.currentTarget.value;
-		// Create a new object to ensure Svelte's reactivity triggers correctly.
-		value = {
-			...(value ?? {}),
-			[lang]: newText
+	// Local text state for input binding
+	let text = $state('');
+
+	// Update text when safeValue changes
+	$effect(() => {
+		text = safeValue;
+	});
+
+	// Character count
+	let count = $derived(safeValue?.length ?? 0);
+
+	// Validation state - now using the enhanced validation store
+	let inputElement: HTMLInputElement | null = null;
+	let debounceTimeout: number | undefined;
+	let hasValidatedOnMount = $state(false);
+
+	// Get validation state from store
+	let validationError = $derived(validationStore.getError(fieldName));
+	let isValidating = $state(false);
+	let isTouched = $state(false);
+
+	// Memoized badge class calculation
+	const badgeClassCache = new Map<string, string>();
+	const getBadgeClass = (length: number) => {
+		const key = `${length}-${field?.minLength}-${field?.maxLength}-${field?.count}`;
+		if (badgeClassCache.has(key)) return badgeClassCache.get(key)!;
+
+		let result: string;
+		if (field?.minLength && length < (field?.minLength as number)) result = 'bg-red-600';
+		else if (field?.maxLength && length > (field?.maxLength as number)) result = 'bg-red-600';
+		else if (field?.count && length === (field?.count as number)) result = 'bg-green-600';
+		else if (field?.count && length > (field?.count as number)) result = 'bg-orange-600';
+		else if (field?.minLength) result = '!variant-filled-surface';
+		else result = '!variant-ghost-surface';
+
+		badgeClassCache.set(key, result);
+		return result;
+	};
+
+	// Create validation schema
+	let validationSchema = $derived(
+		field?.required
+			? pipe(
+					string(),
+					nonEmpty(),
+					transform((val) => (inputElement?.type === 'number' ? Number(val) : val))
+				)
+			: nullable(string())
+	);
+
+	// Enhanced validation function
+	async function validateInput(immediate = false): Promise<string | null> {
+		const currentValue = safeValue;
+
+		// Clear existing timeout
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+			debounceTimeout = undefined;
+		}
+
+		// Set up validation with debounce (unless immediate)
+		const doValidation = async () => {
+			isValidating = true;
+
+			try {
+				// Required field validation
+				if (field?.required && (currentValue === null || currentValue === undefined || currentValue === '')) {
+					const error = 'This field is required';
+					if (process.env.NODE_ENV !== 'production') {
+						console.log(`[Input Widget] Setting required field error for ${fieldName}:`, error);
+					}
+					validationStore.setError(fieldName, error);
+					return error;
+				}
+
+				// Length validations
+				if (currentValue !== null && currentValue !== undefined) {
+					if (field?.minLength && currentValue.length < field.minLength) {
+						const error = `Minimum length is ${field.minLength}`;
+						validationStore.setError(fieldName, error);
+						return error;
+					}
+					if (field?.maxLength && currentValue.length > field.maxLength) {
+						const error = `Maximum length is ${field.maxLength}`;
+						validationStore.setError(fieldName, error);
+						return error;
+					}
+
+					// Number validation for number inputs
+					if (inputElement?.type === 'number') {
+						const num = Number(currentValue);
+						if (isNaN(num)) {
+							const error = 'Invalid number format';
+							validationStore.setError(fieldName, error);
+							return error;
+						}
+						if (inputElement.min && num < Number(inputElement.min)) {
+							const error = `Value must be at least ${inputElement.min}`;
+							validationStore.setError(fieldName, error);
+							return error;
+						}
+						if (inputElement.max && num > Number(inputElement.max)) {
+							const error = `Value must not exceed ${inputElement.max}`;
+							validationStore.setError(fieldName, error);
+							return error;
+						}
+					}
+				}
+
+				// Valibot schema validation
+				try {
+					parse(validationSchema, currentValue);
+					validationStore.clearError(fieldName);
+					return null;
+				} catch (error) {
+					if ((error as ValiError<typeof validationSchema>).issues) {
+						const valiError = error as ValiError<typeof validationSchema>;
+						const errorMessage = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, errorMessage);
+						return errorMessage;
+					}
+					throw error;
+				}
+			} catch (error) {
+				console.error('Validation error:', error);
+				const errorMessage = 'An unexpected error occurred during validation';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
+			} finally {
+				isValidating = false;
+			}
 		};
+
+		if (immediate) {
+			return await doValidation();
+		} else {
+			return new Promise((resolve) => {
+				debounceTimeout = window.setTimeout(async () => {
+					const result = await doValidation();
+					resolve(result);
+				}, 300);
+			});
+		}
 	}
+
+	// Handle input changes
+	function handleInput() {
+		// Update the value object
+		if (value) {
+			value = { ...value, [_language]: text };
+		} else {
+			value = { [_language]: text };
+		}
+		validateInput(false);
+	}
+
+	// Handle blur events
+	async function handleBlur() {
+		isTouched = true;
+		await validateInput(true);
+	}
+
+	// Handle focus events
+	function handleFocus() {
+		// Could be used for custom focus behavior
+	}
+
+	// Safe value setter function
+	function updateValue(newValue: string) {
+		if (!value) {
+			value = {};
+		}
+		value = { ...value, [_language]: newValue };
+	}
+
+	// Cleanup function
+	$effect(() => {
+		return () => {
+			if (debounceTimeout) {
+				clearTimeout(debounceTimeout);
+			}
+			badgeClassCache.clear();
+		};
+	});
+
+	// Initialize validation on mount if requested - only run once
+	$effect(() => {
+		if (!hasValidatedOnMount) {
+			hasValidatedOnMount = true;
+			if (process.env.NODE_ENV !== 'production') {
+				console.log(
+					`[Input Widget] Validating on mount for field: ${fieldName}, required: ${field?.required}, value:`,
+					safeValue,
+					'widget instance:',
+					Math.random().toString(36).substr(2, 5)
+				);
+			}
+			// Use untrack to prevent circular dependencies and run validation immediately
+			untrack(() => {
+				if (process.env.NODE_ENV !== 'production') {
+					console.log(`[Input Widget] About to validate ${fieldName}, current errors:`, $state.snapshot(validationStore.errors));
+				}
+				validateInput(true);
+			});
+		}
+	});
+
+	// Watch for value changes from external sources
+	$effect(() => {
+		// This effect runs when safeValue changes
+		if (isTouched) {
+			validateInput(false);
+		}
+	});
 </script>
 
-<div class="input-container">
-	<div class="input-wrapper">
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+		{#if field?.prefix}
+			<button class="!px-2" aria-label={`${field.prefix} prefix`}>
+				{field?.prefix}
+			</button>
+		{/if}
+
 		<input
 			type="text"
-			id={field.db_fieldName}
-			name={field.db_fieldName}
-			required={field.required}
-			{placeholder}
-			minLength={field.minLength as number}
-			maxLength={field.maxLength as number}
-			value={text}
-			oninput={handleInput}
-			class="input"
-			class:invalid={error}
-			aria-invalid={!!error}
-			aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
+			value={safeValue}
+			oninput={(e) => {
+				updateValue(e.currentTarget.value);
+				handleInput();
+			}}
+			onblur={handleBlur}
+			onfocus={handleFocus}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			bind:this={inputElement}
+			placeholder={field?.placeholder && (field?.placeholder as string) !== '' ? (field?.placeholder as string) : field?.db_fieldName}
+			required={field?.required}
+			disabled={field?.disabled as boolean}
+			readonly={field?.readonly as boolean}
+			minlength={field?.minLength as number}
+			maxlength={field?.maxLength as number}
+			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
+			class:error={!!validationError}
+			class:validating={isValidating}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-required={field?.required}
+			data-testid="text-input"
 		/>
-		{#if field.maxLength}
-			<span class="counter" class:error={text.length > (field.maxLength as number)}>{text.length} / {field.maxLength}</span>
+
+		<!-- suffix and count -->
+		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
+			<div class="flex items-center" role="status" aria-live="polite">
+				{#if field?.count || field?.minLength || field?.maxLength}
+					<span class="badge mr-1 rounded-full {getBadgeClass(count)}" aria-label="Character count">
+						{#if field?.count && field?.minLength && field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.count && field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.count && field?.minLength}
+							{count} => {field?.minLength}
+						{:else if field?.minLength && field?.maxLength}
+							{count} => {field?.minLength}/{field?.maxLength}
+						{:else if field?.count}
+							{count}/{field?.count}
+						{:else if field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.minLength}
+							min {field?.minLength}
+						{/if}
+					</span>
+				{/if}
+				{#if field?.suffix}
+					<span class="!px-1" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Validation indicator -->
+		{#if isValidating}
+			<div class="flex items-center px-2" aria-label="Validating">
+				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+			</div>
 		{/if}
 	</div>
 
-	{#if error}
-		<p id={`${field.db_fieldName}-error`} class="error-message" role="alert">
-			{error}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
+			{validationError}
 		</p>
 	{/if}
 </div>
 
 <style lang="postcss">
 	.input-container {
+		min-height: 2.5rem;
 		position: relative;
 		padding-bottom: 1.5rem;
 		width: 100%;
 	}
+
 	.input-wrapper {
 		position: relative;
 		display: flex;
 		align-items: center;
 	}
+
 	.input {
 		flex-grow: 1;
 	}
+
 	.input.invalid {
 		border-color: #ef4444;
 	}
+
+	.error {
+		border-color: rgb(239 68 68);
+		box-shadow: 0 0 0 1px rgb(239 68 68);
+	}
+
+	.validating {
+		border-color: rgb(59 130 246);
+		box-shadow: 0 0 0 1px rgb(59 130 246);
+	}
+
 	.counter {
 		position: absolute;
 		right: 0.75rem;
 		font-size: 0.75rem;
 		color: #9ca3af;
 	}
+
 	.counter.error {
 		color: #ef4444;
 	}
+
 	.error-message {
 		position: absolute;
 		bottom: 0;
@@ -116,5 +396,15 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 		text-align: center;
 		font-size: 0.75rem;
 		color: #ef4444;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.animate-spin {
+		animation: spin 1s linear infinite;
 	}
 </style>

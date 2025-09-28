@@ -1,10 +1,20 @@
 /**
  * @file src/widgets/core/daterange/types.ts
  * @description Type definitions for the DateRange widget.
- *
- * @features
- * - **Strictly Typed**: Uses `Record<string, never>` for a truly empty object type.
  */
 
-// Defines the properties unique to the DateRange widget.
-export type DateRangeProps = Record<string, never>;
+/**
+ * Defines the properties unique to the DateRange widget.
+ */
+export interface DateRangeProps {
+	/**
+	 * Display format for the date range
+	 * @default 'medium'
+	 */
+	displayFormat?: 'short' | 'medium' | 'long' | 'full';
+
+	/**
+	 * Allow additional widget properties
+	 */
+	[key: string]: unknown;
+}

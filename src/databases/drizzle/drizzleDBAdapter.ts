@@ -8,40 +8,35 @@ import { logger } from '@utils/logger.svelte';
 import type { Unsubscriber } from 'svelte/store';
 import { v4 as uuidv4 } from 'uuid';
 
+import { drizzle } from 'drizzle-orm/mariadb';
+import { createConnection } from 'mariadb';
+
 // Type definitions
 interface QueryResult {
-	rows: Record<string, unknown>[];
-	insertId?: number;
+	rows: { data: Record<string, unknown> }[];
 	affectedRows?: number;
-	rowCount?: number;
 }
 
-interface DatabaseQuery {
-	sql: string;
-	params?: unknown[];
-}
+const drizzleDbAdapter = new DrizzleDBAdapter();
 
-// Mock database client
-const dbClient = {
-	execute: async (query: DatabaseQuery | string): Promise<QueryResult> => {
-		logger.debug('Mock database execution:', query);
-		return {
-			rows: [],
-			insertId: 1,
-			affectedRows: 0,
-			rowCount: 0
-		};
-	}
+export const db = {
+	findOne: drizzleDbAdapter.findOne.bind(drizzleDbAdapter),
+	findMany: drizzleDbAdapter.findMany.bind(drizzleDbAdapter),
+	insertMany: drizzleDbAdapter.insertMany.bind(drizzleDbAdapter),
+	updateOne: drizzleDbAdapter.updateOne.bind(drizzleDbAdapter),
+	deleteOne: drizzleDbAdapter.deleteOne.bind(drizzleDbAdapter),
+	count: drizzleDbAdapter.count.bind(drizzleDbAdapter)
 };
-
-export const db = dbClient;
 
 export class DrizzleDBAdapter {
 	private collectionsUnsubscriber: Unsubscriber | null = null;
+	private db: any;
 
-	async connect(_connectionString: string): Promise<{ success: boolean; error?: Error }> {
+	async connect(connectionString: string): Promise<{ success: boolean; error?: Error }> {
 		try {
-			logger.info('Mock database connection successful');
+			const connection = await createConnection(connectionString);
+			this.db = drizzle(connection);
+			logger.info('Drizzle database connection successful');
 			return { success: true };
 		} catch (error) {
 			return { success: false, error: error as Error };

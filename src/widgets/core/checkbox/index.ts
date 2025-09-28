@@ -14,7 +14,7 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
-import { boolean } from 'valibot';
+import { boolean, type InferInput as ValibotInput } from 'valibot';
 
 import type { CheckboxProps } from './types';
 
@@ -25,7 +25,7 @@ import * as m from '@src/paraglide/messages';
 const CheckboxValidationSchema = boolean('Must be a boolean.');
 
 // Create the widget definition using the factory.
-const CheckboxWidget = createWidget<CheckboxProps, typeof CheckboxValidationSchema>({
+const CheckboxWidget = createWidget<CheckboxProps>({
 	Name: 'Checkbox',
 	Icon: 'tabler:checkbox',
 	Description: m.widget_checkbox_description(),
@@ -64,13 +64,14 @@ const CheckboxWidget = createWidget<CheckboxProps, typeof CheckboxValidationSche
 	},
 
 	// GraphQL schema should return a simple Boolean.
-	GraphqlSchema: {
+	GraphqlSchema: () => ({
+		typeID: null, // No custom type needed for Boolean
 		graphql: 'Boolean'
-	}
+	})
 });
 
 export default CheckboxWidget;
 
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof CheckboxWidget>;
-export type CheckboxWidgetData = Input<typeof CheckboxValidationSchema>;
+export type CheckboxWidgetData = ValibotInput<typeof CheckboxValidationSchema>;

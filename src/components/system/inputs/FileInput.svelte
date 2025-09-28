@@ -12,7 +12,6 @@ Features:
 <script lang="ts">
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { twMerge } from 'tailwind-merge';
-
 	// Component
 	import Media from '@components/Media.svelte';
 
@@ -20,14 +19,13 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	const props = $props();
-
-	// Create state variables for bindable props
-	let value = $state<File | MediaImage | undefined>(props.value);
-	let multiple = $state(props.multiple ?? false);
-	let show = $state(props.show ?? true);
-	const className = props.className ?? '';
-	const onChange = props.onChange;
+	let {
+		value = $bindable<File | MediaImage | undefined>(),
+		multiple = $bindable(false),
+		show = $bindable(true),
+		className = '',
+		onChange
+	} = $props();
 
 	// Declare reactive state with $state
 	let input = $state<HTMLInputElement | null>(null);

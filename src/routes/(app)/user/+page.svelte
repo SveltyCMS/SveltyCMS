@@ -254,7 +254,7 @@
 		silent={true}
 	>
 		<div class="wrapper2">
-			<AdminArea adminData={data.adminData} currentUser={user} />
+			<AdminArea adminData={data.adminData} currentUser={user} roles={data.roles} />
 		</div>
 	</PermissionGuard>
 </div>

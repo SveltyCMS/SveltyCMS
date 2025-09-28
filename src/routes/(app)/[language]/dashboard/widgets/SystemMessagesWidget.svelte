@@ -44,7 +44,7 @@
 		icon = 'mdi:message-alert-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 2 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onSizeChange = (_newSize: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;

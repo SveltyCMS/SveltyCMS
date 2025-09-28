@@ -7,23 +7,21 @@ component
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
+	import { collection, targetWidget } from '@src/stores/collectionStore.svelte';
 	import { tabSet } from '@stores/store.svelte';
-	import { targetWidget, collection } from '@src/stores/collectionStore.svelte';
-	import { getGuiFields, asAny } from '@utils/utils';
-
+	import { asAny, getGuiFields } from '@utils/utils';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
 	import widgets from '@src/widgets';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
+	import type { FieldInstance as Field } from '@root/src/content/types';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
-	import type { Field } from '@root/src/content/types';
+	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 
 	let props = $props<{ fields?: Field[]; handleCollectionSave: () => Promise<void> }>();
 

@@ -34,6 +34,7 @@
 	import { getTextDirection } from '@utils/utils';
 	// Stores
 	import { contentStructure } from '@stores/collectionStore.svelte';
+	import { publicEnv } from '@stores/globalSettings';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
@@ -282,7 +283,7 @@
 	});
 
 	// SEO
-	const siteName = $derived(data.settings?.SITE_NAME || 'SveltyCMS');
+	const siteName = $derived(publicEnv.SITE_NAME || 'SveltyCMS');
 	const SeoDescription = $derived(
 		`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`
 	);

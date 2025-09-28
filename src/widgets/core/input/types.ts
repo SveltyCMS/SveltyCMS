@@ -15,4 +15,12 @@ export interface TextProps {
 	minLength?: number;
 	// The maximum allowed length for the text
 	maxLength?: number;
+	// Prefix text
+	prefix?: string;
+	// Suffix text
+	suffix?: string;
+	// Exact count
+	count?: number;
+	// Index signature for WidgetProps constraint
+	[key: string]: unknown;
 }

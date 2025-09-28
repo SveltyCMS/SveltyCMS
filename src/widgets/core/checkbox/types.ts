@@ -17,4 +17,9 @@ export interface CheckboxProps {
 	 * @default 'md'
 	 */
 	size?: 'sm' | 'md' | 'lg';
+
+	/**
+	 * Allow additional widget properties
+	 */
+	[key: string]: unknown;
 }

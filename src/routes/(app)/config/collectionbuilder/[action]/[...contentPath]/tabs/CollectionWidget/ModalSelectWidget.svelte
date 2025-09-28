@@ -6,9 +6,10 @@
 
 <script lang="ts">
 	// Modern widget system
-	import { widgetFunctions, activeWidgets, widgetStoreActions } from '@stores/widgetStore.svelte';
+	import type { WidgetKeys } from '@root/src/content/types';
+	import { activeWidgets, widgetFunctions, widgetStoreActions } from '@stores/widgetStore.svelte';
+	import widgets from '@widgets';
 	import { onMount } from 'svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -70,7 +71,7 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	// Call tooltip
-	function getIconTooltip(item: WidgetType): PopupSettings {
+	function getIconTooltip(item: WidgetKeys): PopupSettings {
 		return {
 			event: 'hover',
 			target: item as string

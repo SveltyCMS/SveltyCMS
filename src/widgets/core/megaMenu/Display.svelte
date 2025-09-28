@@ -30,13 +30,14 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 
 	let { value }: { value: MenuItem[] | null | undefined } = $props();
 	const lang = $derived($contentLanguage);
+
 </script>
 
 {#if value && value.length > 0}
 	<ul class="menu-display-list">
 		{#each value as item (item._id)}
 			<li>
-				<span>{item._fields?.title?.[lang] || 'Untitled'}</span>
+				<span>{(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'}</span>
 				{#if item.children.length > 0}
 					<Display value={item.children} />
 				{/if}

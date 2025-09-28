@@ -125,7 +125,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	const isChineseNewYear = Math.abs(date.getTime() - chineseNewYear.getTime()) < 3 * 24 * 60 * 60 * 1000; // 3 days
 	const isMidAutumnFestival = date.toDateString() === midAutumnFestival.toDateString();
 	const isDragonBoatFestival = date.toDateString() === dragonBoatFestival.toDateString();
-	const isCherryBlossom = date.getMonth() === 3; // April
+	const isCherryBlossom = isCherryBlossomSeason(date);
 
 	// South Asian Festivals
 	const isDiwali = Math.abs(date.getTime() - diwali.getTime()) < 5 * 24 * 60 * 60 * 1000; // 5 days

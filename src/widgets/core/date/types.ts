@@ -5,7 +5,26 @@
 
 /**
  * Defines the properties unique to the Date widget.
- * Using `Record<string, never>` is the strictest way to define an empty
- * object type, satisfying even the most stringent linting rules.
  */
-export type DateProps = Record<string, never>;
+export interface DateProps {
+	/**
+	 * Minimum allowed date (ISO 8601 string or Date object)
+	 */
+	minDate?: string | Date;
+
+	/**
+	 * Maximum allowed date (ISO 8601 string or Date object)
+	 */
+	maxDate?: string | Date;
+
+	/**
+	 * Display format for the date
+	 * @default 'medium'
+	 */
+	displayFormat?: 'short' | 'medium' | 'long' | 'full';
+
+	/**
+	 * Allow additional widget properties
+	 */
+	[key: string]: unknown;
+}

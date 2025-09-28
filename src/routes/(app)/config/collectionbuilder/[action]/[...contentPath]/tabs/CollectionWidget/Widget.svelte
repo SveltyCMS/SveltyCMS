@@ -6,24 +6,21 @@
 <script lang="ts">
 	import { getGuiFields } from '@utils/utils';
 	import type { DndEvent, Item } from 'svelte-dnd-action';
-
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@stores/store.svelte';
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
-	import { widgetFunctions, activeWidgets, widgetStoreActions } from '@stores/widgetStore.svelte';
-
+	import { tabSet } from '@stores/store.svelte';
+	import widgets from '@widgets';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
-	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
-
+	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 
 	interface Props {
 		'on:save'?: () => void;

@@ -20,7 +20,7 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
-import { check, isoDate, minLength, object, pipe, string } from 'valibot';
+import { check, isoDate, minLength, object, pipe, string, type InferInput as ValibotInput } from 'valibot';
 
 import type { DateRangeProps } from './types';
 
@@ -28,21 +28,16 @@ import type { DateRangeProps } from './types';
 import * as m from '@src/paraglide/messages';
 
 // Define the validation schema for the `{ start, end }` object.
-const DateRangeValidationSchema = object(
-	{
+const DateRangeValidationSchema = pipe(
+	object({
 		start: pipe(string(), minLength(1, 'Start date is required.'), isoDate()),
 		end: pipe(string(), minLength(1, 'End date is required.'), isoDate())
-	},
-	// Use `check` to add a cross-field validation rule.
-	[
-		check((data) => new Date(data.start) <= new Date(data.end), {
-			message: 'End date must be on or after the start date.'
-		})
-	]
+	}),
+	check((data) => new Date(data.start) <= new Date(data.end), 'End date must be on or after the start date.')
 );
 
 // Create the widget definition using the factory.
-const DateRangeWidget = createWidget<DateRangeProps, typeof DateRangeValidationSchema>({
+const DateRangeWidget = createWidget<DateRangeProps>({
 	Name: 'DateRange',
 	Icon: 'mdi:calendar-range',
 	Description: m.widget_dateRange_description(),
@@ -102,4 +97,4 @@ export default DateRangeWidget;
 
 // Export helper types for use in Svelte components.
 export type FieldType = ReturnType<typeof DateRangeWidget>;
-export type DateRangeWidgetData = Input<typeof DateRangeValidationSchema>;
+export type DateRangeWidgetData = ValibotInput<typeof DateRangeValidationSchema>;

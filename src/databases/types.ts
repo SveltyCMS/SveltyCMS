@@ -31,5 +31,6 @@ export interface ContentNode<ContentType = 'category' | 'collection'> extends Ba
 	nodeType: ContentType;
 	icon?: string;
 	order: number;
+	parentId?: DatabaseId;
 	translations: Translation[];
 }

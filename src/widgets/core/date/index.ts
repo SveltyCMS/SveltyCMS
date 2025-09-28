@@ -24,7 +24,7 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
-import { isoDate, minLength, pipe, string } from 'valibot';
+import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } from 'valibot';
 
 import type { DateProps } from './types';
 
@@ -39,7 +39,7 @@ const DateValidationSchema = pipe(
 );
 
 // Create the widget definition using the factory.
-const DateWidget = createWidget<DateProps, typeof DateValidationSchema>({
+const DateWidget = createWidget<DateProps>({
 	Name: 'Date',
 	Icon: 'mdi:calendar',
 	Description: m.widget_date_description(),
@@ -64,7 +64,14 @@ const DateWidget = createWidget<DateProps, typeof DateValidationSchema>({
 		icon: { widget: IconifyPicker, required: false },
 		helper: { widget: Input, required: false },
 		width: { widget: Input, required: false },
-		permissions: { widget: PermissionsSetting, required: false }
+		permissions: { widget: PermissionsSetting, required: false },
+		minDate: { widget: Input, required: false },
+		maxDate: { widget: Input, required: false },
+		displayFormat: {
+			widget: Input,
+			required: false,
+			placeholder: 'medium (short, medium, long, full)'
+		}
 	},
 
 	// Define correct database aggregation logic for dates.
@@ -107,4 +114,4 @@ export default DateWidget;
 
 // Export helper types for use in Svelte components
 export type FieldType = ReturnType<typeof DateWidget>;
-export type DateWidgetData = Input<typeof DateValidationSchema>;
+export type DateWidgetData = ValibotInput<typeof DateValidationSchema>;

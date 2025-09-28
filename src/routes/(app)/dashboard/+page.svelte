@@ -34,10 +34,8 @@
 	const HEADER_HEIGHT = 48; // Approx height of widget header
 
 	let mainContainerEl: HTMLElement | null = $state(null);
-	let searchInput: HTMLInputElement | null = $state(null);
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
-	let loadError = $state<string | null>(null);
 	let registryLoaded = $state(false);
 	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
 
@@ -172,13 +170,11 @@
 	function addNewWidget(componentName: string) {
 		if (!data.pageData?.user) {
 			console.error('SveltyCMS: Cannot add widget, user data is not available.');
-			loadError = 'Cannot add widget: User data is not available. Please try refreshing the page.';
 			return;
 		}
 		const componentInfo = widgetComponentRegistry[componentName];
 		if (!componentInfo) {
 			console.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
-			loadError = `Cannot add widget: Component "${componentName}" not found.`;
 			return;
 		}
 
@@ -367,7 +363,7 @@
 						role="menu"
 					>
 						<div class="p-2">
-							<input bind:this={searchInput} type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
+							<input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
 						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}

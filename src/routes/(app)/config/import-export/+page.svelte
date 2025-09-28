@@ -9,16 +9,12 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-
 	// Utils
 	import { logger } from '@utils/logger.svelte';
-
-	let { data } = $props();
 
 	onMount(() => {
 		logger.info('Import/Export page loaded');

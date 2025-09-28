@@ -83,8 +83,9 @@
 	let {
 		adminData,
 		currentUser = null,
-		isMultiTenant = false
-	} = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean }>();
+		isMultiTenant = false,
+		roles = []
+	} = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean; roles?: Role[] }>();
 
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
@@ -812,7 +813,7 @@
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
 											<Avatar src={currentUser && row._id === currentUser._id ? avatarSrc.value : normalizeMediaUrl(row[header.key])} width="w-8" />
 										{:else if header.key === 'role'}
-											<Role value={row[header.key]} />
+											<Role value={row[header.key]} {roles} />
 										{:else if header.key === '_id'}
 											<!-- User ID with clipboard functionality -->
 											<div class="flex items-center justify-center gap-2">

@@ -12,16 +12,16 @@ Features:
 	import Column from './Column.svelte';
 
 	// Svelte DND-actions
-	import { flip } from 'svelte/animate';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
 	import { constructNestedStructure } from '@root/src/content/utils';
+	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 	import type { DndItem } from './types';
 
 	interface Props {
 		contentNodes: ContentNode[]; // Flat list of all content nodes from the parent
 		onNodeUpdate: (updatedNodes: ContentNode[]) => void; // Callback to inform parent of structural changes
-		onEditCategory: (category: ContentNode) => void;
+		onEditCategory: (category: Partial<DndItem>) => void;
 	}
 
 	let { contentNodes = $bindable([]), onNodeUpdate, onEditCategory }: Props = $props();
@@ -62,10 +62,10 @@ Features:
 		let flatNodes: ContentNode[] = [];
 		dndItems.forEach((dndItem, index) => {
 			// Destructure to separate dnd-specific props from ContentNode props
-			const { id, children, isCategory, ...rest } = dndItem;
+			const { id, children, isCategory, _id, order, ...rest } = dndItem;
 			const contentNode: ContentNode = {
 				_id: id as DatabaseId,
-				parentId: parentId, // Set the current parentId
+				...(parentId ? { parentId } : {}),
 				order: index, // Set the order based on its position in the current list
 				...rest
 			};
@@ -94,6 +94,15 @@ Features:
 			console.error('Error handling DnD consider in Board:', error);
 			dragError = error instanceof Error ? error.message : 'Error handling drag operation';
 		}
+	}
+
+	/**
+	 * Handles node reordering from child components.
+	 */
+	function handleNodeReorder(itemId: string, newParentId: DatabaseId | undefined, updatedChildren: DndItem[]) {
+		// For now, just update the structure state
+		// This might need to be implemented based on the component's logic
+		console.log('Node reorder:', itemId, newParentId, updatedChildren);
 	}
 
 	/**
@@ -148,7 +157,7 @@ Features:
 					level={0}
 					{item}
 					children={item.children ?? []}
-					onNodeReorder={handleDndFinalize}
+					onNodeReorder={handleNodeReorder}
 					isCategory={item.nodeType === 'category'}
 					{onEditCategory}
 				/>
