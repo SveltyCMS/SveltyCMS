@@ -49,8 +49,8 @@ const TextWidget = createWidget<TextProps, ReturnType<typeof validationSchema>>(
 	Name: 'Input',
 	Icon: 'mdi:format-text',
 	Description: m.widget_text_description(),
-	inputComponentPath: '/src/widgets/core/text/Input.svelte',
-	displayComponentPath: '/src/widgets/core/text/Display.svelte',
+	inputComponentPath: '/src/widgets/core/input/Input.svelte',
+	displayComponentPath: '/src/widgets/core/input/Display.svelte',
 	validationSchema,
 
 	// Set widget-specific defaults.

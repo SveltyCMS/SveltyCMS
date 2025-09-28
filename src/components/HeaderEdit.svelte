@@ -57,11 +57,6 @@
 	let user = $derived(page.data.user as User);
 	let isAdmin = $derived(page.data.isAdmin || false);
 
-	interface ScheduleResponse {
-		date: string;
-		action: string;
-	}
-
 	interface CollectionData extends Record<string, any> {
 		_id?: string;
 		status?: StatusType;
@@ -85,7 +80,7 @@
 	let showMore = $state<boolean>(false);
 
 	// Status management using collection status directly
-	let isPublish = $derived(() => {
+	let isPublish = $derived.by(() => {
 		const currentStatus = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
 		console.log('[HeaderEdit] Status Debug:', {
 			collectionValueStatus: collectionValue.value?.status,
@@ -96,12 +91,20 @@
 		});
 		return currentStatus === StatusTypes.publish;
 	});
+
+	// Create a bindable state for the toggle component
+	let publishToggleState = $state(false);
+
+	// Sync the toggle state with isPublish
+	$effect(() => {
+		publishToggleState = isPublish;
+	});
 	let isLoading = $state(false);
 
 	// Handle toggle changes - update collection status directly
 	async function handleStatusToggle(newValue: boolean) {
 		if (newValue === isPublish || isLoading) {
-			console.log('[HeaderEdit] Toggle skipped', { newValue, isPublish, isLoading });
+			console.log('[HeaderEdit] Toggle skipped', { newValue, isPublish: isPublish, isLoading });
 			return false;
 		}
 
@@ -146,11 +149,15 @@
 	}
 
 	// Disable toggle when RightSidebar is active (desktop) or in edit mode if not primary
-	const shouldDisableStatusToggle = $derived(
-		(mode.value === 'create' && uiStateManager.isRightSidebarVisible.value) ||
-			(mode.value === 'edit' && uiStateManager.isRightSidebarVisible.value && isDesktop.value) ||
-			isLoading
-	);
+	let shouldDisableStatusToggle = $derived.by(() => {
+		// Extract boolean values to avoid TypeScript confusion
+		const isDesktopActive: boolean = Boolean(isDesktop?.value);
+		const isRightSidebarVisible: boolean = Boolean(uiStateManager?.isRightSidebarVisible?.value);
+		const isCreateMode: boolean = mode.value === 'create';
+		const isEditMode: boolean = mode.value === 'edit';
+
+		return (isCreateMode && isRightSidebarVisible) || (isEditMode && isRightSidebarVisible && isDesktopActive) || isLoading;
+	});
 	$effect(() => {
 		// Only log when HeaderEdit is actually active (not disabled by RightSidebar)
 		if (!shouldDisableStatusToggle) {
@@ -237,7 +244,7 @@
 
 	// Permission and UI derived values
 	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
-	const canCreate = $derived(collection.value?.permissions?.[user.role]?.create !== false);
+
 	const canDelete = $derived(collection.value?.permissions?.[user.role]?.delete !== false);
 
 	// function to undo the changes made by handleButtonClick
@@ -258,6 +265,12 @@
 	// Delete confirmation modal - use centralized function
 	function openDeleteModal(): void {
 		deleteCurrentEntry(modalStore, isAdmin);
+	}
+
+	// Next button handler for menu creation workflow
+	function next(): void {
+		console.log('[HeaderEdit] Next button clicked');
+		// Add your next logic here
 	}
 
 	// Clone confirmation modal
@@ -294,6 +307,11 @@
 			}
 		});
 	}
+
+	// Derived variable for complex Next button visibility condition
+	const shouldHideNextButton = $derived(
+		shouldShowNextButton.value && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')
+	);
 </script>
 
 <header
@@ -323,16 +341,16 @@
 			disabled={!validationStore.isValid || !canWrite}
 		>
 			<div class="flex items-center justify-center">
-				<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
+				<iconify-icon icon={collection.value?.icon} width="24" class="text-error-500"></iconify-icon>
 			</div>
 		</button>
-		{#if collection.value.name}
+		{#if collection.value?.name}
 			<div class="ml-2 flex flex-col text-left font-bold">
 				<div class="text-sm uppercase">
 					{mode.value}:
 				</div>
 				<div class="text-sm capitalize">
-					<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
+					<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value?.name}</span>
 				</div>
 			</div>
 		{/if}
@@ -368,12 +386,12 @@
 				</div>
 
 				{#if ['edit', 'create'].includes(mode.value)}
-					{#if shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
+					{#if shouldHideNextButton}
 						<button type="button" onclick={next} class="variant-filled-primary btn-icon dark:variant-filled-primary lg:hidden" aria-label="Next">
 							<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 						</button>
 					{/if}
-					{#if !(shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
+					{#if !shouldHideNextButton}
 						<button
 							type="button"
 							onclick={saveData}
@@ -414,11 +432,10 @@
 			<!-- Add status toggle to second row on mobile -->
 			<div class="flex flex-col items-center justify-center">
 				<Toggles
-					bind:value={isPublish}
+					bind:value={publishToggleState}
 					disabled={shouldDisableStatusToggle || isLoading}
 					onChange={handleStatusToggle}
 					title={shouldDisableStatusToggle ? 'Status managed by sidebar in create mode' : isPublish ? m.status_publish() : m.status_unpublish()}
-					aria-label={isPublish ? m.status_publish() : m.status_unpublish()}
 				/>
 				<span class="mt-1 text-xs {isPublish ? 'text-primary-500' : 'text-error-500'}">
 					{isPublish ? m.status_publish() : m.status_unpublish()}

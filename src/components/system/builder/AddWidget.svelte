@@ -1,15 +1,17 @@
 <!-- 
 @files src/components/system/builder/AddWidget.svelte
-@description - Add Widget component
+@description - Add					{#each Object.entries(guiSchema) as [property, value]}
+				<InputSwitch value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
+			{/each}each Object.entries(guiSchema) as [property, value]}
+				<InputSwitch bind:value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
+			{/each}dget component
 -->
 
 <script lang="ts">
-	import { asAny } from '@utils/utils';
-
 	// Components
-	import widgets from '@widgets';
-	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
+	import DropDown from '@components/system/dropDown/DropDown.svelte';
+	import widgets from '@widgets';
 	import InputSwitch from './InputSwitch.svelte';
 
 	let {
@@ -19,12 +21,12 @@
 		selected_widget = $bindable<keyof typeof widgets | null>(null),
 		field = $bindable({
 			label: '',
-			widget: { key: null as keyof typeof widgets | null, GuiFields: {} }
+			widget: { key: null as keyof typeof widgets | null, GuiFields: {} as Record<string, any> }
 		})
 	} = $props();
 
-	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	let guiSchema = $state<(typeof widgets)[typeof widget_keys]['GuiSchema'] | undefined>(undefined);
+	const widget_keys = Object.keys(widgets) as (keyof typeof widgets)[];
+	let guiSchema = $state<(typeof widgets)[keyof typeof widgets]['GuiSchema'] | undefined>(undefined);
 
 	$effect(() => {
 		if (selected_widget) {
@@ -35,7 +37,7 @@
 	function handleSave() {
 		if (!selected_widget) return;
 		field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
-		field.label = asAny(field.widget.GuiFields).label;
+		field.label = field.widget.GuiFields.label;
 		fields = [...fields, field];
 		addField = false;
 		console.log(fields);
@@ -61,7 +63,7 @@
 	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="mb-[20px] ml-auto mr-[40px]">X</button>
-			<DropDown items={widget_keys} bindselected={selected_widget} label="Select Widget" />
+			<DropDown items={widget_keys} selected={selected_widget} label="Select Widget" />
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">
@@ -77,7 +79,7 @@
 
 			{#if guiSchema}
 				{#each Object.entries(guiSchema) as [property, value]}
-					<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
+					<InputSwitch value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
 				{/each}
 			{/if}
 		</div>

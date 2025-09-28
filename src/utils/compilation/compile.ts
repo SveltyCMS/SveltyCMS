@@ -39,7 +39,8 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 	} = options;
 
 	try {
-		// Ensure the output directory exists
+		// Ensure both input and output directories exist
+		await fs.mkdir(userCollections, { recursive: true });
 		await fs.mkdir(compiledCollections, { recursive: true });
 
 		// 1. Pre-scan existing compiled files

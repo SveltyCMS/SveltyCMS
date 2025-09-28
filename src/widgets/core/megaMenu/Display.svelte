@@ -24,8 +24,9 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 -->
 
 <script lang="ts">
-	import type { MenuItem } from './types';
 	import { contentLanguage } from '@src/stores/store.svelte';
+	import Display from './Display.svelte';
+	import type { MenuItem } from './types';
 
 	let { value }: { value: MenuItem[] | null | undefined } = $props();
 	const lang = $derived($contentLanguage);
@@ -37,7 +38,7 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 			<li>
 				<span>{item._fields?.title?.[lang] || 'Untitled'}</span>
 				{#if item.children.length > 0}
-					<svelte:self value={item.children} />
+					<Display value={item.children} />
 				{/if}
 			</li>
 		{/each}

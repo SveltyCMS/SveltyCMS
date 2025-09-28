@@ -34,10 +34,8 @@
 	const HEADER_HEIGHT = 48; // Approx height of widget header
 
 	let mainContainerEl: HTMLElement | null = $state(null);
-	let searchInput: HTMLInputElement | null = $state(null);
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
-	let loadError = $state<string | null>(null);
 	let registryLoaded = $state(false);
 	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
 
@@ -82,25 +80,6 @@
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
 	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
-
-	// Helper function to calculate grid position from mouse coordinates
-	function getGridPositionFromCoords(x: number, y: number, gridContainer: HTMLElement) {
-		const rect = gridContainer.getBoundingClientRect();
-		const relativeX = x - rect.left;
-		const relativeY = y - rect.top;
-
-		const gap = 16; // 1rem gap
-		const cellWidth = (rect.width - gap * (MAX_COLUMNS - 1)) / MAX_COLUMNS;
-		const cellHeight = 180 + gap; // grid-auto-rows: 180px + gap
-
-		const col = Math.floor(relativeX / (cellWidth + gap));
-		const row = Math.floor(relativeY / cellHeight);
-
-		return {
-			col: Math.max(0, Math.min(MAX_COLUMNS - 1, col)),
-			row: Math.max(0, row)
-		};
-	}
 
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
@@ -158,16 +137,6 @@
 		return insertIndex;
 	}
 
-	async function saveLayout() {
-		try {
-			if (!data.pageData?.user) return;
-			await systemPreferences.setPreference(data.pageData.user.id, currentPreferences);
-		} catch (err) {
-			console.error('Failed to save layout:', err);
-			loadError = 'Failed to save layout.';
-		}
-	}
-
 	// Ensure all widgets have proper order values
 	function ensureWidgetOrder() {
 		if (!data.pageData?.user) return;
@@ -201,13 +170,11 @@
 	function addNewWidget(componentName: string) {
 		if (!data.pageData?.user) {
 			console.error('SveltyCMS: Cannot add widget, user data is not available.');
-			loadError = 'Cannot add widget: User data is not available. Please try refreshing the page.';
 			return;
 		}
 		const componentInfo = widgetComponentRegistry[componentName];
 		if (!componentInfo) {
 			console.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
-			loadError = `Cannot add widget: Component "${componentName}" not found.`;
 			return;
 		}
 
@@ -396,7 +363,7 @@
 						role="menu"
 					>
 						<div class="p-2">
-							<input bind:this={searchInput} type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
+							<input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
 						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}

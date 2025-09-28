@@ -29,22 +29,26 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 
 <script lang="ts">
 	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
-	import type { FieldType, SeoData, SeoFeature } from './';
-	import { SeoAnalyzer } from './seoAnalyzer';
-	// Your existing analysis engine
 	import { contentLanguage } from '@stores/store.svelte';
+	import { debounce } from '@utils/utils';
+	import type { FieldType } from './';
+	import { SeoAnalyzer } from './seoAnalyzer';
+	import type { SeoData, SeoFeature } from './types';
 
 	// Components
 	// Child component
 
-	let { field, value, error }: { field: FieldType; value: SeoData | null | undefined; error?: string | null } = $props();
+	let { field, value, error }: { field: FieldType; value: Record<string, SeoData> | null | undefined; error?: string | null } = $props();
 
 	// Determine the current language.
 	const lang = $derived(field.translated ? contentLanguage.value : 'default');
 
 	// Initialize the data object with all required fields if it's empty.
 	$effect(() => {
-		if (value && !value[lang]) {
+		if (!value) {
+			value = {};
+		}
+		if (!value[lang]) {
 			value[lang] = {
 				title: '',
 				description: '',
@@ -66,25 +70,55 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 	// UI State
 	let activeTab = $state(0);
 	let analysisResult = $state<any>(null); // Replace 'any' with your SeoAnalysisResult type
-	let isAnalyzing = $state(false);
 
 	// Debounced analysis function.
-	const runAnalysis = debounce(async () => {
-		isAnalyzing = true;
-		const analyzer = new SeoAnalyzer(/* config */);
-		analysisResult = await analyzer.analyze(value);
-		isAnalyzing = false;
+	const runAnalysis = debounce.create(async () => {
+		if (!value || !value[lang]) return;
+		try {
+			const config = {
+				focusKeyword: value[lang].focusKeyword || '',
+				locale: lang,
+				contentLanguage: lang,
+				targetAudience: 'general' as const,
+				contentType: 'article' as const,
+				enableRealTimeAnalysis: true,
+				analysisDepth: 'standard' as const,
+				enabledFeatures: {
+					basic: true,
+					advanced: true,
+					social: true,
+					schema: true,
+					ai: false,
+					readability: true,
+					keywords: true,
+					preview: true
+				}
+			};
+			const analyzer = new SeoAnalyzer(config);
+			const data = value[lang];
+			analysisResult = await analyzer.analyze(
+				data.title || '',
+				data.description || '',
+				'', // content - could be extracted from other fields
+				data.canonicalUrl
+			);
+		} catch (error) {
+			console.error('SEO Analysis failed:', error);
+		}
 	}, 500);
 
 	// When the data changes, re-run the analysis.
 	$effect(() => {
-		if (value.title || value.description || value.focusKeyword) {
+		if (value && value[lang] && (value[lang].title || value[lang].description || value[lang].focusKeyword)) {
 			runAnalysis();
 		}
 	});
 
 	// Helper to check if a feature is enabled.
-	const hasFeature = (feature: SeoFeature) => field.features?.includes(feature) ?? false;
+	const hasFeature = (feature: SeoFeature) => {
+		const features = (field as any)?.features || [];
+		return Array.isArray(features) && features.includes(feature);
+	};
 </script>
 
 <div class="seo-container">
@@ -106,20 +140,24 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 		<svelte:fragment slot="panel">
 			{#if activeTab === 0}
 				<div class="panel">
-					<label>Title</label>
-					<input type="text" class="input" bind:value={value.title} />
+					{#if value && value[lang]}
+						<label for="seo-title">Title</label>
+						<input id="seo-title" type="text" class="input" bind:value={value[lang].title} />
 
-					<label>Description</label>
-					<textarea class="textarea" bind:value={value.description}></textarea>
+						<label for="seo-description">Description</label>
+						<textarea id="seo-description" class="textarea" bind:value={value[lang].description}></textarea>
 
-					<label>Focus Keyword</label>
-					<input type="text" class="input" bind:value={value.focusKeyword} />
+						<label for="seo-keyword">Focus Keyword</label>
+						<input id="seo-keyword" type="text" class="input" bind:value={value[lang].focusKeyword} />
+					{/if}
 				</div>
 			{:else if activeTab === 1 && hasFeature('social')}
 				<div class="panel">
 					<h3>Open Graph (Facebook)</h3>
-					<label>OG Title</label>
-					<input type="text" class="input" bind:value={value.ogTitle} />
+					{#if value && value[lang]}
+						<label for="seo-og-title">OG Title</label>
+						<input id="seo-og-title" type="text" class="input" bind:value={value[lang].ogTitle} />
+					{/if}
 				</div>
 			{/if}
 		</svelte:fragment>

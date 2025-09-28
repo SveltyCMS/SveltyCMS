@@ -176,6 +176,14 @@ class ContentManager {
 			logger.info(`📦 ContentManager fully initialized in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m`);
 			this.initialized = true;
 		} catch (error) {
+			// Check if this is a setup-related error that we can handle gracefully
+			const { isSetupComplete } = await import('@utils/setupCheck');
+			if (!isSetupComplete() && (error.message?.includes('Database service unavailable') || error.message?.includes('Database adapter not'))) {
+				logger.debug('ContentManager initialization skipped during setup mode');
+				this.initialized = true; // Mark as initialized with empty state for setup mode
+				return;
+			}
+
 			logger.error('ContentManager initialization failed:', error);
 			this.initialized = false; // Reset on failure to allow retry
 			throw error;
@@ -201,10 +209,19 @@ class ContentManager {
 			const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 			const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
+			// Check if setup is complete before trying to access database
+			const { isSetupComplete } = await import('@utils/setupCheck');
+			if (!isSetupComplete()) {
+				logger.debug('Setup not complete, skipping database collection validation');
+				// Return empty collections array for setup mode
+				return [];
+			}
+
 			const dbAdapter = await getDbAdapter();
 			if (!dbAdapter) {
-				logger.error('Database adapter not initialized during collection loading');
-				throw new Error('Database service unavailable');
+				logger.debug('Database adapter not available, returning file-based collections only');
+				// In this case, we can still load collections from files but skip database validation
+				return [];
 			}
 
 			// Process files in batches for better performance
@@ -749,6 +766,14 @@ class ContentManager {
 	// Get compiled Categories and Collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
 		const fs = await getFs(); // Use the safe fs function
+
+		// Check if the directory exists first
+		try {
+			await fs.access(compiledDirectoryPath);
+		} catch {
+			logger.debug(`Compiled collections directory does not exist: ${compiledDirectoryPath} - assuming fresh installation`);
+			return []; // Return empty array for fresh installations
+		}
 
 		const getAllFiles = async (dir: string): Promise<string[]> => {
 			const entries = await fs.readdir(dir, { withFileTypes: true });

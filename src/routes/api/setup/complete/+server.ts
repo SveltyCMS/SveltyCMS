@@ -33,11 +33,11 @@ import type { RequestHandler } from './$types';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
+import { auth } from '@src/databases/db';
 import type { Locale } from '@src/paraglide/runtime';
+import { publicEnv } from '@src/stores/globalSettings';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
-import { publicEnv } from '@src/stores/globalSettings';
-import { auth } from '@src/databases/db';
 
 interface AdminConfig {
 	username: string;
@@ -362,7 +362,7 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig, correlationId: stri
 
 	// Generate the updated private.ts content
 	const privateConfigContent = `
-**
+/**
  * @file config/private.ts
  * @description Private configuration file containing essential bootstrap variables.
  * These values are required for the server to start and connect to the database.

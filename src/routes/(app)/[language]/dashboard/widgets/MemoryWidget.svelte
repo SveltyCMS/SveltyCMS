@@ -33,10 +33,10 @@ Features:
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
-	import { onDestroy } from 'svelte';
-	import { Chart, PieController, ArcElement, Tooltip } from 'chart.js';
 	import type { ChartConfiguration, Plugin } from 'chart.js';
+	import { ArcElement, Chart, PieController, Tooltip } from 'chart.js';
+	import { onDestroy } from 'svelte';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	Chart.register(PieController, ArcElement, Tooltip);
 
@@ -45,17 +45,13 @@ Features:
 		label = 'Memory Usage',
 		theme = 'light',
 		icon = 'mdi:memory',
-		widgetId = undefined,
 		size = { w: 1, h: 2 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
-		widgetId?: string;
 		size?: { w: number; h: number };
-		onSizeChange?: (newSize: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
 
@@ -63,7 +59,7 @@ Features:
 	let chart = $state<Chart<'pie', number[], string> | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
-	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
+	function updateChartAction(_canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
 
 		return {

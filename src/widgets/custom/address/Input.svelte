@@ -28,13 +28,12 @@ Interactive form with map, country selector, and address validation
 -->
 
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { onDestroy } from 'svelte';
-	import type { FieldType, AddressData } from './';
-	import countries from './countries.json';
-	import type { Map as MapboxMap, Marker } from 'mapbox-gl';
-	import { privateEnv } from '@src/stores/globalSettings';
 	import { systemLanguage } from '@src/stores/store.svelte';
+
+	import { onDestroy } from 'svelte';
+	import type { FieldType } from './';
+	import countries from './countries.json';
+	import type { AddressData } from './types';
 
 	let { field, value, error }: { field: FieldType; value: AddressData | null | undefined; error?: string | null } = $props();
 
@@ -45,9 +44,9 @@ Interactive form with map, country selector, and address validation
 			houseNumber: '',
 			postalCode: '',
 			city: '',
-			country: field.defaultCountry || 'DE',
-			latitude: field.mapCenter?.lat || 0,
-			longitude: field.mapCenter?.lng || 0
+			country: (field.defaultCountry as string) || 'DE',
+			latitude: (field.mapCenter as { lat: number; lng: number })?.lat || 0,
+			longitude: (field.mapCenter as { lat: number; lng: number })?.lng || 0
 		}
 	);
 
@@ -59,25 +58,21 @@ Interactive form with map, country selector, and address validation
 		value = address;
 	});
 
-	// State for the map UI
-	let mapContainer: HTMLDivElement;
-	let map: MapboxMap | null = null;
-	let marker: Marker | null = null;
-	const mapboxToken = privateEnv.MAPBOX_API_TOKEN;
+	// Note: Map functionality is placeholder for future Mapbox integration
+	let map: any = null; // Placeholder for future Mapbox integration
 
-	// (The rest of the <script> block with the map logic remains the same...)
-
-	async function initializeMap() {
-		// ... Mapbox initialization logic
-	}
 	onDestroy(() => {
-		map?.remove();
+		if (map && typeof map.remove === 'function') {
+			map.remove();
+		}
 	});
 </script>
 
 <div class="address-container" class:invalid={error}>
-	{#if !field.hiddenFields?.includes('latitude')}
-		<div bind:this={mapContainer} class="map"></div>
+	{#if !(field.hiddenFields as string[])?.includes('latitude')}
+		<div class="map">
+			<!-- Map placeholder - Mapbox integration to be implemented -->
+		</div>
 	{/if}
 
 	<div class="form-grid">

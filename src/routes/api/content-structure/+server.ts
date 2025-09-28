@@ -154,6 +154,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					message: 'Collections recompiled successfully'
 				});
 			}
+			case 'refreshCollections': {
+				// Refresh collections from compiled files without recompiling
+				if (!browser) {
+					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
+					await cacheService.clearByPattern(cachePattern);
+					logger.debug('Cleared content-structure caches for refresh.', { tenantId });
+				}
+
+				await contentManager.updateCollections(true, tenantId);
+				const { contentStructure } = await contentManager.getCollectionData(tenantId);
+				
+				logger.info('Collections refreshed from compiled files', { tenantId, collectionsFound: contentStructure?.length || 0 });
+				return json({
+					success: true,
+					contentNodes: contentStructure,
+					message: 'Collections refreshed successfully'
+				});
+			}
 			default:
 				throw error(400, 'Invalid action');
 		}

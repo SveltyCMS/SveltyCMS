@@ -9,10 +9,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 
 <script lang="ts">
-	// Track last language from URL and user-initiated language changes
-	let lastUrlLanguage = data?.contentLanguage ?? 'en';
-	let userInitiatedLanguageChange = false;
-
 	// Types
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';
@@ -40,6 +36,10 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	}
 
 	const { data }: Props = $props();
+
+	// Track last language from URL and user-initiated language changes
+	let lastUrlLanguage = data?.contentLanguage ?? 'en';
+	let userInitiatedLanguageChange = false;
 
 	const shouldFetchData = data.collection.name && (!collection.value || data.collection.path !== collection.value.path);
 
@@ -75,8 +75,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	});
 
 	$effect(() => {
-		const handleLanguageChange = (event: CustomEvent) => {
-			// console.log('[PAGE DEBUG] User-initiated language change detected:', event.detail.language);
+		const handleLanguageChange = (_event: CustomEvent) => {
+			// console.log('[PAGE DEBUG] User-initiated language change detected:', _event.detail.language);
 			userInitiatedLanguageChange = true;
 		};
 
@@ -135,7 +135,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			<EntryList />
 		{:else if ['edit', 'create'].includes(mode.value)}
 			<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields fields={collection.value.fields} fieldsData={collectionValue.value} customData={{}} root={true} />
+				<Fields fields={collection.value.fields} />
 			</div>
 		{/if}
 	{:else}

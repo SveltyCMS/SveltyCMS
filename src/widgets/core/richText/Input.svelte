@@ -28,9 +28,12 @@ Interactive Tiptap editor with toolbar and title input
 -->
 
 <script lang="ts">
+	import type { Editor } from '@tiptap/core';
 	import { onDestroy, onMount } from 'svelte';
-	import type { FieldType, RichTextData } from './';
-	import { createEditor } from './tiptap'; // Import the decoupled editor config
+	import type { FieldType } from './';
+	import { createEditor } from './tiptap';
+	import type { RichTextData } from './types';
+	// Import the decoupled editor config
 	import { contentLanguage } from '@src/stores/store.svelte';
 
 	let { field, value, error }: { field: FieldType; value: Record<string, RichTextData> | null | undefined; error?: string | null } = $props();
@@ -38,8 +41,32 @@ Interactive Tiptap editor with toolbar and title input
 	// Determine the current language.
 	const lang = $derived(field.translated ? $contentLanguage : 'default');
 
+	// Ensure value structure exists for safe binding
+	$effect(() => {
+		if (!value) {
+			value = {};
+		}
+		if (value && !value[lang]) {
+			value[lang] = { title: '', content: '' };
+		}
+	});
+
+	// Create a safe getter/setter for title binding
+	let titleValue = $derived.by(() => {
+		return {
+			get value() {
+				return value?.[lang]?.title || '';
+			},
+			set value(newTitle: string) {
+				if (value && value[lang]) {
+					value[lang].title = newTitle;
+				}
+			}
+		};
+	});
+
 	// Local state for the Tiptap editor instance and its container.
-	let editor: Editor | null = null;
+	let editor: Editor | null = $state(null);
 	let element: HTMLDivElement;
 
 	// Initialize the editor when the component mounts.
@@ -70,16 +97,16 @@ Interactive Tiptap editor with toolbar and title input
 	$effect(() => {
 		const newContent = value?.[lang]?.content || '';
 		if (editor && editor.getHTML() !== newContent) {
-			editor.commands.setContent(newContent, false);
+			editor.commands.setContent(newContent, { emitUpdate: false });
 		}
 	});
 
 	// A helper function to check if a toolbar button should be visible.
-	const show = (option: string) => !field.toolbar || field.toolbar.includes(option);
+	const show = (option: string) => !field.toolbar || (field.toolbar as string[])?.includes(option);
 </script>
 
 <div class="richtext-container" class:invalid={error}>
-	<input type="text" class="title-input" placeholder="Title..." bind:value={value[lang].title} />
+	<input type="text" class="title-input" placeholder="Title..." bind:value={titleValue.value} />
 
 	{#if editor}
 		<div class="toolbar">

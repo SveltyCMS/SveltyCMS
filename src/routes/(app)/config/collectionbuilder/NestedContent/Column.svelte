@@ -23,10 +23,10 @@ Features:
 	import { mode } from '@stores/collectionStore.svelte';
 
 	// Svelte DND-actions
-	import { flip } from 'svelte/animate';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import type { DndItem } from './types';
 	import type { DatabaseId } from '@root/src/databases/dbInterface';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
+	import type { DndItem } from './types';
 
 	interface Props {
 		item: DndItem; // The current item this column represents
@@ -188,9 +188,6 @@ Features:
 						level={level + 1}
 						isCategory={child.nodeType === 'category'}
 						{onNodeReorder}
-						`onNodeReorder`
-						callback
-						down
 						{onEditCategory}
 					/>
 				</div>

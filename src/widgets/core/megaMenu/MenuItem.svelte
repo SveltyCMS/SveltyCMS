@@ -27,9 +27,10 @@ Renders menu item with edit button and recursive children
 <script lang="ts">
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
+	import MenuItemComponent from './MenuItem.svelte';
 	import type { MenuItem } from './types';
 
-	let { item, field, level }: { item: MenuItem; field: FieldType; level: number } = $props();
+	let { item = $bindable(), field, level }: { item: MenuItem; field: FieldType; level: number } = $props();
 
 	// Function to open the editing modal for this specific item.
 	function editItem() {
@@ -37,7 +38,7 @@ Renders menu item with edit button and recursive children
 			type: 'component',
 			component: 'menuItemEditorModal', // A new modal component you would create
 			meta: {
-				fields: field.fields[level], // Pass the fields for the current level
+				fields: (field.fields as any)?.[level], // Pass the fields for the current level
 				data: item._fields,
 				// Callback to update the data when the modal closes
 				callback: (newData: Record<string, any>) => {
@@ -58,7 +59,7 @@ Renders menu item with edit button and recursive children
 	{#if item.children.length > 0}
 		<div class="children">
 			{#each item.children as child, index (child._id)}
-				<svelte:self bind:item={item.children[index]} {field} level={level + 1} />
+				<MenuItemComponent bind:item={item.children[index]} {field} level={level + 1} />
 			{/each}
 		</div>
 	{/if}

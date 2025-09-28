@@ -1786,6 +1786,24 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			} catch (error) {
 				return { success: false, error: createDatabaseError(error, 'WIDGET_DELETE_FAILED', 'Failed to delete widget') };
 			}
+		},
+
+		// Get active widgets
+		getActiveWidgets: async (): Promise<DatabaseResult<string[]>> => {
+			try {
+				const WidgetModel = mongoose.models['Widget'] as Model<Widget>;
+				if (!WidgetModel) {
+					// Return empty array if no widgets are registered yet (fresh installation)
+					return { success: true, data: [] };
+				}
+
+				const activeWidgets = await WidgetModel.find({ isActive: true }).select('name').lean().exec();
+				const widgetNames = activeWidgets.map((widget) => widget.name);
+
+				return { success: true, data: widgetNames };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'WIDGET_FETCH_FAILED', 'Failed to get active widgets') };
+			}
 		}
 	};
 

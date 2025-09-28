@@ -24,7 +24,6 @@ It provides the following functionality:
 	// Auth
 	import type { Permission, Role } from '@src/auth/types';
 	import { PermissionType } from '@src/auth/types';
-
 	// Components
 	import Loading from '@components/Loading.svelte';
 
@@ -44,31 +43,6 @@ It provides the following functionality:
 	let error = $state<string | null>(null);
 	let searchTerm = $state('');
 	let modifiedPermissions = $state(new Set<string>());
-
-	// Derived reactive values
-	let filteredPermissions = $derived(
-		permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-	);
-	let groups = $derived(getGroups(filteredPermissions));
-	let adminRole = $derived(roles.find((role) => role.isAdmin));
-	let nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
-
-	// Initialize data when component mounts
-	$effect(() => {
-		loadData();
-	});
-
-	// Load initial data
-	const loadData = async () => {
-		try {
-			roles = roleData;
-			permissionsList = page.data.permissions;
-		} catch (err) {
-			error = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
-		} finally {
-			isLoading = false;
-		}
-	};
 
 	// Function to get groups of permissions
 	const getGroups = (filteredPermissions: Permission[]) => {
@@ -103,6 +77,31 @@ It provides the following functionality:
 			}
 		});
 		return groups;
+	};
+
+	// Derived reactive values
+	let filteredPermissions = $derived(
+		permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+	);
+	let groups = $derived(getGroups(filteredPermissions));
+	let adminRole = $derived(roles.find((role) => role.isAdmin));
+	let nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
+
+	// Initialize data when component mounts
+	$effect(() => {
+		loadData();
+	});
+
+	// Load initial data
+	const loadData = async () => {
+		try {
+			roles = roleData;
+			permissionsList = page.data.permissions;
+		} catch (err) {
+			error = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
+		} finally {
+			isLoading = false;
+		}
 	};
 
 	// Function to filter permissions by group

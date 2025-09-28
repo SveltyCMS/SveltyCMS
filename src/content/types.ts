@@ -251,4 +251,4 @@ export interface WidgetMeta {
 
 // Collection types for collections registry
 
-export type ContentTypes = object;
+export type ContentTypes = {};

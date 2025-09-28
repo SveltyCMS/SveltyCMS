@@ -105,7 +105,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		const fieldInstance: FieldInstance = {
 			widget: widgetDefinition,
 			label,
-			db_fieldName: db_fieldName || label.toLowerCase().replace(/\s+/g, '_'),
+			db_fieldName: db_fieldName || (label ? label.toLowerCase().replace(/\s+/g, '_') : 'unnamed_field'),
 			required: required ?? false,
 			translated: translated ?? false,
 			width,

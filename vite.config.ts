@@ -31,9 +31,6 @@ const privateConfigPath = path.resolve(configDir, 'private.ts');
 const userCollectionsPath = path.resolve(CWD, 'config/collections');
 const compiledCollectionsPath = path.resolve(CWD, 'compiledCollections');
 
-// Flag to prevent duplicate setup mode logs
-let setupModeLogged = false;
-
 // Force exit on SIGINT to prevent hanging processes
 process.on('SIGINT', () => {
 	console.log(`\n${LOG_PREFIX} Received SIGINT, forcing exit...`);
@@ -50,6 +47,8 @@ function setupWizardPlugin(): Plugin {
 	let serverInstance: ViteDevServer | null = null;
 	const useColor = process.stdout.isTTY;
 	let wasPrivateConfigMissing = false;
+	let setupModeLogged = false; // Move flag inside plugin to prevent cross-instance issues
+	let compileTimeout: NodeJS.Timeout;
 
 	return {
 		name: 'svelte-cms-setup-wizard',
@@ -107,6 +106,37 @@ export const privateEnv = createPrivateConfig({
 					console.error(`${LOG_PREFIX} Failed to provision private config:`, e);
 				}
 			}
+
+			// Also ensure collection directories exist and perform initial compilation
+			try {
+				console.log(`${LOG_PREFIX} Ensuring collection directories exist...`);
+				await fs.mkdir(userCollectionsPath, { recursive: true });
+				await fs.mkdir(compiledCollectionsPath, { recursive: true });
+
+				// Check if there are any collections to compile
+				let sourceFiles: string[] = [];
+				try {
+					const files = await fs.readdir(userCollectionsPath, { recursive: true });
+					sourceFiles = files.filter((file) => typeof file === 'string' && (file.endsWith('.ts') || file.endsWith('.js')));
+				} catch {
+					console.log(`${LOG_PREFIX} No collections found, creating empty structure`);
+				}
+
+				if (sourceFiles.length > 0) {
+					console.log(`${LOG_PREFIX} Found ${sourceFiles.length} collection(s) in setup mode, compiling...`);
+					await compile({ userCollections: userCollectionsPath, compiledCollections: compiledCollectionsPath });
+					console.log('\x1b[32m✅ Collection compilation successful!\x1b[0m');
+				} else {
+					// Create empty structure to prevent errors
+					await fs.mkdir(path.resolve(compiledCollectionsPath, 'Collections'), { recursive: true });
+					await fs.mkdir(path.resolve(compiledCollectionsPath, 'Menu'), { recursive: true });
+					const placeholderContent = '// Empty collection placeholder\nexport default {};';
+					await fs.writeFile(path.resolve(compiledCollectionsPath, 'Collections', '.gitkeep.js'), placeholderContent);
+					await fs.writeFile(path.resolve(compiledCollectionsPath, 'Menu', '.gitkeep.js'), placeholderContent);
+				}
+			} catch (error) {
+				console.error(`${LOG_PREFIX} Error setting up collections:`, error);
+			}
 		},
 		config(config) {
 			// Pass information about fresh install to the frontend
@@ -139,6 +169,25 @@ export const privateEnv = createPrivateConfig({
 				});
 				return result;
 			};
+
+			// Add collection file watching even in setup mode
+			server.watcher.on('all', (event, file) => {
+				const isCollectionFile = file.startsWith(userCollectionsPath) && /\.(ts|js)$/.test(file);
+
+				if (isCollectionFile) {
+					console.log(`📁 Collection file event (setup mode): \x1b[33m${event}\x1b[0m - \x1b[34m${path.basename(file)}\x1b[0m`);
+					clearTimeout(compileTimeout);
+					compileTimeout = setTimeout(async () => {
+						try {
+							console.log(`${LOG_PREFIX} Compiling collections in setup mode...`);
+							await compile({ userCollections: userCollectionsPath, compiledCollections: compiledCollectionsPath });
+							console.log('\x1b[32m✅ Collection re-compilation successful!\x1b[0m');
+						} catch (error) {
+							console.error(`❌ Error compiling collections in setup mode:`, error);
+						}
+					}, 100); // Debounce changes
+				}
+			});
 		}
 	};
 }
@@ -149,6 +198,7 @@ export const privateEnv = createPrivateConfig({
 function collectionsWatcherPlugin(): Plugin {
 	let compileTimeout: NodeJS.Timeout;
 	let lastUnlink = { file: '', time: 0 };
+	let initialized = false; // Prevent multiple buildStart executions
 
 	const triggerContentSync = async (server: ViteDevServer) => {
 		const req = {
@@ -184,13 +234,48 @@ function collectionsWatcherPlugin(): Plugin {
 		name: 'svelte-cms-collections-watcher',
 		enforce: 'post',
 		async buildStart() {
-			console.log(`${LOG_PREFIX} Performing initial collection compilation...`);
+			if (initialized) {
+				return; // Prevent multiple executions
+			}
+			initialized = true;
+
+			console.log(`${LOG_PREFIX} Checking collection synchronization...`);
 			try {
-				await compile({ userCollections: userCollectionsPath, compiledCollections: compiledCollectionsPath });
-				console.log('\x1b[32m✅ Initial compilation successful!\x1b[0m');
+				// Ensure both source and compiled collections directories exist
+				await fs.mkdir(userCollectionsPath, { recursive: true });
+				await fs.mkdir(compiledCollectionsPath, { recursive: true });
+
+				// Check if source collections directory has files
+				let sourceFiles: string[] = [];
+
+				try {
+					const files = await fs.readdir(userCollectionsPath, { recursive: true });
+					sourceFiles = files.filter((file) => typeof file === 'string' && (file.endsWith('.ts') || file.endsWith('.js')));
+				} catch (error) {
+					console.log(`${LOG_PREFIX} Error reading collections directory, assuming empty:`, error?.message || 'Unknown error');
+				}
+				if (sourceFiles.length > 0) {
+					console.log(`${LOG_PREFIX} Found ${sourceFiles.length} source collection(s), performing compilation...`);
+					await compile({ userCollections: userCollectionsPath, compiledCollections: compiledCollectionsPath });
+					console.log('\x1b[32m✅ Collection compilation successful!\x1b[0m');
+				} else {
+					// No source collections found, ensure empty compiled collections directory exists
+					console.log(`${LOG_PREFIX} No collections to compile - fresh installation detected.`);
+					// Create empty structure to prevent errors
+					await fs.mkdir(path.resolve(compiledCollectionsPath, 'Collections'), { recursive: true });
+					await fs.mkdir(path.resolve(compiledCollectionsPath, 'Menu'), { recursive: true });
+					// Create placeholder files to prevent module loading errors
+					const placeholderContent = '// Empty collection placeholder\nexport default {};';
+					await fs.writeFile(path.resolve(compiledCollectionsPath, 'Collections', '.gitkeep.js'), placeholderContent);
+					await fs.writeFile(path.resolve(compiledCollectionsPath, 'Menu', '.gitkeep.js'), placeholderContent);
+				}
 			} catch (error) {
-				console.error('\x1b[31m❌ Initial compilation failed:\x1b[0m', error);
-				throw error;
+				console.error('\x1b[31m❌ Collection setup failed:\x1b[0m', error);
+				// Don't throw error for missing collections in fresh installations
+				if (!error.message?.includes('ENOENT') && !error.message?.includes('no such file')) {
+					throw error;
+				}
+				console.log(`${LOG_PREFIX} Continuing with empty collections setup...`);
 			}
 		},
 		configureServer(server) {

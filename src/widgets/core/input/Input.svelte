@@ -37,6 +37,11 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 	// Get the text for the current language, defaulting to an empty string.
 	let text = $derived(value?.[lang] ?? '');
 
+	// Extract placeholder from field (it might be nested in different places)
+	const placeholder = $derived((field.placeholder as string) || (field as any)?.widget?.placeholder || (field as any)?.config?.placeholder || '');
+
+	// Debug logging removed - placeholder should now work correctly
+
 	// When the user types, update the parent's `value` object immutably.
 	function handleInput(event: Event & { currentTarget: HTMLInputElement }) {
 		const newText = event.currentTarget.value;
@@ -55,9 +60,9 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 			id={field.db_fieldName}
 			name={field.db_fieldName}
 			required={field.required}
-			placeholder={field.placeholder}
-			minLength={field.minLength}
-			maxLength={field.maxLength}
+			{placeholder}
+			minLength={field.minLength as number}
+			maxLength={field.maxLength as number}
 			value={text}
 			oninput={handleInput}
 			class="input"
@@ -66,7 +71,7 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 			aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
 		/>
 		{#if field.maxLength}
-			<span class="counter" class:error={text.length > field.maxLength}>{text.length} / {field.maxLength}</span>
+			<span class="counter" class:error={text.length > (field.maxLength as number)}>{text.length} / {field.maxLength}</span>
 		{/if}
 	</div>
 
