@@ -1,0 +1,91 @@
+---
+
+path: "docs/dev-guide/git-workflows.mdx"
+title: "Git Workflow & Automated Releases"
+description: "A guide to the repository's branching strategy, commit conventions, and automated release process."
+order: 3
+icon: "mdi:git"
+author: "admin"
+created: "2025-09-28"
+updated: "2025-09-28"
+tags:
+
+- "git"
+- "workflow"
+- "release"
+- "contribution"
+
+Introduction
+This project uses a strict Git workflow to ensure code quality and automate the release process. Understanding this workflow is essential for all contributors. Our system uses Semantic Release to automatically manage versioning and package publishing based on our commit history.
+
+Branching Strategy
+We have two primary, long-lived branches: main and next.
+
+main Branch
+Purpose: Production-ready, stable code. This branch represents the latest official release.
+
+Protection: The main branch is protected. All code must first be merged into the next branch and then be promoted to main via a pull request.
+
+Key Rule: This branch must never contain test configurations. The /config/collections directory is automatically removed from this branch during the release process.
+
+next Branch
+Purpose: Development and staging. This is the primary branch for all new features, bug fixes, and ongoing work.
+
+Pull Requests: All contributions should be made to feature branches and then submitted as pull requests targeting next.
+
+Pre-releases: Crucially, every push to next that includes a feat or fix commit will automatically trigger the creation of a pre-release (e.g., v1.2.3-next.1). This allows for immediate testing of upcoming features.
+
+Commit Message Convention
+Our automated release process depends on a strict commit message format. We use the Conventional Commits specification. The release automation analyzes these messages to determine if a new version should be released and what the version number should be.
+
+Each commit message consists of a type, a scope (optional), and a subject.
+
+`<type>(<scope>): <subject>`
+
+Common Commit Types
+feat: A new feature. (Results in a MINOR release, e.g., 1.2.0 -> 1.3.0)
+
+fix: A bug fix. (Results in a PATCH release, e.g., 1.2.0 -> 1.2.1)
+
+docs: Documentation only changes.
+
+style: Changes that do not affect the meaning of the code (white-space, formatting, etc).
+
+refactor: A code change that neither fixes a bug nor adds a feature.
+
+perf: A code change that improves performance.
+
+test: Adding missing tests or correcting existing tests.
+
+chore: Changes to the build process or auxiliary tools and libraries.
+
+BREAKING CHANGE: A commit that has a footer BREAKING CHANGE: or appends a ! after the type/scope, introduces a breaking API change and will result in a MAJOR version release (e.g., 1.2.0 -> 2.0.0).
+
+IMPORTANT: If your commit does not use one of these types (especially feat, fix, or a BREAKING CHANGE), the automated system will not create a new version.
+
+The Automated Release Process
+The automation is triggered on every push to the main and next branches.
+
+Workflow on the next Branch (Pre-releases)
+Development: Work is done on feature branches.
+
+Pull Request: A PR is opened from the feature branch to next.
+
+Merge: Once the PR is approved and merged into next, the GitHub Action is triggered.
+
+Automation: semantic-release analyzes the new commits. If a feat, fix, or BREAKING CHANGE is found, it creates a pre-release on GitHub with a tag like v1.2.3-next.1 and generates release notes.
+
+Workflow on the main Branch (Stable Releases)
+Promotion: When next is stable and ready for a full release, a pull request is opened from next to main.
+
+Merge: Once the pull request is approved and merged, the GitHub Action is triggered again.
+
+Automation Steps:
+
+The workflow checks out the main branch.
+
+It deletes the /config/collections directory to create a clean, production-ready state.
+
+semantic-release analyzes the commits being merged from next.
+
+It then bumps the package.json version, updates the CHANGELOG.md, and publishes a new stable release on GitHub (e.g., v1.3.0).

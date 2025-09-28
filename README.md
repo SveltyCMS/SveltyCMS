@@ -1,13 +1,13 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
-  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS-light.png">
+  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
 </p>
 
 <h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
 <p align="center"><strong>(Still in Development - Your Support is always Appreciated!!)</strong></>
 
 <p align="center">
- <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
- <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
+ <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/SveltyCMS/SveltyCMS">
+ <img alt="GitHub issues" src="https://img.shields.io/github/issues/SveltyCMS/SveltyCMS">
 </p>
 
 <p align="center">
@@ -192,14 +192,14 @@ If you require a different look, use the [skeleton theme generator](https://www.
 
 We use [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), the best i18n library together with [inlang](https://inlang.com/) ecosystem for first class System Translations with full typescript support.
 
-Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SveltyCMS) and can easily be extended.
+Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/SveltyCMS/SveltyCMS) and can easily be extended.
 
 If a language has not yet been defined, reach out to us, so that you can help extend the System Localization.
 
 </td>
 <td>
 
-[![inlang status badge](https://badge.inlang.com/?url=github.com/Rar9/SveltyCMS)](https://fink.inlang.com/github.com/Rar9/SveltyCMS?ref=badge)
+[![inlang status badge](https://badge.inlang.com/?url=github.com/SveltyCMS/SveltyCMS)](https://fink.inlang.com/github.com/SveltyCMS/SveltyCMS?ref=badge)
 
 </td>
 </tr>
@@ -217,9 +217,11 @@ Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and
 ## :question: Need help
 
 Contact us if you're struggling installation or other issues via:
-[GitHub Discussions](https://github.com/SveltyCMS/SvelteCMS/discussions)
+[GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
 
 ## :rocket: Semantic Versioning
+
+For detailed information on our Git workflow, branching strategy, and commit conventions, see our [Git Workflow & Automated Releases guide](docs/git-workflows.mdx).
 
 We use [semantic versioning](https://semver.org/) to manage our releases. This means that our version numbers follow a specific format: `MAJOR.MINOR.PATCH`.
 
@@ -229,7 +231,7 @@ We use [semantic versioning](https://semver.org/) to manage our releases. This m
 
 When submitting pull requests, please make sure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This will help us automatically generate changelogs and release notes.
 
-Please also read our [Code of Conduct](https://github.com/SveltyCMS/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+Please also read our [Code of Conduct](https://github.com/SveltyCMS/SveltyCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
 
 If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running pnpm changeset and following the prompts.
 Changesets that add features should be minor and those that fix bugs should be patch.
@@ -242,7 +244,7 @@ Thank you for helping us maintain a consistent and predictable release process! 
 
 # Contributing
 
-We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SvelteCMS/CONTRIBUTING.md) for details on how to get started with this.
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
 
 ## :moneybag: Sponsoring
 

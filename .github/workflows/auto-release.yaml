@@ -1,34 +1,38 @@
-# This workflow uses semantic-release to automatically publish new versions of your package to GitHub and npm based on commit messages
+# This workflow uses semantic-release to automatically publish new versions of your package to GitHub based on commit messages.
 name: Semantic Release
 
-# Triggers the workflow ONLY when a push happens to the main branch
+# Triggers the workflow ONLY when a push happens to the main or next branch.
 on:
   push:
     branches:
       - main
+      - next
   workflow_dispatch: {} # Allows you to run this workflow manually from the Actions tab
 
 jobs:
   release:
     permissions:
-      contents: write # Allow writing to the repository contents
-      issues: write # Allow creating and updating issues
-      pull-requests: write # Allow creating and updating pull requests
+      contents: write # to push new version tag and updated package.json/CHANGELOG.md
+      issues: write # to comment on issues when resolved
+      pull-requests: write # to comment on pull requests when resolved
 
     runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # Use the checkout action to clone the repository
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
+          fetch-depth: 0
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1 # Use the setup-bun action
+        uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
       - name: Cache Bun dependencies
         id: bun-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
@@ -36,27 +40,33 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
+
+      # This step is specific to your main branch cleanup requirement.
+      - name: Ensure /config/collections is empty in main
+        # This only runs on the main branch.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # If the collections directory exists, remove it.
+          if [ -d "config/collections" ]; then
+            echo "Removing config/collections to maintain a clean main branch..."
+            git rm -r --cached config/collections
+            rm -rf config/collections
+            
+            # Commit the changes if any files were removed.
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            # The '|| true' ensures the workflow doesn't fail if there's nothing to commit.
+            git commit -m "chore(build): auto-remove collections directory for release" || true
+            git push origin main
+            echo "Collections directory removed and changes pushed."
+          else
+            echo "No collections directory found — main is already clean."
+          fi
 
       - name: Run semantic-release
         run: bunx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
-          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Provide the npm token as an environment variable if you want to publish to npm as well
-
-      - name: Update package.json version after semantic release
-        # Setting an environment variables defined in github Environments
-        env:
-          GIT_USER_EMAIL: '${{ env.GIT_USER_EMAIL }}'
-          GIT_USER_NAME: '${{ env.GIT_USER_NAME }}'
-        run: |
-          # This step uses npm to version because bun does not have a direct equivalent for `pnpm version --no-git-tag-version`
-          # setup-bun makes Node.js and npm available.
-          git config user.email "${{ env.GIT_USER_EMAIL }}"
-          git config user.name "${{ env.GIT_USER_NAME }}"
-          git checkout ${{ github.ref }}
-          git pull origin ${{ github.ref }}
-          npm version --no-git-tag-version --allow-same-version
-          git add package.json
-          git commit -m "chore: update package version after semantic release" || true
-          git push origin ${{ github.ref }}
+          # The GITHUB_TOKEN is automatically provided by GitHub Actions.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment if you decide to publish to npm.

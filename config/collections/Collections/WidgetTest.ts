@@ -103,7 +103,7 @@ export const schema: Schema = {
 		widgets.Currency({
 			label: 'Currency',
 			db_fieldName: 'currency',
-			currencyCode: 'Euro',
+			currencyCode: 'Eur',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Currency',
 			required: true,
