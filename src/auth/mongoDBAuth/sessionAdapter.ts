@@ -348,8 +348,18 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			logger.debug('Session validated', { session_id });
 			// getUserById may throw errors, we need to handle them
 			try {
-				const user = await this.userAdapter.getUserById(session.user_id);
-				return { success: true, data: user };
+				const userResult = await this.userAdapter.getUserById(session.user_id);
+				if (userResult.success) {
+					return { success: true, data: userResult.data };
+				} else {
+					const userMessage = `Failed to get user: ${userResult.message || 'Unknown error'}`;
+					logger.error(userMessage);
+					return {
+						success: false,
+						message: userMessage,
+						error: { code: 'USER_RETRIEVAL_ERROR', message: userMessage }
+					};
+				}
 			} catch (userErr) {
 				const userMessage = `Error getting user in validateSession: ${userErr instanceof Error ? userErr.message : String(userErr)}`;
 				logger.error(userMessage);

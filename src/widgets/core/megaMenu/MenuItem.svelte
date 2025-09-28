@@ -57,8 +57,8 @@ Renders menu item with edit button and recursive children
 	</div>
 	{#if item.children.length > 0}
 		<div class="children">
-			{#each item.children as child (child._id)}
-				<svelte:self bind:item={child} {field} level={level + 1} />
+			{#each item.children as child, index (child._id)}
+				<svelte:self bind:item={item.children[index]} {field} level={level + 1} />
 			{/each}
 		</div>
 	{/if}

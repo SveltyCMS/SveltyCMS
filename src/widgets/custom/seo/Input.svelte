@@ -30,18 +30,17 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 <script lang="ts">
 	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
 	import type { FieldType, SeoData, SeoFeature } from './';
-	import { SeoAnalyzer } from './seoAnalyzer'; // Your existing analysis engine
+	import { SeoAnalyzer } from './seoAnalyzer';
+	// Your existing analysis engine
+	import { contentLanguage } from '@stores/store.svelte';
 
 	// Components
-	import SeoPreview from './components/SeoPreview.svelte'; // Child component
-	import TitleInput from './components/TitleInput.svelte';
-	import DescriptionInput from './components/DescriptionInput.svelte';
-	import HeatmapInput from './components/Heatmap.svelte';
+	// Child component
 
 	let { field, value, error }: { field: FieldType; value: SeoData | null | undefined; error?: string | null } = $props();
 
 	// Determine the current language.
-	const lang = $derived(field.translated ? $contentLanguage : 'default');
+	const lang = $derived(field.translated ? contentLanguage.value : 'default');
 
 	// Initialize the data object with all required fields if it's empty.
 	$effect(() => {

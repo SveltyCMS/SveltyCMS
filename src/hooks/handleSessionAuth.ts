@@ -113,15 +113,31 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		if (!event.locals.dbAdapter && dbAdapter) {
 			event.locals.dbAdapter = dbAdapter;
 		}
+
+		// Extract session_id from cookies
 		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		const user: User | null = session_id ? await getUserFromSessionId(session_id, authServiceReady, event.locals.tenantId) : null;
+
+		let user: User | null = session_id ? await getUserFromSessionId(session_id, authServiceReady, event.locals.tenantId) : null;
 		event.locals.user = user;
 		event.locals.permissions = user?.permissions || [];
 		event.locals.session_id = user ? session_id : undefined;
 
-		if (user && session_id && authServiceReady) {
+		if (user && session_id && authServiceReady && auth) {
 			// Session management and token rotation logic
-			session_id = await handleSessionRotation(event, user, session_id, auth, refreshLimiter, SESSION_COOKIE_NAME);
+			try {
+				session_id = await handleSessionRotation(event, user, session_id, auth, refreshLimiter, SESSION_COOKIE_NAME);
+			} catch (rotationError) {
+				if (rotationError instanceof Error && rotationError.message === 'invalid-session') {
+					logger.warn(`Session rotation failed due to invalid session for user ${user._id}, clearing session`);
+					event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+					event.locals.user = null;
+					event.locals.permissions = [];
+					event.locals.session_id = undefined;
+					user = null;
+				} else {
+					throw rotationError;
+				}
+			}
 		} else if (!user && session_id) {
 			logger.debug(`Clearing invalid session cookie: ${session_id}`);
 			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });

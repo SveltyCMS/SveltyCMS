@@ -406,11 +406,33 @@ export class Auth {
 	async authenticate(email: string, password: string, tenantId?: string): Promise<{ user: User; sessionId: string } | null> {
 		try {
 			const user = await this.getUserByEmail({ email, tenantId });
-			if (!user || !user.password) return null;
+			if (!user) {
+				logger.debug('User not found for authentication', { email, tenantId });
+				return null;
+			}
+			if (!user.password) {
+				logger.debug('User has no password field', { email, tenantId, userId: user._id });
+				return null;
+			}
+
+			logger.debug('Attempting password verification', {
+				email,
+				tenantId,
+				userId: user._id,
+				hasPassword: !!user.password,
+				passwordLength: user.password.length,
+				passwordStartsWith: user.password.substring(0, 10) + '...'
+			});
 
 			const argon2 = await import('argon2');
 			const isValid = await argon2.verify(user.password, password);
-			if (!isValid) return null;
+
+			logger.debug('Password verification result', { email, isValid });
+
+			if (!isValid) {
+				logger.warn('Password authentication failed', { email: email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
+				return null;
+			}
 
 			const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 			const session = await this.createSession({ user_id: user._id, expires: expiresAt, tenantId });

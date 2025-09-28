@@ -14,15 +14,15 @@
 
 // Import components needed for the GuiSchema
 import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
-import { createWidget } from '@src/widgets/factory';
-import { string, pipe, minLength, maxLength, optional, type InferInput as ValibotInput } from 'valibot';
-import type { TextProps } from './types';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { maxLength, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import type { TextProps } from './types';
 
 // The validation schema is a function that receives the field config and returns a schema.
 const validationSchema = (field: FieldInstance) => {
@@ -46,7 +46,7 @@ const validationSchema = (field: FieldInstance) => {
 
 // Create the widget definition using the factory.
 const TextWidget = createWidget<TextProps, ReturnType<typeof validationSchema>>({
-	Name: 'Text',
+	Name: 'Input',
 	Icon: 'mdi:format-text',
 	Description: m.widget_text_description(),
 	inputComponentPath: '/src/widgets/core/text/Input.svelte',

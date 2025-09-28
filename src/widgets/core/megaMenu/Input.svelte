@@ -26,10 +26,10 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
+	import MenuItemComponent from './MenuItem.svelte';
 	import type { MenuItem } from './types';
-	import MenuItemComponent from './MenuItem.svelte'; // The recursive rendering component
+	// The recursive rendering component
 
 	let { field, value, error }: { field: FieldType; value: MenuItem[] | null | undefined; error?: string | null } = $props();
 
@@ -57,8 +57,8 @@ Interactive menu builder with add/edit/reorder capabilities
 <div class="megamenu-container" class:invalid={error}>
 	<div class="menu-list">
 		{#if value && value.length > 0}
-			{#each value as item (item._id)}
-				<MenuItemComponent bind:item {field} level={0} />
+			{#each value as item, index (item._id)}
+				<MenuItemComponent bind:item={value[index]} {field} level={0} />
 			{/each}
 		{:else}
 			<p class="empty-message">No menu items yet. Add one to get started.</p>

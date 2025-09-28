@@ -19,7 +19,7 @@ import { dev } from '$app/environment';
 // Auth
 
 import type { DatabaseConfig } from '@root/config/types';
-import { Auth, hashPassword } from '@src/auth';
+import { Auth } from '@src/auth';
 import { getDefaultSessionStore } from '@src/auth/sessionManager';
 import type { User } from '@src/auth/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
@@ -31,11 +31,44 @@ import { safeParse } from 'valibot';
 import { getSetupDatabaseAdapter } from '../utils';
 import type { RequestHandler } from './$types';
 
+// Content Manager for redirects
+import { contentManager } from '@root/src/content/ContentManager';
+import type { Locale } from '@src/paraglide/runtime';
+import { systemLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
+import { publicEnv } from '@src/stores/globalSettings';
+import { auth } from '@src/databases/db';
+
 interface AdminConfig {
 	username: string;
 	email: string;
 	password: string;
 	confirmPassword: string;
+}
+
+/**
+ * Constructs a redirect URL to the first available collection, prefixed with the given language.
+ * @param language The validated user language (e.g., 'en', 'de').
+ */
+async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
+	try {
+		logger.debug(`Fetching first collection path for language: ${language}`);
+
+		const firstCollection = contentManager.getFirstCollection();
+		if (firstCollection?.path) {
+			// Ensure the collection path has a leading slash
+			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
+			const redirectUrl = `/${language}${collectionPath}`;
+			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
+			return redirectUrl;
+		}
+
+		logger.warn('No collections found via getFirstCollection(), returning null.');
+		return null; // Return null if no collections are configured
+	} catch (err) {
+		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
+		return null; // Return null on error
+	}
 }
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
@@ -133,14 +166,36 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// 9. Create a session for the new admin user
 		const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 		logger.info('Creating session for admin user', { correlationId, userId: adminUser._id, userIdType: typeof adminUser._id });
-		const session = await tempAuth.createSession({ user_id: adminUser._id, expires });
-		const sessionCookie = tempAuth.createSessionCookie(session._id);
+
+		// Use main auth service if available, otherwise fall back to tempAuth
+		let session;
+		let sessionCookie;
+		if (auth && typeof auth.createSession === 'function') {
+			session = await auth.createSession({ user_id: adminUser._id, expires });
+			sessionCookie = auth.createSessionCookie(session._id);
+			logger.info('Session created with main auth service', { correlationId });
+		} else {
+			session = await tempAuth.createSession({ user_id: adminUser._id, expires });
+			sessionCookie = tempAuth.createSessionCookie(session._id);
+			logger.info('Session created with temp auth service', { correlationId });
+		}
 
 		logger.info('Admin user created and session established, redirecting to dashboard', { correlationId });
 
-		// 9. Determine redirect path
-		const redirectPath = `/config/collectionbuilder`; // Go straight to collection builder after setup
+		// 9. Determine redirect path based on available collections (same logic as login)
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		logger.info('Setup redirect logic', { correlationId, langFromStore, supportedLocales, userLanguage });
+		let redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 
+		// If no collections found, fall back to collection builder
+		if (!redirectPath) {
+			redirectPath = '/config/collectionbuilder';
+			logger.info('No collections available, redirecting to collection builder', { correlationId, redirectPath });
+		} else {
+			logger.info('Setup completion redirect path determined', { correlationId, redirectPath });
+		}
 		const response = json({
 			success: true,
 			message: 'Setup finalized successfully!',
@@ -174,7 +229,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 };
 
 async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: string): Promise<User> {
-	const hashedPassword = await hashPassword(admin.password);
+	// Note: Don't hash the password here - let auth.createUser() and auth.updateUserAttributes() handle it
 
 	try {
 		const existingUser = await auth.getUserByEmail({ email: admin.email });
@@ -196,7 +251,7 @@ async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: st
 
 			await auth.updateUserAttributes(userId, {
 				username: admin.username,
-				password: hashedPassword,
+				password: admin.password, // Pass raw password, updateUserAttributes will hash it
 				role: 'admin',
 				isRegistered: true
 			});
@@ -222,7 +277,7 @@ async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: st
 			const newUser = await auth.createUser({
 				username: admin.username,
 				email: admin.email,
-				password: hashedPassword,
+				password: admin.password, // Pass raw password, createUser will hash it
 				role: 'admin',
 				isRegistered: true
 			});

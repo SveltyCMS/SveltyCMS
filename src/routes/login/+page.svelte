@@ -42,7 +42,7 @@ Features:
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
-				: 1 // Otherwise, show SignUp
+				: undefined // Don't show SignUp - admin creation should happen through setup
 	);
 
 	// Update active state when URL parameters are detected

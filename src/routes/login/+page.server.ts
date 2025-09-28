@@ -887,11 +887,11 @@ export const actions: Actions = {
 			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
 
 			// Get redirect path
-			const user = await auth.getUserById(userId);
+			const loggedInUser = await auth.getUserById(userId);
 			let redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
 			if (!redirectPath) {
 				const { hasPermissionWithRoles } = await import('@src/auth/permissions');
-				const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
+				const isAdmin = hasPermissionWithRoles(loggedInUser, 'config:collectionbuilder', roles);
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
 

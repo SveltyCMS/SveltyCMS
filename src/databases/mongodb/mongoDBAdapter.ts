@@ -354,13 +354,34 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					throw new Error(`Error creating/updating content structure`);
 				}
 			},
-			upsertContentStructureNode: async (contentData: ContentNode): Promise<ContentNode> => {
-				if (contentData.nodeType === 'collection') {
-					// Upsert for collection node
-					return ContentStructureModel.findOneAndUpdate({ _id: contentData._id }, { $set: contentData }, { new: true, upsert: true }).lean().exec();
-				} else {
-					// Upsert for category node (since upsertCategory does not exist)
-					return ContentStructureModel.findOneAndUpdate({ _id: contentData._id }, { $set: contentData }, { new: true, upsert: true }).lean().exec();
+			upsertContentStructureNode: async (contentData: ContentNode): Promise<DatabaseResult<ContentNode>> => {
+				try {
+					let result: ContentNode;
+					if (contentData.nodeType === 'collection') {
+						// Upsert for collection node
+						result = await ContentStructureModel.findOneAndUpdate({ _id: contentData._id }, { $set: contentData }, { new: true, upsert: true })
+							.lean()
+							.exec();
+					} else {
+						// Upsert for category node (since upsertCategory does not exist)
+						result = await ContentStructureModel.findOneAndUpdate({ _id: contentData._id }, { $set: contentData }, { new: true, upsert: true })
+							.lean()
+							.exec();
+					}
+					return {
+						success: true,
+						data: result
+					};
+				} catch (error) {
+					logger.error(`Error upserting content structure node: ${error instanceof Error ? error.message : String(error)}`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							error instanceof Error ? error : new Error(String(error)),
+							'UPSERT_FAILED',
+							'Failed to upsert content structure node'
+						)
+					};
 				}
 			},
 
@@ -372,9 +393,32 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				return ContentStructureModel.findById(id).lean().exec();
 			},
 
-			getStructure: async (): Promise<ContentNode[]> => {
-				// If getContentStructure is not a static method, use a standard query to fetch all nodes
-				return ContentStructureModel.find().lean().exec() as Promise<ContentNode[]>;
+			getStructure: async (mode: 'flat' | 'nested', filter?: Partial<ContentNode>): Promise<DatabaseResult<ContentNode[]>> => {
+				try {
+					// Apply filter if provided
+					const query = filter ? ContentStructureModel.find(filter) : ContentStructureModel.find();
+					const results = (await query.lean().exec()) as ContentNode[];
+
+					if (mode === 'nested') {
+						// TODO: Implement nested structure conversion if needed
+						// For now, return flat structure
+						return {
+							success: true,
+							data: results
+						};
+					} else {
+						return {
+							success: true,
+							data: results
+						};
+					}
+				} catch (error) {
+					logger.error(`Error getting content structure: ${error instanceof Error ? error.message : String(error)}`);
+					return {
+						success: false,
+						error: createDatabaseError(error instanceof Error ? error : new Error(String(error)), 'QUERY_FAILED', 'Failed to get content structure')
+					};
+				}
 			},
 
 			getContentStructureChildren: async (parentId: string): Promise<Document[]> => {

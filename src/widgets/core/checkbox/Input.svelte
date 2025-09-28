@@ -52,7 +52,7 @@
 		@apply text-secondary-600 focus:ring-secondary-500;
 	}
 	.checkbox[data-color='accent'] {
-		@apply text-accent-600 focus:ring-accent-500;
+		@apply text-primary-600 focus:ring-primary-500;
 	}
 	.checkbox[data-size='sm'] {
 		@apply h-4 w-4;

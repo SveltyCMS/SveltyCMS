@@ -5,7 +5,15 @@
 
 Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
- - Demo mode support with auto-reset timer displayed when active
+ - Demo mode support with auto-reset timer d					<div class="break-words lg:-mt-1">
+						{#if isInviteFlow}
+							{m.form_signup()}
+							<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
+						{:else}
+							{m.form_signup()}
+							<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+						{/if}
+					</div> active
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation

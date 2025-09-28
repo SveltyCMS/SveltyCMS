@@ -3,9 +3,9 @@
  * @description Shared session utilities for authentication across hooks
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
 import type { User } from '@src/auth/types';
 import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS, cacheService } from '@src/databases/CacheService';
+import { privateEnv } from '@src/stores/globalSettings';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { RateLimiter } from 'sveltekit-rate-limiter/server';
 
@@ -115,12 +115,24 @@ export async function handleSessionRotation(
 	refreshLimiter: RateLimiter,
 	cookieName: string
 ): Promise<string> {
+	if (!user || !user._id) {
+		logger.error(
+			`CRITICAL: handleSessionRotation called with invalid user for session ${session_id}. User: ${JSON.stringify(user)}. Invalidating session.`
+		);
+		event.cookies.delete(cookieName, { path: '/' });
+		throw new Error('invalid-session');
+	}
 	// Get token data and determine if rotation is needed
 	let tokenData: { expiresAt: Date; user_id: string } | null = null;
 	try {
 		tokenData = await authService.getSessionTokenData(session_id);
+		if (!tokenData) {
+			logger.error(`Failed to get session token data for session ${session_id}`);
+			event.cookies.delete(cookieName, { path: '/' });
+			throw new Error('invalid-session');
+		}
 	} catch (tokenError) {
-		logger.error(`Failed to get session token data for session ${session_id}: ${tokenError.message}`);
+		logger.error(`Error getting session token data for ${session_id}: ${tokenError.message}`);
 		event.cookies.delete(cookieName, { path: '/' });
 		throw new Error('invalid-session');
 	}
@@ -142,22 +154,20 @@ export async function handleSessionRotation(
 					const oldSessionId = session_id;
 					const newExpiryDate = new Date(now + CACHE_TTL_MS);
 					const newTokenId = await authService.rotateToken(session_id, newExpiryDate);
-					if (newTokenId) {
-						session_id = newTokenId;
-						const sessionData = { user, timestamp: now };
-						sessionCache.set(newTokenId, sessionData);
-						await cacheService.set(newTokenId, sessionData, Math.ceil(CACHE_TTL_MS / 1000));
-						sessionCache.delete(oldSessionId);
-						cacheService.delete(oldSessionId).catch((err) => logger.warn(`Failed to delete old session ${oldSessionId} from cache: ${err.message}`));
-						event.cookies.set(cookieName, session_id, {
-							path: '/',
-							httpOnly: true,
-							secure: event.url.protocol === 'https:',
-							maxAge: CACHE_TTL_MS / 1000,
-							sameSite: 'lax'
-						});
-						logger.debug(`Token rotated for user ${user._id}. Old: ${oldSessionId}, New: ${newTokenId}`);
-					}
+					session_id = newTokenId;
+					const sessionData = { user, timestamp: now };
+					sessionCache.set(newTokenId, sessionData);
+					await cacheService.set(newTokenId, sessionData, Math.ceil(CACHE_TTL_MS / 1000));
+					sessionCache.delete(oldSessionId);
+					cacheService.delete(oldSessionId).catch((err) => logger.warn(`Failed to delete old session ${oldSessionId} from cache: ${err.message}`));
+					event.cookies.set(cookieName, session_id, {
+						path: '/',
+						httpOnly: true,
+						secure: event.url.protocol === 'https:',
+						maxAge: CACHE_TTL_MS / 1000,
+						sameSite: 'lax'
+					});
+					logger.debug(`Token rotated for user ${user._id}. Old: ${oldSessionId}, New: ${newTokenId}`);
 				} catch (rotationError) {
 					logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError.message}`);
 				}

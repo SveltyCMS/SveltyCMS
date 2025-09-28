@@ -82,13 +82,14 @@ export async function initializeWidgets(): Promise<void> {
 
 			const validModules = Object.entries(widgetModules)
 				.map(([path, module]) => {
-					const match = path.match(/\.\/(core|custom)\/([^/]+)\//);
-					if (!match) {
-						logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+					// Extract folder type and name from path
+					const pathParts = path.split('/');
+					if (pathParts.length < 4 || (pathParts[1] !== 'core' && pathParts[1] !== 'custom')) {
+						logger.warn(`Skipping widget module: ${path} - Invalid path structure`);
 						return null;
 					}
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars
-					const [_fullMatch, folderType, name] = match;
+					const folderType = pathParts[1];
+					const name = pathParts[2];
 
 					// Validate extracted name
 					if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -133,7 +134,7 @@ export async function initializeWidgets(): Promise<void> {
 						logger.warn(`Skipping widget ${name} - No widget function found`);
 						continue;
 					}
-					if (!checkDependencies(widgetFn({}))) {
+					if (!checkDependencies(widgetFn)) {
 						logger.warn(`Skipping widget ${name} - Missing dependencies`);
 						continue;
 					}
