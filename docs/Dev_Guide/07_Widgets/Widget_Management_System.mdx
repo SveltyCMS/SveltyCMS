@@ -20,6 +20,7 @@ The SveltyCMS widget management system provides a robust architecture for handli
 ### Core Concepts
 
 - **Core Widgets**: Essential widgets that are always enabled by default (e.g., `input`, `richText`, `date`)
+- **Core Widgets**: Essential widgets that are always enabled by default (e.g., `input`, `richText`, `date`).
 - **Custom Widgets**: Optional widgets that can be enabled/disabled per tenant (e.g., `seo`, `colorPicker`, `rating`)
 - **Widget Dependencies**: Widgets can depend on other widgets, preventing invalid configurations
 - **Tenant Isolation**: Multi-tenant support with per-tenant widget configurations
@@ -55,12 +56,7 @@ src/
 ### Basic Widget Operations
 
 ```typescript
-import { 
-  widgetStoreActions, 
-  isWidgetActive, 
-  canDisableWidget,
-  getWidgetDependencies 
-} from '@stores/widgetStore.svelte';
+import { widgetStoreActions, isWidgetActive, canDisableWidget, getWidgetDependencies } from '@stores/widgetStore.svelte';
 
 // Initialize widgets for a tenant
 await widgetStoreActions.initializeWidgets('tenant123');
@@ -95,15 +91,15 @@ The widget store maintains the following state:
 
 ```typescript
 interface WidgetStoreState {
-  widgets: Record<string, Widget>;              // Widget instances
-  widgetFunctions: Record<string, WidgetFunction>; // Widget factory functions
-  activeWidgets: string[];                      // Currently active widget names
-  coreWidgets: string[];                        // Core widget names (always enabled)
-  customWidgets: string[];                      // Custom widget names (optional)
-  dependencyMap: Record<string, string[]>;      // Widget dependencies
-  isLoaded: boolean;                            // Initialization status
-  isLoading: boolean;                           // Loading state
-  tenantId?: string;                            // Current tenant context
+	widgets: Record<string, Widget>; // Widget instances
+	widgetFunctions: Record<string, WidgetFunction>; // Widget factory functions
+	activeWidgets: string[]; // Currently active widget names
+	coreWidgets: string[]; // Core widget names (always enabled)
+	customWidgets: string[]; // Custom widget names (optional)
+	dependencyMap: Record<string, string[]>; // Widget dependencies
+	isLoaded: boolean; // Initialization status
+	isLoading: boolean; // Loading state
+	tenantId?: string; // Current tenant context
 }
 ```
 
@@ -129,6 +125,8 @@ MyWidget.Name = 'My Widget';
 MyWidget.Icon = 'mdi:widget';
 MyWidget.Description = 'A core widget';
 MyWidget.dependencies = []; // Optional dependencies
+
+Note: Prefer the Three-Pillars pattern: export a factory-created widget (Definition) and provide `Input.svelte` + `Display.svelte` components. Keep validation centralized in the widget definition using Valibot.
 ```
 
 ### Creating a Custom Widget
@@ -143,7 +141,7 @@ Declare dependencies in your widget:
 
 ```typescript
 export default function SEOWidget(config: Record<string, unknown>) {
-  // ... widget implementation
+	// ... widget implementation
 }
 
 SEOWidget.dependencies = ['Input', 'RichText']; // Dependencies on other widgets
@@ -152,67 +150,78 @@ SEOWidget.dependencies = ['Input', 'RichText']; // Dependencies on other widgets
 ## API Endpoints
 
 ### GET `/api/widgets/active`
+
 Get currently active widgets for a tenant.
 
 **Headers:**
+
 - `X-Tenant-ID`: Tenant identifier (optional)
 
 **Response:**
+
 ```json
 {
-  "widgets": ["Input", "RichText", "SEO"],
-  "tenantId": "tenant123"
+	"widgets": ["Input", "RichText", "SEO"],
+	"tenantId": "tenant123"
 }
 ```
 
 ### POST `/api/widgets/status`
+
 Update widget activation status.
 
 **Headers:**
+
 - `X-Tenant-ID`: Tenant identifier (optional)
 
 **Body:**
+
 ```json
 {
-  "widgetName": "SEO",
-  "isActive": true
+	"widgetName": "SEO",
+	"isActive": true
 }
 ```
 
 ### GET `/api/collections/widgets/required`
+
 Get widgets required by all collections.
 
 **Headers:**
+
 - `X-Tenant-ID`: Tenant identifier (optional)
 
 **Response:**
+
 ```json
 {
-  "requiredWidgets": ["Input", "RichText", "Date"],
-  "collectionsAnalyzed": 5,
-  "tenantId": "tenant123"
+	"requiredWidgets": ["Input", "RichText", "Date"],
+	"collectionsAnalyzed": 5,
+	"tenantId": "tenant123"
 }
 ```
 
 ### GET `/api/collections/widgets/validate`
+
 Validate collections against current widget state.
 
 **Query Parameters:**
+
 - `activeWidgets`: Comma-separated list of active widget names
 
 **Headers:**
+
 - `X-Tenant-ID`: Tenant identifier (optional)
 
 **Response:**
+
 ```json
 {
-  "valid": 3,
-  "invalid": 2,
-  "warnings": [
-    "Collection 'posts' requires inactive widgets: SEO, SocialShare"
-  ],
-  "total": 5,
-  "tenantId": "tenant123"
+	"valid": 3,
+	"invalid": 2,
+	"warnings": ["Collection 'posts' requires inactive widgets: SEO, SocialShare"],
+	"total": 5,
+	"tenantId": "tenant123"
 }
 ```
 
@@ -224,6 +233,16 @@ The widget system supports multi-tenancy:
 - Core widgets are always active for all tenants
 - Custom widgets can be enabled/disabled per tenant
 - Widget configurations are isolated per tenant
+
+Migration note — cleaning up legacy custom widgets:
+
+If you previously maintained separate `src/widgets/custom/email`, `number`, or `phoneNumber` widgets, those can be safely deprecated since the core `Input` widget now handles these types via `inputType`. Before removing files:
+
+1. Search the codebase for usages of the legacy widget factories and update collection definitions to use `widgets.Input({ inputType: 'email' })`, `widgets.Input({ inputType: 'number' })`, or `widgets.Input({ inputType: 'phone' })`.
+2. Ensure any custom validation or special GUI schema from the legacy widget is ported into the `Input` widget's GuiSchema or into a small wrapper that calls `Input` but sets `validationSchema` or Gui overrides.
+3. Run the collection validation API (`/api/collections/widgets/validate`) to ensure no collections require the removed widgets.
+
+The factory now accepts a `validationSchema` that may be a function (field-aware) or a static Valibot schema. Use the function form if validation needs access to other field properties.
 
 ## Error Handling
 

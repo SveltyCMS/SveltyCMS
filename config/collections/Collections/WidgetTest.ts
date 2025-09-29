@@ -3,8 +3,8 @@
  * @description Collection file for WidgetTest
  */
 
-import widgets from '@widgets';
 import type { Schema } from '@root/src/content/types';
+import widgets from '@widgets';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
@@ -59,7 +59,8 @@ export const schema: Schema = {
 			required: true
 		}),
 
-		widgets.Email({
+		widgets.Input({
+			inputType: 'email',
 			label: 'Email',
 			db_fieldName: 'email',
 			icon: 'material-symbols:mail-outline',
@@ -82,22 +83,25 @@ export const schema: Schema = {
 			required: true
 		}),
 
-		widgets.DateTime({
+		// DateTime is provided by the same core Date widget via the `timePicker` option.
+		widgets.Date({
+			timePicker: true,
 			label: 'DateTime',
 			db_fieldName: 'datetime',
 			icon: 'bi:calendar3',
 			required: true
 		}),
 
-		widgets.Number({
+		widgets.Input({
+			inputType: 'number',
 			label: 'Number',
 			db_fieldName: 'number',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Number',
 			required: true,
+
 			prefix: 'height',
 			suffix: 'mm'
-			// step: 0.01
 		}),
 
 		widgets.Currency({
@@ -112,7 +116,8 @@ export const schema: Schema = {
 			step: 0.01
 		}),
 
-		widgets.PhoneNumber({
+		widgets.Input({
+			inputType: 'phone',
 			label: 'Phone Number',
 			db_fieldName: 'phonenumber',
 			icon: 'ph:phone',

@@ -21,11 +21,11 @@ import { createWidget } from '@src/widgets/factory';
 import { array, object, string } from 'valibot';
 import type { MegaMenuProps, MenuItem } from './types';
 
-// Define a base schema for a single menu item's data.
+// Define a base schema for a nested menu item's data.
 const MenuItemSchema = object({
 	_id: string(),
 	_fields: object({}), // The fields inside can be anything, validated by the parent form.
-	children: array(object({})) // Simplified children validation
+	children: array(object({})) // Allow nested children with the same structure
 });
 
 // The top-level schema is an array of these menu items.
@@ -41,7 +41,7 @@ const MegaMenuWidget = createWidget({
 	inputComponentPath: '/src/widgets/core/megamenu/Input.svelte',
 	displayComponentPath: '/src/widgets/core/megamenu/Display.svelte',
 
-	// Assign the recursive validation schema.
+	// Assign the validation schema.
 	validationSchema: MegaMenuValidationSchema,
 
 	// Set widget-specific defaults.

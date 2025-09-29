@@ -1,0 +1,451 @@
+---
+path: "src/widgets/core/megaMenu/megamenu.mdx"
+title: "MegaMenu Widget"
+description: "A comprehensive guide to the powerful, hierarchical MegaMenu widget for building complex navigation."
+order: 3
+icon: "mdi:sitemap"
+author: "admin"
+created: "2025-09-29"
+updated: "2025-09-29"
+tags:
+ * "widget"
+ * "menu"
+ * "navigation"
+ * "hierarchical"
+ * "core-widget"
+ * "builder"
+ * "three-pillars"
+ * "drag-drop"
+ * "modal-editing"
+---
+
+# MegaMenu Widget
+
+## Overview
+
+The **MegaMenu** is a powerful, enterprise-grade builder widget designed for creating nested, hierarchical menu structures. It is the ideal solution for managing complex site navigation, multi-level documentation sidebars, or detailed footers. Its core strength lies in its flexibility, allowing developers to define exactly what fields are available at each level of the menu.
+
+Built on the **Three Pillars Architecture**, the MegaMenu provides a complete widget ecosystem with separate components for input (editing), display (rendering), and configuration (setup).
+
+## Key Features
+
+### 🏗️ **Three Pillars Architecture**
+
+- **Input Component**: Interactive menu builder with drag-and-drop and modal editing
+- **Display Component**: Clean, semantic HTML rendering with multilingual support
+- **GuiFields Component**: Intuitive configuration interface for level-based field setup
+
+### 📊 **Unlimited Hierarchical Depth**
+
+Create deeply nested menu structures to organize complex information with no artificial depth limits.
+
+### 🎯 **Drag & Drop Reordering**
+
+Content editors can visually reorder items at any level with an intuitive drag-and-drop interface powered by native HTML5 APIs.
+
+### ⚙️ **Fully Configurable Levels**
+
+Developers can specify different sets of widgets for each level of the menu, providing unparalleled flexibility in data modeling.
+
+### 📝 **Modal-Based Editing**
+
+A clean, focused editing experience for each menu item using the CMS's built-in Skeleton Labs modal system with proper context passing.
+
+### ✅ **Robust Validation**
+
+Employs a comprehensive validation schema to ensure data integrity throughout the entire nested structure.
+
+### 🎛️ **UI Feature Toggles**
+
+Easily enable or disable features like drag-and-drop or expand/collapse functionality per-instance.
+
+### 🌐 **Multilingual Support**
+
+Full internationalization support with automatic language switching and proper field translation handling.
+
+## Architecture Deep Dive
+
+### Three Pillars Components
+
+#### Input Component (`Input.svelte`)
+
+```typescript
+// Props interface
+interface Props {
+	field: FieldType; // Widget configuration
+	value?: MenuItem[] | null; // Bindable menu data
+	error?: string | null; // Validation errors
+}
+```
+
+**Features:**
+
+- Hierarchical menu tree rendering with expand/collapse
+- Drag-and-drop reordering with visual feedback
+- Modal-based item editing with context preservation
+- Real-time reactivity with Svelte 5 runes
+- UUID generation for stable item identification
+
+#### Display Component (`Display.svelte`)
+
+```typescript
+// Props interface
+interface Props {
+	value?: MenuItem[] | null; // Menu data to render
+}
+```
+
+**Features:**
+
+- Recursive list rendering with proper semantic HTML
+- Multilingual field display with content language awareness
+- Clean fallback handling for missing translations
+- PostCSS styling with proper nesting indentation
+
+#### GuiFields Component (`GuiFields.svelte`)
+
+```typescript
+// Props interface
+interface Props {
+	value?: FieldInstance[][]; // Bindable level configuration
+}
+```
+
+**Features:**
+
+- Dynamic level management (add/remove levels)
+- Widget Builder integration for field configuration
+- Visual hierarchy indicators
+- Real-time configuration updates
+
+## Configuration (For Developers)
+
+### Basic Setup
+
+The true power of the MegaMenu is unlocked in its configuration. When defining a collection field, you use the `MegaMenuWidget` factory to create an instance.
+
+```typescript
+import { MegaMenuWidget, TextWidget, TextareaWidget } from '@src/widgets';
+
+const MainNavigation = MegaMenuWidget({
+	label: 'Main Navigation Menu',
+	fields: [
+		// Level 1 (Root Items)
+		[
+			TextWidget({
+				label: 'Title',
+				required: true,
+				translated: true
+			}),
+			TextWidget({
+				label: 'URL',
+				required: true,
+				helper: 'Enter a relative path (e.g., /about) or a full URL.'
+			})
+		],
+		// Level 2 (Child Items)
+		[
+			TextWidget({
+				label: 'Title',
+				required: true,
+				translated: true
+			}),
+			TextWidget({
+				label: 'URL',
+				required: true
+			}),
+			TextareaWidget({
+				label: 'Description',
+				helper: 'Optional text shown below the menu item.'
+			})
+		]
+	]
+});
+```
+
+### Advanced Configuration
+
+```typescript
+const AdvancedMenu = MegaMenuWidget({
+	label: 'Advanced Navigation',
+	fields: [
+		// Root level with rich content
+		[
+			TextWidget({ label: 'Title', required: true, translated: true }),
+			TextWidget({ label: 'URL', required: true }),
+			RichTextWidget({ label: 'Description', translated: true }),
+			MediaUploadWidget({ label: 'Icon', multiple: false })
+		],
+		// Child level with simplified fields
+		[TextWidget({ label: 'Title', required: true, translated: true }), TextWidget({ label: 'URL', required: true })]
+	],
+
+	// Depth and behavior controls
+	maxDepth: 3,
+	enableDragDrop: true,
+	enableExpandCollapse: true,
+
+	// Advanced validation rules
+	validationRules: {
+		minRootItems: 1,
+		maxRootItems: 10,
+		maxChildrenPerParent: 8,
+		requireUniqueTitles: false
+	}
+});
+```
+
+### Configuration Properties
+
+| Property               | Type                  | Default | Description                                                        |
+| ---------------------- | --------------------- | ------- | ------------------------------------------------------------------ |
+| `label`                | `string`              | -       | **Required.** Display name for the field in the CMS                |
+| `fields`               | `FieldInstance[][]`   | -       | **Required.** Array of arrays defining widgets for each menu level |
+| `maxDepth`             | `number`              | `5`     | Maximum nesting levels allowed                                     |
+| `enableDragDrop`       | `boolean`             | `true`  | Enable drag-and-drop reordering                                    |
+| `enableExpandCollapse` | `boolean`             | `true`  | Enable expand/collapse UI controls                                 |
+| `validationRules`      | `MenuValidationRules` | -       | Advanced validation constraints                                    |
+
+### Validation Rules
+
+```typescript
+interface MenuValidationRules {
+	minRootItems?: number; // Minimum root level items
+	maxRootItems?: number; // Maximum root level items
+	maxChildrenPerParent?: number; // Max children per parent
+	requireUniqueTitles?: boolean; // Require unique titles within levels
+}
+```
+
+## Content Editing (For Users)
+
+For content editors, the MegaMenu provides an intuitive visual interface to build and manage menus without needing to understand the underlying complexity.
+
+### Available Actions
+
+- **➕ Add Root Item**: Adds a new item to the top level of the menu
+- **➕ Add Child Item**: Creates nested items under parent items
+- **✏️ Edit**: Opens a modal with level-specific fields for editing
+- **🗑️ Delete**: Removes items and all descendants (with confirmation)
+- **⋮⋮ Drag Handle**: Click and drag to reorder items among siblings
+- **⯆ Expand/Collapse**: Toggle visibility of child items for organization
+
+### Editing Workflow
+
+1. **Add Items**: Start by adding root-level items using the "Add Menu Item" button
+2. **Configure**: Click the edit icon to open the modal and fill in the configured fields
+3. **Organize**: Drag items to reorder them or create hierarchies
+4. **Nest**: Use "Add Child" to create sub-menus under parent items
+5. **Refine**: Expand/collapse sections to manage complex menu structures
+
+## Data Structure
+
+The MegaMenu widget saves its data as a clean, predictable JSON array of objects. This hierarchical structure is easy to parse and render on your front end.
+
+```json
+[
+	{
+		"_id": "uuid-for-item-1",
+		"_fields": {
+			"title": {
+				"en": "Products",
+				"de": "Produkte"
+			},
+			"url": "/products"
+		},
+		"_expanded": true,
+		"children": [
+			{
+				"_id": "uuid-for-child-1a",
+				"_fields": {
+					"title": {
+						"en": "Software",
+						"de": "Software"
+					},
+					"url": "/products/software",
+					"description": {
+						"en": "Our latest software solutions.",
+						"de": "Unsere neuesten Softwarelösungen."
+					}
+				},
+				"children": []
+			}
+		]
+	}
+]
+```
+
+### TypeScript Interfaces
+
+```typescript
+interface MenuItem {
+	_id: string; // Unique identifier
+	_fields: Record<string, unknown>; // Field data (multilingual objects)
+	children: MenuItem[]; // Nested child items
+	_expanded?: boolean; // UI state (not persisted)
+}
+```
+
+## Frontend Integration
+
+### Rendering Menus
+
+```svelte
+<script lang="ts">
+  import type { MenuItem } from './types';
+
+  interface Props {
+    menuData: MenuItem[];
+    currentPath?: string;
+  }
+
+  let { menuData, currentPath }: Props = $props();
+</script>
+
+<nav class="main-navigation">
+  {#each menuData as item}
+    <MenuItemComponent {item} {currentPath} />
+  {/each}
+</nav>
+
+<!-- Recursive MenuItem Component -->
+<script lang="ts">
+  interface Props {
+    item: MenuItem;
+    currentPath?: string;
+    level?: number;
+  }
+
+  let { item, currentPath, level = 0 }: Props = $props();
+
+  $: isActive = currentPath && item._fields.url === currentPath;
+  $: hasChildren = item.children && item.children.length > 0;
+</script>
+
+{#if hasChildren}
+  <details class="menu-item" open={level === 0}>
+    <summary class="menu-summary {isActive ? 'active' : ''}">
+      <a href={item._fields.url} class="menu-link">
+        {item._fields.title?.[$contentLanguage] || 'Untitled'}
+      </a>
+    </summary>
+    <ul class="submenu">
+      {#each item.children as child}
+        <li>
+          <svelte:self item={child} currentPath={currentPath} level={level + 1} />
+        </li>
+      {/each}
+    </ul>
+  </details>
+{:else}
+  <a href={item._fields.url} class="menu-link {isActive ? 'active' : ''}">
+    {item._fields.title?.[$contentLanguage] || 'Untitled'}
+  </a>
+{/if}
+```
+
+### Utility Functions
+
+The MegaMenu provides several helper functions for advanced use cases:
+
+```typescript
+import { traverseMenuItems, findMenuItemByPath, validateMenuStructure } from '@widgets/core/megaMenu';
+
+// Traverse all menu items recursively
+traverseMenuItems(menuData, (item, level, parent) => {
+	console.log(`Level ${level}: ${item._fields.title}`);
+});
+
+// Find a specific item by its path in the hierarchy
+const targetItem = findMenuItemByPath(menuData, [0, 2, 1]);
+
+// Validate menu structure against configuration
+const validation = validateMenuStructure(menuData, menuConfig);
+if (!validation.valid) {
+	console.error('Validation errors:', validation.errors);
+}
+```
+
+## Best Practices
+
+### Configuration Tips
+
+1. **Start Simple**: Begin with basic text fields and URLs, then add complexity
+2. **Consistent Fields**: Use similar field structures across levels for better UX
+3. **Translation Strategy**: Mark title fields as `translated: true` for multilingual sites
+4. **Validation Rules**: Set reasonable limits to prevent overly complex menus
+
+### Performance Considerations
+
+1. **Lazy Loading**: For very large menus, consider lazy-loading child items
+2. **Depth Limits**: Set `maxDepth` appropriately for your use case
+3. **Field Optimization**: Only include necessary fields at each level
+
+### User Experience
+
+1. **Clear Labeling**: Use descriptive field labels and helpful text
+2. **Progressive Disclosure**: Use expand/collapse to manage complexity
+3. **Drag Feedback**: Ensure drag-and-drop provides clear visual feedback
+4. **Confirmation Dialogs**: Always confirm destructive actions like deletion
+
+## Troubleshooting
+
+### Common Issues
+
+**"Menu items not saving"**
+
+- Check that all required fields are filled
+- Verify field validation rules aren't too restrictive
+
+**"Drag and drop not working"**
+
+- Ensure `enableDragDrop: true` in configuration
+- Check browser compatibility for HTML5 drag events
+
+**"Translations not displaying"**
+
+- Verify fields are marked as `translated: true`
+- Check content language store configuration
+
+### Debug Mode
+
+Enable debug logging for development:
+
+```typescript
+// In development, enable verbose logging
+if (import.meta.env.DEV) {
+	console.log('MegaMenu data:', menuData);
+	console.log('Validation result:', validateMenuStructure(menuData, config));
+}
+```
+
+## Migration Guide
+
+### From Custom Menu Solutions
+
+When migrating from custom menu implementations:
+
+1. **Data Transformation**: Convert existing menu data to the MegaMenu format
+2. **Field Mapping**: Map your custom fields to appropriate widget types
+3. **URL Structure**: Ensure URLs are properly formatted for the new structure
+
+### Example Migration
+
+```typescript
+// Old format
+const oldMenu = [{ title: 'Home', url: '/', children: [] }];
+
+// New MegaMenu format
+const newMenu = [
+	{
+		_id: crypto.randomUUID(),
+		_fields: {
+			title: { en: 'Home' },
+			url: '/'
+		},
+		children: []
+	}
+];
+```
+
+The MegaMenu widget represents the pinnacle of hierarchical content management in SveltyCMS, providing developers and content editors with a powerful, flexible, and intuitive system for creating complex navigation structures. Its Three Pillars Architecture ensures maintainability, extensibility, and a superior user experience.

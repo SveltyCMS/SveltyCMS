@@ -1,3 +1,26 @@
+<!--
+@file src/widgets/core/dateRange/Display.svelte
+@component
+**DateRange display component**
+
+A lightweight renderer for the DateRange widget. It formats a `{ start, end }`
+value (ISO 8601 strings) into a human-readable date range string, shows an
+optional duration and a simple relative context (Current / Past / Future).
+
+@example
+<DateRange field={field} value={value} format="medium" />
+
+### Props
+- `field: FieldType` - The date range field configuration
+- `value: DateRangeWidgetData | null | undefined` - The date range value ({ start, end })
+- `format?: 'short' | 'medium' | 'long' | 'full'` - Display month formatting
+
+### Features
+- **Compact display**: Small, synchronous renderer optimized for lists
+- **Duration & context**: Shows time span and whether the range is past/current/future
+- **Locale-aware**: Uses browser locale for formatting
+-->
+
 <script lang="ts">
 	import type { DateRangeWidgetData } from './';
 
@@ -6,14 +29,8 @@
 	// Get the user's preferred language from the browser.
 	const userLocale = document.documentElement.lang || 'en-US';
 
-	// Create formatters for efficiency.
-	const dateFormatter = new Intl.DateTimeFormat(userLocale, {
-		year: 'numeric',
-		month: format === 'short' ? 'short' : format === 'long' ? 'long' : 'long',
-		day: 'numeric'
-	});
-
-	// Memoize the formatted range string for performance.
+	// Memoize the formatted range string for performance and ensure the formatter
+	// is recreated when `format` or `userLocale` changes.
 	const formattedRange = $derived.by(() => {
 		if (!value?.start || !value?.end) return '–';
 
@@ -24,6 +41,13 @@
 			if (isNaN(start.getTime()) || isNaN(end.getTime())) {
 				return 'Invalid Range';
 			}
+
+			// Create formatter here so it picks up changes to `format` and locale.
+			const dateFormatter = new Intl.DateTimeFormat(userLocale, {
+				year: 'numeric',
+				month: format === 'short' ? 'short' : 'long',
+				day: 'numeric'
+			});
 
 			const startFormatted = dateFormatter.format(start);
 			const endFormatted = dateFormatter.format(end);

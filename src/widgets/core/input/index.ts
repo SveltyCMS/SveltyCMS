@@ -1,6 +1,6 @@
 /**
  * @file src/widgets/core/input/index.ts
- * @description Text Widget Definition.
+ * @description Input Widget Definition
  *
  * Implements a versatile text input widget using the Three Pillars Architecture.
  * This widget features a dynamic validation schema that adapts to the field's configuration.
@@ -18,44 +18,82 @@ import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
-import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { maxLength, minLength, optional, pipe, string, type BaseIssue, type BaseSchema, type InferInput as ValibotInput } from 'valibot';
-import type { TextProps } from './types';
+import {
+	any,
+	email,
+	maxLength,
+	maxValue,
+	minLength,
+	minValue,
+	number as numberSchema,
+	object,
+	optional,
+	pipe,
+	regex,
+	string,
+	transform,
+	type BaseIssue,
+	type BaseSchema,
+	type InferInput as ValibotInput
+} from 'valibot';
+import type { InputProps } from './types';
 
 // The validation schema is a function that receives the field config and returns a schema.
-const validationSchema = (field: FieldInstance) => {
-	// Build the list of validation actions
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const actions: any[] = [];
+const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
+	// Build a string schema first with common string rules
+	const stringRules: Array<unknown> = [transform((s: string) => (typeof s === 'string' ? s.trim() : s))];
 
-	if (field.minLength) {
-		actions.push(minLength(field.minLength as number, `Must be at least ${field.minLength} characters.`));
-	}
-	if (field.maxLength) {
-		actions.push(maxLength(field.maxLength as number, `Must be no more than ${field.maxLength} characters.`));
-	}
-	if (field.required) {
-		actions.push(minLength(1, 'This field is required.'));
+	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
+	if ((field as InputProps).minLength)
+		stringRules.push(minLength((field as InputProps).minLength as number, `Must be at least ${(field as InputProps).minLength} characters.`));
+	if ((field as InputProps).maxLength)
+		stringRules.push(maxLength((field as InputProps).maxLength as number, `Must be no more than ${(field as InputProps).maxLength} characters.`));
+
+	// Handle special input types
+	if ((field as InputProps).inputType === 'email') {
+		stringRules.push(email('Invalid email address.'));
 	}
 
-	// Create the schema with the actions
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const baseSchema = actions.length > 0 ? pipe(string(), ...(actions as any)) : string();
+	if ((field as InputProps).inputType === 'phone') {
+		// Default E.164 pattern unless a custom pattern is provided in field
+		const defaultPattern = /^\+[1-9]\d{1,14}$/;
+		const pattern = (field as InputProps).pattern ? new RegExp((field as InputProps).pattern as string) : defaultPattern;
+		stringRules.push(regex(pattern, 'Invalid phone number format.'));
+	}
 
-	// If the field is not required, wrap the schema to allow empty/optional values.
-	return field.required ? baseSchema : optional(baseSchema);
+	// Start with appropriate base schema depending on inputType
+	let schema: BaseSchema<unknown, unknown, BaseIssue<unknown>> = pipe(string(), ...(stringRules as unknown as []));
+
+	if ((field as InputProps).inputType === 'number') {
+		const numberRules: Array<unknown> = [];
+		// Use minLength/maxLength for numeric bounds to keep configuration uniform across text/number
+		const minVal = field.minLength as number | undefined;
+		const maxVal = field.maxLength as number | undefined;
+		if (minVal !== undefined) numberRules.push(minValue(minVal, `Value must be at least ${minVal}.`));
+		if (maxVal !== undefined) numberRules.push(maxValue(maxVal, `Value must not exceed ${maxVal}.`));
+		schema = pipe(numberSchema(), ...(numberRules as unknown as []));
+	}
+
+	// Translated fields store an object with language keys -> validate as flexible object
+	if (field.translated) {
+		return object({ _any: any() });
+	}
+
+	// If not required, allow optional empty value
+	return field.required ? schema : optional(schema, '');
 };
 
 // Create the widget definition using the factory.
-const TextWidget = createWidget<TextProps>({
+const InputWidget = createWidget<InputProps>({
 	Name: 'Input',
-	Icon: 'mdi:format-text',
+	Icon: 'mdi:form-textbox',
 	Description: m.widget_text_description(),
 	inputComponentPath: '/src/widgets/core/input/Input.svelte',
 	displayComponentPath: '/src/widgets/core/input/Display.svelte',
-	validationSchema: validationSchema as unknown as BaseSchema<unknown, unknown, BaseIssue<unknown>>,
+
+	validationSchema: createValidationSchema,
 
 	// Set widget-specific defaults.
 	defaults: {
@@ -91,8 +129,8 @@ const TextWidget = createWidget<TextProps>({
 	}
 });
 
-export default TextWidget;
+export default InputWidget;
 
 // Export helper types.
-export type FieldType = ReturnType<typeof TextWidget>;
-export type TextWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;
+export type FieldType = ReturnType<typeof InputWidget>;
+export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;

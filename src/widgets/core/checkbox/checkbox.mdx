@@ -1,0 +1,119 @@
+---
+path: 'src/widgets/core/checkbox/checkbox.mdx'
+title: 'Checkbox Field'
+description: 'A simple boolean toggle field used for true/false values in collections.'
+order: 6
+icon: 'tabler:checkbox'
+author: 'admin'
+created: '2025-09-29'
+updated: '2025-09-29'
+---
+
+# Checkbox Field
+
+The Checkbox field provides a lightweight boolean toggle for binary options (true/false). It is designed for high accessibility and integrates with the Three-Pillars widget architecture (Definition / Input / Display).
+
+Checkbox values are stored as booleans and validated using Valibot. The core `Checkbox` widget ships with a compact `Input.svelte` for forms and a minimal `Display.svelte` for lists.
+
+## Features
+
+- Native boolean storage (true / false)
+- Accessible markup and keyboard support
+- Small footprint — ideal for lists and settings
+- Valibot validation (ensures boolean values)
+- Fully configurable color and size options
+- GuiSchema exposures for collection builder
+
+## Usage (for Content Editors)
+
+When editing content, the Checkbox appears as a simple toggle control with an optional label and helper text. The field supports required validation.
+
+## Example (Collection)
+
+```typescript
+import widgets from '@widgets';
+
+export const schema = {
+	fields: [
+		widgets.Checkbox({
+			label: 'Featured',
+			db_fieldName: 'featured',
+			icon: 'tabler:checkbox',
+			required: false,
+			helper: 'Mark if this item should be featured',
+			color: 'primary',
+			size: 'md'
+		})
+	]
+};
+```
+
+## Configuration (Developer)
+
+| Property       |                               Type |   Default | Description                                                |
+| -------------- | ---------------------------------: | --------: | ---------------------------------------------------------- |
+| `label`        |                             string |         — | Field label shown in the editor (required)                 |
+| `db_fieldName` |                             string |   derived | Database field name (auto-generated from label if omitted) |
+| `required`     |                            boolean |     false | Whether the field must be set                              |
+| `helper`       |                             string |         — | Helper text shown below the control                        |
+| `color`        | 'primary'  'secondary'  'accent' | 'primary' | Visual color accent for the control                        |
+| `size`         |                 'sm'  'md'  'lg' |      'md' | Visual control size                                        |
+| `translated`   |                            boolean |     false | Not typically used for booleans, kept for consistency      |
+
+### GuiSchema
+
+The widget exposes a GuiSchema used by the collection builder. The current GuiSchema maps common fields to existing GUI components:
+
+- `label` — Input
+- `db_fieldName` — Input
+- `required` — Toggles
+- `icon` — IconifyPicker
+- `helper` — Input
+- `width` — Input
+- `permissions` — PermissionsSetting
+
+This mapping allows the collection builder to render sensible editor controls without extra configuration.
+
+## Data Structure & Validation
+
+- Stored value: boolean (true / false)
+- Validation (Valibot): boolean('Must be a boolean.')
+
+Example valid values:
+
+- `true`
+- `false`
+
+Invalid values will be rejected by the API and the editor validation store.
+
+## Accessibility
+
+The Checkbox input uses semantic `input[type=checkbox]` markup with associated `label` and ARIA attributes:
+
+- `aria-label` is set from the field label
+- `aria-describedby` references helper text when present
+- Keyboard and screen-reader friendly by default
+
+Follow WCAG color-contrast requirements if you customize colors.
+
+## Migration / Notes
+
+- The Checkbox widget is a stable core widget — there is no replacement required.
+- If you previously created a custom checkbox-like UI, prefer using this core widget or provide a small wrapper that sets `GuiSchema`/visual props rather than duplicating logic.
+
+## Implementation Notes
+
+- Definition: `src/widgets/core/checkbox/index.ts`
+- Input component: `src/widgets/core/checkbox/Input.svelte`
+- Display component: `src/widgets/core/checkbox/Display.svelte`
+- Types: `src/widgets/core/checkbox/types.ts`
+
+These files implement the Three-Pillars pattern (Definition / Input / Display) and include a Valibot schema used for both runtime validation and TypeScript typings.
+
+## Try it
+
+After adding a Checkbox field to a collection, open the collection editor and verify:
+
+- The toggle renders correctly in the form
+- Saving an entry persists a boolean in the content store
+- List views show the compact checked/unchecked display

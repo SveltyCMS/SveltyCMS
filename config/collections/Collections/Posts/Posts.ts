@@ -3,8 +3,8 @@
  * @description Collection file for Posts
  */
 
+import type { FieldInstance, Schema } from '@root/src/content/types';
 import widgets from '@widgets';
-import type { Schema } from '@root/src/content/types';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
@@ -19,11 +19,14 @@ export const schema: Schema = {
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [
-		widgets.Email({
+		widgets.Input({
+			inputType: 'email',
 			label: 'Email',
 			icon: 'material-symbols:mail',
-			display: async ({ data, contentLanguage }) => {
-				return data[contentLanguage];
+			display: async ({ data, contentLanguage }: Parameters<NonNullable<FieldInstance['display']>>[0]) => {
+				// Fallback to the first language key if contentLanguage is not provided
+				const lang = contentLanguage ?? Object.keys(data)[0];
+				return data[lang as string] as string;
 			}
 		}),
 

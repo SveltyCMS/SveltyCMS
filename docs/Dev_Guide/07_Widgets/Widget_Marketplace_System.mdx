@@ -46,6 +46,9 @@ The SveltyCMS Widget Marketplace allows users to discover, install, and manage c
 - **Media**: File Upload, Image, Video
 - **Content**: Rich Text, Markdown
 - **Date/Time**: Date Picker, DateTime, Range
+
+Note: The core `date` widget supports `timePicker` to provide DateTime behaviour and the `dateRange` core widget covers ranges — no separate `DateTime` core widget is required.
+
 - **Relationships**: Entity Selector, References
 
 ### Marketplace Categories
@@ -78,6 +81,11 @@ The SveltyCMS Widget Marketplace allows users to discover, install, and manage c
 - **📦 Installation Manager** - Install/uninstall widgets
 - **⚠️ Dependency Check** - Validate widget dependencies
 - **🔍 Collection Analysis** - Required widgets by collections
+
+Migration tips for marketplace authors:
+
+- Prefer adding GUI overrides rather than creating duplicate core functionality. For example, rather than shipping separate email/phone widgets, provide an `Input` wrapper that configures `inputType` and any additional validation.
+- Use the `validationSchema: (field) => ...` function form when your widget's validation depends on field options (for example – a currency widget that validates based on a `precision` option).
 - **🚨 Validation Warnings** - Missing widget alerts
 
 ### Interface Sections

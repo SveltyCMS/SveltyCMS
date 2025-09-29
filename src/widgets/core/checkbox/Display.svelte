@@ -10,6 +10,6 @@
 			<path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41z"></path>
 		</svg>
 	{:else}
-		<span class="select-none text-gray-400" aria-label="Unchecked">−</span>
+		<span class="select-none text-surface-400" aria-label="Unchecked">−</span>
 	{/if}
 </div>

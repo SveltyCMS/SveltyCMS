@@ -11,11 +11,7 @@
 -->
 
 <script lang="ts">
-	// Icons
-	import Icon from '@iconify/svelte';
-
 	// Components
-	import Button from '@components/system/buttons/Button.svelte';
 	import Input from '@components/system/inputs/Input.svelte';
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
@@ -349,23 +345,24 @@
 		</div>
 
 		<div class="flex gap-3">
-			<Button onclick={() => (showExportModal = true)} variant="secondary" disabled={loading}>
-				<Icon icon="mdi:export" class="mr-2 h-4 w-4" />
+			<button onclick={() => (showExportModal = true)} class="variant-ghost-secondary btn" disabled={loading}>
+				<iconify-icon icon="mdi:export" width="24" class=""></iconify-icon>
 				Export Data
-			</Button>
+			</button>
 
-			<Button onclick={() => (showImportModal = true)} variant="primary" disabled={loading}>
-				<Icon icon="mdi:import" class="mr-2 h-4 w-4" />
+			<button onclick={() => (showImportModal = true)} class="variant-ghost-primary btn" disabled={loading}>
+				<iconify-icon icon="mdi:import" width="24" class=""></iconify-icon>
+
 				Import Data
-			</Button>
+			</button>
 		</div>
 	</div>
 
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="mr-3 rounded-lg bg-blue-100 p-2 dark:bg-blue-900">
-					<Icon icon="mdi:database-export" class="h-6 w-6 text-blue-600 dark:text-blue-400" />
+				<div class="variant-filled-tertiary btn-icon mr-3">
+					<iconify-icon icon="mdi:database-export" width="24" class=""></iconify-icon>
 				</div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
@@ -373,18 +370,18 @@
 				</div>
 			</div>
 
-			<Button onclick={exportAllData} variant="outline" disabled={loading} class="w-full">Export Everything</Button>
+			<button onclick={exportAllData} disabled={loading} class="variant-outline-secondary btn mt-4 w-full">Export Everything</button>
 		</div>
 
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="mr-3 rounded-lg bg-green-100 p-2 dark:bg-green-900">
-					<Icon icon="mdi:folder-multiple" class="h-6 w-6 text-green-600 dark:text-green-400" />
+				<div class="variant-filled-primary btn-icon mr-3">
+					<iconify-icon icon="mdi:folder-multiple" width="24" class=""></iconify-icon>
 				</div>
 				<div>
 					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
 					<p class="text-sm text-gray-600 dark:text-gray-400">
-						{collections.length} collections available
+						<span class="font-semibold text-tertiary-500 dark:text-primary-500">{collections.length}</span> collections available
 					</p>
 				</div>
 			</div>
@@ -392,12 +389,12 @@
 			<div class="space-y-2">
 				{#each collections.slice(0, 3) as collection (collection.id)}
 					<div class="flex items-center justify-between text-sm">
-						<span class="text-gray-700 dark:text-gray-300">{collection.label}</span>
-						<Icon icon="mdi:chevron-right" class="h-4 w-4 text-gray-400" />
+						<span class="text-tertiary-500 dark:text-primary-500">{collection.label}</span>
+						<iconify-icon icon="mdi:chevron-right" width="24" class=""></iconify-icon>
 					</div>
 				{/each}
 				{#if collections.length > 3}
-					<p class="text-xs text-gray-500 dark:text-gray-500">...and {collections.length - 3} more</p>
+					<p class="text-xs text-surface-300">...and {collections.length - 3} more</p>
 				{/if}
 			</div>
 		</div>
@@ -414,10 +411,10 @@
 			<div class="alert variant-filled-success">
 				<div class="flex items-center justify-between">
 					<span>Export completed successfully!</span>
-					<Button onclick={downloadExport} variant="primary" size="sm">
-						<Icon icon="mdi:download" class="mr-2 h-4 w-4" />
+					<button onclick={downloadExport}>
+						<iconify-icon icon="mdi:download" width="24" class=""></iconify-icon>
 						Download
-					</Button>
+					</button>
 				</div>
 			</div>
 		</div>
@@ -429,8 +426,8 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Export Collections</h3>
-				<button onclick={() => (showExportModal = false)} class="variant-ghost btn btn-sm">
-					<Icon icon="mdi:close" class="h-5 w-5" />
+				<button onclick={() => (showExportModal = false)} class="variant-ghost btn-icon" aria-label="Close export modal">
+					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
@@ -446,8 +443,8 @@
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="space-x-2">
-							<Button onclick={selectAllCollections} variant="ghost" size="sm">Select All</Button>
-							<Button onclick={clearCollectionSelection} variant="ghost" size="sm">Clear All</Button>
+							<button onclick={selectAllCollections} class="variant-ghost-secondary btn">Select All</button>
+							<button onclick={clearCollectionSelection} class="variant-ghost-secondary btn">Clear All</button>
 						</div>
 					</div>
 
@@ -462,10 +459,12 @@
 									onchange={() => toggleCollectionSelection(collection.id)}
 									class="rounded"
 								/>
-								<div>
-									<div class="font-medium">{collection.label}</div>
+
+								<div class="font-medium">
+									{collection.label}
+
 									{#if collection.description}
-										<div class="text-sm text-gray-500">{collection.description}</div>
+										<span class="ml-2 text-sm text-gray-500">{collection.description}</span>
 									{/if}
 								</div>
 							</label>
@@ -483,10 +482,10 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button onclick={() => (showExportModal = false)} variant="ghost">Cancel</Button>
-				<Button onclick={exportSelectedCollections} variant="primary" disabled={loading || exportOptions.collections.length === 0}>
+				<button onclick={() => (showExportModal = false)} class="variant-ghost-secondary btn">Cancel</button>
+				<button onclick={exportSelectedCollections} class="variant-filled-primary btn" disabled={loading || exportOptions.collections.length === 0}>
 					Export Selected
-				</Button>
+				</button>
 			</div>
 		</div>
 	</div>
@@ -497,8 +496,8 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Collections</h3>
-				<button onclick={() => (showImportModal = false)} class="variant-ghost btn btn-sm">
-					<Icon icon="mdi:close" class="h-5 w-5" />
+				<button onclick={() => (showImportModal = false)} class="variant-ghost btn-icon" aria-label="Close import modal">
+					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] space-y-6 overflow-y-auto p-6">
@@ -534,8 +533,8 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button onclick={() => (showImportModal = false)} variant="ghost">Cancel</Button>
-				<Button onclick={handleImport} variant="primary" disabled={loading || !importFiles}>Import Data</Button>
+				<button onclick={() => (showImportModal = false)} class="variant-ghost-secondary btn">Cancel</button>
+				<button onclick={handleImport} class="variant-filled-primary btn" disabled={loading || !importFiles}>Import Data</button>
 			</div>
 		</div>
 	</div>
@@ -547,7 +546,8 @@
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
 				<button onclick={() => (showResultsModal = false)} class="variant-ghost btn btn-sm">
-					<Icon icon="mdi:close" class="h-5 w-5" />
+					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
+					mdi:close
 				</button>
 			</div>
 			<div class="max-h-[calc(80vh-140px)] overflow-y-auto p-6">
@@ -556,15 +556,15 @@
 						<h3 class="mb-3 font-semibold">Import Summary</h3>
 						<div class="grid grid-cols-3 gap-4 text-center">
 							<div>
-								<div class="text-2xl font-bold text-green-600">{importResult.totalImported}</div>
+								<div class="text-2xl font-bold text-primary-500">{importResult.totalImported}</div>
 								<div class="text-sm text-gray-600">Imported</div>
 							</div>
 							<div>
-								<div class="text-2xl font-bold text-yellow-600">{importResult.totalSkipped}</div>
+								<div class="text-waring-500 text-2xl font-bold">{importResult.totalSkipped}</div>
 								<div class="text-sm text-gray-600">Skipped</div>
 							</div>
 							<div>
-								<div class="text-2xl font-bold text-red-600">{importResult.totalErrors}</div>
+								<div class="text-2xl font-bold text-error-500">{importResult.totalErrors}</div>
 								<div class="text-sm text-gray-600">Errors</div>
 							</div>
 						</div>
@@ -578,9 +578,9 @@
 									<div class="mb-2 flex items-center justify-between">
 										<h4 class="font-medium">{result.collection}</h4>
 										<div class="flex space-x-4 text-sm">
-											<span class="text-green-600">+{result.imported}</span>
-											<span class="text-yellow-600">~{result.skipped}</span>
-											<span class="text-red-600">!{result.errors.length}</span>
+											<span class="text-primary-500">+{result.imported}</span>
+											<span class="text-waring-500">~{result.skipped}</span>
+											<span class="text-error-500">!{result.errors.length}</span>
 										</div>
 									</div>
 
@@ -609,7 +609,7 @@
 			</div>
 
 			<div class="flex justify-end border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<Button onclick={() => (showResultsModal = false)} variant="primary">Close</Button>
+				<button onclick={() => (showResultsModal = false)} class="variant-primary">Close</button>
 			</div>
 		</div>
 	</div>

@@ -30,15 +30,17 @@ Renders current language text with truncation for long content
 
 	let { field, value }: { field: FieldType; value: Record<string, string> | null | undefined } = $props();
 
-	// Determine the current language.
-	const lang = $derived(field.translated ? $contentLanguage : 'default');
+	// Determine the current language (uses store API from contentLanguage)
+	const lang = (field?.translated ? (contentLanguage.value?.toLowerCase?.() ?? contentLanguage.value) : contentLanguage.value) ?? 'en';
 
-	// Get and truncate the text for the current language.
-	const displayText = $derived.by(() => {
-		const text = value?.[lang] ?? '–';
-		// Truncate text longer than 50 characters for display in lists.
+	// Compute display text for the current language with safe fallbacks and truncation
+	const getDisplayText = () => {
+		const text = value?.[lang] ?? value?.[Object.keys(value || {})[0]] ?? '–';
+		if (typeof text !== 'string') return String(text);
 		return text.length > 50 ? text.substring(0, 50) + '...' : text;
-	});
+	};
+
+	const displayText = getDisplayText();
 </script>
 
 <span title={value?.[lang]}>{displayText}</span>

@@ -25,6 +25,8 @@ SveltyCMS features a comprehensive widget system with two distinct types of widg
 - **Examples**: Input, RichText, MediaUpload, Date Picker
 - **Management**: Via `/config/widgetManagement`
 
+Note: The core `Input` widget has been consolidated to handle common input types (text, email, number, phone) via an `inputType` option. Validation is centralized in the core widget and uses `minLength`/`maxLength` as the canonical length/bounds settings. The `Date` widget also supports both date-only and date+time via a `timePicker` option (no separate `DateTime` widget is required).
+
 #### 📊 Dashboard Widgets (`src/routes/(app)/dashboard/widgets/`)
 
 **Purpose**: Display components for system monitoring and analytics
@@ -41,6 +43,11 @@ SveltyCMS features a comprehensive widget system with two distinct types of widg
 - **[Content Widget Development](./Content_Widget_Development.mdx)** - Creating form widgets
 - **[Widget Management System](./Widget_Management_System.mdx)** - Core widget architecture
 - **[Widget Marketplace System](./Widget_Marketplace_System.mdx)** - Marketplace integration
+
+Quick changes since earlier docs:
+
+- The widget factory now accepts `validationSchema` as either a static Valibot schema _or_ a function that receives the created `FieldInstance` and returns a schema. This allows widget validation to be context-aware when necessary.
+- The Three-Pillars pattern (Definition / Input / Display) remains the recommended architecture for content widgets. The factory emits a `widget` (definition) and each widget should provide a light-weight `Display` component for list rendering and a richer `Input` component for editing.
 
 ### Dashboard Widget Documentation
 

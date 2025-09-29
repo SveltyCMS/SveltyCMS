@@ -53,6 +53,19 @@
 	// Local text state for input binding
 	let text = $state('');
 
+	// Compute native input type string for binding
+	const inputTypeStr =
+		field?.inputType && (field?.inputType as string) !== ''
+			? (field?.inputType as string) === 'phone'
+				? 'tel'
+				: (field?.inputType as string)
+			: 'text';
+
+	// Numeric bounds: use `minLength`/`maxLength` for numeric ranges to keep
+	// configuration uniform between text and number fields.
+	let numericMin = $derived(field?.minLength as number | undefined);
+	let numericMax = $derived(field?.maxLength as number | undefined);
+
 	// Update text when safeValue changes
 	$effect(() => {
 		text = safeValue;
@@ -139,20 +152,20 @@
 					}
 
 					// Number validation for number inputs
-					if (inputElement?.type === 'number') {
+					if (field?.inputType === 'number' || inputElement?.type === 'number') {
 						const num = Number(currentValue);
 						if (isNaN(num)) {
 							const error = 'Invalid number format';
 							validationStore.setError(fieldName, error);
 							return error;
 						}
-						if (inputElement.min && num < Number(inputElement.min)) {
-							const error = `Value must be at least ${inputElement.min}`;
+						if (numericMin !== undefined && num < numericMin) {
+							const error = `Value must be at least ${numericMin}`;
 							validationStore.setError(fieldName, error);
 							return error;
 						}
-						if (inputElement.max && num > Number(inputElement.max)) {
-							const error = `Value must not exceed ${inputElement.max}`;
+						if (numericMax !== undefined && num > numericMax) {
+							const error = `Value must not exceed ${numericMax}`;
 							validationStore.setError(fieldName, error);
 							return error;
 						}
@@ -275,7 +288,7 @@
 		{/if}
 
 		<input
-			type="text"
+			type={inputTypeStr}
 			value={safeValue}
 			oninput={(e) => {
 				updateValue(e.currentTarget.value);
@@ -292,6 +305,9 @@
 			readonly={field?.readonly as boolean}
 			minlength={field?.minLength as number}
 			maxlength={field?.maxLength as number}
+			min={numericMin}
+			max={numericMax}
+			step={field?.step as number}
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:error={!!validationError}
 			class:validating={isValidating}

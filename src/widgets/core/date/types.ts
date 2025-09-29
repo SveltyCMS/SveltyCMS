@@ -1,30 +1,19 @@
 /**
  * @file src/widgets/core/date/types.ts
- * @description Type definitions for the Date widget.
+ * @description Type definitions for the Date widget
  */
 
-/**
- * Defines the properties unique to the Date widget.
- */
+// Defines the properties unique to the Date widget
 export interface DateProps {
-	/**
-	 * Minimum allowed date (ISO 8601 string or Date object)
-	 */
+	// Minimum allowed date (ISO 8601 string or Date object)
 	minDate?: string | Date;
 
-	/**
-	 * Maximum allowed date (ISO 8601 string or Date object)
-	 */
+	// Maximum allowed date (ISO 8601 string or Date object)
 	maxDate?: string | Date;
 
-	/**
-	 * Display format for the date
-	 * @default 'medium'
-	 */
+	// Display format for the date @default 'medium'
 	displayFormat?: 'short' | 'medium' | 'long' | 'full';
 
-	/**
-	 * Allow additional widget properties
-	 */
+	// Allow additional widget properties
 	[key: string]: unknown;
 }

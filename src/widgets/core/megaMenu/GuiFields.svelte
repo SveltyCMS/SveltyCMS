@@ -80,24 +80,28 @@ Interactive level configuration with add/remove level capabilities
 							aria-label="Remove level {levelIndex + 1}"
 							title="Remove this menu level"
 						>
-							<iconify-icon icon="mdi:close" width="16" />
+							<iconify-icon icon="mdi:close" width="16"></iconify-icon>
 						</button>
 					{/if}
 				</div>
 
 				<div class="level-content">
 					<div class="fields-section">
-						<label class="fields-label">
+						<label class="fields-label" for={'widget-builder-' + levelIndex}>
 							Fields for Level {levelIndex + 1}
 							<span class="field-count">({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span>
 						</label>
 
-						<WidgetBuilder fields={levelFields} onFieldsChange={(newFields) => updateLevelFields(levelIndex, newFields)} />
+						<WidgetBuilder
+							id={'widget-builder-' + levelIndex}
+							fields={levelFields}
+							onFieldsChange={(newFields) => updateLevelFields(levelIndex, newFields)}
+						/>
 					</div>
 
 					{#if levelFields.length === 0}
 						<div class="empty-fields-notice">
-							<iconify-icon icon="mdi:information-outline" width="20" />
+							<iconify-icon icon="mdi:information-outline" width="20"></iconify-icon>
 							<span>No fields configured for this level yet.</span>
 							<span>Use the Widget Builder above to add fields.</span>
 						</div>
@@ -109,7 +113,7 @@ Interactive level configuration with add/remove level capabilities
 
 	<div class="actions-section">
 		<button type="button" class="add-level-btn" onclick={addLevel}>
-			<iconify-icon icon="mdi:plus" width="20" />
+			<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
 			Add Menu Level
 		</button>
 	</div>

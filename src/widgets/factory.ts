@@ -33,8 +33,11 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 	/** Type-safe default values for the widget's custom properties. */
 	defaults?: Partial<TProps>;
 
-	/** Valibot validation schema for the widget's data. */
-	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>>;
+	/** Valibot validation schema for the widget's data.
+	 *  Accepts either a static schema object (Valibot BaseSchema) or a function that receives the FieldInstance and returns one.
+	 *  Kept as `unknown` to avoid over-constraining the factory; callers may provide properly-typed Valibot schemas.
+	 */
+	validationSchema: unknown | ((field: FieldInstance) => unknown);
 
 	// Optional advanced features
 	GuiSchema?: Record<string, unknown>;
@@ -78,9 +81,11 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		Description: config.Description,
 		inputComponentPath: config.inputComponentPath || '',
 		displayComponentPath: config.displayComponentPath || '',
-		validationSchema: config.validationSchema,
+		// validationSchema may be a function or a static schema. Keep as-is so other systems can call it.
+		validationSchema: config.validationSchema as unknown as BaseSchema<unknown, unknown, BaseIssue<unknown>>,
 		defaults: config.defaults,
-		GuiFields: config.GuiSchema?.properties || ({} as Record<string, unknown>),
+		GuiFields:
+			(config.GuiSchema && (config.GuiSchema as unknown as Record<string, Record<string, unknown>>).properties) || ({} as Record<string, unknown>),
 		aggregations: config.aggregations
 		// ... other definition properties like GraphqlSchema
 	};
