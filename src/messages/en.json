@@ -353,7 +353,7 @@
 	"setup_database_user": "Database User",
 	"setup_heading_badge": "Installation Wizard",
 	"setup_heading_subtitle": "Configure your content management system in a few simple steps",
-	"setup_heading_title": "Setup {publicEnv.SITE_NAME}",
+	"setup_heading_title": "Setup {siteName}",
 	"setup_language_continue": "Continue Setup",
 	"setup_language_description": "This language will be used for the setup interface. You can configure your site's content languages later in the setup process.",
 	"setup_language_search_placeholder": "Search languages...",

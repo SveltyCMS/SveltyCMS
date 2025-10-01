@@ -86,14 +86,13 @@ Interactive level configuration with add/remove level capabilities
 				</div>
 
 				<div class="level-content">
-					<div class="fields-section">
+					<div class="space-y-3">
 						<label class="fields-label" for={'widget-builder-' + levelIndex}>
 							Fields for Level {levelIndex + 1}
 							<span class="field-count">({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span>
 						</label>
 
 						<WidgetBuilder
-							id={'widget-builder-' + levelIndex}
 							fields={levelFields}
 							onFieldsChange={(newFields) => updateLevelFields(levelIndex, newFields)}
 						/>
@@ -178,10 +177,6 @@ Interactive level configuration with add/remove level capabilities
 
 	.level-content {
 		@apply space-y-4 p-4;
-	}
-
-	.fields-section {
-		@apply space-y-3;
 	}
 
 	.fields-label {

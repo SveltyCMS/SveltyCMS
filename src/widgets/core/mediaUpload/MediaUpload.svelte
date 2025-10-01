@@ -26,7 +26,7 @@
 	import { mode, collectionValue } from '@stores/collectionStore.svelte';
 
 	// Components
-	import type { MediaImage, Thumbnail } from '@utils/media/mediaModels';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 
 	// Define reactive state
@@ -95,9 +95,6 @@
 		}, 300);
 	}
 
-	// Computed value for updated state
-	let updated = $derived(_data !== value);
-
 	// WidgetData function
 	export const WidgetData = async () => {
 		if (_data) {
@@ -125,7 +122,7 @@
 	{#if !_data}
 		<!-- File Input -->
 		<div class:error={!!validationError}>
-			<FileInput bind:value={_data} bind:multiple={field.multiupload} on:change={validateInput} />
+			<FileInput bind:value={_data} bind:multiple={field.multiupload} onChange={validateInput} />
 		</div>
 	{:else}
 		<div
@@ -138,7 +135,7 @@
 				<div class="flex items-center justify-between gap-2">
 					<p class="text-left">
 						{m.widget_ImageUpload_Name()}
-						<span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span>
+						<span class="text-tertiary-500 dark:text-primary-500">{_data instanceof File ? _data.name : (_data as MediaImage).path}</span>
 					</p>
 
 					<p class="text-left">

@@ -56,11 +56,8 @@ export async function setEntriesStatus(entryIds: string[], status: StatusType, o
 			case StatusTypes.unpublish:
 				message = entryMessages.entriesUnpublished(count);
 				break;
-			case 'test':
-				message = entryMessages.entriesSetToTest(count);
-				break;
-			case StatusTypes.schedule:
-				message = entryMessages.entriesScheduled(count);
+			case StatusTypes.draft:
+				message = entryMessages.entriesUpdated(count, StatusTypes.draft);
 				break;
 			default:
 				message = entryMessages.entriesUpdated(count, status);
@@ -87,7 +84,7 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 				showToast(entryMessages.entriesArchived(entryIds.length), 'success');
 				onSuccess();
 			} else {
-				showToast(result.error || entryMessages.updateFailed('archive'), 'error');
+				showToast(result.error || entryMessages.updateFailed(StatusTypes.archive), 'error');
 			}
 		} else {
 			// Use batch delete API if available, fallback to individual deletes
@@ -109,7 +106,7 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 			}
 		}
 	} catch (e) {
-		showToast(entryMessages.deleteFailed(isArchiving ? 'archive' : 'delete') + `: ${(e as Error).message}`, 'error');
+		showToast(entryMessages.deleteFailed(isArchiving ? StatusTypes.archive : StatusTypes.delete) + `: ${(e as Error).message}`, 'error');
 	}
 }
 
@@ -147,10 +144,10 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 	// Preserve user's chosen status unless explicitly publishing
 	const payload = { ...entryData };
 	if (publish) {
-		payload.status = 'publish';
+		payload.status = StatusTypes.publish;
 	} else if (!payload.status) {
 		// Use collection's default status if no status is specified (new entries)
-		payload.status = collection.value?.status || 'draft';
+		payload.status = collection.value?.status || StatusTypes.draft;
 	}
 	// Otherwise preserve the existing status from entryData
 
@@ -177,18 +174,19 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 		return;
 	}
 
-	const entryStatus = entry.status || StatusTypes.draft;
+	const entryStatus: StatusType = (entry.status as StatusType) || StatusTypes.draft;
+	const isPublishDraft = entryStatus === StatusTypes.publish || entryStatus === '';
 	const isArchived = entryStatus === StatusTypes.archive;
 	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
 
 	// Determine what options to show based on rules
 	if (!useArchiving) {
 		// USE_ARCHIVE_ON_DELETE: false - Always delete directly
-		showDeleteConfirmationModal(coll._id, entry._id, 'delete');
+		showDeleteConfirmationModal(coll._id, entry._id, StatusTypes.delete);
 	} else if (isArchived) {
 		// Archived entry - only admins can permanently delete
 		if (isAdmin) {
-			showDeleteConfirmationModal(coll._id, entry._id, 'delete');
+			showDeleteConfirmationModal(coll._id, entry._id, StatusTypes.delete);
 		} else {
 			showToast('Only administrators can delete archived entries.', 'warning');
 		}
@@ -199,7 +197,7 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 			showAdminChoiceModal(coll._id, entry._id);
 		} else {
 			// Non-admin can only archive
-			showDeleteConfirmationModal(coll._id, entry._id, 'archive');
+			showDeleteConfirmationModal(coll._id, entry._id, StatusTypes.archive);
 		}
 	}
 }
@@ -218,7 +216,7 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
 		confirmText: 'Archive',
 		cancelText: 'Show Delete Option',
 		confirmClasses: 'bg-warning-500 hover:bg-warning-600 text-white',
-		onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, 'archive'),
+		onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.archive),
 		onCancel: () =>
 			showConfirm({
 				title: 'Delete Entry Permanently',
@@ -230,14 +228,14 @@ function showAdminChoiceModal(collectionId: string, entryId: string) {
 				`,
 				confirmText: 'Delete Permanently',
 				confirmClasses: 'bg-error-500 hover:bg-error-600 text-white',
-				onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, 'delete')
+				onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete)
 			})
 	});
 }
 
 // Helper function to show final confirmation modal
-function showDeleteConfirmationModal(collectionId: string, entryId: string, action: 'archive' | 'delete') {
-	const isArchive = action === 'archive';
+function showDeleteConfirmationModal(collectionId: string, entryId: string, action: typeof StatusTypes.archive | typeof StatusTypes.delete) {
+	const isArchive = action === StatusTypes.archive;
 	showConfirm({
 		title: `Please Confirm <span class="text-error-500 font-bold">${isArchive ? 'Archiving' : 'Deletion'}</span>`,
 		body: isArchive
@@ -298,7 +296,7 @@ export async function setEntryStatus(newStatus: StatusType) {
 		showToast(m.set_status_no_selection_error(), 'warning');
 		return;
 	}
-	if (newStatus === 'draft' || newStatus === 'archive') {
+	if (newStatus === 'draft' || newStatus === StatusTypes.archive) {
 		showToast(`${newStatus} status is reserved for system operations.`, 'error');
 		return;
 	}
@@ -324,11 +322,11 @@ export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDat
 	if (scheduledDate) {
 		// If date is provided, directly schedule
 		try {
-			await updateStatus(coll._id, entry._id, StatusTypes.schedule);
-			// Update entry with scheduled date if your API supports it
+			// 'scheduled' is not a valid StatusType, use 'publish' or 'draft' as needed
+			await updateStatus(coll._id!, entry._id!, StatusTypes.publish);
 			collectionValue.update((cv) => ({
 				...cv,
-				status: StatusTypes.schedule,
+				status: StatusTypes.publish,
 				scheduledDate: scheduledDate.toISOString()
 			}));
 			showToast(entryMessages.entryScheduled(scheduledDate.toLocaleDateString()), 'success');
@@ -338,13 +336,13 @@ export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDat
 	} else {
 		// Show the schedule modal via helper
 		showScheduleModal({
-			initialAction: 'publish',
+			initialAction: StatusTypes.publish,
 			onSchedule: async (date: Date, action: string) => {
 				try {
-					await updateStatus(coll._id, entry._id, StatusTypes.schedule);
+					await updateStatus(coll._id!, entry._id!, StatusTypes.publish);
 					collectionValue.update((cv) => ({
 						...cv,
-						status: StatusTypes.schedule,
+						status: StatusTypes.publish,
 						scheduledDate: date.toISOString(),
 						scheduledAction: action
 					}));
@@ -379,7 +377,7 @@ export async function cloneCurrentEntry() {
 				delete clonedPayload.updatedAt;
 
 				// Set clone status and reference to original
-				clonedPayload.status = StatusTypes.clone;
+				clonedPayload.status = StatusTypes.draft;
 				clonedPayload.clonedFrom = entry._id;
 
 				console.log('Cloning entry with payload:', clonedPayload);
@@ -449,7 +447,7 @@ export async function saveDraftAndLeave(modalStore: ModalStore): Promise<boolean
 							if (!result.success) {
 								throw new Error(result.error || 'Failed to update entry');
 							}
-							await updateStatus(coll._id, entry._id, StatusTypes.draft);
+							await updateStatus(coll._id!, entry._id!, StatusTypes.draft);
 						} else {
 							// Create new entry with draft status
 							draftData.status = StatusTypes.draft;

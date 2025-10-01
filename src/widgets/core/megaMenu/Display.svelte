@@ -30,7 +30,6 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 
 	let { value }: { value: MenuItem[] | null | undefined } = $props();
 	const lang = $derived($contentLanguage);
-
 </script>
 
 {#if value && value.length > 0}

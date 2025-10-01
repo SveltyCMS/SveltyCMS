@@ -13,9 +13,10 @@ import crypto from 'crypto';
 import mime from 'mime-types';
 import Path from 'path';
 import Sharp from 'sharp';
-import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
 import { MediaTypeEnum, Permission } from './mediaModels';
 import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
+
+import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

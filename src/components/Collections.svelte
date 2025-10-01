@@ -25,10 +25,8 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	import type { Schema } from '@src/content/types';
-	// Update ContentNode type to include the path property
-	import type { ContentNode } from '@src/databases/dbInterface';
-	import type { Translation } from '@src/databases/types';
+	import type { ContentNode, Schema, StatusType, Translation } from '@src/content/types';
+	import { StatusTypes } from '@src/content/types';
 	// Stores
 	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
@@ -37,6 +35,9 @@ Features:
 	import { get } from 'svelte/store';
 
 	import { constructNestedStructure } from '../content/utils';
+
+	// Patch: declare constructNestedStructure returns ExtendedContentNode[] for this file
+	// (If needed, update utils.ts to export with correct type)
 	// Utils
 	import { debounce } from '@utils/utils';
 
@@ -48,11 +49,12 @@ Features:
 
 	// Extend ContentNode to ensure path property is available
 	interface ExtendedContentNode extends ContentNode {
+		// All ContentNode properties (_id, name, nodeType, translations, etc.) are inherited
 		path?: string;
 		children?: ExtendedContentNode[];
 		lastModified?: Date;
 		fileCount?: number;
-		status?: 'draft' | 'publish' | 'archive';
+		status?: StatusType;
 	}
 
 	// Tree node interface with additional properties
@@ -65,7 +67,7 @@ Features:
 		icon?: string;
 		badge?: {
 			count?: number;
-			status?: 'draft' | 'publish' | 'archive';
+			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
 			color?: string;
 			visible?: boolean;
 		};
@@ -189,11 +191,14 @@ Features:
 			}
 
 			// Add badge only for categories to reduce overhead
+			const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
 			const badge = isCategory
 				? {
 						count: countAllCollections(node),
 						visible: true,
-						status: node.status,
+						status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
+							? (node.status as (typeof allowedStatus)[number])
+							: undefined,
 						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
 					}
 				: undefined;
@@ -217,13 +222,13 @@ Features:
 	});
 
 	// Get status color for badges
-	function getStatusColor(status?: string): string {
+	function getStatusColor(status?: StatusType): string {
 		switch (status) {
-			case 'publish':
+			case StatusTypes.publish:
 				return 'bg-success-500';
-			case 'draft':
+			case StatusTypes.draft:
 				return 'bg-warning-500';
-			case 'archive':
+			case StatusTypes.archive:
 				return 'bg-surface-500';
 			default:
 				return 'bg-primary-500';
@@ -359,8 +364,10 @@ Features:
 			clearTimeout(navigationTimeout);
 		}
 
-		if ('nodeType' in selectedCollection) {
-			// selectedCollection is ExtendedContentNode here
+		// Type guard for ExtendedContentNode
+		const isExtendedContentNode = (node: any): node is ExtendedContentNode => node && typeof node === 'object' && '_id' in node && 'nodeType' in node;
+
+		if (isExtendedContentNode(selectedCollection)) {
 			if (selectedCollection.nodeType === 'collection') {
 				// Check if this collection is already selected to avoid unnecessary navigation
 				const currentCollectionId = collection.value?._id;
@@ -389,6 +396,9 @@ Features:
 			} else if (selectedCollection.nodeType === 'category') {
 				toggleNodeExpansion(selectedCollection._id);
 			}
+		} else {
+			// Handle Schema type if needed (fallback)
+			// Example: if (selectedCollection && 'name' in selectedCollection) { ... }
 		}
 	}
 

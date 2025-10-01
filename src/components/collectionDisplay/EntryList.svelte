@@ -25,7 +25,7 @@ Features:
 </script>
 
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
@@ -39,7 +39,8 @@ Features:
 	import { publicEnv } from '@src/stores/globalSettings';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
-	import { StatusTypes, type StatusType } from '@src/content/types';
+	import type { StatusType } from '@src/content/types';
+	import { StatusTypes } from '@src/content/types';
 	// Stores
 	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
@@ -865,20 +866,6 @@ Features:
 		return Object.values(selectedMap).some((isSelected) => isSelected);
 	});
 
-	// Get the statuses of currently selected entries with better performance
-	let selectedEntriesStatuses = $derived.by(() => {
-		const statuses: string[] = [];
-		const selectedEntries = Object.entries(selectedMap).filter(([, isSelected]) => isSelected);
-
-		for (const [index] of selectedEntries) {
-			const entry = tableData[Number(index)];
-			if (entry?.status) {
-				statuses.push(entry.status.toLowerCase());
-			}
-		}
-		return statuses;
-	});
-
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
@@ -896,7 +883,7 @@ Features:
 		});
 	});
 
-	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
+	let pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
 		// Remove the first segment if it matches the current system language
 		const segments = pathSegments?.slice() ?? [];
@@ -956,9 +943,9 @@ Features:
 		const newEntry: Record<string, any> = {};
 		if (currentCollection?.fields) {
 			for (const field of currentCollection.fields) {
-				// Check if field is actually a Field (not WidgetPlaceholder)
-				if ('label' in field && 'type' in field) {
-					const fieldName = getFieldName(field, false);
+				// Type guard to ensure field is an object and not unknown
+				if (typeof field === 'object' && field !== null && 'label' in field && 'type' in field) {
+					const fieldName = getFieldName(field as { label: string; type: string }, false);
 					// Set a default value based on the field type or widget
 					// Note: We can't determine if field is translatable from type definition,
 					// so we'll set simple null value. Translation initialization handled elsewhere.
@@ -986,7 +973,7 @@ Features:
 	// Handlers that call the centralized action functions
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
 	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess);
+	const onTest = () => setEntriesStatus(getSelectedIds(), StatusTypes.test, onActionSuccess);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
@@ -1049,7 +1036,7 @@ Features:
 		const payload = { _scheduled: new Date(date).getTime() };
 		// The `action` variable from the modal can be used here if your backend
 		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
-		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, payload);
+		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
 	};
 
 	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
@@ -1117,7 +1104,7 @@ Features:
 	// 			}
 	// 		} else {
 	// 			// Archive entries
-	// 			await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
+	// 			await setEntriesStatus(selectedIds, StatusTypes.archived, () => {});
 	// 		}
 	// 		onActionSuccess();
 	// 	} catch (error) {
@@ -1264,7 +1251,6 @@ Features:
 					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
-					selectedStatuses={selectedEntriesStatuses}
 					bind:showDeleted
 					publish={onPublish}
 					unpublish={onUnpublish}
@@ -1455,21 +1441,17 @@ Features:
 													const currentStatus = entry.status || entry.raw_status || 'draft';
 													let nextStatus;
 
-													// Define status progression logic
+													// Define status progression logic using StatusTypes
 													switch (currentStatus) {
-														case 'draft':
 														case StatusTypes.draft:
 															nextStatus = StatusTypes.publish;
 															break;
-														case 'publish':
 														case StatusTypes.publish:
 															nextStatus = StatusTypes.unpublish;
 															break;
-														case 'unpublish':
 														case StatusTypes.unpublish:
 															nextStatus = StatusTypes.publish;
 															break;
-														case 'schedule':
 														case StatusTypes.schedule:
 															nextStatus = StatusTypes.publish;
 															break;
@@ -1512,11 +1494,11 @@ Features:
 														// If the entry is publish, automatically set it to unpublish
 														// This follows CMS best practices where editing publish content
 														// creates a draft that needs to be republish
-														if (originalEntry.status === StatusTypes.publish) {
+														if (originalEntry.status === 'publish') {
 															// Update the local collectionValue to unpublish status
 															collectionValue.update((current) => ({
 																...current,
-																status: StatusTypes.unpublish
+																status: 'unpublish'
 															})); // Show user feedback about the status change
 															showToast('Entry moved to draft mode for editing. Republish when ready.', 'warning');
 														}

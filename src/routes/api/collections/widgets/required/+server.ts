@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	try {
 		// Get all collections from ContentManager, scoped by tenantId
-		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
+		const allCollections = contentManager.getCollections();
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
 			logger.debug('No collections found', { tenantId });

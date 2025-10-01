@@ -1,162 +1,119 @@
 /**
  * @file src/databases/drizzleDBAdapter.ts
- * @description Mock Drizzle ORM adapter for SQL databases in the CMS.
+ * @description  Drizzle ORM adapter for SQL databases in the CMS.
  */
+// TODO: Implement all other required IDBAdapter methods and properties
+import { drizzle } from 'drizzle-orm/mysql2';
+import { createConnection } from 'mysql2/promise';
+import type { IDBAdapter } from '../dbInterface';
+// import { logger } from '@utils/logger.svelte';
 
-import { collections } from '@root/src/stores/collectionStore.svelte';
-import { logger } from '@utils/logger.svelte';
-import type { Unsubscriber } from 'svelte/store';
-import { v4 as uuidv4 } from 'uuid';
+// TODO: Implement DrizzleDBAdapter to fully match IDBAdapter interface from dbInterface.ts
+//       Use Drizzle ORM idioms for all SQL operations, and return DatabaseResult<T> for all methods.
+//       See mongoDBAdapter.ts for reference implementation and error handling patterns.
 
-import { drizzle } from 'drizzle-orm/mariadb';
-import { createConnection } from 'mariadb';
+export class DrizzleDBAdapter implements IDBAdapter {
+	private connection: unknown = null; // TODO: type as mysql2.Connection
+	private drizzleDb: unknown = null; // TODO: type as Drizzle instance
+	private connected: boolean = false;
 
-// Type definitions
-interface QueryResult {
-	rows: { data: Record<string, unknown> }[];
-	affectedRows?: number;
-}
-
-const drizzleDbAdapter = new DrizzleDBAdapter();
-
-export const db = {
-	findOne: drizzleDbAdapter.findOne.bind(drizzleDbAdapter),
-	findMany: drizzleDbAdapter.findMany.bind(drizzleDbAdapter),
-	insertMany: drizzleDbAdapter.insertMany.bind(drizzleDbAdapter),
-	updateOne: drizzleDbAdapter.updateOne.bind(drizzleDbAdapter),
-	deleteOne: drizzleDbAdapter.deleteOne.bind(drizzleDbAdapter),
-	count: drizzleDbAdapter.count.bind(drizzleDbAdapter)
-};
-
-export class DrizzleDBAdapter {
-	private collectionsUnsubscriber: Unsubscriber | null = null;
-	private db: any;
-
-	async connect(connectionString: string): Promise<{ success: boolean; error?: Error }> {
+	async connect(connectionStringOrPoolOptions?: string | Record<string, unknown>): Promise<import('../dbInterface').DatabaseResult<void>> {
 		try {
-			const connection = await createConnection(connectionString);
-			this.db = drizzle(connection);
-			logger.info('Drizzle database connection successful');
-			return { success: true };
-		} catch (error) {
-			return { success: false, error: error as Error };
-		}
-	}
-
-	async init(): Promise<void> {
-		logger.debug('Initializing DrizzleDBAdapter...');
-		this.collectionsUnsubscriber = collections.subscribe(async (collectionsData) => {
-			for (const [contentTypes, collection] of Object.entries(collectionsData)) {
-				if (collection && typeof collection === 'object') {
-					await this.setupTable(contentTypes, collection as unknown as Record<string, unknown>);
-				}
+			let connectionString: string;
+			if (typeof connectionStringOrPoolOptions === 'string') {
+				connectionString = connectionStringOrPoolOptions;
+			} else if (connectionStringOrPoolOptions && typeof connectionStringOrPoolOptions === 'object') {
+				// TODO: Build connection string from pool options if needed
+				connectionString = process.env.DATABASE_URL || '';
+			} else {
+				connectionString = process.env.DATABASE_URL || '';
 			}
-		});
-	}
-
-	async setupTable(contentTypes: string, collection: Record<string, unknown>): Promise<void> {
-		logger.debug(`Mock table setup for collection: ${contentTypes}`, collection);
-	}
-
-	async findOne(_collection: string, _query: object): Promise<Record<string, unknown> | null> {
-		return null;
-	}
-
-	async findMany(_collection: string, _query: object): Promise<Record<string, unknown>[]> {
-		return [];
-	}
-
-	async insertMany(_collection: string, docs: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
-		return docs;
-	}
-
-	async updateOne(_collection: string, _query: object, update: object): Promise<Record<string, unknown> | null> {
-		return update as Record<string, unknown>;
-	}
-
-	async updateMany(_collection: string, _query: object, _update: object): Promise<number> {
-		return 0;
-	}
-
-	async deleteOne(_collection: string, _query: object): Promise<number> {
-		return 0;
-	}
-
-	async deleteMany(_collection: string, _query: object): Promise<number> {
-		return 0;
-	}
-
-	async count(_collection: string, _query?: object): Promise<number> {
-		return 0;
-	}
-
-	async createDraft(content: Record<string, unknown>, originalDocumentId: string, userId: string): Promise<Record<string, unknown>> {
-		const draftId = uuidv4();
-		return { id: draftId, content, originalDocumentId, userId };
-	}
-
-	async updateDraft(draftId: string, content: Record<string, unknown>): Promise<Record<string, unknown>> {
-		return { id: draftId, content };
-	}
-
-	async publishDraft(_draftId: string): Promise<Record<string, unknown>> {
-		return { id: 'mock-id', content: {} };
-	}
-
-	async getDraftsByUser(_userId: string): Promise<Record<string, unknown>[]> {
-		return [];
-	}
-
-	async createRevision(documentId: string, content: Record<string, unknown>, userId: string): Promise<Record<string, unknown>> {
-		const revisionId = uuidv4();
-		return { id: revisionId, documentId, content, userId };
-	}
-
-	async getRevisions(_documentId: string): Promise<Record<string, unknown>[]> {
-		return [];
-	}
-
-	async saveWidget(_widgetData: Record<string, unknown>): Promise<void> {
-		// Mock implementation
-	}
-
-	async getAllWidgets(): Promise<Record<string, unknown>[]> {
-		return [];
-	}
-
-	async activateWidget(_widgetName: string): Promise<void> {
-		// Mock implementation
-	}
-
-	async deactivateWidget(_widgetName: string): Promise<void> {
-		// Mock implementation
-	}
-
-	async updateWidget(_widgetName: string, _updateData: Record<string, unknown>): Promise<void> {
-		// Mock implementation
-	}
-
-	async setDefaultTheme(_themeName: string): Promise<void> {
-		// Mock implementation
-	}
-
-	async saveThemes(_themes: Record<string, unknown>[]): Promise<void> {
-		// Mock implementation
-	}
-
-	async getDefaultTheme(): Promise<Record<string, unknown> | null> {
-		return null;
-	}
-
-	async getAllThemes(): Promise<Record<string, unknown>[]> {
-		return [];
-	}
-
-	async disconnect(): Promise<void> {
-		if (this.collectionsUnsubscriber) {
-			this.collectionsUnsubscriber();
-			this.collectionsUnsubscriber = null;
+			this.connection = await createConnection(connectionString);
+			// @ts-expect-error: drizzle type
+			this.drizzleDb = drizzle(this.connection);
+			this.connected = true;
+			return { success: true, data: undefined };
+		} catch (error) {
+			this.connected = false;
+			return {
+				success: false,
+				message: 'Drizzle database connection failed',
+				error: {
+					code: 'CONNECTION_ERROR',
+					message: error instanceof Error ? error.message : String(error),
+					details: error
+				}
+			};
 		}
-		logger.info('Mock database disconnected');
+	}
+
+	async disconnect(): Promise<import('../dbInterface').DatabaseResult<void>> {
+		try {
+			// @ts-expect-error: connection type
+			if (this.connection) {
+				// @ts-expect-error: connection type
+				await this.connection.end();
+				this.connection = null;
+				this.drizzleDb = null;
+				this.connected = false;
+			}
+			return { success: true, data: undefined };
+		} catch (error) {
+			return {
+				success: false,
+				message: 'Drizzle database disconnection failed',
+				error: {
+					code: 'DISCONNECTION_ERROR',
+					message: error instanceof Error ? error.message : String(error),
+					details: error
+				}
+			};
+		}
+	}
+
+	isConnected(): boolean {
+		return this.connected;
+	}
+
+	getCapabilities() {
+		// TODO: Adjust based on Drizzle/SQL capabilities
+		return {
+			supportsTransactions: true,
+			supportsIndexing: true,
+			supportsFullTextSearch: false, // MySQL/MariaDB/Postgres only
+			supportsAggregation: true,
+			supportsStreaming: false,
+			supportsPartitioning: false,
+			maxBatchSize: 1000,
+			maxQueryComplexity: 10
+		};
+	}
+
+	async getConnectionHealth(): Promise<import('../dbInterface').DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
+		try {
+			if (!this.connection) throw new Error('No active Drizzle connection');
+			const start = Date.now();
+			// @ts-expect-error: connection type
+			await this.connection.ping();
+			const latency = Date.now() - start;
+			return {
+				success: true,
+				data: {
+					healthy: true,
+					latency,
+					activeConnections: 1 // TODO: Use pool info if available
+				}
+			};
+		} catch (error) {
+			return {
+				success: false,
+				message: 'Drizzle connection health check failed',
+				error: {
+					code: 'HEALTH_CHECK_ERROR',
+					message: error instanceof Error ? error.message : String(error),
+					details: error
+				}
+			};
+		}
 	}
 }

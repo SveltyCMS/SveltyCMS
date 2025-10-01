@@ -29,10 +29,10 @@
 
 <script lang="ts">
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
-	// Import centralized delete function
 	// Types
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { StatusTypes } from '@src/content/types';
+	import type { User } from '@src/auth/types';
+	import { StatusTypes, type StatusType } from '@src/content/types';
 	import { createEntry, invalidateCollectionCache, updateEntryStatus } from '@src/utils/apiClient';
 	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
@@ -41,9 +41,6 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Get store instance
-	const modalStore = getModalStore();
-
 	// Modal types import
 	// Stores
 	import { page } from '$app/state';
@@ -51,9 +48,7 @@
 	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, headerActionButton, shouldShowNextButton, tabSet, validationStore } from '@stores/store.svelte';
-	// Types
-	import type { User } from '@src/auth/types';
-	import type { StatusType } from '@src/content/types';
+
 	let user = $derived(page.data.user as User);
 	let isAdmin = $derived(page.data.isAdmin || false);
 
@@ -79,18 +74,11 @@
 	);
 	let showMore = $state<boolean>(false);
 
-	// Status management using collection status directly
-	let isPublish = $derived.by(() => {
-		const currentStatus = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
-		console.log('[HeaderEdit] Status Debug:', {
-			collectionValueStatus: collectionValue.value?.status,
-			collectionStatus: collection.value?.status,
-			finalStatus: currentStatus,
-			isPublish: currentStatus === StatusTypes.publish,
-			StatusTypes
-		});
-		return currentStatus === StatusTypes.publish;
-	});
+	function getIsPublish(): boolean {
+		const status: StatusType = (collectionValue.value?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
+		return status === StatusTypes.publish;
+	}
+	let isPublish = $derived.by(getIsPublish);
 
 	// Create a bindable state for the toggle component
 	let publishToggleState = $state(false);
@@ -107,14 +95,13 @@
 			console.log('[HeaderEdit] Toggle skipped', { newValue, isPublish: isPublish, isLoading });
 			return false;
 		}
-
+		const newStatus: StatusType = newValue ? StatusTypes.publish : StatusTypes.unpublish;
 		isLoading = true;
-		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
 		console.log('[HeaderEdit] Status toggle clicked - updating to:', newStatus);
 
 		try {
 			// If entry exists, update via API
-			if (collectionValue.value?._id && collection.value?._id) {
+			if (collectionValue.value?._id && collection.value && collection.value._id) {
 				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
 
 				if (result.success) {
@@ -164,26 +151,22 @@
 			console.log('[HeaderEdit] Status Debug (Active):', {
 				collectionValueStatus: collectionValue.value?.status,
 				collectionStatus: collection.value?.status,
-				finalStatus: isPublish ? StatusTypes.publish : StatusTypes.unpublish,
-				isPublish: isPublish,
+				isPublish,
 				mode: mode.value,
 				screenSize: screenSize.value,
-				shouldDisableStatusToggle: shouldDisableStatusToggle
+				shouldDisableStatusToggle
 			});
 		}
 	}); // Modal Trigger - Schedule
 	function openScheduleModal(): void {
 		showScheduleModal({
-			onSchedule: (date: Date, action: string) => {
-				schedule = date.toISOString();
-				if (action === 'schedule') {
-					collectionValue.update((cv) => ({
-						...cv,
-						status: StatusTypes.schedule,
-						_scheduled: date.getTime()
-					}));
-					console.log('[HeaderEdit] Entry scheduled');
-				}
+			onSchedule: (date: Date) => {
+				collectionValue.update((cv: any) => ({
+					...cv,
+					status: StatusTypes.schedule,
+					_scheduled: date.getTime()
+				}));
+				console.log('[HeaderEdit] Entry scheduled');
 			}
 		});
 	}
@@ -258,13 +241,9 @@
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
 
-	function handleReload() {
-		mode.set('edit'); // Keeps it in edit mode, maybe just re-renders
-	}
-
 	// Delete confirmation modal - use centralized function
 	function openDeleteModal(): void {
-		deleteCurrentEntry(modalStore, isAdmin);
+		deleteCurrentEntry(getModalStore(), isAdmin);
 	}
 
 	// Next button handler for menu creation workflow
@@ -291,7 +270,7 @@
 					delete clonedPayload.createdAt;
 					delete clonedPayload.updatedAt;
 					// Set clone status and reference to original
-					clonedPayload.status = StatusTypes.clone;
+					clonedPayload.status = StatusTypes.draft;
 					clonedPayload.clonedFrom = entry._id;
 					const result = await createEntry(coll._id, clonedPayload);
 					if (result.success) {
@@ -418,10 +397,10 @@
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
-		{:else}
+			<!-- {:else}
 			<button type="button" onclick={handleReload} aria-label="Reload" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-			</button>
+			</button> -->
 		{/if}
 	</div>
 </header>

@@ -28,8 +28,9 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 -->
 
 <script lang="ts">
-	import type { FieldType, RemoteVideoData } from './';
-	import * as m from '@src/paraglide/messages';
+	import type { FieldType } from './';
+	import type { RemoteVideoData } from './types';
+
 	import { debounce } from '@utils/utils';
 
 	let { field, value, error }: { field: FieldType; value: RemoteVideoData | null | undefined; error?: string | null } = $props();
@@ -53,7 +54,8 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 	});
 
 	// Debounced function to fetch video metadata from the server.
-	const fetchVideoMetadata = debounce(async (url: string) => {
+	const fetchVideoMetadata = debounce.create((...args: unknown[]) => {
+		const url = typeof args[0] === 'string' ? args[0] : '';
 		isLoading = true;
 		fetchError = null;
 		fetchedMetadata = null;
@@ -63,34 +65,37 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 			return;
 		}
 
-		try {
-			// Call API endpoint to fetch metadata securely
-			const response = await fetch('/api/remoteVideo', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				// Send a JSON object
-				body: JSON.stringify({
-					url,
-					allowedPlatforms: field.allowedPlatforms
-				})
-			});
+		// Async fetch wrapped in promise
+		(async () => {
+			try {
+				// Call API endpoint to fetch metadata securely
+				const response = await fetch('/api/remoteVideo', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					// Send a JSON object
+					body: JSON.stringify({
+						url,
+						allowedPlatforms: field.allowedPlatforms
+					})
+				});
 
-			const result = await response.json();
+				const result = await response.json();
 
-			if (response.ok && result.success) {
-				fetchedMetadata = result.data;
-				value = result.data; // Bind the full metadata object back to the parent.
-			} else {
-				fetchError = result.error || 'Failed to fetch video metadata.';
-				value = null; // Clear parent value on error.
+				if (response.ok && result.success) {
+					fetchedMetadata = result.data;
+					value = result.data; // Bind the full metadata object back to the parent.
+				} else {
+					fetchError = result.error || 'Failed to fetch video metadata.';
+					value = null; // Clear parent value on error.
+				}
+			} catch (e) {
+				console.error('Error fetching video metadata:', e);
+				fetchError = 'An unexpected error occurred while fetching video data.';
+				value = null;
+			} finally {
+				isLoading = false;
 			}
-		} catch (e) {
-			console.error('Error fetching video metadata:', e);
-			fetchError = 'An unexpected error occurred while fetching video data.';
-			value = null;
-		} finally {
-			isLoading = false;
-		}
+		})();
 	}, 500);
 
 	// Trigger fetch when the URL input changes.
@@ -106,7 +111,7 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 		id={field.db_fieldName}
 		name={field.db_fieldName}
 		required={field.required}
-		placeholder={field.placeholder || 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+		placeholder={typeof field.placeholder === 'string' ? field.placeholder : 'e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
 		bind:value={urlInput}
 		oninput={handleUrlInput}
 		class="input"

@@ -7,11 +7,18 @@
  */
 
 import mongoose, { Schema } from 'mongoose';
-import type { Model } from 'mongoose';
-import type { MediaItem, DatabaseResult } from '@src/databases/dbInterface';
+import type { Model, Document } from 'mongoose';
+import type { MediaItem, DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
+import type { DatabaseId, ISODateString } from '@src/content/types';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Define interface for MongoDB document
+export interface IMedia extends Document, Omit<MediaItem, '_id'> {
+	_id: string;
+}
 
 // Media schema
 export const mediaSchema = new Schema<MediaItem>(
@@ -22,7 +29,8 @@ export const mediaSchema = new Schema<MediaItem>(
 			default: () => {
 				return new mongoose.Types.ObjectId().toString();
 			}
-		}, // UUID as per dbInterface.ts
+		},
+		// UUID as per dbInterface.ts
 		hash: { type: String, required: true }, // Hash for media
 		filename: { type: String, required: true }, // Filename for media
 		originalFilename: String, // Original filename for media
@@ -30,28 +38,19 @@ export const mediaSchema = new Schema<MediaItem>(
 		size: { type: Number, required: true }, // Size of the media file
 		mimeType: { type: String, required: true }, // Mime type of the media file
 		folderId: { type: String, default: null }, // Folder paths/ids as strings
-		thumbnail: {
-			url: String,
-			width: Number,
-			height: Number
-		},
 		thumbnails: { type: Schema.Types.Mixed, default: {} }, // Thumbnails for images
-		width: Number, // Width of the media file
-		height: Number, // Height of the media file
-		user: { type: String, required: true }, // Created by user ID
-		access: { type: Schema.Types.Mixed, default: {} },
-		category: { type: String, default: null },
 		metadata: {
+			width: Number,
+			height: Number,
 			duration: Number, // Duration for videos/audio
 			codec: String, // Codec used for media file
 			format: String, // Format of the media file
-			type: mongoose.Schema.Types.Mixed // Allow additional metadata fields
+			type: mongoose.Schema.Types.Mixed // Allow additional metadata fields via [key: string]: unknown
 		},
-		status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' }, // Status options from MediaItem
-		createdBy: { type: String, required: true }, // Created by user ID
+		status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' }, // Status options from MediaItem		createdBy: { type: String, required: true }, // Created by user ID
 		updatedBy: { type: String, required: true }, // Updated by user ID
-		createdAt: { type: Date, default: Date.now }, // CreatedAt Date type
-		updatedAt: { type: Date, default: Date.now }, // UpdatedAt Date type
+		createdAt: { type: String, default: () => new Date().toISOString() }, // CreatedAt ISODate type
+		updatedAt: { type: String, default: () => new Date().toISOString() }, // UpdatedAt ISODate type
 		versions: { type: [Schema.Types.Mixed], default: [] } // Versions for media file
 	},
 	{
@@ -64,22 +63,26 @@ export const mediaSchema = new Schema<MediaItem>(
 // Indexes
 mediaSchema.index({ filename: 1 });
 mediaSchema.index({ folderId: 1 });
+mediaSchema.index({ hash: 1 });
 mediaSchema.index({ status: 1 });
-mediaSchema.index({ 'metadata.tags': 1 });
+mediaSchema.index({ createdBy: 1 });
 
 // Fetch all media files using DatabaseAdapter's crud.findMany
-export async function fetchAllMedia(databaseAdapter: DatabaseAdapter): Promise<DatabaseResult<MediaItem[]>> {
+export async function fetchAllMedia(databaseAdapter: IDBAdapter): Promise<DatabaseResult<MediaItem[]>> {
 	try {
 		const result = await databaseAdapter.crud.findMany<MediaItem>('media', {});
 		if (result.success) {
 			return { success: true, data: result.data };
 		} else {
-			return { success: false, error: result.error };
+			return result;
 		}
 	} catch (error) {
-		logger.error(`Error fetching all media files: ${error.message}`);
+		const message = 'Failed to fetch all media files';
+		const err = error as Error;
+		logger.error(`Error fetching all media files: ${err.message}`);
 		return {
 			success: false,
+			message,
 			error: {
 				code: 'MEDIA_FETCH_ALL_ERROR',
 				message: 'Failed to fetch all media files',
@@ -97,9 +100,12 @@ mediaSchema.statics = {
 			const mediaItem = (await this.findOne({ filename }).lean().exec()) as MediaItem | null;
 			return { success: true, data: mediaItem };
 		} catch (error) {
-			logger.error(`Error retrieving media item by filename: ${error.message}`);
+			const message = `Failed to retrieve media item by filename: ${filename}`;
+			const err = error as Error;
+			logger.error(`Error retrieving media item by filename: ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'MEDIA_GET_BY_FILENAME_ERROR',
 					message: `Failed to retrieve media item by filename: ${filename}`
@@ -115,9 +121,12 @@ mediaSchema.statics = {
 			const mediaItems = (await this.find(query).lean().exec()) as MediaItem[];
 			return { success: true, data: mediaItems };
 		} catch (error) {
-			logger.error(`Error retrieving media items by folder ID: ${error.message}`);
+			const message = `Failed to retrieve media items for folder ID: ${folderId || 'root'}`;
+			const err = error as Error;
+			logger.error(`Error retrieving media items by folder ID: ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'MEDIA_GET_BY_FOLDER_ERROR',
 					message: `Failed to retrieve media items for folder ID: ${folderId || 'root'}`
@@ -133,9 +142,12 @@ mediaSchema.statics = {
 			logger.info(`Bulk deleted ${result.deletedCount} media items for folder IDs: ${folderIds.join(', ')}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
-			logger.error(`Error bulk deleting media items by folder IDs: ${error.message}`);
+			const message = 'Failed to bulk delete media items';
+			const err = error as Error;
+			logger.error(`Error bulk deleting media items by folder IDs: ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'MEDIA_BULK_DELETE_ERROR',
 					message: 'Failed to bulk delete media items',
@@ -148,16 +160,23 @@ mediaSchema.statics = {
 	// Upload a new media file
 	async uploadMedia(mediaData: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> {
 		try {
-			const newMedia = await this.create({ ...mediaData, _id: this.utils.generateId() });
-			// ISODateString conversion for media.upload
-			const mediaWithISODates = {
-				...newMedia.toObject(),
-				createdAt: newMedia.createdAt.toISOString() as ISODateString,
-				updatedAt: newMedia.updatedAt.toISOString() as ISODateString
-			} as unknown as MediaItem;
+			const newMedia = await this.create({ ...mediaData, _id: generateId() });
+			// Convert Mongoose document to plain object with proper types
+			const mediaObj = newMedia.toObject() as any;
+			const mediaWithISODates: MediaItem = {
+				...mediaObj,
+				_id: mediaObj._id as DatabaseId,
+				createdBy: mediaObj.createdBy as DatabaseId,
+				updatedBy: mediaObj.updatedBy as DatabaseId,
+				folderId: mediaObj.folderId as DatabaseId | undefined,
+				createdAt: (typeof mediaObj.createdAt?.toISOString === 'function' ? mediaObj.createdAt.toISOString() : mediaObj.createdAt) as ISODateString,
+				updatedAt: (typeof mediaObj.updatedAt?.toISOString === 'function' ? mediaObj.updatedAt.toISOString() : mediaObj.updatedAt) as ISODateString
+			};
 			return { success: true, data: mediaWithISODates };
 		} catch (error) {
-			logger.error(`Error uploading media: ${error.message}`);
+			const message = 'Failed to upload media';
+			const err = error as Error;
+			logger.error(`Error uploading media: ${err.message}`);
 			return {
 				success: false,
 				error: { code: 'MEDIA_UPLOAD_ERROR', message: 'Failed to upload media', details: error }
@@ -170,8 +189,10 @@ mediaSchema.statics = {
 		try {
 			const result = await this.deleteOne({ _id: mediaId }).exec();
 			if (result.deletedCount === 0) {
+				const message = `Media item with ID "${mediaId}" not found.`;
 				return {
 					success: false,
+					message,
 					error: {
 						code: 'MEDIA_DELETE_NOT_FOUND',
 						message: `Media item with ID "${mediaId}" not found.`
@@ -181,9 +202,12 @@ mediaSchema.statics = {
 			logger.info(`Media item "${mediaId}" deleted successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error deleting media item "${mediaId}": ${error.message}`);
+			const message = `Failed to delete media item "${mediaId}"`;
+			const err = error as Error;
+			logger.error(`Error deleting media item "${mediaId}": ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'MEDIA_DELETE_ERROR',
 					message: `Failed to delete media item "${mediaId}"`,

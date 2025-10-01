@@ -31,15 +31,30 @@ Interactive star rating with hover states and click selection
 	import { Ratings } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
 
-	let { field, value, error }: { field: FieldType; value: number | null | undefined; error?: string | null } = $props();
+	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
+
+	// Local value to handle null conversion
+	let localValue = $state<number | undefined>(value ?? undefined);
+
+	// Sync local value with prop
+	$effect(() => {
+		localValue = value ?? undefined;
+	});
+
+	// Sync prop with local value
+	$effect(() => {
+		if (localValue !== undefined) {
+			value = localValue;
+		}
+	});
 </script>
 
 <div class="rating-container" class:invalid={error}>
 	<Ratings
-		max={field.max}
+		max={Number(field.max) || undefined}
 		step="1"
 		interactive
-		bind:value
+		bind:value={localValue}
 		aria-label={field.label}
 		aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
 	>

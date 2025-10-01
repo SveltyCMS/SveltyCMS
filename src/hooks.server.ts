@@ -94,7 +94,7 @@ const handlePerfLog: Handle = async ({ event, resolve }) => {
 		const shouldLog = dt > 100 || res.status >= 400 || !isSetupRelated;
 		if (shouldLog) {
 			// Colorize URL (blue) and duration (green) for better scanability
-			logger.debug(`Request ${event.url.pathname}${event.url.search} \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
+			logger.debug(`Request \x1b[34m${event.url.pathname}${event.url.search}\x1b[0m \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
 		}
 	}
 	return res;

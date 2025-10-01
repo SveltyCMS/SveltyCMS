@@ -36,11 +36,13 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					// First check if folder with same path already exists
 					const existingFolder = await this.findOne({ path: folder.path ?? `/${folder.name}` });
 					if (existingFolder) {
+						const message = 'Folder with this path already exists';
 						return {
 							success: false,
+							message,
 							error: {
 								code: 'VIRTUAL_FOLDER_DUPLICATE',
-								message: 'Folder with this path already exists',
+								message,
 								details: { path: folder.path ?? `/${folder.name}` }
 							}
 						};
@@ -57,22 +59,26 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 				} catch (error) {
 					// Handle duplicate key error specifically
 					if (error.code === 11000) {
+						const message = 'Folder with this path already exists';
 						return {
 							success: false,
+							message,
 							error: {
 								code: 'VIRTUAL_FOLDER_DUPLICATE',
-								message: 'Folder with this path already exists',
+								message,
 								details: { path: folder.path ?? `/${folder.name}` }
 							}
 						};
 					}
 
+					const message = 'Failed to create virtual folder';
 					logger.error(`Error creating virtual folder: ${error.message}`);
 					return {
 						success: false,
+						message,
 						error: {
 							code: 'VIRTUAL_FOLDER_CREATE_ERROR',
-							message: 'Failed to create virtual folder',
+							message,
 							details: error
 						}
 					};

@@ -1,0 +1,641 @@
+---
+path: '/widgets/core/mediaupload'
+title: 'MediaUpload Widget'
+description: 'Enterprise media selector with modal library, drag-and-drop upload, and multi-file support for SveltyCMS'
+order: 104
+icon: 'mdi:image-multiple'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - widget
+  - core
+  - media
+  - upload
+  - images
+  - files
+  - gallery
+  - assets
+---
+
+# MediaUpload Widget
+
+<blockquote>
+	**Enterprise media management widget** with modal-based library, drag-and-drop upload, multi-file support, and optimized file reference storage.
+</blockquote>
+
+## Overview
+
+The **MediaUpload widget** (also called Media widget) provides a powerful interface for selecting and uploading media files (images, videos, documents). It stores only file IDs, keeping your content documents lightweight while maintaining full access to media metadata through MongoDB $lookup aggregations.
+
+### Key Features
+
+- ✅ **Lightweight Storage**: Stores IDs only, not full file objects
+- ✅ **Multi-Upload Support**: Single file or multiple files
+- ✅ **Modal Library**: Intuitive media browser with search and filters
+- ✅ **Drag & Drop**: Easy file upload with visual feedback
+- ✅ **File Type Filtering**: Restrict to specific file types (images, videos, PDFs)
+- ✅ **Advanced Aggregation**: MongoDB $lookup for filtering by file metadata
+- ✅ **Non-Translatable**: File references are universal
+- ✅ **Validation**: Required field support with count validation
+- ✅ **Preview Support**: Thumbnail generation and display
+
+---
+
+## When to Use MediaUpload Widget
+
+### ✅ Use MediaUpload When:
+
+- **Featured Images**: Blog post hero images, product photos
+- **Photo Galleries**: Multiple images for products, portfolios
+- **Document Attachments**: PDFs, Word docs, spreadsheets
+- **Video Content**: Video uploads or references
+- **Avatar Images**: User profile pictures
+- **Media Libraries**: Collection of downloadable resources
+- **Banner Images**: Homepage banners, promotional graphics
+- **File Downloads**: Whitepapers, brochures, catalogs
+
+### ❌ Don't Use MediaUpload When:
+
+- **External URLs**: Use `Input` widget with URL validation
+- **Remote Videos**: Use `RemoteVideo` widget for YouTube/Vimeo
+- **Small Icons**: Use `Icon` or `IconifyPicker` widget
+- **Color Images**: Use `ColorPicker` widget
+- **Embedded Base64**: Always use file references, not base64
+
+---
+
+## Basic Usage
+
+### Single Featured Image
+
+```typescript
+import Media from '@src/widgets/core/mediaUpload';
+
+export const postsCollection = {
+	name: 'Blog Posts',
+	fields: [
+		Media({
+			label: 'Featured Image',
+			db_fieldName: 'featuredImage',
+			multiupload: false,
+			required: true,
+			allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+			helper: 'Select a featured image for this post'
+		})
+	]
+};
+```
+
+### Product Gallery
+
+```typescript
+Media({
+	label: 'Product Images',
+	db_fieldName: 'images',
+	multiupload: true,
+	required: true,
+	allowedTypes: ['image/*'],
+	minItems: 1,
+	maxItems: 10,
+	helper: 'Upload 1-10 product images'
+});
+```
+
+### User Avatar
+
+```typescript
+Media({
+	label: 'Avatar',
+	db_fieldName: 'avatar',
+	multiupload: false,
+	required: false,
+	allowedTypes: ['image/jpeg', 'image/png'],
+	helper: 'Optional profile picture'
+});
+```
+
+### Document Attachments
+
+```typescript
+Media({
+	label: 'Attachments',
+	db_fieldName: 'attachments',
+	multiupload: true,
+	required: false,
+	allowedTypes: [
+		'application/pdf',
+		'application/msword',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		'application/vnd.ms-excel',
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+	],
+	helper: 'Upload PDF, Word, or Excel files'
+});
+```
+
+---
+
+## Configuration Properties
+
+| Property       | Type       | Required  | Default     | Description                            |
+| -------------- | ---------- | --------- | ----------- | -------------------------------------- |
+| `label`        | `string`   | ✅ Yes    | -           | Display label for the field            |
+| `db_fieldName` | `string`   | ✅ Yes    | -           | Database field name                    |
+| `multiupload`  | `boolean`  | ❌ No     | `false`     | Allow multiple file selection          |
+| `required`     | `boolean`  | ❌ No     | `false`     | Whether file(s) required               |
+| `allowedTypes` | `string[]` | ❌ No     | `[]`        | MIME types allowed (empty = all)       |
+| `minItems`     | `number`   | ❌ No     | `undefined` | Minimum files (multiupload only)       |
+| `maxItems`     | `number`   | ❌ No     | `undefined` | Maximum files (multiupload only)       |
+| `helper`       | `string`   | ❌ No     | `undefined` | Helper text                            |
+| `translated`   | `boolean`  | 🔒 Locked | `false`     | Always false (file refs are universal) |
+
+### Common MIME Types
+
+| Type          | MIME String                                                               | Example     |
+| ------------- | ------------------------------------------------------------------------- | ----------- |
+| **Images**    | `image/*`                                                                 | All images  |
+| JPEG          | `image/jpeg`                                                              | .jpg, .jpeg |
+| PNG           | `image/png`                                                               | .png        |
+| WebP          | `image/webp`                                                              | .webp       |
+| SVG           | `image/svg+xml`                                                           | .svg        |
+| GIF           | `image/gif`                                                               | .gif        |
+| **Videos**    | `video/*`                                                                 | All videos  |
+| MP4           | `video/mp4`                                                               | .mp4        |
+| WebM          | `video/webm`                                                              | .webm       |
+| **Documents** |                                                                           |             |
+| PDF           | `application/pdf`                                                         | .pdf        |
+| Word          | `application/msword`                                                      | .doc        |
+| Word (new)    | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | .docx       |
+| Excel         | `application/vnd.ms-excel`                                                | .xls        |
+| Excel (new)   | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`       | .xlsx       |
+
+---
+
+## Data Structure
+
+### Storage Format
+
+Media stores IDs as strings (single) or array of strings (multi):
+
+```typescript
+// Single file
+{
+  "_id": "post_123",
+  "title": "My Post",
+  "featuredImage": "media_456",  // ✅ Single ID string
+  "createdAt": ISODate("2025-01-15T10:00:00Z")
+}
+
+// Multiple files
+{
+  "_id": "product_789",
+  "name": "Widget",
+  "images": [                     // ✅ Array of ID strings
+    "media_101",
+    "media_102",
+    "media_103"
+  ]
+}
+
+// Media file document (in 'media_files' collection)
+{
+  "_id": "media_456",
+  "name": "hero-image.jpg",
+  "filename": "hero-image-2025-01-15-abc123.jpg",
+  "mimeType": "image/jpeg",
+  "size": 245678,
+  "url": "/uploads/hero-image-2025-01-15-abc123.jpg",
+  "thumbnailUrl": "/uploads/thumbnails/hero-image-2025-01-15-abc123.jpg",
+  "width": 1920,
+  "height": 1080,
+  "uploadedBy": "user_123",
+  "uploadedAt": ISODate("2025-01-15T10:00:00Z")
+}
+```
+
+### Why Store IDs?
+
+**✅ Benefits of ID References**:
+
+- **Lightweight Documents**: Post/product documents stay small
+- **Reusable Media**: Same image can be used in multiple places
+- **Centralized Management**: Update metadata once, reflects everywhere
+- **Efficient Storage**: No duplication of file data
+- **Easy Cleanup**: Track which files are used where
+- **Flexible Queries**: Filter/sort by file properties
+
+**❌ Problems with Embedded Files**:
+
+```typescript
+// ❌ Bad: Embedding full file object
+{
+  "title": "Post",
+  "image": {
+    "name": "hero.jpg",
+    "url": "/uploads/...",
+    "mimeType": "image/jpeg",
+    "size": 245678,
+    // ... duplicate data in every document
+  }
+}
+```
+
+---
+
+## Database Operations
+
+### Populating Media
+
+```typescript
+// Fetch post with populated media
+const post = await db.posts.findOne({ _id: 'post_123' });
+const media = await db.media_files.findOne({ _id: post.featuredImage });
+
+console.log(`Image URL: ${media.url}`);
+```
+
+### MongoDB $lookup (Join)
+
+```typescript
+// Aggregate with $lookup to join media files
+db.posts.aggregate([
+	{
+		$lookup: {
+			from: 'media_files',
+			localField: 'featuredImage',
+			foreignField: '_id',
+			as: 'imageData'
+		}
+	},
+	{
+		$unwind: '$imageData'
+	},
+	{
+		$project: {
+			title: 1,
+			imageUrl: '$imageData.url',
+			imageName: '$imageData.name'
+		}
+	}
+]);
+```
+
+### Array of Media (Multi-Upload)
+
+```typescript
+// Populate multiple images
+db.products.aggregate([
+	{
+		$lookup: {
+			from: 'media_files',
+			localField: 'images',
+			foreignField: '_id',
+			as: 'imageData'
+		}
+	}
+]);
+
+// Result:
+// {
+//   "_id": "product_789",
+//   "name": "Widget",
+//   "images": ["media_101", "media_102"],
+//   "imageData": [
+//     { "_id": "media_101", "url": "/uploads/image1.jpg", ... },
+//     { "_id": "media_102", "url": "/uploads/image2.jpg", ... }
+//   ]
+// }
+```
+
+---
+
+## Advanced Examples
+
+### Image with Alt Text
+
+```typescript
+import Media from '@src/widgets/core/mediaUpload';
+import Input from '@src/widgets/core/input';
+
+export const postsCollection = {
+	name: 'Posts',
+	fields: [
+		Media({
+			label: 'Featured Image',
+			db_fieldName: 'featuredImage',
+			multiupload: false,
+			required: true,
+			allowedTypes: ['image/*']
+		}),
+
+		Input({
+			label: 'Image Alt Text',
+			db_fieldName: 'imageAlt',
+			required: true,
+			helper: 'Describe the image for accessibility',
+			showIf: (data) => !!data.featuredImage
+		})
+	]
+};
+```
+
+### Product Gallery with Cover
+
+```typescript
+import Media from '@src/widgets/core/mediaUpload';
+import Select from '@src/widgets/core/select';
+
+export const productsCollection = {
+	name: 'Products',
+	fields: [
+		Media({
+			label: 'Product Images',
+			db_fieldName: 'images',
+			multiupload: true,
+			required: true,
+			allowedTypes: ['image/*'],
+			minItems: 1,
+			maxItems: 10
+		}),
+
+		Select({
+			label: 'Cover Image',
+			db_fieldName: 'coverImageId',
+			options: [], // Populated dynamically from images array
+			helper: 'Select which image to use as cover'
+		})
+	]
+};
+```
+
+### Mixed Media Types
+
+```typescript
+import Media from '@src/widgets/core/mediaUpload';
+import Select from '@src/widgets/core/select';
+
+export const lessonsCollection = {
+	name: 'Lessons',
+	fields: [
+		Select({
+			label: 'Media Type',
+			db_fieldName: 'mediaType',
+			options: [
+				{ label: 'Image', value: 'image' },
+				{ label: 'Video', value: 'video' },
+				{ label: 'PDF', value: 'pdf' }
+			],
+			required: true
+		}),
+
+		Media({
+			label: 'Image',
+			db_fieldName: 'image',
+			multiupload: false,
+			allowedTypes: ['image/*'],
+			showIf: (data) => data.mediaType === 'image'
+		}),
+
+		Media({
+			label: 'Video',
+			db_fieldName: 'video',
+			multiupload: false,
+			allowedTypes: ['video/*'],
+			showIf: (data) => data.mediaType === 'video'
+		}),
+
+		Media({
+			label: 'PDF Document',
+			db_fieldName: 'pdf',
+			multiupload: false,
+			allowedTypes: ['application/pdf'],
+			showIf: (data) => data.mediaType === 'pdf'
+		})
+	]
+};
+```
+
+---
+
+## File Upload Process
+
+### 1. User Uploads File
+
+```typescript
+// User drags file or clicks browse
+// File is uploaded to server via multipart/form-data
+
+POST /api/media/upload
+Content-Type: multipart/form-data
+
+file: [binary data]
+```
+
+### 2. Server Processes File
+
+```typescript
+// Server-side processing:
+// 1. Validate file type and size
+// 2. Generate unique filename
+// 3. Store file on disk or cloud storage (S3, etc.)
+// 4. Generate thumbnails for images
+// 5. Extract metadata (dimensions, duration, etc.)
+// 6. Create database entry in media_files collection
+// 7. Return media ID
+
+{
+  "success": true,
+  "mediaId": "media_456",
+  "url": "/uploads/hero-2025-01-15-abc123.jpg"
+}
+```
+
+### 3. Widget Stores ID
+
+```typescript
+// Widget receives mediaId and stores it
+value = 'media_456';
+
+// For multi-upload:
+value = ['media_456', 'media_457', 'media_458'];
+```
+
+---
+
+## Validation
+
+```typescript
+// Single file
+Media({
+	label: 'Avatar',
+	db_fieldName: 'avatar',
+	multiupload: false,
+	required: true,
+	allowedTypes: ['image/*']
+});
+
+// Validation:
+// - required: true → Must have a file ID
+// - Error: "A media file is required"
+
+// Multiple files
+Media({
+	label: 'Gallery',
+	db_fieldName: 'gallery',
+	multiupload: true,
+	required: true,
+	minItems: 3,
+	maxItems: 10,
+	allowedTypes: ['image/*']
+});
+
+// Validation:
+// - required: true, minItems: 3 → Must have at least 3 files
+// - Error: "At least 3 media files are required"
+// - maxItems: 10 → Cannot exceed 10 files
+// - Error: "Cannot upload more than 10 files"
+```
+
+---
+
+## Performance Considerations
+
+### Lazy Loading
+
+```typescript
+// ✅ Good: Load media IDs first, fetch files on-demand
+const posts = await db.posts.find({}, { title: 1, featuredImage: 1 });
+
+// Later, when needed:
+const mediaIds = posts.map((p) => p.featuredImage);
+const mediaFiles = await db.media_files.find({ _id: { $in: mediaIds } });
+```
+
+### Thumbnail Generation
+
+```typescript
+// Generate thumbnails for faster loading
+// Store multiple sizes:
+{
+  "url": "/uploads/original/image.jpg",         // 4000x3000 (2MB)
+  "thumbnailUrl": "/uploads/thumb/image.jpg",   // 400x300 (50KB)
+  "mediumUrl": "/uploads/medium/image.jpg",     // 1200x900 (200KB)
+  "sizes": {
+    "thumbnail": { width: 400, height: 300, url: "..." },
+    "medium": { width: 1200, height: 900, url: "..." },
+    "large": { width: 2400, height: 1800, url: "..." }
+  }
+}
+```
+
+### CDN Integration
+
+```typescript
+// Serve media from CDN for better performance
+{
+  "url": "https://cdn.example.com/uploads/image.jpg",
+  "cloudProvider": "cloudflare",
+  "cdnEnabled": true
+}
+```
+
+---
+
+## Best Practices
+
+### ✅ Do's
+
+1. **Use Appropriate File Types**
+
+   ```typescript
+   // Images only
+   allowedTypes: ['image/jpeg', 'image/png', 'image/webp'];
+
+   // Documents only
+   allowedTypes: ['application/pdf', 'application/msword'];
+   ```
+
+2. **Set Reasonable Limits**
+
+   ```typescript
+   Media({
+   	multiupload: true,
+   	minItems: 1,
+   	maxItems: 10 // Prevent excessive uploads
+   });
+   ```
+
+3. **Generate Thumbnails**
+
+   ```typescript
+   // Always create thumbnails for images
+   // Improves load times dramatically
+   ```
+
+4. **Clean Up Unused Files**
+   ```typescript
+   // Periodically check for orphaned media files
+   // Delete files not referenced by any document
+   ```
+
+### ❌ Don'ts
+
+1. **Don't Embed File Data**
+
+   ```typescript
+   // ❌ Wrong: Storing base64 or full file data
+   image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg...';
+
+   // ✅ Correct: Store ID reference
+   image: 'media_456';
+   ```
+
+2. **Don't Skip Validation**
+
+   ```typescript
+   // ❌ Dangerous: No file type restriction
+   allowedTypes: []; // Allows .exe, .bat, .sh
+
+   // ✅ Safe: Restrict to safe types
+   allowedTypes: ['image/*', 'application/pdf'];
+   ```
+
+---
+
+## API Reference
+
+```typescript
+function Media(props: MediaProps): FieldInstance;
+
+interface MediaProps {
+	label: string;
+	db_fieldName: string;
+	multiupload?: boolean;
+	required?: boolean;
+	allowedTypes?: string[];
+	minItems?: number; // For multiupload
+	maxItems?: number; // For multiupload
+	helper?: string;
+}
+
+// Single file
+type MediaValue = string | null | undefined;
+
+// Multiple files
+type MediaArrayValue = string[] | null | undefined;
+```
+
+---
+
+## Related Widgets
+
+- **[RemoteVideo Widget](/widgets/custom/remotevideo)** - For YouTube/Vimeo embeds
+- **[Image Widget](/widgets/custom/image)** - For URL-based images
+- **[Icon Widget](/widgets/custom/icon)** - For icon selection
+
+---
+
+## License
+
+The MediaUpload widget is part of SveltyCMS and is licensed under the MIT License.

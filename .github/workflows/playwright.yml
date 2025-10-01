@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        mode: [dev, preview]   # run tests in both modes
+        mode: [dev, preview] # run tests in both modes
 
     steps:
       - name: Git checkout
@@ -106,7 +106,7 @@ jobs:
           npx playwright test --workers 8 --output-dir=test-results/playwright
 
       - name: Run Bun tests
-        if: matrix.mode == 'preview'  # only in preview, since API_BASE_URL points to build server
+        if: matrix.mode == 'preview' # only in preview, since API_BASE_URL points to build server
         env:
           API_BASE_URL: http://127.0.0.1:4173
         run: |

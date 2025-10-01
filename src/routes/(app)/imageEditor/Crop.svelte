@@ -15,7 +15,6 @@
 	import Konva from 'konva';
 
 	interface Props {
-		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
 		onCrop?: (data: { x: number; y: number; width: number; height: number; shape: string }) => void;
@@ -23,7 +22,7 @@
 		onCropReset?: () => void;
 	}
 
-	const { stage, layer, imageNode, onCrop = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
+	const { layer, imageNode, onCrop = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
 
 	let cropShape = $state<'rectangle' | 'square' | 'circular'>('rectangle');
 	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);

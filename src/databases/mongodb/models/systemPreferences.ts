@@ -73,12 +73,14 @@ SystemPreferencesSchema.statics = {
 			logger.debug(`Retrieved system preference for userId: ${userId}, layoutId: ${layoutId}`);
 			return { success: true, data: doc.layout };
 		} catch (error) {
+			const message = `Failed to retrieve preference for userId: ${userId}, layoutId: ${layoutId}`;
 			logger.error(`Error retrieving system preference for userId: ${userId}, layoutId: ${layoutId}`, error);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'PREFERENCE_GET_ERROR',
-					message: `Failed to retrieve preference for userId: ${userId}, layoutId: ${layoutId}`
+					message
 				}
 			};
 		}
@@ -117,12 +119,14 @@ SystemPreferencesSchema.statics = {
 				data: { layout: finalLayout, warnings: warnings.length > 0 ? warnings : undefined }
 			};
 		} catch (error) {
+			const message = `Failed to set preference for userId: ${userId}, layoutId: ${layoutId}`;
 			logger.error(`Error setting system preference for userId: ${userId}, layoutId: ${layoutId}`, error);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'PREFERENCE_SET_ERROR',
-					message: `Failed to set preference for userId: ${userId}, layoutId: ${layoutId}`
+					message
 				}
 			};
 		}
@@ -157,12 +161,14 @@ SystemPreferencesSchema.statics = {
 			logger.info(`Deleted ${result.deletedCount} system preferences for userId: ${userId}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
+			const message = `Failed to delete preferences for userId: ${userId}`;
 			logger.error(`Error deleting system preferences for userId: ${userId}`, error);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'PREFERENCE_DELETE_ERROR',
-					message: `Failed to delete preferences for userId: ${userId}`
+					message
 				}
 			};
 		}

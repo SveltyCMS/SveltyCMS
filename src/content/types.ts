@@ -7,21 +7,14 @@
  * system preferences, and related content management structures.
  */
 
-import type { WidgetPlaceholder } from '@src/widgets/types';
 import type widgets from '@widgets';
-import type { BaseSchema } from 'valibot';
 
 // Auth
 import type { RolePermissions } from '@src/auth/types';
-import type { ContentNode } from '../databases/dbInterface';
+import type { WidgetPlaceholder } from '@src/widgets/types';
 
-// Widget field type definition
-export type WidgetKeys = keyof typeof widgets;
-export type WidgetTypes = (typeof widgets)[WidgetKeys];
-
-// Field value types
-export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
-
+// Define core value and status types
+export type FieldValue = string | number | boolean | object | null;
 // Status types for collections and entries
 export const StatusTypes = {
 	archive: 'archive',
@@ -36,43 +29,48 @@ export const StatusTypes = {
 
 export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];
 
-// Widget Architecture
-// ========================
+// --- Strongly-Typed Identifiers ---
+export type DatabaseId = string & { readonly __brand: 'DatabaseId' };
+export type ISODateString = string & { readonly __isoDate: 'ISODateString' };
 
-// Widget Definition - Metadata about a widget type
-export interface WidgetDefinition {
-	widgetId: string;
-	Name: string;
-	Icon?: string;
-	Description?: string;
-
-	// --- ENTERPRISE-READY PROPERTIES ---
-	/** Path to the interactive INPUT component used in the editor. */
-	inputComponentPath: string;
-
-	/** Path to the lightweight DISPLAY component for lists and previews. */
-	displayComponentPath: string;
-
-	/** A Valibot schema defining the widget's data shape and rules. */
-	validationSchema: BaseSchema;
-
-	/** Default values for the widget's custom properties. */
-	defaults?: Record<string, unknown>;
-	// -----------------------------------
-
-	GuiFields: Record<string, unknown>;
-	componentPath?: string; // Legacy - kept for backward compatibility
-	dependencies?: string[];
-	aggregations?: {
-		filters?: (info: { field: FieldInstance; filter: string; contentLanguage: string }) => Promise<Record<string, unknown>[]>;
-		sorts?: (info: { field: FieldInstance; sortDirection: number; contentLanguage: string }) => Promise<Record<string, number>>;
-	};
+export interface BaseEntity {
+	_id: DatabaseId;
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
 }
+
+export interface Translation {
+	languageTag: string;
+	translationName: string;
+	isDefault?: boolean;
+}
+
+// --- Unified Content Node ---
+// A single interface to represent both categories and collections in the content tree.
+export interface ContentNode {
+	_id: DatabaseId;
+	name: string;
+	nodeType: 'category' | 'collection';
+	icon?: string;
+	order: number;
+	parentId?: DatabaseId;
+	path?: string;
+	translations: Translation[];
+	collectionDef?: Schema; // Only present if nodeType is 'collection'
+	children?: ContentNode[];
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
+	tenantId?: string; // For multi-tenant support
+}
+
+// Widget field type definition
+export type WidgetKeys = keyof typeof widgets;
+export type WidgetTypes = (typeof widgets)[WidgetKeys];
 
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {
 	/** A reference to the widget's immutable definition. */
-	widget: WidgetDefinition;
+	widget: import('@src/widgets/types').WidgetFunction;
 
 	// Field properties
 	label: string;
@@ -107,39 +105,28 @@ export interface FieldInstance {
 }
 
 // Field definition
-export type FieldDefinition = Field | WidgetPlaceholder;
+export type FieldDefinition = unknown | WidgetPlaceholder;
 
-// Collection Registry - defines all available collections
-export const CollectionRegistry = {
-	ContentManager: 'ContentManager',
-	categories: 'categories'
-} as const;
-
-// Define the Translation Schema
-export interface Translation {
-	languageTag: string;
-	translationName: string;
-	isDefault?: boolean;
-}
-
+// Collection Schema Definition
 export interface Schema {
-	_id?: string; // UUID from collection file header
-	name?: ContentTypes | string; // Collection name can be from registry or dynamic
-	label?: string; // Optional label that will display instead of name if used
-	slug?: string; // Optional Slug for the collection
-	icon?: string; // Optional icon
-	order?: number; // Optional display order
-	description?: string; // Optional description for the collection
-	strict?: boolean; // Optional strict mode
-	revision?: boolean; // Optional revisions
-	revisionLimit?: number; // Optional: Maximum number of revisions to keep
-	path?: string; // Path within the collections folder structure
-	permissions?: RolePermissions; // Optional permission restrictions
-	livePreview?: boolean; // Optional live preview
-	status?: StatusType; // Optional default status
-	links?: Array<ContentTypes>; // Optional links to other collections
-	fields: FieldDefinition[]; // Collection fields
+	_id?: string;
+	name?: ContentTypes | string;
+	label?: string;
+	slug?: string;
+	icon?: string;
+	order?: number;
+	description?: string;
+	strict?: boolean;
+	revision?: boolean;
+	revisionLimit?: number;
+	path?: string;
+	permissions?: RolePermissions;
+	livePreview?: boolean;
+	status?: StatusType;
+	links?: Array<ContentTypes>;
+	fields: FieldDefinition[];
 	translations?: Translation[]; // Optional translations with enhanced metadata
+	tenantId?: string; // For multi-tenant support
 }
 
 export type MinimalContentNode = {
@@ -154,39 +141,6 @@ export type ContentNodeOperation = {
 	type: ContentNodeOperatianType;
 	node: ContentNode;
 };
-
-// Category interface for representing the folder structure
-export interface Category {
-	_id: string; // UUID for Category
-	name: string; // Category name, derived from folder name
-	path: string; // Path within the structure, derived from folder path
-	icon?: string; // Optional icon for the category
-	order?: number; // Optional display order
-	nodeType: 'category' | 'collection';
-	parentPath?: string | null;
-	translations?: { languageTag: string; translationName: string }[]; // Optional translations for the category name
-	collectionConfig?: Record<string, unknown>; // Optional collection configuration
-}
-
-// Collection data interface for configuration
-export interface CollectionData {
-	_id: string; // UUID for Collection
-	icon?: string; // Optional collection icon
-	name: string; // Collection name
-	label?: string; // Optional display label
-	order?: number; // Optional display order
-	path: string; // Collection path
-	translations?: { languageTag: string; translationName: string }[]; // Optional translations
-	permissions?: RolePermissions; // Optional permissions
-	livePreview?: boolean; // Optional live preview
-	strict?: boolean; // Optional strict mode
-	revision?: boolean; // Optional revisions
-	fields: FieldDefinition[]; // Collection fields
-	description?: string; // Optional description
-	slug?: string; // Optional slug
-	status?: StatusType; // Optional status
-	links?: Array<ContentTypes>; // Optional links to other collections
-}
 
 // Dashboard types
 export interface WidgetSize {
@@ -249,6 +203,6 @@ export interface WidgetMeta {
 	settings?: Record<string, unknown>; // Optional default settings
 }
 
-// Collection types for collections registry
+export type ContentTypes = object;
 
 export type ContentTypes = {};

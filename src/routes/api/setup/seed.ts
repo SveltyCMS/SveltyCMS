@@ -7,8 +7,8 @@
  */
 
 import { publicConfigSchema } from '@root/config/types';
+import type { DatabaseId, ISODateString } from '@src/content/types';
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
-import type { DatabaseId, ISODateString } from '@src/databases/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { logger } from '@utils/logger.svelte';
 import { safeParse } from 'valibot';

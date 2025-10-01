@@ -10,15 +10,14 @@
  */
 
 import type { Schema } from '@src/content/types';
-import { StatusTypes } from '@src/content/types';
 import { store } from '@utils/reactivity.svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import type { ContentNode } from '../databases/types';
+import type { ContentNode } from '../content/types';
 
 // Helper: Initialize collectionValue status if missing
 function ensureCollectionValueStatus() {
 	if (collectionValueState && !('status' in collectionValueState)) {
-		collectionValueState.status = collection.value?.status ?? StatusTypes.unpublish;
+		collectionValueState.status = collection.value?.status ?? 'unpublish';
 	}
 }
 
@@ -32,7 +31,12 @@ interface Widget {
 }
 
 // Status map for various collection states
-export const statusMap = StatusTypes;
+export const statusMap = {
+	publish: 'publish',
+	unpublish: 'unpublish',
+	draft: 'draft',
+	archived: 'archived'
+};
 
 // Create reactive stores
 export const collections = store<{ [uuid: string]: Schema }>({});

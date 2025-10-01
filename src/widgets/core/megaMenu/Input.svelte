@@ -4,7 +4,14 @@
 **MegaMenu Widget Input Component**
 
 Provides hierarchical menu management with drag-and-drop reordering and modal editing.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for enterp				</div>
+
+				{#if item.children.length > 0 && item._expanded !== false}
+					<div class="ml-8 space-y-2 border-l-2 border-surface-200 pl-4">
+						{#each item.children as child (child._id)}
+							<MegaMenuInput bind:value={item.children} {field} {error} />
+						{/each}
+					</div>dy widget system.
 
 @example
 <MegaMenuInput bind:value={menuItems} field={fieldDefinition} />
@@ -76,7 +83,7 @@ Interactive menu builder with add/edit/reorder capabilities
 
 		if (!draggedItem || !value) return;
 
-		const draggedIndex = value.findIndex(item => item._id === draggedItem!._id);
+		const draggedIndex = value.findIndex((item) => item._id === draggedItem!._id);
 		if (draggedIndex === -1) return;
 
 		// Remove dragged item from current position
@@ -134,7 +141,7 @@ Interactive menu builder with add/edit/reorder capabilities
 		const confirmDelete = confirm('Are you sure you want to delete this menu item and all its children?');
 		if (!confirmDelete) return;
 
-		value = value.filter(item => item._id !== itemToDelete._id);
+		value = value.filter((item) => item._id !== itemToDelete._id);
 	}
 
 	// Function to add child item
@@ -195,12 +202,7 @@ Interactive menu builder with add/edit/reorder capabilities
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
 								>
-									<iconify-icon
-										icon="mdi:chevron-down"
-										width="16"
-										class="chevron"
-										class:rotated={item._expanded === false}
-									></iconify-icon>
+									<iconify-icon icon="mdi:chevron-down" width="16" class="chevron" class:rotated={item._expanded === false}></iconify-icon>
 								</button>
 							{:else if item.children.length === 0}
 								<div class="spacer"></div>
@@ -229,23 +231,11 @@ Interactive menu builder with add/edit/reorder capabilities
 								</button>
 							{/if}
 
-							<button
-								type="button"
-								class="action-btn edit-btn"
-								onclick={() => editItem(item, 0)}
-								aria-label="Edit item"
-								title="Edit item"
-							>
+							<button type="button" class="action-btn edit-btn" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
 								<iconify-icon icon="mdi:pencil" width="14"></iconify-icon>
 							</button>
 
-							<button
-								type="button"
-								class="action-btn delete-btn"
-								onclick={() => deleteItem(item)}
-								aria-label="Delete item"
-								title="Delete item"
-							>
+							<button type="button" class="action-btn delete-btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
 								<iconify-icon icon="mdi:delete" width="14"></iconify-icon>
 							</button>
 						</div>
@@ -254,11 +244,7 @@ Interactive menu builder with add/edit/reorder capabilities
 					{#if item.children.length > 0 && item._expanded !== false}
 						<div class="children-container">
 							{#each item.children as child (child._id)}
-								<MegaMenuInput
-									bind:value={item.children}
-									{field}
-									{error}
-								/>
+								<MegaMenuInput bind:value={item.children} {field} {error} />
 							{/each}
 						</div>
 					{/if}
@@ -286,7 +272,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.menu-header {
-		@apply flex items-center justify-between pb-3 border-b border-surface-200;
+		@apply flex items-center justify-between border-b border-surface-200 pb-3;
 	}
 
 	.menu-title {
@@ -294,11 +280,11 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.add-root-btn {
-		@apply flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors;
+		@apply flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 font-medium text-white transition-colors hover:bg-primary-700;
 	}
 
 	.menu-list {
-		@apply space-y-2 min-h-[200px];
+		@apply min-h-[200px] space-y-2;
 	}
 
 	.menu-list.empty {
@@ -306,11 +292,11 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.menu-item {
-		@apply border border-surface-200 rounded-lg bg-surface-50/50 transition-all duration-200;
+		@apply rounded-lg border border-surface-200 bg-surface-50/50 transition-all duration-200;
 	}
 
 	.menu-item.dragged {
-		@apply opacity-50 scale-95;
+		@apply scale-95 opacity-50;
 	}
 
 	.menu-item.drag-over {
@@ -326,11 +312,11 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.drag-handle {
-		@apply cursor-move p-1 text-surface-400 hover:text-surface-600 transition-colors;
+		@apply cursor-move p-1 text-surface-400 transition-colors hover:text-surface-600;
 	}
 
 	.expand-btn {
-		@apply p-1 text-surface-500 hover:text-surface-700 transition-colors rounded;
+		@apply rounded p-1 text-surface-500 transition-colors hover:text-surface-700;
 	}
 
 	.chevron {
@@ -346,11 +332,11 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.item-content {
-		@apply flex-1 min-w-0;
+		@apply min-w-0 flex-1;
 	}
 
 	.item-title {
-		@apply font-medium text-surface-900 truncate;
+		@apply truncate font-medium text-surface-900;
 	}
 
 	.children-count {
@@ -362,7 +348,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.action-btn {
-		@apply p-2 text-surface-500 hover:text-surface-700 transition-colors rounded;
+		@apply rounded p-2 text-surface-500 transition-colors hover:text-surface-700;
 	}
 
 	.edit-btn:hover {
@@ -377,16 +363,12 @@ Interactive menu builder with add/edit/reorder capabilities
 		@apply text-green-600;
 	}
 
-	.children-container {
-		@apply ml-8 pl-4 border-l-2 border-surface-200 space-y-2;
-	}
-
 	.empty-state {
-		@apply text-center py-8;
+		@apply py-8 text-center;
 	}
 
 	.empty-icon {
-		@apply text-surface-300 mb-4;
+		@apply mb-4 text-surface-300;
 	}
 
 	.empty-message {
@@ -394,13 +376,13 @@ Interactive menu builder with add/edit/reorder capabilities
 	}
 
 	.error-message {
-		@apply flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700;
+		@apply flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700;
 	}
 
 	/* Dark mode adjustments */
 	@media (prefers-color-scheme: dark) {
 		.menu-item {
-			@apply bg-surface-800/50 border-surface-700;
+			@apply border-surface-700 bg-surface-800/50;
 		}
 
 		.menu-item.drag-over {

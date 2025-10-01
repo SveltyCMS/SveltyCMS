@@ -31,38 +31,7 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 	let { value }: { value: RemoteVideoData | null | undefined } = $props();
 
 	// Construct the embed URL and iframe HTML based on the platform.
-	const embedData = $derived.by(() => {
-		if (!value?.url || !value?.platform || !value?.videoId) return null;
-
-		let embedUrl = '';
-		let iframeHtml = '';
-
-		switch (value.platform) {
-			case 'youtube':
-				embedUrl = `https://www.youtube.com/embed/${value.videoId}?rel=0&modestbranding=1`;
-				break;
-			case 'vimeo':
-				embedUrl = `https://player.vimeo.com/video/${value.videoId}`;
-				break;
-			case 'twitch':
-				embedUrl = `https://player.twitch.tv/?video=${value.videoId}&parent=${window.location.hostname}`;
-				break;
-			case 'tiktok':
-				// TikTok embeds require their own script, or you can use a generic iframe for basic playback.
-				// For simplicity, we'll use a generic iframe if a direct embed URL is available.
-				// A more robust solution might involve TikTok's oEmbed or embed code.
-				embedUrl = `https://www.tiktok.com/embed/v2/${value.videoId}`; // This might not work directly.
-				break;
-			default:
-				return null;
-		}
-
-		if (embedUrl) {
-			iframeHtml = `<iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width:100%; aspect-ratio:16/9;"></iframe>`;
-		}
-
-		return { embedUrl, iframeHtml };
-	});
+	// Note: For now we just display thumbnail and metadata, embed logic available if needed
 </script>
 
 {#if value?.thumbnailUrl}

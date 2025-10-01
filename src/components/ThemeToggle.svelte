@@ -15,7 +15,7 @@
 		iconSize?: number;
 	}
 
-	const { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 } = $props<Props>();
+	let { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
 
 	// Theme toggle tooltip settings
 	const themeToggleTooltip: PopupSettings = {

@@ -26,20 +26,24 @@ Renders: "Article Title" (fetched from related entry's display field)
 
 <script lang="ts">
 	import type { FieldType } from './';
-	import { contentLanguage } from '@src/stores/store.svelte';
 
-	let { field, value }: { field: FieldType; value: string | null | undefined } = $props();
+	let { value }: { field: FieldType; value: string | null | undefined } = $props();
 
 	// Local state for the resolved entry's display text.
 	let displayText = $state('Loading...');
-	const lang = $derived($contentLanguage);
+
+	// Stub function for fetching entry display - implement with your API
+	async function fetchEntryDisplay(_id: string): Promise<string | null> {
+		// TODO: Implement API call to fetch entry display field
+		return null;
+	}
 
 	// Fetch the entry's display text when the ID `value` changes.
 	$effect(() => {
 		if (value) {
 			// API Call: GET /api/entries/{field.collection}/{value}?fields={field.displayField}
 			// This is a more optimized fetch for just the field we need.
-			fetchEntryDisplay(value).then((text) => (displayText = text || '–'));
+			fetchEntryDisplay(value).then((text: string | null) => (displayText = text || '–'));
 		} else {
 			displayText = '–';
 		}

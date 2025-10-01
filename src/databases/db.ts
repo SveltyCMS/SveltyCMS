@@ -8,18 +8,6 @@
  * - Establishing database connections with a retry mechanism
  * - Managing initialization of authentication models, media models, and collection models
  * - Setting up default roles and permissions
- * - Confi		// 4. Initialize ContentManager (loads collection schemas into memory)
-
-		const step4StartTime = performance.now();
-
-		try {
-			await contentManager.initialize(); // ContentManager gets dbAdapter internally
-			const step4Time = performance.now() - step4StartTime;
-			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
-		} catch (contentErr) {
-			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
-			throw contentErr;le OAuth2 client if credentials are provided
- *
  * Multi-Tenancy Note:
  * This file handles the one-time global startup of the server. Tenant-specific
  * data scoping is handled by the API endpoints and server hooks that use the
@@ -274,20 +262,29 @@ async function loadAdapters() {
 		switch (config.DB_TYPE) {
 			case 'mongodb': {
 				logger.debug('Importing MongoDB adapter...');
-				const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+				const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
+				if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
+					throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
+				}
+				const { MongoDBAdapter } = mongoAdapterModule;
 				dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
+
 				logger.debug('MongoDB adapter created');
 
 				logger.debug('Composing MongoDB auth adapter...');
-				const { composeMongoAuthAdapter } = await import('@src/auth/mongoDBAuth/composeAuthAdapter');
+				const mongoAuthModule = await import('@src/auth/mongoDBAuth/composeAuthAdapter');
+				if (!mongoAuthModule || !mongoAuthModule.composeMongoAuthAdapter) {
+					throw new Error('composeMongoAuthAdapter is not exported correctly from composeAuthAdapter.ts');
+				}
+				const { composeMongoAuthAdapter } = mongoAuthModule;
 				authAdapter = composeMongoAuthAdapter();
 				logger.debug('Auth adapter composed');
 				break;
 			}
 			case 'mariadb':
 			case 'postgresql': // Implement SQL adapters loading here
-				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+				logger.error(`SQL adapter loading not yet implemented for ${config.DB_TYPE}`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 			default:
 				logger.error(`Unknown DB_TYPE: ${config.DB_TYPE}`);
 				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
@@ -337,7 +334,6 @@ async function initializeThemeManager(): Promise<void> {
 		logger.debug('Initializing \x1b[34mThemeManager\x1b[0m...');
 		const themeManager = ThemeManager.getInstance();
 		await themeManager.initialize(dbAdapter);
-		logger.debug('ThemeManager initialized successfully.');
 	} catch (err) {
 		const message = `Error initializing ThemeManager: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
@@ -352,7 +348,7 @@ async function initializeMediaFolder(): Promise<void> {
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
-		logger.debug(`Checking media folder: ${mediaFolderPath}`); // Check if the media folder exists
+		logger.debug(`Checking media folder: \x1b[34m${mediaFolderPath}\x1b[0m`); // Check if the media folder exists
 		await fs.access(mediaFolderPath);
 		logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
 	} catch {
@@ -375,8 +371,17 @@ async function initializeVirtualFolders(): Promise<void> {
 		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
 
 		if (!systemVirtualFoldersResult.success) {
-			const errorMessage =
-				systemVirtualFoldersResult.error instanceof Error ? systemVirtualFoldersResult.error.message : String(systemVirtualFoldersResult.error);
+			const error = systemVirtualFoldersResult.error;
+			let errorMessage = 'Unknown error';
+			
+			if (error instanceof Error) {
+				errorMessage = error.message;
+			} else if (error && typeof error === 'object' && 'message' in error) {
+				errorMessage = String((error as { message: unknown }).message);
+			} else if (error) {
+				errorMessage = String(error);
+			}
+			
 			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
 		}
 
@@ -388,12 +393,23 @@ async function initializeVirtualFolders(): Promise<void> {
 			const rootFolderData = {
 				name: defaultMediaFolder,
 				path: defaultMediaFolder, // parentId is undefined for root folders
-				order: 0
+				order: 0,
+				type: 'folder' as const
 			};
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
 
 			if (!creationResult.success) {
-				const errorMessage = creationResult.error instanceof Error ? creationResult.error.message : String(creationResult.error);
+				const error = creationResult.error;
+				let errorMessage = 'Unknown error';
+				
+				if (error instanceof Error) {
+					errorMessage = error.message;
+				} else if (error && typeof error === 'object' && 'message' in error) {
+					errorMessage = String((error as { message: unknown }).message);
+				} else if (error) {
+					errorMessage = String(error);
+				}
+				
 				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 
@@ -463,7 +479,24 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		// 3. Connect to Database (only if not in setup mode)
 		try {
 			if (!dbAdapter) throw new Error('Database adapter failed to load.');
-			const result = await dbAdapter.connect();
+			
+			// Build connection string from config
+			let connectionString: string;
+			if (privateConfig.DB_TYPE === 'mongodb') {
+				const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
+				const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
+				const host = privateConfig.DB_HOST || 'localhost';
+				const port = privateConfig.DB_PORT || 27017;
+				const dbName = privateConfig.DB_NAME || 'sveltycms';
+				const authSource = hasAuth ? '?authSource=admin' : '';
+				connectionString = `mongodb://${authPart}${host}:${port}/${dbName}${authSource}`;
+				logger.debug(`Connecting to MongoDB at ${host}:${port}/${dbName} ${hasAuth ? 'with authentication' : 'without authentication'}`);
+			} else {
+				// For other database types, construct connection string accordingly
+				connectionString = ''; // Placeholder for other DB types
+			}
+			
+			const result = await dbAdapter.connect(connectionString);
 			if (!result.success) {
 				const dbError = result.error;
 				let errorMessage = 'Database connection failed';
@@ -496,7 +529,38 @@ async function initializeSystem(forceReload = false): Promise<void> {
 
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
-		} // 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
+		}
+		
+		// Verify all required adapter properties exist
+		if (!dbAdapter.auth || !dbAdapter.media || !dbAdapter.widgets || !dbAdapter.themes || !dbAdapter.system) {
+			logger.error('Database adapter is missing required properties', {
+				hasAuth: !!dbAdapter.auth,
+				hasMedia: !!dbAdapter.media,
+				hasWidgets: !!dbAdapter.widgets,
+				hasThemes: !!dbAdapter.themes,
+				hasSystem: !!dbAdapter.system
+			});
+			// Force reload adapters and reconnect
+			logger.debug('Forcing adapter reload and reconnection...');
+			adaptersLoaded = false;
+			isConnected = false;
+			await loadAdapters();
+			
+			// Reconnect the new adapter instance
+			const reconnectResult = await dbAdapter.connect(connectionString);
+			if (!reconnectResult.success) {
+				throw new Error(`Reconnection failed after adapter reload: ${reconnectResult.error}`);
+			}
+			isConnected = true;
+			
+			// Verify again
+			if (!dbAdapter || !dbAdapter.auth) {
+				throw new Error('Database adapter still incomplete after reload and reconnection');
+			}
+			logger.debug('Adapter reloaded and reconnected successfully');
+		}
+		
+		// 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
 
 		const step2StartTime = performance.now();
 
@@ -545,13 +609,14 @@ async function initializeSystem(forceReload = false): Promise<void> {
 
 		const step5StartTime = performance.now();
 		try {
-			const { collectionMap } = await contentManager.getCollectionData();
+			const collections = contentManager.getCollections(); // For legacy compatibility, create a collectionMap if needed
+			const collectionMap = new Map(collections.map((schema) => [schema._id, schema]));
 			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.'); // Since ContentManager now handles model creation, this step is purely for verification.
 			// We can simply log that this step is complete, as the critical logic is in ContentManager.
 			// If ContentManager failed, initialization would have already stopped.
 
 			const schemas = Array.from(collectionMap.values());
-			logger.debug(`ContentManager reports \x1b[34m${schemas.length}\x1b[0m collections loaded. Verification complete.`);
+			logger.debug(`\x1b[34mContentManager\x1b[0m reports \x1b[34m${schemas.length}\x1b[0m collections loaded. \x1b[33mVerification complete\x1b[0m`);
 
 			const step5Time = performance.now() - step5StartTime;
 			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection models verified in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);

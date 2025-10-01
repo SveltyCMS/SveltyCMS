@@ -21,7 +21,8 @@
  * - Bulk validation and constraint checking
  */
 
-import type { Schema } from '../content/types';
+import type { BaseEntity, ContentNode, DatabaseId, ISODateString, Schema } from '../content/types';
+export type { BaseEntity, DatabaseId };
 
 /** Performance and Query Optimization Types **/
 export interface QueryOptimizationHints {
@@ -67,12 +68,6 @@ export interface CacheOptions {
 	enabled?: boolean;
 }
 
-import type { BaseEntity, ContentNode, DatabaseId } from './types';
-
-// Re-export commonly used types (including ISODateString for convenience)
-export type { BaseEntity, ContentNode, DatabaseId } from './types';
-export type { ISODateString } from './types';
-
 /** collection **/
 export interface CollectionModel {
 	findOne: (query: Record<string, unknown>) => Promise<Record<string, unknown> | null>;
@@ -111,6 +106,9 @@ export interface ThemeConfig {
 }
 
 export interface Theme extends BaseEntity {
+	_id: DatabaseId;
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
 	name: string;
 	path: string;
 	isActive: boolean;
@@ -138,12 +136,13 @@ export interface MediaMetadata {
 }
 
 export interface MediaItem extends BaseEntity {
-	filename: string;
+	filename: string; // Display filename (user-friendly name)
+	originalFilename: string; // Actual filename in mediaFolder root (hash-based or physical storage)
 	hash: string;
-	path: string;
+	path: string; // Virtual path based on SystemVirtualFolder organization
 	size: number;
 	mimeType: string;
-	folderId?: DatabaseId;
+	folderId?: DatabaseId; // Reference to SystemVirtualFolder for organization
 	thumbnails: Record<string, string | number | undefined>;
 	metadata: MediaMetadata;
 	createdBy: DatabaseId;
@@ -209,7 +208,7 @@ export type DatabaseResult<T> =
 			message: string;
 			success: false;
 			error: DatabaseError;
- };
+	  };
 
 export interface QueryMeta {
 	executionTime?: number; // Query execution time in milliseconds
@@ -282,6 +281,8 @@ export interface DatabaseTransaction {
 
 /** Database Adapter Interface **/
 export interface IDBAdapter {
+	/** Optional: Wait for DB connection to be ready (for adapters that support async connect) */
+	waitForConnection?(): Promise<void>;
 	// Performance and Capabilities
 	getCapabilities(): DatabaseCapabilities;
 
@@ -348,6 +349,7 @@ export interface IDBAdapter {
 	widgets: {
 		setupWidgetModels(): Promise<void>;
 		register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>>; // Register a new widget
+		getActiveWidgets(): Promise<DatabaseResult<Widget[]>>; // Get all active widgets
 		activate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Activate a widget
 		deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Deactivate a widget
 		update(widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>>; // Update widget configuration & details
@@ -425,13 +427,13 @@ export interface IDBAdapter {
 
 	// System Virtual Folders
 	systemVirtualFolder: {
-		create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a virtual folder
-		getById(folderId: DatabaseId): Promise<DatabaseResult<MediaFolder | null>>; // Get a virtual folder by its ID
-		getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<MediaFolder[]>>; // Get folders by parent ID
-		getAll(): Promise<DatabaseResult<MediaFolder[]>>; // Get all virtual folders
-		update(folderId: DatabaseId, updateData: Partial<MediaFolder>): Promise<DatabaseResult<MediaFolder>>; // Update a virtual folder
+		create(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>>; // Create a virtual folder
+		getById(folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>>; // Get a virtual folder by its ID
+		getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>>; // Get folders by parent ID
+		getAll(): Promise<DatabaseResult<SystemVirtualFolder[]>>; // Get all virtual folders
+		update(folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>>; // Update a virtual folder
 		addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>; // Add content to a virtual folder
-		getContents(folderPath: string): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[] }>>; // Specialized: Get contents of a virtual folder
+		getContents(folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>>; // Specialized: Get contents of a virtual folder
 		delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a virtual folder
 		exists(path: string): Promise<DatabaseResult<boolean>>; // Check if folder with given path exists
 	};
@@ -535,6 +537,7 @@ export type DatabaseAdapter = IDBAdapter;
 
 /** Virtual Folder Types **/
 export interface SystemVirtualFolder extends BaseEntity {
+	_id: DatabaseId;
 	name: string;
 	path: string;
 	parentId?: DatabaseId | null;

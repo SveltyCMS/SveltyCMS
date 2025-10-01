@@ -37,20 +37,26 @@ Interactive selector with "Select" button and clear functionality
 	let selectedEntry = $state<Record<string, any> | null>(null);
 	const lang = $derived($contentLanguage);
 
+	// Stub function for fetching entry data - implement with your API
+	async function fetchEntryData(_id: string): Promise<Record<string, any> | null> {
+		// TODO: Implement API call to fetch entry by ID
+		return null;
+	}
+
 	// Fetch the full entry data when the ID `value` changes.
 	$effect(() => {
 		const id = Array.isArray(value) ? value[0] : value;
 		if (id) {
 			// API Call: GET /api/entries/{field.collection}/{id}
 			// This fetches the data needed to display the summary.
-			fetchEntryData(id).then((entry) => (selectedEntry = entry));
+			fetchEntryData(id).then((entry: Record<string, any> | null) => (selectedEntry = entry));
 		} else {
 			selectedEntry = null;
 		}
 	});
 
 	// The text to display in the selector button.
-	const displayText = $derived(selectedEntry?.[field.displayField]?.[lang] || 'Select an Entry');
+	const displayText = $derived(selectedEntry?.[field.displayField as string]?.[lang] || 'Select an Entry');
 
 	// Function to open the selection/creation modal.
 	function openRelationModal() {

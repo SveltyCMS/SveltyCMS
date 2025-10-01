@@ -147,7 +147,6 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				throw new Error(data.message || 'Failed to delete token');
 			}
 
-			
 			showToast(`<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_deleted_successfully()}`, 'success');
 			// Return success so parent can update UI
 			modalStore.close({ success: true, action: 'delete' });

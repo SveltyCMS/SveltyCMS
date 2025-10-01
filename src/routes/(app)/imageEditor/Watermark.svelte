@@ -28,7 +28,7 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 		'bottom-right': 'bottom-right'
 	} as const;
 
-	let { stage, layer, imageNode, onWatermarkChange, onExitWatermark }: WatermarkProps = $props();
+	let { layer, imageNode, onWatermarkChange, onExitWatermark }: WatermarkProps = $props();
 
 	let watermarkFile: File | null = $state(null);
 	let position: WatermarkPosition = $state(WATERMARK_POSITION.center);

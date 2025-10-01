@@ -12,16 +12,16 @@
  * * Enhanced error reporting for partial failures
  */
 
-import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@src/stores/globalSettings';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { contentManager } from '@src/content/ContentManager';
-import { StatusTypes } from '@src/content/types';
 import { modifyRequest } from '@api/collections/modifyRequest';
+import { contentManager } from '@src/content/ContentManager';
+import type { StatusType } from '@src/content/types';
 
 // Validation
-import { array, object, parse, picklist, string, minLength, optional } from 'valibot';
+import { array, minLength, object, optional, parse, picklist, string } from 'valibot';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -82,8 +82,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Status is required for status action');
 		}
 
-		if (action === 'status' && !Object.values(StatusTypes).includes(status as StatusTypes)) {
-			throw error(400, `Invalid status. Must be one of: ${Object.values(StatusTypes).join(', ')}`);
+		if (action === 'status' && !['publish', 'unpublish', 'draft', 'archived'].includes(status as StatusType)) {
+			throw error(400, `Invalid status. Must be one of: publish, unpublish, draft, archived`);
 		}
 
 		if (action === 'clone' && !cloneCount) {

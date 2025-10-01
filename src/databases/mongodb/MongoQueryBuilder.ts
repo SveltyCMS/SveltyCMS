@@ -15,7 +15,7 @@
  */
 
 import type { Model } from 'mongoose';
-import type { QueryBuilder, DatabaseResult, PaginationOptions, BaseEntity, QueryOptimizationHints, QueryMeta, DatabaseError } from '../dbInterface';
+import type { BaseEntity, DatabaseError, DatabaseResult, PaginationOptions, QueryBuilder, QueryMeta, QueryOptimizationHints } from '../dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -28,7 +28,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 	private skipValue?: number;
 	private projectionFields?: Record<string, boolean>;
 	private distinctField?: keyof T;
-	private paginationOptions?: PaginationOptions;
+	// private paginationOptions?: PaginationOptions; // Removed unused variable
 	private optimizationHints?: QueryOptimizationHints;
 	private timeoutMs?: number;
 	private selectedFields?: (keyof T)[];
@@ -122,7 +122,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 	}
 
 	project<K extends keyof T>(fields: Partial<Record<K, boolean>>): this {
-		this.projectionFields = fields;
+		this.projectionFields = fields as Record<string, boolean>;
 		return this;
 	}
 
@@ -149,7 +149,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 	}
 
 	paginate(options: PaginationOptions): this {
-		this.paginationOptions = options;
+		// this.paginationOptions = options;
 		if (options.page && options.pageSize) {
 			this.skipValue = (options.page - 1) * options.pageSize;
 			this.limitValue = options.pageSize;
@@ -252,9 +252,11 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: count, meta };
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_COUNT_ERROR', 'Failed to count documents');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_COUNT_ERROR', 'Failed to count documents')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}
@@ -267,9 +269,11 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: count > 0, meta };
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_EXISTS_ERROR', 'Failed to check document existence');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_EXISTS_ERROR', 'Failed to check document existence')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}
@@ -342,19 +346,24 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			// Execute the query with lean() for better performance
 			const results = await mongoQuery.lean().exec();
 
-			// Convert MongoDB dates to ISO strings for consistency
+			// Simplified ISO date conversion: check for object and toISOString method only.
+			function toIsoStringIfDate(val: unknown): unknown {
+				return val instanceof Date ? val.toISOString() : val;
+			}
 			const processedResults = results.map((doc) => ({
 				...doc,
-				createdAt: doc.createdAt?.toISOString?.() || doc.createdAt,
-				updatedAt: doc.updatedAt?.toISOString?.() || doc.updatedAt
+				createdAt: toIsoStringIfDate(doc.createdAt),
+				updatedAt: toIsoStringIfDate(doc.updatedAt)
 			})) as T[];
 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: processedResults, meta };
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_EXECUTION_ERROR', 'Failed to execute query');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_EXECUTION_ERROR', 'Failed to execute query')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}
@@ -398,16 +407,28 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				async *[Symbol.asyncIterator]() {
 					try {
 						for await (const doc of cursor) {
-							// Convert MongoDB dates to ISO strings for consistency
+							// FIX: Check for the toISOString method instead of using `instanceof Date`.
+							// ...
+
 							const processedDoc = {
 								...doc,
-								createdAt: doc.createdAt?.toISOString?.() || doc.createdAt,
-								updatedAt: doc.updatedAt?.toISOString?.() || doc.updatedAt
+								createdAt:
+									doc.createdAt && typeof (doc.createdAt as { toISOString?: () => string }).toISOString === 'function'
+										? (doc.createdAt as Date).toISOString()
+										: doc.createdAt,
+								updatedAt:
+									doc.updatedAt && typeof (doc.updatedAt as { toISOString?: () => string }).toISOString === 'function'
+										? (doc.updatedAt as Date).toISOString()
+										: doc.updatedAt
 							} as T;
 							yield processedDoc;
 						}
 					} catch (error) {
-						logger.error(`Stream iteration failed: ${error.message}`);
+						if (error instanceof Error) {
+							logger.error(`Stream iteration failed: ${error.message}`);
+						} else {
+							logger.error('Stream iteration failed with an unknown error', error);
+						}
 						throw error;
 					}
 				}
@@ -416,9 +437,11 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: asyncIterable, meta };
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_STREAM_ERROR', 'Failed to create query stream');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_STREAM_ERROR', 'Failed to create query stream')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}
@@ -465,19 +488,27 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				return { success: true, data: null, meta };
 			}
 
-			// Convert MongoDB dates to ISO strings for consistency
+			// FIX: Check for the toISOString method instead of using `instanceof Date`.
 			const processedResult = {
 				...result,
-				createdAt: result.createdAt?.toISOString?.() || result.createdAt,
-				updatedAt: result.updatedAt?.toISOString?.() || result.updatedAt
+				createdAt:
+					result.createdAt && typeof (result.createdAt as Date).toISOString === 'function'
+						? (result.createdAt as Date).toISOString()
+						: result.createdAt,
+				updatedAt:
+					result.updatedAt && typeof (result.updatedAt as Date).toISOString === 'function'
+						? (result.updatedAt as Date).toISOString()
+						: result.updatedAt
 			} as T;
 
 			const meta = this.buildQueryMeta(startTime);
 			return { success: true, data: processedResult, meta };
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_FINDONE_ERROR', 'Failed to find document');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_FINDONE_ERROR', 'Failed to find document')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}
@@ -485,12 +516,15 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 	async findOneOrFail(): Promise<DatabaseResult<T>> {
 		const result = await this.findOne();
 		if (!result.success) {
-			return result as DatabaseResult<T>;
+			// The error object from findOne already has the correct shape
+			return result;
 		}
 		if (result.data === null) {
+			const dbError = this.createDatabaseError(new Error('Document not found'), 'DOCUMENT_NOT_FOUND', 'Required document not found');
 			return {
 				success: false,
-				error: this.createDatabaseError(new Error('Document not found'), 'DOCUMENT_NOT_FOUND', 'Required document not found')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 		return { success: true, data: result.data, meta: result.meta };
@@ -504,7 +538,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				...data,
 				updatedAt: new Date().toISOString()
 			};
-			const result = await this.model.updateMany(query, updateData);
+			const result = await this.model.updateMany(query, { $set: updateData });
 			const meta = this.buildQueryMeta(startTime);
 			return {
 				success: true,
@@ -512,9 +546,11 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				meta
 			};
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_UPDATE_MANY_ERROR', 'Failed to update documents');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_UPDATE_MANY_ERROR', 'Failed to update documents')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}
@@ -531,9 +567,11 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 				meta
 			};
 		} catch (error) {
+			const dbError = this.createDatabaseError(error, 'QUERY_DELETE_MANY_ERROR', 'Failed to delete documents');
 			return {
 				success: false,
-				error: this.createDatabaseError(error, 'QUERY_DELETE_MANY_ERROR', 'Failed to delete documents')
+				error: dbError,
+				message: dbError.message
 			};
 		}
 	}

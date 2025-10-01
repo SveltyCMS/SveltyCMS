@@ -9,18 +9,17 @@ It handles widget configuration, permissions, and specific options.
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
-	import { widgetFunctions, activeWidgets } from '@stores/widgetStore.svelte';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
-	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { getModalStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	let localTabSet: number = $state(0);

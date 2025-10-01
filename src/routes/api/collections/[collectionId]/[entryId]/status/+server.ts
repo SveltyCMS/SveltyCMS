@@ -11,12 +11,12 @@
  * * Permission checking for status modifications, scoped to the current tenant
  */
 
-import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@src/stores/globalSettings';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import { StatusTypes } from '@src/content/types';
+import type { StatusType } from '@src/content/types';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -57,7 +57,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Status is required');
 		}
 
-		const validStatuses = Object.values(StatusTypes);
+		const validStatuses: StatusType[] = ['publish', 'unpublish', 'draft', 'archived'];
 		if (!validStatuses.includes(status)) {
 			throw error(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
 		}

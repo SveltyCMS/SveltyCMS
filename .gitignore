@@ -14,7 +14,6 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 /config/private.ts
-/config/public.ts
 /data.json
 
 # Backup folder under config
@@ -55,3 +54,4 @@ yarn-error.log*
 
 #paraglide.js
 src/paraglide/**/*.js
+GEMINI.md

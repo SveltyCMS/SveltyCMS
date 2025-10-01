@@ -1,19 +1,14 @@
 /**
  * @file src/utils/setupCheck.ts
- * @description Centralized and memoized setup completion check utility.
+ * @description Centralized and memoized setup completion check utility
  *
  * This provides a single, high-performance source of truth for setup status.
  * It is dependency-free to ensure it can be safely used in the vite.config.ts environment.
+ * It is designed to be silent, returning only a boolean, leaving logging to the caller.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-// A minimal, dependency-free logger for use ONLY during the build-time setup check.
-const buildLogger = {
-	info: (message: string) => console.log(`[SVELTY] ✅ ${message}`),
-	error: (message: string, error: unknown) => console.error(`[SVELTY] ❌ ${message}`, error)
-};
 
 // Memoization variable to cache the setup status.
 let setupStatus: boolean | null = null;
@@ -36,15 +31,11 @@ export function isSetupComplete(): boolean {
 		const hasDbHost = !/DB_HOST:\s*(""|''|``)/.test(configContent);
 		const hasDbName = !/DB_NAME:\s*(""|''|``)/.test(configContent);
 
-		if (hasJwtSecret && hasDbHost && hasDbName) {
-			buildLogger.info('Setup check passed. Application is configured.');
-			setupStatus = true;
-		} else {
-			setupStatus = false;
-		}
+		setupStatus = hasJwtSecret && hasDbHost && hasDbName;
 		return setupStatus;
 	} catch (error) {
-		buildLogger.error('Error during setup check:', error);
+		// Log error here as it's an exceptional case during a critical check
+		console.error(`[SveltyCMS] ❌ Error during setup check:`, error);
 		setupStatus = false;
 		return setupStatus;
 	}

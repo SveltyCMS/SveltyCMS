@@ -9,6 +9,8 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { ContentDraft, DatabaseResult } from '@src/databases/dbInterface';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import type { DatabaseId } from '@src/content/types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -21,9 +23,8 @@ export const draftSchema = new Schema<ContentDraft>(
 		data: { type: Schema.Types.Mixed, required: true }, // Content of the draft
 		version: { type: Number, default: 1 }, // Version number for drafts, starting at 1
 		status: { type: String, enum: ['draft', 'review', 'archived'], default: 'draft' }, // Status options from ContentDraft
-		authorId: { type: String, required: true }, // Changed to String type in schema
-		createdAt: { type: Date, default: Date.now }, // Default createdAt timestamp
-		updatedAt: { type: Date, default: Date.now } // Default updatedAt timestamp
+		authorId: { type: String, required: true } // Changed to String type in schema
+		// Note: createdAt and updatedAt are handled by timestamps: true
 	},
 	{
 		timestamps: true, // Enable timestamps for createdAt and updatedAt
@@ -45,12 +46,14 @@ draftSchema.statics = {
 			const drafts = await this.find({ contentId }).lean().exec();
 			return { success: true, data: drafts };
 		} catch (error) {
-			logger.error(`Error retrieving drafts for content ID: ${contentId}: ${error.message}`);
+			const message = `Failed to retrieve drafts for content ID: ${contentId}`;
+			logger.error(`Error retrieving drafts for content ID: ${contentId}: ${error instanceof Error ? error.message : String(error)}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'DRAFT_FETCH_ERROR',
-					message: `Failed to retrieve drafts for content ID: ${contentId}`
+					message
 				}
 			};
 		}
@@ -63,12 +66,14 @@ draftSchema.statics = {
 			logger.info(`Bulk deleted ${result.deletedCount} drafts for content IDs: ${contentIds.join(', ')}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
-			logger.error(`Error bulk deleting drafts for content IDs: ${error.message}`);
+			const message = 'Failed to bulk delete drafts';
+			logger.error(`Error bulk deleting drafts for content IDs: ${error instanceof Error ? error.message : String(error)}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'DRAFT_BULK_DELETE_ERROR',
-					message: 'Failed to bulk delete drafts',
+					message,
 					details: error
 				}
 			};
@@ -78,13 +83,15 @@ draftSchema.statics = {
 	// Create a new draft
 	async createDraft(draftData: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> {
 		try {
-			const newDraft = await this.create({ ...draftData, _id: this.utils.generateId() });
-			return { success: true, data: newDraft.toObject() };
+			const newDraft = await this.create({ ...draftData, _id: generateId() });
+			return { success: true, data: newDraft.toObject() as unknown as ContentDraft };
 		} catch (error) {
-			logger.error(`Error creating draft: ${error.message}`);
+			const message = 'Failed to create draft';
+			logger.error(`Error creating draft: ${error instanceof Error ? error.message : String(error)}`);
 			return {
 				success: false,
-				error: { code: 'DRAFT_CREATE_ERROR', message: 'Failed to create draft', details: error }
+				message,
+				error: { code: 'DRAFT_CREATE_ERROR', message, details: error }
 			};
 		}
 	},
@@ -94,23 +101,27 @@ draftSchema.statics = {
 		try {
 			const result = await this.updateOne({ _id: draftId }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
+				const message = `Draft with ID "${draftId}" not found or no changes applied.`;
 				return {
 					success: false,
+					message,
 					error: {
 						code: 'DRAFT_UPDATE_NOT_FOUND',
-						message: `Draft with ID "${draftId}" not found or no changes applied.`
+						message
 					}
 				};
 			}
 			logger.info(`Draft "${draftId}" updated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error updating draft "${draftId}": ${error.message}`);
+			const message = `Failed to update draft "${draftId}"`;
+			logger.error(`Error updating draft "${draftId}": ${error instanceof Error ? error.message : String(error)}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'DRAFT_UPDATE_ERROR',
-					message: `Failed to update draft "${draftId}"`,
+					message,
 					details: error
 				}
 			};
@@ -122,23 +133,27 @@ draftSchema.statics = {
 		try {
 			const result = await this.deleteOne({ _id: draftId }).exec();
 			if (result.deletedCount === 0) {
+				const message = `Draft with ID "${draftId}" not found.`;
 				return {
 					success: false,
+					message,
 					error: {
 						code: 'DRAFT_DELETE_NOT_FOUND',
-						message: `Draft with ID "${draftId}" not found.`
+						message
 					}
 				};
 			}
 			logger.info(`Draft "${draftId}" deleted successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error deleting draft "${draftId}": ${error.message}`);
+			const message = `Failed to delete draft "${draftId}"`;
+			logger.error(`Error deleting draft "${draftId}": ${error instanceof Error ? error.message : String(error)}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'DRAFT_DELETE_ERROR',
-					message: `Failed to delete draft "${draftId}"`,
+					message,
 					details: error
 				}
 			};

@@ -3,7 +3,6 @@
  * @description Utility functions for status toggle operations
  */
 
-import { StatusTypes } from '@src/content/types';
 import type { StatusType } from '@src/content/types';
 
 export interface StatusToggleOptions {
@@ -24,7 +23,7 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 }> {
 	const { collectionId, entryId, currentStatus, onSuccess, onError } = options;
 
-	const newStatus = currentStatus === StatusTypes.publish ? StatusTypes.unpublish : StatusTypes.publish;
+	const newStatus = currentStatus === 'publish' ? 'unpublish' : 'publish';
 
 	if (entryId) {
 		try {
@@ -35,11 +34,11 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
 				onSuccess?.(newStatus);
 				return { success: true, newStatus };
 			} else {
-				onError?.(result.error || `Failed to ${newStatus === StatusTypes.publish ? 'publish' : 'unpublish'} entry`);
+				onError?.(result.error || `Failed to ${newStatus === 'publish' ? 'publish' : 'unpublish'} entry`);
 				return { success: false, error: result.error };
 			}
 		} catch (e) {
-			const error = `Error ${newStatus === StatusTypes.publish ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
+			const error = `Error ${newStatus === 'publish' ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
 			onError?.(error);
 			return { success: false, error };
 		}
@@ -55,10 +54,10 @@ export async function toggleEntryStatus(options: StatusToggleOptions): Promise<{
  */
 export function getInitialPublishStatus(mode: string, collectionStatus?: StatusType, entryStatus?: StatusType): boolean {
 	if (mode === 'create') {
-		const defaultStatus = collectionStatus || StatusTypes.unpublish;
-		return defaultStatus === StatusTypes.publish;
+		const defaultStatus = collectionStatus || 'unpublish';
+		return defaultStatus === 'publish';
 	} else {
-		const status = entryStatus || collectionStatus || StatusTypes.unpublish;
-		return status === StatusTypes.publish;
+		const status = entryStatus || collectionStatus || 'unpublish';
+		return status === 'publish';
 	}
 }

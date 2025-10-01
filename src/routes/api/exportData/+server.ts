@@ -110,7 +110,7 @@ async function fetchAllCollectionData(collections: Record<string, DatabaseCollec
 
 		try {
 			const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant
-			const result = await dbAdapter.getCollectionData(name, filter);
+			const result = await dbAdapter.getCollectionEntries(name, filter);
 			const entryList = result.success ? result.data : [];
 			return [name, entryList];
 		} catch (error) {

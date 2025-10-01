@@ -98,7 +98,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		const folderId = url.searchParams.get('folderId'); // Get folderId from URL
-		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
+		logger.info(`Loading media gallery for folderId: \x1b[34m${folderId || 'root'}\x1b[0m`);
 
 		// Fetch all virtual folders first to find the current one
 		const allVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
@@ -108,7 +108,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			throw error(500, 'Failed to fetch virtual folders');
 		}
 
-		const serializedVirtualFolders = allVirtualFoldersResult.data.map((folder) => convertIdToString(folder));
+		// Ensure data is an array
+		const virtualFoldersData = Array.isArray(allVirtualFoldersResult.data) 
+			? allVirtualFoldersResult.data 
+			: [];
+		
+		const serializedVirtualFolders = virtualFoldersData.map((folder) => convertIdToString(folder));
 
 		// Determine current folder
 		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
@@ -141,7 +146,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			}
 		}
 
-		logger.info(`Fetched \x1b[31m${allMediaResults.length}\x1b[0m total media items from all collections`);
+		logger.info(`Fetched \x1b[34m${allMediaResults.length}\x1b[0m total media items from all collections`);
 
 		if (allMediaResults.length === 0) {
 			logger.info('No media items found in any collection');
@@ -156,7 +161,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			return acc;
 		}, []);
 
-		logger.info(`After deduplication: \x1b[31m${deduplicatedMedia.length}\x1b[0m unique media items`);
+		logger.info(`After deduplication: \x1b[34m${deduplicatedMedia.length}\x1b[0m unique media items`);
 
 		// Process and flatten media results - Filter and validate media items before processing
 		const processedMedia = deduplicatedMedia
@@ -213,8 +218,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.filter((item): item is NonNullable<typeof item> => item !== null);
 
-		logger.info(`Fetched ${processedMedia.length} media items for folder ${folderId || 'root'}`);
-		logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
+		logger.info(`Fetched \x1b[34m${processedMedia.length}\x1b[0m media items for folder \x1b[34m${folderId || 'root'}\x1b[0m`);
+		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m total virtual folders`);
 
 		const returnData = {
 			user: {

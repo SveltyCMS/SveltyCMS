@@ -28,28 +28,22 @@ This component provides a streamlined interface for managing collection entries 
 	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
 
 	// Import StatusTypes for centralized status management
+	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
-
 	// Stores
 	import { page } from '$app/state';
-	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
-	// Subscribe to shouldShowNextButton store for use in markup (runes mode)
-	let shouldShowNextButtonValue = $derived(shouldShowNextButton);
-	import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
-	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-
+	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
+	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
+	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 	// Utils & Components
-	import Toggles from './system/inputs/Toggles.svelte';
-	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
-	import { showScheduleModal } from '@utils/modalUtils';
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
-
+	import { showScheduleModal } from '@utils/modalUtils';
+	import Toggles from './system/inputs/Toggles.svelte';
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	const { user } = page.data;
@@ -60,14 +54,15 @@ This component provides a streamlined interface for managing collection entries 
 	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, isAdmin);
 
 	// --- Status Management using collection status directly  ---
-	const isPublish = $derived(() => {
+	function getIsPublish(): boolean {
 		const status = collectionValue.value?.status ?? collection.value?.status ?? StatusTypes.unpublish;
 		return status === StatusTypes.publish;
-	});
+	}
 	let isLoading = $state(false);
 
 	// Handle toggle changes - update collection status directly
 	async function handleStatusToggle(newValue: boolean) {
+		const isPublish = getIsPublish();
 		if (newValue === isPublish || isLoading) {
 			if (process.env.NODE_ENV !== 'production') {
 				console.log('[RightSidebar] Toggle skipped', { newValue, isPublish, isLoading });
@@ -76,7 +71,7 @@ This component provides a streamlined interface for managing collection entries 
 		}
 
 		isLoading = true;
-		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
+		const newStatus: StatusType = newValue ? StatusTypes.publish : StatusTypes.unpublish;
 		if (process.env.NODE_ENV !== 'production') {
 			console.log('[RightSidebar] Status toggle clicked - updating to:', newStatus);
 		}
@@ -98,7 +93,7 @@ This component provides a streamlined interface for managing collection entries 
 					}
 					return true;
 				} else {
-					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
+					showToast(result.error || `Failed to ${newValue ? StatusTypes.publish : StatusTypes.unpublish} entry`, 'error');
 
 					console.error('[RightSidebar] API update failed:', result.error);
 					return false;
@@ -112,7 +107,7 @@ This component provides a streamlined interface for managing collection entries 
 				return true;
 			}
 		} catch (e) {
-			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
+			const errorMessage = `Error ${newValue ? StatusTypes.publish : StatusTypes.unpublish} entry: ${(e as Error).message}`;
 			showToast(errorMessage, 'error');
 
 			console.error('[RightSidebar] Toggle error:', e);
@@ -169,7 +164,7 @@ This component provides a streamlined interface for managing collection entries 
 		showScheduleModal({
 			onSchedule: (date: Date, action: string) => {
 				schedule = date.toISOString();
-				if (action === 'schedule') {
+				if (action === StatusTypes.schedule) {
 					collectionValue.update((cv) => ({
 						...cv,
 						status: StatusTypes.schedule,
@@ -225,13 +220,13 @@ This component provides a streamlined interface for managing collection entries 
 
 {#if showSidebar}
 	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
-		{#if shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
+		{#if $shouldShowNextButton && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
 			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
 		{/if}
-		{#if !(shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
+		{#if !($shouldShowNextButton && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
 			<header class="flex flex-col items-center justify-center gap-3">
 				<button
 					type="button"
@@ -249,14 +244,14 @@ This component provides a streamlined interface for managing collection entries 
 
 				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
-						value={isPublish}
-						label={isPublish ? m.status_publish() : m.status_unpublish()}
-						labelColor={isPublish ? 'text-primary-500' : 'text-error-500'}
+						value={getIsPublish()}
+						label={getIsPublish() ? m.status_publish() : m.status_unpublish()}
+						labelColor={getIsPublish() ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						disabled={shouldDisableStatusToggle || isLoading}
-						on:change={(e) => handleStatusToggle(e.detail)}
-						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : isPublish ? m.status_publish() : m.status_unpublish()}
+						onChange={handleStatusToggle}
+						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : getIsPublish() ? m.status_publish() : m.status_unpublish()}
 					/>
 				</div>
 

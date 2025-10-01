@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		switch (action) {
 			case 'getStructure': {
 				// Return full structure with metadata
-				const { contentStructure: contentNodes } = await contentManager.getCollectionData(tenantId);
+				const contentNodes = await contentManager.getContentStructure(tenantId);
 
 				response = {
 					contentStructure: contentNodes
@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 			case 'getContentStructure': {
 				// Return content nodes from database
-				const { contentStructure } = await contentManager.getCollectionData(tenantId);
+				const contentStructure = await contentManager.getContentStructure(tenantId);
 				logger.info('Returning content structure from database', { tenantId });
 				response = {
 					success: true,
@@ -163,8 +163,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				}
 
 				await contentManager.updateCollections(true, tenantId);
-				const { contentStructure } = await contentManager.getCollectionData(tenantId);
-				
+				const contentStructure = await contentManager.getContentStructure(tenantId);
+
 				logger.info('Collections refreshed from compiled files', { tenantId, collectionsFound: contentStructure?.length || 0 });
 				return json({
 					success: true,

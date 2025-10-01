@@ -5,8 +5,8 @@
 
 <script lang="ts">
 	import { themeStore, updateTheme } from '@root/src/stores/themeStore.svelte';
+	import type { DatabaseId, ISODateString } from '@src/content/types';
 	import type { Theme } from '@src/databases/dbInterface';
-	import type { DatabaseId, ISODateString } from '@src/databases/types';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 

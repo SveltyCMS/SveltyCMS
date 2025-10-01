@@ -11,7 +11,7 @@ Features:
 <script lang="ts">
 	// Components
 	import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
+	import type { PermissionAction } from '@src/auth/types';
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
@@ -19,9 +19,10 @@ Features:
 	const modalStore = getModalStore();
 
 	// Function to handle permission updates
-	function handlePermissionUpdate(event: CustomEvent) {
+	function handlePermissionUpdate(updatedPermissions: Record<string, Record<PermissionAction, boolean>>) {
 		targetWidget.update((w) => {
-			w.permissions = event.detail;
+			if (!w) return w;
+			w.permissions = updatedPermissions;
 			return w;
 		});
 	}

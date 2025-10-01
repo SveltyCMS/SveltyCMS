@@ -105,7 +105,7 @@
 		<div id="color-palette-{key}" class="palette" use:setPosition>
 			<ColorPicker
 				bind:hex={color}
-				on:change={(e) => onChange?.(e.detail.hex)}
+				onchange={(e: CustomEvent<{ hex: string }>) => onChange?.(e.detail.hex)}
 				components={ChromeVariant}
 				sliderDirection="horizontal"
 				isDialog={false}

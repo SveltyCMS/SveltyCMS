@@ -8,12 +8,11 @@
  * - Redirects to the first collection with the correct language
  * - Throws an error if there are no collections for the tenant
  */
-import { publicEnv } from '@src/stores/globalSettings';
-import { privateEnv } from '@src/stores/globalSettings';
+import { privateEnv, publicEnv } from '@src/stores/globalSettings';
 
-import { redirect, error } from '@sveltejs/kit';
-import { dbInitPromise } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';
+import { dbInitPromise } from '@src/databases/db';
+import { error, redirect } from '@sveltejs/kit';
 
 import type { PageServerLoad } from './$types';
 

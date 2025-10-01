@@ -3,8 +3,8 @@
  * @description Theme manager for the CMS, utilizing a database-agnostic interface and now multi-tenant aware.
  */
 import { error } from '@sveltejs/kit';
+import type { DatabaseId, ISODateString } from '../content/types';
 import type { IDBAdapter, Theme } from './dbInterface';
-import type { DatabaseId, ISODateString } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -29,10 +29,9 @@ export const DEFAULT_THEME: Theme = {
 
 export class ThemeManager {
 	private static instance: ThemeManager;
-	private tenantThemes: Map<string, Theme> = new Map(); // Use a Map to store themes per tenant
+	private themeCache: Map<string, Theme> = new Map(); // Single cache for all themes
 	private db: IDBAdapter | null = null;
 	private initialized: boolean = false;
-	private defaultThemeCache: Theme | null = null;
 
 	private constructor() {}
 
@@ -48,14 +47,17 @@ export class ThemeManager {
 	}
 
 	public async initialize(db: IDBAdapter): Promise<void> {
+		if (this.initialized) {
+			logger.debug('ThemeManager already initialized, skipping.');
+			return;
+		}
+
 		try {
-			if (this.initialized) {
-				return;
-			}
 			this.db = db;
-			// No longer seed here - seeding is handled by the setup process
-			// Just verify the database connection and theme availability
-			await this.loadDefaultTheme();
+			
+			// Load and cache the default theme
+			await this.loadAndCacheDefaultTheme();
+			
 			this.initialized = true;
 			logger.info('ThemeManager initialized successfully.');
 		} catch (err) {
@@ -66,137 +68,72 @@ export class ThemeManager {
 	}
 
 	/**
-	 * Load the default theme from database into cache
+	 * Load the default theme from database and cache it
 	 */
-	private async loadDefaultTheme(): Promise<void> {
+	private async loadAndCacheDefaultTheme(): Promise<void> {
 		if (!this.db) throw new Error('Database adapter not initialized.');
 
 		try {
-			// Get the active theme from database
-			const activeThemeResult = await this.db.themes.getActive();
-
-			if (activeThemeResult.success && activeThemeResult.data) {
-				this.defaultThemeCache = activeThemeResult.data;
-				logger.debug('Default theme loaded from database');
-			} else {
-				// If no active theme found, get all themes and use the default one
-				const allThemes = await this.db.themes.getAllThemes();
-				if (Array.isArray(allThemes) && allThemes.length > 0) {
-					this.defaultThemeCache = allThemes.find((t) => t.isDefault) || allThemes[0];
-					logger.debug('Using first available theme as default');
-				} else {
-					logger.warn('No themes found in database. Theme seeding may be needed.');
-					this.defaultThemeCache = null;
-				}
+			// Single optimized database call - get all themes at once
+			const allThemes = await this.db.themes.getAllThemes();
+			
+			if (!Array.isArray(allThemes) || allThemes.length === 0) {
+				logger.warn('No themes found in database. Using DEFAULT_THEME fallback.');
+				this.themeCache.set('global', DEFAULT_THEME);
+				return;
 			}
-		} catch (error) {
-			logger.error('Failed to load default theme from database:', error);
-			this.defaultThemeCache = null;
+
+			// Find active theme, or default theme, or first theme
+			const defaultTheme = 
+				allThemes.find((t) => t.isActive) || 
+				allThemes.find((t) => t.isDefault) || 
+				allThemes[0];
+
+			// Cache it as the global default
+			this.themeCache.set('global', defaultTheme);
+			logger.debug(`Default theme cached: ${defaultTheme.name}`);
+		} catch (err) {
+			logger.error('Failed to load themes from database:', err);
+			// Fallback to DEFAULT_THEME on error
+			this.themeCache.set('global', DEFAULT_THEME);
 		}
-	}
-
-	/**
-	 * Get fallback theme configuration from database settings
-	 */
-	private async getFallbackThemeFromSettings(): Promise<Theme | null> {
-		if (!this.db?.systemPreferences) return null;
-
-		try {
-			const themeSettings = await this.db.systemPreferences.getMany(['DEFAULT_THEME_NAME', 'DEFAULT_THEME_PATH'], 'system');
-
-			if (themeSettings.success && themeSettings.data) {
-				const name = themeSettings.data.DEFAULT_THEME_NAME;
-				const path = themeSettings.data.DEFAULT_THEME_PATH;
-
-				if (name && path) {
-					// Create a minimal theme object from settings
-					return {
-						_id: 'fallback' as DatabaseId, // Temporary ID
-						name: String(name),
-						path: String(path),
-						isActive: false,
-						isDefault: true,
-						config: {
-							tailwindConfigPath: '',
-							assetsPath: ''
-						},
-						createdAt: new Date().toISOString() as ISODateString,
-						updatedAt: new Date().toISOString() as ISODateString
-					};
-				}
-			}
-		} catch (error) {
-			logger.debug('Could not load theme settings from database:', error);
-		}
-
-		return null;
 	}
 
 	public async getTheme(tenantId?: string): Promise<Theme> {
 		if (!this.initialized || !this.db) {
 			throw new Error('ThemeManager is not initialized.');
 		}
-		// TODO: Re-enable when multi-tenant config is available in database settings
-		// Check if multi-tenant mode is enabled via database settings
-		// const multiTenantSetting = await this.db.systemPreferences?.get('MULTI_TENANT', 'system');
-		// if (multiTenantSetting?.success && multiTenantSetting.data && !tenantId) {
-		// 	throw new Error('Tenant ID is required to get theme in multi-tenant mode.');
-		// }
 
 		const cacheKey = tenantId || 'global';
-		if (this.tenantThemes.has(cacheKey)) {
-			return this.tenantThemes.get(cacheKey)!;
+		
+		// Return from cache if available
+		if (this.themeCache.has(cacheKey)) {
+			return this.themeCache.get(cacheKey)!;
 		}
 
-		// Try to get theme from database first
-		let dbTheme: Theme | null = null;
-
-		try {
-			// If tenant-specific theme is requested, try to get it
-			// For now, we'll use the active theme since tenant-specific themes
-			// might need additional database schema
-			const activeThemeResult = await this.db.themes.getActive();
-			if (activeThemeResult.success && activeThemeResult.data) {
-				dbTheme = activeThemeResult.data;
+		// For tenant-specific themes, fetch from database
+		// For now, fall back to global theme since tenant-specific themes
+		// require additional schema implementation
+		if (tenantId) {
+			logger.debug(`No tenant-specific theme for ${tenantId}, using global theme`);
+			const globalTheme = this.themeCache.get('global');
+			if (globalTheme) {
+				return globalTheme;
 			}
-		} catch (error) {
-			logger.warn('Failed to get active theme from database:', error);
 		}
 
-		// If no theme from database, try cached default
-		if (!dbTheme && this.defaultThemeCache) {
-			dbTheme = this.defaultThemeCache;
-		}
-
-		// If still no theme, try fallback from settings
-		if (!dbTheme) {
-			dbTheme = await this.getFallbackThemeFromSettings();
-		}
-
-		// If we have a theme, cache it
-		if (dbTheme) {
-			this.tenantThemes.set(cacheKey, dbTheme);
-			return dbTheme;
-		}
-
-		// Final fallback - use the compile-time DEFAULT_THEME to avoid hard failure
-		logger.warn('No theme found in database or settings, using DEFAULT_THEME fallback.', { tenantId });
-		this.tenantThemes.set(cacheKey, DEFAULT_THEME);
+		// Final fallback - should rarely reach here
+		logger.warn('No cached theme found, using DEFAULT_THEME fallback.');
 		return DEFAULT_THEME;
 	}
-	public async setTheme(theme: Theme, tenantId?: string): Promise<void> {
-		try {
-			if (!this.initialized || !this.db) {
-				throw new Error('ThemeManager is not initialized.');
-			}
-			// TODO: Re-enable when multi-tenant config is available in database settings
-			// Check if multi-tenant mode is enabled via database settings
-			// const multiTenantSetting = await this.db.systemPreferences?.get('MULTI_TENANT', 'system');
-			// if (multiTenantSetting?.success && multiTenantSetting.data && !tenantId) {
-			// 	throw new Error('Tenant ID is required to set theme in multi-tenant mode.');
-			// }
 
-			// Use the proper database interface method to set default theme
+	public async setTheme(theme: Theme, tenantId?: string): Promise<void> {
+		if (!this.initialized || !this.db) {
+			throw new Error('ThemeManager is not initialized.');
+		}
+
+		try {
+			// Update database to set this theme as default
 			const setDefaultResult = await this.db.themes.setDefault(theme._id);
 
 			if (!setDefaultResult.success) {
@@ -205,14 +142,26 @@ export class ThemeManager {
 
 			// Update cache
 			const cacheKey = tenantId || 'global';
-			this.tenantThemes.set(cacheKey, theme);
-			this.defaultThemeCache = theme;
+			this.themeCache.set(cacheKey, theme);
 
-			logger.info(`Theme updated to: ${theme.name}`, { tenantId });
+			logger.info(`Theme updated to: ${theme.name}`, { tenantId: tenantId || 'global' });
 		} catch (err) {
 			const message = `Error in ThemeManager.setTheme: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { tenantId });
 			throw error(500, message);
 		}
+	}
+
+	/**
+	 * Clear cache and reload themes from database
+	 */
+	public async refresh(): Promise<void> {
+		if (!this.initialized || !this.db) {
+			throw new Error('ThemeManager is not initialized.');
+		}
+		
+		this.themeCache.clear();
+		await this.loadAndCacheDefaultTheme();
+		logger.debug('ThemeManager cache refreshed.');
 	}
 }

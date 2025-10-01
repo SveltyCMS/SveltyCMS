@@ -8,8 +8,8 @@
  * - Consistent date handling across the application
  */
 
-import type { ISODateString } from '../databases/types';
 import { logger } from '@utils/logger.svelte';
+import type { ISODateString } from '../content/types';
 
 // Type guard for ISODateString
 export function isISODateString(value: unknown): value is ISODateString {

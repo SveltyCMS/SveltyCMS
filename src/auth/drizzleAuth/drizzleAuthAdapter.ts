@@ -69,7 +69,9 @@ function mapDbRoleToRole(dbRole: Record<string, unknown> | null): Role | null {
  * Used as the database adapter for authentication when using Drizzle ORM
  */
 
-import { db } from '@root/src/databases/drizzle/drizzleDBAdapter';
+// TODO: Drizzle adapter is not yet implemented. This file is a stub.
+// import { db } from '@root/src/databases/drizzle/drizzleDBAdapter';
+const db: any = null; // Stub - Drizzle not implemented yet
 import type { authDBInterface, DatabaseResult, PaginationOption } from '../authDBInterface';
 import type { Permission, Role, Session, Token, User } from '../types';
 

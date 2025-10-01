@@ -1,15 +1,18 @@
 /**
  * @file src/widgets/core/input/index.ts
- * @description Input Widget Definition
+ * @description Input Widget Definition - Enterprise Text Input
  *
- * Implements a versatile text input widget using the Three Pillars Architecture.
- * This widget features a dynamic validation schema that adapts to the field's configuration.
+ * Implements a professional text input widget using the Three Pillars Architecture.
+ * This widget is specialized for text content and supports full translation capabilities.
  *
  * @features
- * - **Dynamic Validation**: Schema is generated based on `required`, `minLength`, etc.
+ * - **Text-Only**: Focused implementation for text content (use specialized widgets for email/phone/number)
+ * - **Dynamic Validation**: Schema is generated based on `required`, `minLength`, `maxLength`, etc.
  * - **Configurable GUI**: `GuiSchema` allows easy configuration in the Collection Builder.
  * - **Translatable**: Fully supports multilingual content entry by default.
  * - **Database Aggregation**: Supports case-insensitive text search and sorting.
+ * - **Character Counting**: Visual feedback for length constraints
+ * - **Prefix/Suffix Support**: Flexible UI composition
  */
 
 // Import components needed for the GuiSchema
@@ -22,16 +25,11 @@ import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
 import {
 	any,
-	email,
 	maxLength,
-	maxValue,
 	minLength,
-	minValue,
-	number as numberSchema,
 	object,
 	optional,
 	pipe,
-	regex,
 	string,
 	transform,
 	type BaseIssue,
@@ -42,7 +40,7 @@ import type { InputProps } from './types';
 
 // The validation schema is a function that receives the field config and returns a schema.
 const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
-	// Build a string schema first with common string rules
+	// Build a string schema with text-specific rules
 	const stringRules: Array<unknown> = [transform((s: string) => (typeof s === 'string' ? s.trim() : s))];
 
 	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
@@ -51,30 +49,8 @@ const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSche
 	if ((field as InputProps).maxLength)
 		stringRules.push(maxLength((field as InputProps).maxLength as number, `Must be no more than ${(field as InputProps).maxLength} characters.`));
 
-	// Handle special input types
-	if ((field as InputProps).inputType === 'email') {
-		stringRules.push(email('Invalid email address.'));
-	}
-
-	if ((field as InputProps).inputType === 'phone') {
-		// Default E.164 pattern unless a custom pattern is provided in field
-		const defaultPattern = /^\+[1-9]\d{1,14}$/;
-		const pattern = (field as InputProps).pattern ? new RegExp((field as InputProps).pattern as string) : defaultPattern;
-		stringRules.push(regex(pattern, 'Invalid phone number format.'));
-	}
-
-	// Start with appropriate base schema depending on inputType
-	let schema: BaseSchema<unknown, unknown, BaseIssue<unknown>> = pipe(string(), ...(stringRules as unknown as []));
-
-	if ((field as InputProps).inputType === 'number') {
-		const numberRules: Array<unknown> = [];
-		// Use minLength/maxLength for numeric bounds to keep configuration uniform across text/number
-		const minVal = field.minLength as number | undefined;
-		const maxVal = field.maxLength as number | undefined;
-		if (minVal !== undefined) numberRules.push(minValue(minVal, `Value must be at least ${minVal}.`));
-		if (maxVal !== undefined) numberRules.push(maxValue(maxVal, `Value must not exceed ${maxVal}.`));
-		schema = pipe(numberSchema(), ...(numberRules as unknown as []));
-	}
+	// Build the base string schema
+	const schema: BaseSchema<unknown, unknown, BaseIssue<unknown>> = pipe(string(), ...(stringRules as unknown as []));
 
 	// Translated fields store an object with language keys -> validate as flexible object
 	if (field.translated) {

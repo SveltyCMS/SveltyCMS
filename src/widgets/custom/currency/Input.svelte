@@ -38,9 +38,9 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 	// Create a memoized number formatter for the specified currency.
 	const formatter = $derived(
-		new Intl.NumberFormat(lang, {
+		new Intl.NumberFormat(lang as string, {
 			style: 'currency',
-			currency: field.currencyCode || 'EUR'
+			currency: (field.currencyCode as string) || 'EUR'
 		})
 	);
 
@@ -92,7 +92,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 		id={field.db_fieldName}
 		name={field.db_fieldName}
 		required={field.required}
-		placeholder={field.placeholder || formatter.format(0)}
+		placeholder={(field.placeholder as string) || formatter.format(0)}
 		bind:value={formattedValue}
 		oninput={handleInput}
 		onblur={handleBlur}

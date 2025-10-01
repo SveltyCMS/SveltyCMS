@@ -52,15 +52,14 @@ export const schema: Schema = {
 			prefix: 'pre',
 			suffix: 'suf',
 			count: 10,
-			minlength: 2,
-			maxlength: 15,
+			minLength: 2,
+			maxLength: 15,
 			placeholder: 'Enter Full Text',
 			translated: true,
 			required: true
 		}),
 
-		widgets.Input({
-			inputType: 'email',
+		widgets.Email({
 			label: 'Email',
 			db_fieldName: 'email',
 			icon: 'material-symbols:mail-outline',
@@ -92,14 +91,13 @@ export const schema: Schema = {
 			required: true
 		}),
 
-		widgets.Input({
-			inputType: 'number',
+		widgets.Number({
 			label: 'Number',
 			db_fieldName: 'number',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Number',
 			required: true,
-
+			min: 0,
 			prefix: 'height',
 			suffix: 'mm'
 		}),
@@ -116,8 +114,7 @@ export const schema: Schema = {
 			step: 0.01
 		}),
 
-		widgets.Input({
-			inputType: 'phone',
+		widgets.PhoneNumber({
 			label: 'Phone Number',
 			db_fieldName: 'phonenumber',
 			icon: 'ph:phone',
@@ -165,13 +162,13 @@ export const schema: Schema = {
 			db_fieldName: 'RichText',
 			icon: 'ri:t-box-line',
 			required: true
-		})
+		}),
 
-		// widgets.Seo({
-		// 	label: 'Seo',
-		// 	db_fieldName: 'seo',
-		// 	icon: 'tabler:seo',
-		// 	required: true
-		// })
+		widgets.Seo({
+			label: 'Seo',
+			db_fieldName: 'seo',
+			icon: 'tabler:seo',
+			required: true
+		})
 	]
 };

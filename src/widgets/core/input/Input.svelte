@@ -1,7 +1,7 @@
 <!--
 @file src/widgets/core/input/Input.svelte
 @component
-**Enhanced Input Widget Component with improved validation integration**
+**Enterprise-Grade Text Input Widget Component**
 
 @example
 <Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
@@ -16,70 +16,63 @@
 - **Touch State Management**: Proper error display based on interaction
 - **Async Validation**: Support for server-side validation
 - **Performance Optimized**: Debounced validation with cleanup
+- **Character Counting**: Visual feedback for length constraints
+- **Accessibility**: Full ARIA support and semantic HTML
+- **Visual Indicators**: Real-time validation feedback
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@src/stores/globalSettings';
 	import type { FieldType } from '.';
+
 	// Utils
 	import { getFieldName } from '@src/utils/utils';
 	import { untrack } from 'svelte';
-	// Valibot validation
-	import { contentLanguage, validationStore } from '@stores/store.svelte';
-	import { nonEmpty, nullable, parse, pipe, string, transform, type ValiError } from 'valibot';
 
-	let { field, value = $bindable() }: { field: FieldType; value?: any } = $props();
+	// Valibot validation
+	import {
+		string,
+		pipe,
+		parse,
+		type ValiError,
+		nonEmpty,
+		nullable,
+		transform,
+		minLength as valibotMinLength,
+		maxLength as valibotMaxLength
+	} from 'valibot';
+	import { validationStore } from '@root/src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings';
+
+	// Props
+	interface Props {
+		field: FieldType;
+		value?: any;
+		validateOnMount?: boolean;
+		validateOnChange?: boolean;
+		validateOnBlur?: boolean;
+		debounceMs?: number;
+	}
+
+	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
+
+	// Get default language from environment
+	const _language = (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase();
 
 	// Initialize value if null/undefined
-	$effect(() => {
-		if (!value) {
-			if (field?.translated) {
-				value = { [contentLanguage.value.toLowerCase()]: '' };
-			} else {
-				value = { [(publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase()]: '' };
-			}
-		}
-	});
-
-	// Field name for validation
-	const fieldName = getFieldName(field);
-
-	// Language handling - with safe fallback
-	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
-
 	// Safe value access with fallback
 	let safeValue = $derived(value?.[_language] ?? '');
-
-	// Local text state for input binding
-	let text = $state('');
-
-	// Compute native input type string for binding
-	const inputTypeStr =
-		field?.inputType && (field?.inputType as string) !== ''
-			? (field?.inputType as string) === 'phone'
-				? 'tel'
-				: (field?.inputType as string)
-			: 'text';
-
-	// Numeric bounds: use `minLength`/`maxLength` for numeric ranges to keep
-	// configuration uniform between text and number fields.
-	let numericMin = $derived(field?.minLength as number | undefined);
-	let numericMax = $derived(field?.maxLength as number | undefined);
-
-	// Update text when safeValue changes
-	$effect(() => {
-		text = safeValue;
-	});
 
 	// Character count
 	let count = $derived(safeValue?.length ?? 0);
 
 	// Validation state - now using the enhanced validation store
-	let inputElement: HTMLInputElement | null = null;
 	let debounceTimeout: number | undefined;
 	let hasValidatedOnMount = $state(false);
+	let inputElement: HTMLInputElement | null = null;
 
 	// Get validation state from store
+	// Define fieldName using getFieldName utility
+	let fieldName = getFieldName(field);
 	let validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
@@ -103,15 +96,23 @@
 	};
 
 	// Create validation schema
-	let validationSchema = $derived(
-		field?.required
-			? pipe(
-					string(),
-					nonEmpty(),
-					transform((val) => (inputElement?.type === 'number' ? Number(val) : val))
-				)
-			: nullable(string())
-	);
+	let validationSchema = $derived.by(() => {
+		const rules: Array<unknown> = [transform((val: string) => (typeof val === 'string' ? val.trim() : val))];
+
+		if (field?.required) {
+			rules.push(nonEmpty('This field is required'));
+		}
+
+		if (typeof field?.minLength === 'number') {
+			rules.push(valibotMinLength(field.minLength, `Minimum length is ${field.minLength}`));
+		}
+
+		if (typeof field?.maxLength === 'number') {
+			rules.push(valibotMaxLength(field.maxLength, `Maximum length is ${field.maxLength}`));
+		}
+
+		return field?.required ? pipe(string(), ...(rules as [])) : nullable(pipe(string(), ...(rules as [])));
+	});
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {
@@ -139,7 +140,7 @@
 				}
 
 				// Length validations
-				if (currentValue !== null && currentValue !== undefined) {
+				if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
 					if (field?.minLength && currentValue.length < field.minLength) {
 						const error = `Minimum length is ${field.minLength}`;
 						validationStore.setError(fieldName, error);
@@ -149,26 +150,6 @@
 						const error = `Maximum length is ${field.maxLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
-					}
-
-					// Number validation for number inputs
-					if (field?.inputType === 'number' || inputElement?.type === 'number') {
-						const num = Number(currentValue);
-						if (isNaN(num)) {
-							const error = 'Invalid number format';
-							validationStore.setError(fieldName, error);
-							return error;
-						}
-						if (numericMin !== undefined && num < numericMin) {
-							const error = `Value must be at least ${numericMin}`;
-							validationStore.setError(fieldName, error);
-							return error;
-						}
-						if (numericMax !== undefined && num > numericMax) {
-							const error = `Value must not exceed ${numericMax}`;
-							validationStore.setError(fieldName, error);
-							return error;
-						}
 					}
 				}
 
@@ -203,26 +184,24 @@
 				debounceTimeout = window.setTimeout(async () => {
 					const result = await doValidation();
 					resolve(result);
-				}, 300);
+				}, debounceMs);
 			});
 		}
 	}
 
 	// Handle input changes
 	function handleInput() {
-		// Update the value object
-		if (value) {
-			value = { ...value, [_language]: text };
-		} else {
-			value = { [_language]: text };
+		if (validateOnChange) {
+			validateInput(false);
 		}
-		validateInput(false);
 	}
 
 	// Handle blur events
 	async function handleBlur() {
 		isTouched = true;
-		await validateInput(true);
+		if (validateOnBlur) {
+			await validateInput(true);
+		}
 	}
 
 	// Handle focus events
@@ -250,7 +229,7 @@
 
 	// Initialize validation on mount if requested - only run once
 	$effect(() => {
-		if (!hasValidatedOnMount) {
+		if (validateOnMount && !hasValidatedOnMount) {
 			hasValidatedOnMount = true;
 			if (process.env.NODE_ENV !== 'production') {
 				console.log(
@@ -273,22 +252,25 @@
 	// Watch for value changes from external sources
 	$effect(() => {
 		// This effect runs when safeValue changes
-		if (isTouched) {
+		if (isTouched && validateOnChange) {
 			validateInput(false);
 		}
 	});
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => value;
 </script>
 
 <div class="input-container relative mb-4">
 	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
-			<button class="!px-2" aria-label={`${field.prefix} prefix`}>
+			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
 			</button>
 		{/if}
 
 		<input
-			type={inputTypeStr}
+			type="text"
 			value={safeValue}
 			oninput={(e) => {
 				updateValue(e.currentTarget.value);
@@ -299,15 +281,12 @@
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			bind:this={inputElement}
-			placeholder={field?.placeholder && (field?.placeholder as string) !== '' ? (field?.placeholder as string) : field?.db_fieldName}
-			required={field?.required}
-			disabled={field?.disabled as boolean}
-			readonly={field?.readonly as boolean}
-			minlength={field?.minLength as number}
-			maxlength={field?.maxLength as number}
-			min={numericMin}
-			max={numericMax}
-			step={field?.step as number}
+			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			required={field?.required as boolean | undefined}
+			disabled={field?.disabled as boolean | undefined}
+			readonly={field?.readonly as boolean | undefined}
+			minlength={field?.minLength as number | undefined}
+			maxlength={field?.maxLength as number | undefined}
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:error={!!validationError}
 			class:validating={isValidating}

@@ -1,9 +1,16 @@
 /**
  * @file src/stores/globalSettings.ts
- * @description
+ * @description Global settings management for SveltyCMS applications
  *
  * ### Features
- *
+ * - Global settings management
+ * - Reactive settings management with auto-refresh
+ * - Error handling for API calls
+ * - TypeScript support
+ * - Type-safe public and private settings
+ * - Client-side & Server-side configuration
+ * - Static & Dynamic configuration
+ * - Valibot schema validation
  */
 
 import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
@@ -17,9 +24,7 @@ let cacheLoaded = false;
 let privateEnv: PrivateEnv = {} as PrivateEnv;
 let publicEnv: PublicEnv = {} as PublicEnv;
 
-/**
- * A boolean indicating whether the settings cache has been loaded.
- */
+// A boolean indicating whether the settings cache has been loaded
 export function isCacheLoaded(): boolean {
 	return cacheLoaded;
 }
@@ -76,10 +81,10 @@ export function getPrivateSetting<K extends keyof PrivateEnv>(key: K): PrivateEn
  */
 export function getUntypedSetting<T = unknown>(key: string): T | undefined {
 	if ((publicEnv as Record<string, unknown>)[key] !== undefined) {
-		return (publicEnv as Record<string, T>)[key];
+		return (publicEnv as unknown as Record<string, T>)[key];
 	}
 	if ((privateEnv as Record<string, unknown>)[key] !== undefined) {
-		return (privateEnv as Record<string, T>)[key];
+		return (privateEnv as unknown as Record<string, T>)[key];
 	}
 	return undefined;
 }
@@ -87,9 +92,7 @@ export function getUntypedSetting<T = unknown>(key: string): T | undefined {
 export { privateEnv, publicEnv };
 
 // --- Snapshot Utilities ---
-/**
- * Returns a merged view of all current settings for export.
- */
+// Returns a merged view of all current settings for export
 export async function getAllSettings(): Promise<Record<string, unknown>> {
 	return {
 		public: { ...publicEnv },

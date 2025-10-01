@@ -138,7 +138,7 @@ Key features:
 								{/each}
 							</tbody>
 						</table>
-						<div class="bg-surface-100-800-token arrow" ></div>
+						<div class="bg-surface-100-800-token arrow"></div>
 					</div>
 
 					<button aria-label="Edit" class="btn-icon">

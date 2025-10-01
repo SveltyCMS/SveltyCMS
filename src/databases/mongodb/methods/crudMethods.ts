@@ -1,0 +1,175 @@
+/**
+ * @file src/databases/mongodb/methods/crudMethods.ts
+ * @description A generic, reusable class for performing CRUD operations on any MongoDB collection.
+ */
+
+import { type FilterQuery, type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoose';
+import type { BaseEntity, DatabaseId } from '../../dbInterface';
+import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
+
+export class MongoCrudMethods<T extends BaseEntity> {
+	public readonly model: Model<T>;
+
+	constructor(model: Model<T>) {
+		this.model = model;
+	}
+
+	async findOne(query: FilterQuery<T>): Promise<T | null> {
+		try {
+			const result = await this.model.findOne(query).lean().exec();
+			if (!result) return null;
+			return processDates(result) as T;
+		} catch (error) {
+			throw createDatabaseError(error, 'FIND_ONE_ERROR', `Failed to find document in ${this.model.modelName}`);
+		}
+	}
+
+	async findByIds(ids: DatabaseId[]): Promise<T[]> {
+		try {
+			const results = await this.model
+				.find({ _id: { $in: ids } } as FilterQuery<T>)
+				.lean()
+				.exec();
+			return processDates(results) as T[];
+		} catch (error) {
+			throw createDatabaseError(error, 'FIND_BY_IDS_ERROR', `Failed to find documents by IDs in ${this.model.modelName}`);
+		}
+	}
+
+	async findMany(query: FilterQuery<T>, options: { limit?: number; skip?: number } = {}): Promise<T[]> {
+		try {
+			const results = await this.model
+				.find(query)
+				.skip(options.skip ?? 0)
+				.limit(options.limit ?? 0)
+				.lean()
+				.exec();
+			return processDates(results) as T[];
+		} catch (error) {
+			throw createDatabaseError(error, 'FIND_MANY_ERROR', `Failed to find documents in ${this.model.modelName}`);
+		}
+	}
+
+	async insert(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+		try {
+			const doc = {
+				...data,
+				_id: generateId(),
+				createdAt: new Date(),
+				updatedAt: new Date()
+			} as T;
+			const result = await this.model.create(doc);
+			return result.toObject();
+		} catch (error) {
+			if (error instanceof mongo.MongoServerError && error.code === 11000) {
+				throw createDatabaseError(error, 'DUPLICATE_KEY_ERROR', 'A document with the same unique key already exists.');
+			}
+			throw createDatabaseError(error, 'INSERT_ERROR', `Failed to insert document into ${this.model.modelName}`);
+		}
+	}
+
+	async update(id: DatabaseId, data: UpdateQuery<T>): Promise<T | null> {
+		try {
+			const updateData = {
+				...(data as object),
+				updatedAt: new Date()
+			};
+			const result = await this.model.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec();
+
+			if (!result) return null;
+			return processDates(result) as T;
+		} catch (error) {
+			throw createDatabaseError(error, 'UPDATE_ERROR', `Failed to update document ${id} in ${this.model.modelName}`);
+		}
+	}
+
+	async upsert(query: FilterQuery<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+		try {
+			const result = await this.model
+				.findOneAndUpdate(
+					query,
+					{
+						$set: { ...data, updatedAt: new Date() },
+						$setOnInsert: { _id: generateId(), createdAt: new Date() }
+					},
+					{ new: true, upsert: true, runValidators: true }
+				)
+				.lean()
+				.exec();
+			return processDates(result) as T;
+		} catch (error) {
+			throw createDatabaseError(error, 'UPSERT_ERROR', `Failed to upsert document in ${this.model.modelName}`);
+		}
+	}
+
+	async delete(id: DatabaseId): Promise<boolean> {
+		try {
+			const result = await this.model.deleteOne({ _id: id } as FilterQuery<T>);
+			return result.deletedCount > 0;
+		} catch (error) {
+			throw createDatabaseError(error, 'DELETE_ERROR', `Failed to delete document ${id} from ${this.model.modelName}`);
+		}
+	}
+
+	async deleteMany(query: FilterQuery<T>): Promise<{ deletedCount: number }> {
+		try {
+			const result = await this.model.deleteMany(query);
+			return { deletedCount: result.deletedCount };
+		} catch (error) {
+			throw createDatabaseError(error, 'DELETE_MANY_ERROR', `Failed to delete documents from ${this.model.modelName}`);
+		}
+	}
+
+	async upsertMany(
+		items: Array<{ query: FilterQuery<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+	): Promise<{ upsertedCount: number; modifiedCount: number }> {
+		try {
+			if (items.length === 0) return { upsertedCount: 0, modifiedCount: 0 };
+
+			const now = new Date();
+			const operations = items.map((item) => ({
+				updateOne: {
+					filter: item.query,
+					update: {
+						$set: { ...item.data, updatedAt: now },
+						$setOnInsert: { _id: generateId(), createdAt: now }
+					},
+					upsert: true
+				}
+			}));
+
+			const result = await this.model.bulkWrite(operations);
+			return {
+				upsertedCount: result.upsertedCount,
+				modifiedCount: result.modifiedCount
+			};
+		} catch (error) {
+			throw createDatabaseError(error, 'UPSERT_MANY_ERROR', `Failed to upsert documents in ${this.model.modelName}`);
+		}
+	}
+
+	async count(query: FilterQuery<T> = {}): Promise<number> {
+		try {
+			return await this.model.countDocuments(query);
+		} catch (error) {
+			throw createDatabaseError(error, 'COUNT_ERROR', `Failed to count documents in ${this.model.modelName}`);
+		}
+	}
+
+	async exists(query: FilterQuery<T>): Promise<boolean> {
+		try {
+			const doc = await this.model.exists(query);
+			return !!doc;
+		} catch (error) {
+			throw createDatabaseError(error, 'EXISTS_ERROR', `Failed to check for document existence in ${this.model.modelName}`);
+		}
+	}
+
+	async aggregate<R>(pipeline: PipelineStage[]): Promise<R[]> {
+		try {
+			return await this.model.aggregate<R>(pipeline).exec();
+		} catch (error) {
+			throw createDatabaseError(error, 'AGGREGATION_ERROR', `Aggregation failed in ${this.model.modelName}`);
+		}
+	}
+}

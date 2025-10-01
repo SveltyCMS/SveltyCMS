@@ -65,7 +65,11 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const page = Number(url.searchParams.get('page') ?? 1);
 		const pageSize = Number(url.searchParams.get('pageSize') ?? 25);
 		const sortField = url.searchParams.get('sortField') || 'createdAt';
-		const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc' | null) || 'desc';
+		const sortDirectionParam = url.searchParams.get('sortDirection');
+		const sortDirection: 'asc' | 'desc' = 
+			sortDirectionParam === 'asc' || sortDirectionParam === 'desc' 
+				? sortDirectionParam 
+				: 'desc';
 		const filterParam = url.searchParams.get('filter');
 
 		let filter = {};

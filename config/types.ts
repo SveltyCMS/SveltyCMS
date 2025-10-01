@@ -36,7 +36,39 @@ export const privateConfigSchema = object({
 	ENCRYPTION_KEY: pipe(string(), minLength(32, 'Encryption Key must be at least 32 characters long for security.')), // Encryption key for sensitive data
 
 	// --- Multi-tenancy (Essential for startup) ---
-	MULTI_TENANT: optional(boolean()) // Enable multi-tenant database support
+	MULTI_TENANT: optional(boolean()), // Enable multi-tenant database support
+
+	// --- Optional service toggles (populated dynamically post-startup) ---
+	USE_REDIS: optional(boolean()),
+	REDIS_HOST: optional(pipe(string(), minLength(1))),
+	REDIS_PORT: optional(pipe(number(), minValue(1))),
+	REDIS_PASSWORD: optional(string()),
+	GOOGLE_CLIENT_ID: optional(pipe(string(), minLength(1))),
+	GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
+	GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),
+	SMTP_HOST: optional(pipe(string(), minLength(1))),
+	SMTP_PORT: optional(pipe(number(), minValue(1))),
+	SMTP_USER: optional(string()),
+	SMTP_PASS: optional(string()),
+	SMTP_MAIL_FROM: optional(string()),
+	SMTP_EMAIL: optional(string()),
+	ROLES: optional(
+		array(
+			object({
+				_id: pipe(string(), minLength(1)),
+				name: pipe(string(), minLength(1)),
+				description: optional(string()),
+				permissions: array(pipe(string(), minLength(1))),
+				isAdmin: optional(boolean()),
+				icon: optional(string()),
+				color: optional(string())
+			})
+		)
+	),
+	MEDIA_FOLDER: optional(pipe(string(), minLength(1))),
+	TWITCH_CLIENT_ID: optional(pipe(string(), minLength(1))),
+	TWITCH_TOKEN: optional(pipe(string(), minLength(1))),
+	TIKTOK_TOKEN: optional(pipe(string(), minLength(1)))
 });
 
 /**
@@ -99,7 +131,8 @@ export const publicConfigSchema = object({
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
 	// --- Demo Mode ---
 
-	DEMO: optional(boolean()) // Set to `true` to enable demo mode, which may restrict certain features
+	DEMO: optional(boolean()), // Set to `true` to enable demo mode, which may restrict certain features
+	USE_GOOGLE_OAUTH: optional(boolean()) // Enable Google OAuth login on the public-facing login page
 });
 
 /**

@@ -90,13 +90,11 @@ This widget fetches and displays real-time disk usage data, including:
 	}
 	// Move diskInfo extraction to script for chart logic
 	let diskInfo: any = undefined;
-	let totalGB = 0,
-		usedPercentage = 0;
+	let totalGB = 0;
 	$effect(() => {
 		if (currentData?.diskInfo?.root) {
 			diskInfo = currentData.diskInfo.root;
 			totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0;
-			usedPercentage = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : diskInfo.usedPercentage || 0;
 		}
 	});
 	$effect(() => {

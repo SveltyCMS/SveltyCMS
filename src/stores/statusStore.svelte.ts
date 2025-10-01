@@ -11,8 +11,6 @@
  */
 
 import type { ToastStore } from '@skeletonlabs/skeleton';
-import type { StatusType } from '@src/content/types';
-import { StatusTypes } from '@src/content/types';
 import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';
@@ -35,12 +33,12 @@ function getInitialStatus(): boolean {
 
 	// For create mode: use collection default, fallback to unpublish
 	if (mode.value === 'create') {
-		const defaultStatus = collectionStatus || StatusTypes.unpublish;
-		return defaultStatus === StatusTypes.publish;
+		const defaultStatus = collectionStatus || 'unpublish';
+		return defaultStatus === 'publish';
 	} else {
 		// For edit mode: use entry status, fallback to collection status, then unpublish
-		const entryStatus = cv?.status || collectionStatus || StatusTypes.unpublish;
-		return entryStatus === StatusTypes.publish;
+		const entryStatus = cv?.status || collectionStatus || 'unpublish';
+		return entryStatus === 'publish';
 	}
 }
 
@@ -111,7 +109,7 @@ export const statusStore = {
 		const previousValue = statusState.isPublish;
 		statusState.isPublish = newValue;
 
-		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
+		const newStatus = newValue ? 'publish' : 'unpublish';
 		console.log(`[StatusStore] Status toggle from ${componentName} - updating to:`, newStatus);
 
 		try {
@@ -160,7 +158,7 @@ export const statusStore = {
 
 	// Get current status for saving
 	getStatusForSave(): StatusType {
-		return statusState.isPublish ? StatusTypes.publish : StatusTypes.unpublish;
+		return statusState.isPublish ? 'publish' : 'unpublish';
 	},
 
 	// Reset user toggle flag (used when switching entries/modes)

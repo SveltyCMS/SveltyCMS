@@ -148,7 +148,7 @@ class RedisStore implements ICacheStore {
 		let cursor = 0;
 		do {
 			const result = await this.client!.scan(cursor, { MATCH: pattern, COUNT: 100 });
-			cursor = result.cursor;
+			cursor = parseInt(String(result.cursor), 10); // Convert cursor to number
 			if (result.keys.length > 0) await this.client!.del(result.keys);
 		} while (cursor !== 0);
 	}

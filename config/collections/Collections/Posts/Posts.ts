@@ -19,13 +19,12 @@ export const schema: Schema = {
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [
-		widgets.Input({
-			inputType: 'email',
+		widgets.Email({
 			label: 'Email',
 			icon: 'material-symbols:mail',
 			display: async ({ data, contentLanguage }: Parameters<NonNullable<FieldInstance['display']>>[0]) => {
-				// Fallback to the first language key if contentLanguage is not provided
-				const lang = contentLanguage ?? Object.keys(data)[0];
+				// Since email is non-translatable, use default language
+				const lang = 'en'; // or use publicEnv.DEFAULT_CONTENT_LANGUAGE
 				return data[lang as string] as string;
 			}
 		}),

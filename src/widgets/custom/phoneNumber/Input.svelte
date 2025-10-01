@@ -1,78 +1,110 @@
 <!--
 @file src/widgets/custom/phoneNumber/Input.svelte
 @component
-**PhoneNumber Widget Input Component**
-
-Provides telephone number input with HTML5 validation and mobile keyboard optimization.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+**Enterprise-Grade PhoneNumber Widget Component**
 
 @example
-<PhoneNumberInput bind:value={phoneNumber} field={{ pattern: "[0-9+-\\s]+" }} />
-<!-- HTML5 tel input with pattern validation and mobile keyboard
+<PhoneNumber field={{ label: "Phon				required={field?.required as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				pattern={field?.pattern as string | undefined}
+				class="input w-full flex-1 rounded-none text-black dark:text-primary-500"b_fieldName: "phone", required: true }} />
 
 ### Props
-- `field: FieldType` - Widget field definition with pattern validation and metadata
-- `value: string | null | undefined` - Phone number string (bindable)
-- `error?: string | null` - Validation error message for display
+- `field`: FieldType
+- `value`: any
 
 ### Features
-- **HTML5 Tel Input**: Native telephone input type for optimal mobile experience
-- **Pattern Validation**: Configurable regex patterns for format validation
-- **Mobile Optimized**: Telephone keypad layout on mobile devices
-- **International Support**: Handles various phone number formats and country codes
-- **Error State Styling**: Visual error indication with red border and messaging
-- **Accessibility**: Full ARIA support with error association and invalid states
-- **Required Field Support**: HTML5 required attribute integration
-- **Placeholder Text**: Configurable placeholder for user guidance
-- **Debounced Validation**: Prevents excessive validation calls during typing
-- **Validation Store Integration**: Integrates with the app's validation system
-- **Focus Management**: Auto-focus on required empty fields
-- **PostCSS Styling**: Modern CSS with utility-first approach
+- **Phone Validation**: E.164 international format or custom pattern
+- **Non-Translatable**: Phone numbers are universal values
+- **Semantic HTML**: Uses type="tel" for proper mobile keyboards
+- **Pattern Support**: Configurable regex for different formats
+- **Enhanced Validation**: Integration with validation store
+- **Touch State Management**: Proper error display based on interaction
+- **Debounced Validation**: Performance-optimized validation
+- **Accessibility**: Full ARIA support and semantic HTML
+- **Auto-Focus**: Focus management for required fields
+- **International Support**: Default E.164 format (+1234567890)
 -->
 
 <script lang="ts">
-	import { validationStore } from '@stores/store.svelte';
-	import { getFieldName } from '@utils/utils';
-	import { onDestroy, onMount } from 'svelte';
-	import { parse, pipe, regex, string, type ValiError } from 'valibot';
-	import type { FieldType } from './';
+	import { onMount, onDestroy } from 'svelte';
+	import type { FieldType } from '.';
+	import { publicEnv } from '@src/stores/globalSettings';
 
-	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null } = $props();
+	// Stores
+	import { validationStore } from '@stores/store.svelte';
+
+	import { getFieldName } from '@utils/utils';
+
+	// Valibot validation
+	import { string, regex, pipe, parse, type ValiError, minLength, optional } from 'valibot';
+
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = $bindable() }: Props = $props();
 
 	const fieldName = getFieldName(field);
+	const _language = (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase();
 
-	let inputElement: HTMLInputElement | null = $state(null);
+	// Initialize value
+	$effect(() => {
+		if (!value) {
+			value = { [_language]: '' };
+		}
+	});
+
+	let safeValue = $derived(value?.[_language] ?? '');
+	let validationError = $derived(validationStore.getError(fieldName));
 	let debounceTimeout: number | undefined;
+	let inputElement = $state<HTMLInputElement | null>(null);
+	let isTouched = $state(false);
 	let isValidating = $state(false);
 
 	// Create validation schema for phone number
-	const phoneSchema = pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number'));
+	// Default E.164 pattern unless a custom pattern is provided
+	const defaultPattern = /^\+?[1-9]\d{1,14}$/;
+	const validationPattern = $derived(typeof field.pattern === 'string' && field.pattern.trim() !== '' ? new RegExp(field.pattern) : defaultPattern);
 
-	// Validation function with debouncing
+	const phoneSchema = $derived(
+		field?.required
+			? pipe(
+					string(),
+					minLength(1, 'This field is required'),
+					regex(validationPattern, 'Invalid phone number format. Please use international format (e.g., +1234567890)')
+				)
+			: optional(pipe(string(), regex(validationPattern, 'Invalid phone number format. Please use international format (e.g., +1234567890)')), '')
+	);
+
+	// Validation function with debounce
 	function validateInput(immediate = false) {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
 		const doValidation = () => {
-			isValidating = true;
 			try {
-				// Required field validation
-				if (field?.required && (!value || value.trim() === '')) {
-					const errorMsg = 'This field is required';
-					validationStore.setError(fieldName, errorMsg);
+				isValidating = true;
+				const currentValue = safeValue;
+
+				// First validate if required
+				if (field?.required && (!currentValue || currentValue.trim() === '')) {
+					validationStore.setError(fieldName, 'This field is required');
 					return;
 				}
 
-				// Phone format validation if value exists
-				if (value && value.trim() !== '') {
-					parse(phoneSchema, value);
+				// Then validate phone format if value exists
+				if (currentValue && currentValue.trim() !== '') {
+					parse(phoneSchema, currentValue);
 				}
 
 				validationStore.clearError(fieldName);
 			} catch (error) {
 				if ((error as ValiError<typeof phoneSchema>).issues) {
 					const valiError = error as ValiError<typeof phoneSchema>;
-					const errorMsg = valiError.issues[0]?.message || 'Invalid input';
-					validationStore.setError(fieldName, errorMsg);
+					const errorMessage = valiError.issues[0]?.message || 'Invalid input';
+					validationStore.setError(fieldName, errorMessage);
 				}
 			} finally {
 				isValidating = false;
@@ -87,75 +119,105 @@ Part of the Three Pillars Architecture for enterprise-ready widget system.
 	}
 
 	// Handle input changes
-	function handleInput() {
-		validateInput(false);
+	function handleInput(e: Event) {
+		const target = e.currentTarget as HTMLInputElement;
+		if (!value) {
+			value = {};
+		}
+		value = { ...value, [_language]: target.value };
 	}
 
-	// Handle blur events
+	// Handle blur
 	function handleBlur() {
+		isTouched = true;
 		validateInput(true);
 	}
 
 	// Focus management
 	onMount(() => {
-		if (field?.required && (!value || value.trim() === '')) {
+		if (field?.required && !safeValue) {
 			inputElement?.focus();
 		}
 	});
 
+	// Cleanup
 	onDestroy(() => {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 	});
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => value;
 </script>
 
-<div class="input-container">
-	<input
-		type="tel"
-		id={field.db_fieldName}
-		name={field.db_fieldName}
-		required={field.required}
-		placeholder={field.placeholder as string}
-		pattern={field.pattern as string}
-		bind:value
-		bind:this={inputElement}
-		oninput={handleInput}
-		onblur={handleBlur}
-		class="input"
-		class:invalid={error}
-		class:validating={isValidating}
-		aria-invalid={!!error}
-		aria-describedby={error ? `${field.db_fieldName}-error` : undefined}
-	/>
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+		<input
+			type="tel"
+			bind:this={inputElement}
+			aria-label={field?.label || field?.db_fieldName}
+			value={safeValue}
+			oninput={handleInput}
+			onblur={handleBlur}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			placeholder={typeof field?.placeholder === 'string' && field?.placeholder.trim() !== '' ? field.placeholder : '+1234567890'}
+			required={field?.required}
+			readonly={field?.readonly}
+			disabled={field?.disabled}
+			pattern={field?.pattern}
+			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
+			class:error={!!validationError}
+			class:validating={isValidating}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-required={field?.required}
+			data-testid="phone-input"
+			autocomplete="tel"
+		/>
 
-	{#if error}
-		<p class="error-message" role="alert">{error}</p>
+		<!-- Validation indicator -->
+		{#if isValidating}
+			<div class="flex items-center px-2" aria-label="Validating">
+				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+			</div>
+		{/if}
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError && isTouched}
+		<p
+			id={`${field.db_fieldName}-error`}
+			class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500"
+			role="alert"
+			aria-live="polite"
+		>
+			{validationError}
+		</p>
 	{/if}
 </div>
 
 <style lang="postcss">
-	/* Styles are identical to the Text input component */
 	.input-container {
-		position: relative;
-		padding-bottom: 1.5rem;
-		width: 100%;
+		min-height: 2.5rem;
 	}
 
-	.input.invalid {
-		border-color: #ef4444;
+	.error {
+		border-color: rgb(239 68 68);
+		box-shadow: 0 0 0 1px rgb(239 68 68);
 	}
 
-	.input.validating {
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 1px #3b82f6;
+	.validating {
+		border-color: rgb(59 130 246);
+		box-shadow: 0 0 0 1px rgb(59 130 246);
 	}
 
-	.error-message {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-		text-align: center;
-		font-size: 0.75rem;
-		color: #ef4444;
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.animate-spin {
+		animation: spin 1s linear infinite;
 	}
 </style>

@@ -32,7 +32,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	try {
 		await contentManager.initialize();
 
-		const { contentStructure } = await contentManager.getCollectionData();
+		const contentStructure = contentManager.getNavigationStructure();
 
 		// Get fresh user data from database to ensure we have the latest avatar info
 		let freshUser = user;

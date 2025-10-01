@@ -9,6 +9,8 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { ContentRevision, DatabaseResult } from '@src/databases/dbInterface';
+import type { DatabaseId, ISODateString } from '@src/content/types';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -21,9 +23,8 @@ export const revisionSchema = new Schema<ContentRevision>(
 		data: { type: Schema.Types.Mixed, required: true }, // Content of the revision
 		version: { type: Number, required: true }, // Version number of the revision
 		commitMessage: String, // Optional commit message for the revision
-		authorId: { type: String, required: true }, // DatabaseId of author
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now }
+		authorId: { type: String, required: true } // DatabaseId of author
+		// Note: createdAt and updatedAt are handled by timestamps: true
 	},
 	{
 		timestamps: true, // Enable timestamps for createdAt and updatedAt
@@ -47,12 +48,15 @@ revisionSchema.statics = {
 				.exec();
 			return { success: true, data: revisions };
 		} catch (error) {
-			logger.error(`Error retrieving revision history for content ID: ${contentId}: ${error.message}`);
+			const message = `Failed to retrieve revision history for content ID: ${contentId}`;
+			const err = error as Error;
+			logger.error(`Error retrieving revision history for content ID: ${contentId}: ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'REVISION_HISTORY_ERROR',
-					message: `Failed to retrieve revision history for content ID: ${contentId}`
+					message
 				}
 			};
 		}
@@ -65,12 +69,14 @@ revisionSchema.statics = {
 			logger.info(`Bulk deleted ${result.deletedCount} revisions for content IDs: ${contentIds.join(', ')}`);
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
-			logger.error(`Error bulk deleting revisions for content IDs: ${error.message}`);
+			const message = 'Failed to bulk delete revisions';
+			logger.error(`Error bulk deleting revisions for content IDs: ${error instanceof Error ? error.message : String(error)}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'REVISION_BULK_DELETE_ERROR',
-					message: 'Failed to bulk delete revisions',
+					message,
 					details: error
 				}
 			};
@@ -80,23 +86,30 @@ revisionSchema.statics = {
 	// Create a new revision
 	async createRevision(revisionData: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>> {
 		try {
-			const newRevision = await this.create({ ...revisionData, _id: this.utils.generateId() });
-			// ISODateString conversion for revision.create
-			const revisionWithISODates = {
-				...newRevision.toObject(),
-				createdAt: newRevision.createdAt.toISOString() as ISODateString,
-				updatedAt: newRevision.updatedAt.toISOString() as ISODateString
-			} as ContentRevision;
+			const newRevision = await this.create({ ...revisionData, _id: generateId() });
+			// Convert Mongoose document to plain object with proper types
+			const revisionObj = newRevision.toObject() as any;
+			const revisionWithISODates: ContentRevision = {
+				...revisionObj,
+				_id: revisionObj._id as DatabaseId,
+				contentId: revisionObj.contentId as DatabaseId,
+				authorId: revisionObj.authorId as DatabaseId,
+				createdAt: (typeof revisionObj.createdAt?.toISOString === 'function'
+					? revisionObj.createdAt.toISOString()
+					: revisionObj.createdAt) as ISODateString,
+				updatedAt: (typeof revisionObj.updatedAt?.toISOString === 'function'
+					? revisionObj.updatedAt.toISOString()
+					: revisionObj.updatedAt) as ISODateString
+			};
 			return { success: true, data: revisionWithISODates };
 		} catch (error) {
-			logger.error(`Error creating revision: ${error.message}`);
+			const message = 'Failed to create revision';
+			const err = error as Error;
+			logger.error(`Error creating revision: ${err.message}`);
 			return {
 				success: false,
-				error: {
-					code: 'REVISION_CREATE_ERROR',
-					message: 'Failed to create revision',
-					details: error
-				}
+				message,
+				error: { code: 'REVISION_CREATE_ERROR', message, details: error }
 			};
 		}
 	},
@@ -106,23 +119,28 @@ revisionSchema.statics = {
 		try {
 			const result = await this.updateOne({ _id: revisionId }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
+				const message = `Revision with ID "${revisionId}" not found or no changes applied.`;
 				return {
 					success: false,
+					message,
 					error: {
 						code: 'REVISION_UPDATE_NOT_FOUND',
-						message: `Revision with ID "${revisionId}" not found or no changes applied.`
+						message
 					}
 				};
 			}
 			logger.info(`Revision "${revisionId}" updated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error updating revision "${revisionId}": ${error.message}`);
+			const message = `Failed to update revision "${revisionId}"`;
+			const err = error as Error;
+			logger.error(`Error updating revision "${revisionId}": ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'REVISION_UPDATE_ERROR',
-					message: `Failed to update revision "${revisionId}"`,
+					message,
 					details: error
 				}
 			};
@@ -134,23 +152,28 @@ revisionSchema.statics = {
 		try {
 			const result = await this.deleteOne({ _id: revisionId }).exec();
 			if (result.deletedCount === 0) {
+				const message = `Revision with ID "${revisionId}" not found.`;
 				return {
 					success: false,
+					message,
 					error: {
 						code: 'REVISION_DELETE_NOT_FOUND',
-						message: `Revision with ID "${revisionId}" not found.`
+						message
 					}
 				};
 			}
 			logger.info(`Revision "${revisionId}" deleted successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error deleting revision "${revisionId}": ${error.message}`);
+			const message = `Failed to delete revision "${revisionId}"`;
+			const err = error as Error;
+			logger.error(`Error deleting revision "${revisionId}": ${err.message}`);
 			return {
 				success: false,
+				message,
 				error: {
 					code: 'REVISION_DELETE_ERROR',
-					message: `Failed to delete revision "${revisionId}"`,
+					message,
 					details: error
 				}
 			};

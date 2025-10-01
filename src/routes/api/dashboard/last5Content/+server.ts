@@ -17,7 +17,6 @@ import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
 
 import { contentManager } from '@src/content/ContentManager';
-import { StatusTypes } from '@src/content/types';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
@@ -61,11 +60,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		// 2. Get all collection schemas the user can read (scoped to the tenant)
 		let allCollections;
 		try {
-			const collectionData = await contentManager.getCollectionData(tenantId);
-			allCollections = collectionData.collections;
+			allCollections = contentManager.getCollections();
 		} catch (err) {
-			logger.error('Failed to get collection data:', err);
-			throw error(500, 'Could not access collection data');
+			logger.error('Failed to get collections:', err);
+			throw error(500, 'Could not access collections');
 		}
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
@@ -164,7 +162,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				collection: entry.collectionName,
 				createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
 				createdBy: username,
-				status: entry.status || entry.state || StatusTypes.publish
+				status: entry.status || entry.state || 'publish'
 			};
 		});
 

@@ -11,8 +11,8 @@
  * * Replaces /api/getCollections endpoint
  */
 
-import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { privateEnv } from '@src/stores/globalSettings';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const includeFields = url.searchParams.get('includeFields') === 'true';
 		const includeStats = url.searchParams.get('includeStats') === 'true'; // Get all collections from ContentManager, scoped by tenantId
 
-		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
+		const allCollections = contentManager.getCollections();
 
 		const accessibleCollections = []; // All collections are accessible since hooks handle authorization
 

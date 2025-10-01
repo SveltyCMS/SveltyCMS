@@ -12,16 +12,16 @@
  * - Returns user data and content structure for client-side rendering.
  */
 
-import { redirect, error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermissionWithRoles } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
+import { hasPermissionWithRoles } from '@src/auth/permissions';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Fetch the initial content structure
-		const { contentStructure } = await contentManager.getCollectionData();
+		const contentStructure = await contentManager.getContentStructure();
 
 		// Determine admin status properly by checking role
 		const userRole = roles.find((role) => role._id === user.role);

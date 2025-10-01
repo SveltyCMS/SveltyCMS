@@ -55,7 +55,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	// Initialize ContentManager and get collection data
 	await contentManager.initialize(tenantId);
-	const { collectionMap } = await contentManager.getCollectionData(tenantId);
+	const collections = contentManager.getCollections(tenantId);
+	
+	// Build a map for easy lookup
+	const collectionMap = new Map(collections.map(c => [c._id!, c]));
 
 	let currentCollection = null;
 	let collectionIdentifier = collection;

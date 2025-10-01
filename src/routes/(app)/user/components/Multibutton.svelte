@@ -111,11 +111,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		const baseActions: ActionType[] = ['edit', 'delete'];
 		const currentBlockState = blockState;
 
-		if (currentBlockState === 'all-blocked') {
+		if (currentBlockState() === 'all-blocked') {
 			return [...baseActions, 'unblock'];
-		} else if (currentBlockState === 'all-unblocked') {
+		} else if (currentBlockState() === 'all-unblocked') {
 			return [...baseActions, 'block'];
-		} else if (currentBlockState === 'mixed') {
+		} else if (currentBlockState() === 'mixed') {
 			return [...baseActions, 'block', 'unblock'];
 		}
 
@@ -130,14 +130,14 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Auto-adjust listboxValue when selection changes
 	$effect(() => {
-		if (safeSelectedRows.length > 0 && !availableActions.includes(listboxValue)) {
+		if (safeSelectedRows.length > 0 && !availableActions().includes(listboxValue)) {
 			const currentBlockState = blockState;
 			// If current action is not available, switch to the most appropriate one
-			if (currentBlockState === 'all-blocked' && listboxValue === 'block') {
+			if (currentBlockState() === 'all-blocked' && listboxValue === 'block') {
 				listboxValue = 'unblock';
-			} else if (currentBlockState === 'all-unblocked' && listboxValue === 'unblock') {
+			} else if (currentBlockState() === 'all-unblocked' && listboxValue === 'unblock') {
 				listboxValue = 'block';
-			} else if (!availableActions.includes(listboxValue)) {
+			} else if (!availableActions().includes(listboxValue)) {
 				listboxValue = 'edit'; // Default fallback
 			}
 		}
@@ -331,12 +331,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		}
 
 		// Check if action is available (shouldn't happen with smart UI, but good safeguard)
-		if (!availableActions.includes(action)) {
+		if (!availableActions().includes(action)) {
 			const currentBlockState = blockState;
-			if (currentBlockState === 'all-blocked' && action === 'block') {
+			if (currentBlockState() === 'all-blocked' && action === 'block') {
 				showToast('All selected items are already blocked', 'warning');
 				return;
-			} else if (currentBlockState === 'all-unblocked' && action === 'unblock') {
+			} else if (currentBlockState() === 'all-unblocked' && action === 'unblock') {
 				showToast('All selected items are already unblocked', 'warning');
 				return;
 			}
