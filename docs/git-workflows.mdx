@@ -1,32 +1,34 @@
 ---
-
-path: "docs/dev-guide/git-workflows.mdx"
-title: "Git Workflow & Automated Releases"
-description: "A guide to the repository's branching strategy, commit conventions, and automated release process."
+path: 'docs/git-workflows.mdx'
+title: 'Git Workflow & Automated Releases'
+description: 'A guide to the repository branching strategy, commit conventions, and automated release process.'
 order: 3
-icon: "mdi:git"
-author: "admin"
-created: "2025-09-28"
-updated: "2025-09-28"
+icon: 'mdi:git'
+author: 'admin'
+created: '2025-09-28'
+updated: '2025-10-02'
 tags:
+  - 'git'
+  - 'workflow'
+  - 'release'
+  - 'contribution'
+  - 'development'
+---
 
-- "git"
-- "workflow"
-- "release"
-- "contribution"
+# Git Workflow & Automated Releases
 
-Introduction
+## Introduction
 This project uses a strict Git workflow to ensure code quality and automate the release process. Understanding this workflow is essential for all contributors. Our system uses Semantic Release to automatically manage versioning and package publishing based on our commit history.
 
-Branching Strategy
+## Branching Strategy
 We have two primary, long-lived branches: main and next.
 
-main Branch
+### main Branch
 Purpose: Production-ready, stable code. This branch represents the latest official release.
 
 Protection: The main branch is protected. All code must first be merged into the next branch and then be promoted to main via a pull request.
 
-Key Rule: This branch must never contain test configurations. The /config/collections directory is automatically removed from this branch during the release process.
+Key Rule: This branch must never contain test configurations. The `/config/collections` directory is automatically removed from this branch during the release process.
 
 next Branch
 Purpose: Development and staging. This is the primary branch for all new features, bug fixes, and ongoing work.

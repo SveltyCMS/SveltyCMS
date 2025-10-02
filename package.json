@@ -146,6 +146,7 @@
 		"@types/serialize-javascript": "^5.0.4",
 		"argon2": "^0.44.0",
 		"axios": "^1.12.2",
+		"browserslist": "^4.26.3",
 		"buffer": "^6.0.3",
 		"caniuse-lite": "^1.0.30001746",
 		"chart.js": "^4.5.0",

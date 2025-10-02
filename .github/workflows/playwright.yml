@@ -121,3 +121,4 @@ jobs:
             test-results/playwright/
             test-results/bun/
           retention-days: 30
+

@@ -1,0 +1,21 @@
+# .github/workflows/docs-lint.yml
+name: Docs Lint
+
+on:
+  pull_request:
+    paths:
+      - 'src/widgets/**/*.mdx'
+      - 'docs/**/*.mdx'
+      - 'docs/**/*.ts'
+
+jobs:
+  lint-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx docs/lint-docs.ts

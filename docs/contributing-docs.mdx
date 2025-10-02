@@ -6,11 +6,11 @@ order: 2
 icon: "mdi:file-document-plus-outline"
 author: "admin"
 created: "2025-09-28"
-updated: "2025-09-28"
+updated: "2025-10-02"
 tags:
- * "documentation"
- * "contributing"
- * "mdx"
+  - "documentation"
+  - "contributing"
+  - "mdx"
 ---
 
 Introduction
@@ -190,6 +190,128 @@ Before submitting a PR for new documentation:
 - [ ] File is .mdx only (no other files in /docs/).
 - [ ] Tested rendering in the CMS.
 - [ ] `updated` field is current.
+
+## Tools and Automation
+
+### Frontmatter Validation
+
+We provide an automated linter to validate all documentation frontmatter. This ensures consistency and catches errors before they reach production.
+
+**Running the Linter**
+
+```bash
+bun ./docs/lint-docs.ts
+```
+
+The linter will:
+- ✅ Validate all `.mdx` files in `src/widgets/` and `docs/` directories
+- 🔍 Detect `.md` files that need conversion to `.mdx`
+- ❌ Report any frontmatter errors with detailed, helpful messages
+- 📊 Display a summary with file counts and validation results
+
+**Example Output**
+
+When all files are valid:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 SveltyCMS Documentation Frontmatter Validation
+📅 Oct 2, 2025, 09:41:47
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 SveltyCMS Documentation Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total files:     19 (19 .mdx, 0 .md)
+Validation:      ✅ 19 valid  |  ❌ 0 invalid
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ All files have valid frontmatter!
+```
+
+When errors are found:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 SveltyCMS Documentation Frontmatter Validation
+📅 Oct 2, 2025, 09:41:47
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+� SveltyCMS Documentation Frontmatter Validation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 SveltyCMS Documentation Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total files:     19 (19 .mdx, 0 .md)
+Validation:      ✅ 19 valid  |  ❌ 0 invalid
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ All files have valid frontmatter!
+```
+
+When errors are found:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 SveltyCMS Documentation Frontmatter Validation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+❌ src/widgets/core/checkbox/checkbox.mdx
+────────────────────────────────────────────────────────────────────────────────
+   • Missing required field: "tags"
+     💡 Add a tags array, e.g.:
+        tags:
+          - 'widget'
+          - 'field'
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 SveltyCMS Documentation Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total files:     19 (19 .mdx, 0 .md)
+Validation:      ✅ 18 valid  |  ❌ 1 invalid
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  1 file(s) with invalid frontmatter. Please fix the errors above.
+```
+
+When `.md` files are detected:
+```
+⚠️  Files that need to be converted to .mdx:
+────────────────────────────────────────────────────────────────────────────────
+   📄 src/widgets/custom/example/example.md
+
+⚠️  1 .md file(s) need to be converted to .mdx format.
+```
+
+**Validation Rules**
+
+The linter validates the following frontmatter fields:
+
+- `path`: Required, non-empty string matching the file location
+- `title`: Required, minimum 3 characters
+- `description`: Required, minimum 10 characters  
+- `order`: Optional, can be a number or string
+- `icon`: Optional string (e.g., "mdi:icon-name")
+- `author`: Required, minimum 2 characters
+- `created`: Required, ISO date format (YYYY-MM-DD)
+- `updated`: Required, ISO date format (YYYY-MM-DD)
+- `tags`: Required array with at least one tag, each tag minimum 2 characters
+
+**Before Submitting a PR**
+
+Always run the linter before submitting your documentation changes:
+
+```bash
+bun ./docs/lint-docs.ts
+```
+
+Fix any reported errors and ensure you get the "✨ All files have valid frontmatter!" message.
+
+### Other Tools
+
+- **Linting**: Use ESLint or MDX-specific linters to check syntax.
+- **Build**: Run the project build to ensure docs integrate properly.
+- **Automation**: GitHub Actions may validate frontmatter or links in the future.
 
 Tools and Automation
 
