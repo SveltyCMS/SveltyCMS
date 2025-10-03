@@ -1,7 +1,18 @@
 /**
  * @file src/databases/mongodb/methods/contentMethods.ts
- * @description Manages complex content logic like structure trees, drafts, and revisions
- * by composing and coordinating generic CRUD repositories.
+ * @description CMS-specific content logic for structure trees, drafts, and revisions.
+ *
+ * Responsibility: ONLY for CMS-specific content workflows.
+ *
+ * This module handles:
+ * - Content structure (menus, trees, hierarchies)
+ * - Draft creation, management, and publishing workflows
+ * - Revision history, tracking, and cleanup
+ * - Content-specific batch operations
+ *
+ * Does NOT handle:
+ * - Generic CRUD operations (use crudMethods.ts)
+ * - Model/schema creation (use collectionMethods.ts)
  */
 
 import type { ContentNode, DatabaseId } from '@src/content/types';
@@ -15,11 +26,20 @@ import type {
 	PaginationOptions
 } from '../../dbInterface';
 import { MongoCrudMethods } from './crudMethods';
-import { createDatabaseError, generateId } from './mongoDBUtils';
+import { createDatabaseError, generateId, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
 
 // Create local types that satisfy the BaseEntity constraint
 type ContentDraft = DBContentDraft & BaseEntity;
 type ContentRevision = DBContentRevision & BaseEntity;
+
+/**
+ * MongoContentMethods manages CMS-specific content workflows.
+ *
+ * This class coordinates generic CRUD repositories to implement:
+ * - Content structure management (trees, hierarchies)
+ * - Draft workflows (create, publish, manage)
+ * - Revision tracking (history, cleanup, restore)
+ */
 
 export class MongoContentMethods {
 	// Repositories are injected for testability and code reuse
@@ -41,7 +61,7 @@ export class MongoContentMethods {
 		this.nodesRepo = nodesRepo;
 		this.draftsRepo = draftsRepo;
 		this.revisionsRepo = revisionsRepo;
-		logger.info('MongoContentMethods initialized with repositories.');
+		logger.debug('\x1b[34mMongoContentMethods\x1b[0m initialized with repositories.');
 	}
 
 	// ============================================================
@@ -50,26 +70,37 @@ export class MongoContentMethods {
 
 	/**
 	 * Retrieves the content structure as a flat list or a hierarchical tree.
+	 * Cached with 180s TTL since structure is frequently accessed for navigation/menus
 	 */
 	async getStructure(mode: 'flat' | 'nested' = 'flat', filter: FilterQuery<ContentNode> = {}): Promise<ContentNode[]> {
-		const nodes = await this.nodesRepo.findMany(filter);
-		if (mode === 'flat') {
-			return nodes;
-		}
+		// Create cache key based on mode and filter
+		const filterKey = JSON.stringify(filter);
+		const cacheKey = `content:structure:${mode}:${filterKey}`;
 
-		// Build the nested tree structure
-		const nodeMap = new Map<string, ContentNode>(nodes.map((n) => [n._id.toString(), { ...n, children: [] as ContentNode[] }]));
-		const tree: ContentNode[] = [];
+		return withCache(
+			cacheKey,
+			async () => {
+				const nodes = await this.nodesRepo.findMany(filter);
+				if (mode === 'flat') {
+					return nodes;
+				}
 
-		for (const node of nodeMap.values()) {
-			if (node.parentId && nodeMap.has(node.parentId.toString())) {
-				const parent = nodeMap.get(node.parentId.toString());
-				parent?.children?.push(node);
-			} else {
-				tree.push(node);
-			}
-		}
-		return tree;
+				// Build the nested tree structure
+				const nodeMap = new Map<string, ContentNode>(nodes.map((n) => [n._id.toString(), { ...n, children: [] as ContentNode[] }]));
+				const tree: ContentNode[] = [];
+
+				for (const node of nodeMap.values()) {
+					if (node.parentId && nodeMap.has(node.parentId.toString())) {
+						const parent = nodeMap.get(node.parentId.toString());
+						parent?.children?.push(node);
+					} else {
+						tree.push(node);
+					}
+				}
+				return tree;
+			},
+			{ category: CacheCategory.CONTENT }
+		);
 	}
 
 	/**
@@ -89,6 +120,10 @@ export class MongoContentMethods {
 				)
 				.lean()
 				.exec();
+
+			// Invalidate content structure caches
+			await invalidateCategoryCache(CacheCategory.CONTENT);
+
 			return result;
 		} catch (error) {
 			throw createDatabaseError(error, 'NODE_UPSERT_ERROR', 'Failed to upsert content structure node.');
@@ -108,6 +143,10 @@ export class MongoContentMethods {
 				}
 			}));
 			const result = await this.nodesRepo.model.bulkWrite(operations);
+
+			// Invalidate content structure caches
+			await invalidateCategoryCache(CacheCategory.CONTENT);
+
 			return { modifiedCount: result.modifiedCount };
 		} catch (error) {
 			throw createDatabaseError(error, 'NODE_BULK_UPDATE_ERROR', 'Failed to perform bulk update on nodes.');

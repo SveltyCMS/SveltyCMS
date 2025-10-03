@@ -1,0 +1,1339 @@
+---
+path: 'docs/dev-guide/widget-management-system.mdx'
+title: 'Widget Store Management'
+description: 'Complete guide to the SveltyCMS widget store for managing widget activation, dependencies, and multi-tenant configurations.'
+order: 9
+icon: 'mdi:widgets-outline'
+author: 'admin'
+created: '2025-01-15'
+updated: '2025-01-15'
+tags:
+  - 'widgets'
+  - 'store'
+  - 'api'
+  - 'multi-tenant'
+  - 'management'
+---
+
+# Widget Store Management
+
+## Overview
+
+The SveltyCMS widget store (`src/stores/widgetStore.svelte.ts`) provides centralized state management for widget activation, configuration, and multi-tenant support. This guide covers the store-based widget management system, distinct from the [Widget System Architecture](/docs/dev-guide/widget-system-architecture.mdx) which covers factory patterns and widget creation.
+
+> **Note**: For widget architecture, factory patterns, and creating new widgets, see [Widget System Architecture](/docs/dev-guide/widget-system-architecture.mdx).
+
+### Key Features
+
+- **Reactive State Management**: Svelte stores for efficient reactivity
+- **Multi-Tenant Support**: Different widget configurations per tenant
+- **Dependency Management**: Automatic dependency resolution and validation
+- **Database Integration**: Persistent widget configurations
+- **Core/Custom Separation**: Distinction between core and custom widgets
+- **API Endpoints**: RESTful API for widget operations
+- **Type Safety**: Full TypeScript support
+
+## Store vs Architecture
+
+This document focuses on **widget store management** (activation, configuration, multi-tenant):
+
+- Widget activation/deactivation
+- Dependency resolution
+- Collection validation
+- API endpoints
+- Multi-tenant configuration
+
+For **widget creation and architecture**, see:
+
+- [Widget System Architecture](/docs/dev-guide/widget-system-architecture.mdx): Factory pattern, Three Pillars, MDX docs
+
+## Architecture Overview
+
+The widget store management consists of:
+
+### 1. Widget Store (`src/stores/widgetStore.svelte.ts`)
+
+Centralized state management for widget activation, configuration, and status.
+
+### 2. Widget Store Actions (`widgetStoreActions`)
+
+Methods for initializing, activating, deactivating, and configuring widgets.
+
+### 3. API Endpoints (`src/routes/api/widgets/`)
+
+RESTful API for widget operations across client and server.
+
+## Widget Store
+
+### Store State
+
+```typescript
+interface WidgetStoreState {
+	widgets: Record<string, Widget>; // All loaded widgets
+	widgetFunctions: Record<string, WidgetFunction>; // Widget constructor functions
+	activeWidgets: string[]; // Currently active widgets
+	coreWidgets: string[]; // Core widgets (always active)
+	customWidgets: string[]; // Custom widgets (optional)
+	dependencyMap: Record<string, string[]>; // Widget dependencies
+	isLoaded: boolean; // Initialization complete
+	isLoading: boolean; // Loading state
+	tenantId?: string; // Current tenant context
+}
+```
+
+### Derived Stores
+
+Access widget state through reactive derived stores:
+
+```typescript
+import { widgets, widgetFunctions, activeWidgets, coreWidgets, customWidgets, dependencyMap, isLoaded, isLoading } from '@stores/widgetStore.svelte';
+```
+
+**Example Usage:**
+
+```typescript
+// Subscribe to active widgets
+activeWidgets.subscribe(($activeWidgets) => {
+	console.log('Active widgets:', $activeWidgets);
+});
+
+// Check if widgets are loaded
+isLoaded.subscribe(($isLoaded) => {
+	if ($isLoaded) {
+		console.log('Widgets ready!');
+	}
+});
+```
+
+## Store Actions
+
+All widget operations are performed through the `widgetStoreActions` object.
+
+### initializeWidgets()
+
+Initialize widgets from the file system with optional tenant context.
+
+**Signature:**
+
+```typescript
+async initializeWidgets(tenantId?: string): Promise<void>
+```
+
+**Parameters:**
+
+- `tenantId` (optional): Tenant identifier for multi-tenant environments
+
+**Description:**
+
+Loads all widgets from `src/widgets/core/` and `src/widgets/custom/`, processes their metadata, loads active widgets from the database, and initializes the widget store.
+
+**Example:**
+
+```typescript
+import { widgetStoreActions } from '@stores/widgetStore.svelte';
+
+// Initialize for default tenant
+await widgetStoreActions.initializeWidgets();
+
+// Initialize for specific tenant
+await widgetStoreActions.initializeWidgets('tenant-123');
+```
+
+**Behavior:**
+
+- Core widgets are always activated by default
+- Custom widgets require database activation
+- Automatically merges core and database-active widgets
+- Creates widget instances for all widgets
+- Updates store with complete widget state
+
+---
+
+### processWidgetModule()
+
+Process individual widget modules during initialization.
+
+**Signature:**
+
+```typescript
+processWidgetModule(
+	path: string,
+	module: WidgetModule,
+	type: WidgetType
+): {
+	name: string;
+	widgetFn: WidgetFunction;
+	dependencies: string[];
+} | null
+```
+
+**Parameters:**
+
+- `path`: File system path to the widget module
+- `module`: Imported widget module
+- `type`: Widget type (`'core'` or `'custom'`)
+
+**Returns:**
+
+Object containing widget name, function, and dependencies, or `null` if processing fails.
+
+**Description:**
+
+Internal helper that extracts widget metadata, validates the module structure, and normalizes the widget function.
+
+**Example:**
+
+```typescript
+// Typically called internally during initialization
+const result = widgetStoreActions.processWidgetModule('../widgets/core/Input/index.ts', inputModule, 'core');
+
+if (result) {
+	const { name, widgetFn, dependencies } = result;
+	console.log(`Processed widget: ${name}`);
+}
+```
+
+---
+
+### updateWidgetStatus()
+
+Update widget activation status with dependency checking.
+
+**Signature:**
+
+```typescript
+async updateWidgetStatus(
+	widgetName: string,
+	status: WidgetStatus,
+	tenantId?: string
+): Promise<void>
+```
+
+**Parameters:**
+
+- `widgetName`: Name of the widget to update
+- `status`: New status (`'active'` or `'inactive'`)
+- `tenantId` (optional): Tenant identifier
+
+**Throws:**
+
+- Error if trying to disable a core widget
+- Error if trying to disable a widget with active dependents
+- Error if trying to activate a widget with missing dependencies
+
+**Description:**
+
+Updates widget status in both the database and store. Validates dependencies before activation and checks for dependents before deactivation.
+
+**Example:**
+
+```typescript
+// Activate a widget
+try {
+	await widgetStoreActions.updateWidgetStatus('SEO', 'active');
+	console.log('SEO widget activated');
+} catch (error) {
+	console.error('Activation failed:', error.message);
+}
+
+// Deactivate a widget (if no dependencies)
+try {
+	await widgetStoreActions.updateWidgetStatus('Gallery', 'inactive');
+} catch (error) {
+	console.error('Cannot deactivate:', error.message);
+}
+
+// With tenant context
+await widgetStoreActions.updateWidgetStatus('Comments', 'active', 'tenant-456');
+```
+
+---
+
+### updateWidgetConfig()
+
+Update widget configuration without database persistence.
+
+**Signature:**
+
+```typescript
+async updateWidgetConfig(
+	widgetName: string,
+	config: Record<string, unknown>
+): Promise<void>
+```
+
+**Parameters:**
+
+- `widgetName`: Name of the widget to configure
+- `config`: Configuration object to merge with existing config
+
+**Description:**
+
+Updates widget configuration in memory. Useful for runtime configuration changes that don't need persistence.
+
+**Example:**
+
+```typescript
+// Update widget configuration
+await widgetStoreActions.updateWidgetConfig('RichText', {
+	toolbar: ['bold', 'italic', 'link'],
+	maxLength: 5000,
+	placeholder: 'Enter content here...'
+});
+
+// Configuration is merged with existing config
+await widgetStoreActions.updateWidgetConfig('Image', {
+	maxSize: 5242880, // 5MB
+	allowedFormats: ['jpg', 'png', 'webp']
+});
+```
+
+---
+
+### reloadWidgets()
+
+Reload all widgets from the file system (for HMR).
+
+**Signature:**
+
+```typescript
+async reloadWidgets(tenantId?: string): Promise<void>
+```
+
+**Parameters:**
+
+- `tenantId` (optional): Tenant identifier
+
+**Description:**
+
+Resets the widget store to its initial state and reinitializes all widgets. Primarily used for Hot Module Replacement during development.
+
+**Example:**
+
+```typescript
+// Manually reload widgets
+await widgetStoreActions.reloadWidgets();
+
+// Reload for specific tenant
+await widgetStoreActions.reloadWidgets('tenant-789');
+```
+
+**Note:** This is automatically triggered by the HMR system when widget files change during development.
+
+---
+
+### bulkActivateWidgets()
+
+Activate multiple widgets with automatic dependency resolution.
+
+**Signature:**
+
+```typescript
+async bulkActivateWidgets(
+	widgetNames: string[],
+	tenantId?: string
+): Promise<void>
+```
+
+**Parameters:**
+
+- `widgetNames`: Array of widget names to activate
+- `tenantId` (optional): Tenant identifier
+
+**Throws:**
+
+Error with details of any widgets that failed to activate.
+
+**Description:**
+
+Activates multiple widgets in the correct order, automatically activating dependencies first.
+
+**Example:**
+
+```typescript
+// Activate multiple widgets
+try {
+	await widgetStoreActions.bulkActivateWidgets(['RichText', 'SEO', 'Gallery', 'Comments']);
+	console.log('All widgets activated');
+} catch (error) {
+	console.error('Some widgets failed:', error.message);
+}
+
+// With tenant context
+await widgetStoreActions.bulkActivateWidgets(['CustomWidget1', 'CustomWidget2'], 'tenant-101');
+```
+
+**Behavior:**
+
+- Skips already-active widgets
+- Automatically activates dependencies
+- Activates widgets in dependency order
+- Collects errors from failed activations
+
+---
+
+### getRequiredWidgetsByCollections()
+
+Get widgets required by all collections.
+
+**Signature:**
+
+```typescript
+async getRequiredWidgetsByCollections(tenantId?: string): Promise<string[]>
+```
+
+**Parameters:**
+
+- `tenantId` (optional): Tenant identifier
+
+**Returns:**
+
+Array of widget names required by collections.
+
+**Description:**
+
+Analyzes all collection schemas to determine which widgets are required. Uses the API endpoint `/api/widgets/required` on the client side.
+
+**Example:**
+
+```typescript
+// Get required widgets
+const requiredWidgets = await widgetStoreActions.getRequiredWidgetsByCollections();
+console.log('Collections require:', requiredWidgets);
+
+// With tenant context
+const tenantRequired = await widgetStoreActions.getRequiredWidgetsByCollections('tenant-202');
+```
+
+**Use Cases:**
+
+- Determine which widgets must remain active
+- Validate widget configurations before deployment
+- Display required widgets in admin UI
+
+---
+
+### validateCollectionsAgainstWidgets()
+
+Validate collections against current widget state.
+
+**Signature:**
+
+```typescript
+async validateCollectionsAgainstWidgets(tenantId?: string): Promise<{
+	valid: number;
+	invalid: number;
+	warnings: string[];
+}>
+```
+
+**Parameters:**
+
+- `tenantId` (optional): Tenant identifier
+
+**Returns:**
+
+Validation results with counts and warnings.
+
+**Description:**
+
+Checks all collection schemas against currently active widgets. Identifies collections that require inactive widgets.
+
+**Example:**
+
+```typescript
+// Validate collections
+const validation = await widgetStoreActions.validateCollectionsAgainstWidgets();
+
+console.log(`Valid collections: ${validation.valid}`);
+console.log(`Invalid collections: ${validation.invalid}`);
+
+if (validation.warnings.length > 0) {
+	console.warn('Warnings:');
+	validation.warnings.forEach((warning) => console.warn(`- ${warning}`));
+}
+
+// With tenant context
+const tenantValidation = await widgetStoreActions.validateCollectionsAgainstWidgets('tenant-303');
+```
+
+**Response Structure:**
+
+```typescript
+{
+	valid: 3,          // Collections with all required widgets active
+	invalid: 2,        // Collections with inactive widgets
+	warnings: [
+		"Collection 'posts' requires inactive widgets: SEO, SocialShare",
+		"Collection 'products' requires inactive widgets: Reviews"
+	],
+	total: 5           // Total collections analyzed (from API response)
+}
+```
+
+---
+
+## Helper Functions
+
+These functions provide convenient access to widget state.
+
+### getWidget()
+
+Get a widget instance by name.
+
+**Signature:**
+
+```typescript
+function getWidget(name: string): Widget | undefined;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+Widget instance or `undefined` if not found.
+
+**Example:**
+
+```typescript
+import { getWidget } from '@stores/widgetStore.svelte';
+
+const inputWidget = getWidget('Input');
+if (inputWidget) {
+	console.log('Widget:', inputWidget.Name);
+	console.log('Icon:', inputWidget.Icon);
+}
+```
+
+---
+
+### getWidgetFunction()
+
+Get a widget constructor function by name.
+
+**Signature:**
+
+```typescript
+function getWidgetFunction(name: string): WidgetFunction | undefined;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+Widget function or `undefined` if not found.
+
+**Example:**
+
+```typescript
+import { getWidgetFunction } from '@stores/widgetStore.svelte';
+
+const richTextFn = getWidgetFunction('RichText');
+if (richTextFn) {
+	// Create widget instance with custom config
+	const customWidget = richTextFn({
+		toolbar: ['bold', 'italic'],
+		maxLength: 1000
+	});
+}
+```
+
+---
+
+### isWidgetActive()
+
+Check if a widget is currently active.
+
+**Signature:**
+
+```typescript
+function isWidgetActive(name: string): boolean;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+`true` if widget is active, `false` otherwise.
+
+**Example:**
+
+```typescript
+import { isWidgetActive } from '@stores/widgetStore.svelte';
+
+if (isWidgetActive('SEO')) {
+	console.log('SEO widget is active');
+} else {
+	console.log('SEO widget is not active');
+}
+```
+
+---
+
+### isWidgetCore()
+
+Check if a widget is a core widget.
+
+**Signature:**
+
+```typescript
+function isWidgetCore(name: string): boolean;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+`true` if widget is a core widget, `false` otherwise.
+
+**Example:**
+
+```typescript
+import { isWidgetCore } from '@stores/widgetStore.svelte';
+
+if (isWidgetCore('Input')) {
+	console.log('Input is a core widget (cannot be disabled)');
+}
+```
+
+---
+
+### isWidgetCustom()
+
+Check if a widget is a custom widget.
+
+**Signature:**
+
+```typescript
+function isWidgetCustom(name: string): boolean;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+`true` if widget is a custom widget, `false` otherwise.
+
+**Example:**
+
+```typescript
+import { isWidgetCustom } from '@stores/widgetStore.svelte';
+
+if (isWidgetCustom('MyWidget')) {
+	console.log('MyWidget is a custom widget');
+}
+```
+
+---
+
+### getWidgetDependencies()
+
+Get dependencies for a widget.
+
+**Signature:**
+
+```typescript
+function getWidgetDependencies(name: string): string[];
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+Array of dependency widget names (empty if no dependencies).
+
+**Example:**
+
+```typescript
+import { getWidgetDependencies } from '@stores/widgetStore.svelte';
+
+const deps = getWidgetDependencies('SEO');
+console.log('SEO depends on:', deps);
+// Output: ['Input', 'RichText']
+```
+
+---
+
+### canDisableWidget()
+
+Check if a widget can be safely disabled.
+
+**Signature:**
+
+```typescript
+function canDisableWidget(name: string): boolean;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+`true` if widget can be disabled, `false` if other active widgets depend on it or if it's a core widget.
+
+**Example:**
+
+```typescript
+import { canDisableWidget } from '@stores/widgetStore.svelte';
+
+if (canDisableWidget('Gallery')) {
+	console.log('Gallery can be disabled');
+	await widgetStoreActions.updateWidgetStatus('Gallery', 'inactive');
+} else {
+	console.log('Gallery cannot be disabled (has active dependents)');
+}
+```
+
+---
+
+### isWidgetAvailable()
+
+Check if a widget is available (loaded in the system).
+
+**Signature:**
+
+```typescript
+function isWidgetAvailable(name: string): boolean;
+```
+
+**Parameters:**
+
+- `name`: Widget name
+
+**Returns:**
+
+`true` if widget is loaded, `false` otherwise.
+
+**Example:**
+
+```typescript
+import { isWidgetAvailable } from '@stores/widgetStore.svelte';
+
+if (isWidgetAvailable('CustomWidget')) {
+	console.log('CustomWidget is available');
+} else {
+	console.log('CustomWidget is not loaded');
+}
+```
+
+---
+
+## Widget Development
+
+For information on creating widgets, see [Widget System Architecture](/docs/dev-guide/widget-system-architecture.mdx).
+
+### Widget Structure Overview
+
+Each widget follows this structure:
+
+```
+src/widgets/core/checkbox/
+├── index.ts           # Widget definition (factory)
+├── types.ts           # Widget-specific types
+├── Input.svelte       # Input component (editing)
+├── Display.svelte     # Display component (viewing)
+└── checkbox.mdx       # Widget documentation
+```
+
+**Key Points**:
+
+- **Three Pillars**: Definition (index.ts), Input (Input.svelte), Display (Display.svelte)
+- **MDX Documentation**: Each widget has its own `.mdx` file using [mdsvex](https://mdsvex.pngwn.io/)
+- **Type Safety**: TypeScript types in `types.ts`
+- **Factory Pattern**: Created with `createWidget()` from `src/widgets/factory.ts`
+
+For complete widget development guide, see [Widget System Architecture](/docs/dev-guide/widget-system-architecture.mdx).
+
+---
+
+## API Endpoints
+
+### GET `/api/widgets/active`
+
+Get currently active widgets for a tenant.
+
+**Headers:**
+
+- `X-Tenant-ID` (optional): Tenant identifier
+
+**Response:**
+
+```json
+{
+	"widgets": ["Input", "RichText", "SEO"],
+	"tenantId": "tenant123"
+}
+```
+
+**Example:**
+
+```typescript
+const response = await fetch('/api/widgets/active', {
+	headers: {
+		'X-Tenant-ID': 'tenant-123'
+	}
+});
+
+const { widgets, tenantId } = await response.json();
+```
+
+---
+
+### POST `/api/widgets/status`
+
+Update widget activation status.
+
+**Headers:**
+
+- `X-Tenant-ID` (optional): Tenant identifier
+
+**Body:**
+
+```json
+{
+	"widgetName": "SEO",
+	"isActive": true
+}
+```
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"widgetName": "SEO",
+	"isActive": true
+}
+```
+
+**Example:**
+
+```typescript
+const response = await fetch('/api/widgets/status', {
+	method: 'POST',
+	headers: {
+		'Content-Type': 'application/json',
+		'X-Tenant-ID': 'tenant-123'
+	},
+	body: JSON.stringify({
+		widgetName: 'SEO',
+		isActive: true
+	})
+});
+
+const result = await response.json();
+```
+
+---
+
+### GET `/api/widgets/required`
+
+Get widgets required by all collections.
+
+**Headers:**
+
+- `X-Tenant-ID` (optional): Tenant identifier
+
+**Response:**
+
+```json
+{
+	"requiredWidgets": ["Input", "RichText", "Date"],
+	"collectionsAnalyzed": 5,
+	"tenantId": "tenant123"
+}
+```
+
+**Example:**
+
+```typescript
+const response = await fetch('/api/widgets/required', {
+	headers: {
+		'X-Tenant-ID': 'tenant-123'
+	}
+});
+
+const { requiredWidgets, collectionsAnalyzed } = await response.json();
+console.log(`${collectionsAnalyzed} collections require:`, requiredWidgets);
+```
+
+---
+
+### GET `/api/widgets/validate`
+
+Validate collections against current widget state.
+
+**Query Parameters:**
+
+- `activeWidgets`: Comma-separated list of active widget names
+
+**Headers:**
+
+- `X-Tenant-ID` (optional): Tenant identifier
+
+**Response:**
+
+```json
+{
+	"valid": 3,
+	"invalid": 2,
+	"warnings": ["Collection 'posts' requires inactive widgets: SEO, SocialShare"],
+	"total": 5,
+	"tenantId": "tenant123"
+}
+```
+
+**Example:**
+
+```typescript
+const activeWidgets = ['Input', 'RichText', 'Date'];
+const url = `/api/widgets/validate?activeWidgets=${activeWidgets.join(',')}`;
+
+const response = await fetch(url, {
+	headers: {
+		'X-Tenant-ID': 'tenant-123'
+	}
+});
+
+const validation = await response.json();
+```
+
+---
+
+## Multi-Tenant Support
+
+The widget system provides comprehensive multi-tenant support.
+
+### Tenant Isolation
+
+- Each tenant maintains separate widget activation states
+- Core widgets are always active for all tenants
+- Custom widgets can be enabled/disabled per tenant
+- Widget configurations are isolated per tenant
+
+### Tenant Context
+
+Pass tenant context to all widget operations:
+
+```typescript
+// Initialize widgets for tenant
+await widgetStoreActions.initializeWidgets('tenant-123');
+
+// Update widget status for tenant
+await widgetStoreActions.updateWidgetStatus('SEO', 'active', 'tenant-123');
+
+// Validate collections for tenant
+const validation = await widgetStoreActions.validateCollectionsAgainstWidgets('tenant-123');
+```
+
+### API Headers
+
+Include tenant ID in API requests:
+
+```typescript
+fetch('/api/widgets/active', {
+	headers: {
+		'X-Tenant-ID': 'tenant-123'
+	}
+});
+```
+
+---
+
+## Error Handling
+
+The system includes comprehensive error handling for common scenarios.
+
+### Dependency Validation
+
+**Error:** "Cannot activate widget {name}: missing dependencies: {deps}"
+
+**Cause:** Trying to activate a widget when its dependencies are inactive.
+
+**Solution:** Activate dependencies first or use `bulkActivateWidgets()`.
+
+```typescript
+// Manual activation with dependencies
+const deps = getWidgetDependencies('SEO');
+for (const dep of deps) {
+	if (!isWidgetActive(dep)) {
+		await widgetStoreActions.updateWidgetStatus(dep, 'active');
+	}
+}
+await widgetStoreActions.updateWidgetStatus('SEO', 'active');
+
+// Or use bulk activation (recommended)
+await widgetStoreActions.bulkActivateWidgets(['SEO']);
+```
+
+---
+
+### Core Widget Protection
+
+**Error:** "Cannot disable core widget: {name}"
+
+**Cause:** Attempting to deactivate a core widget.
+
+**Solution:** Core widgets cannot be disabled. Check `isWidgetCore()` before attempting deactivation.
+
+```typescript
+if (!isWidgetCore(widgetName)) {
+	await widgetStoreActions.updateWidgetStatus(widgetName, 'inactive');
+} else {
+	console.log('Core widgets cannot be disabled');
+}
+```
+
+---
+
+### Missing Dependencies
+
+**Error:** "Cannot disable widget {name}: other widgets depend on it"
+
+**Cause:** Trying to disable a widget that other active widgets depend on.
+
+**Solution:** Check `canDisableWidget()` before deactivation, or deactivate dependent widgets first.
+
+```typescript
+if (canDisableWidget('Input')) {
+	await widgetStoreActions.updateWidgetStatus('Input', 'inactive');
+} else {
+	// Find and deactivate dependent widgets first
+	const allWidgets = get(widgets);
+	for (const [name, widget] of Object.entries(allWidgets)) {
+		const deps = getWidgetDependencies(name);
+		if (deps.includes('Input') && isWidgetActive(name)) {
+			await widgetStoreActions.updateWidgetStatus(name, 'inactive');
+		}
+	}
+	// Now deactivate Input
+	await widgetStoreActions.updateWidgetStatus('Input', 'inactive');
+}
+```
+
+---
+
+### Collection Validation Warnings
+
+**Warning:** "Collection 'posts' requires inactive widgets: SEO, SocialShare"
+
+**Cause:** A collection schema references widgets that are currently inactive.
+
+**Solution:** Activate the required widgets or update the collection schema.
+
+```typescript
+const validation = await widgetStoreActions.validateCollectionsAgainstWidgets();
+
+if (validation.invalid > 0) {
+	console.log('Collections have missing widgets:');
+	validation.warnings.forEach((warning) => console.warn(warning));
+
+	// Activate missing widgets
+	const required = await widgetStoreActions.getRequiredWidgetsByCollections();
+	await widgetStoreActions.bulkActivateWidgets(required);
+}
+```
+
+---
+
+## Performance Considerations
+
+### Code Splitting
+
+Widgets are loaded using dynamic imports for optimal code splitting:
+
+```typescript
+// Automatic dynamic imports
+const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', {
+	eager: true
+});
+```
+
+### Client-Server Synchronization
+
+- Client-side state synchronized with server-side database
+- Database operations batched when possible
+- API calls used for cross-environment communication
+
+### Hot Module Replacement (HMR)
+
+HMR is automatically configured for development:
+
+```typescript
+if (import.meta.hot) {
+	import.meta.hot.accept(() => {
+		widgetStoreActions.reloadWidgets();
+		logger.info('Widgets reloaded due to file changes.');
+	});
+}
+```
+
+### Dependency Resolution
+
+- Efficient algorithms for dependency graph traversal
+- Caching of dependency relationships
+- Minimal database queries
+
+---
+
+## Migration from Legacy System
+
+The new widget store maintains backward compatibility with `widgetManager.svelte.ts`.
+
+### Legacy Functions (Still Supported)
+
+From `src/widgets/widgetManager.svelte.ts`:
+
+```typescript
+// Legacy functions (backward compatible)
+export async function resolveWidgetPlaceholder(placeholder: { widget: string; config: Record<string, unknown> });
+export function isWidgetAvailable(widgetName: string): boolean;
+export function getWidgets();
+export function getActiveWidgets();
+export async function updateWidgetStatus(widgetName: string, status: WidgetStatus): Promise<void>;
+export function getWidgetConfig(widgetName: string): Record<string, unknown> | undefined;
+export async function updateWidgetConfig(widgetName: string, config: Record<string, unknown>): Promise<void>;
+export async function loadWidgets(): Promise<Record<string, Widget>>;
+```
+
+### Migration Steps
+
+1. **Update Imports:**
+
+```typescript
+// Old
+import { getActiveWidgets } from '@widgets/widgetManager.svelte';
+
+// New
+import { activeWidgets } from '@stores/widgetStore.svelte';
+```
+
+2. **Update Function Calls:**
+
+```typescript
+// Old
+const widgets = getActiveWidgets();
+
+// New
+let widgets: string[] = [];
+activeWidgets.subscribe(($widgets) => {
+	widgets = $widgets;
+})();
+```
+
+3. **Add Tenant Context:**
+
+```typescript
+// Old
+await updateWidgetStatus('SEO', 'active');
+
+// New
+import { widgetStoreActions } from '@stores/widgetStore.svelte';
+await widgetStoreActions.updateWidgetStatus('SEO', 'active', tenantId);
+```
+
+4. **Utilize New Features:**
+
+```typescript
+// Dependency management
+const deps = getWidgetDependencies('SEO');
+
+// Bulk activation
+await widgetStoreActions.bulkActivateWidgets(['SEO', 'Gallery', 'Comments']);
+
+// Collection validation
+const validation = await widgetStoreActions.validateCollectionsAgainstWidgets();
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### "Cannot disable core widget"
+
+**Cause:** Attempting to disable a core widget.
+
+**Solution:** Core widgets are essential and cannot be disabled. Check `isWidgetCore()` before attempting deactivation.
+
+#### "Missing dependencies"
+
+**Cause:** Activating a widget without its dependencies being active.
+
+**Solution:** Use `bulkActivateWidgets()` or manually activate dependencies first.
+
+#### "Widget database adapter not available"
+
+**Cause:** Database connection not properly configured.
+
+**Solution:** Verify database configuration in `src/databases/` and ensure the database is running.
+
+#### Collection validation warnings
+
+**Cause:** Collections reference widgets that are currently inactive.
+
+**Solution:** Activate required widgets using `getRequiredWidgetsByCollections()` and `bulkActivateWidgets()`.
+
+### Debug Information
+
+Enable debug logging to see detailed widget operations:
+
+```typescript
+import { logger } from '@utils/logger.svelte';
+
+// Set log level to debug
+logger.setLevel('debug');
+
+// Now all widget operations will log detailed information
+await widgetStoreActions.initializeWidgets();
+```
+
+### Viewing Widget State
+
+Inspect current widget state in the browser console:
+
+```typescript
+import { widgetStore } from '@stores/widgetStore.svelte';
+import { get } from 'svelte/store';
+
+// Get current state
+const state = get(widgetStore);
+console.log('Widget State:', state);
+console.log('Active Widgets:', state.activeWidgets);
+console.log('Core Widgets:', state.coreWidgets);
+console.log('Dependencies:', state.dependencyMap);
+```
+
+---
+
+## Best Practices
+
+### 1. Use Derived Stores
+
+Always use derived stores for reactive widget state:
+
+```typescript
+// ✅ Good
+import { activeWidgets } from '@stores/widgetStore.svelte';
+$: console.log('Active:', $activeWidgets);
+
+// ❌ Avoid
+import { widgetStore } from '@stores/widgetStore.svelte';
+$: console.log('Active:', $widgetStore.activeWidgets);
+```
+
+### 2. Handle Dependencies
+
+Always use `bulkActivateWidgets()` for widgets with dependencies:
+
+```typescript
+// ✅ Good
+await widgetStoreActions.bulkActivateWidgets(['SEO', 'Gallery']);
+
+// ❌ Avoid (might fail if dependencies aren't active)
+await widgetStoreActions.updateWidgetStatus('SEO', 'active');
+```
+
+### 3. Validate Before Deactivation
+
+Always check if a widget can be disabled:
+
+```typescript
+// ✅ Good
+if (canDisableWidget('Gallery')) {
+	await widgetStoreActions.updateWidgetStatus('Gallery', 'inactive');
+}
+
+// ❌ Avoid (might fail if other widgets depend on it)
+await widgetStoreActions.updateWidgetStatus('Gallery', 'inactive');
+```
+
+### 4. Use Tenant Context
+
+Always provide tenant context in multi-tenant environments:
+
+```typescript
+// ✅ Good
+await widgetStoreActions.initializeWidgets(currentTenantId);
+
+// ❌ Avoid (might use wrong tenant)
+await widgetStoreActions.initializeWidgets();
+```
+
+### 5. Validate Collections
+
+Regularly validate collections against widget state:
+
+```typescript
+// ✅ Good practice
+const validation = await widgetStoreActions.validateCollectionsAgainstWidgets();
+if (validation.invalid > 0) {
+	// Handle invalid collections
+}
+```
+
+---
+
+## Future Enhancements
+
+### Planned Features
+
+- **Widget Versioning**: Track widget versions and migrations
+- **Advanced Dependency Resolution**: Automatic activation with conflict resolution
+- **Widget Marketplace**: Integration with external widget sources
+- **Performance Metrics**: Analytics for widget usage and performance
+- **A/B Testing**: Support for widget configuration experiments
+- **Widget Permissions**: Fine-grained access control per widget
+- **Widget Templates**: Pre-configured widget sets for common use cases
+- **Widget Analytics**: Usage statistics and performance monitoring
+
+### Contributing
+
+To contribute to the widget system:
+
+1. Read the [Contributing Guide](/docs/contributing/contributing-docs.mdx)
+2. Understand the [Code Structure](/docs/dev-guide/code-structure.mdx)
+3. Follow the [Widget Architecture](/docs/dev-guide/widget-architecture.mdx) guidelines
+4. Submit a pull request with your changes
+
+---
+
+## Related Documentation
+
+- [Widget System Architecture](/docs/dev-guide/widget-system-architecture.mdx): Factory pattern, Three Pillars, creating widgets
+- [Collection Builder](/docs/user-guide/collection-builder.mdx): Using widgets in collections
+- [API Documentation](/docs/dev-guide/api/): Complete API reference
+- [Multi-Tenant Setup](/docs/dev-guide/multi-tenant.mdx): Multi-tenancy configuration
+- [mdsvex](https://mdsvex.pngwn.io/): MDX for Svelte (widget documentation)
+
+---
+
+## Summary
+
+The SveltyCMS widget management system provides:
+
+- ✅ **Centralized State Management**: Svelte stores with reactive updates
+- ✅ **Multi-Tenant Support**: Isolated configurations per tenant
+- ✅ **Dependency Management**: Automatic resolution and validation
+- ✅ **Type Safety**: Full TypeScript support
+- ✅ **Performance**: Code splitting and HMR support
+- ✅ **Database Integration**: Persistent widget configurations
+- ✅ **Comprehensive API**: RESTful endpoints for all operations
+- ✅ **Error Handling**: Robust validation and error messages
+- ✅ **Backward Compatibility**: Legacy function support during migration
+
+For questions or issues, please refer to the [FAQ](/docs/user-guide/faq.mdx) or contact the development team.

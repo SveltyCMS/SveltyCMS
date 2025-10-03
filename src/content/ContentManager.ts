@@ -167,10 +167,10 @@ class ContentManager {
 		}
 
 		const fullStructure = this.getContentStructure();
-		
+
 		// Strip out collection definitions, keep only metadata + translations for localization
 		const stripToNavigation = (nodes: ContentNode[]): any[] => {
-			return nodes.map(node => ({
+			return nodes.map((node) => ({
 				_id: node._id,
 				name: node.name,
 				path: node.path,
@@ -178,9 +178,7 @@ class ContentManager {
 				nodeType: node.nodeType,
 				order: node.order,
 				translations: node.translations, // Include translations for client-side localization
-				children: node.children && node.children.length > 0 
-					? stripToNavigation(node.children) 
-					: undefined
+				children: node.children && node.children.length > 0 ? stripToNavigation(node.children) : undefined
 			}));
 		};
 
@@ -196,12 +194,12 @@ class ContentManager {
 		}
 		const nodeId = this.pathLookupMap.get(identifier) ?? identifier;
 		const node = this.contentNodeMap.get(nodeId);
-		
+
 		// Filter by tenantId if provided
 		if (node?.collectionDef && tenantId && node.tenantId !== tenantId) {
 			return null;
 		}
-		
+
 		return node?.collectionDef ?? null;
 	}
 

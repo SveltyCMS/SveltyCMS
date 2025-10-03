@@ -92,10 +92,7 @@ Interactive level configuration with add/remove level capabilities
 							<span class="field-count">({levelFields.length} field{levelFields.length !== 1 ? 's' : ''})</span>
 						</label>
 
-						<WidgetBuilder
-							fields={levelFields}
-							onFieldsChange={(newFields) => updateLevelFields(levelIndex, newFields)}
-						/>
+						<WidgetBuilder fields={levelFields} onFieldsChange={(newFields) => updateLevelFields(levelIndex, newFields)} />
 					</div>
 
 					{#if levelFields.length === 0}

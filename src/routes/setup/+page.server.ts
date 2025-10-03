@@ -8,13 +8,17 @@ import { isSetupComplete } from '@utils/setupCheck';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
 	// --- SECURITY ---
 	// If setup is already complete, redirect the user away immediately.
 	// This is the primary protection for this route.
 	if (isSetupComplete()) {
 		throw redirect(302, '/login');
 	}
+
+	// Clear any existing session cookies to ensure fresh start
+	// This prevents issues when doing a fresh database setup
+	cookies.delete('auth_session', { path: '/' });
 
 	// Pass theme data from server to client to prevent FOUC
 	return {

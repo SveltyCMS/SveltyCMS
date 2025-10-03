@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/collections/widgets/required/+server.ts
+ * @file src/routes/api/widgets/required/+server.ts
  * @description API endpoint for getting widgets required by collections
  */
 import { contentManager } from '@src/content/ContentManager';

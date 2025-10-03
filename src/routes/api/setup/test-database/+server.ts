@@ -328,17 +328,16 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 		const errorDetails = {
 			message: error instanceof Error ? error.message : String(error),
 			name: error instanceof Error ? error.name : 'UnknownError',
-			stack: error instanceof Error ? error.stack : undefined,
 			code: (error as { code?: string | number })?.code,
+			codeName: (error as { codeName?: string })?.codeName,
 			errno: (error as { errno?: string | number })?.errno
 		};
-		logger.error('❌ MongoDB connection test failed:', errorDetails);
-		logger.error('❌ Raw error object:', error);
-		const rawErrorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('❌ Raw error message:', rawErrorMessage);
+
+		// Close connection if it was established
 		if (conn) {
 			await conn.close().catch((closeError) => logger.warn('Failed to close connection after error:', closeError));
 		}
+
 		if (!error) {
 			logger.error('❌ Error parameter is undefined in catch block');
 			return json(
@@ -353,7 +352,10 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				{ status: 500 }
 			);
 		}
+
+		// Classify the error to get user-friendly message
 		const classified = classifyDatabaseError(error, 'mongodb', dbConfig);
+
 		if (!classified || typeof classified !== 'object') {
 			logger.error('❌ Error classifier returned invalid result:', classified);
 			return json(
@@ -368,8 +370,28 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				{ status: 500 }
 			);
 		}
+
 		const { classification, raw, userFriendly } = classified;
-		logger.error('❌ Error classification:', { classification, raw, userFriendly });
+
+		// Log comprehensive error information
+		logger.error('❌ MongoDB connection test failed', {
+			classification,
+			errorCode: errorDetails.code,
+			codeName: errorDetails.codeName,
+			technicalMessage: errorDetails.message,
+			host: dbConfig.host,
+			port: dbConfig.port,
+			database: dbConfig.name,
+			hasCredentials: !!(dbConfig.user && dbConfig.password),
+			isAtlas
+		});
+
+		logger.info('💡 User-friendly error:', userFriendly);
+		logger.debug('🔍 Technical details:', {
+			fullError: errorDetails.message,
+			rawClassification: raw,
+			suggestion: classification
+		});
 		const durationMs = Date.now() - start;
 		return json(
 			{
@@ -382,7 +404,7 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				atlas: isAtlas,
 				usedUri: connectionString.replace(/:([^:]+)@/, ':****@'),
 				debug: {
-					rawErrorMessage,
+					errorMessage: errorDetails.message,
 					connectionString: connectionString.replace(/:([^:]+)@/, ':****@'),
 					options: { ...options, pass: options.pass ? '****' : undefined }
 				}

@@ -9,8 +9,17 @@
  * - Tenant-aware keys for multi-tenant environments
  */
 
-import { browser } from '$app/environment';
-import { privateEnv } from '@src/stores/globalSettings';
+// Safe import for test environment
+let browser = false;
+try {
+	const appEnv = await import('$app/environment');
+	browser = appEnv.browser;
+} catch {
+	// Running in test environment or outside SvelteKit context
+	browser = false;
+}
+
+import { privateEnv, getPrivateSetting } from '@src/stores/globalSettings';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -169,6 +178,8 @@ class CacheService {
 	private store: ICacheStore;
 	private initialized = false;
 	private initPromise: Promise<void> | null = null;
+	private prefetchPatterns: PrefetchPattern[] = [];
+	private accessLog: Map<string, number[]> = new Map(); // Track access times for analytics
 
 	private constructor() {
 		this.store = !browser && CACHE_CONFIG.USE_REDIS ? new RedisStore() : new InMemoryStore();
@@ -205,16 +216,79 @@ class CacheService {
 		return baseKey;
 	}
 
-	async get<T>(baseKey: string, tenantId?: string): Promise<T | null> {
+	/**
+	 * Track cache access for analytics and predictive prefetching
+	 */
+	private trackAccess(key: string): void {
+		const now = Date.now();
+		const accesses = this.accessLog.get(key) || [];
+		accesses.push(now);
+
+		// Keep only last 100 accesses per key
+		if (accesses.length > 100) {
+			accesses.shift();
+		}
+
+		this.accessLog.set(key, accesses);
+	}
+
+	/**
+	 * Check if a key should be predictively prefetched based on patterns
+	 */
+	private async checkPrefetch(key: string, tenantId?: string): Promise<void> {
+		for (const pattern of this.prefetchPatterns) {
+			if (pattern.pattern.test(key)) {
+				const keysToFetch = pattern.prefetchKeys(key);
+				// Prefetch in background without blocking
+				void this.prefetchKeys(keysToFetch, pattern.category, tenantId);
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Prefetch multiple keys in the background
+	 */
+	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
+		// This is a placeholder - in a real implementation, you would:
+		// 1. Check which keys are not in cache
+		// 2. Fetch the data from the database
+		// 3. Store it in cache
+		// For now, we just log the intent
+		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
+	}
+
+	async get<T>(baseKey: string, tenantId?: string, _category?: CacheCategory): Promise<T | null> {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);
+
+		// Track access
+		this.trackAccess(key);
+
+		// Check for predictive prefetch opportunities
+		void this.checkPrefetch(key, tenantId);
+
 		return this.store.get<T>(key);
 	}
 
-	async set<T>(baseKey: string, value: T, ttlSeconds: number, tenantId?: string): Promise<void> {
+	async set<T>(baseKey: string, value: T, ttlSeconds: number, tenantId?: string, category?: CacheCategory): Promise<void> {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);
-		await this.store.set<T>(key, value, ttlSeconds);
+
+		// Use category-specific TTL if category provided and no explicit TTL
+		const finalTTL = category && ttlSeconds === 0 ? getCategoryTTL(category) : ttlSeconds;
+
+		await this.store.set<T>(key, value, finalTTL);
+	}
+
+	/**
+	 * Set with automatic category-based TTL
+	 */
+	async setWithCategory<T>(baseKey: string, value: T, category: CacheCategory, tenantId?: string): Promise<void> {
+		await this.ensureInitialized();
+		const key = this.generateKey(baseKey, tenantId);
+		const ttl = getCategoryTTL(category);
+		await this.store.set<T>(key, value, ttl);
 	}
 
 	async delete(baseKey: string | string[], tenantId?: string): Promise<void> {
@@ -229,6 +303,116 @@ class CacheService {
 		await this.store.clearByPattern(keyPattern);
 	}
 
+	/**
+	 * Warm cache with critical data
+	 * Useful for preloading frequently accessed data on startup
+	 */
+	async warmCache(config: WarmCacheConfig): Promise<void> {
+		await this.ensureInitialized();
+		logger.info(`Warming cache for ${config.keys.length} keys in category ${config.category || 'default'}`);
+
+		try {
+			const data = await config.fetcher();
+			const ttl = config.category ? getCategoryTTL(config.category) : REDIS_TTL_S;
+
+			for (const key of config.keys) {
+				await this.set(key, data, ttl, config.tenantId, config.category);
+			}
+
+			logger.info(`Cache warmed successfully for ${config.keys.length} keys`);
+		} catch (error) {
+			logger.error('Cache warming failed:', error);
+		}
+	}
+
+	/**
+	 * Register a predictive prefetch pattern
+	 * When a key matching the pattern is accessed, related keys will be prefetched
+	 */
+	registerPrefetchPattern(pattern: PrefetchPattern): void {
+		this.prefetchPatterns.push(pattern);
+		logger.info(`Registered prefetch pattern: ${pattern.pattern.source}`);
+	}
+
+	/**
+	 * Get cache access analytics
+	 */
+	getAccessAnalytics(key: string): { count: number; avgInterval: number; lastAccess: number } | null {
+		const accesses = this.accessLog.get(key);
+		if (!accesses || accesses.length === 0) return null;
+
+		const count = accesses.length;
+		const lastAccess = accesses[accesses.length - 1];
+
+		// Calculate average interval between accesses
+		let totalInterval = 0;
+		for (let i = 1; i < accesses.length; i++) {
+			totalInterval += accesses[i] - accesses[i - 1];
+		}
+		const avgInterval = accesses.length > 1 ? totalInterval / (accesses.length - 1) : 0;
+
+		return { count, avgInterval, lastAccess };
+	}
+
+	/**
+	 * Get recommended TTL based on access patterns
+	 * Returns recommended TTL in seconds
+	 */
+	getRecommendedTTL(key: string): number | null {
+		const analytics = this.getAccessAnalytics(key);
+		if (!analytics) return null;
+
+		// If accessed frequently (avgInterval < 1 minute), use longer TTL
+		if (analytics.avgInterval < 60000) {
+			return 600; // 10 minutes
+		}
+
+		// If accessed moderately (1-5 minutes), use medium TTL
+		if (analytics.avgInterval < 300000) {
+			return 300; // 5 minutes
+		}
+
+		// Otherwise use short TTL
+		return 180; // 3 minutes
+	}
+
+	/**
+	 * Invalidate all cached data to force refresh
+	 * Useful when TTL settings are changed via the settings UI
+	 */
+	async invalidateAll(): Promise<void> {
+		await this.ensureInitialized();
+		logger.info('🔄 Invalidating all cache entries due to configuration change');
+
+		// For in-memory cache, we can just clear everything
+		if (this.store instanceof InMemoryStore) {
+			await this.store.disconnect();
+			await this.store.initialize();
+		} else if (this.store instanceof RedisStore) {
+			// For Redis, clear by pattern (all keys)
+			await this.store.clearByPattern('*');
+		}
+
+		logger.info('✅ Cache invalidated successfully');
+	}
+
+	/**
+	 * Get current TTL configuration for all categories
+	 * Useful for displaying in admin UI
+	 */
+	getCurrentTTLConfig(): Record<string, number> {
+		return {
+			schema: getCategoryTTL(CacheCategory.SCHEMA),
+			widget: getCategoryTTL(CacheCategory.WIDGET),
+			theme: getCategoryTTL(CacheCategory.THEME),
+			content: getCategoryTTL(CacheCategory.CONTENT),
+			media: getCategoryTTL(CacheCategory.MEDIA),
+			session: getCategoryTTL(CacheCategory.SESSION),
+			user: getCategoryTTL(CacheCategory.USER),
+			api: getCategoryTTL(CacheCategory.API)
+		};
+	}
+
 	getRedisClient(): RedisClientType | null {
 		return this.store.getClient();
 	}
@@ -240,17 +424,122 @@ class CacheService {
 
 export const cacheService = CacheService.getInstance();
 
-// Centralized TTLs used across hooks and services
-// Session cache (e.g., session validation, cookies)
-export const SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+// Helper functions to get dynamic TTLs from database settings
+// These allow runtime changes without server restart
+
+/**
+ * Get SESSION cache TTL from database settings
+ * @returns TTL in seconds (default: 86400 = 24 hours)
+ */
+export function getSessionCacheTTL(): number {
+	return getCategoryTTL(CacheCategory.SESSION);
+}
+
+/**
+ * Get USER permissions cache TTL from database settings
+ * @returns TTL in seconds (default: 60 = 1 minute)
+ */
+export function getUserPermCacheTTL(): number {
+	return getCategoryTTL(CacheCategory.USER);
+}
+
+/**
+ * Get API response cache TTL from database settings
+ * @returns TTL in seconds (default: 300 = 5 minutes)
+ */
+export function getApiCacheTTL(): number {
+	return getCategoryTTL(CacheCategory.API);
+}
+
+// Legacy exports for backward compatibility - now use dynamic values
+// Millisecond versions
+export const SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // Default: 24 hours
+export const USER_PERM_CACHE_TTL_MS = 60 * 1000; // Default: 1 minute
+export const USER_COUNT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (not dynamically configured yet)
+export const API_CACHE_TTL_MS = 5 * 60 * 1000; // Default: 5 minutes
+// Second versions - use getter functions for dynamic values
 export const SESSION_CACHE_TTL_S = Math.ceil(SESSION_CACHE_TTL_MS / 1000);
-// Authorization/admin caches
-export const USER_PERM_CACHE_TTL_MS = 60 * 1000; // 1 minute
 export const USER_PERM_CACHE_TTL_S = Math.ceil(USER_PERM_CACHE_TTL_MS / 1000);
-export const USER_COUNT_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export const USER_COUNT_CACHE_TTL_S = Math.ceil(USER_COUNT_CACHE_TTL_MS / 1000);
-// API response cache
-export const API_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export const API_CACHE_TTL_S = Math.ceil(API_CACHE_TTL_MS / 1000);
-// Generic Redis TTL for content or other areas that prefer seconds
+// Generic Redis TTL
 export const REDIS_TTL_S = 300; // 5 minutes in seconds for Redis
+
+/**
+ * Cache category TTLs - Configurable via database settings
+ * Defaults are used if not configured in the database
+ */
+export enum CacheCategory {
+	SCHEMA = 'schema',
+	WIDGET = 'widget',
+	THEME = 'theme',
+	CONTENT = 'content',
+	MEDIA = 'media',
+	SESSION = 'session',
+	USER = 'user',
+	API = 'api'
+}
+
+// Default TTLs (in seconds) if not configured in database
+const DEFAULT_CATEGORY_TTLS: Record<CacheCategory, number> = {
+	[CacheCategory.SCHEMA]: 600, // 10 minutes - schemas change rarely
+	[CacheCategory.WIDGET]: 600, // 10 minutes - widget configs are relatively stable
+	[CacheCategory.THEME]: 300, // 5 minutes - themes may update occasionally
+	[CacheCategory.CONTENT]: 180, // 3 minutes - content updates frequently
+	[CacheCategory.MEDIA]: 300, // 5 minutes - media metadata is fairly stable
+	[CacheCategory.SESSION]: 86400, // 24 hours - user sessions
+	[CacheCategory.USER]: 60, // 1 minute - user permissions (frequently checked)
+	[CacheCategory.API]: 300 // 5 minutes - API responses
+};
+
+/**
+ * Gets the TTL for a specific cache category
+ * Checks database settings first (dynamically), falls back to defaults
+ * This allows users to change TTLs via the settings UI without restarting
+ */
+function getCategoryTTL(category: CacheCategory): number {
+	// Map category to config key
+	const configKey = `CACHE_TTL_${category.toUpperCase()}` as
+		| 'CACHE_TTL_SCHEMA'
+		| 'CACHE_TTL_WIDGET'
+		| 'CACHE_TTL_THEME'
+		| 'CACHE_TTL_CONTENT'
+		| 'CACHE_TTL_MEDIA'
+		| 'CACHE_TTL_SESSION'
+		| 'CACHE_TTL_USER'
+		| 'CACHE_TTL_API';
+
+	try {
+		// Try to get from dynamic settings (allows runtime changes)
+		const configuredTTL = getPrivateSetting(configKey);
+
+		if (typeof configuredTTL === 'number' && configuredTTL > 0) {
+			return configuredTTL;
+		}
+	} catch (error) {
+		// If settings not loaded yet, fall through to defaults
+		logger.debug(`Failed to get TTL for ${category}, using default:`, error);
+	}
+
+	// Fall back to default TTL
+	return DEFAULT_CATEGORY_TTLS[category];
+}
+
+/**
+ * Interface for cache warming configuration
+ */
+interface WarmCacheConfig {
+	keys: string[];
+	fetcher: () => Promise<unknown>;
+	category?: CacheCategory;
+	tenantId?: string;
+}
+
+/**
+ * Interface for predictive prefetch configuration
+ */
+interface PrefetchPattern {
+	pattern: RegExp;
+	prefetchKeys: (matchedKey: string) => string[];
+	category?: CacheCategory;
+}

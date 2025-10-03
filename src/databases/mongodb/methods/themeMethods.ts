@@ -7,11 +7,10 @@
 import { logger } from '@utils/logger.svelte';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Theme } from '../../dbInterface';
-import type { ITheme } from '../models/theme';
-import { createDatabaseError } from './mongoDBUtils';
+import { createDatabaseError, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
 
 // Define the model type for dependency injection, making the class testable.
-type ThemeModelType = Model<ITheme>;
+type ThemeModelType = Model<Theme>;
 
 export class MongoThemeMethods {
 	private readonly themeModel: ThemeModelType;
@@ -22,46 +21,67 @@ export class MongoThemeMethods {
 	 */
 	constructor(themeModel: ThemeModelType) {
 		this.themeModel = themeModel;
-		logger.info('MongoThemeMethods initialized.');
+		logger.debug('\x1b[34mMongoThemeMethods\x1b[0m initialized.');
 	}
 
 	/**
 	 * Retrieves the currently active theme.
+	 * Cached with 300s TTL since active theme is accessed on every page load
 	 * @returns {Promise<Theme | null>} The active theme object or null if none is active.
 	 * @throws {DatabaseError} If the database query fails.
 	 */
 	async getActive(): Promise<Theme | null> {
-		try {
-			return await this.themeModel.findOne({ isActive: true }).lean().exec();
-		} catch (error) {
-			throw createDatabaseError(error, 'THEME_FETCH_FAILED', 'Failed to get active theme');
-		}
+		return withCache(
+			'theme:active',
+			async () => {
+				try {
+					return await this.themeModel.findOne({ isActive: true }).lean().exec();
+				} catch (error) {
+					throw createDatabaseError(error, 'THEME_FETCH_FAILED', 'Failed to get active theme');
+				}
+			},
+			{ category: CacheCategory.THEME }
+		);
 	}
 
 	/**
 	 * Retrieves the default theme.
+	 * Cached with 300s TTL since default theme is frequently accessed
 	 * @returns {Promise<Theme | null>} The default theme object or null if none is set.
 	 * @throws {DatabaseError} If the database query fails.
 	 */
 	async getDefault(): Promise<Theme | null> {
-		try {
-			return await this.themeModel.findOne({ isDefault: true }).lean().exec();
-		} catch (error) {
-			throw createDatabaseError(error, 'THEME_FETCH_FAILED', 'Failed to get default theme');
-		}
+		return withCache(
+			'theme:default',
+			async () => {
+				try {
+					return await this.themeModel.findOne({ isDefault: true }).lean().exec();
+				} catch (error) {
+					throw createDatabaseError(error, 'THEME_FETCH_FAILED', 'Failed to get default theme');
+				}
+			},
+			{ category: CacheCategory.THEME }
+		);
 	}
 
 	/**
 	 * Retrieves all themes from the database, sorted by order.
+	 * Cached with 300s TTL since theme list is frequently accessed in admin UI
 	 * @returns {Promise<Theme[]>} An array of theme objects.
 	 * @throws {DatabaseError} If the database query fails.
 	 */
 	async findAll(): Promise<Theme[]> {
-		try {
-			return await this.themeModel.find().sort({ order: 1 }).lean().exec();
-		} catch (error) {
-			throw createDatabaseError(error, 'THEME_FETCH_ALL_FAILED', 'Failed to get all themes');
-		}
+		return withCache(
+			'theme:all',
+			async () => {
+				try {
+					return await this.themeModel.find().sort({ order: 1 }).lean().exec();
+				} catch (error) {
+					throw createDatabaseError(error, 'THEME_FETCH_ALL_FAILED', 'Failed to get all themes');
+				}
+			},
+			{ category: CacheCategory.THEME }
+		);
 	}
 
 	/**
@@ -71,7 +91,10 @@ export class MongoThemeMethods {
 	 * @throws {DatabaseError} If the database query fails.
 	 */
 	async setActive(themeId: DatabaseId): Promise<Theme | null> {
-		return this._setUniqueFlag(themeId, 'isActive');
+		const result = await this._setUniqueFlag(themeId, 'isActive');
+		// Invalidate all theme caches since active theme changed
+		await invalidateCategoryCache(CacheCategory.THEME);
+		return result;
 	}
 
 	/**
@@ -81,7 +104,10 @@ export class MongoThemeMethods {
 	 * @throws {DatabaseError} If the database query fails.
 	 */
 	async setDefault(themeId: DatabaseId): Promise<Theme | null> {
-		return this._setUniqueFlag(themeId, 'isDefault');
+		const result = await this._setUniqueFlag(themeId, 'isDefault');
+		// Invalidate all theme caches since default theme changed
+		await invalidateCategoryCache(CacheCategory.THEME);
+		return result;
 	}
 
 	/**
@@ -94,9 +120,37 @@ export class MongoThemeMethods {
 		try {
 			const newTheme = new this.themeModel(themeData);
 			const savedTheme = await newTheme.save();
+
+			// Invalidate theme caches
+			await invalidateCategoryCache(CacheCategory.THEME);
+
 			return savedTheme.toObject();
 		} catch (error) {
 			throw createDatabaseError(error, 'THEME_INSTALL_FAILED', 'Failed to install theme');
+		}
+	}
+
+	/**
+	 * Installs or updates a theme using atomic upsert operation.
+	 * If the theme exists (by _id), it updates it. Otherwise, it creates a new one.
+	 * This method is safe from duplicate key errors.
+	 * @param {Theme} themeData - The complete theme data including _id.
+	 * @returns {Promise<Theme>} The created or updated theme object.
+	 * @throws {DatabaseError} If the operation fails.
+	 */
+	async installOrUpdate(themeData: Theme): Promise<Theme> {
+		try {
+			const result = await this.themeModel
+				.findOneAndUpdate({ _id: themeData._id }, themeData, { upsert: true, new: true, setDefaultsOnInsert: true })
+				.lean()
+				.exec();
+
+			// Invalidate theme caches
+			await invalidateCategoryCache(CacheCategory.THEME);
+
+			return result as Theme;
+		} catch (error) {
+			throw createDatabaseError(error, 'THEME_UPSERT_FAILED', 'Failed to install or update theme');
 		}
 	}
 
@@ -109,6 +163,10 @@ export class MongoThemeMethods {
 	async uninstall(themeId: DatabaseId): Promise<boolean> {
 		try {
 			const result = await this.themeModel.findByIdAndDelete(themeId).exec();
+
+			// Invalidate theme caches
+			await invalidateCategoryCache(CacheCategory.THEME);
+
 			return !!result;
 		} catch (error) {
 			throw createDatabaseError(error, 'THEME_UNINSTALL_FAILED', 'Failed to uninstall theme');
@@ -124,7 +182,12 @@ export class MongoThemeMethods {
 	 */
 	async update(themeId: DatabaseId, themeData: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<Theme | null> {
 		try {
-			return await this.themeModel.findByIdAndUpdate(themeId, { $set: themeData }, { new: true }).lean().exec();
+			const result = await this.themeModel.findByIdAndUpdate(themeId, { $set: themeData }, { new: true }).lean().exec();
+
+			// Invalidate theme caches
+			await invalidateCategoryCache(CacheCategory.THEME);
+
+			return result;
 		} catch (error) {
 			throw createDatabaseError(error, 'THEME_UPDATE_FAILED', 'Failed to update theme');
 		}

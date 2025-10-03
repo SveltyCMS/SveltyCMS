@@ -203,6 +203,92 @@ export interface WidgetMeta {
 	settings?: Record<string, unknown>; // Optional default settings
 }
 
-export type ContentTypes = object;
+// --- Import/Export Types ---
 
-export type ContentTypes = {};
+export interface ExportMetadata {
+	exported_at: string;
+	cms_version: string;
+	environment: string;
+	exported_by: string;
+	export_id: string;
+}
+
+export interface ExportOptions {
+	includeSettings: boolean;
+	includeCollections: boolean;
+	includeSensitive: boolean;
+	format: 'json' | 'zip';
+	groups?: string[]; // Specific settings groups to export
+	collections?: string[]; // Specific collections to export
+	sensitivePassword?: string; // Password to encrypt sensitive data (required if includeSensitive is true)
+}
+
+export interface ImportOptions {
+	strategy: 'skip' | 'overwrite' | 'merge';
+	dryRun: boolean;
+	validateOnly: boolean;
+	sensitivePassword?: string; // Password to decrypt sensitive data
+}
+
+export interface ExportData {
+	metadata: ExportMetadata;
+	settings?: Record<string, unknown>;
+	collections?: CollectionExport[];
+	encryptedSensitive?: string; // Encrypted sensitive data (AES-256)
+	hasSensitiveData?: boolean; // Flag indicating presence of encrypted sensitive data
+}
+
+export interface CollectionExport {
+	id: string;
+	name: string;
+	label: string;
+	description?: string;
+	schema: unknown;
+	fields: unknown[];
+	permissions?: string[];
+	settings?: Record<string, unknown>;
+}
+
+export interface ValidationResult {
+	valid: boolean;
+	errors: ValidationError[];
+	warnings: ValidationWarning[];
+}
+
+export interface ValidationError {
+	path: string;
+	message: string;
+	code: string;
+}
+
+export interface ValidationWarning {
+	path: string;
+	message: string;
+	code: string;
+}
+
+export interface Conflict {
+	type: 'setting' | 'collection';
+	key: string;
+	current: unknown;
+	import: unknown;
+	recommendation: 'skip' | 'overwrite' | 'merge';
+}
+
+export interface ImportResult {
+	success: boolean;
+	imported: number;
+	skipped: number;
+	merged: number;
+	errors: ImportError[];
+	conflicts: Conflict[];
+}
+
+export interface ImportError {
+	key: string;
+	message: string;
+	code: string;
+}
+
+// Sensitive field patterns to exclude from exports
+export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT_SECRET', 'PRIVATE_KEY', 'JWT_SECRET', 'ENCRYPTION_KEY', 'API_KEY'];

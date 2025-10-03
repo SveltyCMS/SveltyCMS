@@ -1,11 +1,38 @@
 /**
  * @file src/databases/mongodb/methods/crudMethods.ts
- * @description A generic, reusable class for performing CRUD operations on any MongoDB collection.
+ * @description Generic, reusable CRUD operations for any MongoDB collection.
+ *
+ * Responsibility: ALL generic CRUD operations for any collection/model.
+ *
+ * This module provides:
+ * - findOne, findMany, findByIds
+ * - insert, update, upsert
+ * - delete, deleteMany
+ * - count, exists
+ * - aggregate (for complex queries)
+ * - Batch operations (upsertMany)
+ *
+ * Does NOT handle:
+ * - Schema/model creation (use collectionMethods.ts)
+ * - CMS-specific logic (use contentMethods.ts)
+ * - Business rules or validation (handled by callers)
+ *
+ * This class is designed to be instantiated once per collection/model,
+ * providing a clean, type-safe interface for all data operations.
  */
 
 import { type FilterQuery, type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoose';
 import type { BaseEntity, DatabaseId } from '../../dbInterface';
 import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
+
+/**
+ * MongoCrudMethods provides generic CRUD operations for a Mongoose model.
+ *
+ * Each instance is tied to a specific model and provides all standard
+ * database operations in a consistent, error-handled manner.
+ *
+ * @template T - The entity type (must extend BaseEntity)
+ */
 
 export class MongoCrudMethods<T extends BaseEntity> {
 	public readonly model: Model<T>;
@@ -21,6 +48,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			return processDates(result) as T;
 		} catch (error) {
 			throw createDatabaseError(error, 'FIND_ONE_ERROR', `Failed to find document in ${this.model.modelName}`);
+		}
+	}
+
+	async findById(id: DatabaseId): Promise<T | null> {
+		try {
+			const result = await this.model.findById(id).lean().exec();
+			if (!result) return null;
+			return processDates(result) as T;
+		} catch (error) {
+			throw createDatabaseError(error, 'FIND_BY_ID_ERROR', `Failed to find document by ID in ${this.model.modelName}`);
 		}
 	}
 
@@ -57,7 +94,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				_id: generateId(),
 				createdAt: new Date(),
 				updatedAt: new Date()
-			} as T;
+			} as unknown as T;
 			const result = await this.model.create(doc);
 			return result.toObject();
 		} catch (error) {
@@ -65,6 +102,22 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				throw createDatabaseError(error, 'DUPLICATE_KEY_ERROR', 'A document with the same unique key already exists.');
 			}
 			throw createDatabaseError(error, 'INSERT_ERROR', `Failed to insert document into ${this.model.modelName}`);
+		}
+	}
+
+	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<T[]> {
+		try {
+			const docs = data.map((d) => ({
+				...d,
+				_id: generateId(),
+				createdAt: new Date(),
+				updatedAt: new Date()
+			}));
+			const result = await this.model.insertMany(docs);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			return result.map((doc: any) => doc.toObject());
+		} catch (error) {
+			throw createDatabaseError(error, 'INSERT_MANY_ERROR', `Failed to insert many documents into ${this.model.modelName}`);
 		}
 	}
 

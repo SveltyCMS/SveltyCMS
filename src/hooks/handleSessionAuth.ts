@@ -138,9 +138,14 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 					throw rotationError;
 				}
 			}
-		} else if (!user && session_id) {
+		} else if (!user && session_id && authServiceReady) {
+			// Only clear invalid session if auth service is ready
+			// If auth service isn't ready, keep the session cookie for later validation
 			logger.debug(`Clearing invalid session cookie: ${session_id}`);
 			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		} else if (!user && session_id && !authServiceReady) {
+			// Auth service not ready yet, keep session cookie but don't set user
+			logger.debug(`Auth service not ready, preserving session cookie for later validation: ${session_id}`);
 		}
 		// Note: isFirstUser logic is moved to handleAuthorization
 		// Note: Role loading is moved to handleAuthorization

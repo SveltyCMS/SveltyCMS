@@ -207,6 +207,100 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		description: 'Access to theme management'
 	},
 	settings: { contextId: 'config:settings', action: 'read', type: 'config', name: 'Settings', description: 'Access to settings' },
+
+	// Fine-grained System Settings permissions (13 groups)
+	settingsCache: {
+		contextId: 'config:settings:cache',
+		action: 'manage',
+		type: 'config',
+		name: 'Cache & Performance Settings',
+		description: 'Manage cache TTLs and performance settings'
+	},
+	settingsDatabase: {
+		contextId: 'config:settings:database',
+		action: 'manage',
+		type: 'config',
+		name: 'Database Settings',
+		description: 'Manage database and MongoDB settings'
+	},
+	settingsRedis: {
+		contextId: 'config:settings:redis',
+		action: 'manage',
+		type: 'config',
+		name: 'Redis Cache Settings',
+		description: 'Manage Redis configuration and connection'
+	},
+	settingsEmail: {
+		contextId: 'config:settings:email',
+		action: 'manage',
+		type: 'config',
+		name: 'Email/SMTP Settings',
+		description: 'Manage email server and SMTP configuration'
+	},
+	settingsSecurity: {
+		contextId: 'config:settings:security',
+		action: 'manage',
+		type: 'config',
+		name: 'Security Settings',
+		description: 'Manage 2FA, session, and security settings'
+	},
+	settingsOAuth: {
+		contextId: 'config:settings:oauth',
+		action: 'manage',
+		type: 'config',
+		name: 'OAuth & Social Login',
+		description: 'Manage Google OAuth and social login'
+	},
+	settingsMedia: {
+		contextId: 'config:settings:media',
+		action: 'manage',
+		type: 'config',
+		name: 'Media Storage Settings',
+		description: 'Manage media folder, sizes, and formats'
+	},
+	settingsLanguages: {
+		contextId: 'config:settings:languages',
+		action: 'manage',
+		type: 'config',
+		name: 'Languages & Localization',
+		description: 'Manage content languages and locales'
+	},
+	settingsIntegrations: {
+		contextId: 'config:settings:integrations',
+		action: 'manage',
+		type: 'config',
+		name: 'Third-Party Integrations',
+		description: 'Manage MapBox, TikTok, Twitch integrations'
+	},
+	settingsSite: {
+		contextId: 'config:settings:site',
+		action: 'manage',
+		type: 'config',
+		name: 'Site Configuration',
+		description: 'Manage site name, URLs, and basic config'
+	},
+	settingsAppearance: {
+		contextId: 'config:settings:appearance',
+		action: 'manage',
+		type: 'config',
+		name: 'Appearance Settings',
+		description: 'Manage default theme and appearance'
+	},
+	settingsLogging: {
+		contextId: 'config:settings:logging',
+		action: 'manage',
+		type: 'config',
+		name: 'Logging Settings',
+		description: 'Manage log levels, retention, and rotation'
+	},
+	settingsAdvanced: {
+		contextId: 'config:settings:advanced',
+		action: 'manage',
+		type: 'config',
+		name: 'Advanced Settings',
+		description: 'Manage server port, roles, permissions, and demo mode'
+	},
+
 	accessManagement: {
 		contextId: 'config:accessManagement',
 		action: 'read',

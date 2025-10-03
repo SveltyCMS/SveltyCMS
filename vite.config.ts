@@ -20,6 +20,7 @@ import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
+import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
 
 // --- Constants & Configuration ---
 
@@ -251,6 +252,12 @@ export default defineConfig((): UserConfig => {
 
 	return {
 		plugins: [
+			// Security check plugin runs first to detect private setting imports
+			securityCheckPlugin({
+				failOnError: true,
+				showWarnings: true,
+				extensions: ['.svelte', '.ts', '.js']
+			}),
 			sveltekit(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({

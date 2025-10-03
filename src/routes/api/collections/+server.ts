@@ -34,13 +34,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		// Get query parameters
 		const includeFields = url.searchParams.get('includeFields') === 'true';
-		const includeStats = url.searchParams.get('includeStats') === 'true'; // Get all collections from ContentManager, scoped by tenantId
+		const includeStats = url.searchParams.get('includeStats') === 'true';
 
-		const allCollections = contentManager.getCollections();
+		// Get all collections from ContentManager (returns an array)
+		const allCollections = contentManager.getCollections(tenantId);
 
-		const accessibleCollections = []; // All collections are accessible since hooks handle authorization
+		const accessibleCollections = [];
 
-		for (const [collectionId, collection] of Object.entries(allCollections)) {
+		// Iterate over the array of collections
+		for (const collection of allCollections) {
 			const collectionInfo = {
 				id: collection._id,
 				name: collection.name,
@@ -49,8 +51,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				icon: collection.icon,
 				path: collection.path,
 				permissions: {
-					read: true, // User already authorized by hooks
-					write: true // User already authorized by hooks
+					read: true,
+					write: true
 				}
 			};
 
@@ -59,18 +61,18 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				collectionInfo.fields = collection.fields;
 			}
 
-			// Include stats if requested (user already authorized by hooks)
+			// Include stats if requested
 			if (includeStats) {
 				try {
-					// You can add collection statistics here if your DB adapter supports it
-					// For now, just add placeholder
 					collectionInfo.stats = {
 						totalEntries: 0,
 						publishedEntries: 0,
 						draftEntries: 0
 					};
 				} catch (statsError) {
-					logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
+					logger.warn(
+						`Failed to get stats for collection ${collection._id}: ${statsError instanceof Error ? statsError.message : String(statsError)}`
+					);
 				}
 			}
 
@@ -78,7 +80,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const duration = performance.now() - start;
-		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId}`);
+		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId || 'default'}`);
 
 		return json({
 			success: true,

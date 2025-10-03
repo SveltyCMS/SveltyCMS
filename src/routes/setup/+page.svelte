@@ -550,11 +550,20 @@
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex flex-1 items-center gap-4 sm:gap-5">
 					<div class="flex flex-shrink-0 items-center">
-						<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-12 w-auto" />
+						<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
+							<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-12 w-auto" />
+						</a>
 					</div>
 					<div class="border-l border-surface-200 pl-4 dark:border-surface-600">
 						<h1 class="mb-1 text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">
-							<SiteName siteName={wizard.systemSettings.siteName} />
+							<a
+								href="https://github.com/SveltyCMS/SveltyCMS"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="transition-colors hover:text-primary-500"
+							>
+								<SiteName siteName={wizard.systemSettings.siteName} highlight="CMS" />
+							</a>
 						</h1>
 						<p class="hidden text-sm sm:block sm:text-base">{m.setup_heading_subtitle()}</p>
 					</div>

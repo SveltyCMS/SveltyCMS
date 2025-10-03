@@ -397,7 +397,7 @@ export const widgetStoreActions = {
 			// Check if we're on the client side
 			if (typeof window !== 'undefined') {
 				// Client-side: use API call
-				const response = await fetch('/api/collections/widgets/required', {
+				const response = await fetch('/api/widgets/required', {
 					method: 'GET',
 					headers: {
 						'Content-Type': 'application/json',
@@ -440,7 +440,7 @@ export const widgetStoreActions = {
 
 				// Client-side: use API call with active widgets as query param
 				const activeWidgetsParam = currentActiveWidgets.join(',');
-				const url = `/api/collections/widgets/validate?activeWidgets=${encodeURIComponent(activeWidgetsParam)}`;
+				const url = `/api/widgets/validate?activeWidgets=${encodeURIComponent(activeWidgetsParam)}`;
 
 				const response = await fetch(url, {
 					method: 'GET',

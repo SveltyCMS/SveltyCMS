@@ -104,6 +104,8 @@ bun run dev  # CLI installer launches automatically
 
 - [⚙️ Installation & Setup](./Dev_Guide/00_Installation/README.md) - Automated installer explained
 - [🔐 Authentication System](./Dev_Guide/01_Authentication/README.md) - Security implementation
+- [⚡ Cache System](./Cache_System.mdx) - Dual-layer caching (Redis + MongoDB)
+- [⚙️ System Settings & Import/Export](./System_Settings.mdx) - Configuration management
 - [📡 API Reference](./Dev_Guide/API_User_Token_Management.md) - Complete API docs
 - [🧩 Svelte 5 Patterns](./Dev_Guide/Svelte5_Patterns.md) - Modern development patterns
 
@@ -129,33 +131,105 @@ SveltyCMS is designed with security as a core principle:
 - **JavaScript**: Required (security features depend on it)
 - **Node.js**: 18+ for development
 - **Database**: MongoDB (recommended) or PostgreSQL/SQLite
+- **Redis**: Optional but recommended for caching
 
 ---
 
-# SveltyCMS Configuration (2025+)
+# System Architecture (2025+)
 
-## Dynamic Settings
-- All runtime settings are now stored in the database and managed via the admin GUI or API endpoints.
-- Static config files are only used for database connection and startup secrets (e.g., JWT).
+## Database-Driven Configuration
 
-## Import/Export
-- Use `/api/settings/export` (GET) to export a snapshot of all settings.
-- Use `/api/settings/import` (POST) to restore settings from a snapshot.
-- The CLI installer provides commands for import/export via `settingsImportExport.js`.
+SveltyCMS uses a **modern, database-driven approach** for all configuration:
 
-## Legacy Config
-- Old static config files and CLI prompts for runtime settings have been removed.
-- Backup/restore now operates on dynamic settings, not static files.
+### Dynamic Settings (Database)
 
-## Migration Steps
-1. Update DB model/service for dynamic settings.
-2. Minimize static config to DB/secrets only.
-3. Refactor app startup to load settings from DB.
-4. Replace all static config usage in codebase.
-5. Implement import/export endpoints.
-6. Refactor GUI editor to use new API.
-7. Update CLI installer for minimal config and import/export.
-8. Clean up legacy code and docs.
-9. Test migration and new flows.
+- ✅ 58 settings across 13 groups (General, Email, Security, Cache, etc.)
+- ✅ Real-time updates without server restart
+- ✅ Role-based access control
+- ✅ Admin GUI at `/config/systemsetting`
+- ✅ RESTful API: `/api/settings/[group]`
+
+### Static Config (Minimal)
+
+- Database connection strings
+- JWT secrets and encryption keys
+- OAuth client credentials
+- Environment-specific startup config
+
+## Import/Export System
+
+**Drupal CMS-inspired configuration management:**
+
+### Export Configuration
+
+```bash
+POST /api/export/full
+{
+  "includeSettings": true,
+  "includeCollections": false,
+  "includeSensitive": false
+}
+```
+
+### Import Configuration
+
+```bash
+POST /api/import/full
+{
+  "data": { /* exported config */ },
+  "options": {
+    "strategy": "merge",  // skip | overwrite | merge
+    "dryRun": true        // validate before applying
+  }
+}
+```
+
+### Workflows Enabled
+
+- ✅ **Staging → Production**: Export from staging, import to production
+- ✅ **Version Control**: Store configs in git
+- ✅ **Team Collaboration**: Share configuration files
+- ✅ **Backup & Restore**: Daily automated backups
+- ✅ **Environment-Specific**: Dev/staging/prod configs
+
+## Cache System
+
+**Dual-layer caching for exceptional performance:**
+
+- **Layer 1 (Redis)**: Ultra-fast in-memory cache (~1ms reads)
+- **Layer 2 (MongoDB)**: Persistent cache across restarts
+- **8 TTL Categories**: Static, Dynamic, API, Query, Session, Widget, Computed, Media
+- **Automatic Expiration**: TTL-based with configurable values
+- **UI Management**: Configure via System Settings
+
+See [Cache System Documentation](./Cache_System.mdx) for details.
+
+## Migration from Legacy Config
+
+### Old Approach (Deprecated)
+
+- Static config files with CLI prompts
+- Hard-coded settings in code
+- Manual file editing for changes
+- No import/export capability
+
+### New Approach (Current)
+
+1. **Database-driven settings** - All config in MongoDB
+2. **RESTful API** - Programmatic access via `/api/settings/*`
+3. **Admin GUI** - User-friendly interface at `/config/systemsetting`
+4. **Import/Export** - Environment management with validation
+5. **Version Control** - Config files in git alongside code
+
+### Migration Steps (for existing installations)
+
+1. Update to latest version: `git pull && bun install`
+2. Run database migration: `bun run migrate`
+3. Export old config: Legacy settings auto-migrated
+4. Verify settings: Check `/config/systemsetting`
+5. Test import/export: Try exporting and re-importing
+6. Update deployment scripts: Use new API endpoints
+
+---
 
 **New to SveltyCMS?** Start with [First Steps](./User_Guide/00_Getting_Started/First_Steps.md) for users or [Installation](./Dev_Guide/00_Installation/README.md) for developers.

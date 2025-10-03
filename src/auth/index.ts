@@ -12,7 +12,7 @@
 import { dev } from '$app/environment';
 import { error } from '@sveltejs/kit';
 
-import type { authDBInterface } from './authDBInterface';
+import type { authDBInterface, DatabaseResult } from './authDBInterface';
 import type { Permission, Role, Session, SessionStore, Token, User } from './types';
 
 import { roles } from '@root/config/roles';
@@ -21,10 +21,7 @@ import { corePermissions } from './corePermissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Password utilities
-
 // Import global settings service for DB-based configuration
-import type { DatabaseResult } from '@src/databases/dbInterface';
 import { privateEnv } from '@src/stores/globalSettings';
 
 export {
@@ -62,21 +59,8 @@ export { generateRandomToken, generateTokenWithExpiry, SESSION_COOKIE_NAME } fro
 // Import for internal use
 import { SESSION_COOKIE_NAME } from './constants';
 
-// Import argon2 and related constants
-let argon2: typeof import('argon2') | null = null;
-if (typeof window === 'undefined') {
-	try {
-		argon2 = await import('argon2');
-	} catch {
-		logger.warn('Argon2 not available in this environment');
-	}
-}
-
-const argon2Attributes = {
-	memory: 65536,
-	time: 3,
-	parallelism: 4
-};
+// Import shared crypto utilities with enterprise-grade Argon2
+import { hashPassword as cryptoHashPassword, verifyPassword as cryptoVerifyPassword } from '@utils/crypto';
 
 // Main Auth class
 export class Auth {
@@ -172,8 +156,7 @@ export class Auth {
 			const normalizedEmail = email.toLowerCase();
 			let hashedPassword: string | undefined;
 			if (!oauth && password) {
-				if (!argon2) throw error(500, 'Argon2 is not available');
-				hashedPassword = await argon2.hash(password, { ...argon2Attributes, type: argon2.argon2id });
+				hashedPassword = await cryptoHashPassword(password);
 			}
 
 			const result = await this.db.createUser({ ...userData, email: normalizedEmail, password: hashedPassword });
@@ -424,8 +407,7 @@ export class Auth {
 				passwordStartsWith: user.password.substring(0, 10) + '...'
 			});
 
-			const argon2 = await import('argon2');
-			const isValid = await argon2.verify(user.password, password);
+			const isValid = await cryptoVerifyPassword(password, user.password);
 
 			logger.debug('Password verification result', { email, isValid });
 
@@ -469,8 +451,7 @@ export class Auth {
 
 	async updateUserAttributes(user_id: string, attributes: Partial<User>, tenantId?: string): Promise<User> {
 		if (attributes.password && typeof window === 'undefined') {
-			if (!argon2) throw error(500, 'Argon2 is not available');
-			attributes.password = await argon2.hash(attributes.password, { ...argon2Attributes, type: argon2.argon2id });
+			attributes.password = await cryptoHashPassword(attributes.password);
 		}
 		if (attributes.email === null) {
 			attributes.email = undefined;
@@ -531,8 +512,7 @@ export class Auth {
 		if (!user) {
 			return { status: false, message: 'User not found' };
 		}
-		const argon2 = await import('argon2');
-		const hashedPassword = await argon2.hash(password);
+		const hashedPassword = await cryptoHashPassword(password);
 		await this.updateUser(user._id, { password: hashedPassword }, tenantId);
 		return { status: true };
 	}
@@ -549,13 +529,9 @@ export function hasRole(user: User, roleName: string): boolean {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-	if (typeof window !== 'undefined') throw new Error('Password hashing is only available on the server');
-	const argon2Module = await import('argon2');
-	return argon2Module.hash(password, { ...argon2Attributes, type: argon2Module.argon2id });
+	return cryptoHashPassword(password);
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-	if (typeof window !== 'undefined') throw new Error('Password verification is only available on the server');
-	const argon2Module = await import('argon2');
-	return argon2Module.verify(hash, password);
+	return cryptoVerifyPassword(hash, password);
 }

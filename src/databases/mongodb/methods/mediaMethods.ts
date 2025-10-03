@@ -11,7 +11,7 @@ import { logger } from '@utils/logger.svelte';
 import type Mongoose from 'mongoose';
 import type { DatabaseId, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { mediaSchema, type IMedia } from '../models/media';
-import { createDatabaseError } from './mongoDBUtils';
+import { createDatabaseError, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
 
 // Define model types for dependency injection
 type MediaModelType = Mongoose.Model<IMedia>;
@@ -25,7 +25,7 @@ export class MongoMediaMethods {
 	 */
 	constructor(mediaModel: MediaModelType) {
 		this.mediaModel = mediaModel;
-		logger.info('MongoMediaMethods initialized with media model.');
+		logger.debug('\x1b[34mMongoMediaMethods\x1b[0m initialized with media model.');
 	}
 
 	/**
@@ -48,6 +48,10 @@ export class MongoMediaMethods {
 	async uploadMany(files: Omit<MediaItem, '_id'>[]): Promise<MediaItem[]> {
 		try {
 			const result = await this.mediaModel.insertMany(files);
+
+			// Invalidate media caches
+			await invalidateCategoryCache(CacheCategory.MEDIA);
+
 			return result.map((doc) => doc.toObject() as unknown as MediaItem);
 		} catch (error) {
 			throw createDatabaseError(error, 'MEDIA_UPLOAD_MANY_ERROR', 'Failed to upload media files');
@@ -61,6 +65,10 @@ export class MongoMediaMethods {
 				return { deletedCount: 0 };
 			}
 			const result = await this.mediaModel.deleteMany({ _id: { $in: fileIds } });
+
+			// Invalidate media caches
+			await invalidateCategoryCache(CacheCategory.MEDIA);
+
 			return { deletedCount: result.deletedCount };
 		} catch (error) {
 			throw createDatabaseError(error, 'MEDIA_DELETE_MANY_ERROR', 'Failed to delete media files');
@@ -81,6 +89,10 @@ export class MongoMediaMethods {
 			updateData.updatedAt = new Date();
 
 			const result = await this.mediaModel.findByIdAndUpdate(fileId, { $set: updateData }, { new: true }).lean().exec();
+
+			// Invalidate media caches
+			await invalidateCategoryCache(CacheCategory.MEDIA);
+
 			return result as unknown as MediaItem | null;
 		} catch (error) {
 			throw createDatabaseError(error, 'UPDATE_METADATA_ERROR', 'Failed to update metadata');
@@ -91,6 +103,10 @@ export class MongoMediaMethods {
 	async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<{ movedCount: number }> {
 		try {
 			const result = await this.mediaModel.updateMany({ _id: { $in: fileIds } }, { $set: { folderId: targetFolderId, updatedAt: new Date() } });
+
+			// Invalidate media caches
+			await invalidateCategoryCache(CacheCategory.MEDIA);
+
 			return { movedCount: result.modifiedCount };
 		} catch (error) {
 			throw createDatabaseError(error, 'MEDIA_MOVE_ERROR', 'Failed to move files');
@@ -99,27 +115,35 @@ export class MongoMediaMethods {
 
 	// Retrieves a paginated list of media files, optionally filtered by folder
 	async getFiles(folderId?: DatabaseId, options: PaginationOptions = {}): Promise<PaginatedResult<MediaItem>> {
-		try {
-			const { page = 1, pageSize = 25, sortField = 'createdAt', sortDirection = 'desc' } = options;
-			const query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
-			const skip = (page - 1) * pageSize;
-			const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
+		const { page = 1, pageSize = 25, sortField = 'createdAt', sortDirection = 'desc' } = options;
+		const cacheKey = `media:files:${folderId || 'root'}:${page}:${pageSize}:${sortField}:${sortDirection}`;
 
-			const [items, total] = await Promise.all([
-				this.mediaModel.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
-				this.mediaModel.countDocuments(query)
-			]);
+		return withCache(
+			cacheKey,
+			async () => {
+				try {
+					const query = folderId ? { folderId } : { folderId: { $in: [null, undefined] } }; // Root files
+					const skip = (page - 1) * pageSize;
+					const sort: Record<string, 1 | -1> = { [sortField]: sortDirection === 'asc' ? 1 : -1 };
 
-			return {
-				items: items as unknown as MediaItem[],
-				total,
-				page,
-				pageSize,
-				hasNextPage: page * pageSize < total,
-				hasPreviousPage: page > 1
-			};
-		} catch (error) {
-			throw createDatabaseError(error, 'GET_FILES_ERROR', 'Failed to fetch media files');
-		}
+					const [items, total] = await Promise.all([
+						this.mediaModel.find(query).sort(sort).skip(skip).limit(pageSize).lean().exec(),
+						this.mediaModel.countDocuments(query)
+					]);
+
+					return {
+						items: items as unknown as MediaItem[],
+						total,
+						page,
+						pageSize,
+						hasNextPage: page * pageSize < total,
+						hasPreviousPage: page > 1
+					};
+				} catch (error) {
+					throw createDatabaseError(error, 'GET_FILES_ERROR', 'Failed to fetch media files');
+				}
+			},
+			{ category: CacheCategory.MEDIA }
+		);
 	}
 }

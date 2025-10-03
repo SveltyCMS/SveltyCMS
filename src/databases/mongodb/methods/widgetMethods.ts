@@ -7,8 +7,8 @@
 import { logger } from '@utils/logger.svelte';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
-import type { IWidget } from '../models/widget'; // Assuming you have a document interface
-import { createDatabaseError } from './mongoDBUtils';
+import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
+import { createDatabaseError, withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBUtils';
 
 // Define the model type for dependency injection.
 type WidgetModelType = Model<IWidget>;
@@ -22,7 +22,7 @@ export class MongoWidgetMethods {
 	 */
 	constructor(widgetModel: WidgetModelType) {
 		this.widgetModel = widgetModel;
-		logger.info('MongoWidgetMethods initialized.');
+		logger.info('\x1b[34mMongoWidgetMethods\x1b[0m initialized.');
 	}
 
 	/**
@@ -43,16 +43,23 @@ export class MongoWidgetMethods {
 
 	/**
 	 * Finds a single widget by its ID.
+	 * Cached with 600s TTL since widget configs are relatively stable
 	 * @param {DatabaseId} widgetId - The ID of the widget to find.
 	 * @returns {Promise<Widget | null>} The widget object or null if not found.
 	 * @throws {DatabaseError} If the database operation fails.
 	 */
 	async findById(widgetId: DatabaseId): Promise<Widget | null> {
-		try {
-			return await this.widgetModel.findById(widgetId).lean().exec();
-		} catch (error) {
-			throw createDatabaseError(error, 'WIDGET_FETCH_FAILED', `Failed to find widget with ID ${widgetId}`);
-		}
+		return withCache(
+			`widget:id:${widgetId}`,
+			async () => {
+				try {
+					return await this.widgetModel.findById(widgetId).lean().exec();
+				} catch (error) {
+					throw createDatabaseError(error, 'WIDGET_FETCH_FAILED', `Failed to find widget with ID ${widgetId}`);
+				}
+			},
+			{ category: CacheCategory.WIDGET }
+		);
 	}
 
 	/**
@@ -63,10 +70,15 @@ export class MongoWidgetMethods {
 	 */
 	async activate(widgetId: DatabaseId): Promise<Widget | null> {
 		try {
-			return await this.widgetModel
+			const result = await this.widgetModel
 				.findByIdAndUpdate(widgetId, { $set: { isActive: true } }, { new: true })
 				.lean()
 				.exec();
+
+			// Invalidate widget caches
+			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+
+			return result;
 		} catch (error) {
 			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to activate widget');
 		}
@@ -80,10 +92,15 @@ export class MongoWidgetMethods {
 	 */
 	async deactivate(widgetId: DatabaseId): Promise<Widget | null> {
 		try {
-			return await this.widgetModel
+			const result = await this.widgetModel
 				.findByIdAndUpdate(widgetId, { $set: { isActive: false } }, { new: true })
 				.lean()
 				.exec();
+
+			// Invalidate widget caches
+			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+
+			return result;
 		} catch (error) {
 			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to deactivate widget');
 		}
@@ -98,7 +115,12 @@ export class MongoWidgetMethods {
 	 */
 	async update(widgetId: DatabaseId, widgetData: Partial<Omit<Widget, '_id'>>): Promise<Widget | null> {
 		try {
-			return await this.widgetModel.findByIdAndUpdate(widgetId, { $set: widgetData }, { new: true }).lean().exec();
+			const result = await this.widgetModel.findByIdAndUpdate(widgetId, { $set: widgetData }, { new: true }).lean().exec();
+
+			// Invalidate widget caches
+			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+
+			return result;
 		} catch (error) {
 			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to update widget');
 		}
@@ -113,6 +135,10 @@ export class MongoWidgetMethods {
 	async delete(widgetId: DatabaseId): Promise<boolean> {
 		try {
 			const result = await this.widgetModel.findByIdAndDelete(widgetId).exec();
+
+			// Invalidate widget caches
+			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+
 			return !!result;
 		} catch (error) {
 			throw createDatabaseError(error, 'WIDGET_DELETE_FAILED', 'Failed to delete widget');
@@ -134,14 +160,21 @@ export class MongoWidgetMethods {
 
 	/**
 	 * Retrieves all active widgets from the database.
+	 * Cached with 600s TTL since active widgets are frequently accessed on every page
 	 * @returns {Promise<Widget[]>} An array of active widget objects.
 	 * @throws {DatabaseError} If the database operation fails.
 	 */
 	async findAllActive(): Promise<Widget[]> {
-		try {
-			return await this.widgetModel.find({ isActive: true }).lean().exec();
-		} catch (error) {
-			throw createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets');
-		}
+		return withCache(
+			'widget:active:all',
+			async () => {
+				try {
+					return await this.widgetModel.find({ isActive: true }).lean().exec();
+				} catch (error) {
+					throw createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets');
+				}
+			},
+			{ category: CacheCategory.WIDGET }
+		);
 	}
 }

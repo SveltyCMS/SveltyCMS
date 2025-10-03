@@ -21,8 +21,10 @@
  * - Bulk validation and constraint checking
  */
 
-import type { BaseEntity, ContentNode, DatabaseId, ISODateString, Schema } from '../content/types';
-export type { BaseEntity, DatabaseId };
+import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema } from '../content/types';
+export type { BaseEntity, DatabaseId, Schema };
+
+export type ContentNode = ContentNodeType;
 
 /** Performance and Query Optimization Types **/
 export interface QueryOptimizationHints {

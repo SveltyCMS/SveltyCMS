@@ -27,7 +27,7 @@ export class MongoSystemMethods {
 	constructor(systemPreferencesModel: SystemPreferencesModelType, systemSettingModel: SystemSettingModelType) {
 		this.SystemPreferencesModel = systemPreferencesModel;
 		this.SystemSettingModel = systemSettingModel;
-		logger.info('MongoSystemMethods initialized with models.');
+		logger.info('\x1b[34mMongoSystemMethods\x1b[0m initialized with models.');
 	}
 
 	// ============================================================
@@ -147,10 +147,14 @@ export class MongoSystemMethods {
 	/**
 	 * Sets a single preference value by key.
 	 */
-	async set<T>(key: string, value: T, scope: 'user' | 'system' = 'system', userId?: DatabaseId): Promise<void> {
+	async set<T>(key: string, value: T, scope: 'user' | 'system' = 'system', userId?: DatabaseId, category?: 'public' | 'private'): Promise<void> {
 		try {
 			if (scope === 'system') {
-				await this.SystemSettingModel.updateOne({ key }, { $set: { value }, updatedAt: new Date() }, { upsert: true });
+				const updateData: Record<string, unknown> = { value, updatedAt: new Date() };
+				if (category) {
+					updateData.category = category;
+				}
+				await this.SystemSettingModel.updateOne({ key }, { $set: updateData }, { upsert: true });
 				return;
 			}
 

@@ -1,0 +1,364 @@
+---
+path: 'docs/dev-guide/security-plugin.mdx'
+title: 'Build-Time Security Plugin'
+description: 'Vite plugin that prevents accidental exposure of private database settings to client-side code through build-time validation.'
+order: 10
+icon: 'mdi:shield-check'
+author: 'admin'
+created: '2025-10-03'
+updated: '2025-10-03'
+tags:
+  - 'security'
+  - 'vite'
+  - 'build-tools'
+  - 'settings'
+  - 'validation'
+---
+
+# Build-Time Security Plugin
+
+## Overview
+
+The **Vite Security Check Plugin** provides build-time protection against accidental exposure of private settings in client-side code. Unlike static environment variables (e.g., `PRIVATE_*` in SvelteKit), our dynamic settings loaded from the database don't have built-in Vite protection. This plugin fills that gap.
+
+## The Problem
+
+### Static Environment Variables (Built-in Protection ✅)
+
+```typescript
+// .env file
+PRIVATE_DB_PASSWORD=secret123  // ✅ Vite warns if used in client code
+PUBLIC_API_URL=https://api.com  // ✅ Safe for client
+```
+
+SvelteKit's `PRIVATE_` prefix triggers build-time warnings if accidentally imported in `.svelte` files.
+
+### Dynamic Settings (No Built-in Protection ❌)
+
+```typescript
+// Loaded from database at runtime
+const settings = {
+	DB_PASSWORD: 'secret123', // ❌ No compile-time protection!
+	JWT_SECRET_KEY: 'abc...', // ❌ Could leak to browser
+	ENCRYPTION_KEY: 'xyz...' // ❌ Dangerous if imported in .svelte
+};
+```
+
+Our database-driven settings lack this protection because they're loaded at runtime, not compile-time.
+
+## The Solution
+
+The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fails the build** if it detects dangerous patterns:
+
+### 🚨 Blocked Patterns
+
+1. **Direct `privateEnv` imports in client code**
+
+   ```typescript
+   // ❌ BLOCKED - Exposes ALL private settings to browser!
+   import { privateEnv } from '@src/stores/globalSettings';
+   console.log(privateEnv.DB_PASSWORD); // Would be visible in browser
+   ```
+
+2. **`getPrivateSetting()` calls in `.svelte` files**
+
+   ```typescript
+   // ❌ BLOCKED - Attempts to access private data on client!
+   import { getPrivateSetting } from '@src/stores/globalSettings';
+   const secret = getPrivateSetting('JWT_SECRET_KEY');
+   ```
+
+3. **`getAllSettings()` in client code**
+   ```typescript
+   // ❌ BLOCKED - Returns both public AND private settings!
+   import { getAllSettings } from '@src/stores/globalSettings';
+   const all = await getAllSettings(); // Includes passwords!
+   ```
+
+### ✅ Safe Patterns
+
+1. **Public settings in any file**
+
+   ```typescript
+   // ✅ SAFE - Public settings can be used anywhere
+   import { publicEnv, getPublicSetting } from '@src/stores/globalSettings';
+   console.log(publicEnv.SITE_NAME); // Safe for browser
+   ```
+
+2. **Private settings in server-side files**
+
+   ```typescript
+   // ✅ SAFE - Server-only files can use private settings
+   // Files: +page.server.ts, +layout.server.ts, +server.ts, /hooks/, /auth/, /databases/
+   import { privateEnv, getPrivateSetting } from '@src/stores/globalSettings';
+   const dbPass = privateEnv.DB_PASSWORD; // Never sent to client
+   ```
+
+3. **Passing data via page.data**
+
+   ```typescript
+   // ✅ SAFE - Controlled data flow from server to client
+
+   // +page.server.ts (server-only)
+   export async function load() {
+   	const dbStatus = await checkDatabase(privateEnv.DB_HOST);
+   	return {
+   		isConnected: dbStatus.connected // Only pass safe data
+   		// Never return privateEnv directly!
+   	};
+   }
+
+   // +page.svelte (client)
+   export let data;
+   console.log(data.isConnected); // ✅ Safe
+   ```
+
+## Configuration
+
+The plugin is configured in `vite.config.ts`:
+
+```typescript
+import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+
+export default defineConfig({
+	plugins: [
+		securityCheckPlugin({
+			failOnError: true, // Fail build on violations (recommended)
+			showWarnings: true, // Show suspicious patterns
+			extensions: ['.svelte', '.ts', '.js'] // Files to check
+		})
+		// ... other plugins
+	]
+});
+```
+
+## How It Works
+
+### 1. File Scanning
+
+The plugin runs during Vite's `transform` phase and scans every file that matches the configured extensions.
+
+### 2. Smart Filtering
+
+Not all `.ts` files are client-side! The plugin intelligently skips:
+
+- **Server-only route files**: `+page.server.ts`, `+layout.server.ts`, `+server.ts`
+- **Server-only hooks**: All files in `/hooks/`
+- **API routes**: All files in `/routes/api/`
+- **Auth modules**: All files in `/auth/`
+- **Database code**: All files in `/databases/`
+- **Widget utilities**: `.ts` files in `/widgets/` (typically server-only)
+- **The store itself**: `/stores/globalSettings.ts` (defines the functions)
+
+### 3. Pattern Detection
+
+For client-side files (primarily `.svelte` and client-facing `.ts`), the plugin uses regex patterns to detect:
+
+```typescript
+const DANGEROUS_PATTERNS = [
+	{
+		pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/globalSettings['"]/g,
+		message: 'SECURITY: Importing privateEnv exposes passwords and secrets!'
+	},
+	{
+		pattern: /getPrivateSetting\s*\(/g,
+		message: 'SECURITY: getPrivateSetting() in client code!'
+	},
+	{
+		pattern: /getAllSettings\s*\(/g,
+		message: 'SECURITY: getAllSettings() exposes private data!'
+	}
+];
+```
+
+### 4. Build Failure
+
+If violations are detected, the build fails with a detailed error report:
+
+```
+🚨 SECURITY VIOLATIONS DETECTED!
+
+Found 2 critical security issue(s):
+
+  ✗ src/components/Settings.svelte:5
+    SECURITY: Importing privateEnv exposes passwords and secrets!
+    → import { privateEnv } from '@src/stores/globalSettings';
+
+  ✗ src/routes/(app)/admin/+page.svelte:12
+    SECURITY: getPrivateSetting() in client code!
+    → const secret = getPrivateSetting('JWT_SECRET');
+
+These violations expose sensitive data to the client!
+Fix these issues before deploying to production.
+
+How to fix:
+  1. Remove privateEnv imports from .svelte files
+  2. Use page.data from +page.server.ts load functions instead
+  3. Only access private settings in +page.server.ts, +layout.server.ts, or +server.ts files
+```
+
+## Real-World Example
+
+### ❌ Vulnerable Code
+
+```typescript
+<!-- src/routes/(app)/settings/+page.svelte -->
+<script lang="ts">
+  import { privateEnv } from '@src/stores/globalSettings';
+
+  // 🚨 CRITICAL VULNERABILITY: ALL private settings exposed!
+  // Browser DevTools can access:
+  // - privateEnv.DB_PASSWORD
+  // - privateEnv.JWT_SECRET_KEY
+  // - privateEnv.ENCRYPTION_KEY
+  // - privateEnv.SMTP_PASSWORD
+  // - privateEnv.GOOGLE_CLIENT_SECRET
+  // etc.
+
+  const dbInfo = {
+    host: privateEnv.DB_HOST,
+    password: privateEnv.DB_PASSWORD // Visible in browser source!
+  };
+</script>
+
+<div>Database: {dbInfo.host}</div>
+```
+
+**Impact**: Complete credential exposure, allows full system compromise.
+
+### ✅ Secure Code
+
+```typescript
+<!-- src/routes/(app)/settings/+page.server.ts -->
+import { privateEnv } from '@src/stores/globalSettings';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async () => {
+  // ✅ Server-only: privateEnv never sent to client
+  const isConnected = await testConnection(
+    privateEnv.DB_HOST,
+    privateEnv.DB_PASSWORD // Safe - stays on server
+  );
+
+  return {
+    // Only return safe, non-sensitive data
+    dbStatus: isConnected ? 'connected' : 'disconnected',
+    dbHost: privateEnv.DB_HOST // Host is not sensitive
+    // Never return: DB_PASSWORD, JWT_SECRET, etc.
+  };
+};
+```
+
+```typescript
+<!-- src/routes/(app)/settings/+page.svelte -->
+<script lang="ts">
+  import type { PageData } from './$types';
+  export let data: PageData;
+</script>
+
+<div>Database Status: {data.dbStatus}</div>
+<div>Host: {data.dbHost}</div>
+```
+
+## Best Practices
+
+### 1. Server-Side Data Loading
+
+Always load private settings in `+page.server.ts` and pass only necessary, safe data to the client via `page.data`.
+
+### 2. Minimal Data Exposure
+
+Only return the absolute minimum data needed. Never pass entire settings objects.
+
+```typescript
+// ❌ BAD
+export const load = async () => {
+	return { settings: privateEnv }; // ALL secrets exposed!
+};
+
+// ✅ GOOD
+export const load = async () => {
+	return {
+		siteName: publicEnv.SITE_NAME,
+		cacheEnabled: privateEnv.CACHE_ENABLED === 'true'
+	};
+};
+```
+
+### 3. Type Safety
+
+Use TypeScript to enforce safe data contracts:
+
+```typescript
+// src/routes/(app)/admin/types.ts
+export interface SafeAdminData {
+	dbConnected: boolean;
+	cacheStatus: 'enabled' | 'disabled';
+	// No password fields allowed!
+}
+
+// +page.server.ts
+export const load = async (): Promise<SafeAdminData> => {
+	return {
+		dbConnected: await isDbConnected(),
+		cacheStatus: privateEnv.CACHE_ENABLED === 'true' ? 'enabled' : 'disabled'
+	};
+};
+```
+
+### 4. Code Review Checklist
+
+Before committing, verify:
+
+- ✅ No `privateEnv` imports in `.svelte` files
+- ✅ No `getPrivateSetting()` calls in client code
+- ✅ All sensitive operations in `+page.server.ts` or `+server.ts`
+- ✅ `page.data` only contains safe, non-sensitive information
+- ✅ Build passes without security violations
+
+## Integration with CI/CD
+
+The plugin automatically runs during your build process:
+
+```bash
+# Development
+bun run dev      # No check during dev (for speed)
+
+# Production build
+bun run build    # ✅ Security check runs and fails on violations
+
+# CI/CD (GitHub Actions, etc.)
+- run: bun run build
+  # Build will fail if security violations detected
+```
+
+## Disabling (Not Recommended)
+
+If you need to temporarily disable for debugging:
+
+```typescript
+// vite.config.ts
+securityCheckPlugin({
+	failOnError: false, // Show warnings but don't fail build
+	showWarnings: true
+});
+```
+
+**⚠️ Warning**: Never deploy to production with `failOnError: false`!
+
+## Related Documentation
+
+- [Authentication System](./01_Authentication/Authentication_System.mdx) - 3-Layer Security Architecture
+- [Settings System](../User_Guide/Admin_User_Management.md) - Managing system settings
+- [Environment Variables](./00_Installation/environment-variables.md) - Static vs dynamic settings
+
+## Summary
+
+The Vite Security Plugin provides **build-time enforcement** for dynamic settings security, ensuring that:
+
+1. ✅ Private database settings never leak to client-side JavaScript
+2. ✅ Sensitive credentials remain server-only
+3. ✅ Developers get immediate feedback during build (not after deployment)
+4. ✅ Production deployments are protected from accidental credential exposure
+
+This plugin is your **last line of defense** against one of the most critical security vulnerabilities: exposing database passwords, JWT secrets, and encryption keys to the browser.

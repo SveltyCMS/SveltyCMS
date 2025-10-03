@@ -1,20 +1,33 @@
 ---
-path: "docs/contributing/contributing-docs.mdx"
-title: "Contributing to the Documentation"
-description: "Learn the structure and process for contributing to the SveltyCMS documentation."
+path: 'docs/contributing/contributing-docs.mdx'
+title: 'Contributing to the Documentation'
+description: 'Learn the structure and process for contributing to the SveltyCMS documentation.'
 order: 2
-icon: "mdi:file-document-plus-outline"
-author: "admin"
-created: "2025-09-28"
-updated: "2025-10-02"
+icon: 'mdi:file-document-plus-outline'
+author: 'admin'
+created: '2025-09-28'
+updated: '2025-10-02'
 tags:
-  - "documentation"
-  - "contributing"
-  - "mdx"
+  - 'documentation'
+  - 'contributing'
+  - 'mdx'
 ---
 
-Introduction
-High-quality documentation is essential for our project. This guide explains how to contribute effectively using our structured, topic-based approach. Our core principle is that the /docs directories should contain only MDX files.
+# Introduction
+
+High-quality documentation is essential for our project. This guide explains how to contribute effectively using our structured, topic-based approach.
+
+Our core principle is that the /docs directories should contain only MDX files.
+
+## Documentation Principles
+
+**Documentation reflects current functionality only.** All documentation must accurately describe the current state of the CMS. Do not document planned features, future improvements, or changes that haven't been implemented yet.
+
+- ✅ **Document what exists now**: Features, functions, and behaviors that are currently in the codebase
+- ❌ **Do not document future plans**: Improvements, changes, or features go in dedicated change logs or issue trackers
+- 🔄 **Keep docs synchronized**: Update documentation immediately when functionality changes
+
+This ensures users always have accurate, reliable information about what the CMS can do right now.
 
 Documentation Structure: A "Book" Analogy
 Think of our documentation as a digital book, organized for clarity and easy maintenance. The structure is based directly on the file system, which means the folder hierarchy you see in the code is exactly what you'll see in the navigation.
@@ -204,6 +217,7 @@ bun ./docs/lint-docs.ts
 ```
 
 The linter will:
+
 - ✅ Validate all `.mdx` files in `src/widgets/` and `docs/` directories
 - 🔍 Detect `.md` files that need conversion to `.mdx`
 - ❌ Report any frontmatter errors with detailed, helpful messages
@@ -212,6 +226,7 @@ The linter will:
 **Example Output**
 
 When all files are valid:
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔍 SveltyCMS Documentation Frontmatter Validation
@@ -229,12 +244,14 @@ Validation:      ✅ 19 valid  |  ❌ 0 invalid
 ```
 
 When errors are found:
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔍 SveltyCMS Documentation Frontmatter Validation
 📅 Oct 2, 2025, 09:41:47
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 � SveltyCMS Documentation Frontmatter Validation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -242,46 +259,48 @@ When errors are found:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 SveltyCMS Documentation Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total files:     19 (19 .mdx, 0 .md)
-Validation:      ✅ 19 valid  |  ❌ 0 invalid
+Total files: 19 (19 .mdx, 0 .md)
+Validation: ✅ 19 valid | ❌ 0 invalid
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✨ All files have valid frontmatter!
+
 ```
 
 When errors are found:
 ```
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🔍 SveltyCMS Documentation Frontmatter Validation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-
 ❌ src/widgets/core/checkbox/checkbox.mdx
 ────────────────────────────────────────────────────────────────────────────────
-   • Missing required field: "tags"
-     💡 Add a tags array, e.g.:
-        tags:
-          - 'widget'
-          - 'field'
+• Missing required field: "tags"
+💡 Add a tags array, e.g.:
+tags: - 'widget' - 'field'
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 SveltyCMS Documentation Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total files:     19 (19 .mdx, 0 .md)
-Validation:      ✅ 18 valid  |  ❌ 1 invalid
+Total files: 19 (19 .mdx, 0 .md)
+Validation: ✅ 18 valid | ❌ 1 invalid
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️  1 file(s) with invalid frontmatter. Please fix the errors above.
+⚠️ 1 file(s) with invalid frontmatter. Please fix the errors above.
+
 ```
 
 When `.md` files are detected:
 ```
-⚠️  Files that need to be converted to .mdx:
-────────────────────────────────────────────────────────────────────────────────
-   📄 src/widgets/custom/example/example.md
 
-⚠️  1 .md file(s) need to be converted to .mdx format.
-```
+⚠️ Files that need to be converted to .mdx:
+────────────────────────────────────────────────────────────────────────────────
+📄 src/widgets/custom/example/example.md
+
+⚠️ 1 .md file(s) need to be converted to .mdx format.
+
+````
 
 **Validation Rules**
 
@@ -289,7 +308,7 @@ The linter validates the following frontmatter fields:
 
 - `path`: Required, non-empty string matching the file location
 - `title`: Required, minimum 3 characters
-- `description`: Required, minimum 10 characters  
+- `description`: Required, minimum 10 characters
 - `order`: Optional, can be a number or string
 - `icon`: Optional string (e.g., "mdi:icon-name")
 - `author`: Required, minimum 2 characters
@@ -303,7 +322,7 @@ Always run the linter before submitting your documentation changes:
 
 ```bash
 bun ./docs/lint-docs.ts
-```
+````
 
 Fix any reported errors and ensure you get the "✨ All files have valid frontmatter!" message.
 
@@ -436,62 +455,3 @@ Review and Update Process
 - **Updating Metadata**: Always update the `updated` field in frontmatter on changes.
 - **Versioning**: Docs are versioned with code; major changes may need release notes.
 - **Feedback**: Use issues or PR comments for suggestions.
-
-Full Example MDX File
-Here's a complete example of a new doc file:
-
----
-
-path: "docs/dev-guide/installation.mdx"
-title: "Installation Guide"
-description: "Step-by-step instructions for setting up SveltyCMS."
-order: 1
-icon: "mdi:cog"
-author: "johndoe"
-created: "2025-09-28"
-updated: "2025-09-28"
-tags:
-
-- "installation"
-- "setup"
-- "beginner"
-
----
-
-# Installation Guide
-
-Follow these steps to install SveltyCMS.
-
-## Prerequisites
-
-- Node.js 18+
-- Bun package manager
-
-## Steps
-
-1. Clone the repo: `git clone https://github.com/SveltyCMS/SveltyCMS.git`
-2. Install dependencies: `bun install`
-3. Run the dev server: `bun run dev`
-
-For more help, see the [troubleshooting section](#troubleshooting).
-
-## Troubleshooting
-
-If you encounter issues, check the logs or open an issue.
-
-Checklist for New Docs
-Before submitting a PR for new documentation:
-
-- [ ] Frontmatter is complete and in order.
-- [ ] Path matches file location.
-- [ ] Content is clear, accurate, and follows best practices.
-- [ ] Assets are in /static/docs/ and referenced correctly.
-- [ ] File is .mdx only (no other files in /docs/).
-- [ ] Tested rendering in the CMS.
-- [ ] Updated field is current.
-
-Tools and Automation
-
-- **Linting**: Use ESLint or MDX-specific linters to check syntax.
-- **Build**: Run the project build to ensure docs integrate properly.
-- **Automation**: GitHub Actions may validate frontmatter or links in the future.

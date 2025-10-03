@@ -688,6 +688,5 @@
 	"api_install_driver_already_installed": "Treiber für {driver} ist bereits installiert",
 	"api_install_driver_success": "Treiber für {driver} erfolgreich installiert",
 	"api_install_driver_failed": "Treiberinstallation für {driver} : {error}",
-	"api_db_test_db_not_found": "Datenbank nicht gefunden. Bitte überprüfen Sie den Datenbanknamen und stellen Sie sicher, dass er existiert.",
-	"widget_richtText_description": "Mit diesem RichText-Widget erstellen Sie Rich-Text-Inhalte. Sie können Beschriftung, Farbe und Größe des Textes anpassen. Nutzen Sie dieses Widget, um Interaktivität zu schaffen und Feedback von Ihren Benutzern zu sammeln."
+	"api_db_test_db_not_found": "Datenbank nicht gefunden. Bitte überprüfen Sie den Datenbanknamen und stellen Sie sicher, dass er existiert."
 }

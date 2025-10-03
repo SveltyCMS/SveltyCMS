@@ -53,13 +53,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
-		// Return user data
+		// Return user data with isAdmin flag for settings filtering
 		const { _id, ...rest } = user;
 		return {
 			user: {
 				_id: _id.toString(),
 				...rest
-			}
+			},
+			isAdmin: isAdmin
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

@@ -19,7 +19,8 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:config': ['admin'], // System configuration
 	'api:token': ['admin'], // Token management (user invitations)
 	'api:permission': ['admin'], // Permission management
-	'api:systemPreferences': ['admin'], // System preferences
+	'api:settings': ['admin'], // System settings (database-driven configuration)
+	'api:systemPreferences': ['admin'], // System preferences (user dashboard layout/sizes)
 
 	// Authentication & Security - All authenticated users can manage their own 2FA
 	'api:auth/2fa': ['*'], // 2FA management (setup, disable, backup codes)

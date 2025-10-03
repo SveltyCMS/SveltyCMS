@@ -6,7 +6,9 @@
  * - MongoDB connection management with a robust retry mechanism
  * - CRUD operations for collections, documents, drafts, revisions, and widgets
  * - Management of media storage, retrieval, and virtual folders
- * - User authentication and session management
+ * - User authentication and 		revisions: {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			create: (revision) => this._wrapResult(() => this._content.createRevision(revision as any)),ssion management
  * - Management of system preferences including user screen sizes and widget layouts
  * - Theme management
  * - Content Structure Management
@@ -46,6 +48,7 @@ import {
 
 // The full suite of refined, modular method classes
 import { MongoAuthModelRegistrar } from './methods/authMethods';
+import { MongoCollectionMethods } from './methods/collectionMethods';
 import { MongoContentMethods } from './methods/contentMethods';
 import { MongoCrudMethods } from './methods/crudMethods';
 import { MongoMediaMethods } from './methods/mediaMethods';
@@ -57,9 +60,26 @@ import { MongoWidgetMethods } from './methods/widgetMethods';
 import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 import { logger } from '@utils/logger.svelte';
+import type {
+	ContentNode,
+	ContentDraft,
+	MediaItem,
+	MediaMetadata,
+	ContentRevision,
+	Schema,
+	DatabaseTransaction,
+	BatchOperation,
+	BatchResult,
+	PerformanceMetrics,
+	CacheOptions
+} from '../dbInterface';
+import { cacheService } from '@src/databases/CacheService';
+import { cacheMetrics } from '@src/databases/CacheMetrics';
+import { createDatabaseError } from './methods/mongoDBUtils';
 
 export class MongoDBAdapter implements IDBAdapter {
 	// --- Private properties for internal, unwrapped method classes ---
+	private _collectionMethods!: MongoCollectionMethods;
 	private _content!: MongoContentMethods;
 	private _media!: MongoMediaMethods;
 	private _themes!: MongoThemeMethods;
@@ -67,7 +87,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _system!: MongoSystemMethods;
 	private _systemVirtualFolder!: MongoSystemVirtualFolderMethods;
 	private _auth!: MongoAuthModelRegistrar;
-	private _repositories = new Map<string, MongoCrudMethods<any>>();
+	private _repositories = new Map<string, MongoCrudMethods<BaseEntity>>();
 
 	// --- Public properties that expose the compliant, wrapped API ---
 	public content!: IDBAdapter['content'];
@@ -79,6 +99,49 @@ export class MongoDBAdapter implements IDBAdapter {
 	public crud!: IDBAdapter['crud'];
 	public auth!: IDBAdapter['auth'];
 	public readonly utils = mongoDBUtils;
+	public collection!: IDBAdapter['collection'];
+
+	getCapabilities(): import('../dbInterface').DatabaseCapabilities {
+		return {
+			supportsTransactions: true,
+			supportsIndexing: true,
+			supportsFullTextSearch: true,
+			supportsAggregation: true,
+			supportsStreaming: false,
+			supportsPartitioning: false,
+			maxBatchSize: 1000,
+			maxQueryComplexity: 10
+		};
+	}
+
+	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
+		try {
+			if (!mongoose.connection.db) {
+				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
+			}
+			const start = Date.now();
+			await mongoose.connection.db.admin().ping();
+			const latency = Date.now() - start;
+			// Note: Mongoose does not expose active connections directly from the pool.
+			// This is a placeholder. For more detailed monitoring, a dedicated APM tool is recommended.
+			const activeConnections = -1;
+			return {
+				success: true,
+				data: {
+					healthy: this.isConnected(),
+					latency,
+					activeConnections
+				}
+			};
+		} catch (error) {
+			const dbError = this.utils.createDatabaseError(error, 'CONNECTION_HEALTH_CHECK_FAILED', 'Failed to check connection health');
+			return {
+				success: false,
+				error: dbError,
+				message: dbError.message
+			};
+		}
+	}
 
 	// --- Legacy Support ---
 	public findMany<T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number }) {
@@ -92,16 +155,16 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	// --- Query Builder ---
-	public queryBuilder(collection: string) {
+	public queryBuilder<T extends BaseEntity>(collection: string) {
 		const repo = this._getRepository(collection);
 		if (!repo) {
 			throw new Error(`Collection ${collection} not found`);
 		}
-		const model = (repo as any).model;
+		const model = repo.model as unknown as mongoose.Model<T>;
 		if (!model) {
 			throw new Error(`Model not found for collection ${collection}`);
 		}
-		return new MongoQueryBuilder(model);
+		return new MongoQueryBuilder<T>(model);
 	}
 
 	private async _wrapResult<T>(fn: () => Promise<T>): Promise<DatabaseResult<T>> {
@@ -109,8 +172,8 @@ export class MongoDBAdapter implements IDBAdapter {
 			const data = await fn();
 			return { success: true, data };
 		} catch (error: unknown) {
-			const typedError = error as any; // Kept as `any` to access dynamic properties like `code`
-			const dbError = this.utils.createDatabaseError(typedError, typedError.code || 'OPERATION_FAILED', typedError.message);
+			const typedError = error as { code?: string; message?: string };
+			const dbError = this.utils.createDatabaseError(error, typedError.code || 'OPERATION_FAILED', typedError.message || 'Unknown error');
 			return {
 				success: false,
 				message: dbError.message,
@@ -120,17 +183,33 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	// Overload signatures to match IDBAdapter interface
+	/**
+	 * Check if the adapter is fully initialized (connection + models + wrappers)
+	 */
+	private _isFullyInitialized(): boolean {
+		return this.isConnected() && this.auth !== undefined && this._auth !== undefined;
+	}
+
 	connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
 	connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
-	connect(connectionStringOrOptions?: string | ConnectionPoolOptions, _options?: unknown): Promise<DatabaseResult<void>> {
+	connect(connectionStringOrOptions?: string | ConnectionPoolOptions, options?: unknown): Promise<DatabaseResult<void>> {
 		return this._wrapResult(async () => {
-			if (this.isConnected()) {
-				logger.info('MongoDB connection already established.');
+			// Check if already fully initialized
+			if (this._isFullyInitialized()) {
+				logger.info('MongoDB adapter already fully initialized.');
+				return;
+			}
+
+			// If connected but not fully initialized, complete the initialization
+			if (this.isConnected() && !this._isFullyInitialized()) {
+				logger.info('MongoDB connection exists but adapter not fully initialized. Completing initialization...');
+				await this._initializeModelsAndWrappers();
 				return;
 			}
 
 			let connectionString: string;
-			
+			let mongooseOptions: unknown = options;
+
 			// Check if it's a string connection string
 			if (typeof connectionStringOrOptions === 'string' && connectionStringOrOptions) {
 				connectionString = connectionStringOrOptions;
@@ -139,41 +218,64 @@ export class MongoDBAdapter implements IDBAdapter {
 				// It's ConnectionPoolOptions
 				logger.warn('ConnectionPoolOptions are not fully supported yet. Using default connection string.');
 				connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
+				mongooseOptions = connectionStringOrOptions; // Use the options if provided
 			} else {
 				// No parameters provided, use environment variable
 				logger.warn('No connection string provided. Using environment variable or default.');
 				connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
 			}
 
-			await mongoose.connect(connectionString);
-			logger.info('MongoDB connection established successfully.');
+			// Pass options to mongoose.connect if they exist
+			if (mongooseOptions) {
+				await mongoose.connect(connectionString, mongooseOptions as mongoose.ConnectOptions);
+				logger.info('MongoDB connection established successfully with custom options.');
+			} else {
+				await mongoose.connect(connectionString);
+				logger.info('MongoDB connection established successfully.');
+			}
 
-			// --- 1. Register All Models ---
-			this._auth = new MongoAuthModelRegistrar(mongoose);
-			await this._auth.setupAuthModels();
-			MongoMediaMethods.registerModels(mongoose);
-			logger.info('All Mongoose models registered.');
+			// Initialize models and wrappers
+			await this._initializeModelsAndWrappers();
+		});
+	}
 
-			// --- 2. Instantiate Repositories ---
-			const repositories = {
-				nodes: new MongoCrudMethods(ContentNodeModel as any), // ContentStructureDocument is compatible at runtime
-				drafts: new MongoCrudMethods(DraftModel),
-				revisions: new MongoCrudMethods(RevisionModel)
-			};
-			Object.entries(repositories).forEach(([key, repo]) => this._repositories.set(key, repo));
+	/**
+	 * Initialize all models, repositories, method classes, and wrappers
+	 */
+	private async _initializeModelsAndWrappers(): Promise<void> {
+		// --- 1. Register All Models ---
+		this._auth = new MongoAuthModelRegistrar(mongoose);
+		await this._auth.setupAuthModels();
+		MongoMediaMethods.registerModels(mongoose);
+		logger.info('All Mongoose models registered.');
+
+		// --- 2. Instantiate Repositories ---
+		const repositories = {
+			nodes: new MongoCrudMethods(ContentNodeModel as unknown as mongoose.Model<BaseEntity>),
+			drafts: new MongoCrudMethods(DraftModel as unknown as mongoose.Model<BaseEntity>),
+			revisions: new MongoCrudMethods(RevisionModel as unknown as mongoose.Model<BaseEntity>)
+		};
+		Object.entries(repositories).forEach(([key, repo]) => this._repositories.set(key, repo));
 
 		// --- 3. Instantiate Method Classes ---
-		// Using `as any` to bypass complex branded type issues between generic MongoCrudMethods and specific method classes
-		this._content = new MongoContentMethods(repositories.nodes as any, repositories.drafts as any, repositories.revisions as any);
-		this._media = new MongoMediaMethods(MediaModel);
+		// Initialize collection methods (for dynamic model creation)
+		this._collectionMethods = new MongoCollectionMethods();
+
+		this._content = new MongoContentMethods(
+			repositories.nodes as unknown as MongoCrudMethods<ContentNode>,
+			repositories.drafts as unknown as MongoCrudMethods<ContentDraft<unknown>>,
+			repositories.revisions as unknown as MongoCrudMethods<ContentRevision>
+		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this._media = new MongoMediaMethods(MediaModel as any);
 		this._themes = new MongoThemeMethods(ThemeModel);
 		this._widgets = new MongoWidgetMethods(WidgetModel);
 		this._system = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 		this._systemVirtualFolder = new MongoSystemVirtualFolderMethods();
 
 		// --- 4. Build the Public-Facing Wrapped API ---
-		this._initializeWrappers();			logger.info('MongoDB adapter fully initialized.');
-		});
+		this._initializeWrappers();
+		logger.info('MongoDB adapter fully initialized.');
 	}
 
 	private _initializeWrappers(): void {
@@ -222,7 +324,14 @@ export class MongoDBAdapter implements IDBAdapter {
 			},
 			getAllThemes: async () => await this._themes.findAll(),
 			storeThemes: async (themes) => {
-				for (const theme of themes) await this._themes.install(theme);
+				for (const theme of themes) {
+					// Use atomic upsert to avoid duplicate key errors and cache issues
+					if (theme._id) {
+						await this._themes.installOrUpdate(theme);
+					} else {
+						await this._themes.install(theme);
+					}
+				}
 			},
 			getDefaultTheme: async () => await this._themes.getDefault()
 		};
@@ -279,12 +388,12 @@ export class MongoDBAdapter implements IDBAdapter {
 					}
 					return results;
 				}),
-			set: <T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId) =>
-				this._wrapResult(() => this._system.set(key, value, scope, userId)),
-			setMany: <T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId }>) =>
+			set: <T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId, category?: 'public' | 'private') =>
+				this._wrapResult(() => this._system.set(key, value, scope, userId, category)),
+			setMany: <T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId; category?: 'public' | 'private' }>) =>
 				this._wrapResult(async () => {
 					for (const pref of preferences) {
-						await this._system.set(pref.key, pref.value, pref.scope, pref.userId);
+						await this._system.set(pref.key, pref.value, pref.scope, pref.userId, pref.category);
 					}
 				}),
 			delete: (key: string, scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.delete(key, scope, userId)),
@@ -303,7 +412,9 @@ export class MongoDBAdapter implements IDBAdapter {
 				/* models already set up */
 			},
 			files: {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				upload: (file) => this._wrapResult(async () => (await this._media.uploadMany([file as any]))[0]),
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				uploadMany: (files) => this._wrapResult(() => this._media.uploadMany(files as any)),
 				delete: async (id) => {
 					const result = await this._wrapResult(() => this._media.deleteMany([id]));
@@ -316,7 +427,10 @@ export class MongoDBAdapter implements IDBAdapter {
 				getMetadata: (ids) =>
 					this._wrapResult(async () => {
 						const files = await this._repositories.get('media')!.findByIds(ids);
-						return files.reduce((acc: Record<string, any>, f: any) => ({ ...acc, [f._id]: f.metadata }), {});
+						return files.reduce(
+							(acc: Record<string, MediaMetadata>, f: BaseEntity & { metadata?: unknown }) => ({ ...acc, [f._id]: f.metadata as MediaMetadata }),
+							{}
+						);
 					}),
 				updateMetadata: async (id, metadata) => {
 					const result = await this._wrapResult(() => this._media.updateMetadata(id, metadata));
@@ -327,13 +441,14 @@ export class MongoDBAdapter implements IDBAdapter {
 				move: (ids, targetId) => this._wrapResult(() => this._media.move(ids, targetId)),
 				duplicate: (id, newName) =>
 					this._wrapResult(async () => {
-						const file = await this._repositories.get('media')!.findOne({ _id: id } as any);
+						const file = await this._repositories.get('media')!.findOne({ _id: id } as FilterQuery<BaseEntity>);
 						if (!file) throw new Error('File not found');
-						return await this._repositories.get('media')!.insert({
+						const newFile = await this._repositories.get('media')!.insert({
 							...file,
 							_id: this.utils.generateId(),
-							filename: newName || `${(file as { filename: string }).filename}_copy`
-						} as any);
+							filename: newName || `${(file as MediaItem).filename}_copy`
+						} as BaseEntity);
+						return newFile as MediaItem;
 					})
 			},
 			// Note: Media files are stored flat with hash-based naming
@@ -383,35 +498,37 @@ export class MongoDBAdapter implements IDBAdapter {
 			nodes: {
 				getStructure: (mode, filter) => this._wrapResult(() => this._content.getStructure(mode, filter)),
 				upsertContentStructureNode: (node) => this._wrapResult(() => this._content.upsertNodeByPath(node)),
-				create: (node) => this._wrapResult(() => this._repositories.get('nodes')!.insert(node as any)),
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				create: (node) => this._wrapResult(() => this._repositories.get('nodes')!.insert(node as any) as Promise<ContentNode>),
 				createMany: async () => {
 					throw new Error('insertMany not implemented');
 				},
 				update: (path, changes) =>
 					this._wrapResult(async () => {
-						const node = await this._repositories.get('nodes')!.findOne({ path } as any);
+						const node = await this._repositories.get('nodes')!.findOne({ path } as FilterQuery<BaseEntity>);
 						if (!node) throw new Error('Node not found');
-						return await this._repositories.get('nodes')!.update(node._id, changes as any);
+						return (await this._repositories.get('nodes')!.update(node._id, changes as Partial<BaseEntity>)) as ContentNode;
 					}),
 				bulkUpdate: (updates) =>
 					this._wrapResult(async () => {
 						await this._content.bulkUpdateNodes(updates);
 						const paths = updates.map((u) => u.path);
-						return await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as any);
+						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as FilterQuery<BaseEntity>)) as ContentNode[];
 					}),
 				delete: (path) =>
 					this._wrapResult(async () => {
-						const node = await this._repositories.get('nodes')!.findOne({ path } as any);
+						const node = await this._repositories.get('nodes')!.findOne({ path } as FilterQuery<BaseEntity>);
 						if (!node) throw new Error('Node not found');
 						await this._repositories.get('nodes')!.delete(node._id);
 					}),
-				deleteMany: (paths) => this._wrapResult(() => this._repositories.get('nodes')!.deleteMany({ path: { $in: paths } } as any)),
+				deleteMany: (paths) =>
+					this._wrapResult(() => this._repositories.get('nodes')!.deleteMany({ path: { $in: paths } } as FilterQuery<BaseEntity>)),
 				reorder: (nodeUpdates) =>
 					this._wrapResult(async () => {
-						const updates = nodeUpdates.map(({ path, newOrder }) => ({ path, changes: { order: newOrder } as any }));
+						const updates = nodeUpdates.map(({ path, newOrder }) => ({ path, changes: { order: newOrder } as Partial<BaseEntity> }));
 						await this._content.bulkUpdateNodes(updates);
 						const paths = nodeUpdates.map((u) => u.path);
-						return await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as any);
+						return (await this._repositories.get('nodes')!.findMany({ path: { $in: paths } } as FilterQuery<BaseEntity>)) as ContentNode[];
 					})
 			},
 			drafts: {
@@ -419,7 +536,8 @@ export class MongoDBAdapter implements IDBAdapter {
 				createMany: async () => {
 					throw new Error('insertMany not implemented');
 				},
-				update: (id, data) => this._wrapResult(() => this._repositories.get('drafts')!.update(id, { data } as any)),
+				update: (id, data) =>
+					this._wrapResult(() => this._repositories.get('drafts')!.update(id, { data } as Partial<BaseEntity>) as Promise<ContentDraft<unknown>>),
 				publish: async (id) => {
 					const result = await this._wrapResult(() => this._content.publishManyDrafts([id]));
 					if (!result.success) return result;
@@ -436,9 +554,10 @@ export class MongoDBAdapter implements IDBAdapter {
 					if (!result.success) return result;
 					return { success: true, data: undefined };
 				},
-				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('drafts')!.deleteMany({ _id: { $in: ids } } as any))
+				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('drafts')!.deleteMany({ _id: { $in: ids } } as FilterQuery<BaseEntity>))
 			},
 			revisions: {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				create: (revision) => this._wrapResult(() => this._content.createRevision(revision as any)),
 				getHistory: (contentId, options) => this._wrapResult(() => this._content.getRevisionHistory(contentId, options)),
 				restore: () =>
@@ -450,7 +569,8 @@ export class MongoDBAdapter implements IDBAdapter {
 					if (!result.success) return result;
 					return { success: true, data: undefined };
 				},
-				deleteMany: (ids) => this._wrapResult(() => this._repositories.get('revisions')!.deleteMany({ _id: { $in: ids } } as any)),
+				deleteMany: (ids) =>
+					this._wrapResult(() => this._repositories.get('revisions')!.deleteMany({ _id: { $in: ids } } as FilterQuery<BaseEntity>)),
 				cleanup: (contentId, keepLatest) => this._wrapResult(() => this._content.cleanupRevisions(contentId, keepLatest))
 			}
 		};
@@ -460,32 +580,34 @@ export class MongoDBAdapter implements IDBAdapter {
 			findOne: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findOne(query));
+				return this._wrapResult(() => repo.findOne(query) as Promise<T | null>);
 			},
 			findMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, options?: { limit?: number; offset?: number }) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findMany(query, { limit: options?.limit, skip: options?.offset }));
+				return this._wrapResult(() => repo.findMany(query, { limit: options?.limit, skip: options?.offset }) as Promise<T[]>);
 			},
 			insert: <T extends BaseEntity>(coll: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.insert(data as any));
+				return this._wrapResult(() => repo.insert(data as T) as Promise<T>);
 			},
-			update: <T extends BaseEntity>(coll: string, id: DatabaseId, data: Partial<T>) => {
+			update: <T extends BaseEntity>(coll: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.update(id, data as any));
+				return this._wrapResult(() => repo.update(id, data as Partial<T>) as Promise<T>);
 			},
 			delete: (coll: string, id: DatabaseId) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.delete(id));
+				return this._wrapResult(async () => {
+					await repo.delete(id);
+				});
 			},
-			findByIds: (coll: string, ids: DatabaseId[]) => {
+			findByIds: <T extends BaseEntity>(coll: string, ids: DatabaseId[]) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.findByIds(ids));
+				return this._wrapResult(() => repo.findByIds(ids) as Promise<T[]>);
 			},
 			insertMany: async () => {
 				throw new Error('insertMany not implemented in MongoCrudMethods');
@@ -501,15 +623,15 @@ export class MongoDBAdapter implements IDBAdapter {
 			upsert: <T extends BaseEntity>(coll: string, query: Partial<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
-				return this._wrapResult(() => repo.upsert(query as FilterQuery<T>, data as any));
+				return this._wrapResult(() => repo.upsert(query as FilterQuery<T>, data as T) as Promise<T>);
 			},
 			upsertMany: <T extends BaseEntity>(coll: string, items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
 				return this._wrapResult(async () => {
-					const results = [];
+					const results: T[] = [];
 					for (const item of items) {
-						results.push(await repo.upsert(item.query as FilterQuery<T>, item.data as any));
+						results.push((await repo.upsert(item.query as FilterQuery<T>, item.data as T)) as T);
 					}
 					return results;
 				});
@@ -524,15 +646,34 @@ export class MongoDBAdapter implements IDBAdapter {
 				if (!repo) return this._repoNotFound(coll);
 				return this._wrapResult(async () => (await repo.count(query)) > 0);
 			},
-			aggregate: (coll: string, pipeline: any[]) => {
+			aggregate: (coll: string, pipeline: mongoose.PipelineStage[]) => {
 				const repo = this._getRepository(coll);
 				if (!repo) return this._repoNotFound(coll);
 				return this._wrapResult(() => repo.aggregate(pipeline));
 			}
 		};
+
+		// COLLECTION - Dynamic model management
+		this.collection = {
+			getModel: async (id: string) => {
+				return await this._collectionMethods.getModel(id);
+			},
+			createModel: async (schema: Schema) => {
+				await this._collectionMethods.createModel(schema);
+			},
+			updateModel: async (schema: Schema) => {
+				await this._collectionMethods.updateModel(schema);
+			},
+			deleteModel: async (id: string) => {
+				await this._collectionMethods.deleteModel(id);
+			},
+			collectionExists: async (collectionName: string) => {
+				return await this._collectionMethods.collectionExists(collectionName);
+			}
+		};
 	}
 
-	private _getRepository(collection: string): MongoCrudMethods<any> | null {
+	private _getRepository(collection: string): MongoCrudMethods<BaseEntity> | null {
 		const normalized = this.utils.normalizeCollectionName(collection);
 
 		if (this._repositories.has(normalized)) {
@@ -541,12 +682,12 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// Create repository for unknown collection
 		try {
-			let model: any;
+			let model: mongoose.Model<BaseEntity>;
 			if (mongoose.models[normalized]) {
 				model = mongoose.models[normalized];
 			} else {
 				const schema = new mongoose.Schema({}, { strict: false, timestamps: true });
-				model = mongoose.model(normalized, schema);
+				model = mongoose.model<BaseEntity>(normalized, schema);
 			}
 			const repo = new MongoCrudMethods(model);
 			this._repositories.set(normalized, repo);
@@ -557,7 +698,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		}
 	}
 
-	private _repoNotFound(collection: string): Promise<DatabaseResult<any>> {
+	private _repoNotFound(collection: string): Promise<DatabaseResult<never>> {
 		return Promise.resolve({
 			success: false,
 			message: `Collection ${collection} not found`,
@@ -573,202 +714,338 @@ export class MongoDBAdapter implements IDBAdapter {
 		return mongoose.connection.readyState === 1;
 	}
 
-	async getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>> {
-		return this._wrapResult(async () => {
-			const start = performance.now();
-			if (!mongoose.connection.db) {
-				throw new Error('Database connection not established');
+	async transaction<T>(fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>> {
+		const session = await mongoose.startSession();
+		session.startTransaction();
+		try {
+			const result = await fn({
+				commit: async () => {
+					await session.commitTransaction();
+					return { success: true, data: undefined };
+				},
+				rollback: async () => {
+					await session.abortTransaction();
+					return { success: true, data: undefined };
+				}
+			});
+			if (result.success) {
+				await session.commitTransaction();
+			} else {
+				await session.abortTransaction();
 			}
-			await mongoose.connection.db.admin().ping();
-			const latency = performance.now() - start;
-			const activeConnections = mongoose.connection.readyState === 1 ? 1 : 0;
-			return { healthy: true, latency, activeConnections };
-		});
-	}
-
-	// --- Required Interface Methods (Stubs/Not Yet Implemented) ---
-
-	getCapabilities() {
-		return {
-			supportsTransactions: false,
-			supportsIndexing: true,
-			supportsFullTextSearch: true,
-			supportsAggregation: true,
-			supportsStreaming: false,
-			supportsPartitioning: false,
-			maxBatchSize: 1000,
-			maxQueryComplexity: 100
-		};
-	}
-
-	async transaction<T>(
-		_fn: (transaction: any) => Promise<DatabaseResult<T>>,
-		_options?: { timeout?: number; isolationLevel?: string }
-	): Promise<DatabaseResult<T>> {
-		return {
-			success: false,
-			message: 'Transactions not yet implemented',
-			error: { code: 'NOT_IMPLEMENTED', message: 'Transactions not yet implemented' }
-		};
+			return result;
+		} catch (error) {
+			await session.abortTransaction();
+			const dbError = this.utils.createDatabaseError(error, 'TRANSACTION_ERROR', 'Transaction failed');
+			return { success: false, error: dbError, message: dbError.message };
+		} finally {
+			session.endSession();
+		}
 	}
 
 	batch = {
-		execute: async <T>(_operations: any[]): Promise<DatabaseResult<any>> => {
+		execute: async <T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>> => {
+			const results: DatabaseResult<T>[] = [];
+			let success = true;
+			for (const op of operations) {
+				let result: DatabaseResult<unknown>;
+				switch (op.operation) {
+					case 'insert':
+						result = await this.crud.insert(op.collection, op.data as Omit<T, '_id' | 'createdAt' | 'updatedAt'>);
+						break;
+					case 'update':
+						result = await this.crud.update(op.collection, op.id!, op.data as Partial<Omit<T, 'createdAt' | 'updatedAt'>>);
+						break;
+					case 'delete':
+						result = await this.crud.delete(op.collection, op.id!);
+						break;
+					case 'upsert':
+						result = await this.crud.upsert(op.collection, op.query!, op.data as Omit<T, '_id' | 'createdAt' | 'updatedAt'>);
+						break;
+				}
+				if (!result.success) success = false;
+				results.push(result as DatabaseResult<T>);
+			}
 			return {
-				success: false,
-				message: 'Batch operations not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Batch operations not yet implemented' }
+				success: true,
+				data: {
+					success,
+					results,
+					totalProcessed: operations.length,
+					errors: results.filter((r) => !r.success).map((r) => (r as { error: import('../dbInterface').DatabaseError }).error)
+				}
 			};
 		},
 		bulkInsert: async <T extends BaseEntity>(
-			_collection: string,
-			_items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]
+			collection: string,
+			items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]
 		): Promise<DatabaseResult<T[]>> => {
-			return {
-				success: false,
-				message: 'Bulk insert not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Bulk insert not yet implemented' }
-			};
+			const repo = this._getRepository(collection);
+			if (!repo) return this._repoNotFound(collection);
+			return this._wrapResult(() => repo.insertMany(items as T[]) as Promise<T[]>);
 		},
 		bulkUpdate: async <T extends BaseEntity>(
-			_collection: string,
-			_updates: Array<{ id: DatabaseId; data: Partial<T> }>
+			collection: string,
+			updates: Array<{ id: DatabaseId; data: Partial<T> }>
 		): Promise<DatabaseResult<{ modifiedCount: number }>> => {
-			return {
-				success: false,
-				message: 'Bulk update not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Bulk update not yet implemented' }
-			};
+			const repo = this._getRepository(collection);
+			if (!repo) return this._repoNotFound(collection);
+			const bulkOps = updates.map((u) => ({
+				updateOne: {
+					filter: { _id: u.id },
+					update: u.data
+				}
+			}));
+			return this._wrapResult(async () => {
+				const result = await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<T>[]);
+				return { modifiedCount: result.modifiedCount };
+			});
 		},
-		bulkDelete: async (_collection: string, _ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
-			return {
-				success: false,
-				message: 'Bulk delete not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Bulk delete not yet implemented' }
-			};
+		bulkDelete: async (collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>> => {
+			const repo = this._getRepository(collection);
+			if (!repo) return this._repoNotFound(collection);
+			const result = await repo.deleteMany({ _id: { $in: ids } } as FilterQuery<BaseEntity>);
+			return { success: true, data: { deletedCount: result.deletedCount || 0 } };
 		},
-		bulkUpsert: async <T extends BaseEntity>(_collection: string, _items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> => {
-			return {
-				success: false,
-				message: 'Bulk upsert not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Bulk upsert not yet implemented' }
-			};
-		}
-	};
-
-	collection = {
-		getModel: async (_id: string): Promise<any> => {
-			throw new Error('Collection getModel not yet implemented');
-		},
-		createModel: async (_schema: any): Promise<void> => {
-			throw new Error('Collection createModel not yet implemented');
-		},
-		updateModel: async (_schema: any): Promise<void> => {
-			throw new Error('Collection updateModel not yet implemented');
-		},
-		deleteModel: async (_id: string): Promise<void> => {
-			throw new Error('Collection deleteModel not yet implemented');
+		bulkUpsert: async <T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>> => {
+			const repo = this._getRepository(collection);
+			if (!repo) return this._repoNotFound(collection);
+			const bulkOps = items.map((item) => ({
+				updateOne: {
+					filter: { _id: item.id } as FilterQuery<T>,
+					update: { $set: item },
+					upsert: true
+				}
+			}));
+			return this._wrapResult(async () => {
+				await repo.model.bulkWrite(bulkOps as mongoose.AnyBulkWriteOperation<T>[]);
+				// Note: This won't return the upserted documents in a single operation.
+				// A find query would be needed to retrieve them, which is complex.
+				// Returning empty array for now.
+				return [];
+			});
 		}
 	};
 
 	systemVirtualFolder!: IDBAdapter['systemVirtualFolder'];
 
 	performance = {
-		getMetrics: async (): Promise<DatabaseResult<any>> => {
-			return {
-				success: false,
-				message: 'Performance metrics not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Performance metrics not yet implemented' }
-			};
+		getMetrics: async (): Promise<DatabaseResult<PerformanceMetrics>> => {
+			try {
+				// Get cache metrics
+				const cacheSnapshot = cacheMetrics.getSnapshot();
+
+				// Get MongoDB stats
+				const dbStats = mongoose.connection.db ? await mongoose.connection.db.stats() : null;
+
+				return {
+					success: true,
+					data: {
+						queryCount: cacheSnapshot.totalRequests,
+						averageQueryTime: cacheSnapshot.avgResponseTime,
+						slowQueries: [],
+						cacheHitRate: cacheSnapshot.hitRate,
+						connectionPoolUsage: dbStats ? dbStats.connections || -1 : -1
+					}
+				};
+			} catch (error) {
+				return {
+					success: false,
+					message: 'Failed to get performance metrics',
+					error: createDatabaseError(error, 'METRICS_ERROR', 'Failed to retrieve performance metrics')
+				};
+			}
 		},
 		clearMetrics: async (): Promise<DatabaseResult<void>> => {
-			return {
-				success: false,
-				message: 'Performance metrics not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Performance metrics not yet implemented' }
-			};
+			try {
+				cacheMetrics.reset();
+				logger.info('Performance metrics cleared');
+				return { success: true, data: undefined };
+			} catch (error) {
+				return {
+					success: false,
+					message: 'Failed to clear metrics',
+					error: createDatabaseError(error, 'METRICS_CLEAR_ERROR', 'Failed to clear performance metrics')
+				};
+			}
 		},
-		enableProfiling: async (_enabled: boolean): Promise<DatabaseResult<void>> => {
-			return {
-				success: false,
-				message: 'Performance profiling not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Performance profiling not yet implemented' }
-			};
+		enableProfiling: async (enabled: boolean): Promise<DatabaseResult<void>> => {
+			if (!mongoose.connection.db) {
+				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
+			}
+			const level = enabled ? 'all' : 'off';
+			await mongoose.connection.db.setProfilingLevel(level);
+			return { success: true, data: undefined };
 		},
-		getSlowQueries: async (_limit?: number): Promise<DatabaseResult<any[]>> => {
-			return {
-				success: false,
-				message: 'Slow queries not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Slow queries not yet implemented' }
-			};
+		getSlowQueries: async (limit = 10): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: Date }>>> => {
+			if (!mongoose.connection.db) {
+				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
+			}
+			const profileData = await mongoose.connection.db.collection('system.profile').find().limit(limit).toArray();
+			const slowQueries = profileData.map((p) => {
+				const doc = p as unknown as { command: object; millis: number; ts: Date };
+				return {
+					query: JSON.stringify(doc.command),
+					duration: doc.millis,
+					timestamp: doc.ts
+				};
+			});
+			return { success: true, data: slowQueries };
 		}
 	};
 
+	// Smart Cache Layer Integration with Multi-Tenant Support
 	cache = {
-		get: async <T>(_key: string): Promise<DatabaseResult<T | null>> => {
-			return {
-				success: false,
-				message: 'Cache not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Cache not yet implemented' }
-			};
+		get: async <T>(key: string): Promise<DatabaseResult<T | null>> => {
+			try {
+				await cacheService.initialize();
+				const value = await cacheService.get<T>(key);
+				logger.debug(`Cache get: ${key}`, { found: value !== null });
+				return { success: true, data: value };
+			} catch (error) {
+				logger.error('Cache get failed:', error);
+				return {
+					success: false,
+					message: 'Cache retrieval failed',
+					error: createDatabaseError(error, 'CACHE_GET_ERROR', 'Failed to get from cache')
+				};
+			}
 		},
-		set: async <T>(_key: string, _value: T, _options?: any): Promise<DatabaseResult<void>> => {
-			return {
-				success: false,
-				message: 'Cache not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Cache not yet implemented' }
-			};
+
+		set: async <T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>> => {
+			try {
+				await cacheService.initialize();
+				const ttl = options?.ttl || 60; // Default 60 seconds
+				const tenantId = options?.tags?.find((tag) => tag.startsWith('tenant:'))?.replace('tenant:', '');
+
+				await cacheService.set(key, value, ttl, tenantId);
+				logger.debug(`Cache set: ${key}`, { ttl, tenantId });
+				return { success: true, data: undefined };
+			} catch (error) {
+				logger.error('Cache set failed:', error);
+				return {
+					success: false,
+					message: 'Cache storage failed',
+					error: createDatabaseError(error, 'CACHE_SET_ERROR', 'Failed to set in cache')
+				};
+			}
 		},
-		delete: async (_key: string): Promise<DatabaseResult<void>> => {
-			return {
-				success: false,
-				message: 'Cache not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Cache not yet implemented' }
-			};
+
+		delete: async (key: string): Promise<DatabaseResult<void>> => {
+			try {
+				await cacheService.initialize();
+				await cacheService.delete(key);
+				logger.debug(`Cache delete: ${key}`);
+				return { success: true, data: undefined };
+			} catch (error) {
+				logger.error('Cache delete failed:', error);
+				return {
+					success: false,
+					message: 'Cache deletion failed',
+					error: createDatabaseError(error, 'CACHE_DELETE_ERROR', 'Failed to delete from cache')
+				};
+			}
 		},
-		clear: async (_tags?: string[]): Promise<DatabaseResult<void>> => {
-			return {
-				success: false,
-				message: 'Cache not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Cache not yet implemented' }
-			};
+
+		clear: async (tags?: string[]): Promise<DatabaseResult<void>> => {
+			try {
+				await cacheService.initialize();
+
+				if (tags && tags.length > 0) {
+					// Clear specific tags using pattern matching
+					for (const tag of tags) {
+						// Extract tenant ID if present
+						const tenantId = tag.startsWith('tenant:') ? tag.replace('tenant:', '') : undefined;
+						const pattern = tenantId ? `*` : `*${tag}*`;
+						await cacheService.clearByPattern(pattern, tenantId);
+					}
+					logger.debug(`Cache cleared for tags: ${tags.join(', ')}`);
+				} else {
+					// Clear all cache (use carefully!)
+					await cacheService.clearByPattern('*');
+					logger.warn('All cache cleared (global clear)');
+				}
+
+				return { success: true, data: undefined };
+			} catch (error) {
+				logger.error('Cache clear failed:', error);
+				return {
+					success: false,
+					message: 'Cache clear failed',
+					error: createDatabaseError(error, 'CACHE_CLEAR_ERROR', 'Failed to clear cache')
+				};
+			}
 		},
-		invalidateCollection: async (_collection: string): Promise<DatabaseResult<void>> => {
-			return {
-				success: false,
-				message: 'Cache not yet implemented',
-				error: { code: 'NOT_IMPLEMENTED', message: 'Cache not yet implemented' }
-			};
+
+		invalidateCollection: async (collection: string): Promise<DatabaseResult<void>> => {
+			try {
+				await cacheService.initialize();
+
+				// Invalidate all cache keys related to this collection
+				const pattern = `collection:${collection}:*`;
+				await cacheService.clearByPattern(pattern);
+
+				logger.info(`Cache invalidated for collection: ${collection}`);
+				return { success: true, data: undefined };
+			} catch (error) {
+				logger.error('Cache invalidation failed:', error);
+				return {
+					success: false,
+					message: 'Cache invalidation failed',
+					error: createDatabaseError(error, 'CACHE_INVALIDATE_ERROR', 'Failed to invalidate collection cache')
+				};
+			}
 		}
 	};
 
 	async getCollectionData(
-		_collectionName: string,
-		_options?: {
+		collectionName: string,
+		options?: {
 			limit?: number;
 			offset?: number;
 			fields?: string[];
 			includeMetadata?: boolean;
 		}
-	): Promise<DatabaseResult<{ data: unknown[]; metadata?: any }>> {
-		return {
-			success: false,
-			message: 'getCollectionData not yet implemented',
-			error: { code: 'NOT_IMPLEMENTED', message: 'getCollectionData not yet implemented' }
-		};
+	): Promise<DatabaseResult<{ data: unknown[]; metadata?: { totalCount: number; schema?: unknown; indexes?: string[] } }>> {
+		const repo = this._getRepository(collectionName);
+		if (!repo) return this._repoNotFound(collectionName);
+
+		const data = await repo.findMany({}, { limit: options?.limit, skip: options?.offset });
+
+		if (options?.includeMetadata) {
+			const totalCount = await repo.count({});
+			const schema = repo.model.schema.obj;
+			const indexes = Object.keys(repo.model.schema.indexes());
+			return {
+				success: true,
+				data: {
+					data,
+					metadata: {
+						totalCount,
+						schema,
+						indexes
+					}
+				}
+			};
+		}
+
+		return { success: true, data: { data } };
 	}
 
 	async getMultipleCollectionData(
-		_collectionNames: string[],
-		_options?: {
+		collectionNames: string[],
+		options?: {
 			limit?: number;
 			fields?: string[];
 		}
 	): Promise<DatabaseResult<Record<string, unknown[]>>> {
-		return {
-			success: false,
-			message: 'getMultipleCollectionData not yet implemented',
-			error: { code: 'NOT_IMPLEMENTED', message: 'getMultipleCollectionData not yet implemented' }
-		};
+		const result: Record<string, unknown[]> = {};
+		for (const name of collectionNames) {
+			const collectionData = await this.getCollectionData(name, options);
+			if (collectionData.success) {
+				result[name] = collectionData.data.data;
+			}
+		}
+		return { success: true, data: result };
 	}
 }

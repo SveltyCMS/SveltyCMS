@@ -43,6 +43,17 @@ export const privateConfigSchema = object({
 	REDIS_HOST: optional(pipe(string(), minLength(1))),
 	REDIS_PORT: optional(pipe(number(), minValue(1))),
 	REDIS_PASSWORD: optional(string()),
+
+	// --- Cache TTL Configuration (in seconds) ---
+	CACHE_TTL_SCHEMA: optional(pipe(number(), minValue(1))), // TTL for schema/collection definitions
+	CACHE_TTL_WIDGET: optional(pipe(number(), minValue(1))), // TTL for widget data
+	CACHE_TTL_THEME: optional(pipe(number(), minValue(1))), // TTL for theme configurations
+	CACHE_TTL_CONTENT: optional(pipe(number(), minValue(1))), // TTL for content data
+	CACHE_TTL_MEDIA: optional(pipe(number(), minValue(1))), // TTL for media metadata
+	CACHE_TTL_SESSION: optional(pipe(number(), minValue(1))), // TTL for user session data
+	CACHE_TTL_USER: optional(pipe(number(), minValue(1))), // TTL for user permissions
+	CACHE_TTL_API: optional(pipe(number(), minValue(1))), // TTL for API responses
+
 	GOOGLE_CLIENT_ID: optional(pipe(string(), minLength(1))),
 	GOOGLE_CLIENT_SECRET: optional(pipe(string(), minLength(1))),
 	GOOGLE_API_KEY: optional(pipe(string(), minLength(1))),

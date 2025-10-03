@@ -207,8 +207,7 @@ contentStructureSchema.statics = {
 
 /**
  * Register discriminators for the content structure model.
- * This allows us to have different schemas for 'category' and 'collection' if needed in the future,
- * while storing them in the same collection.
+ * This allows us to have different schemas for 'category' and 'collection' if needed in the future while storing them in the same collection.
  */
 export function registerContentStructureDiscriminators() {
 	if (discriminatorsRegistered) {

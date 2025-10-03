@@ -305,25 +305,15 @@ async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
 		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
-		const themes = await dbAdapter.themes.getAllThemes(); // Ensure themes is an array before accessing its length
-		if (!Array.isArray(themes)) {
-			logger.warn('No themes returned from database or an error occurred. Assuming no themes exist.');
-			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
-			return;
-		}
-		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes in the database`);
 
-		if (themes.length === 0) {
-			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
-		} else {
-			logger.info('Themes already exist in the database. Skipping default theme initialization.');
-		}
+		// Simply try to store the theme - the storeThemes method uses atomic upsert
+		// so it will handle both insert (if not exists) and update (if exists) safely
+		await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
+		logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m initialized successfully.');
 	} catch (err) {
-		const message = `Error initializing default theme: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw new Error(message);
+		// Log but don't fail - theme initialization is not critical for system startup
+		logger.warn(`Theme initialization issue: ${err instanceof Error ? err.message : String(err)}`);
+		logger.info('Continuing with system initialization despite theme issue...');
 	}
 }
 
@@ -373,7 +363,7 @@ async function initializeVirtualFolders(): Promise<void> {
 		if (!systemVirtualFoldersResult.success) {
 			const error = systemVirtualFoldersResult.error;
 			let errorMessage = 'Unknown error';
-			
+
 			if (error instanceof Error) {
 				errorMessage = error.message;
 			} else if (error && typeof error === 'object' && 'message' in error) {
@@ -381,7 +371,7 @@ async function initializeVirtualFolders(): Promise<void> {
 			} else if (error) {
 				errorMessage = String(error);
 			}
-			
+
 			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
 		}
 
@@ -401,7 +391,7 @@ async function initializeVirtualFolders(): Promise<void> {
 			if (!creationResult.success) {
 				const error = creationResult.error;
 				let errorMessage = 'Unknown error';
-				
+
 				if (error instanceof Error) {
 					errorMessage = error.message;
 				} else if (error && typeof error === 'object' && 'message' in error) {
@@ -409,7 +399,7 @@ async function initializeVirtualFolders(): Promise<void> {
 				} else if (error) {
 					errorMessage = String(error);
 				}
-				
+
 				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 
@@ -477,11 +467,12 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		}
 
 		// 3. Connect to Database (only if not in setup mode)
+		// Declare connectionString outside try block so it's available for reconnection
+		let connectionString: string;
 		try {
 			if (!dbAdapter) throw new Error('Database adapter failed to load.');
-			
+
 			// Build connection string from config
-			let connectionString: string;
 			if (privateConfig.DB_TYPE === 'mongodb') {
 				const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
 				const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
@@ -495,7 +486,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 				// For other database types, construct connection string accordingly
 				connectionString = ''; // Placeholder for other DB types
 			}
-			
+
 			const result = await dbAdapter.connect(connectionString);
 			if (!result.success) {
 				const dbError = result.error;
@@ -530,7 +521,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
 		}
-		
+
 		// Verify all required adapter properties exist
 		if (!dbAdapter.auth || !dbAdapter.media || !dbAdapter.widgets || !dbAdapter.themes || !dbAdapter.system) {
 			logger.error('Database adapter is missing required properties', {
@@ -545,21 +536,21 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			adaptersLoaded = false;
 			isConnected = false;
 			await loadAdapters();
-			
+
 			// Reconnect the new adapter instance
 			const reconnectResult = await dbAdapter.connect(connectionString);
 			if (!reconnectResult.success) {
 				throw new Error(`Reconnection failed after adapter reload: ${reconnectResult.error}`);
 			}
 			isConnected = true;
-			
+
 			// Verify again
 			if (!dbAdapter || !dbAdapter.auth) {
 				throw new Error('Database adapter still incomplete after reload and reconnection');
 			}
 			logger.debug('Adapter reloaded and reconnected successfully');
 		}
-		
+
 		// 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
 
 		const step2StartTime = performance.now();
@@ -605,7 +596,34 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		} catch (contentErr) {
 			logger.error(`ContentManager initialization failed: ${contentErr instanceof Error ? contentErr.message : String(contentErr)}`);
 			throw contentErr;
-		} // 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
+		}
+
+		// 4.5. Verify Collection-Specific Database Models (create models for each collection schema)
+		const step4_5StartTime = performance.now();
+		try {
+			// Use contentManager to get all loaded collections (schemas)
+			const collections = contentManager.getCollections();
+			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.');
+			// Create models for each collection if needed
+			if (collections && collections.length > 0) {
+				for (const schema of collections) {
+					if (schema._id && dbAdapter.collection?.createModel) {
+						await dbAdapter.collection.createModel(schema);
+					}
+				}
+			}
+			logger.debug(
+				`\x1b[34mContentManager\x1b[0m reports \x1b[34m${collections.length}\x1b[0m collections loaded. \x1b[33mVerification complete\x1b[0m`
+			);
+			const step4_5Time = performance.now() - step4_5StartTime;
+			logger.debug(`\x1b[32mStep 4.5 completed:\x1b[0m Collection models verified in \x1b[32m${step4_5Time.toFixed(2)}ms\x1b[0m`);
+		} catch (modelErr) {
+			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
+			logger.error(message);
+			throw new Error(message);
+		}
+
+		// 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
 
 		const step5StartTime = performance.now();
 		try {

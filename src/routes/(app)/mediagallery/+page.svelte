@@ -138,9 +138,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	}
 
 	// Computed safe table size (MediaTable doesn't support 'tiny')
-	let safeTableSize = $derived<'small' | 'medium' | 'large'>(
-		tableSize === 'tiny' ? 'small' : tableSize
-	);
+	let safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
 
 	// Initialize component with runes
 	$effect(() => {
@@ -246,7 +244,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		isLoading = true;
 		globalLoadingStore.startLoading(loadingOperations.dataFetch);
-		
+
 		try {
 			const parentId = currentSystemVirtualFolder?._id ?? null;
 			const response = await fetch('/api/systemVirtualFolder', {
@@ -268,9 +266,11 @@ Displays a collection of media files (images, documents, audio, video) with:
 				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parentId);
 
 				// Notify Collections component
-				document.dispatchEvent(new CustomEvent('folderCreated', {
-					detail: { folder: result.folder, parentId }
-				}));
+				document.dispatchEvent(
+					new CustomEvent('folderCreated', {
+						detail: { folder: result.folder, parentId }
+					})
+				);
 
 				showToast('Folder created successfully', 'success');
 			} else {
@@ -278,11 +278,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
-			const errorMessage = error instanceof Error && error.message.includes('duplicate')
-				? error.message
-				: error instanceof Error && error.message.includes('invalid')
-					? 'Invalid folder name'
-					: 'Failed to create folder';
+			const errorMessage =
+				error instanceof Error && error.message.includes('duplicate')
+					? error.message
+					: error instanceof Error && error.message.includes('invalid')
+						? 'Invalid folder name'
+						: 'Failed to create folder';
 			showToast(errorMessage, 'error');
 		} finally {
 			isLoading = false;
@@ -425,8 +426,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 			showToast('Error deleting media', 'error');
 		}
 	}
-
-
 </script>
 
 <!-- Page Title and Actions -->

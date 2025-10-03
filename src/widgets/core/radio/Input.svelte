@@ -30,7 +30,11 @@ Renders radio group with options from field.options array
 	import type { FieldType } from './';
 	import type { RadioProps } from './types';
 
-	let { field, value = $bindable(), error }: { field: FieldType & RadioProps; value?: string | number | null | undefined; error?: string | null } = $props();
+	let {
+		field,
+		value = $bindable(),
+		error
+	}: { field: FieldType & RadioProps; value?: string | number | null | undefined; error?: string | null } = $props();
 </script>
 
 <div class="radio-container" class:invalid={error}>
@@ -40,7 +44,7 @@ Renders radio group with options from field.options array
 		>
 
 		<div class="options-wrapper">
-			{#each (field.options || []) as option (option.value)}
+			{#each field.options || [] as option (option.value)}
 				<label class="option">
 					<input type="radio" name={field.db_fieldName} bind:group={value} value={option.value} />
 					<span>{option.label}</span>

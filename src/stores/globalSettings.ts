@@ -77,22 +77,48 @@ export function getPrivateSetting<K extends keyof PrivateEnv>(key: K): PrivateEn
  * Gets a setting that is NOT defined in the schema.
  * Use this as an escape hatch only when necessary. It's not type-safe.
  * @param key The string key of the setting to retrieve.
+ * @param scope Optional scope to limit search to 'public' or 'private' only (recommended for security)
  * @returns The value of the setting, or undefined if not found.
  */
-export function getUntypedSetting<T = unknown>(key: string): T | undefined {
-	if ((publicEnv as Record<string, unknown>)[key] !== undefined) {
-		return (publicEnv as unknown as Record<string, T>)[key];
+export function getUntypedSetting<T = unknown>(key: string, scope?: 'public' | 'private'): T | undefined {
+	if (!scope || scope === 'public') {
+		if ((publicEnv as Record<string, unknown>)[key] !== undefined) {
+			return (publicEnv as unknown as Record<string, T>)[key];
+		}
 	}
-	if ((privateEnv as Record<string, unknown>)[key] !== undefined) {
-		return (privateEnv as unknown as Record<string, T>)[key];
+	if (!scope || scope === 'private') {
+		if ((privateEnv as Record<string, unknown>)[key] !== undefined) {
+			return (privateEnv as unknown as Record<string, T>)[key];
+		}
 	}
 	return undefined;
 }
 
-export { privateEnv, publicEnv };
+// Export publicEnv for safe client-side access
+export { publicEnv };
+
+// Export privateEnv for SERVER-SIDE use only
+// ⚠️ WARNING: Never import privateEnv in .svelte files or client-side code!
+// The Vite security plugin will detect and block such imports during build.
+// For server-side code (.ts files in /auth, /hooks, /databases, /routes/api), this is safe.
+export { privateEnv };
 
 // --- Snapshot Utilities ---
-// Returns a merged view of all current settings for export
+/**
+ * Returns a merged view of all current settings for export.
+ *
+ * ⚠️ SECURITY WARNING: This function exposes PRIVATE settings!
+ * Only use this for:
+ * - Server-side admin operations
+ * - Authenticated admin export functionality
+ * - System backup/restore operations
+ *
+ * NEVER expose this data to:
+ * - Client-side code
+ * - Non-admin users
+ * - Public APIs
+ * - Logs or error messages
+ */
 export async function getAllSettings(): Promise<Record<string, unknown>> {
 	return {
 		public: { ...publicEnv },

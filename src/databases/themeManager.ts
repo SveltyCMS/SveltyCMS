@@ -54,10 +54,10 @@ export class ThemeManager {
 
 		try {
 			this.db = db;
-			
+
 			// Load and cache the default theme
 			await this.loadAndCacheDefaultTheme();
-			
+
 			this.initialized = true;
 			logger.info('ThemeManager initialized successfully.');
 		} catch (err) {
@@ -76,7 +76,7 @@ export class ThemeManager {
 		try {
 			// Single optimized database call - get all themes at once
 			const allThemes = await this.db.themes.getAllThemes();
-			
+
 			if (!Array.isArray(allThemes) || allThemes.length === 0) {
 				logger.warn('No themes found in database. Using DEFAULT_THEME fallback.');
 				this.themeCache.set('global', DEFAULT_THEME);
@@ -84,10 +84,7 @@ export class ThemeManager {
 			}
 
 			// Find active theme, or default theme, or first theme
-			const defaultTheme = 
-				allThemes.find((t) => t.isActive) || 
-				allThemes.find((t) => t.isDefault) || 
-				allThemes[0];
+			const defaultTheme = allThemes.find((t) => t.isActive) || allThemes.find((t) => t.isDefault) || allThemes[0];
 
 			// Cache it as the global default
 			this.themeCache.set('global', defaultTheme);
@@ -105,7 +102,7 @@ export class ThemeManager {
 		}
 
 		const cacheKey = tenantId || 'global';
-		
+
 		// Return from cache if available
 		if (this.themeCache.has(cacheKey)) {
 			return this.themeCache.get(cacheKey)!;
@@ -159,7 +156,7 @@ export class ThemeManager {
 		if (!this.initialized || !this.db) {
 			throw new Error('ThemeManager is not initialized.');
 		}
-		
+
 		this.themeCache.clear();
 		await this.loadAndCacheDefaultTheme();
 		logger.debug('ThemeManager cache refreshed.');

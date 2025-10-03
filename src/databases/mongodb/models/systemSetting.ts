@@ -9,7 +9,7 @@ export interface SystemSetting {
 	key: string;
 	value: unknown;
 	scope: string; // e.g., 'system', 'public', 'private'
-	visibility: string; // 'public' | 'private'
+	category: string; // 'public' | 'private' - setting classification for security/organization
 	isGlobal?: boolean;
 	updatedAt?: Date;
 }
@@ -19,7 +19,7 @@ const SystemSettingSchema = new Schema<SystemSetting>(
 		key: { type: String, required: true, index: true, unique: true },
 		value: { type: Schema.Types.Mixed, required: true },
 		scope: { type: String, default: 'system', index: true },
-		visibility: { type: String, enum: ['public', 'private'], default: 'public', index: true },
+		category: { type: String, enum: ['public', 'private'], default: 'public', index: true },
 		isGlobal: { type: Boolean, default: true },
 		updatedAt: { type: Date, default: Date.now }
 	},

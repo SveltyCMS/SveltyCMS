@@ -109,10 +109,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		// Ensure data is an array
-		const virtualFoldersData = Array.isArray(allVirtualFoldersResult.data) 
-			? allVirtualFoldersResult.data 
-			: [];
-		
+		const virtualFoldersData = Array.isArray(allVirtualFoldersResult.data) ? allVirtualFoldersResult.data : [];
+
 		const serializedVirtualFolders = virtualFoldersData.map((folder) => convertIdToString(folder));
 
 		// Determine current folder

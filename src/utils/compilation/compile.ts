@@ -140,7 +140,7 @@ async function getTypescriptAndJavascriptFiles(folder: string, subdir: string = 
 			} else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
 				const collectionName = entry.name.replace(/\.(ts|js)$/, '');
 				if (dirCollectionNames.has(collectionName)) {
-						// Construct full path for error message
+					// Construct full path for error message
 					const conflictPath = path.posix.join(folder, subdir, entry.name);
 					throw new Error(`Collection name conflict: "${collectionName}" is used multiple times in directory "${path.posix.dirname(conflictPath)}".`);
 				}
@@ -331,8 +331,8 @@ function transformCodeWithAST(code: string, uuid: string): string {
 // Transformer factory for widget-related changes
 const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (sourceFile) => {
 	const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-			// 1. Remove `import widgets from ...`
-			if (
+		// 1. Remove `import widgets from ...`
+		if (
 			ts.isImportDeclaration(node) &&
 			ts.isStringLiteral(node.moduleSpecifier) &&
 			(node.importClause?.name?.text === 'widgets' || /widgets/.test(node.moduleSpecifier.text))
@@ -340,9 +340,9 @@ const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (so
 			return []; // Return an empty array to remove the node
 		}
 
-// 2. Replace standalone `widgets` identifier with `globalThis.widgets`
+		// 2. Replace standalone `widgets` identifier with `globalThis.widgets`
 		if (ts.isIdentifier(node) && node.text === 'widgets') {
-				// Avoid replacing if it's already part of `globalThis.widgets` or a property name
+			// Avoid replacing if it's already part of `globalThis.widgets` or a property name
 			if (
 				!ts.isPropertyAccessExpression(node.parent) ||
 				(ts.isPropertyAccessExpression(node.parent) && node.parent.name !== node) ||
@@ -404,10 +404,10 @@ const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> = (context
 const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (sourceFile) => {
 	let needsFileURLToPath = false;
 	const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-			// Replace __filename with ES module equivalent
+		// Replace __filename with ES module equivalent
 		if (ts.isIdentifier(node) && node.text === '__filename') {
 			needsFileURLToPath = true;
-				// Create: fileURLToPath(import.meta.url)
+			// Create: fileURLToPath(import.meta.url)
 			return ts.factory.createCallExpression(ts.factory.createIdentifier('fileURLToPath'), undefined, [
 				ts.factory.createPropertyAccessExpression(
 					ts.factory.createMetaProperty(ts.SyntaxKind.ImportKeyword, ts.factory.createIdentifier('meta')),
@@ -416,7 +416,7 @@ const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (con
 			]);
 		}
 
-			// Replace __dirname with ES module equivalent
+		// Replace __dirname with ES module equivalent
 		if (ts.isIdentifier(node) && node.text === '__dirname') {
 			needsFileURLToPath = true;
 			return ts.factory.createCallExpression(ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('path'), 'dirname'), undefined, [

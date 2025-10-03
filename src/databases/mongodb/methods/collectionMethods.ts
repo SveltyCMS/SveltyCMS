@@ -1,130 +1,200 @@
 /**
  * @file src/databases/mongodb/methods/collectionMethods.ts
- * @description collectionMethods model registration for the MongoDB adapter.
- * This class is responsible for idempotently registering auth-related Mongoose models.
+ * @description Dynamic model/schema registration and management for MongoDB collections.
+ *
+ * Responsibility: ONLY for dynamic model/schema creation, registration, and management.
+ *
+ * This module handles:
+ * - Dynamic creation of Mongoose models from collection schemas
+ * - Model registry/map for tracking registered models
+ * - Model existence checks and retrieval
+ * - Schema validation and field mapping
+ *
+ * Does NOT handle:
+ * - CRUD operations (use crudMethods.ts)
+ * - Content structure/drafts/revisions (use contentMethods.ts)
  */
 
 import { logger } from '@utils/logger.svelte';
-import mongoose, { Schema as MongooseSchema, type PipelineStage } from 'mongoose';
-import type { CollectionModel, DatabaseAdapter } from '../../dbInterface';
+import mongoose, { Schema as MongooseSchema, type Model } from 'mongoose';
+import type { CollectionModel } from '../../dbInterface';
+import type { Schema } from '@src/content/types';
+import { withCache, CacheCategory, invalidateCollectionCache } from './mongoDBUtils';
 
-export function createCollectionMethods(_adapter: DatabaseAdapter) {
-	const models = new Map<string, CollectionModel>();
+/**
+ * MongoCollectionMethods manages dynamic model creation and registration.
+ *
+ * This class is responsible for creating, registering, and managing
+ * dynamic Mongoose models based on user-defined collection schemas.
+ */
+export class MongoCollectionMethods {
+	// Internal registry of all dynamically created models
+	private models = new Map<string, { model: Model<unknown>; wrapped: CollectionModel }>();
 
-	return {
-		models,
-		getModelsMap: async (): Promise<Map<string, CollectionModel>> => {
-			return models;
-		},
-		getModel: async (id: string): Promise<CollectionModel> => {
-			const model = models.get(id);
-			if (!model) {
-				throw new Error(`Collection model with id ${id} not found`);
-			}
-			return model;
-		},
-		createModel: async (schema: import('@src/content/types').Schema): Promise<void> => {
-			const collectionConfig = schema as unknown as { _id: string; fields?: unknown[]; [key: string]: unknown };
-			await createCollectionModel(collectionConfig);
-		},
-		updateModel: async (schema: import('@src/content/types').Schema): Promise<void> => {
-			const collectionConfig = schema as unknown as { _id: string; fields?: unknown[]; [key: string]: unknown };
-			await createCollectionModel(collectionConfig);
-		},
-		deleteModel: async (id: string): Promise<void> => {
-			models.delete(id);
-			const modelName = `collection_${id}`;
-			if (mongoose.models[modelName]) {
-				delete mongoose.models[modelName];
-			}
-		},
-		collectionExists: async (collectionName: string): Promise<boolean> => {
-			try {
-				const collections = (await mongoose.connection.db?.listCollections({ name: collectionName.toLowerCase() }).toArray()) ?? [];
-				return collections.length > 0;
-			} catch (error) {
-				logger.error(`Error checking if collection exists: ${error}`);
-				return false;
-			}
-		},
-		createCollectionModel: async (collection: {
-			_id?: string;
-			fields?: unknown[];
-			schema?: { strict?: boolean };
-			[key: string]: unknown;
-		}): Promise<CollectionModel> => {
-			try {
-				const collectionUuid = collection._id || new mongoose.Types.ObjectId().toHexString();
-				const collectionName = `collection_${collectionUuid}`;
+	/**
+	 * Gets a registered collection model by ID
+	 * Cached with 600s TTL since schemas rarely change
+	 */
+	async getModel(id: string): Promise<CollectionModel> {
+		return withCache(
+			`schema:collection:${id}`,
+			async () => {
+				const entry = this.models.get(id);
+				if (!entry) {
+					throw new Error(`Collection model with id ${id} not found. Available: ${Array.from(this.models.keys()).join(', ')}`);
+				}
+				return entry.wrapped;
+			},
+			{ category: CacheCategory.SCHEMA }
+		);
+	}
 
-				if (mongoose.models[collectionName]) {
-					const existingModel = mongoose.models[collectionName];
-					const wrappedExistingModel: CollectionModel = {
-						findOne: async (query) => (await existingModel.findOne(query).lean().exec()) as Record<string, unknown> | null,
-						aggregate: async (pipeline) => existingModel.aggregate(pipeline as unknown as PipelineStage[]).exec()
+	/**
+	 * Creates or updates a dynamic collection model from a schema
+	 */
+	async createModel(schema: Schema): Promise<void> {
+		const collectionId = schema._id;
+		if (!collectionId) {
+			throw new Error('Schema must have an _id field');
+		}
+
+		logger.debug(`Creating/updating collection model for: \x1b[33m${collectionId}\x1b[0m`);
+
+		// Invalidate cache for this collection
+		await invalidateCollectionCache(`schema:collection:${collectionId}`);
+
+		// Check if model already exists
+		if (this.models.has(collectionId)) {
+			logger.debug(`Model ${collectionId} already exists, updating...`);
+			// For now, just return - full update logic can be added later
+			return;
+		}
+
+		const modelName = `collection_${collectionId}`;
+
+		// Remove existing Mongoose model if present (for hot reload)
+		if (mongoose.models[modelName]) {
+			delete mongoose.models[modelName];
+		}
+
+		// Build schema definition from collection fields
+		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+			_id: { type: String },
+			status: { type: String, default: 'draft' },
+			createdAt: { type: Date, default: Date.now },
+			updatedAt: { type: Date, default: Date.now },
+			createdBy: { type: MongooseSchema.Types.Mixed, ref: 'auth_users' },
+			updatedBy: { type: MongooseSchema.Types.Mixed, ref: 'auth_users' }
+		};
+
+		// Map collection fields to Mongoose schema
+		if (schema.fields && Array.isArray(schema.fields)) {
+			for (const field of schema.fields) {
+				if (typeof field === 'object' && field !== null) {
+					const fieldObj = field as Record<string, unknown>;
+					const fieldKey =
+						(fieldObj.db_fieldName as string) ||
+						(fieldObj.label
+							? String(fieldObj.label)
+									.toLowerCase()
+									.replace(/[^a-z0-9_]/g, '_')
+							: null) ||
+						(fieldObj.Name as string);
+
+					if (!fieldKey) continue;
+
+					schemaDefinition[fieldKey] = {
+						type: mongoose.Schema.Types.Mixed,
+						required: (fieldObj.required as boolean) || false,
+						unique: (fieldObj.unique as boolean) || false
 					};
-					models.set(collectionUuid, wrappedExistingModel);
-					return wrappedExistingModel;
 				}
-
-				if (mongoose.modelNames().includes(collectionName)) {
-					delete mongoose.models[collectionName];
-				}
-
-				const schemaDefinition: Record<string, unknown> = {
-					_id: { type: String },
-					status: { type: String, default: 'draft' },
-					createdAt: { type: Date, default: Date.now },
-					updatedAt: { type: Date, default: Date.now },
-					createdBy: { type: MongooseSchema.Types.Mixed, ref: 'auth_users' },
-					updatedBy: { type: MongooseSchema.Types.Mixed, ref: 'auth_users' }
-				};
-
-				if (collection.fields && Array.isArray(collection.fields)) {
-					for (const field of collection.fields) {
-						if (typeof field === 'object' && field !== null && ('db_fieldName' in field || 'label' in field || 'Name' in field)) {
-							const fieldObj = field as {
-								db_fieldName?: string;
-								label?: string;
-								Name?: string;
-								required?: boolean;
-								translate?: boolean;
-								searchable?: boolean;
-								unique?: boolean;
-								type?: string;
-							};
-							const fieldKey =
-								fieldObj.db_fieldName || (fieldObj.label ? fieldObj.label.toLowerCase().replace(/[^a-z0-9_]/g, '_') : null) || fieldObj.Name;
-
-							if (!fieldKey) continue;
-
-							const fieldSchema: mongoose.SchemaDefinitionProperty = {
-								type: mongoose.Schema.Types.Mixed,
-								required: fieldObj.required || false,
-								unique: fieldObj.unique || false
-							};
-							schemaDefinition[fieldKey] = fieldSchema;
-						}
-					}
-				}
-
-				const schema = new mongoose.Schema(schemaDefinition, {
-					strict: collection.schema?.strict !== false,
-					timestamps: true,
-					collection: collectionName.toLowerCase()
-				});
-
-				const model = mongoose.model(collectionName, schema);
-				const wrappedModel: CollectionModel = {
-					findOne: async (query) => (await model.findOne(query).lean().exec()) as Record<string, unknown> | null,
-					aggregate: async (pipeline) => model.aggregate(pipeline as unknown as PipelineStage[]).exec()
-				};
-				models.set(collectionUuid, wrappedModel);
-				return wrappedModel;
-			} catch (error) {
-				logger.error('Error creating collection model:', error instanceof Error ? error.stack : error);
-				throw error;
 			}
 		}
-	};
+
+		// Create Mongoose schema
+		const mongooseSchema = new mongoose.Schema(schemaDefinition, {
+			strict: schema.strict !== false,
+			timestamps: true,
+			collection: modelName.toLowerCase()
+		});
+
+		// Create and register the model
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const model = mongoose.model(modelName, mongooseSchema) as any;
+
+		// Wrap the model for the interface
+		const wrappedModel: CollectionModel = {
+			findOne: async (query) => {
+				const result = await model.findOne(query).lean().exec();
+				return result as Record<string, unknown> | null;
+			},
+			aggregate: async (pipeline) => {
+				return await model.aggregate(pipeline as unknown as mongoose.PipelineStage[]).exec();
+			}
+		};
+
+		this.models.set(collectionId, { model, wrapped: wrappedModel });
+		logger.info(`Collection model created: \x1b[33m${collectionId}\x1b[0m \x1b[34m(${modelName})\x1b[0m`);
+	}
+
+	/**
+	 * Updates an existing collection model
+	 */
+	async updateModel(schema: Schema): Promise<void> {
+		// Invalidate cache before updating
+		if (schema._id) {
+			await invalidateCollectionCache(`schema:collection:${schema._id}`);
+		}
+		// For now, just recreate the model
+		await this.createModel(schema);
+	}
+
+	/**
+	 * Deletes a collection model
+	 */
+	async deleteModel(id: string): Promise<void> {
+		// Invalidate cache before deleting
+		await invalidateCollectionCache(`schema:collection:${id}`);
+
+		this.models.delete(id);
+		const modelName = `collection_${id}`;
+		if (mongoose.models[modelName]) {
+			delete mongoose.models[modelName];
+		}
+		logger.info(`Collection model deleted: ${id}`);
+	}
+
+	/**
+	 * Checks if a collection exists in the database
+	 */
+	async collectionExists(collectionName: string): Promise<boolean> {
+		try {
+			const collections =
+				(await mongoose.connection.db
+					?.listCollections({
+						name: collectionName.toLowerCase()
+					})
+					.toArray()) ?? [];
+			return collections.length > 0;
+		} catch (error) {
+			logger.error(`Error checking collection existence: ${error}`);
+			return false;
+		}
+	}
+
+	/**
+	 * Gets the internal Mongoose model (for CRUD operations)
+	 */
+	getMongooseModel(id: string): Model<unknown> | null {
+		const entry = this.models.get(id);
+		return entry ? entry.model : null;
+	}
+
+	/**
+	 * Gets all registered model IDs
+	 */
+	getRegisteredModelIds(): string[] {
+		return Array.from(this.models.keys());
+	}
 }

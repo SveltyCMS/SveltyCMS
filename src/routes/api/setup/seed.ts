@@ -63,6 +63,63 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void
 }
 
 /**
+ * Seeds collections from filesystem into database by creating models
+ */
+export async function seedCollections(dbAdapter: DatabaseAdapter): Promise<void> {
+	logger.info('📦 Seeding collections from filesystem...');
+
+	if (!dbAdapter || !dbAdapter.collection) {
+		throw new Error('Database adapter or collection interface not available');
+	}
+
+	try {
+		// Import contentManager instance to process collection schemas
+		const { contentManager } = await import('@src/content/ContentManager');
+
+		// Initialize ContentManager to scan and load collections from filesystem
+		await contentManager.initialize();
+
+		// Get all collections from ContentManager
+		const collections = contentManager.getCollections();
+
+		if (collections.length === 0) {
+			logger.info('ℹ️  No collections found in filesystem, skipping collection seeding');
+			return;
+		}
+
+		logger.info(`Found ${collections.length} collections to seed`);
+
+		let successCount = 0;
+		let skipCount = 0;
+
+		// Register each collection as a model in the database
+		for (const schema of collections) {
+			try {
+				// Try to create the collection model in database
+				await dbAdapter.collection.createModel(schema);
+				logger.info(`✅ Created collection model: ${schema.name}`);
+				successCount++;
+			} catch (error) {
+				// Collection might already exist or have schema issues
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+					logger.debug(`Collection '${schema.name}' already exists, skipping`);
+					skipCount++;
+				} else {
+					logger.warn(`Failed to create collection '${schema.name}': ${errorMessage}`);
+				}
+			}
+		}
+
+		logger.info(`✅ Collections seeding completed: ${successCount} created, ${skipCount} skipped`);
+	} catch (error) {
+		logger.error('Failed to seed collections:', error);
+		// Don't throw - collections can be created later through the UI
+		logger.warn('Continuing setup without collection seeding...');
+	}
+}
+
+/**
  * Initialize system from setup using database-agnostic interface
  * @param adapter Database adapter to use for operations
  */
@@ -83,6 +140,9 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<voi
 
 	// Seed the default theme
 	await seedDefaultTheme(adapter);
+
+	// Seed collections from filesystem (creates collection tables in database)
+	await seedCollections(adapter);
 
 	// Invalidate the settings cache to force a reload
 	invalidateSettingsCache();
@@ -164,6 +224,16 @@ const defaultPrivateSettings: Array<{ key: string; value: unknown; description?:
 	{ key: 'REDIS_PORT', value: 6379, description: 'Redis server port number' },
 	{ key: 'REDIS_PASSWORD', value: '', description: 'Password for Redis server' },
 
+	// Cache TTL Configuration (in seconds)
+	{ key: 'CACHE_TTL_SCHEMA', value: 600, description: 'TTL for schema/collection definitions (10 minutes)' },
+	{ key: 'CACHE_TTL_WIDGET', value: 600, description: 'TTL for widget data (10 minutes)' },
+	{ key: 'CACHE_TTL_THEME', value: 300, description: 'TTL for theme configurations (5 minutes)' },
+	{ key: 'CACHE_TTL_CONTENT', value: 180, description: 'TTL for content data (3 minutes)' },
+	{ key: 'CACHE_TTL_MEDIA', value: 300, description: 'TTL for media metadata (5 minutes)' },
+	{ key: 'CACHE_TTL_SESSION', value: 86400, description: 'TTL for user session data (24 hours)' },
+	{ key: 'CACHE_TTL_USER', value: 60, description: 'TTL for user permissions (1 minute)' },
+	{ key: 'CACHE_TTL_API', value: 300, description: 'TTL for API responses (5 minutes)' },
+
 	// Session configuration
 	{ key: 'SESSION_CLEANUP_INTERVAL', value: 300000, description: 'Interval in ms to clean up expired sessions (5 minutes)' },
 	{ key: 'MAX_IN_MEMORY_SESSIONS', value: 1000, description: 'Maximum number of sessions to hold in memory' },
@@ -214,20 +284,26 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 
 	const allSettings = [...defaultPublicSettings, ...defaultPrivateSettings];
 
-	// Prepare settings for batch operation
+	// Create a Set of private setting keys for efficient lookup
+	const privateSettingKeys = new Set(defaultPrivateSettings.map((s) => s.key));
+
+	// Prepare settings for batch operation with category
 	const settingsToSet: Array<{
 		key: string;
 		value: unknown;
+		category: 'public' | 'private';
 		scope: 'user' | 'system';
 		userId?: DatabaseId;
 	}> = [];
 
 	for (const setting of allSettings) {
-		// Store the actual value directly, not wrapped in metadata
-		// The metadata can be inferred from the setting key and visibility
+		// Determine category based on whether the setting is in the private list
+		const category = privateSettingKeys.has(setting.key) ? 'private' : 'public';
+
 		settingsToSet.push({
 			key: setting.key,
 			value: setting.value, // Store the actual value directly
+			category, // Add category field for proper classification
 			scope: 'system'
 		});
 	}
@@ -240,7 +316,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 			throw new Error(result.error?.message || 'Failed to seed settings');
 		}
 
-		logger.info(`✅ Seeded ${allSettings.length} default settings`);
+		logger.info(`✅ Seeded \x1b[34m${allSettings.length}\x1b[0m default settings`);
 	} catch (error) {
 		logger.error('Failed to seed settings:', error);
 		throw error;
@@ -284,7 +360,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 type SettingsSnapshot = {
 	version: string;
 	exportedAt: string;
-	settings: Record<string, { value: unknown; visibility: string; description: string }>;
+	settings: Record<string, { value: unknown; category: string; description: string }>;
 };
 
 export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promise<SettingsSnapshot> {
@@ -314,7 +390,7 @@ export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promis
 			const data = settingData as { data: SettingData };
 			snapshot.settings[key] = {
 				value: data.data.value,
-				visibility: data.data.visibility || 'public',
+				category: data.data.category || 'public',
 				description: data.data.description || ''
 			};
 		}
@@ -351,7 +427,7 @@ export async function importSettingsSnapshot(snapshot: Record<string, unknown>, 
 			key,
 			value: {
 				data: data.value,
-				visibility: data.visibility || 'public',
+				category: data.category || 'public',
 				description: data.description || '',
 				isGlobal: true,
 				updatedAt: new Date()

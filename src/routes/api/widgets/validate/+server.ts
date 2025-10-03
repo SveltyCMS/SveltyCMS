@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/collections/widgets/validate/+server.ts
+ * @file src/routes/api/widgets/validate/+server.ts
  * @description API endpoint for validating collections against current widget state
  */
 import { contentManager } from '@src/content/ContentManager';
