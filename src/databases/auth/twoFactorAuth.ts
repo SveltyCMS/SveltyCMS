@@ -1,5 +1,5 @@
 /**
- * @file src/auth/twoFactorAuth.ts
+ * @file src/databases/auth/twoFactorAuth.ts
  * @description Two-Factor Authentication service layer
  *
  * This module provides high-level 2FA operations that integrate with the auth system.
@@ -15,7 +15,7 @@
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { authDBInterface } from './authDBInterface';
+import type { IDBAdapter } from '@src/databases/dbInterface';
 import {
 	generateBackupCodes,
 	generateManualEntryDetails,
@@ -32,12 +32,15 @@ import type { User } from './types';
 // Re-export types for compatibility
 export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
 
+// Type for the auth interface extracted from IDBAdapter
+type AuthInterface = IDBAdapter['auth'];
+
 // Two-Factor Authentication Service
 export class TwoFactorAuthService {
-	private db: authDBInterface;
+	private db: AuthInterface;
 	private serviceName: string;
 
-	constructor(db: authDBInterface, serviceName: string = 'SveltyCMS') {
+	constructor(db: AuthInterface, serviceName: string = 'SveltyCMS') {
 		this.db = db;
 		this.serviceName = serviceName;
 	}
@@ -320,11 +323,11 @@ export class TwoFactorAuthService {
 // Create a singleton instance for the default auth database
 let defaultTwoFactorService: TwoFactorAuthService | null = null;
 
-export function createTwoFactorAuthService(db: authDBInterface, serviceName?: string): TwoFactorAuthService {
+export function createTwoFactorAuthService(db: AuthInterface, serviceName?: string): TwoFactorAuthService {
 	return new TwoFactorAuthService(db, serviceName);
 }
 
-export function getDefaultTwoFactorAuthService(db: authDBInterface): TwoFactorAuthService {
+export function getDefaultTwoFactorAuthService(db: AuthInterface): TwoFactorAuthService {
 	if (!defaultTwoFactorService) {
 		defaultTwoFactorService = new TwoFactorAuthService(db);
 	}

@@ -10,7 +10,7 @@
  * - **Advanced Configuration**: Support for complex menu hierarchies.
  */
 
-import type { Permission } from '@src/auth/types';
+import type { Permission } from '@src/databases/auth/types';
 import type { FieldInstance } from '@src/content/types';
 
 // Defines the properties unique to the MegaMenu widget

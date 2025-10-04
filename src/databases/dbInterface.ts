@@ -22,9 +22,29 @@
  */
 
 import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema } from '../content/types';
+// Auth types (moved from authDBInterface)
+import type { User, Session, Token } from './auth/types';
+
 export type { BaseEntity, DatabaseId, Schema };
 
 export type ContentNode = ContentNodeType;
+
+/**
+ * Pagination and Sorting Options
+ *
+ * Unified pagination interface used across all database operations.
+ * Replaces the deprecated PaginationOption from authDBInterface.
+ *
+ * @deprecated Use PaginationOptions (plural) for new code. This type is kept for
+ * backwards compatibility with auth methods but will be removed in future versions.
+ */
+type SortOption = { [key: string]: 'asc' | 'desc' } | [string, 'asc' | 'desc'][];
+export type PaginationOption = {
+	limit?: number;
+	offset?: number;
+	sort?: SortOption;
+	filter?: Record<string, unknown>;
+};
 
 /** Performance and Query Optimization Types **/
 export interface QueryOptimizationHints {
@@ -313,14 +333,50 @@ export interface IDBAdapter {
 		bulkUpsert<T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>>;
 	};
 
-	// Auth
+	// Authentication & User Management (moved from authDBInterface)
 	auth: {
-		setupAuthModels(): Promise<void>;
-	};
+		// User Management Methods
+		createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
+		updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
+		deleteUser(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
+		getUserById(user_id: string, tenantId?: string): Promise<DatabaseResult<User | null>>;
+		getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
+		getAllUsers(options?: PaginationOption): Promise<DatabaseResult<User[]>>;
+		getUserCount(filter?: Record<string, unknown>): Promise<DatabaseResult<number>>;
+		deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
+		blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+		unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 
-	// System
-	system: {
-		setupSystemModels(): Promise<void>;
+		// Session Management Methods
+		createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<DatabaseResult<Session>>;
+		updateSessionExpiry(session_id: string, newExpiry: Date): Promise<DatabaseResult<Session>>;
+		deleteSession(session_id: string): Promise<DatabaseResult<void>>;
+		deleteExpiredSessions(): Promise<DatabaseResult<number>>;
+		validateSession(session_id: string): Promise<DatabaseResult<User | null>>;
+		invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
+		getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
+		getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>;
+		getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: Date; user_id: string } | null>>;
+		rotateToken(oldToken: string, expires: Date): Promise<DatabaseResult<string>>;
+		cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
+
+		// Token Management Methods
+		createToken(data: { user_id: string; email: string; expires: Date; type: string; tenantId?: string }): Promise<DatabaseResult<string>>;
+		updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>>;
+		validateToken(
+			token: string,
+			user_id?: string,
+			type?: string,
+			tenantId?: string
+		): Promise<DatabaseResult<{ success: boolean; message: string; email?: string }>>;
+		consumeToken(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<{ status: boolean; message: string }>>;
+		getTokenData(token: string, user_id?: string, type?: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
+		getTokenByValue(token: string, tenantId?: string): Promise<DatabaseResult<Token | null>>;
+		getAllTokens(filter?: Record<string, unknown>): Promise<DatabaseResult<Token[]>>;
+		deleteExpiredTokens(): Promise<DatabaseResult<number>>;
+		deleteTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
+		blockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+		unblockTokens(token_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 	};
 
 	//  System Preferences

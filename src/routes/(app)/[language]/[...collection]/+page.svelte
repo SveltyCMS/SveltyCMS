@@ -10,7 +10,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 <script lang="ts">
 	// Types
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 	import type { Schema } from '@src/content/types';
 	// ParaglideJS
 	import type { Locale } from '@src/paraglide/runtime';

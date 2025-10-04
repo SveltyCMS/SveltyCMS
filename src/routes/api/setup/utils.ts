@@ -4,7 +4,6 @@
  */
 
 import type { DatabaseConfig } from '@root/config/types';
-import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger.svelte';
 // import { safeParse } from 'valibot';
@@ -63,7 +62,6 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	dbAdapter: IDBAdapter;
-	authAdapter: authDBInterface;
 	connectionString: string;
 }> {
 	const correlationId = typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID() : (await import('crypto')).randomUUID();
@@ -82,7 +80,6 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	});
 
 	let dbAdapter: IDBAdapter;
-	let authAdapter: authDBInterface;
 
 	switch (config.type) {
 		case 'mongodb':
@@ -111,51 +108,11 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 				throw new Error(`Database connection failed: ${connectResult.error.message}`);
 			}
 
-			// Compose auth adapter via shared helper to avoid duplication
-			const { composeMongoAuthAdapter } = await import('@src/auth/mongoDBAuth/composeAuthAdapter');
-			authAdapter = composeMongoAuthAdapter();
-			break;
-		}
-		case 'postgresql': {
-			// TODO: Implement DrizzlePostgresAdapter and DrizzlePostgresAuthAdapter
-			try {
-				const { DrizzlePostgresAdapter } = await import('@src/databases/drizzle/drizzlePostgresAdapter');
-				const { DrizzlePostgresAuthAdapter } = await import('@src/auth/drizzleAuth/drizzlePostgresAuthAdapter');
-				dbAdapter = new DrizzlePostgresAdapter() as unknown as IDBAdapter;
-				const connectResult = await dbAdapter.connect(connectionString);
-				if (!connectResult.success) {
-					logger.error(`PostgreSQL connection failed: ${connectResult.error.message}`, { correlationId });
-					throw new Error(`Database connection failed: ${connectResult.error.message}`);
-				}
-				authAdapter = new DrizzlePostgresAuthAdapter() as unknown as authDBInterface;
-			} catch (err) {
-				logger.error(`PostgreSQL adapter not implemented yet: ${err instanceof Error ? err.message : String(err)}`, { correlationId });
-				throw new Error(`PostgreSQL database adapter is not yet implemented`);
-			}
-			break;
-		}
-		case 'mysql':
-		case 'mariadb': {
-			// TODO: Implement DrizzleMySQLAdapter and DrizzleMySQLAuthAdapter
-			try {
-				const { DrizzleMySQLAdapter } = await import('../../../databases/drizzle/drizzleMySQLAdapter');
-				const { DrizzleMySQLAuthAdapter } = await import('../../../auth/drizzleAuth/drizzleMySQLAuthAdapter');
-				dbAdapter = new DrizzleMySQLAdapter() as unknown as IDBAdapter;
-				const connectResult = await dbAdapter.connect(connectionString);
-				if (!connectResult.success) {
-					logger.error(`MySQL connection failed: ${connectResult.error.message}`, { correlationId });
-					throw new Error(`Database connection failed: ${connectResult.error.message}`);
-				}
-				authAdapter = new DrizzleMySQLAuthAdapter(dbAdapter) as unknown as authDBInterface;
-			} catch (err) {
-				logger.error(`MySQL adapter not implemented yet: ${err instanceof Error ? err.message : String(err)}`, { correlationId });
-				throw new Error(`MySQL database adapter is not yet implemented`);
-			}
 			break;
 		}
 		default:
 			logger.error(`Unsupported database type: ${config.type}`, { correlationId });
-			throw new Error(`Database type '${config.type}' is not supported for setup.`);
+			throw new Error(`Database type '${config.type}' is not supported for setup. Only MongoDB is currently supported.`);
 	}
 
 	// Initialize auth and system models with error handling
@@ -168,7 +125,7 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 	}
 
 	logger.info(`✅ Successfully created and connected adapters for ${config.type}`, { correlationId });
-	return { dbAdapter, authAdapter, connectionString };
+	return { dbAdapter, connectionString };
 }
 
 /**

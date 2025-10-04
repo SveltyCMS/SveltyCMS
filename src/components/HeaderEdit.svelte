@@ -31,7 +31,7 @@
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	// Types
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 	import { StatusTypes, type StatusType } from '@src/content/types';
 	import { createEntry, invalidateCollectionCache, updateEntryStatus } from '@src/utils/apiClient';
 	import { showCloneModal, showScheduleModal } from '@utils/modalUtils';

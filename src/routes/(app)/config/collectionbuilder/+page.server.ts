@@ -17,7 +17,7 @@ import type { PageServerLoad } from './$types';
 
 // Auth
 import { roles } from '@root/config/roles';
-import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 // System Logger
 import { contentManager } from '@root/src/content/ContentManager';

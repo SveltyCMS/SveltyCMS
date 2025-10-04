@@ -19,9 +19,9 @@ import { dev } from '$app/environment';
 // Auth
 
 import type { DatabaseConfig } from '@root/config/types';
-import { Auth } from '@src/auth';
-import { getDefaultSessionStore } from '@src/auth/sessionManager';
-import type { User } from '@src/auth/types';
+import { Auth } from '@src/databases/auth';
+import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
+import type { User } from '@src/databases/auth/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { setupAdminSchema } from '@src/utils/formSchemas';
 import { json } from '@sveltejs/kit';
@@ -104,14 +104,14 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		}
 
 		// 2. Create temporary database adapter and establish connection (agnostic)
-		const { authAdapter } = await getSetupDatabaseAdapter(database);
+		const { dbAdapter } = await getSetupDatabaseAdapter(database);
 		logger.info('Database connection established for setup finalization', { correlationId });
 
 		// 3. Set up auth models (already done in getSetupDatabaseAdapter)
 		// Models are already initialized by getSetupDatabaseAdapter
 
-		// 4. Create a temporary full Auth instance using the composed adapter
-		const tempAuth = new Auth(authAdapter, getDefaultSessionStore());
+		// 4. Create a temporary full Auth instance using the unified database adapter
+		const tempAuth = new Auth(dbAdapter, getDefaultSessionStore());
 		logger.info('Temporary Auth service created for setup finalization', { correlationId });
 
 		// 5. Create or update the admin user
@@ -233,18 +233,18 @@ async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: st
 
 	try {
 		const existingUser = await auth.getUserByEmail({ email: admin.email });
+
 		logger.debug('User lookup result', {
 			correlationId,
 			email: admin.email,
-			userExists: !!existingUser,
-			userType: typeof existingUser,
-			hasId: existingUser?._id ? true : false,
-			userKeys: existingUser ? Object.keys(existingUser) : [],
-			userId: existingUser?._id,
-			userIdType: typeof existingUser?._id
+			existingUser: existingUser,
+			isNull: existingUser === null,
+			isUndefined: existingUser === undefined,
+			type: typeof existingUser,
+			hasId: existingUser?._id ? true : false
 		});
 
-		// Check if user exists - be more lenient about the _id check
+		// If user exists and has valid ID, update it
 		if (existingUser && existingUser._id) {
 			const userId = existingUser._id;
 			logger.info('Updating existing admin user', { correlationId, email: admin.email, userId: userId });
@@ -260,90 +260,76 @@ async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: st
 			const updatedUser = await auth.getUserByEmail({ email: admin.email });
 			if (!updatedUser) throw new Error('Failed to retrieve updated admin user');
 			return updatedUser;
-		} else if (existingUser) {
-			// User object exists but has no valid ID - this is problematic
-			logger.warn('User found but has no valid ID, treating as duplicate scenario', {
-				correlationId,
-				email: admin.email,
-				userObject: existingUser,
-				userKeys: Object.keys(existingUser)
-			});
-
-			// Force the duplicate key error handling by throwing an error
-			throw new Error('E11000 duplicate key error - user exists but has invalid ID structure');
-		} else {
-			logger.info('Creating new admin user', { correlationId, email: admin.email });
-
-			const newUser = await auth.createUser({
-				username: admin.username,
-				email: admin.email,
-				password: admin.password, // Pass raw password, createUser will hash it
-				role: 'admin',
-				isRegistered: true
-			});
-
-			logger.info('Admin user created successfully', {
-				correlationId,
-				email: admin.email,
-				userId: newUser._id,
-				userIdType: typeof newUser._id,
-				userKeys: Object.keys(newUser)
-			});
-			return newUser;
 		}
+
+		// No existing user found, create new one
+		logger.info('Creating new admin user', { correlationId, email: admin.email });
+
+		const newUser = await auth.createUser({
+			username: admin.username,
+			email: admin.email,
+			password: admin.password, // Pass raw password, createUser will hash it
+			role: 'admin',
+			isRegistered: true
+		});
+
+		logger.info('Admin user created successfully', {
+			correlationId,
+			email: admin.email,
+			userId: newUser._id,
+			userIdType: typeof newUser._id
+		});
+		return newUser;
 	} catch (error) {
-		// Check for duplicate key error in various nested error structures
+		// Check for duplicate key error
 		const errorString = JSON.stringify(error);
 		const isDuplicateKeyError =
 			(error instanceof Error && error.message.includes('E11000 duplicate key error')) ||
 			errorString.includes('E11000 duplicate key error') ||
-			errorString.includes('duplicate key') ||
-			(error instanceof Error && error.message.includes('Failed to create user'));
+			errorString.includes('duplicate key');
 
 		if (isDuplicateKeyError) {
-			logger.warn('Duplicate user detected, user already exists - setup can continue', {
+			logger.warn('Duplicate user detected during creation', {
 				correlationId,
 				email: admin.email,
 				errorType: 'duplicate_key'
 			});
 
-			// Attempt to retrieve the existing user to get a valid _id for session creation
+			// Try one more time to get the existing user
 			try {
 				const existing = await auth.getUserByEmail({ email: admin.email });
-				const existingId: string | undefined =
-					existing?._id ?? (existing && 'id' in existing ? (existing as unknown as { id?: string }).id : undefined);
-				if (existing && existingId) {
-					logger.info('Existing user retrieved after duplicate detection', {
+				if (existing && existing._id) {
+					logger.info('Successfully retrieved existing user after duplicate error', {
 						correlationId,
 						email: admin.email,
-						userId: existingId
+						userId: existing._id
 					});
+
+					// Update the existing user with new details
+					await auth.updateUserAttributes(existing._id, {
+						username: admin.username,
+						password: admin.password,
+						role: 'admin',
+						isRegistered: true
+					});
+
 					return existing;
 				}
 			} catch (lookupErr) {
-				logger.warn('Failed to retrieve existing user after duplicate detection', {
+				logger.error('Failed to retrieve existing user after duplicate error', {
 					correlationId,
 					email: admin.email,
 					error: lookupErr instanceof Error ? lookupErr.message : String(lookupErr)
 				});
 			}
 
-			// Fallback: return a minimal user object if lookup failed (session creation may fail)
-			logger.info('User already exists but could not retrieve details; continuing with minimal user object', { correlationId, email: admin.email });
-			return {
-				_id: 'existing-user',
-				email: admin.email,
-				username: admin.username,
-				role: 'admin',
-				isRegistered: true
-			} as User;
+			throw new Error(`User with email ${admin.email} already exists but could not be retrieved or updated. Please check the database.`);
 		}
 
 		logger.error('Error in createAdminUser', {
 			correlationId,
 			email: admin.email,
-			error: error instanceof Error ? error.message : String(error),
-			errorDetails: errorString
+			error: error instanceof Error ? error.message : String(error)
 		});
 		throw new Error(`Failed to create/update admin user: ${error instanceof Error ? error.message : String(error)}`);
 	}

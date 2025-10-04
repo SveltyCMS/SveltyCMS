@@ -7,8 +7,6 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@src/stores/globalSettings';
-	// Components
-	import SiteName from '@components/SiteName.svelte';
 
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';

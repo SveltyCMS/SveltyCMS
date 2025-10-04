@@ -7,7 +7,7 @@
  * and what to do when importing types
  */
 
-import type { Role, Token, User } from '@src/auth/types'; // Import the actual types
+import type { Role, Token, User } from '@src/databases/auth/types'; // Import the actual types
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface'; // Ensure correct import path
 
 declare global {

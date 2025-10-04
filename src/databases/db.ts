@@ -52,11 +52,10 @@ export function clearPrivateConfigCache() {
 }
 
 // Auth
-import { Auth } from '@root/src/auth';
-import { getDefaultSessionStore } from '@src/auth/sessionManager';
+import { Auth } from '@src/databases/auth';
+import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
 
 // Adapters Interfaces
-import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { DatabaseAdapter } from './dbInterface';
 
 // Content Manager
@@ -75,7 +74,7 @@ import { logger } from '@utils/logger.svelte';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
-export let authAdapter: authDBInterface | null = null; // Authentication adapter
+
 export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
@@ -270,24 +269,11 @@ async function loadAdapters() {
 				dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
 
 				logger.debug('MongoDB adapter created');
-
-				logger.debug('Composing MongoDB auth adapter...');
-				const mongoAuthModule = await import('@src/auth/mongoDBAuth/composeAuthAdapter');
-				if (!mongoAuthModule || !mongoAuthModule.composeMongoAuthAdapter) {
-					throw new Error('composeMongoAuthAdapter is not exported correctly from composeAuthAdapter.ts');
-				}
-				const { composeMongoAuthAdapter } = mongoAuthModule;
-				authAdapter = composeMongoAuthAdapter();
-				logger.debug('Auth adapter composed');
 				break;
 			}
-			case 'mariadb':
-			case 'postgresql': // Implement SQL adapters loading here
-				logger.error(`SQL adapter loading not yet implemented for ${config.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
 			default:
-				logger.error(`Unknown DB_TYPE: ${config.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}`);
+				logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
 		}
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');
@@ -518,18 +504,18 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		const step1Time = performance.now() - step1StartTime;
 		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`);
 
-		if (!dbAdapter || !authAdapter) {
-			throw new Error('Database or Authentication adapter failed to load.');
+		if (!dbAdapter) {
+			throw new Error('Database adapter failed to load.');
 		}
 
 		// Verify all required adapter properties exist
-		if (!dbAdapter.auth || !dbAdapter.media || !dbAdapter.widgets || !dbAdapter.themes || !dbAdapter.system) {
+		if (!dbAdapter.auth || !dbAdapter.media || !dbAdapter.widgets || !dbAdapter.themes || !dbAdapter.systemPreferences) {
 			logger.error('Database adapter is missing required properties', {
 				hasAuth: !!dbAdapter.auth,
 				hasMedia: !!dbAdapter.media,
 				hasWidgets: !!dbAdapter.widgets,
 				hasThemes: !!dbAdapter.themes,
-				hasSystem: !!dbAdapter.system
+				hasSystemPreferences: !!dbAdapter.systemPreferences
 			});
 			// Force reload adapters and reconnect
 			logger.debug('Forcing adapter reload and reconnection...');
@@ -545,7 +531,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			isConnected = true;
 
 			// Verify again
-			if (!dbAdapter || !dbAdapter.auth) {
+			if (!dbAdapter) {
 				throw new Error('Database adapter still incomplete after reload and reconnection');
 			}
 			logger.debug('Adapter reloaded and reconnected successfully');
@@ -557,13 +543,13 @@ async function initializeSystem(forceReload = false): Promise<void> {
 
 		try {
 			await Promise.all([
+				// Auth models are set up via dbAdapter.auth
 				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
 				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
 				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete')),
 				dbAdapter.themes.setupThemeModels().then(() => logger.debug('\x1b[34mTheme models\x1b[0m setup complete')),
-				dbAdapter.system.setupSystemModels().then(() => logger.debug('\x1b[34mSystem models\x1b[0m setup complete'))
+				dbAdapter.systemPreferences ? Promise.resolve(logger.debug('\x1b[34mSystem preferences\x1b[0m available')) : Promise.resolve()
 			]);
-
 			const step2Time = performance.now() - step2StartTime;
 			logger.debug(`\x1b[32mStep 2 completed:\x1b[0m Database models setup in \x1b[32m${step2Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelSetupErr) {
@@ -642,17 +628,17 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
 			throw new Error(message);
-		} // 6. Initialize Authentication (after DB/Auth adapters and models are ready)
+		} // 6. Initialize Authentication (after DB adapter is ready)
 
 		const step6StartTime = performance.now();
 
-		if (!authAdapter) {
-			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
+		if (!dbAdapter) {
+			throw new Error('Database adapter not initialized'); // Use Error instead of kit's error
 		}
 
 		try {
-			// Initialize authentication
-			auth = new Auth(authAdapter, getDefaultSessionStore());
+			// Initialize authentication using dbAdapter instead of authAdapter
+			auth = new Auth(dbAdapter, getDefaultSessionStore());
 			if (!auth) {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
 			} // Verify auth methods are available
@@ -677,9 +663,7 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		} catch (authErr) {
 			logger.error(`Auth initialization failed: ${authErr instanceof Error ? authErr.message : String(authErr)}`);
 			throw authErr;
-		}
-
-		// Load settings from the database into the cache
+		} // Load settings from the database into the cache
 		await loadSettingsFromDB();
 
 		// Set initialization flag
@@ -829,7 +813,7 @@ export async function initConnection(dbConfig: {
 		// Build connection string like the test endpoint does
 		const { buildDatabaseConnectionString } = await import('../routes/api/setup/utils');
 		const connectionString = buildDatabaseConnectionString({
-			type: dbConfig.type as 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb',
+			type: dbConfig.type as 'mongodb' | 'mongodb+srv',
 			host: dbConfig.host,
 			port: Number(dbConfig.port),
 			name: dbConfig.name,

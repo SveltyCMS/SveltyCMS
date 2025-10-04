@@ -1,5 +1,5 @@
 /**
- * @file src/auth/corePermissions.ts
+ * @file src/databases/auth/corePermissions.ts
  * @description Core permissions configuration for the authentication system
  *
  * This file contains the core permission definitions that can be easily modified

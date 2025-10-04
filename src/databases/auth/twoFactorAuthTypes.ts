@@ -1,5 +1,5 @@
 /**
- * @file src/auth/twoFactorAuthTypes.ts
+ * @file src/databases/auth/twoFactorAuthTypes.ts
  * @description Type definitions for Two-Factor Authentication
  *
  * This file contains only type definitions and interfaces for 2FA

@@ -21,7 +21,7 @@ import type { PageServerLoad } from './$types';
 
 // Auth
 import type { Role, Token, User } from '@root/src/auth';
-import type { PermissionConfig } from '@src/auth/permissions';
+import type { PermissionConfig } from '@src/databases/auth/permissions';
 
 // Superforms
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';

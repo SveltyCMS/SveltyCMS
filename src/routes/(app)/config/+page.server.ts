@@ -14,9 +14,9 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { permissionConfigs } from '@src/auth/permissions';
-import { permissions as allPermissions } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
+import { permissionConfigs } from '@src/databases/auth/permissions';
+import { permissions as allPermissions } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logger

@@ -1,7 +1,13 @@
 <!--
 @file src/routes/login/components/SignUp.svelte
 @component
-**SignUp component with optional OAuth support**
+**Si	}>();
+
+	const pageData = page.data as PageData;
+	const showOAuth = pageData.showOAuth;
+	const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
+
+	// State managementponent with optional OAuth support**
 
 Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
@@ -174,12 +180,11 @@ Features:
 	// Event handlers
 	function handleOAuth() {
 		// Check if user needs an invitation token
-		// First user (!firstUserExists) should NOT require a token
-		// Only existing users (firstUserExists) without an invite flow or token should be blocked
-		if (!isInviteFlow && firstUserExists && !hasExistingOAuthUsers && !currentFormToken) {
+		// All users now require invite tokens (first user goes through /setup)
+		if (!isInviteFlow && !hasExistingOAuthUsers && !currentFormToken) {
 			// Show a helpful message
 			alert(
-				'⚠️ Please enter your invitation token first before using Google OAuth signup. Both email/password and OAuth registration require an invitation from an administrator.'
+				'⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.'
 			);
 			return;
 		}
@@ -274,11 +279,7 @@ Features:
 								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
 							{:else}
 								{m.form_signup()}
-								{#if !firstUserExists}
-									<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
-								{:else}
-									<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
-								{/if}
+								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
 							{/if}
 						</div>
 					</h1>
@@ -399,8 +400,8 @@ Features:
 					<!-- Password Strength Indicator -->
 					<PasswordStrength password={$form.password} confirmPassword={$form.confirm_password} />
 
-					{#if firstUserExists == true && !isInviteFlow}
-						<!-- Registration Token (hidden when using invite flow) -->
+					{#if !isInviteFlow}
+						<!-- Registration Token (hidden when using invite flow, always required now since first user uses /setup) -->
 						<FloatingInput
 							id="tokensignUp"
 							name="token"

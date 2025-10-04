@@ -8,7 +8,7 @@
  */
 
 import { privateEnv } from '@src/stores/globalSettings';
-import { SESSION_COOKIE_NAME } from '@src/auth/constants';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { error, type Handle } from '@sveltejs/kit';
 import { getTenantIdFromHostname } from './utils/tenant';

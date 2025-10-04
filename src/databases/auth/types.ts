@@ -1,5 +1,5 @@
 /**
- * @file src/auth/types.ts
+ * @file src/databases/auth/types.ts
  * @description Core types and enums for the authentication system
  *
  * This file contains the core type definitions and enums that are used

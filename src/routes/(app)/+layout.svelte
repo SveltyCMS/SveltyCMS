@@ -27,7 +27,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';

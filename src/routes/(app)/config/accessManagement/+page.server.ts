@@ -7,7 +7,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth - Ensure these imports point to optimized, efficient functions
-import { hasPermissionWithRoles, getAllPermissions } from '@src/auth/permissions';
+import { hasPermissionWithRoles, getAllPermissions } from '@src/databases/auth/permissions';
 
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
 import { logger } from '@utils/logger.svelte';

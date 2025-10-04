@@ -1,5 +1,5 @@
 /**
- * @file src/auth/index.ts
+ * @file src/databases/auth/index.ts
  * @description Simplified authentication and authorization system, now multi-tenant aware.
  *
  * This consolidated module handles:
@@ -43,11 +43,11 @@ export {
 
 // Note: TOTP functions are server-only and should be imported from './totp' directly
 // to avoid bundling Node.js crypto module in client-side code.
-// Use: import { generateTOTPSecret, ... } from '@src/auth/totp';
+// Use: import { generateTOTPSecret, ... } from '@src/databases/auth/totp';
 
 // Note: TwoFactorAuthService is server-only and should be imported from './twoFactorAuth' directly
 // to avoid bundling Node.js crypto module in client-side code.
-// Use: import { TwoFactorAuthService, ... } from '@src/auth/twoFactorAuth';
+// Use: import { TwoFactorAuthService, ... } from '@src/databases/auth/twoFactorAuth';
 
 export type { TwoFactorSetupResponse, TwoFactorVerificationResult } from './twoFactorAuthTypes';
 
@@ -182,9 +182,20 @@ export class Auth {
 
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
 		const result = (await this.db.auth.getUserByEmail(criteria)) as unknown;
+		logger.debug('Auth.getUserByEmail - raw result from db.auth', {
+			result,
+			isObject: typeof result === 'object',
+			hasSuccess: result && typeof result === 'object' && 'success' in result,
+			resultType: typeof result
+		});
 		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
 			const r = result as DatabaseResult<User | null>;
-			if (r.success === true) return r.data;
+			logger.debug('Auth.getUserByEmail - unwrapping DatabaseResult', {
+				success: r.success,
+				data: r.data,
+				dataType: typeof r.data
+			});
+			if (r.success === true) return r.data ?? null;
 			return null;
 		}
 		return (result as User | null) ?? null;

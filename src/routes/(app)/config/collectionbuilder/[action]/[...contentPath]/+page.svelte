@@ -44,7 +44,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		localTabSet = tabSet.value;
 	});
 
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 	import type { Schema } from '@src/content/types';
 
 	const modalStore = getModalStore();

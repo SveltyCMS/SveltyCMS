@@ -1,5 +1,5 @@
 /**
- * @file totp.ts
+ * @file src/databases/auth/totp.ts
  * @description Time-based One-Time Password (TOTP) implementation for two-factor authentication
  * using only Node.js built-in crypto module. It follows RFC 6238 standard.
  */

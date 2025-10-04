@@ -11,7 +11,7 @@
 import { mount } from 'svelte';
 import MissingWidget from './MissingWidget.svelte';
 import type { Widget, WidgetId } from './types';
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 import type { Schema } from '../content/types';
 
 // Import the new widget store

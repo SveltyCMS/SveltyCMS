@@ -59,6 +59,7 @@ const contentStructureSchema = new Schema<ContentStructureDocument>(
 	{
 		_id: { type: String, required: true },
 		name: { type: String, required: true },
+		path: { type: String, index: true }, // Add path field for URL routing
 		icon: { type: String, default: 'bi:folder' },
 		order: { type: Number, default: 999 },
 		nodeType: { type: String, required: true, enum: ['category', 'collection'] },
@@ -77,7 +78,8 @@ const contentStructureSchema = new Schema<ContentStructureDocument>(
 			enum: Object.values(StatusTypes)
 		},
 		links: [{ type: String }],
-		collectionDef: { type: Schema.Types.Mixed } // Use 'collectionDef' instead of 'collection' to avoid Mongoose reserved key warning
+		collectionDef: { type: Schema.Types.Mixed }, // Use 'collectionDef' instead of 'collection' to avoid Mongoose reserved key warning
+		tenantId: { type: String, index: true } // Add tenantId for multi-tenancy support
 	},
 	{
 		timestamps: true,

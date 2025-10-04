@@ -22,11 +22,11 @@ import type { Model, Types } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
 // Types
-import type { authDBInterface, DatabaseResult } from '../authDBInterface';
-import type { Session, User } from '../types';
+import type { DatabaseResult } from '@src/databases/dbInterface';
+import type { Session, User } from '@src/databases/auth/types';
 
-// Auth
-import { UserAdapter } from './userAdapter';
+// Adapter
+import { UserAdapter } from './authUser';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
@@ -43,7 +43,11 @@ export const SessionSchema = new Schema(
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
 
-export class SessionAdapter implements Partial<authDBInterface> {
+/**
+ * SessionAdapter class handles all session-related database operations.
+ * This is a partial implementation that will be composed with other adapters.
+ */
+export class SessionAdapter {
 	private SessionModel: Model<Session>;
 	private userAdapter: UserAdapter;
 

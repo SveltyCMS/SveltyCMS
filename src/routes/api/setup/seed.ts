@@ -2,7 +2,31 @@
  * @file src/routes/api/setup/seed.ts
  * @description Seeds the database with default system settings
  *
- * This replaces the static configuration files with database-driven settings.
+ * This replaces the static configuration files with database\t// Media configuration
+\t{ key: 'MEDIA_STORAGE_TYPE', value: 'local', description: \t// Mapbox config
+\t{ key: 'USE_MAPBOX', value: false, description: 'Enable Mapbox integration' },
+\t{ key: 'MAPBOX_API_TOKEN', value: '', description: 'Public Mapbox API token (for client-side use)' },
+\t{ key: 'SECRET_MAPBOX_API_TOKEN', value: '', description: 'Secret Mapbox API token (for server-side use)' },
+
+\t// Cloud Storage Credentials (Private)
+\t{ key: 'MEDIA_CLOUD_ACCESS_KEY', value: '', description: 'Access key for S3/R2/compatible cloud storage' },
+\t{ key: 'MEDIA_CLOUD_SECRET_KEY', value: '', description: 'Secret key for S3/R2/compatible cloud storage' },
+\t{ key: 'MEDIA_CLOUDINARY_CLOUD_NAME', value: '', description: 'Cloudinary cloud name' },
+\t{ key: 'MEDIA_CLOUDINARY_API_KEY', value: '', description: 'Cloudinary API key' },
+\t{ key: 'MEDIA_CLOUDINARY_API_SECRET', value: '', description: 'Cloudinary API secret' },
+
+\t// Other APIs
+\t{ key: 'GOOGLE_API_KEY', value: '', description: 'Google API Key for services like Maps and YouTube' },f media storage (local, s3, r2, cloudinary)' },
+\t{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Local: Server path | Cloud: Bucket name' },
+\t{ key: 'MEDIA_OUTPUT_FORMAT_QUALITY', value: { format: 'webp', quality: 80 }, description: 'Image format and quality settings' },
+\t{ key: 'MEDIASERVER_URL', value: '', description: 'Optional: URL of a separate media server or CDN' },
+\t{ key: 'MEDIA_CLOUD_REGION', value: '', description: 'Cloud storage region (e.g., us-east-1, auto for R2)' },
+\t{ key: 'MEDIA_CLOUD_ENDPOINT', value: '', description: 'Custom endpoint for S3-compatible services' },
+\t{ key: 'MEDIA_CLOUD_PUBLIC_URL', value: '', description: 'Public URL for accessing uploaded files' },
+\t{ key: 'IMAGE_SIZES', value: { sm: 600, md: 900, lg: 1200 }, description: 'Image sizes for automatic resizing' },
+\t{ key: 'MAX_FILE_SIZE', value: 10485760, description: 'Maximum file size for uploads in bytes (10MB)' },
+\t{ key: 'BODY_SIZE_LIMIT', value: 10485760, description: 'Body size limit for server requests in bytes (10MB)' },
+\t{ key: 'USE_ARCHIVE_ON_DELETE', value: true, description: 'Enable archiving instead of permanent deletion' }, settings.
  * Uses database-agnostic interfaces for compatibility across different database engines.
  */
 
@@ -17,6 +41,7 @@ import { safeParse } from 'valibot';
 interface SettingData {
 	value: unknown;
 	visibility?: 'public' | 'private';
+	category?: 'public' | 'private';
 	description?: string;
 }
 
@@ -39,7 +64,7 @@ const defaultTheme: Theme = {
  * Seeds the default theme into the database
  */
 export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void> {
-	logger.info('🎨 Seeding default theme...');
+	logger.info('🎨 Checking if default theme needs seeding...');
 
 	if (!dbAdapter || !dbAdapter.themes) {
 		throw new Error('Database adapter or themes interface not available');
@@ -49,11 +74,12 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void
 		// Check if themes already exist
 		const existingThemes = await dbAdapter.themes.getAllThemes();
 		if (Array.isArray(existingThemes) && existingThemes.length > 0) {
-			logger.info('✅ Default theme already exists, skipping seeding');
+			logger.info('✅ Themes already exist, skipping theme seeding');
 			return;
 		}
 
 		// Seed the default theme
+		logger.info('🎨 Seeding default theme...');
 		await dbAdapter.themes.storeThemes([defaultTheme]);
 		logger.info('✅ Default theme seeded successfully');
 	} catch (error) {
@@ -164,7 +190,7 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
 	{ key: 'DEFAULT_CONTENT_LANGUAGE', value: 'en', description: 'Default language for content' },
 	{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: ['en', 'de'], description: 'List of available content languages' },
 	{ key: 'BASE_LOCALE', value: 'en', description: 'Default/base locale for the CMS interface' },
-	{ key: 'LOCALES', value: ['en'], description: 'List of available interface locales' },
+	{ key: 'LOCALES', value: ['en', 'de'], description: 'List of available interface locales' },
 
 	// Media configuration
 	{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Server path where media files are stored' },
@@ -263,10 +289,11 @@ const defaultPrivateSettings: Array<{ key: string; value: unknown; description?:
  * Seeds the database with default settings using database-agnostic interface.
  * This should be called during initial setup or when resetting to defaults.
  * Note: Database config and security keys are handled in private config files, not in DB
+ * Only seeds settings that don't already exist (smart seeding).
  * @param dbAdapter Database adapter to use for operations
  */
 export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
-	logger.info('🌱 Seeding default settings...');
+	logger.info('🌱 Checking which settings need seeding...');
 
 	if (!dbAdapter || !dbAdapter.systemPreferences) {
 		throw new Error('Database adapter or systemPreferences interface not available');
@@ -287,6 +314,29 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 	// Create a Set of private setting keys for efficient lookup
 	const privateSettingKeys = new Set(defaultPrivateSettings.map((s) => s.key));
 
+	// Check which settings already exist
+	const allKeys = allSettings.map((s) => s.key);
+	let existingSettings: Record<string, unknown> = {};
+
+	try {
+		const result = await dbAdapter.systemPreferences.getMany(allKeys, 'system');
+		if (result.success && result.data) {
+			existingSettings = result.data;
+		}
+	} catch (error) {
+		logger.debug('Could not check existing settings, will seed all:', error);
+	}
+
+	// Filter out settings that already exist
+	const settingsToSeed = allSettings.filter((setting) => !(setting.key in existingSettings));
+
+	if (settingsToSeed.length === 0) {
+		logger.info('✅ All settings already exist, skipping settings seeding');
+		return;
+	}
+
+	logger.info(`🌱 Seeding ${settingsToSeed.length} missing settings (${Object.keys(existingSettings).length} already exist)...`);
+
 	// Prepare settings for batch operation with category
 	const settingsToSet: Array<{
 		key: string;
@@ -296,7 +346,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 		userId?: DatabaseId;
 	}> = [];
 
-	for (const setting of allSettings) {
+	for (const setting of settingsToSeed) {
 		// Determine category based on whether the setting is in the private list
 		const category = privateSettingKeys.has(setting.key) ? 'private' : 'public';
 
@@ -316,7 +366,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 			throw new Error(result.error?.message || 'Failed to seed settings');
 		}
 
-		logger.info(`✅ Seeded \x1b[34m${allSettings.length}\x1b[0m default settings`);
+		logger.info(`✅ Seeded \x1b[34m${settingsToSeed.length}\x1b[0m missing settings`);
 	} catch (error) {
 		logger.error('Failed to seed settings:', error);
 		throw error;
@@ -330,7 +380,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 		// Only organize public settings for immediate cache population
 		const publicSettings: Record<string, unknown> = {};
 
-		for (const setting of allSettings) {
+		for (const setting of settingsToSeed) {
 			const isPublic = defaultPublicSettings.some((s) => s.key === setting.key);
 			if (isPublic) {
 				publicSettings[setting.key] = setting.value;

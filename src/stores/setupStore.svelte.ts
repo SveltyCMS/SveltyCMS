@@ -22,10 +22,12 @@ export type AdminUser = {
 };
 export type SystemSettings = {
 	siteName: string;
+	hostProd: string;
 	defaultSystemLanguage: string;
 	systemLanguages: string[];
 	defaultContentLanguage: string;
 	contentLanguages: string[];
+	mediaStorageType: 'local' | 's3' | 'r2' | 'cloudinary';
 	mediaFolder: string;
 	timezone: string;
 };
@@ -35,10 +37,12 @@ const initialDbConfig: DbConfig = { type: 'mongodb', host: 'localhost', port: '2
 const initialAdminUser: AdminUser = { username: '', email: '', password: '', confirmPassword: '' };
 const initialSystemSettings: SystemSettings = {
 	siteName: 'SveltyCMS',
+	hostProd: 'https://localhost:5173',
 	defaultSystemLanguage: 'en',
-	systemLanguages: ['en'],
+	systemLanguages: ['en', 'de'], // Match seed.ts default LOCALES
 	defaultContentLanguage: 'en',
 	contentLanguages: ['en', 'de'],
+	mediaStorageType: 'local',
 	mediaFolder: './mediaFolder',
 	timezone: 'UTC'
 };
@@ -124,9 +128,22 @@ function createSetupStore() {
 
 				const rawSystem = storage.getItem(KEYS.system);
 				if (rawSystem) {
-					wizard.systemSettings = { ...initialSystemSettings, ...JSON.parse(rawSystem) };
-				}
+					const loadedSystem = JSON.parse(rawSystem);
 
+					// Migration: If old data only has ['en'], upgrade to ['en', 'de'] to match new defaults
+					if (Array.isArray(loadedSystem.systemLanguages) && loadedSystem.systemLanguages.length === 1 && loadedSystem.systemLanguages[0] === 'en') {
+						loadedSystem.systemLanguages = ['en', 'de'];
+					}
+					if (
+						Array.isArray(loadedSystem.contentLanguages) &&
+						loadedSystem.contentLanguages.length === 1 &&
+						loadedSystem.contentLanguages[0] === 'en'
+					) {
+						loadedSystem.contentLanguages = ['en', 'de'];
+					}
+
+					wizard.systemSettings = { ...initialSystemSettings, ...loadedSystem };
+				}
 				wizard.currentStep = parseInt(storage.getItem(KEYS.step) || '0', 10);
 				wizard.highestStepReached = parseInt(storage.getItem(KEYS.highestStep) || '0', 10);
 				wizard.dbTestPassed = storage.getItem(KEYS.dbTest) === 'true';

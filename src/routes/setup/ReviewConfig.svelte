@@ -80,8 +80,10 @@ Key Features:
 						{m.setup_review_section_system?.() || 'System Settings'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="font-medium">{m.setup_system_site_name?.() || 'Site Name'}:</dt>
+						<dt class="font-medium">CMS Name:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.siteName}</dd>
+						<dt class="font-medium">Production URL:</dt>
+						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.hostProd}</dd>
 						<dt class="font-medium">{m.setup_review_label_default_system_lang?.() || 'Default System Lang'}:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.defaultSystemLanguage}</dd>
 						<dt class="font-medium">{m.setup_review_label_system_languages?.() || 'System Languages'}:</dt>
@@ -101,7 +103,19 @@ Key Features:
 						{m.setup_review_section_media?.() || 'Media Storage'}
 					</h3>
 					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt class="font-medium">{m.setup_review_label_path?.() || 'Path'}:</dt>
+						<dt class="font-medium">Storage Type:</dt>
+						<dd class="text-tertiary-500 dark:text-primary-500">
+							{#if systemSettings.mediaStorageType === 'local'}
+								📁 Local Storage
+							{:else if systemSettings.mediaStorageType === 's3'}
+								☁️ Amazon S3
+							{:else if systemSettings.mediaStorageType === 'r2'}
+								☁️ Cloudflare R2
+							{:else if systemSettings.mediaStorageType === 'cloudinary'}
+								☁️ Cloudinary
+							{/if}
+						</dd>
+						<dt class="font-medium">{systemSettings.mediaStorageType === 'local' ? 'Folder Path' : 'Bucket Name'}:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500">{systemSettings.mediaFolder}</dd>
 					</dl>
 				</div>

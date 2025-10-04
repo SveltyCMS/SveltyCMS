@@ -30,8 +30,8 @@ Features:
 	import { page } from '$app/state';
 
 	// Auth types
-	import type { PermissionConfig } from '@src/auth/permissions';
-	import type { User } from '@src/auth/types';
+	import type { PermissionConfig } from '@src/databases/auth/permissions';
+	import type { User } from '@src/databases/auth/types';
 
 	interface Props {
 		// Prop to receive permission configuration

@@ -1,8 +1,7 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/CacheMonitorWidget.svelte
 @component 
-**Real-time cache performance monitoring widget**
-Displays cache hit rates, metrics by category, and tenant-specific statistics
+**Real-time cache performance monitoring widget with enhanced features**
 -->
 
 <script lang="ts" module>
@@ -10,12 +9,14 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 		name: 'Cache Monitor',
 		icon: 'mdi:database-clock',
 		description: 'Monitor cache performance and hit rates',
-		defaultSize: { w: 2, h: 3 }
+		defaultSize: { w: 2, h: 3 },
+		category: 'monitoring' // Used for defaults
 	};
 </script>
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
+	import { getWidgetDefaults } from './widgetDefaults';
 
 	interface CacheMetrics {
 		overall: {
@@ -67,7 +68,9 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 		onCloseRequest?: () => void;
 	}>();
 
-	// Color coding for hit rates
+	// Apply defaults for monitoring category
+	const defaults = getWidgetDefaults('monitoring', widgetId);
+
 	function getHitRateColor(hitRate: number): string {
 		if (hitRate >= 90) return 'text-success-500';
 		if (hitRate >= 70) return 'text-warning-500';
@@ -96,8 +99,19 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/cache-metrics" pollInterval={5000} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
-	{#snippet children({ data })}
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/cache-metrics"
+	pollInterval={5000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	{onCloseRequest}
+	{...defaults}
+>
+	{#snippet children({ data, refresh, isLoading })}
 		{@const metrics = data as CacheMetrics | null}
 
 		{#if !metrics}
@@ -113,8 +127,8 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 				<div class="rounded-xl bg-gradient-to-br from-surface-50 to-surface-100 p-4 shadow-sm dark:from-surface-800 dark:to-surface-900">
 					<div class="mb-3 flex items-start justify-between">
 						<div>
-							<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">Overall Performance</h3>
-							<p class="mt-1 text-xs text-surface-500">
+							<h3 class="text-xs font-semibold uppercase tracking-wider">Overall Performance</h3>
+							<p class="mt-1 text-xs text-surface-600 dark:text-surface-400">
 								{metrics.overall.totalOperations.toLocaleString()} operations
 							</p>
 						</div>
@@ -122,26 +136,26 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 							<div class={`text-3xl font-bold leading-none ${getHitRateColor(metrics.overall.hitRate)}`}>
 								{metrics.overall.hitRate.toFixed(1)}%
 							</div>
-							<p class="mt-1 text-xs text-surface-500">hit rate</p>
+							<p class="mt-1 text-xs">hit rate</p>
 						</div>
 					</div>
 
 					<!-- Stats Grid -->
 					<div class="grid grid-cols-4 gap-2 text-xs">
 						<div class="rounded-lg bg-success-50 p-2 text-center dark:bg-success-900/20">
-							<div class="text-lg font-bold text-success-600 dark:text-success-400">{formatNumber(metrics.overall.hits)}</div>
+							<div class="text-lg font-bold">{formatNumber(metrics.overall.hits)}</div>
 							<div class="mt-0.5 text-success-700 dark:text-success-500">Hits</div>
 						</div>
 						<div class="rounded-lg bg-error-50 p-2 text-center dark:bg-error-900/20">
-							<div class="text-lg font-bold text-error-600 dark:text-error-400">{formatNumber(metrics.overall.misses)}</div>
+							<div class="text-lg font-bold">{formatNumber(metrics.overall.misses)}</div>
 							<div class="mt-0.5 text-error-700 dark:text-error-500">Misses</div>
 						</div>
 						<div class="rounded-lg bg-primary-50 p-2 text-center dark:bg-primary-900/20">
-							<div class="text-lg font-bold text-primary-600 dark:text-primary-400">{formatNumber(metrics.overall.sets)}</div>
+							<div class="0 text-lg font-bold">{formatNumber(metrics.overall.sets)}</div>
 							<div class="mt-0.5 text-primary-700 dark:text-primary-500">Sets</div>
 						</div>
 						<div class="rounded-lg bg-warning-50 p-2 text-center dark:bg-warning-900/20">
-							<div class="text-lg font-bold text-warning-600 dark:text-warning-400">{formatNumber(metrics.overall.deletes)}</div>
+							<div class="text-lg font-bold">{formatNumber(metrics.overall.deletes)}</div>
 							<div class="mt-0.5 text-warning-700 dark:text-warning-500">Deletes</div>
 						</div>
 					</div>
@@ -149,7 +163,8 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 					<!-- Progress Bar -->
 					<div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 						<div
-							class="h-full bg-gradient-to-r from-success-500 via-primary-500 to-primary-600 transition-all duration-500 ease-out"
+							class="h-full bg-gradient-to-r from-success-500 via-primary-500
+							to-primary-600 transition-all duration-500 ease-out"
 							style="width: {metrics.overall.hitRate}%"
 						></div>
 					</div>
@@ -158,7 +173,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 				<!-- By Category -->
 				{#if Object.keys(metrics.byCategory).length > 0}
 					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
-						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
 							<iconify-icon icon="mdi:view-grid" width="14"></iconify-icon>
 							By Category
 						</h3>
@@ -172,7 +187,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 												width="18"
 												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-400"
 											></iconify-icon>
-											<span class="font-semibold text-surface-700 dark:text-surface-300">{category.toLowerCase()}</span>
+											<span class="font-semibold">{category.toLowerCase()}</span>
 										</div>
 										<div class="flex items-center gap-3">
 											<span class="tabular-nums text-surface-500">
@@ -244,14 +259,14 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 										<div class="min-w-0 flex-1">
 											<div class="mb-1 flex items-center gap-2">
 												<iconify-icon icon={getCategoryIcon(miss.category)} width="14" class="text-error-600 dark:text-error-400"></iconify-icon>
-												<span class="font-semibold text-error-700 dark:text-error-300">{miss.category}</span>
+												<span class="font-semibold">{miss.category}</span>
 											</div>
 											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-400" title={miss.key}>
 												{miss.key}
 											</div>
 										</div>
 										<div class="whitespace-nowrap text-right">
-											<div class="text-[10px] text-surface-500">
+											<div class="text-[10px]">
 												{#if timeSince < 60}
 													{timeSince}s ago
 												{:else if timeSince < 3600}
@@ -319,7 +334,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 									Needs Attention
 								{/if}
 							</div>
-							<div class="mt-0.5 text-surface-600 dark:text-surface-400">
+							<div class="mt-0.5">
 								Cache is {metrics.overall.hitRate >= 80
 									? 'working optimally'
 									: metrics.overall.hitRate >= 60

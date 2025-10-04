@@ -1,5 +1,5 @@
 /**
- * @file src/auth/googleAuth.ts
+ * @file src/databases/auth/googleAuth.ts
  * @description Utility functions for Google OAuth.
  *
  * This module provides:

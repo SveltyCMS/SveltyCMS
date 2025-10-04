@@ -25,7 +25,7 @@ import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
 // System Logger
-import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';
+import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/googleAuth';
 import { logger } from '@utils/logger.svelte';
 
 // Import roles

@@ -18,7 +18,7 @@ import { saveFileToDisk, saveResizedImages } from './mediaStorage';
 import { validateMediaFile } from './mediaUtils';
 
 // Permission Management
-import { validateUserPermission as checkMediaAccess } from '@src/auth/permissions';
+import { validateUserPermission as checkMediaAccess } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

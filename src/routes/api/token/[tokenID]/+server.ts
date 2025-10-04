@@ -97,7 +97,7 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 			updateResult = await (possibleAuth as { updateToken: (id: string, data: unknown) => unknown }).updateToken(tokenId, newTokenData);
 		} else {
 			// Fallback (should not normally execute once interface is standardized)
-			const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
+			const { TokenAdapter } = await import('@src/databases/auth/mongoDBAuth/tokenAdapter');
 			const tokenAdapter = new TokenAdapter();
 			updateResult = await tokenAdapter.updateToken(tokenId, newTokenData);
 		}
@@ -182,7 +182,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 				deletedCount = (result as { deletedCount?: number }).deletedCount;
 			}
 		} else {
-			const { TokenAdapter } = await import('@src/auth/mongoDBAuth/tokenAdapter');
+			const { TokenAdapter } = await import('@src/databases/auth/mongoDBAuth/tokenAdapter');
 			const tokenAdapter = new TokenAdapter();
 			deletedCount = await tokenAdapter.deleteTokens([tokenId]);
 		}

@@ -16,8 +16,8 @@
 import { building } from '$app/environment';
 import { privateEnv } from '@src/stores/globalSettings';
 
-import { SESSION_COOKIE_NAME } from '@src/auth/constants';
-import type { User } from '@src/auth/types';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
+import type { User } from '@src/databases/auth/types';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { type Handle, type RequestEvent } from '@sveltejs/kit';
 

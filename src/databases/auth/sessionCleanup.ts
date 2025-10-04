@@ -1,5 +1,5 @@
 /**
- * @file src/auth/sessionCleanup.ts
+ * @file src/databases/auth/sessionCleanup.ts
  * @description Session cleanup utilities for managing expired and rotated sessions
  *
  * This module provides functionality to:

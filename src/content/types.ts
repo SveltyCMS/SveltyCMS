@@ -10,7 +10,7 @@
 import type widgets from '@widgets';
 
 // Auth
-import type { RolePermissions } from '@src/auth/types';
+import type { RolePermissions } from '@src/databases/auth/types';
 import type { WidgetPlaceholder } from '@src/widgets/types';
 
 // Define core value and status types

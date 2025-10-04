@@ -20,13 +20,12 @@
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { getRevisionDiff, getRevisions } from '@utils/apiClient';
 	import { getFieldName } from '@utils/utils';
-	import { untrack } from 'svelte';
-	// Improved API client
 
 	// Auth & Page data
-
 	import { page } from '$app/state';
 	const user = $derived(page.data?.user);
 	const tenantId = $derived(page.data?.tenantId); // Get tenantId for multi-tenancy
@@ -36,8 +35,10 @@
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
+
 	// Config
 	import type { Locale } from '@src/paraglide/runtime';
+
 	// Content processing
 	import { processModule } from '@src/content/utils';
 
@@ -48,19 +49,12 @@
 	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
+
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { ensureWidgetsInitialized, widgetFunctions } from '@src/widgets';
-	import { onMount } from 'svelte';
-
-	// Dynamic import of all widget components using Vite's glob import
+	import { ensureWidgetsInitialized, widgetFunctions } from '@src/widgets'; // Dynamic import of all widget components using Vite's glob import
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
-	});
-
-	// Initialize widgets on mount
-	onMount(async () => {
-		await ensureWidgetsInitialized();
 	});
 
 	let { fields = undefined } = $props<{
@@ -70,7 +64,31 @@
 	// Component State
 	let apiUrl = $state('');
 	let isLoading = $state(true);
+	let widgetsReady = $state(false);
 	let localTabSet = $state(0);
+
+	// Initialize widgets when Fields component mounts (only needed for edit/create mode)
+	onMount(async () => {
+		console.log('[Fields] Component mounted, initializing widgets...');
+		console.log('[Fields] Collection data:', {
+			hasCollection: !!collection.value,
+			hasModule: !!(collection.value as any)?.module,
+			hasFields: !!collection.value?.fields,
+			fieldsLength: collection.value?.fields?.length
+		});
+
+		try {
+			await ensureWidgetsInitialized();
+			console.log('[Fields] Widgets initialized successfully');
+			widgetsReady = true;
+		} catch (error) {
+			console.error('[Fields] Failed to initialize widgets:', error);
+			showToast('Failed to load widgets', 'error');
+			// Set to true anyway to unblock UI
+			widgetsReady = true;
+		}
+	});
+
 	// Revisions State
 	let revisionsMeta = $state<any[]>([]);
 	let isRevisionsLoading = $state(false);
@@ -86,16 +104,28 @@
 	// --- Let widgets handle their own validation - no duplicate validation here ---
 
 	$effect(() => {
-		if (collection.value && (collection.value as any)?.module && !processedCollection) {
+		console.log('[Fields] Widget readiness changed:', widgetsReady);
+		console.log('[Fields] Has collection:', !!collection.value);
+		console.log('[Fields] Has module:', !!(collection.value as any)?.module);
+		console.log('[Fields] Processed collection:', !!processedCollection);
+	});
+
+	$effect(() => {
+		if (widgetsReady && collection.value && (collection.value as any)?.module && !processedCollection) {
+			console.log('[Fields] Starting module processing...');
 			untrack(async () => {
 				try {
 					const processed = await processModule((collection.value as any).module);
+					console.log('[Fields] Module processed, result:', processed);
 					if (processed?.schema?.fields) {
 						processedCollection = processed.schema;
 						fieldsFromModule = processed.schema.fields;
+						console.log('[Fields] Fields extracted:', fieldsFromModule.length);
+					} else {
+						console.warn('[Fields] No fields in processed schema');
 					}
 				} catch (error) {
-					console.error('Failed to process collection module:', error);
+					console.error('[Fields] Failed to process collection module:', error);
 				}
 			});
 		}
@@ -167,6 +197,8 @@
 		let hasUpdates = false;
 
 		for (const field of fields) {
+			if (!field) continue; // Skip null/undefined fields
+
 			// Check if field has translated property (for widget-based fields)
 			const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
 
@@ -283,7 +315,14 @@
 
 	// Initialize form data when the entry changes or fields become available
 	$effect(() => {
+		console.log('[Fields] Form init check:', {
+			isFormDataInitialized,
+			hasCollectionValue: !!collectionValue.value,
+			derivedFieldsLength: derivedFields.length
+		});
+
 		if (!isFormDataInitialized && collectionValue.value && derivedFields.length > 0) {
+			console.log('[Fields] Initializing form data...');
 			formDataSnapshot = { ...collectionValue.value };
 			// Ensure all fields have proper initial values
 			const initialValue = { ...defaultCollectionValue };
@@ -298,6 +337,7 @@
 			}
 			currentCollectionValue = initialValue;
 			isFormDataInitialized = true;
+			console.log('[Fields] Form data initialized with', Object.keys(initialValue).length, 'fields');
 		}
 	}); // Form data persistence across tab switches
 
@@ -399,7 +439,12 @@
 			{#if localTabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-					{#if isFormDataInitialized}
+					{#if !widgetsReady}
+						<div class="flex h-48 items-center justify-center">
+							<Loading />
+							<p class="ml-2 text-surface-500">Loading widgets...</p>
+						</div>
+					{:else if isFormDataInitialized}
 						<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
 							{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
 								{#if rawField.widget}

@@ -29,8 +29,8 @@ import { valibot } from 'sveltekit-superforms/adapters';
 import { message, superValidate } from 'sveltekit-superforms/server';
 
 // Auth
-import { generateGoogleAuthUrl, googleAuth } from '@src/auth/googleAuth';
-import type { User } from '@src/auth/types';
+import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/googleAuth';
+import type { User } from '@src/databases/auth/types';
 import { auth, dbInitPromise } from '@src/databases/db';
 import { google } from 'googleapis';
 
@@ -338,6 +338,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			`In load: firstUserExists determined as: \x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: \x1b[34m${locals.isFirstUser}\x1b[0m)`
 		);
 
+		// Note: If no users exist, handleSetup hook will redirect to /setup before this code runs
+
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
@@ -551,6 +553,9 @@ export const actions: Actions = {
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
 
+		// Note: First-user registration is handled by /setup (enforced by handleSetup hook)
+		// This action only handles invited user registration
+
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
@@ -589,8 +594,8 @@ export const actions: Actions = {
 
 		const { email, username, password, token } = signUpForm.data;
 
-		// For non-first users: The sign-up action now ONLY works for invited users.
-		// Security: This action MUST have a valid token to proceed.
+		// Security: This action ONLY works for invited users with valid tokens.
+		// First-user registration must go through /setup (enforced by hooks and load function).
 		if (!token) {
 			return message(signUpForm, 'A valid invitation is required to create an account.', { status: 403 });
 		}
@@ -775,7 +780,7 @@ export const actions: Actions = {
 				// If no collection, redirect based on permission
 				if (!collectionPath) {
 					// Import hasPermissionWithRoles dynamically to avoid circular deps
-					const { hasPermissionWithRoles } = await import('@src/auth/permissions');
+					const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
 					const isAdmin = hasPermissionWithRoles(resp.user, 'config:collectionbuilder', roles);
 					redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 				} else {
@@ -890,7 +895,7 @@ export const actions: Actions = {
 			const loggedInUser = await auth.getUserById(userId);
 			let redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
 			if (!redirectPath) {
-				const { hasPermissionWithRoles } = await import('@src/auth/permissions');
+				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
 				const isAdmin = hasPermissionWithRoles(loggedInUser, 'config:collectionbuilder', roles);
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}

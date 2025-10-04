@@ -25,7 +25,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Types
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 
 // GraphQL types
 type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];

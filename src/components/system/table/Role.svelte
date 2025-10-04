@@ -15,7 +15,7 @@
 
 <script lang="ts">
 	// Auth
-	import type { Role } from '@src/auth/types';
+	import type { Role } from '@src/databases/auth/types';
 
 	// Ensure roles is an array
 	let { value, roles = [] } = $props<{ value: string; roles?: Role[] }>();

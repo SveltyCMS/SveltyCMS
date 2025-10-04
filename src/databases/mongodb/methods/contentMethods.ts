@@ -132,6 +132,7 @@ export class MongoContentMethods {
 
 	/**
 	 * Updates multiple nodes in a single, efficient bulk operation.
+	 * Uses upsert to create nodes if they don't exist.
 	 */
 	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<{ modifiedCount: number }> {
 		if (updates.length === 0) return { modifiedCount: 0 };
@@ -139,7 +140,8 @@ export class MongoContentMethods {
 			const operations = updates.map(({ path, changes }) => ({
 				updateOne: {
 					filter: { path },
-					update: { $set: { ...changes, updatedAt: new Date() } }
+					update: { $set: { ...changes, updatedAt: new Date() } },
+					upsert: true // Create the document if it doesn't exist
 				}
 			}));
 			const result = await this.nodesRepo.model.bulkWrite(operations);
@@ -147,7 +149,7 @@ export class MongoContentMethods {
 			// Invalidate content structure caches
 			await invalidateCategoryCache(CacheCategory.CONTENT);
 
-			return { modifiedCount: result.modifiedCount };
+			return { modifiedCount: result.modifiedCount + result.upsertedCount };
 		} catch (error) {
 			throw createDatabaseError(error, 'NODE_BULK_UPDATE_ERROR', 'Failed to perform bulk update on nodes.');
 		}

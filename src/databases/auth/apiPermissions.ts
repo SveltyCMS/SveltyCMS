@@ -1,5 +1,5 @@
 /**
- * @file src/auth/apiPermissions.ts
+ * @file src/databases/auth/apiPermissions.ts
  * @description API endpoint permissions configuration for role-based access control
  *
  * This file defines which roles can access which API endpoints at the first level.

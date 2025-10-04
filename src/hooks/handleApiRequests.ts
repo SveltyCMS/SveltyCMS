@@ -10,7 +10,7 @@
  * - Error handling and logging
  */
 
-import { hasApiPermission } from '@src/auth/apiPermissions';
+import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { cacheService } from '@src/databases/CacheService';
 import { error, type Handle } from '@sveltejs/kit';
 

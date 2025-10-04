@@ -22,8 +22,8 @@ It provides the following functionality:
 	import { page } from '$app/state';
 
 	// Auth
-	import type { Permission, Role } from '@src/auth/types';
-	import { PermissionType } from '@src/auth/types';
+	import type { Permission, Role } from '@src/databases/auth/types';
+	import { PermissionType } from '@src/databases/auth/types';
 	// Components
 	import Loading from '@components/Loading.svelte';
 

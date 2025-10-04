@@ -18,7 +18,6 @@ Features:
 - Media gallery with folder management.
 - Keyboard navigation support.
 - Loading states and error handling.
-- Drag & drop support for media files.
 -->
 
 <script lang="ts">
@@ -107,6 +106,11 @@ Features:
 		if (contentStructure.value !== lastContentStructure) {
 			lastContentStructure = contentStructure.value;
 			cachedNestedStructure = constructNestedStructure(contentStructure.value);
+			console.log('[Collections] contentStructure updated:', {
+				total: contentStructure.value?.length,
+				nested: cachedNestedStructure?.length,
+				data: cachedNestedStructure
+			});
 		}
 		return cachedNestedStructure;
 	});
@@ -187,7 +191,9 @@ Features:
 
 			let children: CollectionTreeNode[] | undefined;
 			if (isCategory && node.children) {
-				children = node.children.map((child) => mapNode(child, depth + 1));
+				// Sort children by order before mapping
+				const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
+				children = sortedChildren.map((child) => mapNode(child, depth + 1));
 			}
 
 			// Add badge only for categories to reduce overhead
@@ -212,12 +218,26 @@ Features:
 				children,
 				badge,
 				depth,
+				order: node.order || 0, // Preserve order property
 				lastModified: node.lastModified
 			};
 		}
 
+		// Sort root nodes by order before mapping
+		const sortedRootNodes = [...nestedStructure].sort((a, b) => (a.order || 0) - (b.order || 0));
 		// Cache the result
-		cachedCollectionNodes = nestedStructure.map((node) => mapNode(node));
+		cachedCollectionNodes = sortedRootNodes.map((node) => mapNode(node));
+
+		console.log('[Collections] collectionStructureNodes created:', {
+			rootNodes: cachedCollectionNodes.length,
+			nodes: cachedCollectionNodes.map((n) => ({
+				id: n.id,
+				name: n.name,
+				nodeType: n.nodeType,
+				childCount: n.children?.length || 0
+			}))
+		});
+
 		return cachedCollectionNodes;
 	});
 
@@ -406,13 +426,6 @@ Features:
 	function clearSearch() {
 		search = '';
 		debouncedSearch = '';
-	}
-
-	// Keyboard navigation support
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			clearSearch();
-		}
 	}
 
 	// Toggle node expansion
@@ -619,8 +632,6 @@ Features:
 		};
 	});
 </script>
-
-<svelte:window on:keydown={handleKeydown} />
 
 <div class="collections-container mt-2" role="navigation" aria-label="Collections navigation">
 	{#if !isMediaMode}

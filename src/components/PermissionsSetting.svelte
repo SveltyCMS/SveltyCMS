@@ -16,8 +16,8 @@ Features:
 -->
 
 <script lang="ts">
-	import type { Role } from '@src/auth/types';
-	import { PermissionAction } from '@src/auth/types';
+	import type { Role } from '@src/databases/auth/types';
+	import { PermissionAction } from '@src/databases/auth/types';
 	// SECURITY: Never import privateEnv in .svelte files - it exposes secrets to client!
 	// Use page.data from +page.server.ts instead
 	import { showToast } from '@utils/toast';

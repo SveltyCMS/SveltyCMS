@@ -32,9 +32,9 @@ export class MongoAuthModelRegistrar {
 	async setupAuthModels(): Promise<void> {
 		try {
 			// Dynamically import schemas only when needed to avoid circular dependencies
-			const { UserSchema } = await import('@src/auth/mongoDBAuth/userAdapter');
-			const { TokenSchema } = await import('@src/auth/mongoDBAuth/tokenAdapter');
-			const { SessionSchema } = await import('@src/auth/mongoDBAuth/sessionAdapter');
+			const { UserSchema } = await import('../models/authUser');
+			const { TokenSchema } = await import('../models/authToken');
+			const { SessionSchema } = await import('../models/authSession');
 
 			// Register each model using the private helper
 			this._registerModel('auth_users', UserSchema);

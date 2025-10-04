@@ -3,7 +3,7 @@
  * @description Helper functions to serialize and deserialize data.
  */
 
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 import type { Schema } from '@root/src/content/types';
 
 // System Logger

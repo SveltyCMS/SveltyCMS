@@ -4,12 +4,15 @@
 **SignIn component with OAuth support**
 
 Features:
- - Dual SignIn and SignUp functionality with dynamic form switching
- - Dynamic language selection with a debounced input field or dropdown for multiple languages
+ - User authentication with password or OAuth
+ - Dynamic language selection with debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer displayed when active
- - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
- - Reset state functionality for easy return to initial screen
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`)
+ - Password reset functionality
+ - Two-factor authentication (2FA) support
  - Accessibility features for language selection and form navigation
+
+Note: First-user registration is now handled by /setup route (enforced by handleSetup hook)
 -->
 
 <script lang="ts">
@@ -42,7 +45,7 @@ Features:
 	import OauthLogin from './OauthLogin.svelte';
 
 	// Screen size store
-	import { isDesktop, isTablet, isMobile, screenSize, screenWidth } from '@stores/screenSizeStore.svelte';
+	import { isDesktop } from '@stores/screenSizeStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Props
@@ -77,7 +80,6 @@ Features:
 	const confirmPasswordTabIndex = 3;
 	const forgotPasswordTabIndex = 4;
 	const pageData = page.data as PageData;
-	const firstUserExists = pageData.firstUserExists;
 
 	// URL handling
 	const current_url = $state(browser ? window.location.href : '');
@@ -508,345 +510,336 @@ Features:
 					</button>
 				</div>
 
-				{#if firstUserExists}
-					<!-- Sign In -->
-					{#if !PWforgot && !PWreset}
-						<form
-							id="signin-form"
-							method="POST"
-							action="?/signIn"
-							use:enhance
-							bind:this={formElement}
-							class="flex w-full flex-col gap-3"
-							class:hide={active !== 0}
-							inert={active !== 0}
-						>
-							<!-- Email field -->
-							<FloatingInput
-								id="emailsignIn"
-								name="email"
-								type="email"
-								tabindex={emailTabIndex}
-								autocomplete="username"
-								autocapitalize="none"
-								spellcheck={false}
-								bind:value={$form.email}
-								label={m.email()}
-								{...$constraints.email}
-								icon="mdi:email"
-								iconColor="black"
-								textColor="black"
-							/>
-							{#if $errors.email}<span class="invalid text-xs text-error-500">{$errors.email}</span>{/if}
+				<!-- Sign In (first-user signup now handled by /setup) -->
+				{#if !PWforgot && !PWreset}
+					<form
+						id="signin-form"
+						method="POST"
+						action="?/signIn"
+						use:enhance
+						bind:this={formElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+						inert={active !== 0}
+					>
+						<!-- Email field -->
+						<FloatingInput
+							id="emailsignIn"
+							name="email"
+							type="email"
+							tabindex={emailTabIndex}
+							autocomplete="username"
+							autocapitalize="none"
+							spellcheck={false}
+							bind:value={$form.email}
+							label={m.email()}
+							{...$constraints.email}
+							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $errors.email}<span class="invalid text-xs text-error-500">{$errors.email}</span>{/if}
 
-							<!-- Password field -->
-							<FloatingInput
-								id="passwordsignIn"
-								name="password"
-								type="password"
-								autocomplete="current-password"
-								tabindex={passwordTabIndex}
-								bind:value={$form.password}
-								{...$constraints.password}
-								{showPassword}
-								label={m.form_password()}
-								icon="mdi:lock"
-								iconColor="black"
-								textColor="black"
-							/>
-							{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
-						</form>
+						<!-- Password field -->
+						<FloatingInput
+							id="passwordsignIn"
+							name="password"
+							type="password"
+							autocomplete="current-password"
+							tabindex={passwordTabIndex}
+							bind:value={$form.password}
+							{...$constraints.password}
+							{showPassword}
+							label={m.form_password()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
+					</form>
 
-						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-							<!-- Row 1 -->
-							<div class="flex w-full justify-between gap-2 sm:w-auto">
-								<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
-									{m.form_signin()}
-									<!-- Optimized loading indicators -->
-									{#if isSubmitting || isAuthenticating}
-										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
-									{/if}
-								</button>
-								<!-- OAuth Login -->
-								<OauthLogin showOAuth={pageData.showOAuth} />
-							</div>
-
-							<!-- Row 2 -->
-							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
-								<button
-									type="button"
-									class="variant-ringed-surface btn w-full text-black sm:w-auto"
-									aria-label={m.signin_forgottenpassword()}
-									tabindex={forgotPasswordTabIndex}
-									onclick={handleForgotPassword}
-								>
-									{m.signin_forgottenpassword()}
-								</button>
-							</div>
+					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+						<!-- Row 1 -->
+						<div class="flex w-full justify-between gap-2 sm:w-auto">
+							<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
+								{m.form_signin()}
+								<!-- Optimized loading indicators -->
+								{#if isSubmitting || isAuthenticating}
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
+								{/if}
+							</button>
+							<!-- OAuth Login -->
+							<OauthLogin showOAuth={pageData.showOAuth} />
 						</div>
-					{/if}
 
-					<!-- Two-Factor Authentication -->
-					{#if requires2FA && !PWforgot && !PWreset}
-						<div class="flex w-full flex-col gap-4">
-							<!-- 2FA Header -->
-							<div class="text-center">
-								<div class="mb-3">
-									<iconify-icon icon="mdi:shield-key" width="48" class="mx-auto text-primary-500"></iconify-icon>
-								</div>
-								<h3 class="h3 mb-2">{m.twofa_verify_title()}</h3>
-								<p class="text-sm text-surface-600 dark:text-surface-300">
-									{useBackupCode ? 'Enter your backup recovery code:' : m.twofa_verify_description()}
-								</p>
+						<!-- Row 2 -->
+						<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
+							<button
+								type="button"
+								class="variant-ringed-surface btn w-full text-black sm:w-auto"
+								aria-label={m.signin_forgottenpassword()}
+								tabindex={forgotPasswordTabIndex}
+								onclick={handleForgotPassword}
+							>
+								{m.signin_forgottenpassword()}
+							</button>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Two-Factor Authentication -->
+				{#if requires2FA && !PWforgot && !PWreset}
+					<div class="flex w-full flex-col gap-4">
+						<!-- 2FA Header -->
+						<div class="text-center">
+							<div class="mb-3">
+								<iconify-icon icon="mdi:shield-key" width="48" class="mx-auto text-primary-500"></iconify-icon>
 							</div>
+							<h3 class="h3 mb-2">{m.twofa_verify_title()}</h3>
+							<p class="text-sm text-surface-600 dark:text-surface-300">
+								{useBackupCode ? 'Enter your backup recovery code:' : m.twofa_verify_description()}
+							</p>
+						</div>
 
-							<!-- Code Input -->
-							<div class="flex flex-col gap-3">
-								<div class="relative">
-									<input
-										type="text"
-										bind:value={twoFACode}
-										oninput={handle2FAInput}
-										onkeydown={(e) => e.key === 'Enter' && verify2FA()}
-										placeholder={useBackupCode ? 'Enter backup code' : m.twofa_code_placeholder()}
-										class="input text-center font-mono tracking-wider"
-										class:text-2xl={!useBackupCode}
-										class:text-lg={useBackupCode}
-										maxlength={useBackupCode ? '10' : '6'}
-										autocomplete="off"
-									/>
+						<!-- Code Input -->
+						<div class="flex flex-col gap-3">
+							<div class="relative">
+								<input
+									type="text"
+									bind:value={twoFACode}
+									oninput={handle2FAInput}
+									onkeydown={(e) => e.key === 'Enter' && verify2FA()}
+									placeholder={useBackupCode ? 'Enter backup code' : m.twofa_code_placeholder()}
+									class="input text-center font-mono tracking-wider"
+									class:text-2xl={!useBackupCode}
+									class:text-lg={useBackupCode}
+									maxlength={useBackupCode ? 10 : 6}
+									autocomplete="off"
+								/>
 
-									<!-- Character counter for backup codes -->
-									{#if useBackupCode}
-										<div class="mt-1 text-center text-xs text-surface-500">
-											{twoFACode.length}/10
-										</div>
-									{/if}
-								</div>
-
-								<!-- Toggle Code Type -->
-								<div class="text-center">
-									<button type="button" onclick={toggle2FACodeType} class="text-sm text-primary-500 underline hover:text-primary-600">
-										{useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
-									</button>
-								</div>
-
-								<!-- Action Buttons -->
-								<div class="flex gap-3">
-									<button type="button" onclick={back2FAToLogin} class="variant-soft-surface btn flex-1">
-										<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
-										{m.button_back()}
-									</button>
-
-									<button
-										type="button"
-										onclick={verify2FA}
-										disabled={!twoFACode.trim() ||
-											isVerifying2FA ||
-											(!useBackupCode && twoFACode.length !== 6) ||
-											(useBackupCode && twoFACode.length < 8)}
-										class="variant-filled-primary btn flex-1"
-									>
-										{#if isVerifying2FA}
-											<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
-											{m.twofa_verifying()}
-										{:else}
-											<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
-											{m.twofa_verify_button()}
-										{/if}
-									</button>
-								</div>
-
-								<!-- Help Text -->
-								<div class="mt-2 text-center">
-									<div class="text-xs text-surface-500">
-										{#if !useBackupCode}
-											<p>Enter the 6-digit code from your authenticator app</p>
-										{:else}
-											<p>Enter one of your 8-character backup codes</p>
-										{/if}
+								<!-- Character counter for backup codes -->
+								{#if useBackupCode}
+									<div class="mt-1 text-center text-xs text-surface-500">
+										{twoFACode.length}/10
 									</div>
+								{/if}
+							</div>
+
+							<!-- Toggle Code Type -->
+							<div class="text-center">
+								<button type="button" onclick={toggle2FACodeType} class="text-sm text-primary-500 underline hover:text-primary-600">
+									{useBackupCode ? m.twofa_use_authenticator() : m.twofa_use_backup_code()}
+								</button>
+							</div>
+
+							<!-- Action Buttons -->
+							<div class="flex gap-3">
+								<button type="button" onclick={back2FAToLogin} class="variant-soft-surface btn flex-1">
+									<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
+									{m.button_back()}
+								</button>
+
+								<button
+									type="button"
+									onclick={verify2FA}
+									disabled={!twoFACode.trim() ||
+										isVerifying2FA ||
+										(!useBackupCode && twoFACode.length !== 6) ||
+										(useBackupCode && twoFACode.length < 8)}
+									class="variant-filled-primary btn flex-1"
+								>
+									{#if isVerifying2FA}
+										<img src="/Spinner.svg" alt="Loading.." class="mr-2 h-5 invert filter" />
+										{m.twofa_verifying()}
+									{:else}
+										<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+										{m.twofa_verify_button()}
+									{/if}
+								</button>
+							</div>
+
+							<!-- Help Text -->
+							<div class="mt-2 text-center">
+								<div class="text-xs text-surface-500">
+									{#if !useBackupCode}
+										<p>Enter the 6-digit code from your authenticator app</p>
+									{:else}
+										<p>Enter one of your 8-character backup codes</p>
+									{/if}
 								</div>
 							</div>
 						</div>
-					{/if}
+					</div>
+				{/if}
 
-					<!-- Forgotten Password -->
-					{#if PWforgot && !PWreset}
-						<form
-							method="POST"
-							action="?/forgotPW"
-							use:forgotEnhance
-							bind:this={formElement}
-							class="flex w-full flex-col gap-3"
-							class:hide={active !== 0}
-							inert={active !== 0}
-						>
-							<!-- Email field -->
-							<FloatingInput
-								id="emailforgot"
-								name="email"
-								type="email"
-								tabindex={emailTabIndex}
-								autocomplete="email"
-								autocapitalize="none"
-								spellcheck={false}
-								bind:value={$forgotForm.email}
-								label={m.email()}
-								{...$forgotConstraints.email}
-								icon="mdi:email"
-								iconColor="black"
-								textColor="black"
-							/>
-							{#if $forgotErrors.email}
-								<span class="invalid text-xs text-error-500">
-									{$forgotErrors.email}
-								</span>
-							{/if}
+				<!-- Forgotten Password -->
+				{#if PWforgot && !PWreset}
+					<form
+						method="POST"
+						action="?/forgotPW"
+						use:forgotEnhance
+						bind:this={formElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+						inert={active !== 0}
+					>
+						<!-- Email field -->
+						<FloatingInput
+							id="emailforgot"
+							name="email"
+							type="email"
+							tabindex={emailTabIndex}
+							autocomplete="email"
+							autocapitalize="none"
+							spellcheck={false}
+							bind:value={$forgotForm.email}
+							label={m.email()}
+							{...$forgotConstraints.email}
+							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $forgotErrors.email}
+							<span class="invalid text-xs text-error-500">
+								{$forgotErrors.email}
+							</span>
+						{/if}
 
-							{#if $forgotAllErrors && !$forgotErrors.email}
-								<span class="invalid text-xs text-error-500">
-									{$forgotAllErrors}
-								</span>
-							{/if}
+						{#if $forgotAllErrors && !$forgotErrors.email}
+							<span class="invalid text-xs text-error-500">
+								{$forgotAllErrors}
+							</span>
+						{/if}
 
-							<div class="mt-4 flex items-center justify-between">
-								<button type="submit" class="variant-filled-surface btn" aria-label={m.form_resetpassword()}>
-									{m.form_resetpassword()}
-									<!-- Optimized loading indicators -->
-									{#if isSubmitting}
-										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
-									{/if}
-								</button>
+						<div class="mt-4 flex items-center justify-between">
+							<button type="submit" class="variant-filled-surface btn" aria-label={m.form_resetpassword()}>
+								{m.form_resetpassword()}
+								<!-- Optimized loading indicators -->
+								{#if isSubmitting}
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6 invert filter" />
+								{/if}
+							</button>
 
-								<!-- Back button  -->
-								<button
-									type="button"
-									class="variant-filled-surface btn-icon"
-									aria-label="Back"
-									onclick={() => {
-										PWforgot = false;
-										PWreset = false;
-									}}
-								>
-									<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
-								</button>
-							</div>
-						</form>
-					{/if}
+							<!-- Back button  -->
+							<button
+								type="button"
+								class="variant-filled-surface btn-icon"
+								aria-label="Back"
+								onclick={() => {
+									PWforgot = false;
+									PWreset = false;
+								}}
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
+							</button>
+						</div>
+					</form>
+				{/if}
 
-					<!-- Reset Password -->
-					{#if PWforgot && PWreset}
-						<form
-							method="POST"
-							action="?/resetPW"
-							use:resetEnhance
-							bind:this={formElement}
-							class="flex w-full flex-col gap-3"
-							class:hide={active !== 0}
-							inert={active !== 0}
-						>
-							<!-- Hidden fields -->
-							<input type="hidden" name="email" bind:value={$resetForm.email} />
-							<input type="hidden" name="token" bind:value={$resetForm.token} />
+				<!-- Reset Password -->
+				{#if PWforgot && PWreset}
+					<form
+						method="POST"
+						action="?/resetPW"
+						use:resetEnhance
+						bind:this={formElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+						inert={active !== 0}
+					>
+						<!-- Hidden fields -->
+						<input type="hidden" name="email" bind:value={$resetForm.email} />
+						<input type="hidden" name="token" bind:value={$resetForm.token} />
 
-							<!-- Password field -->
-							<FloatingInput
-								id="passwordreset"
-								name="password"
-								type="password"
-								tabindex={passwordTabIndex}
-								bind:value={$resetForm.password}
-								{...$resetConstraints.password}
-								{showPassword}
-								autocomplete="new-password"
-								label={m.form_password()}
-								icon="mdi:lock"
-								iconColor="black"
-								textColor="black"
-							/>
-							{#if $resetErrors.password}
-								<span class="invalid text-xs text-error-500">
-									{$resetErrors.password}
-								</span>
-							{/if}
+						<!-- Password field -->
+						<FloatingInput
+							id="passwordreset"
+							name="password"
+							type="password"
+							tabindex={passwordTabIndex}
+							bind:value={$resetForm.password}
+							{...$resetConstraints.password}
+							{showPassword}
+							autocomplete="new-password"
+							label={m.form_password()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $resetErrors.password}
+							<span class="invalid text-xs text-error-500">
+								{$resetErrors.password}
+							</span>
+						{/if}
 
-							<!-- Confirm Password field -->
-							<FloatingInput
-								id="confirm_passwordreset"
-								name="confirm_password"
-								type="password"
-								tabindex={confirmPasswordTabIndex}
-								bind:value={$resetForm.confirm_password}
-								{showPassword}
-								autocomplete="new-password"
-								label={m.confirm_password?.() || m.form_confirmpassword?.()}
-								icon="mdi:lock"
-								iconColor="black"
-								textColor="black"
-							/>
+						<!-- Confirm Password field -->
+						<FloatingInput
+							id="confirm_passwordreset"
+							name="confirm_password"
+							type="password"
+							tabindex={confirmPasswordTabIndex}
+							bind:value={$resetForm.confirm_password}
+							{showPassword}
+							autocomplete="new-password"
+							label={m.confirm_password?.() || m.form_confirmpassword?.()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+						/>
 
-							<!-- Password Strength Indicator -->
-							<PasswordStrength password={$resetForm.password} confirmPassword={$resetForm.confirm_password} />
-							<!-- Registration Token -->
-							<FloatingInput
-								id="tokenresetPW"
-								name="token"
-								type="password"
-								bind:value={$resetForm.token}
-								{showPassword}
-								label={m.registration_token?.() || m.signin_registrationtoken?.()}
-								icon="mdi:lock"
-								iconColor="black"
-								textColor="black"
-								required
-							/>
+						<!-- Password Strength Indicator -->
+						<PasswordStrength password={$resetForm.password} confirmPassword={$resetForm.confirm_password} />
+						<!-- Registration Token -->
+						<FloatingInput
+							id="tokenresetPW"
+							name="token"
+							type="password"
+							bind:value={$resetForm.token}
+							{showPassword}
+							label={m.registration_token?.() || m.signin_registrationtoken?.()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+							required
+						/>
 
-							{#if $resetErrors.token}
-								<span class="invalid text-xs text-error-500">
-									{$resetErrors.token}
-								</span>
-							{/if}
+						{#if $resetErrors.token}
+							<span class="invalid text-xs text-error-500">
+								{$resetErrors.token}
+							</span>
+						{/if}
 
-							{#if $resetAllErrors && !$resetErrors}
-								<span class="invalid text-xs text-error-500">
-									{$resetAllErrors}
-								</span>
-							{/if}
+						{#if $resetAllErrors && !$resetErrors}
+							<span class="invalid text-xs text-error-500">
+								{$resetAllErrors}
+							</span>
+						{/if}
 
-							<input type="email" name="email" bind:value={$resetForm.email} hidden />
+						<input type="email" name="email" bind:value={$resetForm.email} hidden />
 
-							<div class="mt-4 flex items-center justify-between">
-								<button type="submit" aria-label={m.signin_savenewpassword()} class="variant-filled-surface btn ml-2 mt-6">
-									{m.signin_savenewpassword()}
-									<!-- Optimized loading indicators -->
-									{#if isSubmitting}
-										<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
-									{/if}
-								</button>
+						<div class="mt-4 flex items-center justify-between">
+							<button type="submit" aria-label={m.signin_savenewpassword()} class="variant-filled-surface btn ml-2 mt-6">
+								{m.signin_savenewpassword()}
+								<!-- Optimized loading indicators -->
+								{#if isSubmitting}
+									<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />
+								{/if}
+							</button>
 
-								<!-- Back button  -->
-								<button
-									type="button"
-									aria-label={m.button_back()}
-									class="variant-filled-surface btn-icon"
-									onclick={() => {
-										PWforgot = false;
-										PWreset = false;
-									}}
-								>
-									<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
-								</button>
-							</div>
-						</form>
-					{/if}
-				{:else}
-					<button onclick={onClick} type="button" aria-label="Signup" class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500">
-						<p class="font-bold text-error-500">{m.signin_no_user()}</p>
-						<p>
-							{m.signin_signup_first_admin()}
-						</p>
-					</button>
+							<!-- Back button  -->
+							<button
+								type="button"
+								aria-label={m.button_back()}
+								class="variant-filled-surface btn-icon"
+								onclick={() => {
+									PWforgot = false;
+									PWreset = false;
+								}}
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
+							</button>
+						</div>
+					</form>
 				{/if}
 			</div>
 		</div>

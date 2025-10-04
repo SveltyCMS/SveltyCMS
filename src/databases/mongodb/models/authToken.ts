@@ -18,8 +18,8 @@ import mongoose, { Schema } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
-import type { authDBInterface, DatabaseResult } from '../authDBInterface';
-import type { Token } from '../types';
+import type { DatabaseResult } from '@src/databases/dbInterface';
+import type { Token } from '@src/databases/auth/types';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
@@ -42,7 +42,11 @@ export const TokenSchema = new Schema(
 
 interface TokenDocument extends Token, Document {}
 
-export class TokenAdapter implements Partial<authDBInterface> {
+/**
+ * TokenAdapter class handles all token-related database operations.
+ * This is a partial implementation that will be composed with other adapters.
+ */
+export class TokenAdapter {
 	private TokenModel: Model<TokenDocument>;
 
 	constructor() {

@@ -1,5 +1,5 @@
 /**
- * @file src/auth/constants.ts
+ * @file src/databases/auth/constants.ts
  * @description Authentication constants that are safe to import on both client and server
  *
  * This file contains constants that don't depend on server-side modules

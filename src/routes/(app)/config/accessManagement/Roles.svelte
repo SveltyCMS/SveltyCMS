@@ -20,7 +20,7 @@ It provides the following functionality:
 	// Store
 
 	// Auth
-	import type { Role } from '@src/auth/types';
+	import type { Role } from '@src/databases/auth/types';
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import RoleModal from './RoleModal.svelte';

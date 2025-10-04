@@ -23,11 +23,11 @@ import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
 // Adapter
-import { getAllPermissions } from '../permissions';
+import { getAllPermissions } from '@src/databases/auth/permissions';
 
 // Types
-import type { Permission, Role, User } from '..';
-import type { authDBInterface, DatabaseResult, PaginationOption } from '../authDBInterface';
+import type { Permission, Role, User } from '@src/databases/auth';
+import type { DatabaseResult, PaginationOption } from '@src/databases/dbInterface';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
@@ -65,7 +65,11 @@ export const UserSchema = new Schema(
 	}
 );
 
-export class UserAdapter implements Partial<authDBInterface> {
+/**
+ * UserAdapter class handles all user-related database operations.
+ * This is a partial implementation that will be composed with other adapters.
+ */
+export class UserAdapter {
 	private UserModel: Model<User>;
 
 	constructor() {

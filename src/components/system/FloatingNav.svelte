@@ -26,7 +26,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import { linear } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';

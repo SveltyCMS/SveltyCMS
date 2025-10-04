@@ -36,7 +36,7 @@ import { logger } from '@utils/logger.svelte';
 // Permissions
 
 // Types
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 
 /**
  * Creates a clean GraphQL type name from collection info

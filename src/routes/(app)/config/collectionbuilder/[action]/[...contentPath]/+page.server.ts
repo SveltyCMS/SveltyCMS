@@ -34,10 +34,10 @@ import { compile } from '@src/utils/compilation/compile';
 import widgets from '@widgets';
 
 // Auth
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { permissionConfigs } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
+import { permissionConfigs } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
-import { permissions } from '@src/auth/permissions';
+import { permissions } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

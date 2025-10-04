@@ -89,7 +89,7 @@
 		"@types/nodemailer": "^7.0.2",
 		"autoprefixer": "^10.4.21",
 		"drizzle-kit": "^0.31.5",
-		"eslint": "^9.36.0",
+		"eslint": "^9.37.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.12.4",
 		"globals": "^16.4.0",

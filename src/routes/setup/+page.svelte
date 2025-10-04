@@ -34,7 +34,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { locales as paraglideLocales } from '@src/paraglide/runtime';
-	// utils
+	// Utils - Import full ISO 639-1 language list for setup
+	import iso6391 from '@utils/iso639-1.json';
 	import { setupAdminSchema } from '@utils/formSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { systemConfigSchema } from '@utils/setupValidationSchemas';
@@ -155,17 +156,31 @@
 	});
 
 	const availableLanguages = $derived.by<string[]>(() => {
-		let normalized: string[] = [...paraglideLocales]; // Default
+		// During setup, use the FULL ISO 639-1 language list (100+ languages)
+		// This allows users to choose ANY language during initial setup
+		// After setup, the app will use the configured LOCALES from database
+
 		const raw = publicEnv.LOCALES;
+
+		// During setup mode, show ALL available languages from ISO 639-1
+		// This gives users the full choice of languages to configure
+		if (raw === undefined || raw === null) {
+			const allLanguages = iso6391.map((lang) => lang.code);
+			return allLanguages.sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+		}
+
+		// After setup is complete, use the configured locales from database
+		let normalized: string[] = [];
 		if (typeof raw === 'string' && (raw as string).trim()) {
 			normalized = (raw as string).split(/[ ,;]+/).filter(Boolean);
 		} else if (Array.isArray(raw) && raw.length > 0) {
 			normalized = raw.filter((item): item is string => typeof item === 'string');
 		}
 
-		// If we only have a single locale (likely setup mode default), fall back to full Paraglide list
+		// If we only have limited locales, fall back to full ISO 639-1 list for setup
 		if (normalized.length <= 1) {
-			normalized = [...paraglideLocales];
+			const allLanguages = iso6391.map((lang) => lang.code);
+			return allLanguages.sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 		}
 
 		return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));

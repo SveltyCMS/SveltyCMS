@@ -23,7 +23,7 @@ import { getFieldName } from '@utils/utils';
 import widgets from '@widgets';
 
 // Types
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 import type { FieldInstance } from '@src/content/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 

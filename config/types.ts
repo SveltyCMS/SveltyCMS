@@ -19,7 +19,7 @@ import { array, boolean, literal, maxValue, minLength, minValue, number, object,
  */
 export const privateConfigSchema = object({
 	// --- Database configuration (Essential for startup) ---
-	DB_TYPE: union([literal('mongodb'), literal('mariadb')]), // Define the database type (e.g., 'mongodb')
+	DB_TYPE: literal('mongodb'), // Define the database type (currently only 'mongodb' supported)
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')), // Database host address
 	DB_PORT: pipe(number(), minValue(1)), // Database port number
 	DB_NAME: pipe(string(), minLength(1, 'Database name is required.')), // Database name
@@ -77,6 +77,14 @@ export const privateConfigSchema = object({
 		)
 	),
 	MEDIA_FOLDER: optional(pipe(string(), minLength(1))),
+
+	// --- Cloud Storage Credentials (Private - never expose to client) ---
+	MEDIA_CLOUD_ACCESS_KEY: optional(pipe(string(), minLength(1))), // Access key for S3/R2/compatible services
+	MEDIA_CLOUD_SECRET_KEY: optional(pipe(string(), minLength(1))), // Secret key for S3/R2/compatible services
+	MEDIA_CLOUDINARY_CLOUD_NAME: optional(pipe(string(), minLength(1))), // Cloudinary cloud name
+	MEDIA_CLOUDINARY_API_KEY: optional(pipe(string(), minLength(1))), // Cloudinary API key
+	MEDIA_CLOUDINARY_API_SECRET: optional(pipe(string(), minLength(1))), // Cloudinary API secret
+
 	TWITCH_CLIENT_ID: optional(pipe(string(), minLength(1))),
 	TWITCH_TOKEN: optional(pipe(string(), minLength(1))),
 	TIKTOK_TOKEN: optional(pipe(string(), minLength(1)))
@@ -104,12 +112,18 @@ export const publicConfigSchema = object({
 	LOCALES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available interface locales (from inlang)
 	// --- Media configuration ---
 
-	MEDIA_FOLDER: pipe(string(), minLength(1)), // Server path where media files are stored
+	MEDIA_STORAGE_TYPE: union([literal('local'), literal('s3'), literal('r2'), literal('cloudinary')]), // Type of media storage
+	MEDIA_FOLDER: pipe(string(), minLength(1)), // Local: Server path where media files are stored | Cloud: Bucket name or container
 	MEDIA_OUTPUT_FORMAT_QUALITY: object({
 		format: union([literal('original'), literal('jpg'), literal('webp'), literal('avif')]), // Image format for output
 		quality: pipe(number(), minValue(1), maxValue(100)) // Image quality (1-100) for compressed formats
 	}),
-	MEDIASERVER_URL: optional(string()), // Optional: URL of a separate media server
+	MEDIASERVER_URL: optional(string()), // Optional: URL of a separate media server or CDN endpoint
+
+	// --- Cloud Storage Configuration (Optional - only needed if MEDIA_STORAGE_TYPE is not 'local') ---
+	MEDIA_CLOUD_REGION: optional(string()), // Cloud storage region (e.g., 'us-east-1', 'auto' for R2)
+	MEDIA_CLOUD_ENDPOINT: optional(string()), // Custom endpoint URL for S3-compatible services (R2, MinIO, etc.)
+	MEDIA_CLOUD_PUBLIC_URL: optional(string()), // Public URL for accessing uploaded files (CDN or bucket URL)
 	IMAGE_SIZES: object({}), // Defines image sizes for automatic resizing (e.g., { sm: 600, md: 900 })
 	MAX_FILE_SIZE: optional(pipe(number(), minValue(1))), // Maximum file size for uploads in bytes
 	BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))), // Body size limit for server requests in bytes
@@ -148,10 +162,10 @@ export const publicConfigSchema = object({
 
 /**
  * Defines the structure for database connection configuration used during setup.
- * Supports MongoDB (including Atlas SRV), PostgreSQL, MySQL, and MariaDB.
+ * Currently supports MongoDB (including Atlas SRV). SQL databases planned for future releases.
  */
 export const databaseConfigSchema = object({
-	type: union([literal('mongodb'), literal('mongodb+srv'), literal('postgresql'), literal('mysql'), literal('mariadb')]),
+	type: union([literal('mongodb'), literal('mongodb+srv')]),
 	host: pipe(string(), minLength(1)),
 	port: pipe(number(), minValue(1)),
 	name: pipe(string(), minLength(1)),

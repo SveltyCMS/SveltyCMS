@@ -18,8 +18,8 @@ import { error, redirect, type Handle } from '@sveltejs/kit';
 import { cacheService } from '@src/databases/CacheService';
 // Auth
 import { initializeRoles, roles } from '@root/config/roles';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import type { Role, User } from '@src/auth/types';
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
+import type { Role, User } from '@src/databases/auth/types';
 import { auth } from '@src/databases/db';
 
 // System Logger
@@ -203,7 +203,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 		try {
 			// Import contentManager and hasPermissionWithRoles dynamically to avoid circular deps
 			const { contentManager } = await import('@src/content/ContentManager');
-			const { hasPermissionWithRoles } = await import('@src/auth/permissions');
+			const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
 
 			const firstCollection = contentManager.getFirstCollection();
 			if (firstCollection) {

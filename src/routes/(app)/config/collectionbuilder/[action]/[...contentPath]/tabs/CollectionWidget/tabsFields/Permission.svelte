@@ -11,7 +11,7 @@ Features:
 <script lang="ts">
 	// Components
 	import PermissionsSetting from '@components/PermissionsSetting.svelte';
-	import type { PermissionAction } from '@src/auth/types';
+	import type { PermissionAction } from '@src/databases/auth/types';
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { targetWidget } from '@src/stores/collectionStore.svelte';

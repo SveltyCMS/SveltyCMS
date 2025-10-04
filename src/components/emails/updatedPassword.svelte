@@ -7,8 +7,6 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@src/stores/globalSettings';
-	// Components
-	import SiteName from '@components/SiteName.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -22,7 +20,7 @@
 		languageTag?: string;
 	}
 
-	let { username = '', tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
+	let { username = '', languageTag = systemLanguage.value }: Props = $props();
 </script>
 
 <Html lang={languageTag}>

@@ -20,7 +20,7 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

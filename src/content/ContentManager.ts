@@ -132,6 +132,10 @@ class ContentManager {
 		if (this.initState !== 'initialized') {
 			throw new Error('ContentManager is not initialized.');
 		}
+
+		logger.debug('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
+		logger.debug('[ContentManager] getContentStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.entries()));
+
 		// Create a structured, nested tree from the flat map for UI consumption.
 		const nodes = new Map<string, ContentNode>(
 			Array.from(this.contentNodeMap.entries()).map(([id, node]) => [id, { ...node, children: [] as ContentNode[] }])
@@ -145,6 +149,10 @@ class ContentManager {
 				tree.push(node as ContentNode);
 			}
 		}
+
+		logger.debug('[ContentManager] getContentStructure - tree size:', tree.length);
+		logger.debug('[ContentManager] getContentStructure - tree:', tree);
+
 		return tree;
 	}
 
@@ -160,16 +168,28 @@ class ContentManager {
 		nodeType: 'category' | 'collection';
 		order?: number;
 		translations?: Array<{ languageTag: string; translationName: string }>;
-		children?: Array<any>;
+		children?: unknown[];
 	}> {
 		if (this.initState !== 'initialized') {
 			throw new Error('ContentManager is not initialized.');
 		}
 
 		const fullStructure = this.getContentStructure();
+		logger.debug('[ContentManager] getNavigationStructure - fullStructure:', fullStructure);
 
 		// Strip out collection definitions, keep only metadata + translations for localization
-		const stripToNavigation = (nodes: ContentNode[]): any[] => {
+		interface NavigationNode {
+			_id: string;
+			name: string;
+			path?: string;
+			icon?: string;
+			nodeType: 'category' | 'collection';
+			order?: number;
+			translations?: { languageTag: string; translationName: string }[];
+			children?: NavigationNode[];
+		}
+
+		const stripToNavigation = (nodes: ContentNode[]): NavigationNode[] => {
 			return nodes.map((node) => ({
 				_id: node._id,
 				name: node.name,
@@ -182,7 +202,9 @@ class ContentManager {
 			}));
 		};
 
-		return stripToNavigation(fullStructure);
+		const result = stripToNavigation(fullStructure);
+		logger.debug('[ContentManager] getNavigationStructure - result:', result);
+		return result;
 	}
 
 	/**
@@ -269,11 +291,17 @@ class ContentManager {
 	 * Synchronizes schemas from files with the database and builds the in-memory maps.
 	 */
 	private async _reconcileAndBuildStructure(schemas: Schema[]): Promise<void> {
+		logger.debug('[ContentManager] _reconcileAndBuildStructure - schemas count:', schemas.length);
+
 		const dbAdapter = await getDbAdapter();
 		if (!dbAdapter) throw new Error('Database adapter is not available');
 
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
+		logger.debug('[ContentManager] _reconcileAndBuildStructure - fileCategoryNodes size:', fileCategoryNodes.size);
+
 		const dbResult = await dbAdapter.content.nodes.getStructure('flat');
+		logger.debug('[ContentManager] _reconcileAndBuildStructure - dbResult:', dbResult);
+
 		const dbNodeMap = new Map<string, ContentNode>(
 			dbResult.success
 				? dbResult.data.filter((node: ContentNode) => typeof node.path === 'string').map((node: ContentNode) => [node.path as string, node])
@@ -313,6 +341,7 @@ class ContentManager {
 				order: dbNode?.order ?? 999,
 				nodeType: 'collection',
 				translations: schema.translations ?? dbNode?.translations ?? [],
+				// Store FULL schema in memory for getCollection() to work
 				collectionDef: schema,
 				tenantId: schema.tenantId,
 				createdAt: dbNode?.createdAt ?? now,
@@ -329,11 +358,29 @@ class ContentManager {
 			}
 		});
 
-		// Batch upsert to DB
+		// Batch upsert to DB with MINIMAL data (exclude heavy collectionDef.fields)
 		if (operations.length > 0) {
-			await dbAdapter.content.nodes.bulkUpdate(
-				operations.filter((op) => typeof op.path === 'string').map((op) => ({ path: op.path as string, changes: op }))
-			);
+			const minimalOperations = operations.map((op) => ({
+				path: op.path as string,
+				changes: {
+					...op,
+					// Store only minimal metadata in DB, not full field definitions
+					// Full schema lives in memory (contentNodeMap) and is loaded from files on startup
+					collectionDef: op.collectionDef
+						? ({
+								_id: op.collectionDef._id,
+								name: op.collectionDef.name,
+								icon: op.collectionDef.icon,
+								status: op.collectionDef.status,
+								path: op.collectionDef.path,
+								tenantId: op.collectionDef.tenantId,
+								fields: [] // Empty array to satisfy Schema type, not used for navigation
+							} as Schema)
+						: undefined
+				}
+			}));
+
+			await dbAdapter.content.nodes.bulkUpdate(minimalOperations);
 		}
 
 		// Clear and rebuild local maps
@@ -345,6 +392,10 @@ class ContentManager {
 				this.pathLookupMap.set(node.path, node._id);
 			}
 		}
+
+		logger.debug('[ContentManager] _reconcileAndBuildStructure - operations count:', operations.length);
+		logger.debug('[ContentManager] _reconcileAndBuildStructure - contentNodeMap size after rebuild:', this.contentNodeMap.size);
+		logger.debug('[ContentManager] _reconcileAndBuildStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.keys()));
 	}
 
 	/**

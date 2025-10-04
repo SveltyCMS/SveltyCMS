@@ -5,7 +5,7 @@
 import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import type { RequestHandler } from './$types';
-import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 export const POST: RequestHandler = async ({ locals, request }) => {

@@ -59,6 +59,9 @@ import { MongoThemeMethods } from './methods/themeMethods';
 import { MongoWidgetMethods } from './methods/widgetMethods';
 import { MongoQueryBuilder } from './MongoQueryBuilder';
 
+// Auth adapter composition
+import { composeMongoAuthAdapter } from './methods/authComposition';
+
 import { logger } from '@utils/logger.svelte';
 import type {
 	ContentNode,
@@ -279,15 +282,51 @@ export class MongoDBAdapter implements IDBAdapter {
 	}
 
 	private _initializeWrappers(): void {
-		// AUTH
-		this.auth = {
-			setupAuthModels: async () => {
-				const result = await this._wrapResult(() => this._auth.setupAuthModels());
-				if (!result.success) throw new Error(result.error.message);
-			}
-		};
+		// AUTH - Compose from the auth adapters
+		const authAdapter = composeMongoAuthAdapter();
 
-		// SYSTEM
+		this.auth = {
+			// Setup method for model initialization
+			setupAuthModels: () => this._wrapResult(() => this._auth.setupAuthModels()),
+			
+			// User Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
+			createUser: (user) => authAdapter.createUser(user),
+			updateUserAttributes: (userId, attributes) => authAdapter.updateUserAttributes(userId, attributes),
+			deleteUser: (userId) => authAdapter.deleteUser(userId),
+			getUserById: (userId) => authAdapter.getUserById(userId),
+			getUserByEmail: (email) => authAdapter.getUserByEmail(email),
+			getAllUsers: (pagination) => authAdapter.getAllUsers(pagination),
+			getUserCount: () => authAdapter.getUserCount(),
+			deleteUsers: (userIds) => authAdapter.deleteUsers?.(userIds),
+			blockUsers: (userIds) => authAdapter.blockUsers?.(userIds),
+			unblockUsers: (userIds) => authAdapter.unblockUsers?.(userIds),
+
+			// Session Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
+			createSession: (session) => authAdapter.createSession(session),
+			updateSessionExpiry: (sessionId, expiresAt) => authAdapter.updateSessionExpiry(sessionId, expiresAt),
+			deleteSession: (sessionId) => authAdapter.deleteSession(sessionId),
+			deleteExpiredSessions: () => authAdapter.deleteExpiredSessions(),
+			validateSession: (sessionId) => authAdapter.validateSession(sessionId),
+			invalidateAllUserSessions: (userId) => authAdapter.invalidateAllUserSessions(userId),
+			getActiveSessions: (userId, pagination) => authAdapter.getActiveSessions(userId, pagination),
+			getAllActiveSessions: (pagination) => authAdapter.getAllActiveSessions(pagination),
+			getSessionTokenData: (sessionId) => authAdapter.getSessionTokenData(sessionId),
+			rotateToken: (oldSessionId) => authAdapter.rotateToken(oldSessionId),
+			cleanupRotatedSessions: () => authAdapter.cleanupRotatedSessions?.(),
+
+			// Token Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
+			createToken: (token) => authAdapter.createToken(token),
+			updateToken: (tokenValue, updates) => authAdapter.updateToken(tokenValue, updates),
+			validateToken: (tokenValue, type) => authAdapter.validateToken(tokenValue, type),
+			consumeToken: (tokenValue) => authAdapter.consumeToken(tokenValue),
+			getTokenData: (tokenValue) => authAdapter.getTokenByValue(tokenValue),
+			getTokenByValue: (tokenValue) => authAdapter.getTokenByValue(tokenValue),
+			getAllTokens: (pagination) => authAdapter.getAllTokens(pagination),
+			deleteExpiredTokens: () => authAdapter.deleteExpiredTokens(),
+			deleteTokens: (tokenIds) => authAdapter.deleteTokens?.(tokenIds),
+			blockTokens: (tokenIds) => authAdapter.blockTokens?.(tokenIds),
+			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds)
+		};		// SYSTEM
 		this.system = {
 			setupSystemModels: async () => {
 				/* models already set up */

@@ -26,7 +26,7 @@ This component provides a user interface for managing 2FA settings:
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

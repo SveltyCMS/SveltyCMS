@@ -24,8 +24,8 @@ import { userResolvers, userTypeDefs } from './resolvers/users';
 import { cacheService } from '@src/databases/CacheService';
 
 // Auth / Permission
-import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
-import { PermissionAction, PermissionType } from '@src/auth/types';
+import { hasPermissionWithRoles, registerPermission } from '@src/databases/auth/permissions';
+import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 
 // Roles Configuration
 import { roles } from '@root/config/roles';

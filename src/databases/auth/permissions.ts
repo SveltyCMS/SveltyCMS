@@ -1,5 +1,5 @@
 /**
- * @file src/auth/permissions.ts
+ * @file src/databases/auth/permissions.ts
  * @description Permission utilities and checking functions
  *
  * This file contains utility functions for permission checking and management

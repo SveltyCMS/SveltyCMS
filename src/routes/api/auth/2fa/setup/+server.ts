@@ -6,7 +6,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.svelte';
-import { getDefaultTwoFactorAuthService } from '@auth/twoFactorAuth';
+import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
 import { auth } from '@databases/db';
 
 export const POST: RequestHandler = async ({ locals }) => {

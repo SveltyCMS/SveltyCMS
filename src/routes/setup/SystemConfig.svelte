@@ -152,11 +152,13 @@ Key Features:
 	});
 	// Per-label popup settings (click for better mobile support; still discoverable via icon hover cursor)
 	const popupSiteName: PopupSettings = { event: 'click', target: 'popupSiteName', placement: 'top' };
+	const popupHostProd: PopupSettings = { event: 'click', target: 'popupHostProd', placement: 'top' };
 	const popupDefaultSystem: PopupSettings = { event: 'click', target: 'popupDefaultSystem', placement: 'top' };
 	const popupSystemLanguages: PopupSettings = { event: 'click', target: 'popupSystemLanguages', placement: 'top' };
 	const popupContentLanguages: PopupSettings = { event: 'click', target: 'popupContentLanguages', placement: 'top' };
 	const popupDefaultContent: PopupSettings = { event: 'click', target: 'popupDefaultContent', placement: 'top' };
 	const popupMediaPath: PopupSettings = { event: 'click', target: 'popupMediaPath', placement: 'top' };
+	const popupMediaFolder: PopupSettings = { event: 'click', target: 'popupMediaFolder', placement: 'top' };
 </script>
 
 <div class="fade-in">
@@ -171,10 +173,11 @@ Key Features:
 		<!-- Basic Site Settings -->
 		<section>
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-				<div>
+				<!-- Site Name & Production URL Group -->
+				<div class="space-y-3">
 					<label for="site-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:web" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_system_site_name?.() || 'Site Name'}</span>
+						<span>{m.setup_system_site_name?.() || 'CMS Name'}</span>
 						<button
 							type="button"
 							tabindex="-1"
@@ -201,17 +204,47 @@ Key Features:
 						class="input w-full rounded {validationErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
 					/>
 					{#if validationErrors.siteName}<div class="mt-1 text-xs text-error-500">{validationErrors.siteName}</div>{/if}
+
+					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span>Production URL</span>
+						<button
+							type="button"
+							tabindex="-1"
+							use:popup={popupHostProd}
+							aria-label="Help: Production URL"
+							class="ml-1 text-slate-400 hover:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+						</button>
+					</label>
+					<div
+						data-popup="popupHostProd"
+						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+					>
+						<p>The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links.</p>
+						<div class="arrow bg-surface-50 dark:bg-surface-700"></div>
+					</div>
+					<input
+						id="host-prod"
+						bind:value={systemSettings.hostProd}
+						type="url"
+						placeholder="https://mysite.com"
+						class="input w-full rounded {validationErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
+					/>
+					{#if validationErrors.hostProd}<div class="mt-1 text-xs text-error-500">{validationErrors.hostProd}</div>{/if}
 				</div>
-				<!-- MediaFolder -->
-				<div>
-					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>Media Storage Path</span>
+
+				<!-- Media Storage Configuration Group -->
+				<div class="space-y-3">
+					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:cloud-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span>Media Storage Type</span>
 						<button
 							type="button"
 							tabindex="-1"
 							use:popup={popupMediaPath}
-							aria-label="Help: Media Storage Path"
+							aria-label="Help: Media Storage Type"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
 							<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
@@ -224,17 +257,56 @@ Key Features:
 						<p>{m.setup_help_media_path()}</p>
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
+
+					<select id="media-storage-type" bind:value={systemSettings.mediaStorageType} class="input w-full rounded">
+						<option value="local">📁 Local Storage</option>
+						<option value="s3">☁️ Amazon S3</option>
+						<option value="r2">☁️ Cloudflare R2</option>
+						<option value="cloudinary">☁️ Cloudinary</option>
+					</select>
+
+					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span>{systemSettings.mediaStorageType === 'local' ? 'Media Folder Path' : 'Bucket/Cloud Name'}</span>
+						<button
+							type="button"
+							tabindex="-1"
+							use:popup={popupMediaFolder}
+							aria-label="Help: Media Folder"
+							class="ml-1 text-slate-400 hover:text-primary-500"
+						>
+							<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+						</button>
+					</label>
+					<div
+						data-popup="popupMediaFolder"
+						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+					>
+						<p>
+							For local storage: specify the folder path where media files will be stored (e.g., ./mediaFolder). For cloud storage: enter the bucket
+							or container name.
+						</p>
+						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+					</div>
 					<input
 						id="media-folder"
 						bind:value={systemSettings.mediaFolder}
 						type="text"
-						placeholder={m.setup_system_media_path_placeholder?.() || './mediaFolder'}
+						placeholder={systemSettings.mediaStorageType === 'local' ? './mediaFolder' : 'my-bucket-name'}
 						class="input w-full rounded"
 					/>
+
+					{#if systemSettings.mediaStorageType !== 'local'}
+						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20">
+							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
+								<iconify-icon icon="mdi:information-outline" width="16"></iconify-icon>
+								<strong>Note:</strong> Cloud storage credentials (API keys, secrets, regions) must be configured in System Settings after setup is complete.
+							</p>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</section>
-
 		<!-- Languages -->
 		<section class="space-y-6">
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">

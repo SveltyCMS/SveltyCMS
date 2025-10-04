@@ -1,18 +1,27 @@
 <!--
 @file src/routes/(app)/dashboard/BaseWidget.svelte
 @component
-**Base widget component providing common functionality for all dashboard widgets**
+**Enhanced base widget with enterprise features**
+
+New Features:
+- Manual refresh with loading state
+- Client-side caching with TTL
+- Automatic retry with exponential backoff
+- Last update timestamp
+- Enhanced error handling
+- All features opt-in and backward compatible
 -->
 <script lang="ts">
-	// Define Snippet type locally to avoid import issues
 	type Snippet<T = any> = (args: T) => any;
-
 	type WidgetSize = { w: number; h: number };
 
 	type ChildSnippetProps = {
 		data: any;
 		updateWidgetState: (key: string, value: any) => void;
 		getWidgetState: (key: string) => any;
+		refresh?: () => Promise<void>;
+		isLoading?: boolean;
+		error?: string | null;
 	};
 
 	const {
@@ -28,7 +37,13 @@
 		resizable = true,
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
-		onDataLoaded = (_fetchedData: any) => {}
+		onDataLoaded = (_fetchedData: any) => {},
+		// Enhanced features (all optional)
+		showRefreshButton = false,
+		cacheKey = undefined as string | undefined,
+		cacheTTL = 300000,
+		retryCount = 3,
+		retryDelay = 1000
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -43,6 +58,11 @@
 		onCloseRequest?: () => void;
 		initialData?: any;
 		onDataLoaded?: (fetchedData: any) => void;
+		showRefreshButton?: boolean;
+		cacheKey?: string;
+		cacheTTL?: number;
+		retryCount?: number;
+		retryDelay?: number;
 		[key: string]: any;
 	}>();
 
@@ -50,51 +70,163 @@
 	let loading = $state(endpoint && !passedInitialData);
 	let error = $state<string | null>(null);
 	let internalData = $state(passedInitialData);
+	let lastFetchTime = $state<number>(0);
+	let currentRetry = $state(0);
 
-	// Debug effect to check size prop
-	$effect(() => {
-		console.log(`Widget "${label}" current size:`, size);
-	});
+	// Cache management (localStorage)
+	function getCachedData(): any | null {
+		if (!cacheKey || typeof window === 'undefined') return null;
+		try {
+			const cached = localStorage.getItem(`widget_cache_${cacheKey}`);
+			if (!cached) return null;
 
-	// Effect for fetching data from an endpoint
+			const { data, timestamp } = JSON.parse(cached);
+			if (Date.now() - timestamp > cacheTTL) {
+				localStorage.removeItem(`widget_cache_${cacheKey}`);
+				return null;
+			}
+			return data;
+		} catch {
+			return null;
+		}
+	}
+
+	function setCachedData(data: any) {
+		if (!cacheKey || typeof window === 'undefined') return;
+		try {
+			localStorage.setItem(
+				`widget_cache_${cacheKey}`,
+				JSON.stringify({
+					data,
+					timestamp: Date.now()
+				})
+			);
+		} catch (err) {
+			console.warn(`Failed to cache widget data for ${label}:`, err);
+		}
+	}
+
+	// Enhanced fetch with retry logic
+	async function fetchData(retryAttempt = 0): Promise<void> {
+		if (!endpoint) {
+			loading = false;
+			return;
+		}
+
+		// Check cache first on initial load
+		if (retryAttempt === 0) {
+			const cached = getCachedData();
+			if (cached) {
+				internalData = cached;
+				onDataLoaded(cached);
+				loading = false;
+				return;
+			}
+		}
+
+		loading = true;
+		error = null;
+		currentRetry = retryAttempt;
+
+		try {
+			const res = await fetch(`${endpoint}?_=${Date.now()}`);
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+			}
+
+			const newData = await res.json();
+			internalData = newData;
+			lastFetchTime = Date.now();
+			onDataLoaded(newData);
+			setCachedData(newData);
+			currentRetry = 0;
+			error = null;
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : 'Failed to fetch data';
+
+			// Retry logic with exponential backoff
+			if (retryAttempt < retryCount) {
+				console.warn(`[${label}] Retry ${retryAttempt + 1}/${retryCount}:`, errorMsg);
+				const delay = retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return fetchData(retryAttempt + 1);
+			}
+
+			error = errorMsg;
+			console.error(`[${label}] Failed after ${retryCount} attempts:`, error);
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Manual refresh function
+	async function refresh() {
+		// Clear cache on manual refresh
+		if (cacheKey && typeof window !== 'undefined') {
+			localStorage.removeItem(`widget_cache_${cacheKey}`);
+		}
+		currentRetry = 0;
+		await fetchData();
+	}
+
+	// Effect for fetching data with polling
 	$effect(() => {
 		if (!endpoint) {
 			loading = false;
 			return;
 		}
+
 		let isActive = true;
 		let timerId: NodeJS.Timeout;
-		const fetchData = async () => {
-			if (!isActive) return;
-			loading = true;
-			error = null;
-			try {
-				const res = await fetch(`${endpoint}?_=${Date.now()}`);
-				if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-				const newData = await res.json();
-				if (isActive) {
-					internalData = newData;
-					onDataLoaded(newData);
-				}
-			} catch (err) {
-				if (isActive) {
-					error = err instanceof Error ? err.message : 'Failed to fetch data';
-					console.error(`Error fetching data for ${label}:`, error);
-				}
-			} finally {
-				if (isActive) loading = false;
-			}
-		};
-		fetchData();
-		if (pollInterval > 0) timerId = setInterval(fetchData, pollInterval);
+
+		// Initial fetch
+		(async () => {
+			if (isActive) await fetchData();
+		})();
+
+		// Setup polling if interval specified
+		if (pollInterval > 0) {
+			timerId = setInterval(() => {
+				if (isActive) fetchData();
+			}, pollInterval);
+		}
+
 		return () => {
 			isActive = false;
 			clearInterval(timerId);
 		};
 	});
 
+	// Widget state management
+	function updateWidgetState(key: string, value: any) {
+		widgetState = { ...widgetState, [key]: value };
+	}
+
+	function getWidgetState(key: string) {
+		return widgetState[key];
+	}
+
+	// UI helpers
+	function getSizeLabel(s: WidgetSize): string {
+		return `${s.w}×${s.h}`;
+	}
+
+	function getLastUpdateText(): string {
+		if (!lastFetchTime) return '';
+		const seconds = Math.floor((Date.now() - lastFetchTime) / 1000);
+		if (seconds < 60) return `${seconds}s ago`;
+		const minutes = Math.floor(seconds / 60);
+		if (minutes < 60) return `${minutes}m ago`;
+		const hours = Math.floor(minutes / 60);
+		return `${hours}h ago`;
+	}
+
+	// Resize and menu logic
 	let widgetEl: HTMLElement | undefined = $state();
 	let showSizeMenu = $state(false);
+	let isResizing = $state(false);
+	let previewSize = $state<WidgetSize | null>(null);
+
 	const availableSizes: WidgetSize[] = [
 		{ w: 1, h: 1 },
 		{ w: 2, h: 1 },
@@ -114,19 +246,13 @@
 		{ w: 4, h: 4 }
 	];
 
-	// --- Resizing Logic ---
-	let isResizing = $state(false);
-	let previewSize = $state<WidgetSize | null>(null);
-
 	function handleResizePointerDown(e: PointerEvent) {
 		if (!resizable || !widgetEl) return;
 		e.preventDefault();
 		e.stopPropagation();
 
-		// Get direction from the clicked element or its parent
 		const target = e.target as HTMLElement;
 		const direction = target.dataset.direction || target.closest('[data-direction]')?.getAttribute('data-direction');
-		console.log('Resize handle clicked:', direction);
 
 		isResizing = true;
 		const startX = e.clientX;
@@ -142,7 +268,7 @@
 		const gridCols = 4;
 		const totalGapWidth = gridGap * (gridCols - 1);
 		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / gridCols;
-		const singleRowHeight = 180; // Updated to match the CSS grid-auto-rows value
+		const singleRowHeight = 180;
 
 		const currentColumns = size.w;
 		const currentRows = size.h;
@@ -187,37 +313,20 @@
 		showSizeMenu = false;
 	}
 
-	// Click outside to close menu
 	function handleClickOutside(event: MouseEvent) {
 		if (showSizeMenu && widgetEl && !widgetEl.contains(event.target as Node)) {
 			showSizeMenu = false;
 		}
 	}
 
-	// Effect to add/remove click outside listener
 	$effect(() => {
 		if (showSizeMenu) {
 			document.addEventListener('click', handleClickOutside);
 		} else {
 			document.removeEventListener('click', handleClickOutside);
 		}
-
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-		};
+		return () => document.removeEventListener('click', handleClickOutside);
 	});
-
-	function updateWidgetState(key: string, value: any) {
-		widgetState = { ...widgetState, [key]: value };
-	}
-
-	function getWidgetState(key: string) {
-		return widgetState[key];
-	}
-
-	function getSizeLabel(s: WidgetSize): string {
-		return `${s.w}x${s.h}`;
-	}
 </script>
 
 <article
@@ -230,17 +339,45 @@
 		class="widget-header flex cursor-grab items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:border-surface-700 dark:bg-surface-800"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
-		<h2
-			id="widget-title-{widgetId || label}"
-			class="text-text-900 dark:text-text-100 font-display flex items-center gap-2 truncate text-base font-semibold tracking-tight"
-		>
-			{#if icon}
-				<iconify-icon {icon} width="24" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
+		<div class="flex flex-1 flex-col gap-0.5">
+			<h2
+				id="widget-title-{widgetId || label}"
+				class="font-display text-text-900 dark:text-text-100 flex items-center gap-2 truncate text-base font-semibold tracking-tight"
+			>
+				{#if icon}
+					<iconify-icon {icon} width="24" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
+				{/if}
+				<span class="truncate">{label}</span>
+			</h2>
+
+			{#if endpoint && lastFetchTime && showRefreshButton}
+				<div class="flex items-center gap-2 text-xs text-surface-500">
+					<span>{getLastUpdateText()}</span>
+					{#if loading}
+						<span class="flex items-center gap-1">
+							<iconify-icon icon="mdi:loading" class="animate-spin" width="10"></iconify-icon>
+							{#if currentRetry > 0}
+								<span>Retry {currentRetry}/{retryCount}</span>
+							{/if}
+						</span>
+					{/if}
+				</div>
 			{/if}
-			<span class="truncate">{label}</span>
-		</h2>
+		</div>
 
 		<div class="flex items-center gap-1">
+			{#if endpoint && showRefreshButton}
+				<button
+					onclick={() => refresh()}
+					class="variant-outline-surface btn-icon"
+					aria-label="Refresh widget"
+					disabled={loading}
+					title="Refresh data"
+				>
+					<iconify-icon icon="mdi:refresh" width="16" class={loading ? 'animate-spin' : ''}></iconify-icon>
+				</button>
+			{/if}
+
 			<div class="relative" style="overflow: visible;">
 				<button onclick={() => (showSizeMenu = !showSizeMenu)} class="variant-outline-surface btn-icon" aria-label="Change widget size">
 					<iconify-icon icon="mdi:dots-vertical" width="18"></iconify-icon>
@@ -250,7 +387,7 @@
 						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border border-surface-200 bg-white py-1 shadow-xl dark:border-surface-700 dark:bg-surface-800"
 						style="z-index: 9999; position: absolute;"
 					>
-						{#each availableSizes as s (s)}
+						{#each availableSizes as s}
 							<button
 								class="flex w-full items-center justify-between px-4 py-2 text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-700 {size.w ===
 									s.w && size.h === s.h
@@ -284,7 +421,14 @@
 				<span>{error}</span>
 			</div>
 		{:else if children}
-			{@render children({ data: internalData, updateWidgetState, getWidgetState })}
+			{@render children({
+				data: internalData,
+				updateWidgetState,
+				getWidgetState,
+				refresh,
+				isLoading: loading,
+				error
+			})}
 		{:else if internalData}
 			<pre class="text-text-700 dark:text-text-200 whitespace-pre-wrap break-all text-sm" style="width: 100%; height: 100%;">{JSON.stringify(
 					internalData,
@@ -296,7 +440,6 @@
 		{/if}
 	</section>
 	{#if resizable}
-		<!-- Resize handles with proper corner icons and subtle colors -->
 		<div class="resize-handles pointer-events-none absolute inset-0">
 			{#each [{ dir: 'nw', classes: 'top-0 left-0 cursor-nw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-180' }, { dir: 'n', classes: 'top-0 left-1/2 cursor-n-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'ne', classes: 'top-0 right-0 cursor-ne-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '-rotate-90' }, { dir: 'e', classes: 'top-1/2 right-0 cursor-e-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }, { dir: 'se', classes: 'bottom-0 right-0 cursor-se-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: '' }, { dir: 's', classes: 'bottom-0 left-1/2 cursor-s-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateX(-50%) rotate(90deg);', rotation: '' }, { dir: 'sw', classes: 'bottom-0 left-0 cursor-sw-resize', icon: 'clarity:drag-handle-corner-line', size: '12px', rotation: 'rotate-90' }, { dir: 'w', classes: 'top-1/2 left-0 cursor-w-resize', icon: 'mdi:drag-vertical', size: '12px', style: 'transform: translateY(-50%) rotate(180deg);', rotation: '' }] as handle}
 				<div
@@ -311,7 +454,6 @@
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault();
-							// Could implement keyboard resizing here
 						}
 					}}
 				>
