@@ -8,6 +8,7 @@
 The `/api/dashboard/cache-metrics` endpoint was throwing HTTP 500 errors because it was trying to access nested properties that didn't exist in the data structure.
 
 **Error in logs:**
+
 ```
 Error fetching cache metrics: {}
 ```
@@ -36,9 +37,10 @@ overall: {
 ```
 
 Also added null-safe operators for `byCategory` and `byTenant`:
+
 ```typescript
-Object.entries(snapshot.byCategory || {})
-Object.entries(snapshot.byTenant || {})
+Object.entries(snapshot.byCategory || {});
+Object.entries(snapshot.byTenant || {});
 ```
 
 ---
@@ -49,12 +51,14 @@ Object.entries(snapshot.byTenant || {})
 The `/api/systemPreferences` endpoint was throwing errors with `tenantId: undefined`, and the errors weren't providing enough diagnostic information.
 
 **Error in logs:**
+
 ```
 Failed to load system preferences: {error: {}, tenantId: undefined}
 Failed to save system preferences: {error: {}, tenantId: undefined}
 ```
 
 **Root Cause:**
+
 1. The error logging was insufficient - only logging the raw error object without extracting the message or stack trace
 2. No adapter availability checks before attempting to use the database methods
 3. Errors were causing the UI to break instead of gracefully degrading
@@ -63,24 +67,27 @@ Failed to save system preferences: {error: {}, tenantId: undefined}
 Updated `/src/routes/api/systemPreferences/+server.ts` with:
 
 1. **Better Error Logging:**
+
 ```typescript
-logger.error('Failed to load system preferences:', { 
-  error: e instanceof Error ? e.message : String(e), 
-  tenantId, 
-  userId,
-  stack: e instanceof Error ? e.stack : undefined
+logger.error('Failed to load system preferences:', {
+	error: e instanceof Error ? e.message : String(e),
+	tenantId,
+	userId,
+	stack: e instanceof Error ? e.stack : undefined
 });
 ```
 
 2. **Adapter Availability Checks:**
+
 ```typescript
 if (!dbAdapter?.systemPreferences?.getSystemPreferences) {
-  logger.error('System preferences adapter not available', { tenantId, userId });
-  return json({ preferences: [] }); // Graceful fallback
+	logger.error('System preferences adapter not available', { tenantId, userId });
+	return json({ preferences: [] }); // Graceful fallback
 }
 ```
 
 3. **Graceful Degradation:**
+
 - GET endpoint now returns empty `{ preferences: [] }` instead of HTTP 500 when errors occur
 - POST endpoint checks adapter availability and returns HTTP 503 (Service Unavailable) if not ready
 
@@ -89,12 +96,14 @@ if (!dbAdapter?.systemPreferences?.getSystemPreferences) {
 ## Impact
 
 ### Before Fixes:
+
 - ❌ Cache Monitor widget showed "HTTP 500 Internal Server Error"
 - ❌ Dashboard widgets failed to load preferences
 - ❌ Poor error messages made debugging difficult
 - ❌ UI broke when backend had issues
 
 ### After Fixes:
+
 - ✅ Cache Monitor widget displays correctly with metrics
 - ✅ Dashboard gracefully handles missing preferences
 - ✅ Detailed error logs with messages, stack traces, and context

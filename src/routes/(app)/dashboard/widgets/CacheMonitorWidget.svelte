@@ -113,9 +113,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 				<div class="rounded-xl bg-gradient-to-br from-surface-50 to-surface-100 p-4 shadow-sm dark:from-surface-800 dark:to-surface-900">
 					<div class="mb-3 flex items-start justify-between">
 						<div>
-							<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
-								Overall Performance
-							</h3>
+							<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">Overall Performance</h3>
 							<p class="mt-1 text-xs text-surface-500">
 								{metrics.overall.totalOperations.toLocaleString()} operations
 							</p>
@@ -169,9 +167,9 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 								<div class="group">
 									<div class="flex items-center justify-between text-xs">
 										<div class="flex items-center gap-2">
-											<iconify-icon 
-												icon={getCategoryIcon(category)} 
-												width="18" 
+											<iconify-icon
+												icon={getCategoryIcon(category)}
+												width="18"
 												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-400"
 											></iconify-icon>
 											<span class="font-semibold text-surface-700 dark:text-surface-300">{category.toLowerCase()}</span>
@@ -188,11 +186,11 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 									<div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 										<div
 											class={`h-full transition-all duration-300 ${
-												stats.hitRate >= 80 
-													? 'bg-gradient-to-r from-success-400 to-success-600' 
-													: stats.hitRate >= 60 
-													? 'bg-gradient-to-r from-warning-400 to-warning-600' 
-													: 'bg-gradient-to-r from-error-400 to-error-600'
+												stats.hitRate >= 80
+													? 'bg-gradient-to-r from-success-400 to-success-600'
+													: stats.hitRate >= 60
+														? 'bg-gradient-to-r from-warning-400 to-warning-600'
+														: 'bg-gradient-to-r from-error-400 to-error-600'
 											}`}
 											style="width: {stats.hitRate}%"
 										></div>
@@ -238,25 +236,21 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 							<iconify-icon icon="mdi:alert-circle" width="14"></iconify-icon>
 							Recent Cache Misses ({metrics.recentMisses.length})
 						</h3>
-						<div class="space-y-2 max-h-48 overflow-y-auto">
+						<div class="max-h-48 space-y-2 overflow-y-auto">
 							{#each metrics.recentMisses.slice().reverse() as miss}
 								{@const timeSince = Math.floor((Date.now() - new Date(miss.timestamp).getTime()) / 1000)}
 								<div class="rounded-lg bg-white/50 px-3 py-2 text-xs dark:bg-surface-900/30">
 									<div class="flex items-start justify-between gap-2">
-										<div class="flex-1 min-w-0">
-											<div class="flex items-center gap-2 mb-1">
-												<iconify-icon 
-													icon={getCategoryIcon(miss.category)} 
-													width="14" 
-													class="text-error-600 dark:text-error-400"
-												></iconify-icon>
+										<div class="min-w-0 flex-1">
+											<div class="mb-1 flex items-center gap-2">
+												<iconify-icon icon={getCategoryIcon(miss.category)} width="14" class="text-error-600 dark:text-error-400"></iconify-icon>
 												<span class="font-semibold text-error-700 dark:text-error-300">{miss.category}</span>
 											</div>
-											<div class="font-mono text-[10px] text-surface-600 dark:text-surface-400 truncate" title={miss.key}>
+											<div class="truncate font-mono text-[10px] text-surface-600 dark:text-surface-400" title={miss.key}>
 												{miss.key}
 											</div>
 										</div>
-										<div class="text-right whitespace-nowrap">
+										<div class="whitespace-nowrap text-right">
 											<div class="text-[10px] text-surface-500">
 												{#if timeSince < 60}
 													{timeSince}s ago
@@ -267,7 +261,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 												{/if}
 											</div>
 											{#if miss.tenantId}
-												<div class="text-[10px] text-surface-400 mt-0.5">
+												<div class="mt-0.5 text-[10px] text-surface-400">
 													{miss.tenantId}
 												</div>
 											{/if}
@@ -288,23 +282,35 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 				`}
 				>
 					<div class="flex items-center gap-2.5">
-						<div class={`flex h-8 w-8 items-center justify-center rounded-full ${
-							metrics.overall.hitRate >= 80 ? 'bg-success-100 dark:bg-success-900/30' :
-							metrics.overall.hitRate >= 60 ? 'bg-warning-100 dark:bg-warning-900/30' :
-							'bg-error-100 dark:bg-error-900/30'
-						}`}>
+						<div
+							class={`flex h-8 w-8 items-center justify-center rounded-full ${
+								metrics.overall.hitRate >= 80
+									? 'bg-success-100 dark:bg-success-900/30'
+									: metrics.overall.hitRate >= 60
+										? 'bg-warning-100 dark:bg-warning-900/30'
+										: 'bg-error-100 dark:bg-error-900/30'
+							}`}
+						>
 							<iconify-icon
 								icon={metrics.overall.hitRate >= 80 ? 'mdi:check-circle' : metrics.overall.hitRate >= 60 ? 'mdi:alert' : 'mdi:alert-circle'}
 								width="18"
-								class={metrics.overall.hitRate >= 80 ? 'text-success-600 dark:text-success-400' : metrics.overall.hitRate >= 60 ? 'text-warning-600 dark:text-warning-400' : 'text-error-600 dark:text-error-400'}
+								class={metrics.overall.hitRate >= 80
+									? 'text-success-600 dark:text-success-400'
+									: metrics.overall.hitRate >= 60
+										? 'text-warning-600 dark:text-warning-400'
+										: 'text-error-600 dark:text-error-400'}
 							></iconify-icon>
 						</div>
 						<div class="flex-1">
-							<div class={`font-semibold ${
-								metrics.overall.hitRate >= 80 ? 'text-success-700 dark:text-success-300' :
-								metrics.overall.hitRate >= 60 ? 'text-warning-700 dark:text-warning-300' :
-								'text-error-700 dark:text-error-300'
-							}`}>
+							<div
+								class={`font-semibold ${
+									metrics.overall.hitRate >= 80
+										? 'text-success-700 dark:text-success-300'
+										: metrics.overall.hitRate >= 60
+											? 'text-warning-700 dark:text-warning-300'
+											: 'text-error-700 dark:text-error-300'
+								}`}
+							>
 								{#if metrics.overall.hitRate >= 80}
 									Excellent Performance
 								{:else if metrics.overall.hitRate >= 60}
@@ -314,7 +320,11 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 								{/if}
 							</div>
 							<div class="mt-0.5 text-surface-600 dark:text-surface-400">
-								Cache is {metrics.overall.hitRate >= 80 ? 'working optimally' : metrics.overall.hitRate >= 60 ? 'performing adequately' : 'underperforming'}
+								Cache is {metrics.overall.hitRate >= 80
+									? 'working optimally'
+									: metrics.overall.hitRate >= 60
+										? 'performing adequately'
+										: 'underperforming'}
 							</div>
 						</div>
 					</div>

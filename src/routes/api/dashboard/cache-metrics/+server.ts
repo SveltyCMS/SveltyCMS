@@ -13,15 +13,15 @@ export const GET: RequestHandler = async () => {
 	try {
 		// Get cache metrics snapshot
 		const snapshot = cacheMetrics.getSnapshot();
-		
+
 		// Get recent events (last 20)
 		const recentEvents = cacheMetrics.getRecentEvents(20);
-		
+
 		// Filter recent misses
 		const recentMisses = recentEvents
-			.filter(event => event.type === 'miss')
+			.filter((event) => event.type === 'miss')
 			.slice(-10) // Last 10 misses
-			.map(event => ({
+			.map((event) => ({
 				key: event.key,
 				category: event.category,
 				tenantId: event.tenantId,
