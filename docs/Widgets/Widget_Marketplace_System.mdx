@@ -1,31 +1,41 @@
 ---
-path: 'docs/Dev_Guide/07_Widgets/Widget_Marketplace_System.mdx'
+path: 'docs/Widgets/Widget_Marketplace_System.mdx'
 title: 'Widget Marketplace System'
-description: 'Complete guide to the widget marketplace - installation, development, and publishing'
+description: 'Complete guide to the widget marketplace - installation, development, and publishing with 3-pillar architecture support'
 order: 75
 icon: 'mdi:store'
 author: 'admin'
 created: '2025-08-05'
-updated: '2025-10-02'
+updated: '2025-10-04'
 tags:
   - 'developer'
   - 'widgets'
   - 'marketplace'
   - 'extensions'
+  - '3-pillar'
 ---
 
 # Widget Marketplace System
 
-The SveltyCMS Widget Marketplace allows users to discover, install, and manage custom widgets from a central repository. This system supports multi-tenant installations with proper isolation and security.
+The SveltyCMS Widget Marketplace allows users to discover, install, and manage custom widgets from a central repository. This system supports multi-tenant installations with proper isolation, security, and full 3-pillar architecture compliance.
 
 ## 🏪 Marketplace Overview
+
+### Integration Status
+
+The Widget Marketplace is integrated into the Widget Management dashboard at `/config/widgetManagement`:
+
+- **📱 Tabbed Interface**: Switch between "Installed Widgets" and "Marketplace"
+- **🎯 Unified Experience**: Seamless transition from browsing to installation
+- **📊 Real-time Stats**: See your installed vs. available widgets
+- **🔄 Status**: Currently in development - "Coming Soon" placeholder active
 
 ### System Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Marketplace   │    │   CMS Instance  │    │   Widget Store  │
-│                 │    │                 │    │                 │
+│     (Tab)       │    │   (Dashboard)   │    │                 │
 │ ├─ Browse       │◄──►│ ├─ Install      │◄──►│ ├─ Core Widgets │
 │ ├─ Search       │    │ ├─ Activate     │    │ ├─ Custom       │
 │ ├─ Categories   │    │ ├─ Configure    │    │ ├─ Installed    │
@@ -70,23 +80,57 @@ Note: The core `date` widget supports `timePicker` to provide DateTime behaviour
 
 ## 🛠️ Widget Management Interface
 
-### Location
+### Location & Access
 
 ```
-📁 src/routes/(app)/config/widgetManagement/
-├── +page.svelte                 # Main widget management page
-├── +page.server.ts             # Server-side logic & permissions
-└── WidgetDashboard.svelte      # Widget management component
+Route: /config/widgetManagement
+Component: WidgetDashboardEnhanced.svelte
+Features: Tabbed interface with Installed Widgets and Marketplace tabs
 ```
 
-### Features
+### Installed Widgets Tab
 
-- **📊 Overview Dashboard** - Widget statistics and health
-- **🔧 Widget Control** - Activate/deactivate widgets
-- **🏪 Marketplace Browse** - Discover new widgets
-- **📦 Installation Manager** - Install/uninstall widgets
-- **⚠️ Dependency Check** - Validate widget dependencies
-- **🔍 Collection Analysis** - Required widgets by collections
+- **📊 Statistics Cards**: 6 key metrics displayed in a grid
+  - Total Widgets: All registered widgets
+  - Active: Currently enabled widgets
+  - Core: Essential widgets (always on)
+  - Custom: Optional widgets
+  - Input: Widgets with Input component
+  - Display: Widgets with Display component
+- **� Search Bar**: Real-time search by name or description
+- **🎯 Filter Tabs**: Quick filters (All, Active, Inactive, Core, Custom)
+- **📋 2-Column Grid**: Professional layout for desktop (responsive)
+- **� Widget Cards**: Expandable cards showing 3-pillar architecture details
+
+### Marketplace Tab (Coming Soon)
+
+- **🏪 Widget Browse**: Discover new widgets
+- **� Advanced Search**: Filter by category, price, rating
+- **⭐ Ratings & Reviews**: Community feedback
+- **💳 Payment Integration**: Support for premium widgets
+- **📦 One-Click Install**: Seamless installation process
+
+### Interface Highlights
+
+```svelte
+<!-- Tab Navigation -->
+<Tabs>
+	<Tab active>
+		<Icon name="mdi:puzzle" />
+		Installed Widgets
+	</Tab>
+	<Tab>
+		<Icon name="mdi:store" />
+		Marketplace
+		<Badge>Coming Soon</Badge>
+	</Tab>
+</Tabs>
+
+<!-- 2-Column Widget Grid (Desktop) -->
+<Grid columns={2} responsive>
+	<WidgetCard expandable show3Pillar />
+</Grid>
+```
 
 Migration tips for marketplace authors:
 

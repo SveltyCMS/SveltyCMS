@@ -488,7 +488,7 @@ Features:
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-black lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName /></div>
+						<div class="text-xs text-surface-300"><SiteName highlight="CMS" /></div>
 						{#if !PWforgot && !PWreset}
 							<div class="lg:-mt-1">{m.form_signin()}</div>
 						{:else if PWforgot && !PWreset}

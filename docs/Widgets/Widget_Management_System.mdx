@@ -1,34 +1,108 @@
 ---
-path: 'docs/Dev_Guide/07_Widgets/Widget_Management_System.mdx'
+path: 'docs/Widgets/Widget_Management_System.mdx'
 title: 'Widget Management System'
-description: 'Comprehensive guide to SveltyCMS widget architecture with core/custom categorization, dependency management, and multi-tenant support'
+description: 'Comprehensive guide to SveltyCMS widget architecture with 3-pillar design, core/custom categorization, and multi-tenant support'
 order: 52
 icon: 'mdi:widgets'
 author: 'admin'
 created: '2025-08-05'
-updated: '2025-10-02'
+updated: '2025-10-04'
 tags:
   - 'developer'
   - 'widgets'
   - 'management'
   - 'architecture'
+  - '3-pillar'
 ---
 
 # Widget Management System
 
 ## Overview
 
-The SveltyCMS widget management system provides a robust architecture for handling both core and custom widgets with proper dependency management, tenant isolation, and database synchronization.
+The SveltyCMS widget management system provides a robust architecture for handling both core and custom widgets with the **3-Pillar Architecture** (Definition, Input, Display), proper dependency management, tenant isolation, and database synchronization.
 
 ## Architecture
 
 ### Core Concepts
 
-- **Core Widgets**: Essential widgets that are always enabled by default (e.g., `input`, `richText`, `date`)
-- **Core Widgets**: Essential widgets that are always enabled by default (e.g., `input`, `richText`, `date`).
+- **3-Pillar Architecture**: Modern widget design with Definition (index.ts), Input (Input.svelte), and Display (Display.svelte) components
+- **Core Widgets**: Essential widgets that are always enabled by default (e.g., `input`, `richText`, `date`, `mediaUpload`)
 - **Custom Widgets**: Optional widgets that can be enabled/disabled per tenant (e.g., `seo`, `colorPicker`, `rating`)
 - **Widget Dependencies**: Widgets can depend on other widgets, preventing invalid configurations
 - **Tenant Isolation**: Multi-tenant support with per-tenant widget configurations
+
+## 3-Pillar Architecture
+
+The modern widget architecture separates concerns into three distinct pillars:
+
+### 1. Definition Pillar (index.ts)
+
+The widget's blueprint containing:
+
+- Widget metadata (name, icon, description)
+- Configuration schema (GuiSchema)
+- Validation rules (Valibot schemas)
+- Default values
+- Dependencies
+
+```typescript
+import { createWidget } from '@widgets/factory';
+
+export default createWidget({
+  Name: 'MyWidget',
+  Icon: 'mdi:icon',
+  Description: 'Widget description',
+
+  // 3-Pillar Architecture paths
+  inputComponentPath: '/src/widgets/custom/myWidget/Input.svelte',
+  displayComponentPath: '/src/widgets/custom/myWidget/Display.svelte',
+
+  defaults: { /* default values */ },
+  validationSchema: /* Valibot schema */
+});
+```
+
+### 2. Input Pillar (Input.svelte)
+
+Interactive component for data entry:
+
+- Used in collection form editing
+- Full CRUD operations
+- Rich user interactions
+- Form validation
+
+### 3. Display Pillar (Display.svelte)
+
+Lightweight component for viewing:
+
+- Used in entry lists and previews
+- Read-only display
+- Optimized for performance
+- Minimal dependencies
+
+## Widget Management Interface
+
+Access the widget management dashboard at `/config/widgetManagement`:
+
+### Features
+
+- **📊 Statistics Dashboard**: Real-time metrics for all widgets
+- **🔍 Search & Filter**: Find widgets quickly by name, description, or status
+- **📋 2-Column Layout**: Professional grid layout for desktop (responsive single column on mobile)
+- **🏪 Marketplace Integration**: Browse and install widgets from marketplace (coming soon)
+- **🎯 3-Pillar Visibility**: See which components are implemented for each widget
+- **⚙️ Quick Actions**: Activate/deactivate widgets with one click
+- **🔒 Permission Control**: Role-based access with read-only mode for non-admins
+- **📦 Dependency Management**: Automatic dependency resolution and validation
+
+### Statistics Metrics
+
+- **Total Widgets**: All registered widgets (core + custom)
+- **Active**: Currently enabled widgets
+- **Core**: Essential widgets (always on)
+- **Custom**: Optional widgets (can be toggled)
+- **Input**: Widgets with Input component implemented
+- **Display**: Widgets with Display component implemented
 
 ### File Structure
 
@@ -154,9 +228,60 @@ SEOWidget.dependencies = ['Input', 'RichText']; // Dependencies on other widgets
 
 ## API Endpoints
 
+### GET `/api/widgets/list`
+
+Get comprehensive widget list with 3-pillar architecture metadata.
+
+**Query Parameters:**
+
+- `tenantId`: Tenant identifier (optional)
+
+**Response:**
+
+```json
+{
+	"widgets": [
+		{
+			"name": "Input",
+			"icon": "mdi:form-textbox",
+			"description": "Text input widget",
+			"isCore": true,
+			"isActive": true,
+			"dependencies": [],
+			"pillar": {
+				"definition": {
+					"name": "Input",
+					"description": "Text input widget",
+					"icon": "mdi:form-textbox",
+					"guiSchema": 5,
+					"aggregations": false
+				},
+				"input": {
+					"componentPath": "/src/widgets/core/input/Input.svelte",
+					"exists": true
+				},
+				"display": {
+					"componentPath": "/src/widgets/core/input/Display.svelte",
+					"exists": true
+				}
+			},
+			"canDisable": false,
+			"hasValidation": true
+		}
+	],
+	"summary": {
+		"total": 19,
+		"active": 10,
+		"core": 10,
+		"custom": 9
+	},
+	"tenantId": "tenant123"
+}
+```
+
 ### GET `/api/widgets/active`
 
-Get currently active widgets for a tenant.
+Get currently active widgets for a tenant with enriched metadata.
 
 **Headers:**
 

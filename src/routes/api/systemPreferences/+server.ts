@@ -56,6 +56,12 @@ export const GET = async ({ locals, url }) => {
 	try {
 		// Use "default" as the default layout ID
 		const layoutId = url.searchParams.get('layoutId') || 'default';
+		
+		if (!dbAdapter?.systemPreferences?.getSystemPreferences) {
+			logger.error('System preferences adapter not available', { tenantId, userId });
+			return json({ preferences: [] }); // Return empty preferences instead of error
+		}
+		
 		// Get the layout from the database
 		const layout = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
 
@@ -64,8 +70,14 @@ export const GET = async ({ locals, url }) => {
 		};
 		return json(response);
 	} catch (e) {
-		logger.error('Failed to load system preferences:', { error: e, tenantId });
-		return json({ error: 'Failed to load preferences' }, { status: 500 });
+		logger.error('Failed to load system preferences:', { 
+			error: e instanceof Error ? e.message : String(e), 
+			tenantId, 
+			userId,
+			stack: e instanceof Error ? e.stack : undefined
+		});
+		// Return empty preferences instead of error to prevent UI breaking
+		return json({ preferences: [] });
 	}
 };
 
@@ -96,6 +108,11 @@ export const POST = async ({ request, locals }) => {
 
 	const { preferences, layoutId = 'default' } = data;
 	try {
+		if (!dbAdapter?.systemPreferences?.setUserPreferences) {
+			logger.error('System preferences adapter not available for saving', { tenantId, userId });
+			return json({ error: 'System preferences not available' }, { status: 503 });
+		}
+		
 		// Create a layout object as expected by the database
 		const layout = {
 			id: layoutId,
@@ -106,7 +123,12 @@ export const POST = async ({ request, locals }) => {
 		await dbAdapter.systemPreferences.setUserPreferences(userId, layoutId, layout);
 		return json({ success: true });
 	} catch (e) {
-		logger.error('Failed to save system preferences:', { error: e, tenantId });
+		logger.error('Failed to save system preferences:', { 
+			error: e instanceof Error ? e.message : String(e),
+			tenantId, 
+			userId,
+			stack: e instanceof Error ? e.stack : undefined
+		});
 		return json({ error: 'Failed to save preferences' }, { status: 500 });
 	}
 };

@@ -13,18 +13,32 @@ export const GET: RequestHandler = async () => {
 	try {
 		// Get cache metrics snapshot
 		const snapshot = cacheMetrics.getSnapshot();
+		
+		// Get recent events (last 20)
+		const recentEvents = cacheMetrics.getRecentEvents(20);
+		
+		// Filter recent misses
+		const recentMisses = recentEvents
+			.filter(event => event.type === 'miss')
+			.slice(-10) // Last 10 misses
+			.map(event => ({
+				key: event.key,
+				category: event.category,
+				tenantId: event.tenantId,
+				timestamp: event.timestamp.toISOString()
+			}));
 
 		// Return formatted metrics
 		return json({
 			overall: {
-				hits: snapshot.overall.hits,
-				misses: snapshot.overall.misses,
-				sets: snapshot.overall.sets,
-				deletes: snapshot.overall.deletes,
-				hitRate: snapshot.overall.hitRate,
-				totalOperations: snapshot.overall.hits + snapshot.overall.misses
+				hits: snapshot.hits,
+				misses: snapshot.misses,
+				sets: 0, // Not tracked in current implementation
+				deletes: 0, // Not tracked in current implementation
+				hitRate: snapshot.hitRate,
+				totalOperations: snapshot.totalRequests
 			},
-			byCategory: Object.entries(snapshot.byCategory).reduce(
+			byCategory: Object.entries(snapshot.byCategory || {}).reduce(
 				(acc, [category, stats]) => {
 					acc[category] = {
 						hits: stats.hits,
@@ -35,7 +49,7 @@ export const GET: RequestHandler = async () => {
 				},
 				{} as Record<string, { hits: number; misses: number; hitRate: number }>
 			),
-			byTenant: Object.entries(snapshot.byTenant).reduce(
+			byTenant: Object.entries(snapshot.byTenant || {}).reduce(
 				(acc, [tenant, stats]) => {
 					acc[tenant] = {
 						hits: stats.hits,
@@ -46,6 +60,7 @@ export const GET: RequestHandler = async () => {
 				},
 				{} as Record<string, { hits: number; misses: number; hitRate: number }>
 			),
+			recentMisses,
 			timestamp: Date.now()
 		});
 	} catch (error) {

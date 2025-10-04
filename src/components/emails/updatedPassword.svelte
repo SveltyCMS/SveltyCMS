@@ -60,7 +60,7 @@
 				</Text>
 
 				<Text style={{ fontSize: '16px' }}>
-					You have successfully changed your password for <strong>{publicEnv.SITE_NAME}</strong>.
+					You have successfully changed your password for <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong>.
 				</Text>
 
 				<!-- Security Notice -->
@@ -81,7 +81,7 @@
 				<Section>
 					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
 						<Link href="https://SveltyCMS.com">
-							Your <SiteName /> team
+							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
 						</Link>
 					</Text>
 				</Section>

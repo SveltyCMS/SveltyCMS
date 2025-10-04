@@ -1,6 +1,6 @@
 /**
  * @file src/routes/api/widgets/installed/+server.ts
- * @description API endpoint for managing installed widgets per tenant
+ * @description API endpoint for managing installed widgets per tenant with 3-pillar architecture support
  */
 
 import { json, error } from '@sveltejs/kit';
@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.svelte';
 import { hasPermissionWithRoles } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
+import { widgetStoreActions, customWidgets, getWidgetFunction } from '@stores/widgetStore.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
@@ -25,14 +26,29 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 		const tenantId = url.searchParams.get('tenantId') || user.tenantId || 'default-tenant';
 
-		// TODO: Implement database query to get installed widgets for tenant
-		// For now, return mock data
-		const installedWidgets = [
-			// Mock installed widgets - replace with actual database query
-			'colorPicker',
-			'currency',
-			'rating'
-		];
+		// Initialize widgets to get custom widgets list
+		await widgetStoreActions.initializeWidgets(tenantId);
+
+		// Get all custom widgets from the file system (these are "installed" in the codebase)
+		let installedWidgetNames: string[] = [];
+		customWidgets.subscribe(($customWidgets) => {
+			installedWidgetNames = $customWidgets;
+		})();
+
+		// Enrich with metadata from widget functions
+		const installedWidgets = installedWidgetNames.map((name) => {
+			const widgetFn = getWidgetFunction(name);
+			return {
+				name,
+				icon: widgetFn?.Icon || 'mdi:puzzle-plus',
+				description: widgetFn?.Description || '',
+				// 3-Pillar Architecture metadata
+				inputComponentPath: widgetFn?.__inputComponentPath || '',
+				displayComponentPath: widgetFn?.__displayComponentPath || '',
+				dependencies: widgetFn?.__dependencies || [],
+				isCore: false // Custom widgets are never core
+			};
+		});
 
 		logger.debug(`Retrieved ${installedWidgets.length} installed widgets for tenant: ${tenantId}`);
 

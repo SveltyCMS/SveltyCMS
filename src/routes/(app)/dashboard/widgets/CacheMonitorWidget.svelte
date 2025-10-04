@@ -10,7 +10,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 		name: 'Cache Monitor',
 		icon: 'mdi:database-clock',
 		description: 'Monitor cache performance and hit rates',
-		defaultSize: { w: 2, h: 2 }
+		defaultSize: { w: 2, h: 3 }
 	};
 </script>
 
@@ -40,6 +40,12 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 				hitRate: number;
 			};
 		};
+		recentMisses?: Array<{
+			key: string;
+			category: string;
+			tenantId?: string;
+			timestamp: string;
+		}>;
 		timestamp: number;
 	}
 
@@ -48,7 +54,7 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 		theme = 'light',
 		icon = 'mdi:database-clock',
 		widgetId = undefined,
-		size = { w: 2, h: 2 },
+		size = { w: 2, h: 3 },
 		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
@@ -102,39 +108,50 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 				</div>
 			</div>
 		{:else}
-			<div class="flex h-full flex-col space-y-4 overflow-auto text-sm">
+			<div class="flex h-full flex-col space-y-3 overflow-auto p-1 text-sm">
 				<!-- Overall Cache Performance -->
-				<div class="rounded-lg bg-surface-100/50 p-3 dark:bg-surface-800/50">
-					<div class="mb-2 flex items-center justify-between">
-						<h3 class="text-xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">Overall Performance</h3>
-						<span class={`text-2xl font-bold ${getHitRateColor(metrics.overall.hitRate)}`}>
-							{metrics.overall.hitRate.toFixed(1)}%
-						</span>
+				<div class="rounded-xl bg-gradient-to-br from-surface-50 to-surface-100 p-4 shadow-sm dark:from-surface-800 dark:to-surface-900">
+					<div class="mb-3 flex items-start justify-between">
+						<div>
+							<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+								Overall Performance
+							</h3>
+							<p class="mt-1 text-xs text-surface-500">
+								{metrics.overall.totalOperations.toLocaleString()} operations
+							</p>
+						</div>
+						<div class="text-right">
+							<div class={`text-3xl font-bold leading-none ${getHitRateColor(metrics.overall.hitRate)}`}>
+								{metrics.overall.hitRate.toFixed(1)}%
+							</div>
+							<p class="mt-1 text-xs text-surface-500">hit rate</p>
+						</div>
 					</div>
 
+					<!-- Stats Grid -->
 					<div class="grid grid-cols-4 gap-2 text-xs">
-						<div class="text-center">
-							<div class="font-semibold text-success-500">{formatNumber(metrics.overall.hits)}</div>
-							<div class="text-surface-500">Hits</div>
+						<div class="rounded-lg bg-success-50 p-2 text-center dark:bg-success-900/20">
+							<div class="text-lg font-bold text-success-600 dark:text-success-400">{formatNumber(metrics.overall.hits)}</div>
+							<div class="mt-0.5 text-success-700 dark:text-success-500">Hits</div>
 						</div>
-						<div class="text-center">
-							<div class="font-semibold text-error-500">{formatNumber(metrics.overall.misses)}</div>
-							<div class="text-surface-500">Misses</div>
+						<div class="rounded-lg bg-error-50 p-2 text-center dark:bg-error-900/20">
+							<div class="text-lg font-bold text-error-600 dark:text-error-400">{formatNumber(metrics.overall.misses)}</div>
+							<div class="mt-0.5 text-error-700 dark:text-error-500">Misses</div>
 						</div>
-						<div class="text-center">
-							<div class="font-semibold text-primary-500">{formatNumber(metrics.overall.sets)}</div>
-							<div class="text-surface-500">Sets</div>
+						<div class="rounded-lg bg-primary-50 p-2 text-center dark:bg-primary-900/20">
+							<div class="text-lg font-bold text-primary-600 dark:text-primary-400">{formatNumber(metrics.overall.sets)}</div>
+							<div class="mt-0.5 text-primary-700 dark:text-primary-500">Sets</div>
 						</div>
-						<div class="text-center">
-							<div class="font-semibold text-warning-500">{formatNumber(metrics.overall.deletes)}</div>
-							<div class="text-surface-500">Deletes</div>
+						<div class="rounded-lg bg-warning-50 p-2 text-center dark:bg-warning-900/20">
+							<div class="text-lg font-bold text-warning-600 dark:text-warning-400">{formatNumber(metrics.overall.deletes)}</div>
+							<div class="mt-0.5 text-warning-700 dark:text-warning-500">Deletes</div>
 						</div>
 					</div>
 
 					<!-- Progress Bar -->
-					<div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
+					<div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
 						<div
-							class="h-full bg-gradient-to-r from-success-500 to-primary-500 transition-all duration-500"
+							class="h-full bg-gradient-to-r from-success-500 via-primary-500 to-primary-600 transition-all duration-500 ease-out"
 							style="width: {metrics.overall.hitRate}%"
 						></div>
 					</div>
@@ -142,27 +159,44 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 
 				<!-- By Category -->
 				{#if Object.keys(metrics.byCategory).length > 0}
-					<div class="rounded-lg bg-surface-100/50 p-3 dark:bg-surface-800/50">
-						<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">By Category</h3>
-						<div class="space-y-2">
+					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
+						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+							<iconify-icon icon="mdi:view-grid" width="14"></iconify-icon>
+							By Category
+						</h3>
+						<div class="space-y-3">
 							{#each Object.entries(metrics.byCategory).slice(0, 6) as [category, stats]}
-								<div class="flex items-center justify-between text-xs">
-									<div class="flex items-center gap-2">
-										<iconify-icon icon={getCategoryIcon(category)} width="16" class="text-surface-500"></iconify-icon>
-										<span class="font-medium">{category}</span>
+								<div class="group">
+									<div class="flex items-center justify-between text-xs">
+										<div class="flex items-center gap-2">
+											<iconify-icon 
+												icon={getCategoryIcon(category)} 
+												width="18" 
+												class="text-surface-600 transition-colors group-hover:text-primary-500 dark:text-surface-400"
+											></iconify-icon>
+											<span class="font-semibold text-surface-700 dark:text-surface-300">{category.toLowerCase()}</span>
+										</div>
+										<div class="flex items-center gap-3">
+											<span class="tabular-nums text-surface-500">
+												{formatNumber(stats.hits)}<span class="text-surface-400">/</span>{formatNumber(stats.hits + stats.misses)}
+											</span>
+											<span class={`min-w-[3rem] text-right text-sm font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
+												{stats.hitRate.toFixed(0)}%
+											</span>
+										</div>
 									</div>
-									<div class="flex items-center gap-2">
-										<span class="text-surface-500">{formatNumber(stats.hits)}/{formatNumber(stats.hits + stats.misses)}</span>
-										<span class={`font-semibold ${getHitRateColor(stats.hitRate)}`}>
-											{stats.hitRate.toFixed(0)}%
-										</span>
+									<div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
+										<div
+											class={`h-full transition-all duration-300 ${
+												stats.hitRate >= 80 
+													? 'bg-gradient-to-r from-success-400 to-success-600' 
+													: stats.hitRate >= 60 
+													? 'bg-gradient-to-r from-warning-400 to-warning-600' 
+													: 'bg-gradient-to-r from-error-400 to-error-600'
+											}`}
+											style="width: {stats.hitRate}%"
+										></div>
 									</div>
-								</div>
-								<div class="h-1 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
-									<div
-										class="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-300"
-										style="width: {stats.hitRate}%"
-									></div>
 								</div>
 							{/each}
 						</div>
@@ -171,20 +205,73 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 
 				<!-- By Tenant (if available) -->
 				{#if metrics.byTenant && Object.keys(metrics.byTenant).length > 0}
-					<div class="rounded-lg bg-surface-100/50 p-3 dark:bg-surface-800/50">
-						<h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400">By Tenant</h3>
-						<div class="space-y-2">
+					<div class="rounded-xl bg-surface-50 p-4 dark:bg-surface-800/50">
+						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-surface-600 dark:text-surface-400">
+							<iconify-icon icon="mdi:domain" width="14"></iconify-icon>
+							By Tenant
+						</h3>
+						<div class="space-y-2.5">
 							{#each Object.entries(metrics.byTenant).slice(0, 4) as [tenant, stats]}
-								<div class="flex items-center justify-between text-xs">
+								<div class="flex items-center justify-between rounded-lg bg-surface-100/50 px-3 py-2 text-xs dark:bg-surface-900/30">
 									<div class="flex items-center gap-2">
-										<iconify-icon icon="mdi:domain" width="16" class="text-surface-500"></iconify-icon>
-										<span class="font-medium">{tenant}</span>
+										<div class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
+											<iconify-icon icon="mdi:domain" width="14" class="text-primary-600 dark:text-primary-400"></iconify-icon>
+										</div>
+										<span class="font-semibold text-surface-700 dark:text-surface-300">{tenant}</span>
 									</div>
-									<div class="flex items-center gap-2">
-										<span class="text-surface-500">{formatNumber(stats.hits + stats.misses)} ops</span>
-										<span class={`font-semibold ${getHitRateColor(stats.hitRate)}`}>
+									<div class="flex items-center gap-3">
+										<span class="tabular-nums text-surface-500">{formatNumber(stats.hits + stats.misses)} ops</span>
+										<span class={`min-w-[3rem] text-right font-bold tabular-nums ${getHitRateColor(stats.hitRate)}`}>
 											{stats.hitRate.toFixed(0)}%
 										</span>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Recent Cache Misses -->
+				{#if metrics.recentMisses && metrics.recentMisses.length > 0}
+					<div class="rounded-xl bg-error-50 p-4 dark:bg-error-900/10">
+						<h3 class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-error-700 dark:text-error-400">
+							<iconify-icon icon="mdi:alert-circle" width="14"></iconify-icon>
+							Recent Cache Misses ({metrics.recentMisses.length})
+						</h3>
+						<div class="space-y-2 max-h-48 overflow-y-auto">
+							{#each metrics.recentMisses.slice().reverse() as miss}
+								{@const timeSince = Math.floor((Date.now() - new Date(miss.timestamp).getTime()) / 1000)}
+								<div class="rounded-lg bg-white/50 px-3 py-2 text-xs dark:bg-surface-900/30">
+									<div class="flex items-start justify-between gap-2">
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center gap-2 mb-1">
+												<iconify-icon 
+													icon={getCategoryIcon(miss.category)} 
+													width="14" 
+													class="text-error-600 dark:text-error-400"
+												></iconify-icon>
+												<span class="font-semibold text-error-700 dark:text-error-300">{miss.category}</span>
+											</div>
+											<div class="font-mono text-[10px] text-surface-600 dark:text-surface-400 truncate" title={miss.key}>
+												{miss.key}
+											</div>
+										</div>
+										<div class="text-right whitespace-nowrap">
+											<div class="text-[10px] text-surface-500">
+												{#if timeSince < 60}
+													{timeSince}s ago
+												{:else if timeSince < 3600}
+													{Math.floor(timeSince / 60)}m ago
+												{:else}
+													{Math.floor(timeSince / 3600)}h ago
+												{/if}
+											</div>
+											{#if miss.tenantId}
+												<div class="text-[10px] text-surface-400 mt-0.5">
+													{miss.tenantId}
+												</div>
+											{/if}
+										</div>
 									</div>
 								</div>
 							{/each}
@@ -194,30 +281,42 @@ Displays cache hit rates, metrics by category, and tenant-specific statistics
 
 				<!-- Cache Health Indicator -->
 				<div
-					class={`mt-auto rounded-lg border-l-4 p-2 text-xs
-					${metrics.overall.hitRate >= 80 ? 'border-success-500 bg-success-50 dark:bg-success-900/20' : ''}
-					${metrics.overall.hitRate >= 60 && metrics.overall.hitRate < 80 ? 'border-warning-500 bg-warning-50 dark:bg-warning-900/20' : ''}
-					${metrics.overall.hitRate < 60 ? 'border-error-500 bg-error-50 dark:bg-error-900/20' : ''}
+					class={`mt-auto rounded-xl border-l-4 p-3 text-xs shadow-sm transition-all
+					${metrics.overall.hitRate >= 80 ? 'border-success-500 bg-success-50 dark:bg-success-900/10' : ''}
+					${metrics.overall.hitRate >= 60 && metrics.overall.hitRate < 80 ? 'border-warning-500 bg-warning-50 dark:bg-warning-900/10' : ''}
+					${metrics.overall.hitRate < 60 ? 'border-error-500 bg-error-50 dark:bg-error-900/10' : ''}
 				`}
 				>
-					<div class="flex items-center gap-2">
-						<iconify-icon
-							icon={metrics.overall.hitRate >= 80 ? 'mdi:check-circle' : metrics.overall.hitRate >= 60 ? 'mdi:alert' : 'mdi:alert-circle'}
-							width="16"
-							class={metrics.overall.hitRate >= 80 ? 'text-success-500' : metrics.overall.hitRate >= 60 ? 'text-warning-500' : 'text-error-500'}
-						></iconify-icon>
-						<span class="font-medium">
-							{#if metrics.overall.hitRate >= 80}
-								Cache performing excellently
-							{:else if metrics.overall.hitRate >= 60}
-								Cache performance is moderate
-							{:else}
-								Cache performance needs attention
-							{/if}
-						</span>
-					</div>
-					<div class="mt-1 text-surface-600 dark:text-surface-400">
-						{metrics.overall.totalOperations.toLocaleString()} total operations
+					<div class="flex items-center gap-2.5">
+						<div class={`flex h-8 w-8 items-center justify-center rounded-full ${
+							metrics.overall.hitRate >= 80 ? 'bg-success-100 dark:bg-success-900/30' :
+							metrics.overall.hitRate >= 60 ? 'bg-warning-100 dark:bg-warning-900/30' :
+							'bg-error-100 dark:bg-error-900/30'
+						}`}>
+							<iconify-icon
+								icon={metrics.overall.hitRate >= 80 ? 'mdi:check-circle' : metrics.overall.hitRate >= 60 ? 'mdi:alert' : 'mdi:alert-circle'}
+								width="18"
+								class={metrics.overall.hitRate >= 80 ? 'text-success-600 dark:text-success-400' : metrics.overall.hitRate >= 60 ? 'text-warning-600 dark:text-warning-400' : 'text-error-600 dark:text-error-400'}
+							></iconify-icon>
+						</div>
+						<div class="flex-1">
+							<div class={`font-semibold ${
+								metrics.overall.hitRate >= 80 ? 'text-success-700 dark:text-success-300' :
+								metrics.overall.hitRate >= 60 ? 'text-warning-700 dark:text-warning-300' :
+								'text-error-700 dark:text-error-300'
+							}`}>
+								{#if metrics.overall.hitRate >= 80}
+									Excellent Performance
+								{:else if metrics.overall.hitRate >= 60}
+									Moderate Performance
+								{:else}
+									Needs Attention
+								{/if}
+							</div>
+							<div class="mt-0.5 text-surface-600 dark:text-surface-400">
+								Cache is {metrics.overall.hitRate >= 80 ? 'working optimally' : metrics.overall.hitRate >= 60 ? 'performing adequately' : 'underperforming'}
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>

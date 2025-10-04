@@ -21,6 +21,8 @@ export interface WidgetFunction {
 	aggregations?: unknown;
 	__widgetType?: WidgetType; // Track if core or custom
 	__dependencies?: string[]; // Track widget dependencies
+	__inputComponentPath?: string; // Path to Input component (3-pillar architecture)
+	__displayComponentPath?: string; // Path to Display component (3-pillar architecture)
 }
 
 interface WidgetStoreState {
@@ -243,6 +245,10 @@ export const widgetStoreActions = {
 			// Extract dependencies from widget metadata
 			const dependencies = originalFn.dependencies || [];
 
+			// Extract component paths for 3-pillar architecture
+			const inputComponentPath = originalFn.inputComponentPath || originalFn.__inputComponentPath || '';
+			const displayComponentPath = originalFn.displayComponentPath || originalFn.__displayComponentPath || '';
+
 			const widgetFn: WidgetFunction = Object.assign((config: Record<string, unknown>) => originalFn(config), {
 				Name: widgetName,
 				GuiSchema: originalFn.GuiSchema,
@@ -251,7 +257,9 @@ export const widgetStoreActions = {
 				Description: originalFn.Description,
 				aggregations: originalFn.aggregations,
 				__widgetType: type,
-				__dependencies: dependencies
+				__dependencies: dependencies,
+				__inputComponentPath: inputComponentPath,
+				__displayComponentPath: displayComponentPath
 			});
 
 			return {

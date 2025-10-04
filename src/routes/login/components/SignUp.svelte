@@ -267,7 +267,7 @@ Features:
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName /></div>
+						<div class="text-xs text-surface-300"><SiteName highlight="CMS" /></div>
 						<div class="break-words lg:-mt-1">
 							{#if isInviteFlow}
 								{m.form_signup()}

@@ -205,7 +205,7 @@
 	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold"><SiteName siteName={page.data?.settings?.SITE_NAME} /> </span>
+			<span class="text-token relative text-2xl font-bold"><SiteName siteName={page.data?.settings?.SITE_NAME} highlight="CMS" /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->

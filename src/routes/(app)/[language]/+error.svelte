@@ -3,9 +3,6 @@
 @component
 **Displays an Error page for the SveltyCMS**
 
-@example
-<Error />
-
 ### Props:
 - `error`: The error object containing status and message.
 
@@ -38,6 +35,14 @@
 
 	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
 
+	// Helper function to check if character is part of "CMS"
+	function isCMSChar(index: number): boolean {
+		// Pattern: "SveltyCMS•" = 10 characters (including separator)
+		// Characters at positions 6,7,8 in each repetition are "CMS"
+		const posInPattern = index % 10;
+		return posInPattern >= 6 && posInPattern < 9;
+	}
+
 	// Set the error data and SEO information that will be used by the layout
 	export const load: Load = () => {
 		return {
@@ -57,17 +62,9 @@
 			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
 				{#each array as char, index}
 					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">
-						{#if char === 'S' && (index + 1) % 10 === 0}
-							<!-- This is the last 'S' in each "SveltyCMS•" -->
-							<span class="text-primary-500"><SiteName {char} /></span>
-						{:else if index % 10 < 6}
-							<!-- This is the main part of each "SveltyCMS•" -->
-							<SiteName {char} />
-						{:else if index % 10 >= 6 && index % 10 < 9}
-							<!-- This is the last part of each "SveltyCMS•" -->
+						{#if isCMSChar(index)}
 							<span class="text-primary-500"><SiteName {char} /></span>
 						{:else}
-							<!-- This is the separator '•' -->
 							<SiteName {char} />
 						{/if}
 					</div>

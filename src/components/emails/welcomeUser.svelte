@@ -27,10 +27,10 @@
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Welcome to <SiteName /></title>
+		<title>Welcome to SveltyCMS</title>
 	</Head>
 
-	<Preview preview="Welcome to <SiteName /> - Your journey begins here!" />
+	<Preview preview="Welcome to SveltyCMS - Your journey begins here!" />
 
 	<Body>
 		<Container>
@@ -49,7 +49,7 @@
 
 			<!-- Main Content -->
 			<Section>
-				<Heading><center>Welcome to <strong><SiteName /></strong></center></Heading>
+				<Heading><center>Welcome to <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong></center></Heading>
 				<Text>
 					<strong><center>A SvelteKit-powered flexible Headless CMS</center></strong>
 				</Text>
@@ -70,14 +70,29 @@
 				</Link>
 
 				<Text>
-					{m.welcomeuser_thanks()}
+					Thank you for choosing <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong>!
 				</Text>
 
 				<!-- CTA Button -->
 				<Section>
-					<Button href={hostLink} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
-						Go to <SiteName />
-					</Button>
+					<center>
+						<Button
+							href={hostLink}
+							pX={24}
+							pY={12}
+							style={{
+								backgroundColor: '#22c55e',
+								color: '#fff',
+								borderRadius: '8px',
+								minWidth: '200px',
+								fontWeight: 'bold',
+								fontSize: '18px',
+								display: 'inline-block'
+							}}
+						>
+							Go to SveltyCMS
+						</Button>
+					</center>
 				</Section>
 
 				<Hr></Hr>
@@ -86,7 +101,7 @@
 				<Section>
 					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
 						<Link href="https://SveltyCMS.com">
-							Your <SiteName /> team
+							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
 						</Link>
 					</Text>
 				</Section>
