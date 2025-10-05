@@ -316,27 +316,95 @@ export default defineConfig((): UserConfig => {
 			target: 'esnext',
 			minify: 'esbuild',
 			sourcemap: true,
+			chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
 			rollupOptions: {
 				onwarn(warning, warn) {
-					// Suppress common circular dependency warnings from large libraries
-					const suppressedCodes = ['CIRCULAR_DEPENDENCY', 'UNUSED_EXTERNAL_IMPORT'];
-					const suppressedSources = ['zod-to-json-schema', 'mongodb', 'mongoose'];
+					// Suppress circular dependency warnings from third-party libraries
+					// These are internal to the libraries and don't affect functionality
+					if (warning.code === 'CIRCULAR_DEPENDENCY') {
+						// Check all possible fields where the path might be
+						const ids = warning.ids || [];
+						const message = warning.message || '';
+						const cycle = warning.cycle || [];
 
-					if (suppressedCodes.includes(warning.code || '') && suppressedSources.some((src) => warning.message.includes(src))) {
+						// Combine all text to check
+						const allText = [message, ...ids, ...cycle].join(' ');
+
+						// If it contains node_modules, it's a third-party circular dependency - suppress it
+						if (allText.includes('node_modules')) {
+							return;
+						}
+					}
+
+					// Suppress unused external import warnings
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
 						return;
 					}
+
+					// Suppress eval warnings from Vite (common in dev dependencies)
+					if (warning.code === 'EVAL' && warning.id?.includes('node_modules')) {
+						return;
+					}
+
+					// Show all other warnings
 					warn(warning);
 				},
 				external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'typescript', 'ts-node'],
 				output: {
-					// Smart chunking for better caching and smaller initial load
+					// Optimized chunking for better caching and smaller initial load
 					manualChunks: (id: string) => {
+						// Only split vendor libraries (node_modules)
 						if (id.includes('node_modules')) {
-							if (id.includes('@skeletonlabs/skeleton')) return 'skeleton-ui';
-							if (id.includes('tiptap')) return 'tiptap-editor';
-							if (id.includes('mongodb') || id.includes('mongoose')) return 'database';
+							// Rich text editors (TipTap, ProseMirror) - usually large
+							// These are now lazy-loaded via LazyRichTextInput.svelte
+							if (id.includes('tiptap') || id.includes('prosemirror')) {
+								return 'vendor-editor';
+							}
+
+							// Code editor (CodeMirror)
+							if (id.includes('codemirror') || id.includes('@codemirror')) {
+								return 'vendor-codemirror';
+							}
+
+							// Chart/visualization libraries
+							if (id.includes('chart') || id.includes('d3')) {
+								return 'vendor-charts';
+							}
+
+							// MongoDB/Mongoose
+							if (id.includes('mongodb') || id.includes('mongoose')) {
+								return 'vendor-db';
+							}
+
+							// Skeleton UI components
+							if (id.includes('@skeletonlabs/skeleton')) {
+								return 'skeleton-ui';
+							}
+
+							// Svelte ecosystem
+							if (id.includes('svelte') && !id.includes('@sveltejs/kit')) {
+								return 'vendor-svelte';
+							}
+
+							// Everything else (core utilities)
 							return 'vendor';
 						}
+
+						// Route-based code splitting for admin vs public routes
+						// This keeps admin-heavy features separate from public pages
+						if (id.includes('src/routes/(app)/dashboard')) {
+							return 'route-dashboard';
+						}
+
+						if (id.includes('src/routes/(app)/config')) {
+							return 'route-admin-config';
+						}
+
+						if (id.includes('src/routes/(app)/mediagallery')) {
+							return 'route-media';
+						}
+
+						// Let Vite handle other application code automatically
 					}
 				}
 			}

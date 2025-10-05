@@ -62,6 +62,9 @@ import { SESSION_COOKIE_NAME } from './constants';
 // Import shared crypto utilities with enterprise-grade Argon2
 import { hashPassword as cryptoHashPassword, verifyPassword as cryptoVerifyPassword } from '@utils/crypto';
 
+// Import caching for enterprise performance
+import { cacheService, CacheCategory } from '@src/databases/CacheService';
+
 // Main Auth class
 export class Auth {
 	private db: DatabaseAdapter;
@@ -171,16 +174,35 @@ export class Auth {
 	}
 
 	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
+		// Enterprise caching: Cache user data using USER category (dynamic TTL from settings)
+		const cacheKey = `user:id:${user_id}`;
+		const cached = await cacheService.get<User>(cacheKey, tenantId, CacheCategory.USER);
+		if (cached) {
+			logger.trace('Cache hit for user by ID', { user_id });
+			return cached;
+		}
+
 		const result = (await this.db.auth.getUserById(user_id, tenantId)) as unknown;
 		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
 			const r = result as DatabaseResult<User | null>;
-			if (r.success) return r.data;
+			if (r.success && r.data) {
+				// Cache with USER category (default: 1 min, configurable via settings)
+				await cacheService.setWithCategory(cacheKey, r.data, CacheCategory.USER, tenantId);
+				return r.data;
+			}
 			return null;
 		}
 		return (result as User | null) ?? null;
 	}
-
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
+		// Enterprise caching: Cache user lookups by email using USER category
+		const cacheKey = `user:email:${criteria.email.toLowerCase()}`;
+		const cached = await cacheService.get<User>(cacheKey, criteria.tenantId, CacheCategory.USER);
+		if (cached) {
+			logger.trace('Cache hit for user by email', { email: criteria.email });
+			return cached;
+		}
+
 		const result = (await this.db.auth.getUserByEmail(criteria)) as unknown;
 		logger.debug('Auth.getUserByEmail - raw result from db.auth', {
 			result,
@@ -192,29 +214,55 @@ export class Auth {
 			const r = result as DatabaseResult<User | null>;
 			logger.debug('Auth.getUserByEmail - unwrapping DatabaseResult', {
 				success: r.success,
-				data: r.data,
-				dataType: typeof r.data
+				dataPresent: r.success && 'data' in r,
+				dataType: r.success && 'data' in r ? typeof (r as { data: unknown }).data : 'N/A'
 			});
-			if (r.success === true) return r.data ?? null;
+			if (r.success === true) {
+				const userData = 'data' in r ? (r as { data: User | null }).data : null;
+				if (userData) {
+					// Cache with USER category (default: 1 min, configurable via settings)
+					await cacheService.setWithCategory(cacheKey, userData, CacheCategory.USER, criteria.tenantId);
+				}
+				return userData ?? null;
+			}
 			return null;
 		}
 		return (result as User | null) ?? null;
 	}
-
 	async updateUser(userId: string, updates: Partial<User>, tenantId?: string): Promise<void> {
 		const result = await this.db.auth.updateUserAttributes(userId, updates, tenantId);
 		if (!result || !result.success) {
 			throw error(500, 'Failed to update user');
 		}
-	}
 
+		// Invalidate user caches after update (maintain cache consistency)
+		const cacheKey = `user:id:${userId}`;
+		await cacheService.delete(cacheKey, tenantId);
+
+		// If email was in updates, invalidate email cache too
+		if (updates.email) {
+			const emailCacheKey = `user:email:${updates.email.toLowerCase()}`;
+			await cacheService.delete(emailCacheKey, tenantId);
+		}
+	}
 	async deleteUser(user_id: string, tenantId?: string): Promise<void> {
+		// Get user first to clear email cache
+		const user = await this.getUserById(user_id, tenantId);
+
 		const result = await this.db.auth.deleteUser(user_id, tenantId);
 		if (!result || !result.success) {
 			throw error(500, 'Failed to delete user');
 		}
-	}
 
+		// Invalidate all caches for this user
+		const cacheKey = `user:id:${user_id}`;
+		await cacheService.delete(cacheKey, tenantId);
+
+		if (user?.email) {
+			const emailCacheKey = `user:email:${user.email.toLowerCase()}`;
+			await cacheService.delete(emailCacheKey, tenantId);
+		}
+	}
 	async getAllUsers(options?: { filter?: { tenantId?: string } }): Promise<User[]> {
 		const result = await this.db.auth.getAllUsers(options);
 		if (result && result.success) {

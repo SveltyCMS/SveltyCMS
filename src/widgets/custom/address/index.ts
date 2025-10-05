@@ -17,23 +17,23 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
-import { object, string, number, minLength, optional, type InferInput as ValibotInput } from 'valibot';
+import { object, string, number, minLength, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { AddressProps } from './types';
 import * as m from '@src/paraglide/messages';
 
 // Define the validation schema for the address data object.
 const AddressValidationSchema = object({
-	street: string([minLength(1, 'Street is required.')]),
+	street: pipe(string(), minLength(1, 'Street is required.')),
 	houseNumber: string(),
-	postalCode: string([minLength(1, 'Postal code is required.')]),
-	city: string([minLength(1, 'City is required.')]),
-	country: string([minLength(2, 'Country is required.')]),
+	postalCode: pipe(string(), minLength(1, 'Postal code is required.')),
+	city: pipe(string(), minLength(1, 'City is required.')),
+	country: pipe(string(), minLength(2, 'Country is required.')),
 	latitude: number(),
 	longitude: number()
 });
 
 // Create the widget definition using the factory.
-const AddressWidget = createWidget<AddressProps, typeof AddressValidationSchema>({
+const AddressWidget = createWidget<AddressProps>({
 	Name: 'Address',
 	Icon: 'mdi:home-map-marker',
 	Description: m.widget_address_description(),

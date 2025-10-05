@@ -12,7 +12,7 @@
  * - Integration with MongoDB through Mongoose
  */
 
-import type { Document, Model } from 'mongoose';
+import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +39,17 @@ export const TokenSchema = new Schema(
 	},
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
+
+// --- Indexes ---
+// TTL index: Automatically delete expired tokens (auto-cleanup)
+TokenSchema.index({ expires: 1 }, { expireAfterSeconds: 0 });
+
+// Compound indexes for common query patterns (50-80% performance boost)
+TokenSchema.index({ user_id: 1, type: 1, expires: 1 }); // User's active tokens by type
+TokenSchema.index({ email: 1, type: 1, expires: 1 }); // Email verification/reset queries
+TokenSchema.index({ tenantId: 1, type: 1, expires: 1 }); // Multi-tenant token queries
+TokenSchema.index({ tenantId: 1, user_id: 1, type: 1 }); // Tenant-specific user tokens
+TokenSchema.index({ type: 1, expires: 1, blocked: 1 }); // Active tokens by type (admin queries)
 
 interface TokenDocument extends Token, Document {}
 

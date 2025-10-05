@@ -29,7 +29,7 @@
 		onRetry?: () => void;
 	}>();
 
-	function getStatusIcon(state: ConnectionState, result: TestResult | null): string {
+	function getStatusIcon(state: ConnectionState): string {
 		if (state === 'testing') return '⏳';
 		if (state === 'success') return '✅';
 		if (state === 'error') return '❌';
@@ -119,7 +119,7 @@
 	<div class="p-4">
 		<div class="flex items-center gap-3">
 			<span class="text-2xl {state === 'testing' ? 'animate-pulse' : ''}">
-				{getStatusIcon(state, result)}
+				{getStatusIcon(state)}
 			</span>
 			<div class="flex-1">
 				<p class="font-semibold {getStatusColor(state)}">

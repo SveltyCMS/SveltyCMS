@@ -9,6 +9,9 @@
 import { logger } from '@utils/logger.svelte';
 import type Mongoose from 'mongoose';
 import { createDatabaseError } from './mongoDBUtils';
+import { UserSchema } from '../models/authUser';
+import { TokenSchema } from '../models/authToken';
+import { SessionSchema } from '../models/authSession';
 
 /**
  * A dedicated class for registering authentication models with a Mongoose instance.
@@ -27,16 +30,14 @@ export class MongoAuthModelRegistrar {
 	}
 
 	/**
-	 * Dynamically imports and registers the authentication models (User, Token, Session).
+	 * Registers authentication models (User, Token, Session).
 	 * This process is idempotent; it will not re-register models that already exist.
 	 * @throws {DatabaseError} If schemas cannot be imported or models fail to register.
 	 */
 	async setupAuthModels(): Promise<void> {
 		try {
-			// Dynamically import schemas only when needed to avoid circular dependencies
-			const { UserSchema } = await import('../models/authUser');
-			const { TokenSchema } = await import('../models/authToken');
-			const { SessionSchema } = await import('../models/authSession');
+			// Schemas are now statically imported at top of file
+			// This avoids dynamic import warning and improves code splitting
 
 			// Register each model using the private helper
 			this._registerModel('auth_users', UserSchema);

@@ -38,9 +38,9 @@ Renders: "1.234,56 €" (German) or "$1,234.56" (US) based on system language
 		if (typeof value !== 'number') return '–';
 		try {
 			// Use the browser's built-in localization for perfect formatting.
-			return new Intl.NumberFormat(lang, {
+			return new Intl.NumberFormat(lang as string, {
 				style: 'currency',
-				currency: field.currencyCode || 'EUR'
+				currency: (field.currencyCode || 'EUR') as string
 			}).format(value);
 		} catch (e) {
 			return 'Invalid amount';

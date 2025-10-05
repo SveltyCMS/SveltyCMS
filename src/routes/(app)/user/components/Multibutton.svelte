@@ -107,7 +107,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Available actions based on current state
-	let availableActions = $derived(() => {
+	let availableActions = $derived.by(() => {
 		const baseActions: ActionType[] = ['edit', 'delete'];
 		const currentBlockState = blockState;
 
@@ -123,21 +123,21 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Always provide an array for the template to iterate over
-	let filteredActions = $derived(() => {
+	let filteredActions = $derived.by(() => {
 		const actions = Array.isArray(availableActions) ? availableActions : [];
 		return actions.filter((action) => action !== listboxValue);
 	});
 
 	// Auto-adjust listboxValue when selection changes
 	$effect(() => {
-		if (safeSelectedRows.length > 0 && !availableActions().includes(listboxValue)) {
+		if (safeSelectedRows.length > 0 && !availableActions.includes(listboxValue)) {
 			const currentBlockState = blockState;
 			// If current action is not available, switch to the most appropriate one
 			if (currentBlockState() === 'all-blocked' && listboxValue === 'block') {
 				listboxValue = 'unblock';
 			} else if (currentBlockState() === 'all-unblocked' && listboxValue === 'unblock') {
 				listboxValue = 'block';
-			} else if (!availableActions().includes(listboxValue)) {
+			} else if (!availableActions.includes(listboxValue)) {
 				listboxValue = 'edit'; // Default fallback
 			}
 		}
@@ -331,7 +331,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		}
 
 		// Check if action is available (shouldn't happen with smart UI, but good safeguard)
-		if (!availableActions().includes(action)) {
+		if (!availableActions.includes(action)) {
 			const currentBlockState = blockState;
 			if (currentBlockState() === 'all-blocked' && action === 'block') {
 				showToast('All selected items are already blocked', 'warning');

@@ -9,7 +9,7 @@ import type { DatabaseId } from '@src/content/types';
 import { logger } from '@utils/logger.svelte';
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseError, PaginatedResult, PaginationOptions } from '../../dbInterface';
-import { cacheService } from '@src/databases/CacheService';
+import { cacheService, CacheCategory } from '@src/databases/CacheService';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
 
 // Pre-compiled regex for UUIDv4 validation (with or without dashes) for performance.
@@ -222,36 +222,9 @@ export function createPagination<T>(items: T[], options: PaginationOptions): Pag
 // Smart Caching Utilities
 // ===================================================================================
 
-/**
- * Cache categories for metrics and TTL configuration
- */
-export enum CacheCategory {
-	QUERY = 'query', // Generic database queries
-	SCHEMA = 'schema', // Collection schemas
-	WIDGET = 'widget', // Widget configurations
-	THEME = 'theme', // Theme settings
-	MEDIA = 'media', // Media metadata
-	CONTENT = 'content', // Content structure trees
-	PREFERENCE = 'preference', // System preferences
-	AUTH = 'auth', // Authentication data
-	SESSION = 'session' // Session data
-}
-
-/**
- * TTL configuration for different cache categories (in seconds)
- * Optimized for headless CMS backend operations
- */
-export const CACHE_TTL_CONFIG = {
-	[CacheCategory.QUERY]: 30, // Generic queries: 30 seconds (short-lived, data may change)
-	[CacheCategory.SCHEMA]: 600, // Collection schemas: 10 minutes (rarely change, critical path)
-	[CacheCategory.WIDGET]: 600, // Widget configs: 10 minutes (rarely change, frequently accessed)
-	[CacheCategory.THEME]: 300, // Themes: 5 minutes (rarely change, UI-critical)
-	[CacheCategory.MEDIA]: 300, // Media metadata: 5 minutes (moderate uploads, file-level cache)
-	[CacheCategory.CONTENT]: 180, // Content structure: 3 minutes (moderate updates, balance freshness)
-	[CacheCategory.PREFERENCE]: 300, // System preferences: 5 minutes (rarely change, app-wide)
-	[CacheCategory.AUTH]: 300, // Auth data: 5 minutes (security-sensitive)
-	[CacheCategory.SESSION]: 3600 // Session data: 1 hour (long-lived, auth-critical)
-} as const;
+// Note: CacheCategory enum is imported from CacheService for consistency
+// Re-export for convenience in this module
+export { CacheCategory } from '@src/databases/CacheService';
 
 /**
  * Options for cache operations
@@ -259,7 +232,7 @@ export const CACHE_TTL_CONFIG = {
 export interface CacheWrapperOptions {
 	category: CacheCategory;
 	tenantId?: string;
-	ttl?: number; // Override default TTL
+	ttl?: number; // Override default TTL (uses category-based TTL from settings if not provided)
 	forceRefresh?: boolean; // Bypass cache and force DB query
 }
 
@@ -268,8 +241,8 @@ export interface CacheWrapperOptions {
  *
  * Features:
  * - Automatic cache hit/miss tracking
- * - Multi-tenant isolation
- * - Category-based metrics
+ * - Multi-tenant isolation via CacheService
+ * - Category-based TTL from database settings (dynamically configurable)
  * - Resilient fallback on cache failure
  * - Performance monitoring
  *
@@ -290,7 +263,6 @@ export interface CacheWrapperOptions {
 export async function withCache<T>(cacheKey: string, queryFn: () => Promise<T>, options: CacheWrapperOptions): Promise<T> {
 	const startTime = performance.now();
 	const { category, tenantId, ttl, forceRefresh = false } = options;
-	const effectiveTTL = ttl || CACHE_TTL_CONFIG[category];
 
 	try {
 		// Initialize cache service
@@ -301,15 +273,21 @@ export async function withCache<T>(cacheKey: string, queryFn: () => Promise<T>, 
 			logger.debug(`Cache FORCE REFRESH: ${cacheKey}`, { category, tenantId });
 			const result = await queryFn();
 
-			// Update cache with fresh data (fire-and-forget)
-			cacheService.set(cacheKey, result, effectiveTTL, tenantId).catch((err) => logger.warn(`Failed to update cache for ${cacheKey}:`, err));
-			cacheMetrics.recordSet(cacheKey, category, effectiveTTL, tenantId);
+			// Update cache with fresh data using category-based TTL from CacheService
+			if (ttl !== undefined) {
+				// Use explicit TTL if provided
+				await cacheService.set(cacheKey, result, ttl, tenantId, category);
+			} else {
+				// Use category-based TTL from settings (dynamic, configurable)
+				await cacheService.setWithCategory(cacheKey, result, category, tenantId);
+			}
+			cacheMetrics.recordSet(cacheKey, category, ttl || 0, tenantId);
 
 			return result;
 		}
 
-		// Try to get from cache first
-		const cached = await cacheService.get<T>(cacheKey, tenantId);
+		// Try to get from cache first (with category for metrics)
+		const cached = await cacheService.get<T>(cacheKey, tenantId, category);
 
 		if (cached !== null) {
 			// Cache HIT
@@ -324,19 +302,25 @@ export async function withCache<T>(cacheKey: string, queryFn: () => Promise<T>, 
 		}
 
 		// Cache MISS - execute query
-		const responseTime = performance.now() - startTime;
-		cacheMetrics.recordMiss(cacheKey, category, tenantId, responseTime);
+		const missTime = performance.now() - startTime;
+		cacheMetrics.recordMiss(cacheKey, category, tenantId, missTime);
 		logger.debug(`Cache MISS: ${cacheKey}`, {
 			category,
 			tenantId,
-			responseTime: `${responseTime.toFixed(2)}ms`
+			responseTime: `${missTime.toFixed(2)}ms`
 		});
 
 		const result = await queryFn();
 
-		// Store in cache (fire-and-forget to not slow down response)
-		cacheService.set(cacheKey, result, effectiveTTL, tenantId).catch((err) => logger.warn(`Failed to cache result for ${cacheKey}:`, err));
-		cacheMetrics.recordSet(cacheKey, category, effectiveTTL, tenantId);
+		// Store in cache using category-based TTL from CacheService (dynamic, configurable)
+		if (ttl !== undefined) {
+			// Use explicit TTL if provided
+			await cacheService.set(cacheKey, result, ttl, tenantId, category);
+		} else {
+			// Use category-based TTL from settings (allows runtime changes)
+			await cacheService.setWithCategory(cacheKey, result, category, tenantId);
+		}
+		cacheMetrics.recordSet(cacheKey, category, ttl || 0, tenantId);
 
 		return result;
 	} catch (error) {

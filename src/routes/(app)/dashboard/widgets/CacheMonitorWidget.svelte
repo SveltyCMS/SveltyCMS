@@ -111,7 +111,7 @@
 	{onCloseRequest}
 	{...defaults}
 >
-	{#snippet children({ data, refresh, isLoading })}
+	{#snippet children({ data })}
 		{@const metrics = data as CacheMetrics | null}
 
 		{#if !metrics}

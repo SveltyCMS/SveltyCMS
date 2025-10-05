@@ -12,8 +12,8 @@ Features:
 	import Column from './Column.svelte';
 
 	// Svelte DND-actions
-	import { constructNestedStructure } from '@root/src/content/utils';
-	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
+	import { constructNestedStructure, type ExtendedContentNode } from '@root/src/content/utils';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import type { DndItem } from './types';
@@ -35,12 +35,12 @@ Features:
 	let dragError = $state<string | null>(null);
 
 	/**
-	 * Converts a list of `NestedContentNode`s into `DndItem`s suitable for `svelte-dnd-action`.
+	 * Converts a list of `ExtendedContentNode`s into `DndItem`s suitable for `svelte-dnd-action`.
 	 * Recursively processes children to maintain the nested structure.
 	 * @param nodes The nested content nodes.
 	 * @returns An array of `DndItem`s.
 	 */
-	function createStructuredItems(nodes: NestedContentNode[]): DndItem[] {
+	function createStructuredItems(nodes: ExtendedContentNode[]): DndItem[] {
 		return nodes.map((node, index) => ({
 			...node,
 			id: node._id, // `svelte-dnd-action` requires an `id` property

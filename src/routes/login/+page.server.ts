@@ -858,7 +858,7 @@ export const actions: Actions = {
 			}
 
 			// Import 2FA service
-			const { getDefaultTwoFactorAuthService } = await import('@auth/twoFactorAuth');
+			const { getDefaultTwoFactorAuthService } = await import('@src/databases/auth/twoFactorAuth');
 			const twoFactorService = getDefaultTwoFactorAuthService(auth);
 
 			// Verify 2FA code

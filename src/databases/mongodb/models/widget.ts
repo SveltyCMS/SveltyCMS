@@ -35,8 +35,11 @@ export const widgetSchema = new Schema<Widget>(
 	}
 );
 
-// Indexes
-widgetSchema.index({ isActive: 1 }); // Index for active widgets
+// --- Indexes ---
+// Compound indexes for common query patterns
+widgetSchema.index({ isActive: 1, name: 1 }); // Active widget lookup
+widgetSchema.index({ name: 1 }, { unique: true }); // Enforce unique widget names
+widgetSchema.index({ isActive: 1, updatedAt: -1 }); // Recently modified active widgets
 
 // Static methods
 widgetSchema.statics = {

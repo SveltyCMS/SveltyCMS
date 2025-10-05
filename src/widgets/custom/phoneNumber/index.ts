@@ -28,22 +28,20 @@ const validationSchema = (field: FieldInstance) => {
 	const validationMessage = 'Please enter a valid phone number format.';
 
 	// Use the custom pattern from the field config, or fall back to the default.
-	const validationPattern = field.pattern ? new RegExp(field.pattern) : defaultPattern;
+	const validationPattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;
 
-	// Start with a base string schema.
-	let schema = pipe(string(), regex(validationPattern, validationMessage));
+	// Start with a base string schema that includes the regex validation.
+	const baseSchema = pipe(string(), regex(validationPattern, validationMessage));
 
 	// If the field is required, also ensure it's not empty.
-	if (field.required) {
-		schema = pipe(string(), minLength(1, 'This field is required.'), regex(validationPattern, validationMessage));
-	}
+	const schema = field.required ? pipe(string(), minLength(1, 'This field is required.'), regex(validationPattern, validationMessage)) : baseSchema;
 
 	// If not required, wrap the schema to allow it to be optional.
 	return field.required ? schema : optional(schema, '');
 };
 
 // Create the widget definition using the factory.
-const PhoneNumberWidget = createWidget<PhoneNumberProps, ReturnType<typeof validationSchema>>({
+const PhoneNumberWidget = createWidget<PhoneNumberProps>({
 	Name: 'PhoneNumber',
 	Icon: 'ic:baseline-phone-in-talk',
 	Description: m.widget_phoneNumber_description(),

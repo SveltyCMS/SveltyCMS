@@ -22,20 +22,23 @@ import { createWidget } from '@src/widgets/factory';
 import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { RatingProps } from './types';
 
+// Helper type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
 	// The maximum value is determined by the field's config, defaulting to 5.
-	const max = field.max || 5;
+	const max = (field.max || 5) as number;
 
 	// Start with a base number schema.
-	let schema = pipe(number('Rating must be a number.'), minValue(1, 'A rating is required.'), maxValue(max, `Rating cannot exceed ${max}.`));
+	const schema = pipe(number('Rating must be a number.'), minValue(1, 'A rating is required.'), maxValue(max, `Rating cannot exceed ${max}.`));
 
 	// If the field is not required, wrap the schema to allow it to be undefined.
 	return field.required ? schema : optional(schema);
 };
 
 // Create the widget definition using the factory.
-const RatingWidget = createWidget<RatingProps, ReturnType<typeof validationSchema>>({
+const RatingWidget = createWidget<RatingProps>({
 	Name: 'Rating',
 	Icon: 'material-symbols:star-outline',
 	Description: m.widget_rating_description(),
@@ -63,8 +66,10 @@ const RatingWidget = createWidget<RatingProps, ReturnType<typeof validationSchem
 
 	// Aggregations perform numeric comparisons.
 	aggregations: {
-		filters: async ({ field, filter }) => [{ $match: { [field.db_fieldName]: { $eq: parseInt(filter, 10) } } }],
-		sorts: async ({ field, sortDirection }) => ({
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+			{ $match: { [field.db_fieldName]: { $eq: parseInt(filter, 10) } } }
+		],
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
 	}

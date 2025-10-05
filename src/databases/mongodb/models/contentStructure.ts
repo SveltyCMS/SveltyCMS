@@ -11,7 +11,7 @@ import { StatusTypes } from '@src/content/types';
 import type { DatabaseError, DatabaseResult } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger.svelte';
 import type { Model } from 'mongoose';
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 // --- Type Definitions for Mongoose Documents ---
 /** Represents a generic document in the content structure, which can be a category or a collection. */
@@ -91,6 +91,15 @@ const contentStructureSchema = new Schema<ContentStructureDocument>(
 // --- Indexes ---
 contentStructureSchema.index({ updatedAt: -1 });
 contentStructureSchema.index({ 'translations.languageTag': 1 });
+
+// --- Compound Indexes ---
+contentStructureSchema.index({ tenantId: 1, parentId: 1, order: 1 }); // Hierarchical content queries
+contentStructureSchema.index({ tenantId: 1, nodeType: 1, status: 1 }); // Content type filtering
+contentStructureSchema.index({ tenantId: 1, path: 1 }, { unique: true, sparse: true }); // URL routing (unique per tenant)
+contentStructureSchema.index({ tenantId: 1, slug: 1 }, { sparse: true }); // Slug-based lookups
+contentStructureSchema.index({ tenantId: 1, 'translations.languageTag': 1, nodeType: 1 }); // Multi-language content
+contentStructureSchema.index({ parentId: 1, order: 1, nodeType: 1 }); // Child node ordering
+contentStructureSchema.index({ nodeType: 1, updatedAt: -1 }); // Recent content by type
 
 // --- Static Methods ---
 

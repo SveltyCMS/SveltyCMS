@@ -38,7 +38,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		let freshUser = user;
 		if (user) {
 			try {
+				// Dynamically import to avoid mixed import warnings while keeping it async
 				const { auth } = await import('@src/databases/db');
+				// Note: Using dynamic import in async context to load only when needed
 				if (auth) {
 					const dbUser = await auth.getUserById(user._id.toString());
 					if (dbUser) {

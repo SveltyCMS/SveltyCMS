@@ -37,7 +37,7 @@ It handles widget configuration, permissions, and specific options.
 	let modalData = $derived($modalStore[0]);
 	let widgetKey = $derived(modalData?.value?.widget?.key as string);
 	let availableWidgets = $derived($widgetFunctions || {});
-	let guiSchema = $derived(availableWidgets[widgetKey]?.GuiSchema || {});
+	let guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
 
 	// Derive options from guiSchema
 	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);

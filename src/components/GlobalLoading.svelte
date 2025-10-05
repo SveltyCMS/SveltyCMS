@@ -30,7 +30,7 @@
 	const animationDuration = 60000; // 60 seconds
 
 	// Get contextual loading text based on current operation
-	const loadingText = $derived(() => {
+	const loadingText = $derived.by(() => {
 		const reason = globalLoadingStore.loadingReason;
 		switch (reason) {
 			case loadingOperations.navigation:

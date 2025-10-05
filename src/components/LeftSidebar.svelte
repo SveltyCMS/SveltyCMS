@@ -30,9 +30,8 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';
-	import { isDesktop, isMobile, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
-	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 
 	// Import components and utilities
 	import Collections from '@components/Collections.svelte';

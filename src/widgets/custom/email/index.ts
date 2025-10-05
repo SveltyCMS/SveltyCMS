@@ -24,19 +24,17 @@ import type { EmailProps } from './types';
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
 	// Start with a base string schema that requires a valid email format.
-	let schema = pipe(string(), email('Please enter a valid email address.'));
+	const baseSchema = pipe(string(), email('Please enter a valid email address.'));
 
 	// If the field is required, also ensure it's not empty.
-	if (field.required) {
-		schema = pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.'));
-	}
+	const schema = field.required ? pipe(string(), minLength(1, 'This field is required.'), email('Please enter a valid email address.')) : baseSchema;
 
 	// If not required, wrap the schema to allow it to be optional.
 	return field.required ? schema : optional(schema, '');
 };
 
 // Create the widget definition using the factory.
-const EmailWidget = createWidget<EmailProps, ReturnType<typeof validationSchema>>({
+const EmailWidget = createWidget<EmailProps>({
 	Name: 'Email',
 	Icon: 'ic:outline-email',
 	Description: m.widget_email_description(),

@@ -45,7 +45,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	});
 
 	import type { User } from '@src/databases/auth/types';
-	import type { Schema } from '@src/content/types';
+	import type { FieldInstance, Schema } from '@src/content/types';
 
 	const modalStore = getModalStore();
 
@@ -271,7 +271,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{#if tabSet.value === 0}
 			<CollectionForm data={collection.value} {handlePageTitleUpdate} />
 		{:else if tabSet.value === 1}
-			<CollectionWidget fields={collection.value?.fields} {handleCollectionSave} />
+			<CollectionWidget fields={collection.value?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

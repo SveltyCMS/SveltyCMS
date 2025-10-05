@@ -335,47 +335,28 @@ async function initializeMediaFolder(): Promise<void> {
 	}
 }
 
-// Initialize virtual folders
-async function initializeVirtualFolders(): Promise<void> {
+// Initialize virtual folders with retry logic
+async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
 	if (!dbAdapter.systemVirtualFolder) {
 		logger.warn('systemVirtualFolder adapter not available, skipping initialization.');
 		return;
 	}
-	try {
-		logger.debug('Initializing virtual folders...');
-		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
 
-		if (!systemVirtualFoldersResult.success) {
-			const error = systemVirtualFoldersResult.error;
-			let errorMessage = 'Unknown error';
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			logger.debug(`Initializing virtual folders (attempt ${attempt}/${maxRetries})...`);
 
-			if (error instanceof Error) {
-				errorMessage = error.message;
-			} else if (error && typeof error === 'object' && 'message' in error) {
-				errorMessage = String((error as { message: unknown }).message);
-			} else if (error) {
-				errorMessage = String(error);
+			// Verify the connection is still active before querying
+			if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
+				throw new Error('Database connection lost - reconnection required');
 			}
 
-			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
-		}
+			const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
 
-		const systemVirtualFolders = systemVirtualFoldersResult.data;
-
-		if (systemVirtualFolders.length === 0) {
-			logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
-			const defaultMediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
-			const rootFolderData = {
-				name: defaultMediaFolder,
-				path: defaultMediaFolder, // parentId is undefined for root folders
-				order: 0,
-				type: 'folder' as const
-			};
-			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
-
-			if (!creationResult.success) {
-				const error = creationResult.error;
+			if (!systemVirtualFoldersResult.success) {
+				const error = systemVirtualFoldersResult.error;
 				let errorMessage = 'Unknown error';
 
 				if (error instanceof Error) {
@@ -386,24 +367,71 @@ async function initializeVirtualFolders(): Promise<void> {
 					errorMessage = String(error);
 				}
 
-				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
+				throw new Error(`Failed to get virtual folders: ${errorMessage}`);
 			}
 
-			const rootFolder = creationResult.data; // Log only the essential information
+			const systemVirtualFolders = systemVirtualFoldersResult.data;
 
-			logger.info('Default root virtual folder created:', {
-				name: rootFolder.name,
-				path: rootFolder.path,
-				id: rootFolder._id?.toString() || 'No ID'
-			});
-		} else {
-			logger.debug(`Found \x1b[34m${systemVirtualFolders.length}\x1b[0m virtual folders`);
+			if (systemVirtualFolders.length === 0) {
+				logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
+				const defaultMediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
+				const rootFolderData = {
+					name: defaultMediaFolder,
+					path: defaultMediaFolder, // parentId is undefined for root folders
+					order: 0,
+					type: 'folder' as const
+				};
+				const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
+
+				if (!creationResult.success) {
+					const error = creationResult.error;
+					let errorMessage = 'Unknown error';
+
+					if (error instanceof Error) {
+						errorMessage = error.message;
+					} else if (error && typeof error === 'object' && 'message' in error) {
+						errorMessage = String((error as { message: unknown }).message);
+					} else if (error) {
+						errorMessage = String(error);
+					}
+
+					throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
+				}
+
+				const rootFolder = creationResult.data; // Log only the essential information
+
+				logger.info('Default root virtual folder created:', {
+					name: rootFolder.name,
+					path: rootFolder.path,
+					id: rootFolder._id?.toString() || 'No ID'
+				});
+			} else {
+				logger.debug(`Found \x1b[34m${systemVirtualFolders.length}\x1b[0m virtual folders`);
+			}
+
+			// Success - break the retry loop
+			logger.debug(`✅ Virtual folders initialized successfully on attempt ${attempt}`);
+			return;
+		} catch (err) {
+			lastError = err;
+			const errorMsg = err instanceof Error ? err.message : String(err);
+
+			if (attempt < maxRetries) {
+				logger.warn(`Virtual folder initialization failed (attempt ${attempt}/${maxRetries}): ${errorMsg}`);
+				logger.warn(`Retrying in ${retryDelay}ms...`);
+				await new Promise((resolve) => setTimeout(resolve, retryDelay));
+				// Exponential backoff
+				retryDelay *= 2;
+			} else {
+				logger.error(`Virtual folder initialization failed after ${maxRetries} attempts: ${errorMsg}`);
+			}
 		}
-	} catch (err) {
-		const message = `Error initializing virtual folders: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw new Error(message);
 	}
+
+	// All retries exhausted
+	const message = `Error initializing virtual folders after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`;
+	logger.error(message);
+	throw new Error(message);
 }
 
 // Initialize adapters
@@ -560,8 +588,14 @@ async function initializeSystem(forceReload = false): Promise<void> {
 		const step3StartTime = performance.now();
 
 		try {
-			// Initialize unrelated components in parallel
-			await Promise.all([initializeMediaFolder(), initializeRevisions(), initializeVirtualFolders()]);
+			// Initialize non-database components first
+			await Promise.all([initializeMediaFolder(), initializeRevisions()]);
+
+			// Wait a bit for database to be fully ready, then initialize virtual folders
+			// This prevents race conditions when the DB connection is slow
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			await initializeVirtualFolders();
+
 			// Seed default theme first, then initialize ThemeManager to avoid race conditions
 			await initializeDefaultTheme();
 			await initializeThemeManager();

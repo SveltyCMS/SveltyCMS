@@ -150,10 +150,10 @@
 		onblur={handleBlur}
 		name={field.db_fieldName}
 		id={field.db_fieldName}
-		placeholder={field.placeholder || field.db_fieldName}
-		required={field?.required}
-		readonly={field?.readonly}
-		disabled={field?.disabled}
+		placeholder={(field.placeholder || field.db_fieldName) as string | undefined}
+		required={field?.required as boolean | undefined}
+		readonly={field?.readonly as boolean | undefined}
+		disabled={field?.disabled as boolean | undefined}
 		class="input w-full text-black dark:text-primary-500"
 		class:error={!!validationError}
 		class:validating={isValidating}

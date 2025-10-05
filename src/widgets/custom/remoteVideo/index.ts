@@ -22,6 +22,9 @@ import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
 import { literal, minLength, number, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
 
+// Helper type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 // Define the validation schema for the RemoteVideoData object.
 const RemoteVideoDataSchema = object({
 	platform: union([literal('youtube'), literal('vimeo'), literal('twitch'), literal('tiktok'), literal('other')]),
@@ -70,8 +73,10 @@ const RemoteVideoWidget = createWidget({
 
 	// Aggregations filter/sort by video title.
 	aggregations: {
-		filters: async ({ field, filter }) => [{ $match: { [`${field.db_fieldName}.title`]: { $regex: filter, $options: 'i' } } }],
-		sorts: async ({ field, sortDirection }) => ({
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+			{ $match: { [`${field.db_fieldName}.title`]: { $regex: filter, $options: 'i' } } }
+		],
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[`${field.db_fieldName}.title`]: sortDirection
 		})
 	},

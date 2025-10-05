@@ -19,7 +19,6 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@widgets';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
@@ -28,9 +27,9 @@ Features:
 
 	// Stores
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
-	import type { GuiSchema } from '@root/src/widgets/core/group/types';
 
-	// Get the keys of the widgets object
+	// GuiSchema is a record of field properties with their widget configs
+	type GuiSchema = Record<string, { widget?: any; [key: string]: unknown }>;
 
 	interface Props {
 		guiSchema: GuiSchema;
@@ -41,7 +40,7 @@ Features:
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {
 			return false;
-		} else return targetWidget.value.widget.Name;
+		} else return (targetWidget.value.widget as any)?.Name;
 	}
 
 	function handleUpdate(event: CustomEvent, property: string) {

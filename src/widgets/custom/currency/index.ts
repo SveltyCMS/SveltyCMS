@@ -23,26 +23,32 @@ import { createWidget } from '@src/widgets/factory';
 import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
 import type { CurrencyProps } from './types';
 
+// Helper type for aggregation field
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
 	// Start with a base number schema.
-	let schema = number('Value must be a number.');
+	const baseSchema = number('Value must be a number.');
 
-	// Add minValue validation if defined in the field config.
+	// Build validations array dynamically
+	const validations = [];
 	if (field.minValue !== undefined) {
-		schema = pipe(schema, minValue(field.minValue, `Value must be at least ${field.minValue}.`));
+		validations.push(minValue(field.minValue as number, `Value must be at least ${field.minValue}.`));
 	}
-	// Add maxValue validation if defined in the field config.
 	if (field.maxValue !== undefined) {
-		schema = pipe(schema, maxValue(field.maxValue, `Value must not exceed ${field.maxValue}.`));
+		validations.push(maxValue(field.maxValue as number, `Value must not exceed ${field.maxValue}.`));
 	}
+
+	// Apply validations if any exist
+	const schema = validations.length > 0 ? pipe(baseSchema, ...validations) : baseSchema;
 
 	// If the field is not required, wrap the schema to allow it to be undefined.
 	return field.required ? schema : optional(schema);
 };
 
 // Create the widget definition using the factory.
-const CurrencyWidget = createWidget<CurrencyProps, ReturnType<typeof validationSchema>>({
+const CurrencyWidget = createWidget<CurrencyProps>({
 	Name: 'Currency',
 	Icon: 'mdi:currency-usd',
 	Description: m.widget_currency_description(),
@@ -69,12 +75,12 @@ const CurrencyWidget = createWidget<CurrencyProps, ReturnType<typeof validationS
 
 	// Aggregations perform numeric comparisons.
 	aggregations: {
-		filters: async ({ field, filter }) => [
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
 			// Example: filter=">100" or filter="<50" or filter="150"
 			// This requires a simple parser for the filter string.
 			{ $match: { [field.db_fieldName]: { $eq: parseFloat(filter) } } } // Simplified for exact match
 		],
-		sorts: async ({ field, sortDirection }) => ({
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
 	}

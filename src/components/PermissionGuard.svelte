@@ -31,7 +31,6 @@ Features:
 
 	// Auth types
 	import type { PermissionConfig } from '@src/databases/auth/permissions';
-	import type { User } from '@src/databases/auth/types';
 
 	interface Props {
 		// Prop to receive permission configuration
@@ -59,7 +58,6 @@ Features:
 
 	// Reactive states
 	let loading = $state(false);
-	let user = $derived(page.data.user as User | undefined);
 	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
 	let isAdmin = $derived(page.data.isAdmin as boolean | undefined);
 	let permissionData = $derived(

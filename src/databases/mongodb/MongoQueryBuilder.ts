@@ -149,11 +149,22 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 	}
 
 	paginate(options: PaginationOptions): this {
-		// this.paginationOptions = options;
-		if (options.page && options.pageSize) {
+		// Support both offset-based and cursor-based pagination
+		if (options.cursor) {
+			// Cursor-based pagination (more efficient for large datasets)
+			// Cursor format: "field:value" (e.g., "_id:507f1f77bcf86cd799439011")
+			const [cursorField, cursorValue] = options.cursor.split(':');
+			if (cursorField && cursorValue) {
+				// Add cursor condition to query
+				const cursorCondition = options.sortDirection === 'desc' ? { $lt: cursorValue } : { $gt: cursorValue };
+				this.query[cursorField] = cursorCondition;
+			}
+		} else if (options.page && options.pageSize) {
+			// Traditional offset-based pagination (less efficient for large datasets)
 			this.skipValue = (options.page - 1) * options.pageSize;
 			this.limitValue = options.pageSize;
 		}
+
 		if (options.sortField && options.sortDirection) {
 			this.sortOptions[options.sortField] = options.sortDirection === 'asc' ? 1 : -1;
 		}
@@ -238,9 +249,14 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 		const executionTime = Date.now() - startTime;
 		return {
 			executionTime,
-			cached: false // MongoDB doesn't provide direct cache info
-			// Note: MongoDB doesn't easily provide recordsExamined and indexesUsed without explain()
-			// Consider using explain() for detailed performance metrics in development
+			cached: false, // MongoDB doesn't provide direct cache info
+			// Performance tracking for enterprise monitoring
+			queryType: this.distinctField ? 'distinct' : this.groupByField ? 'aggregate' : 'find',
+			usedIndexes: this.optimizationHints?.useIndex || [],
+			batchSize: this.optimizationHints?.batchSize,
+			maxExecutionTime: this.optimizationHints?.maxExecutionTime
+			// Note: MongoDB doesn't easily provide recordsExamined without explain()
+			// For production monitoring, consider enabling explain() in development
 		};
 	}
 

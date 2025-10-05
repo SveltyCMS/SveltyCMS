@@ -90,14 +90,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 	// Complete setup and close modal
 	function completeSetup() {
-		if (parent.onClose) parent.onClose();
-		modalStore.close(true); // Return true to indicate successful setup
+		if (parent.onClose) parent.onClose(true);
+		modalStore.close();
 	}
 
 	// Cancel setup
 	function cancelSetup() {
-		if (parent.onClose) parent.onClose();
-		modalStore.close(false);
+		if (parent.onClose) parent.onClose(false);
+		modalStore.close();
 	}
 
 	// Handle input for verification code (only allow 6 digits)

@@ -110,7 +110,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			supportsIndexing: true,
 			supportsFullTextSearch: true,
 			supportsAggregation: true,
-			supportsStreaming: false,
+			supportsStreaming: true,
 			supportsPartitioning: false,
 			maxBatchSize: 1000,
 			maxQueryComplexity: 10
@@ -233,8 +233,34 @@ export class MongoDBAdapter implements IDBAdapter {
 				await mongoose.connect(connectionString, mongooseOptions as mongoose.ConnectOptions);
 				logger.info('MongoDB connection established successfully with custom options.');
 			} else {
-				await mongoose.connect(connectionString);
-				logger.info('MongoDB connection established successfully.');
+				// connection pool configuration for optimal performance
+				const enterpriseOptions: mongoose.ConnectOptions = {
+					// Connection Pool Settings (MongoDB 6.0+ optimized)
+					maxPoolSize: 50, // Maximum concurrent connections
+					minPoolSize: 10, // Maintain minimum pool for fast response
+					maxIdleTimeMS: 30000, // Close idle connections after 30s
+
+					// Performance Optimizations
+					// Note: Compression disabled to avoid optional dependency issues (zstd, snappy not installed)
+					// You can enable compression by installing: bun add snappy @mongodb-js/zstd
+					readPreference: 'primaryPreferred', // Balance between consistency and availability
+
+					// Timeout Settings
+					serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
+					socketTimeoutMS: 45000, // Socket timeout for long-running queries
+					connectTimeoutMS: 10000, // Connection timeout
+
+					// Reliability Settings
+					retryWrites: true, // Auto-retry failed writes
+					retryReads: true, // Auto-retry failed reads
+					w: 'majority', // Write concern for data durability
+
+					// Monitoring
+					monitorCommands: process.env.NODE_ENV === 'development' // Enable command monitoring in dev
+				};
+
+				await mongoose.connect(connectionString, enterpriseOptions);
+				logger.info('MongoDB connection established with enterprise-level pool configuration.');
 			}
 
 			// Initialize models and wrappers
@@ -288,7 +314,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		this.auth = {
 			// Setup method for model initialization
 			setupAuthModels: () => this._wrapResult(() => this._auth.setupAuthModels()),
-			
+
 			// User Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
 			createUser: (user) => authAdapter.createUser(user),
 			updateUserAttributes: (userId, attributes) => authAdapter.updateUserAttributes(userId, attributes),
@@ -326,7 +352,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			deleteTokens: (tokenIds) => authAdapter.deleteTokens?.(tokenIds),
 			blockTokens: (tokenIds) => authAdapter.blockTokens?.(tokenIds),
 			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds)
-		};		// SYSTEM
+		}; // SYSTEM
 		this.system = {
 			setupSystemModels: async () => {
 				/* models already set up */

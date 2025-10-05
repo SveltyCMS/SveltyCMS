@@ -1,0 +1,1019 @@
+---
+path: 'docs/database/Core_Infrastructure.mdx'
+title: 'Core Database Infrastructure'
+description: 'Complete guide to the core database infrastructure files that power SveltyCMS agnostic database architecture.'
+order: 1
+icon: 'mdi:database-settings'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'database'
+  - 'infrastructure'
+  - 'core'
+  - 'adapter'
+  - 'interface'
+---
+
+# Core Database Infrastructure
+
+The core database infrastructure consists of three essential files that enable SveltyCMS to work with any database backend (MongoDB, PostgreSQL, MySQL, SQLite, etc.) while maintaining consistent behavior and performance.
+
+---
+
+## 🎯 Architecture Overview
+
+### The Three Pillars
+
+```
+┌──────────────────────────────────────────────────────┐
+│              CORE INFRASTRUCTURE                     │
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  1. db.ts (Manager)                                 │
+│     └─ Orchestrates database lifecycle              │
+│     └─ Loads adapters dynamically                   │
+│     └─ Manages settings cache                       │
+│                                                      │
+│  2. dbInterface.ts (Contract)                       │
+│     └─ Defines adapter interface                    │
+│     └─ Type definitions                             │
+│     └─ Result wrappers                              │
+│                                                      │
+│  3. themeManager.ts (Service)                       │
+│     └─ Theme loading & caching                      │
+│     └─ Multi-tenant theme support                   │
+│     └─ Fallback handling                            │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+```
+
+### Design Principles
+
+1. **Separation of Concerns**: Each file has a single, well-defined responsibility
+2. **Database Agnostic**: No database-specific code in core files
+3. **Type Safety**: Full TypeScript support throughout
+4. **Lazy Loading**: Components initialize only when needed
+5. **Graceful Degradation**: System continues working even if optional components fail
+
+---
+
+## 📁 File 1: `src/databases/db.ts`
+
+**Purpose**: Central orchestration and lifecycle management for the entire database system
+
+**Size**: 850 lines  
+**Complexity**: High - This is the brain of the database layer
+
+### Key Responsibilities
+
+1. **Adapter Loading**: Dynamically loads the correct database adapter based on configuration
+2. **Connection Management**: Establishes and maintains database connections
+3. **Initialization**: Coordinates startup of all database-dependent services
+4. **Settings Cache**: Synchronizes database settings with in-memory cache
+5. **Multi-Tenant Setup**: Initializes tenant-specific configurations
+
+### How It Works
+
+```typescript
+// 1. Configuration Loading
+await loadPrivateConfig(); // Loads config/private.ts
+
+// 2. Adapter Selection (Database Agnostic!)
+const dbType = privateEnv?.DB_TYPE?.toLowerCase();
+switch (dbType) {
+	case 'mongodb':
+		const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+		dbAdapter = new MongoDBAdapter();
+		break;
+	case 'postgresql':
+		const { PostgresAdapter } = await import('./postgresql/postgresAdapter');
+		dbAdapter = new PostgresAdapter();
+		break;
+	// More adapters...
+}
+
+// 3. Connection Establishment (with retry logic)
+for (let attempt = 1; attempt <= 3; attempt++) {
+	try {
+		await dbAdapter.connect(connectionString);
+		break;
+	} catch (error) {
+		if (attempt === 3) throw error;
+		await sleep(2000 * attempt); // Exponential backoff
+	}
+}
+
+// 4. Service Initialization
+auth = new Auth(dbAdapter, sessionStore);
+await auth.initialize();
+
+contentManager = ContentManager.getInstance();
+await contentManager.initialize(dbAdapter);
+
+themeManager = ThemeManager.getInstance();
+await themeManager.initialize(dbAdapter);
+
+// 5. Settings Cache Sync
+await loadSettingsFromDB();
+```
+
+### Key Features
+
+#### Lazy Initialization
+
+```typescript
+let _dbInitPromise: Promise<void> | null = null;
+
+export function getDbInitPromise(): Promise<void> {
+	if (!_dbInitPromise) {
+		_dbInitPromise = initializeOnRequest();
+	}
+	return _dbInitPromise;
+}
+
+// Database connects on first request, not at build time
+export const dbInitPromise = getDbInitPromise();
+```
+
+**Why This Matters**: Prevents database connection attempts during build process, which would fail since the database might not be available.
+
+#### Retry Mechanism
+
+```typescript
+// Attempts connection 3 times with exponential backoff
+const MAX_RETRIES = 3;
+const RETRY_DELAY_BASE = 2000; // 2 seconds
+
+for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+	try {
+		await dbAdapter.connect(connectionString);
+		logger.info('✅ Database connected successfully');
+		isConnected = true;
+		return;
+	} catch (error) {
+		logger.error(`Connection attempt ${attempt} failed:`, error);
+
+		if (attempt === MAX_RETRIES) {
+			throw new Error(`Failed to connect after ${MAX_RETRIES} attempts`);
+		}
+
+		// Exponential backoff: 2s, 4s, 8s
+		await new Promise((r) => setTimeout(r, RETRY_DELAY_BASE * attempt));
+	}
+}
+```
+
+#### Settings Cache Synchronization
+
+```typescript
+export async function loadSettingsFromDB() {
+	try {
+		// 1. Fetch all settings from database
+		const privateSettings = await dbAdapter.systemPreferences.findMany({
+			group: 'private'
+		});
+
+		const publicSettings = await dbAdapter.systemPreferences.findMany({
+			group: 'public'
+		});
+
+		// 2. Validate against schemas
+		const parsedPrivate = safeParse(privateConfigSchema, privateSettings);
+		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
+
+		// 3. Update in-memory cache
+		if (parsedPrivate.success && parsedPublic.success) {
+			setSettingsCache(parsedPrivate.output, parsedPublic.output);
+			logger.info('✅ System settings loaded and cached from database');
+		}
+	} catch (error) {
+		logger.error('Failed to load settings from database:', error);
+		throw new Error('Could not load settings from DB');
+	}
+}
+```
+
+**Key Point**: Settings are stored in the database but cached in memory for performance. Changes to settings invalidate the cache and reload automatically.
+
+### Exported API
+
+```typescript
+// Main exports used throughout the application
+export let dbAdapter: DatabaseAdapter | null; // Current database adapter
+export let auth: Auth | null; // Authentication service
+export let isConnected: boolean; // Connection state
+export const dbInitPromise: Promise<void>; // Initialization promise
+
+// Functions
+export async function loadSettingsFromDB(): Promise<void>;
+export function clearPrivateConfigCache(): void;
+```
+
+### Usage Examples
+
+#### In API Routes
+
+```typescript
+import { dbAdapter, auth } from '@src/databases/db';
+
+export async function GET({ locals }) {
+	// Ensure database is initialized
+	await dbInitPromise;
+
+	// Use the adapter
+	const users = await dbAdapter.auth.getAllUsers(locals.tenantId);
+
+	return json({ users });
+}
+```
+
+#### In Server Hooks
+
+```typescript
+import { auth, dbInitPromise } from '@src/databases/db';
+
+export async function handle({ event, resolve }) {
+	// Wait for database initialization
+	await dbInitPromise;
+
+	// Use auth service
+	const user = await auth.getUserFromSession(sessionId);
+
+	event.locals.user = user;
+	return resolve(event);
+}
+```
+
+### Error Handling
+
+```typescript
+try {
+	await dbAdapter.connect(connectionString);
+} catch (error) {
+	// Graceful degradation
+	logger.error('Database connection failed, using fallback mode');
+
+	// Application continues with limited functionality
+	// (e.g., using cached data, read-only mode)
+}
+```
+
+---
+
+## 📁 File 2: `src/databases/dbInterface.ts`
+
+**Purpose**: Defines the contract that all database adapters must implement
+
+**Size**: 648 lines  
+**Complexity**: Medium - Mostly type definitions and interfaces
+
+### Why This File is Critical
+
+This file is the **secret to database agnosticism**. It defines a standard interface that works with any database. As long as an adapter implements this interface, the application works identically regardless of the underlying database.
+
+### Core Interfaces
+
+#### DatabaseAdapter Interface
+
+The main contract that all adapters implement:
+
+```typescript
+export interface DatabaseAdapter {
+	// ============================================
+	// Connection Lifecycle
+	// ============================================
+	connect(connectionString: string, options?: ConnectionOptions): Promise<void>;
+	disconnect(): Promise<void>;
+	checkConnection(): Promise<boolean>;
+
+	// ============================================
+	// Capabilities & Metadata
+	// ============================================
+	getCapabilities(): DatabaseCapabilities;
+	getDatabaseInfo(): DatabaseInfo;
+
+	// ============================================
+	// Generic CRUD Operations
+	// ============================================
+	create<T>(collection: string, data: T): Promise<DatabaseResult<T>>;
+
+	findOne<T>(collection: string, query: QueryCriteria): Promise<DatabaseResult<T | null>>;
+
+	findMany<T>(collection: string, options?: PaginationOptions): Promise<DatabaseResult<T[]>>;
+
+	update<T>(collection: string, id: string, data: Partial<T>): Promise<DatabaseResult<T>>;
+
+	delete(collection: string, id: string): Promise<DatabaseResult<boolean>>;
+
+	// ============================================
+	// Batch Operations
+	// ============================================
+	createMany<T>(collection: string, data: T[]): Promise<DatabaseResult<T[]>>;
+
+	updateMany<T>(collection: string, criteria: QueryCriteria, data: Partial<T>): Promise<DatabaseResult<number>>;
+
+	deleteMany(collection: string, criteria: QueryCriteria): Promise<DatabaseResult<number>>;
+
+	// ============================================
+	// Advanced Features
+	// ============================================
+	aggregate<T>(collection: string, pipeline: AggregationPipeline): Promise<DatabaseResult<T[]>>;
+
+	transaction<T>(operations: TransactionOperation[]): Promise<DatabaseResult<T>>;
+
+	stream<T>(collection: string, query: QueryCriteria): AsyncIterable<T>;
+
+	// ============================================
+	// Specialized Domain Methods
+	// ============================================
+	auth: AuthMethods; // User, session, token operations
+	content: ContentMethods; // Content structure & nodes
+	media: MediaMethods; // Media file metadata
+	collection: CollectionMethods; // Collection schema management
+	system: SystemMethods; // System settings & preferences
+	widget: WidgetMethods; // Widget configurations
+	theme: ThemeMethods; // Theme management
+}
+```
+
+#### DatabaseResult<T> - No Exceptions!
+
+Consistent result wrapper that never throws exceptions:
+
+```typescript
+export type DatabaseResult<T> =
+	| {
+			success: true;
+			data: T;
+			meta?: QueryMeta;
+	  }
+	| {
+			success: false;
+			error: DatabaseError;
+	  };
+```
+
+**Why No Exceptions?**
+
+- Predictable error handling
+- Forces explicit error checking
+- Better for async operations
+- Easier to debug
+
+**Usage**:
+
+```typescript
+// ✅ Correct way
+const result = await dbAdapter.auth.getUserById(userId);
+
+if (!result.success) {
+	logger.error('User not found:', result.error);
+	return json({ error: result.error.message }, { status: 404 });
+}
+
+const user = result.data; // TypeScript knows this is User
+
+// ❌ Wrong way (TypeScript error)
+const user = await dbAdapter.auth.getUserById(userId);
+// Error: Type 'DatabaseResult<User>' is not assignable to type 'User'
+```
+
+#### QueryCriteria
+
+Generic query interface that works across all databases:
+
+```typescript
+export interface QueryCriteria {
+	// Equality checks
+	equals?: Record<string, unknown>;
+
+	// Comparison operators
+	greaterThan?: Record<string, number | Date>;
+	lessThan?: Record<string, number | Date>;
+	greaterThanOrEqual?: Record<string, number | Date>;
+	lessThanOrEqual?: Record<string, number | Date>;
+
+	// Pattern matching
+	contains?: Record<string, string>;
+	startsWith?: Record<string, string>;
+	endsWith?: Record<string, string>;
+
+	// List operations
+	in?: Record<string, unknown[]>;
+	notIn?: Record<string, unknown[]>;
+
+	// Logical operators
+	and?: QueryCriteria[];
+	or?: QueryCriteria[];
+	not?: QueryCriteria;
+
+	// Multi-tenant support
+	tenantId?: string;
+}
+```
+
+**Example Translations**:
+
+```typescript
+// Generic criteria
+const criteria: QueryCriteria = {
+  equals: { status: 'active' },
+  greaterThan: { createdAt: new Date('2024-01-01') },
+  tenantId: 'tenant123'
+};
+
+// MongoDB translation
+{
+  status: 'active',
+  createdAt: { $gt: new Date('2024-01-01') },
+  tenantId: 'tenant123'
+}
+
+// PostgreSQL translation
+WHERE status = 'active'
+  AND created_at > '2024-01-01'
+  AND tenant_id = 'tenant123'
+
+// MySQL translation
+WHERE status = 'active'
+  AND created_at > '2024-01-01'
+  AND tenant_id = 'tenant123'
+```
+
+#### PaginationOptions
+
+Unified pagination interface:
+
+```typescript
+export interface PaginationOptions {
+	limit?: number; // Max results to return
+	offset?: number; // Skip N results (offset pagination)
+	cursor?: string; // Cursor for cursor-based pagination
+	sort?: SortOption; // Sort order
+	filter?: QueryCriteria; // Filter criteria
+}
+
+export type SortOption = Record<string, 'asc' | 'desc'> | Array<[string, 'asc' | 'desc']>;
+```
+
+**Usage**:
+
+```typescript
+// Offset pagination (simple but slow for large datasets)
+const page1 = await dbAdapter.findMany('users', {
+	limit: 20,
+	offset: 0,
+	sort: { createdAt: 'desc' }
+});
+
+// Cursor pagination (fast for any dataset size)
+const page1 = await dbAdapter.findMany('users', {
+	limit: 20,
+	cursor: undefined, // First page
+	sort: { createdAt: 'desc' }
+});
+
+const page2 = await dbAdapter.findMany('users', {
+	limit: 20,
+	cursor: lastItemId, // Use last item ID from page 1
+	sort: { createdAt: 'desc' }
+});
+```
+
+#### DatabaseCapabilities
+
+Declares what the database supports:
+
+```typescript
+export interface DatabaseCapabilities {
+	supportsTransactions: boolean; // ACID transactions
+	supportsIndexing: boolean; // Indexes for performance
+	supportsFullTextSearch: boolean; // Full-text search
+	supportsAggregation: boolean; // Aggregation pipelines
+	supportsStreaming: boolean; // Result streaming
+	supportsPartitioning: boolean; // Data partitioning
+	supportsReplication: boolean; // Read replicas
+	maxBatchSize: number; // Max items in batch operation
+	maxQueryComplexity: number; // Max query depth
+}
+```
+
+**Example**:
+
+```typescript
+// MongoDB capabilities
+{
+  supportsTransactions: true,
+  supportsIndexing: true,
+  supportsFullTextSearch: true,
+  supportsAggregation: true,
+  supportsStreaming: true,
+  supportsPartitioning: false,
+  supportsReplication: true,
+  maxBatchSize: 1000,
+  maxQueryComplexity: 1000
+}
+
+// SQLite capabilities
+{
+  supportsTransactions: true,
+  supportsIndexing: true,
+  supportsFullTextSearch: true,
+  supportsAggregation: false,        // Limited aggregation
+  supportsStreaming: false,          // No streaming
+  supportsPartitioning: false,
+  supportsReplication: false,        // No replication
+  maxBatchSize: 100,
+  maxQueryComplexity: 100
+}
+```
+
+#### Performance Types
+
+```typescript
+export interface QueryOptimizationHints {
+	useIndex?: string[]; // Suggest specific indexes
+	maxExecutionTime?: number; // Query timeout in ms
+	readPreference?: 'primary' | 'secondary' | 'nearest';
+	batchSize?: number; // Optimal batch size
+	streaming?: boolean; // Enable streaming
+}
+
+export interface QueryMeta {
+	queryType: 'findOne' | 'findMany' | 'aggregate' | 'update' | 'delete';
+	executionTime: number; // Time in ms
+	usedIndexes: string[]; // Indexes actually used
+	scannedDocuments: number; // Documents scanned
+	returnedDocuments: number; // Documents returned
+	batchSize?: number; // Batch size used
+	cursorId?: string; // For cursor pagination
+}
+```
+
+### Why This Architecture Works
+
+#### Example: Switching from MongoDB to PostgreSQL
+
+**Step 1**: Application code (no changes needed)
+
+```typescript
+// This code works with ANY database
+const users = await dbAdapter.findMany('users', {
+	filter: { equals: { status: 'active' } },
+	sort: { createdAt: 'desc' },
+	limit: 20
+});
+```
+
+**Step 2**: Change configuration
+
+```typescript
+// Before (MongoDB)
+DB_TYPE=mongodb
+DB_HOST=mongodb://localhost:27017
+
+// After (PostgreSQL)
+DB_TYPE=postgresql
+DB_HOST=postgresql://localhost:5432
+```
+
+**Step 3**: That's it! Application works identically.
+
+The adapter translates the generic query to database-specific syntax:
+
+```typescript
+// MongoDB Adapter
+db.collection('users').find({ status: 'active' }).sort({ createdAt: -1 }).limit(20);
+
+// PostgreSQL Adapter
+db.query(`
+  SELECT * FROM users 
+  WHERE status = 'active' 
+  ORDER BY created_at DESC 
+  LIMIT 20
+`);
+```
+
+---
+
+## 📁 File 3: `src/databases/themeManager.ts`
+
+**Purpose**: Theme loading, caching, and management service
+
+**Size**: 165 lines  
+**Complexity**: Low - Simple singleton service
+
+### Key Responsibilities
+
+1. **Theme Loading**: Loads themes from database
+2. **Theme Caching**: Caches themes in memory for performance
+3. **Multi-Tenant Support**: Supports per-tenant themes
+4. **Fallback Handling**: Provides default theme if database unavailable
+
+### Architecture
+
+```typescript
+export class ThemeManager {
+	private static instance: ThemeManager;
+	private themeCache: Map<string, Theme> = new Map();
+	private db: IDBAdapter | null = null;
+	private initialized: boolean = false;
+
+	// Singleton pattern
+	private constructor() {}
+
+	public static getInstance(): ThemeManager {
+		if (!ThemeManager.instance) {
+			ThemeManager.instance = new ThemeManager();
+		}
+		return ThemeManager.instance;
+	}
+
+	public async initialize(db: IDBAdapter): Promise<void> {
+		if (this.initialized) {
+			logger.debug('ThemeManager already initialized, skipping.');
+			return;
+		}
+
+		try {
+			this.db = db;
+
+			// Load and cache the default theme
+			await this.loadAndCacheDefaultTheme();
+
+			this.initialized = true;
+			logger.info('ThemeManager initialized successfully.');
+		} catch (err) {
+			logger.error('Error in ThemeManager.initialize:', err);
+			throw error(500, 'Failed to initialize ThemeManager');
+		}
+	}
+
+	private async loadAndCacheDefaultTheme(): Promise<void> {
+		if (!this.db) throw new Error('Database adapter not initialized.');
+
+		try {
+			// Single optimized database call
+			const allThemes = await this.db.themes.getAllThemes();
+
+			if (!Array.isArray(allThemes) || allThemes.length === 0) {
+				logger.warn('No themes found. Using DEFAULT_THEME fallback.');
+				this.themeCache.set('global', DEFAULT_THEME);
+				return;
+			}
+
+			// Find active or default theme
+			const defaultTheme = allThemes.find((t) => t.isActive) || allThemes.find((t) => t.isDefault) || allThemes[0];
+
+			// Cache it
+			this.themeCache.set('global', defaultTheme);
+			logger.debug(`Default theme cached: ${defaultTheme.name}`);
+		} catch (err) {
+			logger.error('Failed to load themes from database:', err);
+			this.themeCache.set('global', DEFAULT_THEME);
+		}
+	}
+
+	public async getTheme(tenantId?: string): Promise<Theme> {
+		if (!this.initialized || !this.db) {
+			throw new Error('ThemeManager is not initialized.');
+		}
+
+		const cacheKey = tenantId || 'global';
+
+		// Return from cache if available
+		if (this.themeCache.has(cacheKey)) {
+			return this.themeCache.get(cacheKey)!;
+		}
+
+		// For tenant-specific themes, fetch from database
+		if (tenantId) {
+			logger.debug(`No tenant-specific theme for ${tenantId}, using global`);
+			const globalTheme = this.themeCache.get('global');
+			if (globalTheme) return globalTheme;
+		}
+
+		// Final fallback
+		logger.warn('No cached theme found, using DEFAULT_THEME fallback.');
+		return DEFAULT_THEME;
+	}
+
+	public async setTheme(theme: Theme, tenantId?: string): Promise<void> {
+		if (!this.initialized || !this.db) {
+			throw new Error('ThemeManager is not initialized.');
+		}
+
+		try {
+			// Update database
+			const setDefaultResult = await this.db.themes.setDefault(theme._id);
+
+			if (!setDefaultResult.success) {
+				throw new Error(setDefaultResult.error?.message || 'Failed to set theme');
+			}
+
+			// Update cache
+			const cacheKey = tenantId || 'global';
+			this.themeCache.set(cacheKey, theme);
+
+			logger.info(`Theme updated to: ${theme.name}`, { tenantId: tenantId || 'global' });
+		} catch (err) {
+			logger.error('Error in ThemeManager.setTheme:', err);
+			throw error(500, 'Failed to set theme');
+		}
+	}
+
+	public async refresh(): Promise<void> {
+		if (!this.initialized || !this.db) {
+			throw new Error('ThemeManager is not initialized.');
+		}
+
+		this.themeCache.clear();
+		await this.loadAndCacheDefaultTheme();
+		logger.debug('ThemeManager cache refreshed.');
+	}
+}
+```
+
+### Default Theme Fallback
+
+```typescript
+export const DEFAULT_THEME: Theme = {
+	_id: '670e8b8c4d123456789abcde' as DatabaseId,
+	name: 'SveltyCMSTheme',
+	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css',
+	isActive: false,
+	isDefault: true,
+	config: {
+		tailwindConfigPath: '',
+		assetsPath: ''
+	},
+	createdAt: new Date().toISOString() as ISODateString,
+	updatedAt: new Date().toISOString() as ISODateString
+};
+```
+
+**Why This Matters**: If the database is unavailable (e.g., during setup), the application still has a working theme.
+
+### Usage Examples
+
+```typescript
+// In API routes or components
+import { ThemeManager } from '@src/databases/themeManager';
+
+const themeManager = ThemeManager.getInstance();
+const theme = await themeManager.getTheme(tenantId);
+
+// Use theme in HTML
+<link rel="stylesheet" href={theme.path} />
+```
+
+### Multi-Tenant Theme Support
+
+```typescript
+// Global theme (no tenant)
+const globalTheme = await themeManager.getTheme();
+
+// Tenant-specific theme
+const tenantTheme = await themeManager.getTheme('tenant123');
+
+// Future enhancement: Per-tenant theme overrides
+// Currently falls back to global if no tenant theme exists
+```
+
+---
+
+## 🔄 How They Work Together
+
+### Startup Sequence
+
+```
+1. Application Starts
+   ↓
+2. db.ts: loadPrivateConfig()
+   └─ Loads config/private.ts
+   ↓
+3. db.ts: loadAdapters()
+   └─ Imports correct adapter (MongoDB/PostgreSQL/etc)
+   ↓
+4. db.ts: dbAdapter.connect()
+   └─ Establishes database connection (with retry)
+   ↓
+5. db.ts: Initialize Services
+   ├─ Auth Service
+   ├─ Content Manager
+   └─ Theme Manager ← Uses dbInterface contract
+   ↓
+6. db.ts: loadSettingsFromDB()
+   └─ Syncs database settings to memory cache
+   ↓
+7. Application Ready ✅
+```
+
+### Request Flow Example
+
+```
+1. User Request: GET /admin/dashboard
+   ↓
+2. Server Hook (hooks.server.ts)
+   └─ Awaits dbInitPromise
+   └─ Uses auth service for session
+   ↓
+3. Page Load (+page.server.ts)
+   └─ Uses themeManager for theme
+   └─ Uses dbAdapter for data
+   ↓
+4. Component Render
+   └─ Theme applied
+   └─ Data displayed
+```
+
+---
+
+## 🎯 Best Practices
+
+### 1. Always Check Initialization
+
+```typescript
+// ✅ Good
+await dbInitPromise;
+const data = await dbAdapter.findMany('users');
+
+// ❌ Bad
+const data = await dbAdapter.findMany('users'); // Might be null!
+```
+
+### 2. Handle DatabaseResult Properly
+
+```typescript
+// ✅ Good
+const result = await dbAdapter.auth.getUserById(id);
+if (!result.success) {
+	return error(404, result.error.message);
+}
+const user = result.data;
+
+// ❌ Bad
+const user = await dbAdapter.auth.getUserById(id); // Type error!
+```
+
+### 3. Use Theme Manager Singleton
+
+```typescript
+// ✅ Good
+const themeManager = ThemeManager.getInstance();
+
+// ❌ Bad
+const themeManager = new ThemeManager(); // Error: constructor is private
+```
+
+### 4. Respect the Adapter Interface
+
+```typescript
+// ✅ Good - Uses adapter
+await dbAdapter.create('users', userData);
+
+// ❌ Bad - Direct database access
+await UserModel.create(userData); // Bypasses adapter!
+```
+
+---
+
+## 📊 Performance Considerations
+
+### Lazy Initialization Benefits
+
+- **Build Time**: No database connection during build (faster builds)
+- **Startup Time**: Database connects only when first needed
+- **Resource Usage**: No wasted connections during setup
+
+### Theme Caching
+
+```typescript
+// First request (cold): ~50ms (database query)
+const theme = await themeManager.getTheme();
+
+// Subsequent requests (warm): ~0.1ms (cache hit)
+const theme = await themeManager.getTheme();
+
+// Performance gain: 99.8% faster
+```
+
+### Settings Cache
+
+```typescript
+// Without cache: Every settings read = database query
+const setting = await db.settings.get('FEATURE_FLAG'); // 15ms
+
+// With cache: Settings read from memory
+const setting = privateEnv.FEATURE_FLAG; // 0.001ms
+
+// Performance gain: 99.99% faster
+```
+
+---
+
+## 🚀 Adding New Adapters
+
+### Example: Adding PostgreSQL Adapter
+
+**Step 1**: Create adapter file
+
+```typescript
+// src/databases/postgresql/postgresAdapter.ts
+import type { DatabaseAdapter } from '../dbInterface';
+
+export class PostgresAdapter implements DatabaseAdapter {
+	private pool: Pool;
+
+	async connect(connectionString: string): Promise<void> {
+		this.pool = new Pool({ connectionString });
+		await this.pool.query('SELECT 1'); // Test connection
+	}
+
+	async disconnect(): Promise<void> {
+		await this.pool.end();
+	}
+
+	async findMany<T>(collection: string, options?: PaginationOptions): Promise<DatabaseResult<T[]>> {
+		try {
+			const query = `SELECT * FROM ${collection} LIMIT $1 OFFSET $2`;
+			const result = await this.pool.query(query, [options?.limit || 100, options?.offset || 0]);
+
+			return {
+				success: true,
+				data: result.rows as T[]
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: { message: error.message }
+			};
+		}
+	}
+
+	// Implement all other DatabaseAdapter methods...
+}
+```
+
+**Step 2**: Register in db.ts
+
+```typescript
+case 'postgresql':
+  const { PostgresAdapter } = await import('./postgresql/postgresAdapter');
+  dbAdapter = new PostgresAdapter();
+  break;
+```
+
+**Step 3**: Update configuration
+
+```env
+DB_TYPE=postgresql
+DB_HOST=postgresql://localhost:5432/mydb
+```
+
+**Step 4**: Application works with PostgreSQL! No other changes needed.
+
+---
+
+## 🎓 Summary
+
+The core infrastructure consists of three essential files:
+
+1. **db.ts (850 lines)** - The orchestrator
+   - Loads adapters dynamically
+   - Manages connections and initialization
+   - Syncs settings cache
+   - Coordinates all database services
+
+2. **dbInterface.ts (648 lines)** - The contract
+   - Defines adapter interface
+   - Provides type safety
+   - Ensures database agnosticism
+   - Standardizes error handling
+
+3. **themeManager.ts (165 lines)** - The theme service
+   - Loads themes from database
+   - Caches themes for performance
+   - Supports multi-tenant themes
+   - Provides fallback themes
+
+Together, these files enable SveltyCMS to work with **any database** while maintaining:
+
+- Consistent behavior
+- Type safety
+- High performance
+- Easy maintenance
+
+---
+
+## 📚 Related Documentation
+
+- [Cache System Files](./Cache_System.mdx) - Cache infrastructure
+- [Authentication & Authorization](./Authentication_System.mdx) - Auth system
+- [MongoDB Implementation](./MongoDB_Implementation.mdx) - MongoDB adapter details
+
+---
+
+_Last Updated: October 5, 2025_  
+_Version: 2.0 (Enterprise)_

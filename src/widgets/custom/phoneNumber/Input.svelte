@@ -4,7 +4,12 @@
 **Enterprise-Grade PhoneNumber Widget Component**
 
 @example
-<PhoneNumber field={{ label: "Phon				required={field?.required as boolean | undefined}
+<PhoneNumber field={{ label: "Phon				placeholder={typeof field?.placeholder === 'string' && field?.placeholder.trim() !== '' ? field.placeholder : '+1234567890'}
+		required={field?.required as boolean | undefined}
+		readonly={field?.readonly as boolean | undefined}
+		disabled={field?.disabled as boolean | undefined}
+		pattern={field?.pattern as string | undefined}
+		class="input w-full flex-1 rounded-none text-black dark:text-primary-500"ired={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				pattern={field?.pattern as string | undefined}
@@ -161,10 +166,10 @@
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			placeholder={typeof field?.placeholder === 'string' && field?.placeholder.trim() !== '' ? field.placeholder : '+1234567890'}
-			required={field?.required}
-			readonly={field?.readonly}
-			disabled={field?.disabled}
-			pattern={field?.pattern}
+			required={field?.required as boolean | undefined}
+			readonly={field?.readonly as boolean | undefined}
+			disabled={field?.disabled as boolean | undefined}
+			pattern={field?.pattern as string | undefined}
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:error={!!validationError}
 			class:validating={isValidating}
@@ -174,7 +179,6 @@
 			data-testid="phone-input"
 			autocomplete="tel"
 		/>
-
 		<!-- Validation indicator -->
 		{#if isValidating}
 			<div class="flex items-center px-2" aria-label="Validating">

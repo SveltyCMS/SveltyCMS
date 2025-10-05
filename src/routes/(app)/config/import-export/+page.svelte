@@ -22,61 +22,6 @@ is handled in reusable backend APIs.
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
-
-	// State
-	let isExporting = $state(false);
-	let isImporting = $state(false);
-	let importResult = $state<string | null>(null);
-
-	// Trigger config export
-	const handleExport = async () => {
-		isExporting = true;
-		try {
-			const res = await fetch('/api/config/export');
-			if (!res.ok) throw new Error(await res.text());
-			const blob = await res.blob();
-			const url = URL.createObjectURL(blob);
-
-			// Auto download
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = 'export.json';
-			a.click();
-			URL.revokeObjectURL(url);
-		} catch (err) {
-			console.error('Export failed', err);
-			alert('Export failed: ' + (err as Error).message);
-		} finally {
-			isExporting = false;
-		}
-	};
-
-	// Trigger config import
-	const handleImport = async (event: Event) => {
-		const input = event.target as HTMLInputElement;
-		if (!input.files?.length) return;
-
-		isImporting = true;
-		const file = input.files[0];
-		try {
-			const formData = new FormData();
-			formData.append('file', file);
-
-			const res = await fetch('/api/config/import', {
-				method: 'POST',
-				body: formData
-			});
-
-			const result = await res.json();
-			importResult = JSON.stringify(result, null, 2);
-		} catch (err) {
-			console.error('Import failed', err);
-			importResult = 'Import failed: ' + (err as Error).message;
-		} finally {
-			isImporting = false;
-			input.value = '';
-		}
-	};
 </script>
 
 <svelte:head>

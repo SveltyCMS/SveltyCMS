@@ -68,7 +68,6 @@
 	// Validation state - now using the enhanced validation store
 	let debounceTimeout: number | undefined;
 	let hasValidatedOnMount = $state(false);
-	let inputElement: HTMLInputElement | null = null;
 
 	// Get validation state from store
 	// Define fieldName using getFieldName utility
@@ -270,8 +269,7 @@
 			onfocus={handleFocus}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
-			bind:this={inputElement}
-			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
 			required={field?.required as boolean | undefined}
 			disabled={field?.disabled as boolean | undefined}
 			readonly={field?.readonly as boolean | undefined}

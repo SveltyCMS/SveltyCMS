@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2025-10-05T18:31:16.999Z",
+    "stats": {
+      "totalSize": 1889550,
+      "totalGzipSize": 602528,
+      "chunkCount": 23,
+      "largestChunk": 645939
+    }
+  },
+  {
+    "timestamp": "2025-10-05T18:36:56.796Z",
+    "stats": {
+      "totalSize": 1889550,
+      "totalGzipSize": 602510,
+      "chunkCount": 23,
+      "largestChunk": 645939
+    }
+  }
+]

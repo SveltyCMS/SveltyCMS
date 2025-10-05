@@ -3,8 +3,8 @@
 @component
 **Modal for editing or creating user registration tokens**
 
-This component now correctly sends the 'action' property when calling the batch
-delete endpoint, resolving the "Unexpected token" browser error.
+This component provides a form to create new registration tokens or edit existing ones.
+It handles token creation, updates, and deletion with proper validation and error handling.
 
 @props
 - `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
@@ -125,7 +125,10 @@ delete endpoint, resolving the "Unexpected token" browser error.
 			);
 
 			// Return a success payload so parent components can react (e.g., switch views)
-			modalStore.close({ success: true, action: isEditMode ? 'edit' : 'create' });
+			if (parent.onClose) {
+				(parent.onClose as any)({ success: true, action: isEditMode ? 'edit' : 'create' });
+			}
+			modalStore.close();
 			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -149,7 +152,10 @@ delete endpoint, resolving the "Unexpected token" browser error.
 
 			showToast(`<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_deleted_successfully()}`, 'success');
 			// Return success so parent can update UI
-			modalStore.close({ success: true, action: 'delete' });
+			if (parent.onClose) {
+				(parent.onClose as any)({ success: true, action: 'delete' });
+			}
+			modalStore.close();
 			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';

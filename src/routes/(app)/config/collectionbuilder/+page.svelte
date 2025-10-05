@@ -43,7 +43,9 @@
 	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
-	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
+	import type { ISODateString } from '@root/src/content/types';
+	import type { DndItem } from './NestedContent/types';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -73,13 +75,13 @@
 
 	/**
 	 * Opens the modal for adding or editing a category.
-	 * @param existingCategory Optional ContentNode if editing an existing category.
+	 * @param existingCategory Optional Partial<DndItem> if editing an existing category.
 	 */
-	function modalAddCategory(existingCategory?: ContentNode): void {
+	function modalAddCategory(existingCategory?: Partial<DndItem>): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
-				existingCategory
+				existingCategory: existingCategory as ContentNode | undefined
 			}
 		};
 
@@ -92,8 +94,8 @@
 				if (!response || typeof response === 'boolean') return;
 
 				try {
-					if (existingCategory) {
-						updateExistingCategory(existingCategory, response);
+					if (existingCategory && existingCategory._id) {
+						updateExistingCategory(existingCategory as ContentNode, response);
 					} else {
 						addNewCategory(response);
 					}
