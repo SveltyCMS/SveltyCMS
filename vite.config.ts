@@ -21,6 +21,22 @@ import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
 import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+import { exec } from 'node:child_process';
+import { platform } from 'node:os';
+
+// Cross-platform open URL function (replaces 'open' package)
+function openUrl(url: string) {
+	const plat = platform();
+	let cmd;
+	if (plat === 'win32') {
+		cmd = `start "" "${url}"`;
+	} else if (plat === 'darwin') {
+		cmd = `open "${url}"`;
+	} else {
+		cmd = `xdg-open "${url}"`;
+	}
+	exec(cmd);
+}
 
 // --- Constants & Configuration ---
 
@@ -164,9 +180,8 @@ export const privateEnv = createPrivateConfig({
 						const setupUrl = `http://localhost:${resolvedPort}/setup`;
 
 						try {
-							const open = (await import('open')).default;
 							log.info(`Opening setup wizard in your browser...`);
-							await open(setupUrl);
+							openUrl(setupUrl);
 						} catch {
 							const coloredUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
 							log.info(`Please open this URL to continue setup: ${coloredUrl}`);

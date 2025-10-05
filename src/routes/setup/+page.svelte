@@ -29,11 +29,14 @@
 	// Componets
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
+	import WelcomeModal from './WelcomeModal.svelte';
+
 	// Skeleton
+	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { locales as paraglideLocales } from '@src/paraglide/runtime';
 	// Utils - Import full ISO 639-1 language list for setup
 	import iso6391 from '@utils/iso639-1.json';
 	import { setupAdminSchema } from '@utils/formSchemas';
@@ -89,8 +92,20 @@
 	let langSearch = $state('');
 
 	// --- 4. LIFECYCLE HOOKS ---
+	// Component registry for Skeleton Labs v2 modals
+	// Must use { ref: Component } format per v2 docs
+	const modalComponentRegistry: Record<string, ModalComponent> = {
+		welcomeModal: { ref: WelcomeModal }
+	};
+
+	// Initialize modal store at module level (after component registry)
+	const modalStore = getModalStore();
+
 	onMount(async () => {
 		setGlobalToastStore(getToastStore());
+
+		console.log('onMount - modalStore:', modalStore);
+		console.log('onMount - modalComponentRegistry:', modalComponentRegistry);
 
 		// Load existing data from localStorage
 		loadStore();
@@ -99,11 +114,53 @@
 
 		// Initialize persistence effect now that we're in component context
 		setupPersistence();
+
+		// Check if we should show the welcome modal
+		// Using sessionStorage so it shows once per browser session
+		// If setup is already complete, don't show the modal
+		const welcomeShown = sessionStorage.getItem('sveltycms_welcome_modal_shown');
+		console.log('welcomeShown from sessionStorage:', welcomeShown);
+
+		// Show the welcome modal after component mounts
+		if (!welcomeShown) {
+			console.log('Welcome modal not shown this session, will trigger...');
+			// Use requestAnimationFrame to ensure DOM is fully ready
+			requestAnimationFrame(() => {
+				setTimeout(() => {
+					console.log('Triggering welcome modal NOW...');
+					showWelcomeModal();
+					// Set the flag so it doesn't show again this session
+					sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
+				}, 100);
+			});
+		} else {
+			console.log('Welcome modal already shown this session, skipping...');
+		}
 	});
 
 	onDestroy(() => {
 		document.removeEventListener('click', outsideLang);
 	});
+
+	function showWelcomeModal() {
+		console.log('showWelcomeModal called, modalStore:', modalStore);
+		const modal: ModalSettings = {
+			type: 'component',
+			component: 'welcomeModal', // Use the string key for the registered component
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					console.log('User clicked Get Started in welcome modal.');
+					// Potentially trigger navigation to step 1 or some other setup start action
+				} else {
+					console.log('User closed welcome modal without starting.');
+					// What happens if they close? Maybe nothing, they just see the faded setup page.
+				}
+			}
+		};
+		console.log('Triggering modal with settings:', modal);
+		modalStore.trigger(modal);
+		console.log('Modal trigger called');
+	}
 
 	// --- 5. DERIVED STATE ---
 	const dbConfigFingerprint = $derived<string>(JSON.stringify(wizard.dbConfig));
@@ -558,42 +615,38 @@
 </svelte:head>
 
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
+	<!-- Modal with component registry for this page -->
+	<Modal components={modalComponentRegistry} />
 	<Toast />
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
 		<!-- Header -->
-		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-4 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
-			<div class="flex items-center justify-between gap-4">
-				<div class="flex flex-1 items-center gap-4 sm:gap-5">
-					<div class="flex flex-shrink-0 items-center">
-						<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
-							<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-12 w-auto" />
+		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
+			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+				<div class="flex flex-1 items-center gap-3 sm:gap-4">
+					<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
+						<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-12 w-auto" />
+					</a>
+					<h1 class="text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">
+						<a
+							href="https://github.com/SveltyCMS/SveltyCMS"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="transition-colors hover:text-primary-500"
+						>
+							<SiteName siteName={wizard.systemSettings.siteName} highlight="CMS" />
 						</a>
-					</div>
-					<div class="border-l border-surface-200 pl-4 dark:border-surface-600">
-						<h1 class="mb-1 text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">
-							<a
-								href="https://github.com/SveltyCMS/SveltyCMS"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="transition-colors hover:text-primary-500"
-							>
-								<SiteName siteName={wizard.systemSettings.siteName} highlight="CMS" />
-							</a>
-						</h1>
-						<p class="hidden text-sm sm:block sm:text-base">{m.setup_heading_subtitle()}</p>
-					</div>
+					</h1>
 				</div>
 
-				<div class="flex flex-shrink-0 items-center gap-2 sm:gap-4">
+				<div class="flex flex-shrink-0 items-center gap-1 sm:gap-4">
 					<div class="hidden rounded border border-indigo-100 bg-indigo-50 px-3 py-1.5 lg:flex">
 						<div class="text-xs font-medium uppercase tracking-wider text-surface-500">{m.setup_heading_badge()}</div>
 					</div>
-
 					<div class="language-selector relative">
 						{#if availableLanguages.length > 5}
-							<button onclick={toggleLang} class="variant-ghost btn rounded">
+							<button onclick={toggleLang} class="variant-ghost btn rounded px-2 py-1">
 								<span class="hidden sm:inline">{getLanguageName(systemLanguage.value)}</span>
-								<span class="font-mono text-xs font-bold">({systemLanguage.value.toUpperCase()})</span>
+								<span class="font-mono text-xs font-bold">{systemLanguage.value.toUpperCase()}</span>
 								<svg
 									class="ml-1 h-3.5 w-3.5 transition-transform {isLangOpen ? 'rotate-180' : ''}"
 									fill="none"
@@ -617,7 +670,7 @@
 													? 'bg-surface-200/80 font-medium dark:bg-surface-600/70'
 													: ''}"
 											>
-												<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+												<span>{getLanguageName(lang)} {lang.toUpperCase()}</span>
 												{#if systemLanguage.value === lang}
 													<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
 														<path
@@ -634,13 +687,14 @@
 							{/if}
 						{:else}
 							<select bind:value={systemLanguage.value} class="input" onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}>
-								{#each availableLanguages as lang}<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>{/each}
+								{#each availableLanguages as lang}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
 							</select>
 						{/if}
 					</div>
-
 					<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="variant-ghost btn-icon" iconSize={22} />
 				</div>
+
+				<p class="w-full text-center text-sm sm:text-base">{m.setup_heading_subtitle()}</p>
 			</div>
 		</div>
 
