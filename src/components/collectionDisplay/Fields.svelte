@@ -69,17 +69,8 @@
 
 	// Initialize widgets when Fields component mounts (only needed for edit/create mode)
 	onMount(async () => {
-		console.log('[Fields] Component mounted, initializing widgets...');
-		console.log('[Fields] Collection data:', {
-			hasCollection: !!collection.value,
-			hasModule: !!(collection.value as any)?.module,
-			hasFields: !!collection.value?.fields,
-			fieldsLength: collection.value?.fields?.length
-		});
-
 		try {
 			await ensureWidgetsInitialized();
-			console.log('[Fields] Widgets initialized successfully');
 			widgetsReady = true;
 		} catch (error) {
 			console.error('[Fields] Failed to initialize widgets:', error);
@@ -104,23 +95,13 @@
 	// --- Let widgets handle their own validation - no duplicate validation here ---
 
 	$effect(() => {
-		console.log('[Fields] Widget readiness changed:', widgetsReady);
-		console.log('[Fields] Has collection:', !!collection.value);
-		console.log('[Fields] Has module:', !!(collection.value as any)?.module);
-		console.log('[Fields] Processed collection:', !!processedCollection);
-	});
-
-	$effect(() => {
 		if (widgetsReady && collection.value && (collection.value as any)?.module && !processedCollection) {
-			console.log('[Fields] Starting module processing...');
 			untrack(async () => {
 				try {
 					const processed = await processModule((collection.value as any).module);
-					console.log('[Fields] Module processed, result:', processed);
 					if (processed?.schema?.fields) {
 						processedCollection = processed.schema;
 						fieldsFromModule = processed.schema.fields;
-						console.log('[Fields] Fields extracted:', fieldsFromModule.length);
 					} else {
 						console.warn('[Fields] No fields in processed schema');
 					}
@@ -315,14 +296,7 @@
 
 	// Initialize form data when the entry changes or fields become available
 	$effect(() => {
-		console.log('[Fields] Form init check:', {
-			isFormDataInitialized,
-			hasCollectionValue: !!collectionValue.value,
-			derivedFieldsLength: derivedFields.length
-		});
-
 		if (!isFormDataInitialized && collectionValue.value && derivedFields.length > 0) {
-			console.log('[Fields] Initializing form data...');
 			formDataSnapshot = { ...collectionValue.value };
 			// Ensure all fields have proper initial values
 			const initialValue = { ...defaultCollectionValue };
@@ -337,7 +311,6 @@
 			}
 			currentCollectionValue = initialValue;
 			isFormDataInitialized = true;
-			console.log('[Fields] Form data initialized with', Object.keys(initialValue).length, 'fields');
 		}
 	}); // Form data persistence across tab switches
 

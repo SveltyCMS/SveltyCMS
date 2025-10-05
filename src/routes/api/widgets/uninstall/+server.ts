@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: 'Widget uninstalled successfully'
 		};
 
-		logger.debug(`Widget ${widgetName} uninstalled successfully for tenant: ${actualTenantId}`);
+		logger.trace(`Widget ${widgetName} uninstalled successfully for tenant: ${actualTenantId}`);
 
 		return json(uninstallResult);
 	} catch (err) {

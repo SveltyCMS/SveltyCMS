@@ -90,7 +90,7 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 
 	// Skip auth entirely for static assets during initialization
 	if (isStaticAsset(event.url.pathname)) {
-		logger.debug(`Skipping session auth for static asset: ${event.url.pathname}`);
+		logger.trace(`Skipping session auth for static asset: ${event.url.pathname}`);
 		return resolve(event);
 	}
 
@@ -141,11 +141,11 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		} else if (!user && session_id && authServiceReady) {
 			// Only clear invalid session if auth service is ready
 			// If auth service isn't ready, keep the session cookie for later validation
-			logger.debug(`Clearing invalid session cookie: ${session_id}`);
+			logger.trace(`Clearing invalid session cookie: ${session_id}`);
 			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		} else if (!user && session_id && !authServiceReady) {
 			// Auth service not ready yet, keep session cookie but don't set user
-			logger.debug(`Auth service not ready, preserving session cookie for later validation: ${session_id}`);
+			logger.trace(`Auth service not ready, preserving session cookie for later validation: ${session_id}`);
 		}
 		// Note: isFirstUser logic is moved to handleAuthorization
 		// Note: Role loading is moved to handleAuthorization

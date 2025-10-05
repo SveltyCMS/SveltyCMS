@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					if (isCore && dbWidget && !dbWidget.isActive) {
 						await locals.dbAdapter.widgets.activateWidget(name);
 						results.activated.push(name);
-						logger.debug(`Activated core widget: ${name}`);
+						logger.trace(`Activated core widget: ${name}`);
 					} else {
 						results.skipped.push(name);
 					}

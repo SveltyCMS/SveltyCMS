@@ -50,7 +50,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			};
 		});
 
-		logger.debug(`Retrieved ${installedWidgets.length} installed widgets for tenant: ${tenantId}`);
+		logger.trace(`Retrieved ${installedWidgets.length} installed widgets for tenant: ${tenantId}`);
 
 		return json(installedWidgets);
 	} catch (err) {

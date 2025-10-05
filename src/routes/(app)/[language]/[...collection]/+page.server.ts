@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
 	if (userSystemLanguage && userSystemLanguage !== language && availableLanguages.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
-		logger.debug(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
+		logger.trace(`Redirecting to user's preferred language: from /${language}/ to /${userSystemLanguage}/`);
 		throw redirect(302, newPath);
 	}
 
@@ -47,11 +47,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	// Handle token-based auth redirect
 	if (user.lastAuthMethod === 'token') {
-		logger.debug('User authenticated with token, redirecting to user page.');
+		logger.trace('User authenticated with token, redirecting to user page.');
 		throw redirect(302, '/user');
 	}
 
-	logger.debug(`Collection page load started. Language: \x1b[34m${language}\x1b[0m`, { tenantId });
+	logger.trace(`Collection page load started. Language: \x1b[34m${language}\x1b[0m`, { tenantId });
 
 	// Initialize ContentManager and get collection data
 	await contentManager.initialize(tenantId);

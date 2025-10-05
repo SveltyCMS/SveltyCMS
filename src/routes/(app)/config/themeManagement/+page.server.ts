@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Log successful session validation
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for theme management
 		const hasThemeManagementPermission = hasPermissionWithRoles(user, 'config:themeManagement', roles);

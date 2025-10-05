@@ -137,7 +137,7 @@ export const widgetStoreActions = {
 		widgetStore.update((state) => ({ ...state, isLoading: true, tenantId }));
 
 		try {
-			logger.debug('Initializing widgets from file system...', { tenantId });
+			logger.trace('Initializing widgets from file system...', { tenantId });
 
 			// Load widget modules from both core and custom directories
 			const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', {
@@ -422,7 +422,7 @@ export const widgetStoreActions = {
 				}
 			} else {
 				// Server-side: return empty for now
-				logger.debug('Server-side collection analysis - returning empty array');
+				logger.trace('Server-side collection analysis - returning empty array');
 				return [];
 			}
 		} catch (error) {
@@ -482,7 +482,7 @@ export const widgetStoreActions = {
 // Database functions with tenant support - use API calls on client side
 async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[]> {
 	try {
-		logger.debug('Loading active widgets from database...', { tenantId });
+		logger.trace('Loading active widgets from database...', { tenantId });
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {
@@ -515,7 +515,7 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[
 
 async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolean, tenantId?: string): Promise<void> {
 	try {
-		logger.debug(`Updating ${widgetName} to ${isActive ? 'active' : 'inactive'} in database`, { tenantId });
+		logger.trace(`Updating ${widgetName} to ${isActive ? 'active' : 'inactive'} in database`, { tenantId });
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {

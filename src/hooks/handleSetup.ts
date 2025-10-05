@@ -44,6 +44,30 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 	}
 
 	// --- Branch 2: Config exists, validate database has users ---
+
+	// Initialize database connection first, before checking for users
+	try {
+		const { initializeOnRequest, getSystemStatus } = await import('@src/databases/db');
+		const status = getSystemStatus();
+
+		if (!status.initialized && !status.initializing) {
+			await initializeOnRequest();
+		}
+	} catch (error) {
+		logger.error('Failed to initialize database system during setup check:', error);
+		// If database initialization fails, redirect to setup
+		if (event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup') || ASSET_REGEX.test(event.url.pathname)) {
+			return resolve(event, {
+				filterSerializedResponseHeaders: (name) => {
+					const lower = name.toLowerCase();
+					return lower.startsWith('content-') || lower.startsWith('etag') || lower === 'set-cookie';
+				}
+			});
+		}
+		throw redirect(302, '/setup');
+	}
+
+	// Now check if database has users
 	const isFullySetup = await isSetupCompleteAsync();
 
 	if (!isFullySetup) {
@@ -69,18 +93,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/login');
 	}
 
-	// Initialize the database on the first real request *after* setup is complete.
-	try {
-		const { initializeOnRequest, getSystemStatus } = await import('@src/databases/db');
-		const status = getSystemStatus();
-
-		if (!status.initialized && !status.initializing) {
-			await initializeOnRequest();
-		}
-	} catch (error) {
-		logger.error('Failed to initialize database system:', error);
-		// Decide if you want to throw an error page here or allow the app to continue.
-	}
+	// Database is already initialized above
 
 	// Proceed with the request chain.
 	return resolve(event);

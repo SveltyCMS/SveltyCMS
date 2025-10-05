@@ -55,8 +55,8 @@
 
 	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
 
-	// Get default language from environment
-	const _language = (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase();
+	// Get default language from environment with safe fallback
+	const _language = ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase();
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback
@@ -231,19 +231,9 @@
 	$effect(() => {
 		if (validateOnMount && !hasValidatedOnMount) {
 			hasValidatedOnMount = true;
-			if (process.env.NODE_ENV !== 'production') {
-				console.log(
-					`[Input Widget] Validating on mount for field: ${fieldName}, required: ${field?.required}, value:`,
-					safeValue,
-					'widget instance:',
-					Math.random().toString(36).substr(2, 5)
-				);
-			}
+			// Validation happens silently - logs only in dev mode for debugging
 			// Use untrack to prevent circular dependencies and run validation immediately
 			untrack(() => {
-				if (process.env.NODE_ENV !== 'production') {
-					console.log(`[Input Widget] About to validate ${fieldName}, current errors:`, $state.snapshot(validationStore.errors));
-				}
 				validateInput(true);
 			});
 		}

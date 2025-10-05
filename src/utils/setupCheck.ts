@@ -46,7 +46,7 @@ export function isSetupComplete(): boolean {
 
 /**
  * Async version that also checks if database has admin users.
- * This is called from hooks after config check passes.
+ * This is called from hooks after config check passes and database is initialized.
  */
 export async function isSetupCompleteAsync(): Promise<boolean> {
 	// First check config file
@@ -65,8 +65,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		const dbAdapter = db.dbAdapter;
 
 		if (!dbAdapter || !dbAdapter.auth) {
-			setupStatus = false;
-			setupStatusCheckedDb = true;
+			// Database not initialized yet - don't cache this, allow retry
 			return false;
 		}
 
@@ -80,8 +79,7 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 	} catch (error) {
 		// Database check failed - might be dropped DB or connection issue
 		console.error(`[SveltyCMS] ❌ Database validation failed during setup check:`, error);
-		setupStatus = false;
-		setupStatusCheckedDb = true;
+		// Don't cache failures - allow retry on next request
 		return false;
 	}
 }

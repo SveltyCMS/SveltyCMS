@@ -195,7 +195,7 @@ const createUIStores = () => {
 
 					updateLayout();
 					isInitialized.set(true);
-					logger.debug('UIStore: Initialized');
+					logger.trace('UIStore: Initialized');
 					resolve();
 				};
 
@@ -230,7 +230,7 @@ const createUIStores = () => {
 			resizeTimeout = null;
 		}
 		initPromise = null;
-		logger.debug('UIStore: Destroyed');
+		logger.trace('UIStore: Destroyed');
 	}
 
 	return {

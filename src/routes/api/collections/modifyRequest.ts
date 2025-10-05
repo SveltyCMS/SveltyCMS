@@ -1,6 +1,7 @@
 /**
  * @file src/routes/api/collections/modifyRequest.ts
- * @description Utility function for modifying request data based on field widgets.
+ * @description Utility function for modifyin							const entryDuration = performance.now() - entryStart;
+							logger.trace(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);request data based on field widgets.
  *
  * This module provides functionality to:
  * - Process each field in a collection schema
@@ -56,7 +57,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 	const start = performance.now();
 	try {
 		// User access is already validated by hooks
-		logger.debug(
+		logger.trace(
 			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${(collection as unknown as { id?: string }).id ?? 'unknown'}\x1b[0m, tenant: \x1b[34m${tenantId}\x1b[0m`
 		);
 
@@ -65,7 +66,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
-			logger.debug(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
+			logger.trace(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 
 			// Resolve potential modifyRequest handler in a type-safe way
 			const modifyFn = (widget as unknown as { modifyRequest?: unknown })?.modifyRequest;
@@ -84,8 +85,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 								}
 							};
 
-							logger.debug(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
-
+							logger.trace(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
 							try {
 								// Call widget.modifyRequest with structural casts to avoid `any` while remaining permissive
 								const modify = modifyFn as (args: Record<string, unknown>) => Promise<unknown> | unknown;
@@ -121,7 +121,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 				);
 
 				const fieldDuration = performance.now() - fieldStart;
-				logger.debug(`Field \x1b[34m${fieldName}\x1b[0m processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
+				logger.trace(`Field \x1b[34m${fieldName}\x1b[0m processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
 			} else {
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}

@@ -285,18 +285,18 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const isApi = url.pathname.startsWith('/api/');
 
 	if (isOAuthRoute(url.pathname)) {
-		logger.debug('OAuth route detected, passing through');
+		logger.trace('OAuth route detected, passing through');
 		return resolve(event);
 	}
 
 	if (authServiceReady) {
 		if (!locals.user && !isPublic && !isFirstUser) {
-			logger.debug(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
+			logger.trace(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
 			if (isApi) throw error(401, 'Unauthorized');
 			throw redirect(302, '/login');
 		}
 		if (locals.user && isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-			logger.debug(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
+			logger.trace(`Authenticated user on public route \x1b[34m${url.pathname}\x1b[0m. Redirecting to home.`);
 			throw redirect(302, '/');
 		}
 		// Note: API handling is moved to handleApiRequests
@@ -307,7 +307,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 			authNotReadyLogCache.set(url.pathname, now);
 			// During setup, the auth service is not ready, so we allow the request.
 			// This is expected and safe because the setup routes do not grant any privileges.
-			logger.debug(`Auth service not ready, allowing setup request to \x1b[34m${url.pathname}\x1b[0m`);
+			logger.trace(`Auth service not ready, allowing setup request to \x1b[34m${url.pathname}\x1b[0m`);
 		}
 	}
 

@@ -32,7 +32,7 @@ corePermissions.forEach((permission) => {
 // Register a new permission
 export function registerPermission(permission: Permission): void {
 	permissionRegistry.set(permission._id, permission);
-	logger.debug(`Permission registered: ${permission._id}`);
+	logger.trace(`Permission registered: ${permission._id}`);
 }
 
 // Get all registered permissions
@@ -55,13 +55,13 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.debug('Admin user granted permission', { email: user.email, permissionId });
+		logger.trace('Admin user granted permission', { email: user.email, permissionId });
 		return true;
 	}
 
 	// Check if user's role has the specific permission
 	const hasPermission = userRole.permissions.includes(permissionId);
-	logger.debug('Permission check for user', { permissionId, granted: hasPermission, email: user.email });
+	logger.trace('Permission check for user', { permissionId, granted: hasPermission, email: user.email });
 	return hasPermission;
 }
 
@@ -94,7 +94,7 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.debug('Admin user granted permission for action', { email: user.email, action, type });
+		logger.trace('Admin user granted permission for action', { email: user.email, action, type });
 		return true;
 	}
 
@@ -169,7 +169,7 @@ export function validateUserPermission(userPermissions: string[] | undefined, re
 	}
 
 	const hasPermission = userPermissions.includes(requiredPermission);
-	logger.debug('User permission validation', { requiredPermission, granted: hasPermission });
+	logger.trace('User permission validation', { requiredPermission, granted: hasPermission });
 	return hasPermission;
 }
 

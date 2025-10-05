@@ -118,7 +118,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		if (!isAdmin) {
 			finalFilter = { ...baseFilter, status: 'published' };
 		}
-		logger.debug(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
+		logger.trace(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
 
 		const dbAdapter = locals.dbAdapter;
 		if (!dbAdapter) {
@@ -282,12 +282,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			}
 		});
 
-		logger.debug('Field mapping completed', {
-			originalBody: body,
-			mappedBody: mappedBody,
-			collection: schema._id
+		logger.trace('Field mapping completed', {
+			mappedFieldsCount: Object.keys(fieldMap).length,
+			mappedFields: Object.keys(fieldMap)
 		});
-
 		const entryData = {
 			...mappedBody,
 			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId

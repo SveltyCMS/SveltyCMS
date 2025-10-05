@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const allCollections = contentManager.getCollections();
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
-			logger.debug('No collections found', { tenantId });
+			logger.trace('No collections found', { tenantId });
 			return json({ requiredWidgets: [], collectionsAnalyzed: 0, tenantId });
 		}
 
@@ -52,14 +52,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 		requiredWidgets.push(...Array.from(widgetSet));
 
 		const duration = performance.now() - start;
-		logger.debug('Analyzed collection widget dependencies', {
+		logger.trace('Analyzed collection widget dependencies', {
 			tenantId,
-			collectionsCount: Object.keys(allCollections).length,
-			requiredWidgets: requiredWidgets.length,
-			widgets: requiredWidgets,
-			duration: `${duration.toFixed(2)}ms`
+			collectionsAnalyzed: collectionNames.length,
+			requiredWidgets: Array.from(requiredWidgets)
 		});
-
 		return json({
 			requiredWidgets,
 			collectionsAnalyzed: Object.keys(allCollections).length,

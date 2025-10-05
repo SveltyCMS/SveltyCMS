@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: 'Widget installed successfully'
 		};
 
-		logger.debug(`Widget ${widgetId} installed successfully for tenant: ${actualTenantId}`);
+		logger.trace(`Widget ${widgetId} installed successfully for tenant: ${actualTenantId}`);
 
 		return json(installResult);
 	} catch (err) {

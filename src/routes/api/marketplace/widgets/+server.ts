@@ -167,7 +167,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return order === 'desc' ? -comparison : comparison;
 		});
 
-		logger.debug(`Retrieved ${widgets.length} marketplace widgets (filtered: category=${category}, search=${search})`);
+		logger.trace(`Retrieved ${widgets.length} marketplace widgets (filtered: category=${category}, search=${search})`);
 
 		return json({
 			widgets,

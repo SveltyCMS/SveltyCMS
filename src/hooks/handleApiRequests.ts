@@ -45,7 +45,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 		// SPECIAL CASE: Logout should always be allowed regardless of permissions
 		if (url.pathname === '/api/user/logout') {
-			logger.debug('Logout endpoint accessed - bypassing permission checks');
+			logger.trace('Logout endpoint accessed - bypassing permission checks');
 			return resolve(event);
 		}
 
@@ -59,7 +59,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			throw error(403, `Forbidden: Your role (${locals.user.role}) does not have permission to access this API endpoint.`);
 		}
 
-		logger.debug(`User granted access to API`, {
+		logger.trace(`User granted access to API`, {
 			email: locals.user.email || locals.user._id,
 			role: locals.user.role,
 			apiEndpoint: `/api/${apiEndpoint}`,

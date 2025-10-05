@@ -176,7 +176,7 @@ export const cleanupSessionMetrics = (): void => {
 	}
 
 	if (expiredSessions.length > 0) {
-		logger.debug(`Cleaned up ${expiredSessions.length} expired sessions`);
+		logger.trace(`Cleaned up ${expiredSessions.length} expired sessions`);
 	}
 };
 

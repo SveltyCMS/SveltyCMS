@@ -27,7 +27,7 @@ export class MongoSystemMethods {
 	constructor(systemPreferencesModel: SystemPreferencesModelType, systemSettingModel: SystemSettingModelType) {
 		this.SystemPreferencesModel = systemPreferencesModel;
 		this.SystemSettingModel = systemSettingModel;
-		logger.info('\x1b[34mMongoSystemMethods\x1b[0m initialized with models.');
+		logger.trace('\x1b[34mMongoSystemMethods\x1b[0m initialized with models.');
 	}
 
 	// ============================================================

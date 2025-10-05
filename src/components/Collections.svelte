@@ -32,8 +32,7 @@ Features:
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 	import { get } from 'svelte/store';
-
-	import { constructNestedStructure } from '../content/utils';
+	import { untrack } from 'svelte';
 
 	// Patch: declare constructNestedStructure returns ExtendedContentNode[] for this file
 	// (If needed, update utils.ts to export with correct type)
@@ -105,12 +104,9 @@ Features:
 		// Only recalculate if content structure actually changed
 		if (contentStructure.value !== lastContentStructure) {
 			lastContentStructure = contentStructure.value;
-			cachedNestedStructure = constructNestedStructure(contentStructure.value);
-			console.log('[Collections] contentStructure updated:', {
-				total: contentStructure.value?.length,
-				nested: cachedNestedStructure?.length,
-				data: cachedNestedStructure
-			});
+			// contentStructure.value is ALREADY nested from getNavigationStructure()
+			// Don't call constructNestedStructure() on it!
+			cachedNestedStructure = contentStructure.value || [];
 		}
 		return cachedNestedStructure;
 	});
@@ -157,88 +153,69 @@ Features:
 	}
 
 	// Optimized node mapping with memoization
-	let cachedCollectionNodes: CollectionTreeNode[] = [];
-	let lastStructureVersion = '';
+	let collectionStructureNodes = $state<CollectionTreeNode[]>([]);
 
-	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
-		// Create a version hash to detect real changes
-		const currentVersion = JSON.stringify({
-			structure: nestedStructure.map((n) => ({ id: n._id, name: n.name, nodeType: n.nodeType })),
-			language: contentLanguage.value,
-			selectedCollection: collection.value?._id,
-			expandedNodes: Array.from(expandedNodes).sort()
-		});
+	// Effect to update collectionStructureNodes when dependencies change
+	$effect(() => {
+		// Track only the inputs we care about
+		const structure = nestedStructure;
+		const lang = contentLanguage.value;
+		const selectedId = collection.value?._id;
+		const expanded = expandedNodes;
 
-		// Return cached version if nothing meaningful changed
-		if (currentVersion === lastStructureVersion && cachedCollectionNodes.length > 0) {
-			return cachedCollectionNodes;
-		}
+		// Use untrack to prevent reading collectionStructureNodes from triggering this effect
+		untrack(() => {
+			function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
+				const isCategory = node.nodeType === 'category';
+				// Get translation for current language or fallback to default name
+				const translation = node.translations?.find((trans: Translation) => trans.languageTag === lang);
+				const label = translation?.translationName || node.name;
 
-		// Clear count cache only when structure actually changes
-		if (currentVersion !== lastStructureVersion) {
-			clearCountCache();
-			lastStructureVersion = currentVersion;
-		}
+				const nodeId = node._id;
+				const isExpanded = expanded.has(nodeId) || selectedId === nodeId;
 
-		function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-			const isCategory = node.nodeType === 'category';
-			// Get translation for current language or fallback to default name
-			const translation = node.translations?.find((trans: Translation) => trans.languageTag === contentLanguage.value);
-			const label = translation?.translationName || node.name;
+				let children: CollectionTreeNode[] | undefined;
+				if (isCategory && node.children) {
+					// Sort children by order before mapping
+					const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
+					children = sortedChildren.map((child) => mapNode(child, depth + 1));
+				}
 
-			const nodeId = node._id;
-			const isExpanded = expandedNodes.has(nodeId) || collection.value?._id === nodeId;
+				// Add badge only for categories to reduce overhead
+				const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
+				const badge = isCategory
+					? {
+							count: countAllCollections(node),
+							visible: true,
+							status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
+								? (node.status as (typeof allowedStatus)[number])
+								: undefined,
+							color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
+						}
+					: undefined;
 
-			let children: CollectionTreeNode[] | undefined;
-			if (isCategory && node.children) {
-				// Sort children by order before mapping
-				const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
-				children = sortedChildren.map((child) => mapNode(child, depth + 1));
+				return {
+					...node,
+					name: label,
+					id: nodeId,
+					isExpanded,
+					onClick: () => handleCollectionSelect(node),
+					children,
+					badge,
+					depth,
+					order: node.order || 0, // Preserve order property
+					lastModified: node.lastModified
+				};
 			}
 
-			// Add badge only for categories to reduce overhead
-			const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
-			const badge = isCategory
-				? {
-						count: countAllCollections(node),
-						visible: true,
-						status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
-							? (node.status as (typeof allowedStatus)[number])
-							: undefined,
-						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
-					}
-				: undefined;
+			// Clear count cache when structure changes
+			clearCountCache();
 
-			return {
-				...node,
-				name: label,
-				id: nodeId,
-				isExpanded,
-				onClick: () => handleCollectionSelect(node),
-				children,
-				badge,
-				depth,
-				order: node.order || 0, // Preserve order property
-				lastModified: node.lastModified
-			};
-		}
-
-		// Sort root nodes by order before mapping
-		const sortedRootNodes = [...nestedStructure].sort((a, b) => (a.order || 0) - (b.order || 0));
-		// Cache the result
-		cachedCollectionNodes = sortedRootNodes.map((node) => mapNode(node));
-
-		console.log('[Collections] collectionStructureNodes created:', {
-			rootNodes: cachedCollectionNodes.length,
-			nodes: cachedCollectionNodes.map((n) => ({
-				id: n.id,
-				name: n.name,
-				nodeType: n.nodeType,
-				childCount: n.children?.length || 0
-			}))
+			// Sort root nodes by order before mapping
+			const sortedRootNodes = [...structure].sort((a, b) => (a.order || 0) - (b.order || 0));
+			// Update the state
+			collectionStructureNodes = sortedRootNodes.map((node) => mapNode(node));
 		});
-
-		return cachedCollectionNodes;
 	});
 
 	// Get status color for badges

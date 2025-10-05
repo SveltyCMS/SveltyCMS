@@ -61,7 +61,7 @@ export class MongoContentMethods {
 		this.nodesRepo = nodesRepo;
 		this.draftsRepo = draftsRepo;
 		this.revisionsRepo = revisionsRepo;
-		logger.debug('\x1b[34mMongoContentMethods\x1b[0m initialized with repositories.');
+		logger.trace('\x1b[34mMongoContentMethods\x1b[0m initialized with repositories.');
 	}
 
 	// ============================================================

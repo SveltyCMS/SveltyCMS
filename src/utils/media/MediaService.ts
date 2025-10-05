@@ -168,13 +168,12 @@ export class MediaService {
 	public async saveMedia(file: File, userId: string, access: MediaAccess): Promise<MediaType> {
 		const startTime = performance.now();
 		this.ensureInitialized();
-		logger.debug('Starting media upload process', {
-			fileName: file?.name,
-			size: file?.size,
-			userId,
-			accessLevels: access?.levels?.join(',') || 'none'
+		logger.trace('Starting media upload process', {
+			filename: file.name,
+			fileSize: file.size,
+			mimeType: file.type,
+			tenantId
 		});
-
 		if (!file) {
 			const message = 'File is required';
 			logger.error(message, {

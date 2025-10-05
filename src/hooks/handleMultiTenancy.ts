@@ -26,7 +26,7 @@ export const handleMultiTenancy: Handle = async ({ event, resolve }) => {
 			throw error(404, `Tenant not found for hostname: ${event.url.hostname}`);
 		}
 		event.locals.tenantId = tenantId;
-		logger.debug(`Request identified for tenant: ${tenantId}`);
+		logger.trace(`Request identified for tenant: ${tenantId}`);
 	}
 	return resolve(event);
 };

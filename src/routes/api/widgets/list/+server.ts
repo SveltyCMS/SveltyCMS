@@ -102,15 +102,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		const duration = performance.now() - start;
 
-		logger.debug('Retrieved complete widget list', {
+		logger.trace('Retrieved complete widget list', {
 			tenantId,
-			total: widgetList.length,
-			active: widgetList.filter((w) => w.isActive).length,
-			core: widgetList.filter((w) => w.isCore).length,
-			custom: widgetList.filter((w) => !w.isCore).length,
-			duration: `${duration.toFixed(2)}ms`
+			coreWidgets: coreCount,
+			customWidgets: customCount,
+			totalWidgets: result.widgets.length
 		});
-
 		return json({
 			widgets: widgetList,
 			summary: {

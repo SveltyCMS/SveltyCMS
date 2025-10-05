@@ -1,6 +1,15 @@
 /**
  * @file src/utils/logger.svelte.ts
- * @description System Logger for SveltyCMS
+ * @description System Logger for SveltyCMS (Performance Optimized)
+ *
+ * Log Levels:
+ * - none: Maximum performance, zero overhead
+ * - fatal: System failures
+ * - error: Errors only (for production)
+ * - warn: Warnings
+ * - info: Default level for general information
+ * - debug: Development debugging (request timing, performance metrics)
+ * - trace: Very detailed trace information (content structure, widget state)
  *
  * Features:
  * - Performance optimization with batch logging and optimized file I/O
@@ -31,7 +40,7 @@ const getEnv = <T>(key: keyof typeof publicEnv, defaultValue: T): T => {
 const isServer = !browser;
 
 // Type Definitions
-type LogLevel = string; // Use string instead of relying on publicEnv at compile time
+type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none';
 
 // Define a type for loggable values
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
@@ -84,8 +93,8 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 	trace: { priority: 6, color: 'cyan' } // Least restrictive: all log levels
 };
 
-// Configuration with defaults using $state for runtime-modifiable settings
-const config = $state({
+// --- PERFORMANCE: Use plain objects instead of $state for config and state ---
+const config = {
 	logRotationInterval: 60 * 60 * 1000, // 1 hour in milliseconds
 	logDirectory: 'logs',
 	logFileName: 'app.log',
@@ -101,23 +110,33 @@ const config = $state({
 		emailKeys: ['email', 'mail', 'createdby', 'updatedby', 'user'],
 		customMasks: {} as Record<string, (value: string) => string>
 	} as MaskingConfig
-});
+};
 
 // Batch logging state
-const state = $state({
+const state = {
 	queue: [] as LogEntry[],
 	batchTimeout: null as NodeJS.Timeout | null
-});
-
-// Helper Functions
-const isLogLevelEnabled = (level: LogLevel): boolean => {
-	// JIT retrieval of log levels
-	const logLevels = getEnv('LOG_LEVELS', ['error', 'warn', 'info', 'debug']);
-	if (!Array.isArray(logLevels)) {
-		return false; // Or handle as an error/default to a safe level
-	}
-	return logLevels.includes(level);
 };
+
+// --- PERFORMANCE: Cache the max enabled log level priority ---
+let maxEnabledPriority: number = 0;
+
+function updateMaxEnabledPriority() {
+	// --- REFINEMENT: If building, disable all logs by setting priority to 0 ---
+	if (building) {
+		maxEnabledPriority = 0;
+		return;
+	}
+	const enabledLevels = getEnv('LOG_LEVELS', ['error', 'warn', 'info']);
+	if (!Array.isArray(enabledLevels) || enabledLevels.includes('none')) {
+		maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
+		return;
+	}
+	maxEnabledPriority = Math.max(0, ...enabledLevels.map((level) => LOG_LEVEL_MAP[level as LogLevel]?.priority ?? 0));
+}
+
+// Initialize the cache
+updateMaxEnabledPriority();
 
 // Format timestamp in gray color
 const getTimestamp = (): string => {
@@ -237,6 +256,10 @@ const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 
 // Batch processing utilities
 const processBatch = async (): Promise<void> => {
+	// --- REFINEMENT: Clear any pending timeout to prevent a redundant flush ---
+	if (state.batchTimeout) clearTimeout(state.batchTimeout);
+	state.batchTimeout = null;
+
 	if (state.queue.length === 0) return;
 	const currentBatch = [...state.queue];
 	state.queue = [];
@@ -534,12 +557,8 @@ if (isServer && !building) {
 }
 
 // Core Logger Function
-const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void => {
-	if (building) return; // Do not log anything during the build process
-
-	// Only proceed if the log level is enabled
-	if (!isLogLevelEnabled(level)) return;
-
+const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
+	// The initial check is now done in the public interface, so we assume the level is enabled here.
 	const timestamp = getTimestamp();
 	const maskedArgs = args.map(maskSensitiveData);
 	let sourceFile = '';
@@ -548,7 +567,7 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 	if (isServer && config.sourceFileTracking.includes(level)) {
 		try {
 			const stack = new Error().stack || '';
-			const callerLine = stack.split('\n')[3] || ''; // Adjust index based on environment/stack format
+			const callerLine = stack.split('\n')[4] || ''; // Adjusted index because of the new wrapper
 			const match = callerLine.match(/\(([^)]+)\)/) || callerLine.match(/at ([^\s]+)/);
 			if (match && match[1]) {
 				sourceFile = match[1].split('/').pop()?.replace(/[()]/g, '') || '';
@@ -566,20 +585,42 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 		process.stdout.write(`${timestamp} ${sourceInfo}${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset} ${message} ${formattedArgs}\n`);
 	}
 
-	state.queue = [...state.queue, { level, message, args: maskedArgs, timestamp: new Date() }];
-	scheduleBatchProcessing();
+	// Batching logic
+	state.queue.push({ level, message, args: maskedArgs, timestamp: new Date() });
+	if (state.queue.length >= config.batchSize) {
+		safeExecute(processBatch);
+	} else {
+		scheduleBatchProcessing();
+	}
 };
 
 // Public Logger Interface
 export const logger = {
-	fatal: (message: string, ...args: LoggableValue[]) => log('fatal', message, ...args),
-	error: (message: string, ...args: LoggableValue[]) => log('error', message, ...args),
-	warn: (message: string, ...args: LoggableValue[]) => log('warn', message, ...args),
-	info: (message: string, ...args: LoggableValue[]) => log('info', message, ...args),
-	debug: (message: string, ...args: LoggableValue[]) => log('debug', message, ...args),
-	trace: (message: string, ...args: LoggableValue[]) => log('trace', message, ...args),
+	// --- PERFORMANCE: Check level *before* calling the internal log function and spreading args ---
+	// Note: building check is now centralized in updateMaxEnabledPriority()
+	fatal: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.fatal.priority <= maxEnabledPriority) log('fatal', message, args);
+	},
+	error: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.error.priority <= maxEnabledPriority) log('error', message, args);
+	},
+	warn: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.warn.priority <= maxEnabledPriority) log('warn', message, args);
+	},
+	info: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.info.priority <= maxEnabledPriority) log('info', message, args);
+	},
+	debug: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.debug.priority <= maxEnabledPriority) log('debug', message, args);
+	},
+	trace: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.trace.priority <= maxEnabledPriority) log('trace', message, args);
+	},
 
 	// Configuration Methods
+	refreshLogLevels: () => {
+		updateMaxEnabledPriority();
+	},
 	setCustomLogTarget: (target: (level: LogLevel, message: string, args: LoggableValue[]) => void) => {
 		config.customLogTarget = target;
 	},

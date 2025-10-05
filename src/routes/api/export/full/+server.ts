@@ -49,9 +49,9 @@ async function exportSettings(options: ExportOptions): Promise<{ settings: Recor
 			if (options.includeSensitive) {
 				// Separate sensitive data for encryption
 				sensitive[key] = value;
-				logger.debug(`Collected sensitive field for encryption: ${key}`);
+				logger.trace(`Collected sensitive field for encryption: ${key}`);
 			} else {
-				logger.debug(`Skipping sensitive field: ${key}`);
+				logger.trace(`Skipping sensitive field: ${key}`);
 			}
 		} else {
 			// Non-sensitive data goes directly to settings

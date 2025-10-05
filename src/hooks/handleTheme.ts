@@ -34,7 +34,7 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 				// ThemeManager not initialized, but not in setup.
 				// This can happen during the first request after setup completes and the server restarts.
 				// Silently use the default theme; the manager will be ready on the next navigation.
-				logger.debug('ThemeManager not ready, using default theme. This is normal after initial setup.');
+				logger.trace('ThemeManager not ready, using default theme. This is normal after initial setup.');
 			}
 		} catch (error) {
 			// Only log as warning if it's not a setup mode scenario

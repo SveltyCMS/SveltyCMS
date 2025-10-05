@@ -106,14 +106,10 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 					contentLanguage.set('en');
 				}
 			} else {
-				console.log('[PAGE DEBUG] Setting language from URL data:', data.contentLanguage);
 				contentLanguage.set(data.contentLanguage as Locale);
 			}
-		} else {
-			console.log('[PAGE DEBUG] Skipping language set from URL due to user-initiated change');
 		}
 	});
-
 	$effect(() => {
 		if (mode.value === 'media') {
 			mode.set('view');

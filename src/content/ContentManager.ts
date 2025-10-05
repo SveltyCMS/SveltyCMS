@@ -65,7 +65,7 @@ class ContentManager {
 	private async _doInitialize(tenantId?: string): Promise<void> {
 		this.initState = 'initializing';
 		const startTime = performance.now();
-		logger.debug('Initializing ContentManager...', { tenantId });
+		logger.trace('Initializing ContentManager...', { tenantId });
 
 		try {
 			// 1. Attempt to load from a high-speed cache (e.g., Redis).
@@ -133,8 +133,8 @@ class ContentManager {
 			throw new Error('ContentManager is not initialized.');
 		}
 
-		logger.debug('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
-		logger.debug('[ContentManager] getContentStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.entries()));
+		logger.trace('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
+		logger.trace('[ContentManager] getContentStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.entries()));
 
 		// Create a structured, nested tree from the flat map for UI consumption.
 		const nodes = new Map<string, ContentNode>(
@@ -150,15 +150,16 @@ class ContentManager {
 			}
 		}
 
-		logger.debug('[ContentManager] getContentStructure - tree size:', tree.length);
-		logger.debug('[ContentManager] getContentStructure - tree:', tree);
+		logger.trace('[ContentManager] getContentStructure - tree size:', tree.length);
+		logger.trace('[ContentManager] getContentStructure - tree:', tree);
 
 		return tree;
 	}
 
 	/**
 	 * Returns a lightweight navigation structure without full collection definitions.
-	 * This is suitable for serialization to the client (e.g., for navigation menus).
+	 * This is suitable for serialization to the client (e.g., for navigation menus and TreeView).
+	 * Includes only essential metadata needed for display and ordering.
 	 */
 	public getNavigationStructure(): Array<{
 		_id: string;
@@ -167,6 +168,9 @@ class ContentManager {
 		icon?: string;
 		nodeType: 'category' | 'collection';
 		order?: number;
+		status?: string; // For category badges
+		lastModified?: Date; // For sorting
+		parentId?: string; // For tree reconstruction
 		translations?: Array<{ languageTag: string; translationName: string }>;
 		children?: unknown[];
 	}> {
@@ -175,7 +179,7 @@ class ContentManager {
 		}
 
 		const fullStructure = this.getContentStructure();
-		logger.debug('[ContentManager] getNavigationStructure - fullStructure:', fullStructure);
+		logger.trace('[ContentManager] getNavigationStructure - fullStructure:', fullStructure);
 
 		// Strip out collection definitions, keep only metadata + translations for localization
 		interface NavigationNode {
@@ -185,6 +189,9 @@ class ContentManager {
 			icon?: string;
 			nodeType: 'category' | 'collection';
 			order?: number;
+			status?: string;
+			lastModified?: Date;
+			parentId?: string;
 			translations?: { languageTag: string; translationName: string }[];
 			children?: NavigationNode[];
 		}
@@ -197,14 +204,46 @@ class ContentManager {
 				icon: node.icon,
 				nodeType: node.nodeType,
 				order: node.order,
+				status: node.status as string | undefined,
+				lastModified: node.lastModified,
+				parentId: node.parentId,
 				translations: node.translations, // Include translations for client-side localization
 				children: node.children && node.children.length > 0 ? stripToNavigation(node.children) : undefined
 			}));
 		};
 
 		const result = stripToNavigation(fullStructure);
-		logger.debug('[ContentManager] getNavigationStructure - result:', result);
+		logger.trace('[ContentManager] getNavigationStructure - result:', result);
 		return result;
+	}
+
+	/**
+	 * Gets the content structure directly from the database (not from in-memory cache).
+	 * This is used by CollectionBuilder to ensure it has the most current persisted state.
+	 * Returns lightweight data without heavy collectionDef.fields arrays.
+	 *
+	 * @param format 'flat' or 'nested' - default 'nested'
+	 * @returns ContentNode[] from database (with minimal collectionDef, no fields)
+	 */
+	public async getContentStructureFromDatabase(format: 'flat' | 'nested' = 'nested'): Promise<ContentNode[]> {
+		if (this.initState !== 'initialized') {
+			throw new Error('ContentManager is not initialized.');
+		}
+
+		const dbAdapter = await getDbAdapter();
+		if (!dbAdapter) {
+			throw new Error('Database adapter is not available');
+		}
+
+		const result = await dbAdapter.content.nodes.getStructure(format);
+
+		if (!result.success) {
+			logger.error('[ContentManager] Failed to get content structure from database:', result.error);
+			return [];
+		}
+
+		logger.trace('[ContentManager] getContentStructureFromDatabase - retrieved nodes:', result.data.length);
+		return result.data;
 	}
 
 	/**
@@ -251,7 +290,7 @@ class ContentManager {
 			const fs = await getFs();
 			await fs.access(compiledDirectoryPath);
 		} catch {
-			logger.debug(`Compiled collections directory not found: ${compiledDirectoryPath}. Assuming fresh start.`);
+			logger.trace(`Compiled collections directory not found: ${compiledDirectoryPath}. Assuming fresh start.`);
 			return [];
 		}
 
@@ -283,7 +322,7 @@ class ContentManager {
 			});
 
 		const schemas = (await Promise.all(schemaPromises)).filter((s): s is NonNullable<typeof s> => !!s);
-		logger.debug(`Processed \x1b[33m${schemas.length}\x1b[0m collection schemas from filesystem.`);
+		logger.trace(`Processed \x1b[33m${schemas.length}\x1b[0m collection schemas from filesystem.`);
 		return schemas;
 	}
 
@@ -291,16 +330,16 @@ class ContentManager {
 	 * Synchronizes schemas from files with the database and builds the in-memory maps.
 	 */
 	private async _reconcileAndBuildStructure(schemas: Schema[]): Promise<void> {
-		logger.debug('[ContentManager] _reconcileAndBuildStructure - schemas count:', schemas.length);
+		logger.trace('[ContentManager] _reconcileAndBuildStructure - schemas count:', schemas.length);
 
 		const dbAdapter = await getDbAdapter();
 		if (!dbAdapter) throw new Error('Database adapter is not available');
 
 		const fileCategoryNodes = generateCategoryNodesFromPaths(schemas);
-		logger.debug('[ContentManager] _reconcileAndBuildStructure - fileCategoryNodes size:', fileCategoryNodes.size);
+		logger.trace('[ContentManager] _reconcileAndBuildStructure - fileCategoryNodes size:', fileCategoryNodes.size);
 
 		const dbResult = await dbAdapter.content.nodes.getStructure('flat');
-		logger.debug('[ContentManager] _reconcileAndBuildStructure - dbResult:', dbResult);
+		logger.trace('[ContentManager] _reconcileAndBuildStructure - dbResult:', dbResult);
 
 		const dbNodeMap = new Map<string, ContentNode>(
 			dbResult.success
@@ -393,9 +432,9 @@ class ContentManager {
 			}
 		}
 
-		logger.debug('[ContentManager] _reconcileAndBuildStructure - operations count:', operations.length);
-		logger.debug('[ContentManager] _reconcileAndBuildStructure - contentNodeMap size after rebuild:', this.contentNodeMap.size);
-		logger.debug('[ContentManager] _reconcileAndBuildStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.keys()));
+		logger.trace('[ContentManager] _reconcileAndBuildStructure - operations count:', operations.length);
+		logger.trace('[ContentManager] _reconcileAndBuildStructure - contentNodeMap size after rebuild:', this.contentNodeMap.size);
+		logger.trace('[ContentManager] _reconcileAndBuildStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.keys()));
 	}
 
 	/**

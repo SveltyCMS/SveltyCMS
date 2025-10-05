@@ -65,7 +65,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection management
 		const collectionManagementConfig = permissionConfigs.collectionManagement;

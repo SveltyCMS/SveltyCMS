@@ -33,7 +33,7 @@ export async function hashPassword(password: string): Promise<string> {
 			type: argon2.argon2id
 		});
 
-		logger.debug('Password hashed successfully');
+		logger.trace('Password hashed successfully');
 		return hashedPassword;
 	} catch (error) {
 		logger.error('Failed to hash password:', error);
@@ -53,7 +53,7 @@ export async function verifyPassword(hashedPassword: string, plainPassword: stri
 
 		const isValid = await argon2.verify(hashedPassword, plainPassword);
 
-		logger.debug('Password verification completed', { isValid });
+		logger.trace('Password verification completed', { isValid });
 		return isValid;
 	} catch (error) {
 		logger.error('Password verification failed:', error);

@@ -21,7 +21,7 @@ export class MongoThemeMethods {
 	 */
 	constructor(themeModel: ThemeModelType) {
 		this.themeModel = themeModel;
-		logger.debug('\x1b[34mMongoThemeMethods\x1b[0m initialized.');
+		logger.trace('\x1b[34mMongoThemeMethods\x1b[0m initialized.');
 	}
 
 	/**

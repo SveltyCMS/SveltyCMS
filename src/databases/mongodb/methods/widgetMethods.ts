@@ -22,7 +22,7 @@ export class MongoWidgetMethods {
 	 */
 	constructor(widgetModel: WidgetModelType) {
 		this.widgetModel = widgetModel;
-		logger.info('\x1b[34mMongoWidgetMethods\x1b[0m initialized.');
+		logger.trace('\x1b[34mMongoWidgetMethods\x1b[0m initialized.');
 	}
 
 	/**

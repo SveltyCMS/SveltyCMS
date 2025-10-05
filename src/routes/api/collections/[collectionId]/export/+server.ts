@@ -76,7 +76,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		}
 
 		// Fetch data from collection
-		logger.debug(`Exporting collection ${collectionId}`, {
+		logger.trace(`Exporting collection ${collectionId}`, {
 			userId: locals.user._id,
 			format,
 			limit,

@@ -452,29 +452,16 @@ function createValidationStore() {
 		},
 		get isValid() {
 			const valid = isValid(); // Call the derived function to get the boolean value
-			const errorKeys = Object.keys(errors);
-			const hasErrors = errorKeys.length > 0;
-			if (process.env.NODE_ENV !== 'production') {
-				// Only log if there's a change in state to reduce spam
-				const currentState = `${valid}-${hasErrors}-${errorKeys.join(',')}`;
-				if (!this._lastLoggedState || this._lastLoggedState !== currentState) {
-					console.log(`[ValidationStore] isValid check: valid=${valid}, hasErrors=${hasErrors}, errors keys:`, errorKeys);
-					this._lastLoggedState = currentState;
-				}
-			}
+			// Validation tracking is silent for performance
 			return valid;
 		},
 		setError: (fieldName: string, errorMessage: string | null) => {
-			if (process.env.NODE_ENV !== 'production') {
-				console.log(`[ValidationStore] Setting error for ${fieldName}:`, errorMessage);
-			}
+			// Silent validation error setting
 			errors[fieldName] = errorMessage;
 			notify();
 		},
 		clearError: (fieldName: string) => {
-			if (process.env.NODE_ENV !== 'production') {
-				console.log(`[ValidationStore] Clearing error for ${fieldName}`);
-			}
+			// Silent validation error clearing
 			if (fieldName in errors) {
 				delete errors[fieldName];
 				notify();

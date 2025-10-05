@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: ${user._id}`, { tenantId });
+		logger.trace(`User authenticated successfully for user: ${user._id}`, { tenantId });
 
 		if (!user.role) {
 			const message = `User role is missing for user ${user.email}`;

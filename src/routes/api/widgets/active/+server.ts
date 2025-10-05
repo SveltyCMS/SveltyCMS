@@ -45,13 +45,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 			};
 		});
 
-		const duration = performance.now() - start;
-		logger.debug('Retrieved active widgets with metadata', {
+		logger.trace('Retrieved active widgets with metadata', {
 			tenantId,
-			count: enrichedWidgets.length,
-			duration: `${duration.toFixed(2)}ms`
+			widgetCount: enrichedWidgets.length,
+			widgetNames: enrichedWidgets.map((w) => w.name),
+			duration: `${(performance.now() - start).toFixed(2)}ms`
 		});
-
 		return json({
 			widgets: enrichedWidgets,
 			tenantId

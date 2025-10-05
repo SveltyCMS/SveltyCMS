@@ -73,7 +73,7 @@ async function createCategoriesFromPath(collections: Schema[]): Promise<Category
 	const categoriesObject = flattenAndSortCategories();
 	// Convert the object to an array
 	const result = Object.values(categoriesObject);
-	logger.debug('Created categories:', result);
+	logger.trace('Created categories:', result);
 	return result;
 }
 
@@ -165,14 +165,14 @@ function flattenAndSortCategories(): Record<string, CollectionData> {
 
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<ContentTypes, Schema>>> {
-	logger.debug('Starting getCollections');
+	logger.trace('Starting getCollections');
 
 	// Initialize widgets
 	await ensureWidgetsInitialized();
 
 	// Return cached collections if available
 	if (collectionModelsCache) {
-		logger.debug(`Returning cached collections. Count: ${Object.keys(collectionModelsCache).length}`);
+		logger.trace(`Returning cached collections. Count: ${Object.keys(collectionModelsCache).length}`);
 		return collectionModelsCache;
 	}
 
@@ -189,7 +189,7 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 
 // Function to update collections
 export const updateCollections = async (recompile: boolean = false): Promise<void> => {
-	logger.debug('Starting updateCollections');
+	logger.trace('Starting updateCollections');
 
 	if (recompile) {
 		importsCache = {} as Record<ContentTypes, Schema>;
@@ -197,7 +197,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 	try {
 		const imports = await getImports(recompile);
-		logger.debug(`Imports fetched. Count: ${Object.keys(imports).length}`);
+		logger.trace(`Imports fetched. Count: ${Object.keys(imports).length}`);
 
 		const _categories = await createCategoriesFromPath(Object.values(imports));
 
@@ -210,8 +210,8 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			}
 		}
 
-		logger.debug(`Collections processed. Count: ${Object.keys(_collections).length}`);
-		logger.debug('Setting categories:', _categories);
+		logger.trace(`Collections processed. Count: ${Object.keys(_collections).length}`);
+		logger.trace('Setting categories:', _categories);
 
 		// Set the stores
 		contentStructure.set(_categories);
@@ -253,15 +253,15 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 // Function to get imports based on environment
 async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
-	logger.debug('Starting getImports function');
+	logger.trace('Starting getImports function');
 
 	// Ensure widgets are initialized before importing collections
 	await ensureWidgetsInitialized();
-	logger.debug('Widgets initialized, proceeding with collection imports');
+	logger.trace('Widgets initialized, proceeding with collection imports');
 
 	// Return from cache if available
 	if (!recompile && Object.keys(importsCache).length > 0) {
-		logger.debug('Returning from cache');
+		logger.trace('Returning from cache');
 		return importsCache;
 	}
 
@@ -279,7 +279,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 				// Get the collection path without the filename
 				const collectionPath = pathSegments.slice(0, -1).join('/');
 				collection.path = collectionPath;
-				logger.debug(`Set path for collection ${name} to ${collection.path}`);
+				logger.trace(`Set path for collection ${name} to ${collection.path}`);
 
 				importsCache[name as ContentTypes] = collection as Schema;
 			} else {
@@ -289,7 +289,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 
 		// Development/Building mode
 		if (dev || building) {
-			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
+			logger.trace(`Running in {${dev ? 'dev' : 'building'}} mode`);
 			// Look for TypeScript files in config/collections directory
 			const modules = import.meta.glob(
 				[
@@ -324,7 +324,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			}
 		} else {
 			// Production mode
-			logger.debug('Running in production mode');
+			logger.trace('Running in production mode');
 			let files: string[] = [];
 			try {
 				// Use new collections endpoint
@@ -370,7 +370,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			}
 		}
 
-		logger.debug('Imported collections:', { collections: Object.keys(importsCache) });
+		logger.trace('Imported collections:', { collections: Object.keys(importsCache) });
 		return importsCache;
 	} catch (err) {
 		logger.error(`Error in getImports: ${err instanceof Error ? err.message : String(err)}`);

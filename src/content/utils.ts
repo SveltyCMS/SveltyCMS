@@ -15,7 +15,7 @@
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
 
-import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from '@src/widgets';
+import widgetProxy, { ensureWidgetsInitialized } from '@src/widgets';
 import { logger } from '../utils/logger.svelte';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
 

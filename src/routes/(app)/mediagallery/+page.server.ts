@@ -115,7 +115,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		// Determine current folder
 		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
-		logger.debug('Current folder determined:', currentFolder);
+		logger.trace('Current folder determined:', currentFolder);
 
 		// Fetch from all media collections since MediaItem doesn't exist
 		const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
@@ -330,7 +330,7 @@ export const actions: Actions = {
 	deleteMedia: async ({ request }) => {
 		logger.warn('Request Body', await request.json());
 		const image = (await request.json())?.image;
-		logger.debug('Received delete request for image:', image);
+		logger.trace('Received delete request for image:', image);
 
 		if (!image || !image._id) {
 			logger.error('Invalid image data received');
