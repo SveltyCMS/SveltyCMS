@@ -1,0 +1,340 @@
+---
+path: 'docs/contributing/contributing-docs.mdx'
+title: 'Contributing to the Documentation'
+description: 'Learn the simplified structure and process for contributing to the SveltyCMS documentation.'
+order: 2
+icon: 'mdi:file-document-plus-outline'
+author: 'admin'
+created: '2025-09-28'
+updated: '2025-10-05'
+tags:
+  - 'documentation'
+  - 'contributing'
+  - 'mdx'
+---
+
+# Introduction
+
+High-quality documentation is essential for our project. This guide explains how to contribute effectively using our simplified, content-focused approach.
+
+**Our core principle:** The `/docs` directory should contain only MDX files.
+
+## Documentation Principles
+
+**Documentation reflects current functionality only.** All documentation must accurately describe the current state of the CMS. Do not document planned features, future improvements, or changes that haven't been implemented yet.
+
+- ✅ **Document what exists now**: Features, functions, and behaviors currently in the codebase
+- ❌ **Do not document future plans**: Improvements, changes, or features go in change logs or issue trackers
+- 🔄 **Keep docs synchronized**: Update documentation immediately when functionality changes
+
+This ensures users always have accurate, reliable information about what the CMS can do right now.
+
+---
+
+## Documentation Structure: Simplified Organization
+
+Our documentation is organized by **content type**, not by audience. This eliminates artificial separation between "user" and "developer" docs, making information easier to find.
+
+### The Library: `/docs`
+
+This is the root directory for all documentation content.
+
+### Core Documentation Categories
+
+**`/docs/api/`** - API Reference  
+Complete REST API documentation for all endpoints. Includes practical examples, request/response formats, authentication, and integration guides. **All API documentation belongs here** regardless of technical level.
+
+**`/docs/widgets/`** - Widget System  
+Documentation for the widget system including:
+
+- Overview of the 3-pillar architecture (Definition, Input, Display)
+- How to use widgets in collections
+- How to create custom widgets following the 3-pillar pattern
+- Widget marketplace and management
+- Individual widget documentation (one file per widget)
+
+**`/docs/contributing/`** - Contributor's Guide  
+For people improving the project. Contains code of conduct, pull request guidelines, and documentation standards (this file).
+
+### File Organization
+
+Within each category, content is organized into topic files:
+
+- **`index.mdx`**: Landing page for the section. Provides overview and navigation.
+- **Content Files (`*.mdx`)**: Individual documentation pages for specific topics.
+
+### Complete Example
+
+Here's the recommended documentation structure:
+
+```
+docs/
+├── api/                              # All API documentation
+│   ├── index.mdx                     # API overview and authentication guide
+│   ├── Authentication_2FA_API.mdx    # Two-factor authentication endpoints
+│   ├── Collection_API.mdx            # Collection CRUD operations
+│   ├── User_Token_Management_API.mdx # User and token management
+│   ├── Widget_API.mdx                # Widget management endpoints
+│   ├── Settings_API.mdx              # System settings endpoints
+│   └── Media_API.mdx                 # Media upload and management
+│
+├── widgets/                          # All widget documentation
+│   ├── index.mdx                     # Widget system overview & 3-pillar architecture
+│   ├── Creating_Custom_Widgets.mdx   # Guide for creating widgets
+│   ├── Widget_Management_System.mdx  # Management features & lifecycle
+│   ├── Widget_Marketplace_System.mdx # Marketplace integration
+│   └── core/                         # Individual core widget docs
+│       ├── text.mdx                  # Text input widget
+│       ├── richText.mdx              # Rich text editor widget
+│       ├── mediaUpload.mdx           # Media upload widget
+│       ├── relation.mdx              # Relation widget
+│       └── ...                       # Other core widgets
+│
+└── contributing/                     # Contributor documentation
+    ├── contributing-docs.mdx         # This file
+    ├── code-of-conduct.mdx           # Code of conduct
+    └── pull-requests.mdx             # PR guidelines
+```
+
+### Key Principles
+
+1. **No audience separation**: Don't create `/user-guide` and `/dev-guide`. Content type determines location.
+2. **Flat when possible**: Avoid unnecessary nesting. Use folders only when logical grouping helps.
+3. **One topic, one file**: Each MDX file covers one specific topic thoroughly.
+4. **Widget docs per widget**: Each widget gets its own MDX file in `/docs/widgets/core/` or `/docs/widgets/custom/`.
+
+---
+
+## Frontmatter Guide
+
+Every MDX file must begin with a YAML frontmatter block enclosed by `---` lines. This metadata is critical for navigation, search, and display.
+
+### Required Fields
+
+| Field       | Required | Purpose                                                                                        | Example Value                              |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| path        | Yes      | Full path from project root. Used for routing and identification.                              | `"docs/api/Authentication_2FA_API.mdx"`    |
+| title       | Yes      | Main heading (H1). Shown in navigation, browser tab, and search results.                       | `"Two-Factor Authentication API"`          |
+| description | Yes      | One-sentence summary for SEO and previews.                                                     | `"Complete 2FA API endpoint reference."`   |
+| order       | Yes      | Position in sidebar navigation relative to siblings. Lower numbers appear first.               | `2`                                        |
+| icon        | Yes      | Material Design Icon with `mdi:` prefix.                                                       | `"mdi:shield-lock"`                        |
+| author      | Yes      | GitHub username of original author.                                                            | `"admin"`                                  |
+| created     | Yes      | Creation date in YYYY-MM-DD format.                                                            | `"2025-10-05"`                             |
+| updated     | Yes      | Last significant update date. Update with every meaningful change.                             | `"2025-10-05"`                             |
+| tags        | Yes      | Array of relevant keywords for search and filtering. Use lowercase, kebab-case for multi-word. | `["api", "authentication", "2fa", "totp"]` |
+
+### Complete Template
+
+Copy this template for new documentation files:
+
+```yaml
+---
+path: 'docs/category/your-file-name.mdx'
+title: 'Your Document Title'
+description: 'A concise one-sentence summary of the document purpose.'
+order: 1
+icon: 'mdi:icon-name'
+author: 'YourGitHubUsername'
+created: 'YYYY-MM-DD'
+updated: 'YYYY-MM-DD'
+tags:
+  - 'relevant-tag'
+  - 'another-tag'
+  - 'third-tag'
+---
+```
+
+### Example Frontmatter
+
+```yaml
+---
+path: 'docs/api/Authentication_2FA_API.mdx'
+title: 'Two-Factor Authentication API'
+description: 'Complete API reference for 2FA setup, verification, and management endpoints.'
+order: 2
+icon: 'mdi:shield-lock'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'authentication'
+  - '2fa'
+  - 'security'
+  - 'totp'
+---
+```
+
+---
+
+## Managing Assets (Images, Diagrams, Videos)
+
+All non-MDX files must be placed in the `/static/docs/` directory to keep documentation folders clean.
+
+### Rules
+
+- **Location**: `/static/docs/`
+- **Structure**: Mirror the `/docs/` directory structure
+- **Example**: Image for `/docs/api/Authentication_2FA_API.mdx` goes in `/static/docs/api/`
+
+### Referencing Assets
+
+Always use absolute paths from the root:
+
+```markdown
+![2FA Setup Flow](/docs/api/2fa-setup-flow.png)
+```
+
+### Asset Guidelines
+
+- **Formats**: PNG for screenshots, SVG for diagrams/icons
+- **Optimization**: Keep files under 500KB
+- **Naming**: Use descriptive kebab-case names (e.g., `api-authentication-flow.svg`)
+- **Alt Text**: Always provide meaningful alt text for accessibility
+
+---
+
+## Content Best Practices
+
+### Writing Style
+
+- **Clarity**: Use active voice, short sentences, plain language
+- **Structure**: Start with intro, use H2/H3 headings, end with summary or next steps
+- **Examples**: Provide practical code snippets and real-world examples
+- **Consistency**: Follow existing doc style. Use American English.
+- **Accessibility**: Add alt text, ensure good contrast, make content scannable
+
+### MDX-Specific Guidance
+
+- **Basic Markdown**: Use standard syntax (bold, italics, lists, links, code blocks with language tags)
+- **Code Blocks**: Always specify language for syntax highlighting:
+
+````markdown
+```typescript
+// TypeScript code here
+```
+````
+
+- **JSX Components**: Use sparingly, only for interactive elements
+- **Escaping**: Use backticks or HTML entities (`&lt;`, `&gt;`) for literal angle brackets
+
+---
+
+## Tools and Automation
+
+### Frontmatter Validation Linter
+
+We provide an automated linter to validate all documentation frontmatter:
+
+```bash
+bun ./docs/lint-docs.ts
+```
+
+The linter will:
+
+- ✅ Validate all `.mdx` files in `docs/` and `src/widgets/` directories
+- 🔍 Detect `.md` files that need conversion to `.mdx`
+- ❌ Report frontmatter errors with helpful messages
+- 📊 Display summary with validation results
+
+**Always run the linter before submitting a PR.**
+
+### Example Output
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 SveltyCMS Documentation Frontmatter Validation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 SveltyCMS Documentation Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total files:     25 (25 .mdx, 0 .md)
+Validation:      ✅ 25 valid  |  ❌ 0 invalid
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ All files have valid frontmatter!
+```
+
+---
+
+## Review and Update Process
+
+### Pull Request Workflow
+
+1. **Create Branch**: Make documentation changes in a feature branch
+2. **Run Linter**: Execute `bun ./docs/lint-docs.ts` and fix any errors
+3. **Submit PR**: Create pull request with descriptive title
+4. **Review**: Reviewers check for accuracy, clarity, and adherence to guidelines
+5. **Update `updated` field**: Change the date in frontmatter
+6. **Merge**: Once approved, changes are merged
+
+### Updating Existing Docs
+
+- Always update the `updated` field in frontmatter
+- Keep changes focused on one topic per PR
+- Add a commit message explaining what changed
+
+### Versioning
+
+- Documentation is versioned with the code
+- Major changes may need release notes
+- Breaking API changes must be documented immediately
+
+---
+
+## Checklist for New Documentation
+
+Before submitting a PR:
+
+- [ ] Frontmatter is complete with all required fields
+- [ ] `path` field matches actual file location
+- [ ] Content is clear, accurate, and follows best practices
+- [ ] Code examples are tested and working
+- [ ] Assets are in `/static/docs/` with correct structure
+- [ ] File is `.mdx` format (not `.md`)
+- [ ] Linter passes: `bun ./docs/lint-docs.ts`
+- [ ] `updated` field reflects current date
+- [ ] Tags are relevant and lowercase/kebab-case
+- [ ] Links to other docs use correct paths
+- [ ] Tested rendering in the CMS (if possible)
+
+---
+
+## Special Cases
+
+### API Documentation
+
+All API docs go in `/docs/api/`:
+
+- Include request/response examples
+- Document authentication requirements
+- Show error responses
+- Provide cURL and JavaScript examples
+- Include integration flows (diagrams welcome)
+
+### Widget Documentation
+
+Each widget gets its own file in `/docs/widgets/core/` or `/docs/widgets/custom/`:
+
+- Explain the 3-pillar structure (Definition, Input, Display)
+- Show configuration options
+- Provide usage examples in collection schemas
+- Document any special requirements or dependencies
+
+---
+
+## Questions and Support
+
+- **Documentation Issues**: Open an issue on GitHub
+- **Unclear Guidelines**: Ask in GitHub Discussions
+- **Contribution Help**: Tag maintainers in your PR
+
+---
+
+## Related Documents
+
+- [Code of Conduct](./code-of-conduct.mdx)
+- [Pull Request Guidelines](./pull-requests.mdx)
+- [API Documentation](../api/index.mdx)
+- [Widget System](../widgets/index.mdx)

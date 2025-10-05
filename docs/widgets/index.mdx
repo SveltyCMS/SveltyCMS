@@ -1,0 +1,253 @@
+---
+path: 'docs/widgets/index.mdx'
+title: 'Widget System Documentation'
+description: 'Complete widget system documentation covering 3-pillar architecture, management, and marketplace'
+order: 70
+icon: 'mdi:widgets'
+author: 'admin'
+created: '2025-10-04'
+updated: '2025-10-04'
+tags:
+  - 'developer'
+  - 'widgets'
+  - 'documentation'
+  - '3-pillar'
+  - 'architecture'
+---
+
+# Widget System Documentation
+
+SveltyCMS features a comprehensive widget system based on the **3-Pillar Architecture** with integrated management and marketplace capabilities.
+
+## 🏗️ Architecture Overview
+
+### 3-Pillar Design
+
+The modern widget architecture separates concerns into three distinct pillars:
+
+1. **📋 Definition** - Widget blueprint and configuration (index.ts)
+2. **✏️ Input** - Interactive component for editing (Input.svelte)
+3. **👁️ Display** - Lightweight component for viewing (Display.svelte)
+
+This separation provides:
+
+- **Better Performance**: Lightweight display components for lists
+- **Clear Separation**: Distinct edit vs. view modes
+- **Maintainability**: Easier to update and test individual components
+- **Reusability**: Components can be shared across implementations
+
+### Widget Types
+
+#### Core Widgets (Always Available)
+
+Located in `src/widgets/core/`:
+
+- **Input Controls**: text, email, number, phone, password
+- **Selection**: checkbox, radio, dropdown
+- **Media**: mediaUpload, image, video
+- **Content**: richText, markdown
+- **Date/Time**: date (with timePicker option), dateRange
+- **Relationships**: relation, references
+- **Structure**: group, repeater
+
+#### Custom Widgets (Optional)
+
+Located in `src/widgets/custom/`:
+
+- **Forms & Input**: colorPicker, rating, currency
+- **SEO**: seo, metadata
+- **Advanced**: phoneNumber, address
+- **E-commerce**: product, pricing (marketplace)
+- **Social**: socialShare, embedder (marketplace)
+
+## 📚 Documentation
+
+### Core Documentation
+
+- **[Widget Management System](./Widget_Management_System.mdx)**
+  - 3-pillar architecture details
+  - Widget lifecycle and dependencies
+  - Multi-tenant configuration
+  - API endpoints
+
+- **[Widget Marketplace System](./Widget_Marketplace_System.mdx)**
+  - Marketplace integration
+  - Widget discovery and installation
+  - Payment and licensing
+  - Community features
+
+- **[Widget Management Enhancement](./Widget_Management_Enhancement.md)**
+  - Recent improvements
+  - Enhanced dashboard features
+  - Migration guide
+
+## 🎯 Quick Start
+
+### Using Widgets
+
+```typescript
+// In collection schema
+import { widgets } from '@widgets';
+
+export default {
+	fields: [
+		widgets.Input({
+			label: 'Title',
+			inputType: 'text',
+			required: true
+		}),
+		widgets.RichText({
+			label: 'Content',
+			toolbar: 'full'
+		}),
+		widgets.MediaUpload({
+			label: 'Featured Image',
+			accept: 'image/*'
+		})
+	]
+};
+```
+
+### Creating Widgets
+
+```typescript
+// src/widgets/custom/myWidget/index.ts
+import { createWidget } from '@widgets/factory';
+import * as v from 'valibot';
+
+export default createWidget({
+	Name: 'MyWidget',
+	Icon: 'mdi:puzzle-plus',
+	Description: 'Custom widget with 3-pillar architecture',
+
+	// 3-Pillar paths
+	inputComponentPath: '/src/widgets/custom/myWidget/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/myWidget/Display.svelte',
+
+	// Validation
+	validationSchema: v.object({
+		value: v.string([v.minLength(1)])
+	}),
+
+	// Defaults
+	defaults: {
+		value: ''
+	}
+});
+```
+
+## 🖥️ Management Interface
+
+Access widget management at `/config/widgetManagement`:
+
+### Features
+
+- **📊 Statistics Dashboard**: Real-time metrics
+- **🔍 Search & Filter**: Quick widget discovery
+- **📋 2-Column Layout**: Professional grid (desktop)
+- **🏪 Marketplace Tab**: Browse and install widgets
+- **🎯 3-Pillar Visibility**: See component implementation status
+- **⚙️ Quick Actions**: One-click activation/deactivation
+
+### Statistics Explained
+
+- **Total Widgets**: All registered widgets (core + custom)
+- **Active**: Currently enabled and usable in collections
+- **Core**: Essential widgets (cannot be disabled)
+- **Custom**: Optional widgets (can be toggled)
+- **Input**: Widgets with Input component (editing capability)
+- **Display**: Widgets with Display component (viewing capability)
+
+## 🔧 Widget Store API
+
+### Key Functions
+
+```typescript
+import { widgetStoreActions, isWidgetActive, canDisableWidget, getWidgetDependencies } from '@stores/widgetStore.svelte';
+
+// Initialize widgets
+await widgetStoreActions.initializeWidgets('tenant-id');
+
+// Check status
+const isActive = isWidgetActive('SEO');
+const canDisable = canDisableWidget('SEO');
+const deps = getWidgetDependencies('SEO');
+
+// Update status
+await widgetStoreActions.updateWidgetStatus('SEO', 'active', 'tenant-id');
+```
+
+## 📦 File Structure
+
+```
+src/
+├── widgets/
+│   ├── core/                    # Core widgets
+│   │   ├── input/
+│   │   │   ├── index.ts        # Definition
+│   │   │   ├── Input.svelte    # Edit component
+│   │   │   └── Display.svelte  # View component
+│   │   └── ...
+│   ├── custom/                  # Custom widgets
+│   │   ├── seo/
+│   │   │   ├── index.ts
+│   │   │   ├── Input.svelte
+│   │   │   └── Display.svelte
+│   │   └── ...
+│   ├── factory.ts               # Widget factory
+│   └── types.ts                 # Type definitions
+├── stores/
+│   └── widgetStore.svelte.ts   # Centralized state
+└── routes/
+    └── (app)/config/widgetManagement/
+        ├── +page.svelte
+        ├── +page.server.ts
+        ├── WidgetDashboardEnhanced.svelte
+        └── WidgetCard.svelte
+```
+
+## 🔐 Security & Permissions
+
+### Permission Levels
+
+- **`config:widgetManagement`** - View widget management
+- **`config:widgetInstall`** - Install widgets
+- **`config:widgetUninstall`** - Uninstall widgets
+- **`config:widgetActivate`** - Activate/deactivate widgets
+- **`config:marketplace`** - Access marketplace
+
+### Multi-Tenant Isolation
+
+- Each tenant has separate widget configurations
+- Core widgets are always active for all tenants
+- Custom widgets are tenant-specific
+- Database stores per-tenant widget states
+
+## 🚀 Best Practices
+
+### Widget Development
+
+1. **Always implement 3 pillars**: Definition, Input, Display
+2. **Use factory pattern**: Leverage `createWidget()` for consistency
+3. **Validate with Valibot**: Centralize validation in definition
+4. **Document dependencies**: Clearly specify widget dependencies
+5. **Test thoroughly**: Unit test each pillar independently
+
+### Widget Management
+
+1. **Regular audits**: Review installed widgets periodically
+2. **Monitor dependencies**: Track widget relationships
+3. **Security updates**: Keep widgets updated
+4. **Usage analysis**: Track which widgets are actively used
+5. **Performance**: Monitor impact on system performance
+
+## 🔗 Related Resources
+
+- **[Content Types](../Dev_Guide/05-collections/)** - Using widgets in collections
+- **[API Development](../Dev_Guide/04-api/)** - Widget API integration
+- **[Testing](../Dev_Guide/15_Testing/)** - Widget testing strategies
+- **[Security](../Dev_Guide/14_Security/)** - Widget security considerations
+
+---
+
+The Widget System provides a powerful, extensible foundation for content management in SveltyCMS with modern architecture and professional management tools.

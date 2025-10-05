@@ -3,8 +3,8 @@
  * @description Widget types for the widget system
  */
 
-import type { User } from '@root/src/auth';
-import type { WidgetId } from '@root/src/auth/types';
+import type { User } from '@src/databases/auth/types';
+import type { WidgetId } from '@src/databases/auth/types';
 import type { GuiFieldConfig } from '@utils/utils';
 import type { SvelteComponent } from 'svelte';
 import type { Field, Schema } from '../content/types';

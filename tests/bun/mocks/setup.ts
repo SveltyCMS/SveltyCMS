@@ -2,6 +2,14 @@
 // Test setup file for Bun tests
 import { mock } from 'bun:test';
 
+// Mock SvelteKit environment - MUST be mocked before any imports use it
+mock.module('$app/environment', () => ({
+	dev: true,
+	browser: false,
+	building: false,
+	version: '1.0.0-test'
+}));
+
 // Mock public environment
 globalThis.publicEnv = {
 	DEFAULT_CONTENT_LANGUAGE: 'en',
@@ -27,12 +35,13 @@ globalThis.privateEnv = {
 };
 
 // Mock store modules
-mock('@src/stores/globalSettings', () => ({
-	publicEnv: globalThis.publicEnv
+mock.module('@src/stores/globalSettings', () => ({
+	publicEnv: globalThis.publicEnv,
+	privateEnv: globalThis.privateEnv
 }));
 
 // Mock paraglide messages
-mock('@src/paraglide/messages', () => ({
+mock.module('@src/paraglide/messages', () => ({
 	widgets_nodata: () => 'No Data'
 }));
 

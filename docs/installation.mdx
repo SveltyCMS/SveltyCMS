@@ -1,0 +1,526 @@
+---
+path: 'docs/installation'
+title: 'Installation Guide'
+description: 'Complete guide to installing and setting up SveltyCMS with automated CLI installer or manual setup.'
+order: 1
+icon: 'mdi:download'
+author: 'SveltyCMS Team'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'installation'
+  - 'setup'
+  - 'getting-started'
+---
+
+# Installation Guide
+
+## Prerequisites
+
+Before installing SveltyCMS, ensure you have the following installed:
+
+### Required Software
+
+#### 1. Node.js (v20.10.0 or higher recommended)
+
+- **Download:** [https://nodejs.org/](https://nodejs.org/)
+- **Check version:** `node --version`
+- **Why:** Runtime environment for JavaScript
+
+#### 2. Package Manager
+
+Choose one of the following:
+
+- **npm** (comes with Node.js)
+
+  ```bash
+  npm --version
+  ```
+
+- **Bun** (recommended for speed)
+
+  ```bash
+  curl -fsSL https://bun.sh/install | bash
+  ```
+
+- **Yarn**
+
+  ```bash
+  npm install -g yarn
+  ```
+
+- **pnpm**
+  ```bash
+  npm install -g pnpm
+  ```
+
+#### 3. Git
+
+- **Download:** [https://git-scm.com/](https://git-scm.com/)
+- **Check version:** `git --version`
+- **Why:** Version control and repository cloning
+
+#### 4. Database
+
+Choose one of the supported databases:
+
+**MongoDB** (recommended for first install)
+
+- **MongoDB Atlas** (cloud): [https://www.mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+- **Local MongoDB**: [https://www.mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+- **Connection string format:**
+  - Local: `mongodb://localhost:27017/sveltycms`
+  - Atlas: `mongodb+srv://username:password@cluster.mongodb.net/dbname`
+
+**MariaDB/MySQL**
+
+- **Download:** [https://mariadb.org/download/](https://mariadb.org/download/)
+- **Connection format:** `host:port` (e.g., `localhost:3306`)
+
+**PostgreSQL** (coming soon)
+
+- **Download:** [https://www.postgresql.org/download/](https://www.postgresql.org/download/)
+
+---
+
+## Quick Installation (Recommended)
+
+The automated CLI installer handles everything for you.
+
+### Step 1: Clone Repository
+
+```bash
+git clone https://github.com/SveltyCMS/SveltyCMS.git
+cd SveltyCMS
+```
+
+### Step 2: Install Dependencies
+
+Choose your package manager:
+
+<details open>
+<summary><b>npm</b></summary>
+
+```bash
+npm install
+npm run dev
+```
+
+</details>
+
+<details>
+<summary><b>Bun (fastest)</b></summary>
+
+```bash
+bun install
+bun run dev
+```
+
+</details>
+
+<details>
+<summary><b>Yarn</b></summary>
+
+```bash
+yarn install
+yarn dev
+```
+
+</details>
+
+<details>
+<summary><b>pnpm</b></summary>
+
+```bash
+pnpm install
+pnpm dev
+```
+
+</details>
+
+### Step 3: CLI Installer
+
+The CLI installer launches automatically on first run. It will guide you through:
+
+1. **Database Selection**
+   - Choose: MongoDB, MariaDB, or PostgreSQL
+   - Enter connection details
+   - Test connection automatically
+
+2. **Database Driver Installation**
+   - Automatically installs required drivers
+   - Detects your package manager
+   - Handles dependencies
+
+3. **Environment Configuration**
+   - Creates `.env` file
+   - Sets up secure secrets
+   - Configures database connection
+
+4. **Admin User Creation**
+   - Set admin email
+   - Create secure password
+   - Generate session secrets
+
+5. **Initial Data Seeding**
+   - Seeds system settings
+   - Creates default theme
+   - Sets up base configuration
+
+6. **Server Launch**
+   - Builds and starts development server
+   - Opens browser automatically
+   - Shows dashboard URL
+
+---
+
+## Manual Installation (Alternative)
+
+If you prefer manual setup or need more control:
+
+### Step 1: Clone and Install
+
+```bash
+git clone https://github.com/SveltyCMS/SveltyCMS.git
+cd SveltyCMS
+npm install  # or bun/yarn/pnpm
+```
+
+### Step 2: Install Database Driver
+
+Install the driver for your chosen database:
+
+```bash
+# MongoDB
+npm install mongoose
+
+# MariaDB/MySQL
+npm install mariadb
+
+# PostgreSQL (when available)
+npm install pg
+```
+
+### Step 3: Create Environment File
+
+Create `.env` in the project root:
+
+```env
+# Database Configuration
+DB_TYPE=mongodb
+DB_HOST=localhost
+DB_PORT=27017
+DB_USER=admin
+DB_PASSWORD=your_password
+DB_NAME=sveltycms
+
+# MongoDB Atlas (alternative)
+# DB_HOST=mongodb+srv://cluster.mongodb.net
+
+# Security
+JWT_SECRET=your_generated_secret_here
+ENCRYPTION_KEY=your_encryption_key_here
+
+# Session
+SESSION_SECRET=your_session_secret_here
+
+# Application
+SITE_NAME=My SveltyCMS
+SITE_URL=http://localhost:5173
+PUBLIC_URL=http://localhost:5173
+
+# Multi-Tenancy (optional)
+MULTI_TENANT=false
+
+# Cache (optional)
+CACHE_ENABLED=true
+USE_REDIS=false
+
+# Email (optional - for notifications)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your_email@example.com
+SMTP_PASS=your_password
+SMTP_FROM=noreply@example.com
+```
+
+**Generate Secure Secrets:**
+
+```bash
+# Using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Using OpenSSL
+openssl rand -hex 32
+```
+
+### Step 4: Test Database Connection
+
+Run the database test endpoint:
+
+```bash
+npm run dev
+```
+
+Then visit: `http://localhost:5173/setup`
+
+Or use the API directly:
+
+```bash
+curl -X POST http://localhost:5173/api/setup/test-database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "DB_TYPE": "mongodb",
+    "DB_HOST": "localhost",
+    "DB_PORT": 27017,
+    "DB_USER": "admin",
+    "DB_PASSWORD": "password",
+    "DB_NAME": "sveltycms"
+  }'
+```
+
+### Step 5: Seed Initial Data
+
+```bash
+# Through API
+curl -X POST http://localhost:5173/api/setup/seed-settings \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session" \
+  -d '{
+    "tenantId": "default-tenant",
+    "overwrite": false
+  }'
+```
+
+### Step 6: Create Admin User
+
+```bash
+# Through API or use the setup wizard at /setup
+curl -X POST http://localhost:5173/api/user/createUser \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session" \
+  -d '{
+    "email": "admin@example.com",
+    "password": "SecurePassword123!",
+    "role": "admin",
+    "username": "admin"
+  }'
+```
+
+### Step 7: Complete Setup
+
+```bash
+curl -X POST http://localhost:5173/api/setup/complete \
+  -H "Cookie: session=your-session"
+```
+
+---
+
+## Development Server
+
+Start the development server:
+
+```bash
+npm run dev
+# or
+bun run dev
+```
+
+The server will start at:
+
+- **Frontend:** `http://localhost:5173`
+- **Admin Panel:** `http://localhost:5173/admin`
+- **API:** `http://localhost:5173/api`
+- **GraphQL Playground:** `http://localhost:5173/api/graphql`
+
+---
+
+## Production Build
+
+Build for production:
+
+```bash
+npm run build
+npm run preview
+```
+
+Or with your package manager:
+
+```bash
+# Bun
+bun run build
+bun run preview
+
+# Yarn
+yarn build
+yarn preview
+
+# pnpm
+pnpm build
+pnpm preview
+```
+
+---
+
+## Deployment
+
+### Environment Variables
+
+Ensure these are set in production:
+
+```env
+NODE_ENV=production
+SITE_URL=https://your-domain.com
+PUBLIC_URL=https://your-domain.com
+
+# Use strong secrets in production!
+JWT_SECRET=<strong-random-secret>
+ENCRYPTION_KEY=<strong-random-key>
+SESSION_SECRET=<strong-random-secret>
+```
+
+### Deployment Platforms
+
+#### Vercel
+
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+#### Netlify
+
+```bash
+npm install -g netlify-cli
+netlify deploy --prod
+```
+
+#### Docker
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["node", "build"]
+```
+
+```bash
+docker build -t sveltycms .
+docker run -p 3000:3000 --env-file .env sveltycms
+```
+
+#### Traditional Server (PM2)
+
+```bash
+npm install -g pm2
+npm run build
+pm2 start build/index.js --name sveltycms
+pm2 save
+pm2 startup
+```
+
+---
+
+## Post-Installation
+
+### 1. Login to Admin Panel
+
+Visit `http://localhost:5173/admin` and login with your admin credentials.
+
+### 2. Configure Settings
+
+Navigate to **Settings** and configure:
+
+- Site name and URL
+- Default language
+- Theme preferences
+- Email settings
+- Cache settings
+
+### 3. Create Collections
+
+Navigate to **Collections** to:
+
+- Create content collections
+- Define schemas
+- Set up relationships
+
+### 4. Install Widgets
+
+Navigate to **Widgets** to:
+
+- Browse available widgets
+- Install additional functionality
+- Activate required widgets
+
+### 5. Set Up Users
+
+Navigate to **Users** to:
+
+- Create user accounts
+- Assign roles
+- Configure permissions
+
+---
+
+## Directory Structure
+
+After installation, your project structure:
+
+```
+SveltyCMS/
+├── build/                  # Production build output
+├── config/                 # Configuration files
+│   ├── roles.ts           # Role definitions
+│   ├── types.ts           # Type definitions
+│   └── collections/       # Collection schemas
+├── docs/                   # Documentation
+│   ├── api/               # API documentation
+│   ├── widgets/           # Widget documentation
+│   └── contributing/      # Contribution guides
+├── src/
+│   ├── routes/            # SvelteKit routes
+│   │   ├── admin/        # Admin panel
+│   │   └── api/          # API endpoints
+│   ├── databases/         # Database adapters
+│   ├── widgets/           # Widget system
+│   ├── components/        # Svelte components
+│   ├── stores/            # Svelte stores
+│   └── utils/             # Utility functions
+├── static/                 # Static assets
+├── tests/                  # Test files
+├── .env                    # Environment variables (create this)
+├── package.json           # Dependencies
+├── svelte.config.js       # SvelteKit config
+├── tailwind.config.ts     # Tailwind CSS config
+└── tsconfig.json          # TypeScript config
+```
+
+---
+
+## Next Steps
+
+- 📖 [Getting Started Guide](/docs/getting-started) - Learn the basics
+- 🔐 [Authentication Setup](/docs/api/Authentication_2FA_API.mdx) - Configure 2FA
+- 📝 [Create Your First Collection](/docs/User_Guide/Collection_Builder.md)
+- 🎨 [Customize Your Theme](/docs/api/Configuration_API.mdx)
+- 🔌 [Explore Widgets](/docs/widgets/)
+- 📚 [API Documentation](/docs/api/)
+
+---
+
+## Troubleshooting
+
+See [Troubleshooting Guide](/docs/troubleshooting) for common issues and solutions.
+
+---
+
+## Support
+
+- **Documentation:** [/docs](/docs)
+- **GitHub Issues:** [https://github.com/SveltyCMS/SveltyCMS/issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- **Discussions:** [https://github.com/SveltyCMS/SveltyCMS/discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)

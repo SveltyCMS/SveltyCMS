@@ -29,7 +29,7 @@
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
-	import { PermissionAction, PermissionType } from '@root/src/auth/types';
+	import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 

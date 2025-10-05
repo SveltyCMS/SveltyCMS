@@ -20,7 +20,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import type { Role, Token, User } from '@root/src/auth';
+import type { Role, Token, User } from '@src/databases/auth/types';
 import type { PermissionConfig } from '@src/databases/auth/permissions';
 
 // Superforms

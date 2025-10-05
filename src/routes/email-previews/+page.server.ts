@@ -15,7 +15,7 @@ import { createEmail, emailList, sendEmail } from 'svelte-email-tailwind/preview
 import type { PageData as AppPageData } from './$types';
 
 // Auth
-import type { User } from '@root/src/auth';
+import type { User } from '@src/databases/auth/types';
 
 // Roles
 import { roles } from '@root/config/roles';

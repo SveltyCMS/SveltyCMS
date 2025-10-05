@@ -214,10 +214,65 @@ Full Typescript support to display all available widgets, options to create full
 
 Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and TypeScript.
 
+## 📚 Documentation
+
+Comprehensive documentation to help you get started and master SveltyCMS:
+
+### Getting Started
+
+- **[Installation Guide](docs/installation.mdx)** - Complete setup instructions for all environments
+- **[Getting Started](docs/getting-started.mdx)** - Quick start guide and first steps
+- **[Troubleshooting](docs/troubleshooting.mdx)** - Solutions to common issues
+
+### User Guides
+
+- **[User Guides](docs/guides/)** - How to use SveltyCMS features
+  - Admin User Management
+  - Collection Builder
+  - System Settings
+  - User Registration
+
+### API Documentation
+
+- **[API Reference](docs/api/)** - Complete API documentation (95+ endpoints)
+  - Authentication & 2FA API
+  - Collection Management API
+  - Media API
+  - User Management API
+  - Settings & Configuration API
+  - And more...
+
+### Architecture
+
+- **[Architecture Docs](docs/architecture/)** - Technical architecture documentation
+  - Code Structure & Organization
+  - Database Methods Architecture
+  - Security Plugin
+  - Cryptography Module
+  - Collection Store DataFlow
+
+### Testing & Quality
+
+- **[Testing Guide](docs/testing.mdx)** - Comprehensive testing documentation
+  - Unit testing with Bun
+  - E2E testing with Playwright
+  - GitHub Actions CI/CD
+  - Writing and debugging tests
+
+### Widgets & Extending
+
+- **[Widget System](docs/widgets/)** - Widget architecture and development
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to SveltyCMS
+- **[Git Workflows](docs/git-workflows.mdx)** - Branching and release process
+
 ## :question: Need help
 
-Contact us if you're struggling installation or other issues via:
-[GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+Contact us if you're struggling with installation or other issues:
+
+- 💬 [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- 🐛 [Report Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 📖 [Documentation](docs/)
+- 📧 Email: support@sveltycms.com
 
 ## :rocket: Semantic Versioning
 
