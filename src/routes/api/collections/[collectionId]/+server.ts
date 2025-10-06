@@ -283,8 +283,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		});
 
 		logger.trace('Field mapping completed', {
-			mappedFieldsCount: Object.keys(fieldMap).length,
-			mappedFields: Object.keys(fieldMap)
+			mappedFieldsCount: Object.keys(mappedBody).length,
+			mappedFields: Object.keys(mappedBody)
 		});
 		const entryData = {
 			...mappedBody,

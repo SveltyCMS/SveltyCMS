@@ -92,6 +92,13 @@ export const corePermissions: Permission[] = [
 		contextId: 'collections'
 	},
 	{
+		_id: 'collections:update',
+		name: 'Collections Update Access',
+		action: PermissionAction.UPDATE,
+		type: PermissionType.SYSTEM,
+		contextId: 'collections'
+	},
+	{
 		_id: 'collections:delete',
 		name: 'Collections Delete Access',
 		action: PermissionAction.DELETE,

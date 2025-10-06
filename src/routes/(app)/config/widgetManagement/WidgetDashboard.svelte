@@ -21,7 +21,6 @@ Features:
 	// State
 	let widgets = $state<any[]>([]);
 	let isLoading = $state(true);
-	let isSyncing = $state(false);
 	let searchQuery = $state('');
 	let activeFilter = $state<'all' | 'core' | 'custom' | 'active' | 'inactive'>('all');
 	let activeTab = $state<'installed' | 'marketplace'>('installed');
@@ -181,11 +180,13 @@ Features:
 				throw new Error(`Failed to update widget status: ${response.statusText}`);
 			}
 
-			// Update local state
-			widget.isActive = newStatus;
-			widgets = [...widgets]; // Trigger reactivity
+			// Force refresh: Clear cache and reload widget store + widget list
+			// This ensures the UI is perfectly in sync with database
+			const widgetStore = await import('@stores/widgetStore.svelte');
+			await widgetStore.widgetStoreActions.initializeWidgets(tenantId);
+			await loadWidgets();
 
-			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'}`);
+			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to update widget status';
 			console.error('Error toggling widget:', err);
@@ -224,51 +225,6 @@ Features:
 			const message = err instanceof Error ? err.message : 'Failed to uninstall widget';
 			console.error('Error uninstalling widget:', err);
 			alert(`Error: ${message}`);
-		}
-	}
-
-	async function syncWidgets() {
-		if (!canManageWidgets) {
-			alert('You do not have permission to sync widgets. Contact your administrator.');
-			return;
-		}
-
-		isSyncing = true;
-
-		try {
-			const response = await fetch('/api/widgets/sync', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-Tenant-ID': tenantId
-				}
-			});
-
-			if (!response.ok) {
-				throw new Error(`Failed to sync widgets: ${response.statusText}`);
-			}
-
-			const result = await response.json();
-
-			console.info('Widget sync completed:', result);
-
-			// Show results to user
-			let message = 'Widget sync completed!\n\n';
-			if (result.results.created > 0) message += `✓ Created ${result.results.created} new widgets\n`;
-			if (result.results.activated > 0) message += `✓ Activated ${result.results.activated} widgets\n`;
-			if (result.results.skipped > 0) message += `- Skipped ${result.results.skipped} existing widgets\n`;
-			if (result.results.errors > 0) message += `⚠ ${result.results.errors} errors occurred\n`;
-
-			alert(message);
-
-			// Reload widgets to reflect changes
-			await loadWidgets();
-		} catch (err) {
-			const message = err instanceof Error ? err.message : 'Failed to sync widgets';
-			console.error('Error syncing widgets:', err);
-			alert(`Error: ${message}`);
-		} finally {
-			isSyncing = false;
 		}
 	}
 </script>
@@ -359,17 +315,17 @@ Features:
 				<!-- Active Widgets -->
 				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
 					<button
-						class="btn-icon btn-icon-sm absolute right-2 top-2 text-green-600 dark:text-green-400"
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-primary-500"
 						use:popup={activeTooltip}
 						aria-label="Information about active widgets"
 					>
 						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
 					</button>
 					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:check-circle" class="text-2xl text-green-600 dark:text-green-400"></iconify-icon>
+						<iconify-icon icon="mdi:check-circle" class="text-2xl text-primary-500"></iconify-icon>
 						<div>
-							<h3 class="font-semibold text-green-800 dark:text-green-300">Active</h3>
-							<p class="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
+							<h3 class="font-semibold text-primary-500">Active</h3>
+							<p class="text-2xl font-bold text-primary-500">{stats.active}</p>
 						</div>
 					</div>
 				</div>
@@ -414,18 +370,13 @@ Features:
 			</div>
 
 			<!-- Filters and Search -->
-			<div class="space-y-3 rounded-lg border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+			<div class="card variant-filled-surface mt-6 space-y-4 p-4">
 				<!-- Search and Sync Button Row -->
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
 					<div class="relative flex-1">
 						<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></iconify-icon>
-						<input
-							type="text"
-							bind:value={searchQuery}
-							placeholder="Search widgets... (Ctrl+F)"
-							class="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-10 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-						/>
+						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white" />
 						{#if searchQuery}
 							<button
 								onclick={() => (searchQuery = '')}
@@ -437,35 +388,14 @@ Features:
 							</button>
 						{/if}
 					</div>
-
-					<!-- Sync Widgets Button -->
-					{#if canManageWidgets}
-						<button
-							onclick={syncWidgets}
-							disabled={isSyncing}
-							class="flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-							aria-label="Sync widgets from file system to database"
-							title="Sync all widgets from the file system to the database"
-						>
-							{#if isSyncing}
-								<div class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-								<span>Syncing...</span>
-							{:else}
-								<iconify-icon icon="mdi:sync" class="text-lg"></iconify-icon>
-								<span>Sync Widgets</span>
-							{/if}
-						</button>
-					{/if}
 				</div>
 
-				<!-- Filter Tabs with Counts -->
+				<!-- Badges Counts -->
 				<div class="flex flex-wrap gap-2">
 					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter}
 						<button
 							onclick={() => (activeFilter = filter.value)}
-							class="flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-all {activeFilter === filter.value
-								? 'bg-blue-600 text-white shadow-md'
-								: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+							class="btn {activeFilter === filter.value ? 'variant-filled-tertiary text-white' : 'variant-ghost-secondary '}"
 							aria-label="{filter.label} widgets ({filter.count})"
 						>
 							<iconify-icon icon={filter.icon} class="text-lg"></iconify-icon>
@@ -523,7 +453,7 @@ Features:
 			<!-- Marketplace Tab -->
 			<div class="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
 				<div class="mx-auto max-w-md">
-					<iconify-icon icon="mdi:store" class="mx-auto text-6xl text-gray-400"></iconify-icon>
+					<iconify-icon icon="mdi:store" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
 					<p class="mt-2 text-gray-600 dark:text-gray-400">
 						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
@@ -531,19 +461,19 @@ Features:
 					</p>
 					<div class="mt-6 space-y-2 text-left">
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-green-600 dark:text-green-400"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Browse hundreds of widgets across multiple categories</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-green-600 dark:text-green-400"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>One-click installation and automatic updates</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-green-600 dark:text-green-400"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Community ratings and reviews</span>
 						</div>
 						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
-							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-green-600 dark:text-green-400"></iconify-icon>
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Support for both free and premium widgets</span>
 						</div>
 					</div>

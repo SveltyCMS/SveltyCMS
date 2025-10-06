@@ -407,6 +407,7 @@ export interface IDBAdapter {
 	widgets: {
 		setupWidgetModels(): Promise<void>;
 		register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>>; // Register a new widget
+		findAll(): Promise<DatabaseResult<Widget[]>>; // Get all widgets (active and inactive)
 		getActiveWidgets(): Promise<DatabaseResult<Widget[]>>; // Get all active widgets
 		activate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Activate a widget
 		deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Deactivate a widget

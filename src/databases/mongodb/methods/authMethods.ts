@@ -1,8 +1,6 @@
 /**
  * @file src/databases/mongodb/methods/authMethods.ts
-				logger.trace(`Model '${name}' was registered.`);
-			} else {
-				logger.trace(`Model '${name}' already exists and was not re-registered.`);@description Authentication model registration for the MongoDB adapter.
+ * @description Authentication model registration for the MongoDB adapter.
  * This class is responsible for idempotently registering auth-related Mongoose models.
  */
 

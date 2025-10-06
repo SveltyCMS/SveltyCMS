@@ -6,12 +6,21 @@ import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import type { RequestHandler } from './$types';
 import { widgetStoreActions, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte';
+import { cacheService } from '@src/databases/CacheService';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	const start = performance.now();
 	const { tenantId } = locals;
 
 	try {
+		// Support ?refresh=true to bypass cache (useful for debugging)
+		const forceRefresh = url.searchParams.get('refresh') === 'true';
+
+		if (forceRefresh) {
+			logger.debug('[/api/widgets/active] Force refresh requested, clearing cache', { tenantId });
+			await cacheService.delete('widget:active:all', tenantId);
+		}
+
 		// Initialize widgets if not already loaded
 		await widgetStoreActions.initializeWidgets(tenantId);
 
@@ -23,12 +32,24 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		const result = await locals.dbAdapter.widgets.getActiveWidgets();
 
+		logger.debug('[/api/widgets/active] Raw result from getActiveWidgets()', {
+			tenantId,
+			resultType: Array.isArray(result) ? 'array' : typeof result,
+			resultLength: Array.isArray(result) ? result.length : undefined
+		});
+
 		let widgetNames: string[] = [];
 		if (Array.isArray(result)) {
 			widgetNames = result;
 		} else if (result && typeof result === 'object' && 'success' in result && result.success) {
 			widgetNames = (result as { data: string[] }).data || [];
 		}
+
+		logger.debug('[/api/widgets/active] Extracted widget names', {
+			tenantId,
+			count: widgetNames.length,
+			widgets: widgetNames
+		});
 
 		// Enrich widget data with metadata from widget functions (3-pillar architecture)
 		const enrichedWidgets = widgetNames.map((name) => {

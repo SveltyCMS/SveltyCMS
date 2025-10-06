@@ -38,7 +38,7 @@ export const widgetSchema = new Schema<Widget>(
 // --- Indexes ---
 // Compound indexes for common query patterns
 widgetSchema.index({ isActive: 1, name: 1 }); // Active widget lookup
-widgetSchema.index({ name: 1 }, { unique: true }); // Enforce unique widget names
+// Note: Unique index on 'name' is already created by the 'unique: true' field option (line 20)
 widgetSchema.index({ isActive: 1, updatedAt: -1 }); // Recently modified active widgets
 
 // Static methods
@@ -75,16 +75,26 @@ widgetSchema.statics = {
 	// Activate a widget by its name
 	async activateWidget(widgetName: string): Promise<DatabaseResult<void>> {
 		try {
-			const result = await this.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
-			if (result.modifiedCount === 0) {
+			// Check if widget exists first
+			const widget = await this.findOne({ name: widgetName }).exec();
+			if (!widget) {
 				return {
 					success: false,
 					error: {
 						code: 'WIDGET_NOT_FOUND',
-						message: `Widget "${widgetName}" not found or already active.`
+						message: `Widget "${widgetName}" not found in database.`
 					}
 				};
 			}
+
+			// If already active, return success (idempotent operation)
+			if (widget.isActive) {
+				logger.info(`Widget "${widgetName}" is already active.`);
+				return { success: true, data: undefined };
+			}
+
+			// Activate the widget
+			await this.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
 			logger.info(`Widget "${widgetName}" activated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
@@ -102,16 +112,26 @@ widgetSchema.statics = {
 	// Deactivate a widget by its name
 	async deactivateWidget(widgetName: string): Promise<DatabaseResult<void>> {
 		try {
-			const result = await this.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
-			if (result.modifiedCount === 0) {
+			// Check if widget exists first
+			const widget = await this.findOne({ name: widgetName }).exec();
+			if (!widget) {
 				return {
 					success: false,
 					error: {
 						code: 'WIDGET_NOT_FOUND',
-						message: `Widget "${widgetName}" not found or already inactive.`
+						message: `Widget "${widgetName}" not found in database.`
 					}
 				};
 			}
+
+			// If already inactive, return success (idempotent operation)
+			if (!widget.isActive) {
+				logger.info(`Widget "${widgetName}" is already inactive.`);
+				return { success: true, data: undefined };
+			}
+
+			// Deactivate the widget
+			await this.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
 			logger.info(`Widget "${widgetName}" deactivated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {

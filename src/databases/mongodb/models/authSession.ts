@@ -34,11 +34,12 @@ import { logger } from '@utils/logger.svelte';
 // Define the Session schema
 export const SessionSchema = new Schema(
 	{
-		user_id: { type: String, required: true, index: true }, // User identifier
-		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy
-		expires: { type: Date, required: true, index: true }, // Expiry timestamp
-		rotated: { type: Boolean, default: false, index: true }, // Flag to mark rotated sessions
-		rotatedTo: { type: String, index: true } // ID of the new session this was rotated to
+		// Index definitions have been removed from here to prevent duplication.
+		user_id: { type: String, required: true }, // User identifier
+		tenantId: { type: String }, // Tenant identifier for multi-tenancy
+		expires: { type: Date, required: true }, // Expiry timestamp
+		rotated: { type: Boolean, default: false }, // Flag to mark rotated sessions
+		rotatedTo: { type: String } // ID of the new session this was rotated to
 	},
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
@@ -52,7 +53,7 @@ SessionSchema.index({ user_id: 1, expires: 1, rotated: 1 }); // User's active se
 SessionSchema.index({ tenantId: 1, user_id: 1, expires: 1 }); // Multi-tenant user sessions
 SessionSchema.index({ tenantId: 1, expires: 1, rotated: 1 }); // Tenant-wide session queries
 SessionSchema.index({ rotated: 1, expires: 1 }); // Find rotated/active sessions
-SessionSchema.index({ rotatedTo: 1 }); // Session rotation chain lookups
+SessionSchema.index({ rotatedTo: 1 }, { sparse: true }); // Session rotation chain lookups (sparse is efficient)
 
 /**
  * SessionAdapter class handles all session-related database operations.
@@ -136,12 +137,7 @@ export class SessionAdapter {
 			const sessionObj = session.toObject();
 			return {
 				success: true,
-				data: this.formatSession({
-					_id: sessionObj._id,
-					user_id: sessionObj.user_id,
-					expires: sessionObj.expires,
-					...sessionObj
-				})
+				data: this.formatSession(sessionObj as unknown as { [key: string]: unknown; _id: string | Types.ObjectId; user_id: string; expires: Date })
 			};
 		} catch (err) {
 			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;

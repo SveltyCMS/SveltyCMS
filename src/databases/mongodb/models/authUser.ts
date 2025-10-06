@@ -138,7 +138,11 @@ export class UserAdapter {
 			});
 			return {
 				success: false,
-				error: message
+				message,
+				error: {
+					code: 'CREATE_USER_ERROR',
+					message
+				}
 			};
 		}
 	}
@@ -763,7 +767,7 @@ export class UserAdapter {
 
 			user._id = user._id.toString();
 			// Fetch the role from the file-based roles configuration
-			const role = privateEnv.ROLES.find((r) => r._id === user.role);
+			const role = privateEnv.ROLES?.find((r) => r._id === user.role);
 			if (!role) {
 				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 				return {

@@ -11,10 +11,8 @@ import { roles } from '@root/config/roles';
 import {
 	widgetStoreActions,
 	widgetFunctions as widgetFunctionsStore,
-	activeWidgets as activeWidgetsStore,
 	coreWidgets as coreWidgetsStore,
-	getWidgetDependencies,
-	type WidgetFunction
+	getWidgetDependencies
 } from '@stores/widgetStore.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -39,17 +37,31 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		// Initialize widgets if not already loaded
 		await widgetStoreActions.initializeWidgets(tenantId);
 
-		// Get all widget functions and their metadata
+		// Get active widgets from DATABASE (not cached widget store)
+		// This ensures the GUI always shows current database state
+		if (!locals.dbAdapter?.widgets?.getActiveWidgets) {
+			throw error(500, 'Widget database adapter not available');
+		}
+
+		const activeWidgetsResult = await locals.dbAdapter.widgets.getActiveWidgets();
+		if (!activeWidgetsResult.success) {
+			throw error(500, `Failed to fetch active widgets: ${activeWidgetsResult.error?.message || 'Unknown error'}`);
+		}
+
+		const activeWidgetNames = (activeWidgetsResult.data || []).map((w) => w.name);
+
+		logger.debug('[/api/widgets/list] Active widgets from database', {
+			tenantId,
+			count: activeWidgetNames.length,
+			widgets: activeWidgetNames
+		});
+
+		// Get all widget functions and their metadata from widget store
 		let allWidgetFunctions: Record<string, unknown> = {};
-		let activeWidgetNames: string[] = [];
 		let coreWidgetNames: string[] = [];
 
 		widgetFunctionsStore.subscribe(($widgetFunctions) => {
 			allWidgetFunctions = $widgetFunctions;
-		})();
-
-		activeWidgetsStore.subscribe(($activeWidgets) => {
-			activeWidgetNames = $activeWidgets;
 		})();
 
 		coreWidgetsStore.subscribe(($coreWidgets) => {
@@ -104,9 +116,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		logger.trace('Retrieved complete widget list', {
 			tenantId,
-			coreWidgets: coreCount,
-			customWidgets: customCount,
-			totalWidgets: result.widgets.length
+			coreWidgets: widgetList.filter((w) => w.isCore).length,
+			customWidgets: widgetList.filter((w) => !w.isCore).length,
+			totalWidgets: widgetList.length
 		});
 		return json({
 			widgets: widgetList,
@@ -116,7 +128,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				core: widgetList.filter((w) => w.isCore).length,
 				custom: widgetList.filter((w) => !w.isCore).length
 			},
-			tenantId
+			tenantId,
+			performance: { duration: `${duration.toFixed(2)}ms` }
 		});
 	} catch (err) {
 		const duration = performance.now() - start;

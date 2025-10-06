@@ -187,7 +187,10 @@ export class TokenAdapter {
 		try {
 			const tokens = await this.TokenModel.find(filter || {}).lean();
 			logger.debug('All tokens retrieved', { count: tokens.length });
-			return { success: true, data: tokens.map(this.formatToken) };
+			return {
+				success: true,
+				data: tokens.map((tokenDoc) => this.formatToken(tokenDoc))
+			};
 		} catch (err) {
 			const message = `Error in TokenAdapter.getAllTokens: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { filter });
@@ -342,12 +345,19 @@ export class TokenAdapter {
 		}
 	}
 
-	private formatToken(token: TokenDocument): Token {
-		const tokenObject = token.toObject ? token.toObject() : token;
-		const { _id, ...tokenData } = tokenObject;
-		return {
-			id: _id.toString(),
+	private formatToken(token: Partial<Token> & { _id?: string | mongoose.Types.ObjectId }): Token {
+		// Accepts both TokenDocument and plain objects from .lean()
+		const { _id, ...tokenData } = token;
+		// Remove _id from tokenData if present
+		if ('_id' in tokenData) {
+			delete (tokenData as Record<string, unknown>)._id;
+		}
+		// Compose the Token object, ensuring id is always a string
+		const result = {
+			id: _id ? _id.toString() : '',
 			...tokenData
-		} as Token;
+		};
+		// If you want to ensure type safety, cast to unknown first, then Token
+		return result as unknown as Token;
 	}
 }

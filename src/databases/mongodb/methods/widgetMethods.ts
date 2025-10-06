@@ -1,7 +1,22 @@
 /**
  * @file src/databases/mongodb/methods/widgetMethods.ts
  * @description Widget registration and management for the MongoDB adapter.
- * Implements Dependency Injection for the Mongoose model to ensure testability and remove code duplication.
+ * 			// Invalidate widget caches - including the active widgets list cache
+			logger.debug('[widgetMethods.update] Invalidating active widgets cache');
+			
+			// NOTE: This cache clearing is a best-effort attempt but won't work correctly
+			// for multi-tenant setups because widgetMethods doesn't have tenant context.
+			// The REAL cache invalidation happens in /api/widgets/status/+server.ts
+			// which has access to locals.tenantId. We keep this here as defense-in-depth.
+			await Promise.all([
+				invalidateCollectionCache(`widget:id:${widgetId}`),
+				cacheService.delete('widget:active:all'), // No tenant (default)
+				cacheService.delete('widget:active:all', 'default'), // Explicit default tenant
+				cacheService.delete('widget:active:all', 'default-tenant'), // default-tenant
+				invalidateCategoryCache(CacheCategory.WIDGET)
+			]);
+			
+			logger.debug('[widgetMethods.update] Cache invalidated successfully');pendency Injection for the Mongoose model to ensure testability and remove code duplication.
  */
 
 import { logger } from '@utils/logger.svelte';
@@ -9,6 +24,8 @@ import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
 import { createDatabaseError, withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBUtils';
+import { cacheService } from '@src/databases/CacheService';
+import { randomUUID } from 'crypto';
 
 // Define the model type for dependency injection.
 type WidgetModelType = Model<IWidget>;
@@ -33,10 +50,34 @@ export class MongoWidgetMethods {
 	 */
 	async register(widgetData: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<Widget> {
 		try {
-			const newWidget = new this.widgetModel(widgetData);
+			// Generate UUID for _id since schema requires it
+			const widgetWithId = {
+				...widgetData,
+				_id: randomUUID()
+			};
+
+			logger.debug(`[WidgetMethods] Registering widget "${widgetData.name}" to database`, {
+				widgetId: widgetWithId._id,
+				collection: this.widgetModel.collection.name,
+				widgetData: widgetWithId
+			});
+
+			const newWidget = new this.widgetModel(widgetWithId);
 			const savedWidget = await newWidget.save();
-			return savedWidget.toObject();
+			const result = savedWidget.toObject();
+
+			logger.debug(`[WidgetMethods] Widget "${widgetData.name}" saved successfully`, {
+				widgetId: result._id,
+				isActive: result.isActive,
+				collection: this.widgetModel.collection.name
+			});
+
+			return result;
 		} catch (error) {
+			logger.error(`[WidgetMethods] Failed to register widget "${widgetData.name}"`, {
+				error: error instanceof Error ? error.message : String(error),
+				collection: this.widgetModel.collection.name
+			});
 			throw createDatabaseError(error, 'WIDGET_REGISTER_FAILED', 'Failed to register widget');
 		}
 	}
@@ -75,8 +116,22 @@ export class MongoWidgetMethods {
 				.lean()
 				.exec();
 
-			// Invalidate widget caches
-			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+			// Invalidate widget caches - including the active widgets list cache
+			logger.debug('[widgetMethods.activate] Invalidating active widgets cache');
+
+			// NOTE: This cache clearing is a best-effort attempt but won't work correctly
+			// for multi-tenant setups because widgetMethods doesn't have tenant context.
+			// The REAL cache invalidation happens in /api/widgets/status/+server.ts
+			// which has access to locals.tenantId. We keep this here as defense-in-depth.
+			await Promise.all([
+				invalidateCollectionCache(`widget:id:${widgetId}`),
+				cacheService.delete('widget:active:all'), // No tenant (default)
+				cacheService.delete('widget:active:all', 'default'), // Explicit default tenant
+				cacheService.delete('widget:active:all', 'default-tenant'), // default-tenant
+				invalidateCategoryCache(CacheCategory.WIDGET)
+			]);
+
+			logger.debug('[widgetMethods.activate] Cache invalidated successfully');
 
 			return result;
 		} catch (error) {
@@ -97,8 +152,22 @@ export class MongoWidgetMethods {
 				.lean()
 				.exec();
 
-			// Invalidate widget caches
-			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+			// Invalidate widget caches - including the active widgets list cache
+			logger.debug('[widgetMethods.deactivate] Invalidating active widgets cache');
+
+			// NOTE: This cache clearing is a best-effort attempt but won't work correctly
+			// for multi-tenant setups because widgetMethods doesn't have tenant context.
+			// The REAL cache invalidation happens in /api/widgets/status/+server.ts
+			// which has access to locals.tenantId. We keep this here as defense-in-depth.
+			await Promise.all([
+				invalidateCollectionCache(`widget:id:${widgetId}`),
+				cacheService.delete('widget:active:all'), // No tenant (default)
+				cacheService.delete('widget:active:all', 'default'), // Explicit default tenant
+				cacheService.delete('widget:active:all', 'default-tenant'), // default-tenant
+				invalidateCategoryCache(CacheCategory.WIDGET)
+			]);
+
+			logger.debug('[widgetMethods.deactivate] Cache invalidated successfully');
 
 			return result;
 		} catch (error) {
@@ -115,13 +184,54 @@ export class MongoWidgetMethods {
 	 */
 	async update(widgetId: DatabaseId, widgetData: Partial<Omit<Widget, '_id'>>): Promise<Widget | null> {
 		try {
+			logger.debug('[widgetMethods.update] Starting update', {
+				widgetId,
+				widgetData,
+				collection: this.widgetModel.collection.name
+			});
+
+			// Check if widget exists before update
+			const existingWidget = await this.widgetModel.findById(widgetId).lean().exec();
+			logger.debug('[widgetMethods.update] Existing widget state', {
+				widgetId,
+				exists: !!existingWidget,
+				currentIsActive: existingWidget?.isActive,
+				currentUpdatedAt: existingWidget?.updatedAt
+			});
+
 			const result = await this.widgetModel.findByIdAndUpdate(widgetId, { $set: widgetData }, { new: true }).lean().exec();
 
-			// Invalidate widget caches
-			await Promise.all([invalidateCollectionCache(`widget:id:${widgetId}`), invalidateCategoryCache(CacheCategory.WIDGET)]);
+			logger.debug('[widgetMethods.update] Update completed', {
+				widgetId,
+				success: !!result,
+				resultIsActive: result?.isActive,
+				resultUpdatedAt: result?.updatedAt
+			});
 
+			// Invalidate widget caches - including the active widgets list cache
+			logger.debug('[widgetMethods.update] Invalidating caches', {
+				widgetId,
+				cacheKeys: ['widget:active:all (all tenants)']
+			});
+
+			// Clear cache for all possible tenant contexts since widgets are system-wide
+			await Promise.all([
+				invalidateCollectionCache(`widget:id:${widgetId}`),
+				cacheService.delete('widget:active:all'), // No tenant (default)
+				cacheService.delete('widget:active:all', 'default'), // Explicit default tenant
+				cacheService.delete('widget:active:all', 'default-tenant'), // default-tenant
+				invalidateCategoryCache(CacheCategory.WIDGET)
+			]);
+
+			logger.debug('[widgetMethods.update] Caches invalidated successfully', {
+				widgetId
+			});
 			return result;
 		} catch (error) {
+			logger.error('[widgetMethods.update] Update failed', {
+				widgetId,
+				error: error instanceof Error ? error.message : String(error)
+			});
 			throw createDatabaseError(error, 'WIDGET_UPDATE_FAILED', 'Failed to update widget');
 		}
 	}
@@ -152,8 +262,24 @@ export class MongoWidgetMethods {
 	 */
 	async findAll(): Promise<Widget[]> {
 		try {
-			return await this.widgetModel.find().lean().exec();
+			logger.debug('[widgetMethods.findAll] Querying widgets from database', {
+				collection: this.widgetModel.collection.name
+			});
+
+			const widgets = await this.widgetModel.find().lean().exec();
+
+			logger.debug('[widgetMethods.findAll] Query completed', {
+				count: widgets.length,
+				collection: this.widgetModel.collection.name,
+				widgets: widgets.map((w) => ({ name: w.name, isActive: w.isActive, _id: w._id }))
+			});
+
+			return widgets;
 		} catch (error) {
+			logger.error('[widgetMethods.findAll] Failed to query widgets', {
+				error: error instanceof Error ? error.message : String(error),
+				collection: this.widgetModel.collection.name
+			});
 			throw createDatabaseError(error, 'WIDGET_FETCH_ALL_FAILED', 'Failed to get all widgets');
 		}
 	}
@@ -164,17 +290,32 @@ export class MongoWidgetMethods {
 	 * @returns {Promise<Widget[]>} An array of active widget objects.
 	 * @throws {DatabaseError} If the database operation fails.
 	 */
-	async findAllActive(): Promise<Widget[]> {
-		return withCache(
+	async findAllActive(tenantId?: string): Promise<Widget[]> {
+		logger.debug('[widgetMethods.findAllActive] Fetching active widgets (may be cached)', { tenantId });
+
+		const result = await withCache(
 			'widget:active:all',
 			async () => {
 				try {
-					return await this.widgetModel.find({ isActive: true }).lean().exec();
+					logger.debug('[widgetMethods.findAllActive] Cache MISS - querying database');
+					const widgets = await this.widgetModel.find({ isActive: true }).lean().exec();
+					logger.debug('[widgetMethods.findAllActive] Database query completed', {
+						count: widgets.length,
+						widgets: widgets.map((w) => w.name)
+					});
+					return widgets;
 				} catch (error) {
 					throw createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets');
 				}
 			},
-			{ category: CacheCategory.WIDGET }
+			{ category: CacheCategory.WIDGET, tenantId }
 		);
+
+		logger.debug('[widgetMethods.findAllActive] Returning result', {
+			count: result.length,
+			widgets: result.map((w) => w.name)
+		});
+
+		return result;
 	}
 }

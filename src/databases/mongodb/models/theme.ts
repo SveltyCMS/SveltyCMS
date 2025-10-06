@@ -5,7 +5,8 @@
  * This module defines the `themeSchema` and `ThemeModel` for managing themes in the CMS
  */
 
-import type { ISODateString, Theme } from '@src/databases/dbInterface';
+import type { Theme } from '@src/databases/dbInterface';
+import type { ISODateString } from '../content/types';
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 

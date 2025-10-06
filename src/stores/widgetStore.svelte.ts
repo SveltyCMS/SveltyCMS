@@ -181,8 +181,22 @@ export const widgetStoreActions = {
 			// Load active widgets from database (tenant-aware)
 			const activeWidgetNames = await loadActiveWidgetsFromDatabase(tenantId);
 
-			// Core widgets are always active, merge with database active widgets
-			const uniqueActiveWidgets = newCoreWidgets.concat(activeWidgetNames.filter((name) => !newCoreWidgets.includes(name)));
+			// Use database as source of truth for active widgets
+			// If database query failed or returned empty (server-side), don't default to core-only
+			let uniqueActiveWidgets: string[];
+			if (activeWidgetNames.length === 0 && typeof window === 'undefined') {
+				// Server-side and no database result: use empty array (will be populated client-side)
+				logger.debug('[widgetStore] Server-side initialization - no active widgets loaded yet');
+				uniqueActiveWidgets = [];
+			} else {
+				// Client-side or database returned results: use database as source of truth
+				// Remove duplicates using filter
+				uniqueActiveWidgets = activeWidgetNames.filter((name, index, self) => self.indexOf(name) === index);
+				logger.debug('[widgetStore] Active widgets from database', {
+					count: uniqueActiveWidgets.length,
+					widgets: uniqueActiveWidgets
+				});
+			}
 
 			// Create widget instances
 			const newWidgets: Record<string, Widget> = {};
@@ -203,7 +217,7 @@ export const widgetStoreActions = {
 				tenantId
 			}));
 
-			logger.info(`${Object.keys(newWidgetFunctions).length} widgets initialized successfully`, {
+			logger.info(`\x1b[34m${Object.keys(newWidgetFunctions).length}\x1b[0m widgets initialized successfully`, {
 				tenantId,
 				core: newCoreWidgets.length,
 				custom: newCustomWidgets.length,
@@ -240,7 +254,9 @@ export const widgetStoreActions = {
 
 			const originalFn = module.default;
 			const widgetName = originalFn.Name || name;
-			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+			// IMPORTANT: Use folder name as-is for widget identifier (e.g., 'seo', 'richText', 'mediaUpload')
+			// This ensures consistency between filesystem, database, and runtime
+			// Display name (widgetName) is for UI purposes only
 
 			// Extract dependencies from widget metadata
 			const dependencies = originalFn.dependencies || [];
@@ -263,7 +279,7 @@ export const widgetStoreActions = {
 			});
 
 			return {
-				name: capitalizedName,
+				name: name, // Use folder name as-is (e.g., 'seo', not 'Seo')
 				widgetFn,
 				dependencies
 			};
@@ -482,11 +498,13 @@ export const widgetStoreActions = {
 // Database functions with tenant support - use API calls on client side
 async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[]> {
 	try {
-		logger.trace('Loading active widgets from database...', { tenantId });
+		logger.debug('[widgetStore] Loading active widgets from database...', { tenantId });
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {
-			// Client-side: use API call
+			// Client-side: use API call (no cache - adapter queries database directly)
+			logger.debug('[widgetStore] Client-side: Fetching from /api/widgets/active', { tenantId });
+
 			const response = await fetch('/api/widgets/active', {
 				method: 'GET',
 				headers: {
@@ -497,18 +515,29 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[
 
 			if (response.ok) {
 				const data = await response.json();
-				return data.widgets || [];
+				const widgetNames = (data.widgets || []).map((w: { name: string }) => w.name);
+
+				logger.debug('[widgetStore] Active widgets received from API', {
+					tenantId,
+					count: widgetNames.length,
+					widgets: widgetNames
+				});
+
+				return widgetNames;
 			} else {
-				logger.warn('Failed to fetch active widgets from API');
+				logger.warn('[widgetStore] Failed to fetch active widgets from API', {
+					status: response.status,
+					statusText: response.statusText
+				});
 				return [];
 			}
 		} else {
 			// Server-side: return empty for now, will be loaded by server initialization
-			logger.debug('Server-side widget loading - returning empty array');
+			logger.debug('[widgetStore] Server-side widget loading - returning empty array');
 			return [];
 		}
 	} catch (error) {
-		logger.error('Failed to load active widgets from database:', error);
+		logger.error('[widgetStore] Failed to load active widgets from database:', error);
 		return []; // Return empty array on error, don't fail initialization
 	}
 }

@@ -201,7 +201,7 @@ export async function loadSettingsFromDB() {
 		// If validation fails, it might be during setup with incomplete settings
 		// In this case, just use empty cache to allow setup to continue
 		if (!parsedPublic.success || !parsedPrivate.success) {
-			logger.warn('Settings validation failed - clearing corrupted settings and using empty cache for setup mode');
+			logger.debug('Settings validation failed during startup - likely first run or setup mode');
 			if (!parsedPublic.success) {
 				logger.debug('Public settings validation issues:', parsedPublic.issues);
 			}
@@ -209,17 +209,15 @@ export async function loadSettingsFromDB() {
 				logger.debug('Private settings validation issues:', parsedPrivate.issues);
 			}
 
-			// Clear corrupted settings from database during setup
+			// Clear invalid settings from database (silent cleanup)
 			try {
-				logger.info('Clearing corrupted settings from database...');
+				logger.debug('Clearing invalid settings from database...');
 				if (dbAdapter && dbAdapter.systemPreferences && typeof dbAdapter.systemPreferences.deleteMany === 'function') {
 					await dbAdapter.systemPreferences.deleteMany([]);
-				} else {
-					logger.warn('System preferences model is not available for deleting corrupted settings.');
+					logger.debug('Invalid settings cleared successfully');
 				}
-				logger.info('Corrupted settings cleared successfully');
 			} catch (clearError) {
-				logger.warn('Failed to clear corrupted settings:', clearError);
+				logger.debug('Failed to clear invalid settings:', clearError);
 			}
 
 			invalidateSettingsCache();
@@ -618,8 +616,73 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			throw contentErr;
 		}
 
-		// 4.5. Verify Collection-Specific Database Models (create models for each collection schema)
+		// 4.5. Widget Discovery and Auto-Registration (Drupal-inspired approach)
 		const step4_5StartTime = performance.now();
+		try {
+			// Import widget discovery service
+			const { widgetDiscovery } = await import('@src/services/widgetDiscovery');
+
+			// Get current widgets from database using dbAdapter (database agnostic)
+			if (!dbAdapter.widgets) {
+				throw new Error('Widget database adapter not available');
+			}
+
+			const widgetsResult = await dbAdapter.widgets.findAll();
+			if (!widgetsResult.success) {
+				throw new Error(`Failed to fetch widgets: ${widgetsResult.error?.message || 'Unknown error'}`);
+			}
+
+			const dbWidgets = widgetsResult.data || [];
+			const dbWidgetsList = dbWidgets.map((w) => ({ name: w.name, isActive: w.isActive }));
+
+			// Discover widgets from filesystem and compare with database
+			const discoveryResult = await widgetDiscovery.discoverWidgets(dbWidgetsList);
+
+			// Auto-register new widgets found in filesystem using dbAdapter
+			if (discoveryResult.new.length > 0) {
+				logger.info(`🆕 Auto-registering ${discoveryResult.new.length} new widgets...`);
+				let successCount = 0;
+				let failCount = 0;
+
+				for (const newWidget of discoveryResult.new) {
+					try {
+						await dbAdapter.widgets.register({
+							name: newWidget.name,
+							isActive: newWidget.isActive,
+							instances: '', // Empty string as per Widget interface (schema will convert to Map)
+							dependencies: newWidget.metadata.dependencies || []
+						});
+						successCount++;
+					} catch {
+						failCount++;
+						logger.debug(`Widget ${newWidget.name} already exists or failed to register`);
+					}
+				}
+
+				if (successCount > 0) {
+					logger.info(`✅ Successfully registered ${successCount} new widgets`);
+				}
+				if (failCount > 0) {
+					logger.debug(`⚠️  ${failCount} widgets were already registered or failed`);
+				}
+			}
+
+			// Log warnings for missing widgets
+			if (discoveryResult.missing.length > 0) {
+				logger.warn(
+					`⚠️  ${discoveryResult.missing.length} widgets are registered in database but missing from filesystem. Collections using these widgets may fail.`
+				);
+			}
+
+			const step4_5Time = performance.now() - step4_5StartTime;
+			logger.debug(`\x1b[32mStep 4.5 completed:\x1b[0m Widget discovery in \x1b[32m${step4_5Time.toFixed(2)}ms\x1b[0m`);
+		} catch (widgetErr) {
+			logger.error(`Widget discovery failed: ${widgetErr instanceof Error ? widgetErr.message : String(widgetErr)}`);
+			// Don't throw - widgets are non-critical for system startup
+		}
+
+		// 4.6. Verify Collection-Specific Database Models (create models for each collection schema)
+		const step4_6StartTime = performance.now();
 		try {
 			// Use contentManager to get all loaded collections (schemas)
 			const collections = contentManager.getCollections();
@@ -635,8 +698,8 @@ async function initializeSystem(forceReload = false): Promise<void> {
 			logger.debug(
 				`\x1b[34mContentManager\x1b[0m reports \x1b[34m${collections.length}\x1b[0m collections loaded. \x1b[33mVerification complete\x1b[0m`
 			);
-			const step4_5Time = performance.now() - step4_5StartTime;
-			logger.debug(`\x1b[32mStep 4.5 completed:\x1b[0m Collection models verified in \x1b[32m${step4_5Time.toFixed(2)}ms\x1b[0m`);
+			const step4_6Time = performance.now() - step4_6StartTime;
+			logger.debug(`\x1b[32mStep 4.6 completed:\x1b[0m Collection models verified in \x1b[32m${step4_6Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelErr) {
 			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);

@@ -129,6 +129,8 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 	widgetFactory.GuiSchema = config.GuiSchema;
 	widgetFactory.GraphqlSchema = config.GraphqlSchema;
 	widgetFactory.aggregations = config.aggregations;
+	widgetFactory.__inputComponentPath = config.inputComponentPath || '';
+	widgetFactory.__displayComponentPath = config.displayComponentPath || '';
 	widgetFactory.toString = () => '';
 
 	// 4. Return the clean factory.

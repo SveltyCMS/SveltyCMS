@@ -148,7 +148,7 @@ export async function handleSessionRotation(
 			lastRefreshAttempt.set(session_id, now);
 			sessionMetrics.rotationAttempts.set(session_id, (sessionMetrics.rotationAttempts.get(session_id) || 0) + 1);
 			if (await refreshLimiter.isLimited(event)) {
-				logger.warn(`Refresh rate limit exceeded for user ${user._id}`);
+				logger.warn(`Refresh rate limit exceeded for user \x1b[33m${user._id}\x1b[0m`);
 			} else {
 				try {
 					const oldSessionId = session_id;

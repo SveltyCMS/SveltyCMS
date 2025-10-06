@@ -407,10 +407,22 @@ export class MongoDBAdapter implements IDBAdapter {
 				/* models already set up */
 			},
 			register: (widget) => this._wrapResult(() => this._widgets.register(widget)),
-			getActiveWidgets: async () => {
-				const result = await this._wrapResult(() => this._widgets.findAllActive());
+			findAll: async () => {
+				const result = await this._wrapResult(() => this._widgets.findAll());
 				if (!result.success) return result;
 				return { success: true, data: result.data || [] };
+			},
+			getActiveWidgets: async () => {
+				// Use the model's direct database query instead of cached findAllActive()
+				// This ensures the GUI always shows the current database state
+				const result = await WidgetModel.getActiveWidgets();
+				if (!result.success) return result;
+				// Convert widget names to Widget objects by querying all widgets
+				const allWidgetsResult = await this._wrapResult(() => this._widgets.findAll());
+				if (!allWidgetsResult.success) return allWidgetsResult;
+				const activeNames = result.data || [];
+				const activeWidgets = (allWidgetsResult.data || []).filter((w) => activeNames.includes(w.name));
+				return { success: true, data: activeWidgets };
 			},
 			activate: async (id) => {
 				const result = await this._wrapResult(() => this._widgets.activate(id));
