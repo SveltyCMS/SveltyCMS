@@ -1,7 +1,7 @@
 // src/routes/(app)/dashboard/widgets/widgetDefaults.ts
 /**
  * @file widgetDefaults.ts
- * @description Default configuration for different widget categories in enterprise CMS
+ * @description Default configuration for different widget categories in SveltyCMS
  *
  * Categories:
  * - monitoring: Real-time system monitoring (CPU, Memory, Cache)

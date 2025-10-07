@@ -358,7 +358,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			// Redirect to first collection
 			let redirectUrl = '/';
-			const firstCollection = contentManager.getFirstCollection();
+			const firstCollection = await contentManager.getFirstCollection();
 			if (firstCollection && firstCollection.path) {
 				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;

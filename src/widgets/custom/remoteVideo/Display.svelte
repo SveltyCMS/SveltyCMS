@@ -4,7 +4,7 @@
 **RemoteVideo Widget Display Component**
 
 Displays video metadata as compact preview with thumbnail, title, and duration.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RemoteVideoDisplay value={{ title: "Video Title", thumbnailUrl: "...", duration: "3:45" }} />

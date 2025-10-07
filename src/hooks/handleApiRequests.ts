@@ -68,25 +68,32 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 		// Handle GET requests with tenant-aware caching
 		if (event.request.method === 'GET') {
+			// Check for cache bypass parameter
+			const bypassCache = url.searchParams.get('refresh') === 'true' || url.searchParams.get('nocache') === 'true';
+
 			// Tenant-aware key via CacheService tenant prefixing
 			const baseKey = `api:${apiEndpoint}:${locals.user._id}:${url.search}`;
 
-			try {
-				const cached = await cacheService.get<{
-					data: unknown;
-					headers: Record<string, string>;
-				}>(baseKey, locals.tenantId);
+			if (!bypassCache) {
+				try {
+					const cached = await cacheService.get<{
+						data: unknown;
+						headers: Record<string, string>;
+					}>(baseKey, locals.tenantId);
 
-				if (cached) {
-					logger.debug(`Cache hit for API GET \x1b[34m${baseKey}\x1b[0m (tenant: ${locals.tenantId || 'global'})`);
-					healthMetrics.cache.hits++;
-					return new Response(JSON.stringify(cached.data), {
-						status: 200,
-						headers: { ...cached.headers, 'Content-Type': 'application/json', 'X-Cache': 'hit' }
-					});
+					if (cached) {
+						logger.debug(`Cache hit for API GET \x1b[34m${baseKey}\x1b[0m (tenant: ${locals.tenantId || 'global'})`);
+						healthMetrics.cache.hits++;
+						return new Response(JSON.stringify(cached.data), {
+							status: 200,
+							headers: { ...cached.headers, 'Content-Type': 'application/json', 'X-Cache': 'hit' }
+						});
+					}
+				} catch (cacheGetError) {
+					logger.warn(`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${cacheGetError.message}`);
 				}
-			} catch (cacheGetError) {
-				logger.warn(`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${cacheGetError.message}`);
+			} else {
+				logger.debug(`Cache bypass requested for API GET \x1b[33m${baseKey}\x1b[0m`);
 			}
 
 			const response = await resolve(event);

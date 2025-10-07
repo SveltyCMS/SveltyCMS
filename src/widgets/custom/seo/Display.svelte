@@ -4,7 +4,7 @@
 **SEO Widget Display Component**
 
 Displays SEO data as compact preview with focus keyword and accessibility tooltips.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <SeoDisplay value={{ focusKeyword: "svelte cms", title: "Page Title", description: "Meta description" }} />

@@ -27,10 +27,48 @@ import type {
 } from '../../dbInterface';
 import { MongoCrudMethods } from './crudMethods';
 import { createDatabaseError, generateId, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';
+import { normalizeId } from './normalizeId';
+export { normalizeId } from './normalizeId';
 
 // Create local types that satisfy the BaseEntity constraint
 type ContentDraft = DBContentDraft & BaseEntity;
 type ContentRevision = DBContentRevision & BaseEntity;
+
+/**
+ * Converts a flat array of content nodes into a nested tree.
+ * This is a pure utility function that can be tested and reused outside MongoDB context.
+ */
+export function buildTree(nodes: ContentNode[]): ContentNode[] {
+	const nodeMap = new Map<string, ContentNode>();
+	const roots: ContentNode[] = [];
+
+	// First pass: Create map with all nodes
+	for (const node of nodes) {
+		const nodeId = typeof node._id === 'string' ? node._id : String(node._id);
+		nodeMap.set(nodeId, { ...node, children: [] });
+	}
+
+	// Second pass: Build the tree by linking children to parents
+	for (const node of nodeMap.values()) {
+		if (node.parentId) {
+			const parentId = typeof node.parentId === 'string' ? node.parentId : String(node.parentId);
+			const parent = nodeMap.get(parentId);
+			if (parent) {
+				parent.children!.push(node);
+			} else {
+				// Parent not found, treat as root
+				logger.warn(`[buildTree] Parent ${parentId} not found for node ${node._id}, treating as root`);
+				roots.push(node);
+			}
+		} else {
+			// No parentId, it's a root node
+			roots.push(node);
+		}
+	}
+
+	logger.trace(`[buildTree] Built tree with ${roots.length} root nodes from ${nodes.length} total nodes`);
+	return roots;
+}
 
 /**
  * MongoContentMethods manages CMS-specific content workflows.
@@ -72,35 +110,27 @@ export class MongoContentMethods {
 	 * Retrieves the content structure as a flat list or a hierarchical tree.
 	 * Cached with 180s TTL since structure is frequently accessed for navigation/menus
 	 */
-	async getStructure(mode: 'flat' | 'nested' = 'flat', filter: FilterQuery<ContentNode> = {}): Promise<ContentNode[]> {
+	async getStructure(mode: 'flat' | 'nested' = 'flat', filter: FilterQuery<ContentNode> = {}, bypassCache = false): Promise<ContentNode[]> {
 		// Create cache key based on mode and filter
 		const filterKey = JSON.stringify(filter);
 		const cacheKey = `content:structure:${mode}:${filterKey}`;
 
-		return withCache(
-			cacheKey,
-			async () => {
-				const nodes = await this.nodesRepo.findMany(filter);
-				if (mode === 'flat') {
-					return nodes;
-				}
+		const fetchData = async () => {
+			const nodes = await this.nodesRepo.findMany(filter);
+			if (mode === 'flat') {
+				return nodes;
+			}
 
-				// Build the nested tree structure
-				const nodeMap = new Map<string, ContentNode>(nodes.map((n) => [n._id.toString(), { ...n, children: [] as ContentNode[] }]));
-				const tree: ContentNode[] = [];
+			// Build the nested tree structure using the utility function
+			return buildTree(nodes);
+		};
 
-				for (const node of nodeMap.values()) {
-					if (node.parentId && nodeMap.has(node.parentId.toString())) {
-						const parent = nodeMap.get(node.parentId.toString());
-						parent?.children?.push(node);
-					} else {
-						tree.push(node);
-					}
-				}
-				return tree;
-			},
-			{ category: CacheCategory.CONTENT }
-		);
+		// Bypass cache if requested (e.g., during sync operations)
+		if (bypassCache) {
+			return fetchData();
+		}
+
+		return withCache(cacheKey, fetchData, { category: CacheCategory.CONTENT });
 	}
 
 	/**
@@ -108,12 +138,16 @@ export class MongoContentMethods {
 	 */
 	async upsertNodeByPath(nodeData: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<ContentNode> {
 		try {
-			const { path } = nodeData;
+			const { path, parentId } = nodeData;
+
+			// Normalize parentId using safe helper to prevent [object Object] storage issues
+			const normalizedParentId = normalizeId(parentId);
+
 			const result = await this.nodesRepo.model
 				.findOneAndUpdate(
 					{ path },
 					{
-						$set: { ...nodeData, updatedAt: new Date() },
+						$set: { ...nodeData, parentId: normalizedParentId, updatedAt: new Date() },
 						$setOnInsert: { _id: generateId(), createdAt: new Date() }
 					},
 					{ new: true, upsert: true, runValidators: true }
@@ -137,14 +171,41 @@ export class MongoContentMethods {
 	async bulkUpdateNodes(updates: Array<{ path: string; changes: Partial<ContentNode> }>): Promise<{ modifiedCount: number }> {
 		if (updates.length === 0) return { modifiedCount: 0 };
 		try {
-			const operations = updates.map(({ path, changes }) => ({
-				updateOne: {
-					filter: { path },
-					update: { $set: { ...changes, updatedAt: new Date() } },
-					upsert: true // Create the document if it doesn't exist
+			logger.trace(`[bulkUpdateNodes] Processing \x1b[34m${updates.length}\x1b[0m updates`);
+			const operations = updates.map(({ path, changes }) => {
+				// Normalize parentId to string using safe helper (handles ObjectId, string, null)
+				const normalizedChanges = { ...changes } as Partial<ContentNode>;
+				if ('parentId' in normalizedChanges) {
+					const originalParentId = normalizedChanges.parentId;
+					const normalizedParentId = normalizeId(originalParentId);
+					if (normalizedParentId === null) {
+						if (originalParentId !== null && originalParentId !== undefined) {
+							logger.warn(`[bulkUpdateNodes] Unable to safely normalize parentId for path="${path}". Falling back to null value.`, {
+								parentId: originalParentId
+							});
+						}
+						normalizedChanges.parentId = null as unknown as DatabaseId;
+					} else {
+						normalizedChanges.parentId = normalizedParentId as DatabaseId;
+					}
 				}
-			}));
+
+				return {
+					updateOne: {
+						filter: { path },
+						update: {
+							$set: { ...normalizedChanges, updatedAt: new Date() },
+							$setOnInsert: { createdAt: new Date() }
+						},
+						upsert: true // Create the document if it doesn't exist
+					}
+				};
+			});
+			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
 			const result = await this.nodesRepo.model.bulkWrite(operations);
+			logger.info(
+				`[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`
+			);
 
 			// Invalidate content structure caches
 			await invalidateCategoryCache(CacheCategory.CONTENT);

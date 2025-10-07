@@ -20,8 +20,6 @@ export type ToastType = 'success' | 'info' | 'warning' | 'error';
  * @param timeout Custom timeout in milliseconds. Defaults to 3000ms.
  */
 export function showToast(message: string, type: ToastType = 'info', timeout?: number): void {
-	console.log('[toast] showToast called with:', { message, type, timeout });
-
 	const backgrounds: Record<ToastType, string> = {
 		success: 'gradient-primary',
 		info: 'gradient-tertiary',
@@ -34,14 +32,10 @@ export function showToast(message: string, type: ToastType = 'info', timeout?: n
 		return;
 	}
 
-	console.log('[toast] Triggering toast with background:', backgrounds[type]);
-
 	toastStoreRef.trigger({
 		message,
 		background: backgrounds[type],
 		timeout: timeout || 3000,
 		classes: '!shadow-2xl !rounded-xl !p-4 !min-w-[320px] !max-w-[400px] !border !border-white/10 !backdrop-blur-sm'
 	});
-
-	console.log('[toast] Toast triggered successfully');
 }

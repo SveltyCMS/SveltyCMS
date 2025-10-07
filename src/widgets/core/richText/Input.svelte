@@ -4,7 +4,7 @@
 **RichText Widget Input Component**
 
 Provides WYSIWYG rich text editing with Tiptap editor and configurable toolbar.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RichTextInput bind:value={richTextData} field={fieldDefinition} />

@@ -60,7 +60,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		// 2. Get all collection schemas the user can read (scoped to the tenant)
 		let allCollections;
 		try {
-			allCollections = contentManager.getCollections();
+			allCollections = await contentManager.getCollections();
 		} catch (err) {
 			logger.error('Failed to get collections:', err);
 			throw error(500, 'Could not access collections');

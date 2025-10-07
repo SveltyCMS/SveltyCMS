@@ -4,7 +4,7 @@
 **PhoneNumber Widget Display Component**
 
 Renders phone numbers as clickable tel: links for direct calling functionality.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for wSidget system.
 
 @example
 <PhoneNumberDisplay value="+49 30 12345678" />

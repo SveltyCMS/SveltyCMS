@@ -350,7 +350,7 @@
 					<!-- Badge overlay -->
 					{#if showBadges && !node.isExpanded && node.badge?.count && node.badge.count > 0}
 						<div
-							class={`badge absolute right-1  top-0 translate-y-1/2 rounded-full px-2 py-1 text-xs text-white ${node.badge.color || 'bg-tertiary-500/80'} dark:bg-primary-500/50`}
+							class={`badge absolute right-0 top-0  translate-y-1/2 rounded-full text-xs text-white   ${node.badge.color || 'bg-tertiary-500'} dark:bg-primary-500`}
 						>
 							{node.badge.count}
 						</div>

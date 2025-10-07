@@ -3,7 +3,7 @@
  * @description Collection file for Relation
  */
 
-import widgets from '@widgets';
+import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 import type { Schema } from '@root/src/content/types';
 
 export const schema: Schema = {

@@ -2,7 +2,7 @@
  * @file src/widgets/core/megamenu/index.ts
  * @description MegaMenu Widget Definition.
  *
- * A powerful enterprise-ready builder widget for creating nested, hierarchical menu structures.
+ * A powerful builder widget for creating nested, hierarchical menu structures.
  * Features advanced drag-and-drop, modal editing, permissions, and comprehensive validation.
  *
  * @features

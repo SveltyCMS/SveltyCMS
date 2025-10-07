@@ -145,32 +145,39 @@ export async function handleSessionRotation(
 		const REFRESH_DEBOUNCE_MS = 5 * 60 * 1000;
 		const lastAttempt = lastRefreshAttempt.get(session_id) || 0;
 		if (shouldRefresh && now - lastAttempt > REFRESH_DEBOUNCE_MS) {
+			// Check rate limit BEFORE attempting rotation
+			if (await refreshLimiter.isLimited(event)) {
+				logger.debug(`Refresh rate limit hit for user ${user._id}, skipping rotation for now`);
+				return session_id; // Skip rotation but don't error
+			}
+
 			lastRefreshAttempt.set(session_id, now);
 			sessionMetrics.rotationAttempts.set(session_id, (sessionMetrics.rotationAttempts.get(session_id) || 0) + 1);
-			if (await refreshLimiter.isLimited(event)) {
-				logger.warn(`Refresh rate limit exceeded for user \x1b[33m${user._id}\x1b[0m`);
-			} else {
-				try {
-					const oldSessionId = session_id;
-					const newExpiryDate = new Date(now + CACHE_TTL_MS);
-					const newTokenId = await authService.rotateToken(session_id, newExpiryDate);
-					session_id = newTokenId;
-					const sessionData = { user, timestamp: now };
-					sessionCache.set(newTokenId, sessionData);
-					await cacheService.set(newTokenId, sessionData, Math.ceil(CACHE_TTL_MS / 1000));
-					sessionCache.delete(oldSessionId);
-					cacheService.delete(oldSessionId).catch((err) => logger.warn(`Failed to delete old session ${oldSessionId} from cache: ${err.message}`));
-					event.cookies.set(cookieName, session_id, {
-						path: '/',
-						httpOnly: true,
-						secure: event.url.protocol === 'https:',
-						maxAge: CACHE_TTL_MS / 1000,
-						sameSite: 'lax'
-					});
-					logger.debug(`Token rotated for user ${user._id}. Old: ${oldSessionId}, New: ${newTokenId}`);
-				} catch (rotationError) {
-					logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError.message}`);
+
+			try {
+				const oldSessionId = session_id;
+				const newExpiryDate = new Date(now + CACHE_TTL_MS);
+				const newTokenId = await authService.rotateToken(session_id, newExpiryDate);
+				if (!newTokenId) {
+					logger.error(`Token rotation returned null for session ${session_id}`);
+					return session_id;
 				}
+				session_id = newTokenId;
+				const sessionData = { user, timestamp: now };
+				sessionCache.set(newTokenId, sessionData);
+				await cacheService.set(newTokenId, sessionData, Math.ceil(CACHE_TTL_MS / 1000));
+				sessionCache.delete(oldSessionId);
+				cacheService.delete(oldSessionId).catch((err) => logger.warn(`Failed to delete old session ${oldSessionId} from cache: ${err.message}`));
+				event.cookies.set(cookieName, session_id, {
+					path: '/',
+					httpOnly: true,
+					secure: event.url.protocol === 'https:',
+					maxAge: CACHE_TTL_MS / 1000,
+					sameSite: 'lax'
+				});
+				logger.debug(`Token rotated for user ${user._id}. Old: ${oldSessionId}, New: ${newTokenId}`);
+			} catch (rotationError) {
+				logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError.message}`);
 			}
 		}
 	} else if (tokenData && tokenData.user_id !== user._id) {

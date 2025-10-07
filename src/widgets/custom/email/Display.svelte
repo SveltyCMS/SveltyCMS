@@ -4,7 +4,7 @@
 **Email Widget Display Component**
 
 Renders email addresses as clickable mailto links with hover states and accessibility.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for Swidget system.
 
 @example
 <EmailDisplay value="user@example.com" />

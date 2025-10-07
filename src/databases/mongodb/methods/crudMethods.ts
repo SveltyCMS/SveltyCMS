@@ -24,6 +24,7 @@
 import { type FilterQuery, type Model, type PipelineStage, type UpdateQuery, mongo } from 'mongoose';
 import type { BaseEntity, DatabaseId } from '../../dbInterface';
 import { createDatabaseError, generateId, processDates } from './mongoDBUtils';
+import { nowISODateString } from '@utils/dateUtils';
 
 /**
  * MongoCrudMethods provides generic CRUD operations for a Mongoose model.
@@ -92,8 +93,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const doc = {
 				...data,
 				_id: generateId(),
-				createdAt: new Date(),
-				updatedAt: new Date()
+				createdAt: nowISODateString(),
+				updatedAt: nowISODateString()
 			} as unknown as T;
 			const result = await this.model.create(doc);
 			return result.toObject();
@@ -110,8 +111,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 			const docs = data.map((d) => ({
 				...d,
 				_id: generateId(),
-				createdAt: new Date(),
-				updatedAt: new Date()
+				createdAt: nowISODateString(),
+				updatedAt: nowISODateString()
 			}));
 			const result = await this.model.insertMany(docs);
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,7 +126,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		try {
 			const updateData = {
 				...(data as object),
-				updatedAt: new Date()
+				updatedAt: nowISODateString()
 			};
 			const result = await this.model.findByIdAndUpdate(id, { $set: updateData }, { new: true }).lean().exec();
 
@@ -142,8 +143,8 @@ export class MongoCrudMethods<T extends BaseEntity> {
 				.findOneAndUpdate(
 					query,
 					{
-						$set: { ...data, updatedAt: new Date() },
-						$setOnInsert: { _id: generateId(), createdAt: new Date() }
+						$set: { ...data, updatedAt: nowISODateString() },
+						$setOnInsert: { _id: generateId(), createdAt: nowISODateString() }
 					},
 					{ new: true, upsert: true, runValidators: true }
 				)
@@ -179,7 +180,7 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		try {
 			if (items.length === 0) return { upsertedCount: 0, modifiedCount: 0 };
 
-			const now = new Date();
+			const now = nowISODateString();
 			const operations = items.map((item) => ({
 				updateOne: {
 					filter: item.query,
@@ -209,9 +210,16 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
+	/**
+	 * Checks if a document exists matching the given query.
+	 * Uses findOne with _id projection instead of exists() for faster execution.
+	 * MongoDB stops scanning as soon as it finds the first match, and projection reduces network overhead.
+	 */
 	async exists(query: FilterQuery<T>): Promise<boolean> {
 		try {
-			const doc = await this.model.exists(query);
+			// Use findOne with projection for optimal performance
+			// Only fetches _id field, minimizing data transfer
+			const doc = await this.model.findOne(query, { _id: 1 }).lean().exec();
 			return !!doc;
 		} catch (error) {
 			throw createDatabaseError(error, 'EXISTS_ERROR', `Failed to check for document existence in ${this.model.modelName}`);

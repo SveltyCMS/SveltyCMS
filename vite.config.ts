@@ -12,7 +12,7 @@
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { existsSync, promises as fs, readFileSync } from 'fs';
+import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
 import path from 'path';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
@@ -41,18 +41,17 @@ function openUrl(url: string) {
 // --- Constants & Configuration ---
 
 const CWD = process.cwd();
-const PKG = JSON.parse(readFileSync(path.resolve(CWD, 'package.json'), 'utf8'));
 
 const paths = {
 	configDir: path.resolve(CWD, 'config'),
 	privateConfig: path.resolve(CWD, 'config/private.ts'),
 	userCollections: path.resolve(CWD, 'config/collections'),
 	compiledCollections: path.resolve(CWD, 'compiledCollections'),
-	roles: path.resolve(CWD, 'config/roles.ts')
+	roles: path.resolve(CWD, 'config/roles.ts'),
+	widgets: path.resolve(CWD, 'src/widgets')
 };
 
 // --- Utilities ---
-
 const useColor = process.stdout.isTTY;
 
 /**
@@ -106,7 +105,6 @@ process.on('SIGINT', () => {
 });
 
 // --- Vite Plugins ---
-
 /**
  * A lightweight plugin to handle the initial setup wizard.
  * It creates a default private.ts and opens the setup page in the browser.
@@ -123,36 +121,36 @@ function setupWizardPlugin(): Plugin {
 			if (wasPrivateConfigMissing) {
 				const content = `
 /**
- * @file config/private.ts
- * @description Private configuration file containing essential bootstrap variables.
- * These values are required for the server to start and connect to the database.
- * This file will be populated during the initial setup process.
- */
+* @file config/private.ts
+* @description Private configuration file containing essential bootstrap variables.
+* These values are required for the server to start and connect to the database.
+* This file will be populated during the initial setup process.
+*/
 import { createPrivateConfig } from './types';
 
 export const privateEnv = createPrivateConfig({
-    // --- Core Database Connection ---
-    DB_TYPE: 'mongodb', // e.g., 'mongodb', 'mariadb'
-    DB_HOST: '',
-    DB_PORT: 27017,
-    DB_NAME: '',
-    DB_USER: '',
-    DB_PASSWORD: '',
+// --- Core Database Connection ---
+DB_TYPE: 'mongodb', // e.g., 'mongodb', 'mariadb'
+DB_HOST: '',
+DB_PORT: 27017,
+DB_NAME: '',
+DB_USER: '',
+DB_PASSWORD: '',
 
-    // --- Connection Behavior ---
-    DB_RETRY_ATTEMPTS: 5,
-    DB_RETRY_DELAY: 3000, // 3 seconds
+// --- Connection Behavior ---
+DB_RETRY_ATTEMPTS: 5,
+DB_RETRY_DELAY: 3000, // 3 seconds
 
-    // --- Core Security Keys ---
-    JWT_SECRET_KEY: '',
-    ENCRYPTION_KEY: '',
+// --- Core Security Keys ---
+JWT_SECRET_KEY: '',
+ENCRYPTION_KEY: '',
 
-    // --- Fundamental Architectural Mode ---
-    MULTI_TENANT: false,
+// --- Fundamental Architectural Mode ---
+MULTI_TENANT: false,
 
-    /* * NOTE: All other settings (SMTP, OAuth, etc.) are loaded
-     * dynamically from the database after the application starts.
-     */
+/* * NOTE: All other settings (SMTP, OAuth, etc.) are loaded
+* dynamically from the database after the application starts.
+*/
 });
 `;
 				try {
@@ -195,15 +193,17 @@ export const privateEnv = createPrivateConfig({
 }
 
 /**
- * Plugin to watch for changes in collections and roles, triggering recompilation
- * and efficient HMR updates.
+ * Plugin to watch for changes in collections, roles, and widgets, triggering
+ * recompilation and efficient HMR updates.
  */
 function cmsWatcherPlugin(): Plugin {
 	let compileTimeout: NodeJS.Timeout;
+	let widgetTimeout: NodeJS.Timeout; // Debounce timer for widgets
 
 	const handleHmr = async (server: ViteDevServer, file: string) => {
 		const isCollectionFile = file.startsWith(paths.userCollections) && /\.(ts|js)$/.test(file);
 		const isRolesFile = file === paths.roles;
+		const isWidgetFile = file.startsWith(paths.widgets) && (file.endsWith('index.ts') || file.endsWith('.svelte'));
 
 		if (isCollectionFile) {
 			clearTimeout(compileTimeout);
@@ -212,7 +212,6 @@ function cmsWatcherPlugin(): Plugin {
 				try {
 					await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
 					log.success('Re-compilation successful!');
-					// Directly call the content type generator and trigger an HMR update.
 					const { generateContentTypes } = await server.ssrLoadModule('./src/content/vite.ts');
 					await generateContentTypes(server);
 					log.info('Content structure types regenerated.');
@@ -226,7 +225,6 @@ function cmsWatcherPlugin(): Plugin {
 		if (isRolesFile) {
 			log.info('Roles file changed. Performing HMR...');
 			try {
-				// Invalidate and reload modules directly for instant, efficient updates.
 				const { roles } = await server.ssrLoadModule('./config/roles.ts?t=' + Date.now());
 				const { setLoadedRoles } = await server.ssrLoadModule('./src/auth/types.ts?t=' + Date.now());
 				setLoadedRoles(roles);
@@ -235,6 +233,27 @@ function cmsWatcherPlugin(): Plugin {
 			} catch (err) {
 				log.error('Error reloading roles.ts:', err);
 			}
+		}
+
+		// ---  WATCHER LOGIC  ---
+		if (isWidgetFile) {
+			clearTimeout(widgetTimeout);
+			widgetTimeout = setTimeout(async () => {
+				log.info(`Widget file change detected. Reloading widget store...`);
+				try {
+					// Invalidate and reload the widget store module to get the latest code
+					const { widgetStoreActions } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
+
+					// Call the reload action, which re-scans the filesystem
+					await widgetStoreActions.reloadWidgets();
+
+					// Trigger a full reload on the client to reflect the changes
+					server.ws.send({ type: 'full-reload', path: '*' });
+					log.success('Widgets reloaded and client updated.');
+				} catch (err) {
+					log.error('Error reloading widgets:', err);
+				}
+			}, 150); // Debounce changes
 		}
 	};
 
@@ -255,7 +274,6 @@ function cmsWatcherPlugin(): Plugin {
 }
 
 // --- Main Vite Configuration ---
-
 const setupComplete = isSetupComplete();
 
 export default defineConfig((): UserConfig => {
@@ -305,8 +323,9 @@ export default defineConfig((): UserConfig => {
 		},
 
 		define: {
-			__VERSION__: JSON.stringify(PKG.version),
 			__FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
+			// NOTE: PKG_VERSION is now provided by the server at runtime from package.json
+			// This ensures version always reflects installed package, not build-time snapshot
 			// SUPERFORMS_LEGACY: true, // Uncomment if using older versions of Superforms
 			// `global` polyfill for libraries that expect it (e.g., older crypto libs)
 			global: 'globalThis'

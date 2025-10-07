@@ -1,6 +1,6 @@
 /**
  * @file src/widgets/custom/seo/seoAnalyzer.ts
- * @description Enterprise-level SEO analysis engine
+ * @description SEO analysis engine
  */
 
 import type {

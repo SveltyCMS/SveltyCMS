@@ -21,10 +21,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.trace(`User authenticated successfully for user: ${user._id}`, { tenantId });
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`, { tenantId });
 
 		if (!user.role) {
-			const message = `User role is missing for user ${user.email}`;
+			const message = `User role is missing for user \x1b[34m${user.email}\x1b[0m`;
 			logger.warn(message, { tenantId });
 			throw error(403, message);
 		} // Check user permission using tenant-specific roles
@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const hasAccessPermission = hasPermissionWithRoles(user, 'config:accessManagement', tenantRoles);
 
 		if (!hasAccessPermission) {
-			const message = `User ${user._id} does not have permission to access management`;
+			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access management`;
 			logger.warn(message, { tenantId });
 			throw error(403, message);
 		} // Fetch permissions. Roles are already available from locals.

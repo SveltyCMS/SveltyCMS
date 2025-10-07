@@ -4,7 +4,7 @@
 **Text Input Widget Display Component**
 
 Renders multilingual text content with automatic truncation for list views.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <TextDisplay field={fieldDefinition} value={{ en: "Hello World", de: "Hallo Welt" }} />

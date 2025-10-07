@@ -4,7 +4,7 @@
 **Currency Widget Input Component**
 
 Provides localized currency input with real-time formatting and parsing capabilities.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for WSidget system.
 
 @example
 <CurrencyInput bind:value={amount} field={{ currencyCode: "EUR", required: true }} />

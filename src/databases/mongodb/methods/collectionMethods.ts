@@ -20,6 +20,7 @@ import mongoose, { Schema as MongooseSchema, type Model } from 'mongoose';
 import type { CollectionModel } from '../../dbInterface';
 import type { Schema } from '@src/content/types';
 import { withCache, CacheCategory, invalidateCollectionCache } from './mongoDBUtils';
+import { nowISODateString } from '@utils/dateUtils';
 
 /**
  * MongoCollectionMethods manages dynamic model creation and registration.
@@ -63,26 +64,28 @@ export class MongoCollectionMethods {
 		// Invalidate cache for this collection
 		await invalidateCollectionCache(`schema:collection:${collectionId}`);
 
-		// Check if model already exists
-		if (this.models.has(collectionId)) {
-			logger.debug(`Model ${collectionId} already exists, updating...`);
-			// For now, just return - full update logic can be added later
-			return;
-		}
-
 		const modelName = `collection_${collectionId}`;
+
+		// Force delete existing model and registry entry to ensure clean slate
+		// This is crucial for schema updates (e.g., ObjectId → String migration)
+		if (this.models.has(collectionId)) {
+			logger.debug(`Removing existing model ${collectionId} for refresh...`);
+			this.models.delete(collectionId);
+		}
 
 		// Remove existing Mongoose model if present (for hot reload)
 		if (mongoose.models[modelName]) {
+			logger.debug(`Deleting Mongoose model ${modelName} for refresh...`);
 			delete mongoose.models[modelName];
 		}
 
 		// Build schema definition from collection fields
+		// Note: Using String type for _id to support UUID-based IDs instead of MongoDB ObjectIds
 		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-			_id: { type: String },
+			_id: { type: String, required: true },
 			status: { type: String, default: 'draft' },
-			createdAt: { type: Date, default: Date.now },
-			updatedAt: { type: Date, default: Date.now },
+			createdAt: { type: String, default: () => nowISODateString() },
+			updatedAt: { type: String, default: () => nowISODateString() },
 			createdBy: { type: MongooseSchema.Types.Mixed, ref: 'auth_users' },
 			updatedBy: { type: MongooseSchema.Types.Mixed, ref: 'auth_users' }
 		};
@@ -113,9 +116,11 @@ export class MongoCollectionMethods {
 		}
 
 		// Create Mongoose schema
+		// Use _id: false to prevent auto-generation of ObjectId, then explicitly define _id as String
 		const mongooseSchema = new mongoose.Schema(schemaDefinition, {
+			_id: false, // Disable auto ObjectId generation
 			strict: schema.strict !== false,
-			timestamps: true,
+			timestamps: false, // We handle timestamps explicitly with ISODateString
 			collection: modelName.toLowerCase()
 		});
 

@@ -18,7 +18,7 @@ import { logger } from '@utils/logger.svelte';
 // Define the Draft schema
 export const draftSchema = new Schema<ContentDraft>(
 	{
-		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		_id: { type: String, required: true, default: () => generateId() }, // Auto-generate UUID for new drafts
 		contentId: { type: String, required: true }, //ContentId of the draft
 		data: { type: Schema.Types.Mixed, required: true }, // Content of the draft
 		version: { type: Number, default: 1 }, // Version number for drafts, starting at 1
@@ -29,7 +29,8 @@ export const draftSchema = new Schema<ContentDraft>(
 	{
 		timestamps: true, // Enable timestamps for createdAt and updatedAt
 		collection: 'content_drafts',
-		strict: true // Enforce strict schema validation
+		strict: true, // Enforce strict schema validation
+		_id: false // Disable Mongoose auto-ObjectId generation
 	}
 );
 
@@ -86,7 +87,8 @@ draftSchema.statics = {
 	// Create a new draft
 	async createDraft(draftData: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> {
 		try {
-			const newDraft = await this.create({ ...draftData, _id: generateId() });
+			// No need to manually add _id, Mongoose will auto-generate it via schema default
+			const newDraft = await this.create(draftData);
 			return { success: true, data: newDraft.toObject() as unknown as ContentDraft };
 		} catch (error) {
 			const message = 'Failed to create draft';
@@ -102,7 +104,8 @@ draftSchema.statics = {
 	// Update a draft by its ID
 	async updateDraft(draftId: DatabaseId, updateData: Partial<ContentDraft>): Promise<DatabaseResult<void>> {
 		try {
-			const result = await this.updateOne({ _id: draftId }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+			// Mongoose timestamps: true automatically updates updatedAt
+			const result = await this.updateOne({ _id: draftId }, { $set: updateData }).exec();
 			if (result.modifiedCount === 0) {
 				const message = `Draft with ID "${draftId}" not found or no changes applied.`;
 				return {

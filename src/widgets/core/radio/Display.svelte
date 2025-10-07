@@ -4,7 +4,7 @@
 **Radio Widget Display Component**
 
 Displays the selected radio option label by resolving the stored value against field options.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RadioDisplay field={fieldDefinition} value="option-2" />

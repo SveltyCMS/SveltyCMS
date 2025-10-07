@@ -9,8 +9,9 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { ContentRevision, DatabaseResult } from '@src/databases/dbInterface';
-import type { DatabaseId, ISODateString } from '@src/content/types';
+import type { DatabaseId } from '@src/content/types';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import { toISOString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -18,7 +19,7 @@ import { logger } from '@utils/logger.svelte';
 // Define the Revision schema
 export const revisionSchema = new Schema<ContentRevision>(
 	{
-		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		_id: { type: String, required: true, default: () => generateId() }, // Auto-generate UUID for new revisions
 		contentId: { type: String, required: true }, // Renamed to contentId, DatabaseId of content
 		data: { type: Schema.Types.Mixed, required: true }, // Content of the revision
 		version: { type: Number, required: true }, // Version number of the revision
@@ -29,7 +30,8 @@ export const revisionSchema = new Schema<ContentRevision>(
 	{
 		timestamps: true, // Enable timestamps for createdAt and updatedAt
 		collection: 'content_revisions',
-		strict: true // Enforce strict schema validation
+		strict: true, // Enforce strict schema validation
+		_id: false // Disable Mongoose auto-ObjectId generation
 	}
 );
 
@@ -91,20 +93,20 @@ revisionSchema.statics = {
 	// Create a new revision
 	async createRevision(revisionData: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>> {
 		try {
-			const newRevision = await this.create({ ...revisionData, _id: generateId() });
+			// No need to manually add _id, Mongoose will auto-generate it via schema default
+			const newRevision = await this.create(revisionData);
 			// Convert Mongoose document to plain object with proper types
-			const revisionObj = newRevision.toObject() as any;
+			const revisionObj = newRevision.toObject();
+
 			const revisionWithISODates: ContentRevision = {
-				...revisionObj,
 				_id: revisionObj._id as DatabaseId,
 				contentId: revisionObj.contentId as DatabaseId,
+				data: revisionObj.data,
+				version: revisionObj.version,
+				commitMessage: revisionObj.commitMessage,
 				authorId: revisionObj.authorId as DatabaseId,
-				createdAt: (typeof revisionObj.createdAt?.toISOString === 'function'
-					? revisionObj.createdAt.toISOString()
-					: revisionObj.createdAt) as ISODateString,
-				updatedAt: (typeof revisionObj.updatedAt?.toISOString === 'function'
-					? revisionObj.updatedAt.toISOString()
-					: revisionObj.updatedAt) as ISODateString
+				createdAt: toISOString(revisionObj.createdAt),
+				updatedAt: toISOString(revisionObj.updatedAt)
 			};
 			return { success: true, data: revisionWithISODates };
 		} catch (error) {
@@ -122,7 +124,8 @@ revisionSchema.statics = {
 	// Update a revision by its ID
 	async updateRevision(revisionId: DatabaseId, updateData: Partial<ContentRevision>): Promise<DatabaseResult<void>> {
 		try {
-			const result = await this.updateOne({ _id: revisionId }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+			// Mongoose timestamps: true automatically updates updatedAt
+			const result = await this.updateOne({ _id: revisionId }, { $set: updateData }).exec();
 			if (result.modifiedCount === 0) {
 				const message = `Revision with ID "${revisionId}" not found or no changes applied.`;
 				return {

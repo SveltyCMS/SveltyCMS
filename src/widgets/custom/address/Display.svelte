@@ -4,7 +4,7 @@
 **Address Widget Display Component**
 
 Renders structured address data as formatted, human-readable address strings.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <AddressDisplay value={{ street: "Main St", houseNumber: "123", city: "Berlin", country: "DE" }} />

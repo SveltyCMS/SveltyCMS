@@ -83,7 +83,13 @@ const CurrencyWidget = createWidget<CurrencyProps>({
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
-	}
+	},
+
+	// GraphQL schema for currency
+	GraphqlSchema: () => ({
+		typeID: 'Float', // Use Float for currency values
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default CurrencyWidget;

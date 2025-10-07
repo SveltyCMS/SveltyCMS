@@ -46,12 +46,12 @@ const SESSION_TTL = CACHE_TTL_MS; // Align session TTL with cache TTL
 
 // --- Rate Limiter for Refresh (could be moved to its own file if used elsewhere) ---
 const refreshLimiter = new RateLimiter({
-	IP: [10, 'm'], // 10 requests per minute per IP
-	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
+	IP: [100, 'm'], // 100 requests per minute per IP
+	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'refreshlimit',
 		secret: privateEnv.JWT_SECRET_KEY,
-		rate: [10, 'm'], // 10 requests per minute per cookie
+		rate: [100, 'm'], // 100 requests per minute per cookie
 		preflight: true
 	}
 });
@@ -90,7 +90,7 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 
 	// Skip auth entirely for static assets during initialization
 	if (isStaticAsset(event.url.pathname)) {
-		logger.trace(`Skipping session auth for static asset: ${event.url.pathname}`);
+		logger.trace(`Skipping session auth for static asset: \x1b[33m${event.url.pathname}\x1b[0m`);
 		return resolve(event);
 	}
 
@@ -141,11 +141,11 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		} else if (!user && session_id && authServiceReady) {
 			// Only clear invalid session if auth service is ready
 			// If auth service isn't ready, keep the session cookie for later validation
-			logger.trace(`Clearing invalid session cookie: ${session_id}`);
+			logger.trace(`Clearing invalid session cookie: \x1b[33m${session_id}\x1b[0m`);
 			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		} else if (!user && session_id && !authServiceReady) {
 			// Auth service not ready yet, keep session cookie but don't set user
-			logger.trace(`Auth service not ready, preserving session cookie for later validation: ${session_id}`);
+			logger.trace(`Auth service not ready, preserving session cookie for later validation: \x1b[32m${session_id}\x1b[0m`);
 		}
 		// Note: isFirstUser logic is moved to handleAuthorization
 		// Note: Role loading is moved to handleAuthorization
@@ -183,6 +183,6 @@ export const cleanupSessionMetrics = (): void => {
 		}
 	}
 	if (cleanedCount > 0) {
-		logger.info(`Cleaned up metrics for ${cleanedCount} stale sessions.`);
+		logger.info(`Cleaned up metrics for \x1b[34m${cleanedCount}\x1b[0m stale sessions.`);
 	}
 };

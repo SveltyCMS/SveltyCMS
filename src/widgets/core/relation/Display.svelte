@@ -4,7 +4,7 @@
 **Relation Widget Display Component**
 
 Displays related entry references by fetching and showing the display field value.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RelationDisplay field={fieldDefinition} value="entry-uuid-123" />

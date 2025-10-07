@@ -23,6 +23,7 @@ export interface WidgetFunction {
 	__dependencies?: string[]; // Track widget dependencies
 	__inputComponentPath?: string; // Path to Input component (3-pillar architecture)
 	__displayComponentPath?: string; // Path to Display component (3-pillar architecture)
+	componentPath?: string; // Path to the widget's Input component (for Fields.svelte compatibility)
 }
 
 interface WidgetStoreState {
@@ -181,20 +182,45 @@ export const widgetStoreActions = {
 			// Load active widgets from database (tenant-aware)
 			const activeWidgetNames = await loadActiveWidgetsFromDatabase(tenantId);
 
+			// Normalize widget names from database to match file system (folder names are lowercase/camelCase)
+			// Database might have "Input" but folder is "input", "RemoteVideo" → "remoteVideo"
+			const normalizedActiveWidgets = activeWidgetNames.map((name) => {
+				// Try exact match first
+				if (newWidgetFunctions[name]) {
+					return name;
+				}
+				// Try camelCase (Input → input, RemoteVideo → remoteVideo)
+				const camelCase = name.charAt(0).toLowerCase() + name.slice(1);
+				if (newWidgetFunctions[camelCase]) {
+					return camelCase;
+				}
+				// Try full lowercase as fallback
+				const lowerCase = name.toLowerCase();
+				if (newWidgetFunctions[lowerCase]) {
+					return lowerCase;
+				}
+				// Return original if no match found (will be filtered out below)
+				logger.warn(`[widgetStore] Widget from database not found in file system: ${name}`);
+				return name;
+			});
+
 			// Use database as source of truth for active widgets
 			// If database query failed or returned empty (server-side), don't default to core-only
 			let uniqueActiveWidgets: string[];
-			if (activeWidgetNames.length === 0 && typeof window === 'undefined') {
+			if (normalizedActiveWidgets.length === 0 && typeof window === 'undefined') {
 				// Server-side and no database result: use empty array (will be populated client-side)
 				logger.debug('[widgetStore] Server-side initialization - no active widgets loaded yet');
 				uniqueActiveWidgets = [];
 			} else {
 				// Client-side or database returned results: use database as source of truth
-				// Remove duplicates using filter
-				uniqueActiveWidgets = activeWidgetNames.filter((name, index, self) => self.indexOf(name) === index);
-				logger.debug('[widgetStore] Active widgets from database', {
+				// Remove duplicates and filter out widgets that don't exist in file system
+				uniqueActiveWidgets = normalizedActiveWidgets
+					.filter((name, index, self) => self.indexOf(name) === index) // Remove duplicates
+					.filter((name) => newWidgetFunctions[name]); // Only include widgets that exist
+				logger.debug('[widgetStore] Active widgets from database (normalized)', {
 					count: uniqueActiveWidgets.length,
-					widgets: uniqueActiveWidgets
+					widgets: uniqueActiveWidgets,
+					original: activeWidgetNames
 				});
 			}
 
@@ -275,7 +301,8 @@ export const widgetStoreActions = {
 				__widgetType: type,
 				__dependencies: dependencies,
 				__inputComponentPath: inputComponentPath,
-				__displayComponentPath: displayComponentPath
+				__displayComponentPath: displayComponentPath,
+				componentPath: inputComponentPath // Add this for Fields.svelte compatibility
 			});
 
 			return {
@@ -502,10 +529,17 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {
-			// Client-side: use API call (no cache - adapter queries database directly)
-			logger.debug('[widgetStore] Client-side: Fetching from /api/widgets/active', { tenantId });
+			// Client-side: use API call with cache bypass on first load to ensure fresh data after normalization updates
+			// Check if this is first load by seeing if store is empty
+			let needsRefresh = false;
+			widgetStore.subscribe(($store) => {
+				needsRefresh = Object.keys($store.widgetFunctions).length === 0;
+			})();
 
-			const response = await fetch('/api/widgets/active', {
+			const url = `/api/widgets/active${needsRefresh ? '?refresh=true' : ''}`;
+			logger.debug(`[widgetStore] Client-side: Fetching from ${url}`, { tenantId, needsRefresh });
+
+			const response = await fetch(url, {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json',

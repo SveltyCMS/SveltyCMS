@@ -24,6 +24,7 @@ import mongoose, { Schema } from 'mongoose';
 
 // Adapter
 import { getAllPermissions } from '@src/databases/auth/permissions';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // Types
 import type { Permission, Role, User } from '@src/databases/auth';
@@ -35,6 +36,7 @@ import { logger } from '@utils/logger.svelte';
 // Define the User schema
 export const UserSchema = new Schema(
 	{
+		_id: { type: String, required: true }, // UUID as primary key
 		email: { type: String, required: true, unique: true }, // User's email, required field
 		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy, indexed for performance
 		password: { type: String }, // User's password, optional field
@@ -61,7 +63,8 @@ export const UserSchema = new Schema(
 	},
 	{
 		timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
-		collection: 'auth_users' // Explicitly set the collection name to match model registration
+		collection: 'auth_users', // Explicitly set the collection name to match model registration
+		_id: false // Disable auto ObjectId generation - we provide our own UUID
 	}
 );
 
@@ -85,7 +88,11 @@ export class UserAdapter {
 	private UserModel: Model<User>;
 
 	constructor() {
-		this.UserModel = mongoose.models?.auth_users || mongoose.model<User>('auth_users', UserSchema);
+		// Force model recreation to ensure schema changes take effect
+		if (mongoose.models?.auth_users) {
+			delete mongoose.models.auth_users;
+		}
+		this.UserModel = mongoose.model<User>('auth_users', UserSchema);
 	}
 
 	// Create a new user
@@ -104,9 +111,9 @@ export class UserAdapter {
 				avatar: `Avatar value: "${normalizedUserData.avatar}" (type: ${typeof normalizedUserData.avatar}, length: ${normalizedUserData.avatar?.length || 0})`
 			});
 
-			const user = new this.UserModel(normalizedUserData);
-
-			// Log what the model contains before saving
+			// Generate UUID for the user
+			const userId = generateId();
+			const user = new this.UserModel({ ...normalizedUserData, _id: userId }); // Log what the model contains before saving
 			logger.debug('UserModel before save:', {
 				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
 				avatar: `Model avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
@@ -453,7 +460,7 @@ export class UserAdapter {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, {
 				blocked: true,
-				lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
+				lockoutUntil: new Date() // Set lockoutUntil to current time
 			});
 			logger.info(`User blocked: \x1b[34m${user_id}\x1b[0m`);
 			return {
@@ -510,7 +517,7 @@ export class UserAdapter {
 
 			const result = await this.UserModel.updateMany(filter, {
 				blocked: true,
-				lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
+				lockoutUntil: new Date() // Set lockoutUntil to current time
 			});
 			logger.info(`Users blocked: \x1b[34m${userIds.join(', ')}\x1b[0m`, { tenantId });
 			return {

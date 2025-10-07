@@ -9,7 +9,11 @@ import { logger } from '@utils/logger.svelte';
 // import { safeParse } from 'valibot';
 // import { databaseConfigSchema } from '@utils/setupValidationSchemas'; // TODO: Implement and export this schema
 
-// Database connection string, robust for different SQL dialects
+/**
+ * Database connection string builder for supported database types.
+ * Currently supports: MongoDB (standard and Atlas SRV)
+ * Future support planned: PostgreSQL, MySQL, MariaDB via Drizzle ORM
+ */
 export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 	// Validate config
 	switch (config.type) {
@@ -37,21 +41,12 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 			return `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
 		}
-		case 'postgresql': {
-			const user = config.user ? encodeURIComponent(config.user) : '';
-			const password = config.password ? `:${encodeURIComponent(config.password)}` : '';
-			const port = config.port || 5432;
-			return `postgresql://${user}${password}@${config.host}:${port}/${config.name}`;
+		default: {
+			// TypeScript ensures exhaustive checking - this should never be reached
+			// but provides a helpful message if the schema is extended without updating this function
+			const _exhaustiveCheck: never = config.type;
+			throw new Error(`Unsupported database type: ${_exhaustiveCheck}`);
 		}
-		case 'mysql':
-		case 'mariadb': {
-			const user = config.user ? encodeURIComponent(config.user) : '';
-			const password = config.password ? `:${encodeURIComponent(config.password)}` : '';
-			const port = config.port || 3306;
-			return `mysql://${user}${password}@${config.host}:${port}/${config.name}`;
-		}
-		default:
-			throw new Error(`Unsupported database type for connection string: ${config.type}`);
 	}
 }
 
@@ -110,14 +105,17 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 			break;
 		}
-		default:
-			logger.error(`Unsupported database type: ${config.type}`, { correlationId });
-			throw new Error(`Database type '${config.type}' is not supported for setup. Only MongoDB is currently supported.`);
+		default: {
+			// TypeScript ensures exhaustive checking - this should never be reached
+			const _exhaustiveCheck: never = config.type;
+			logger.error(`Unsupported database type: ${_exhaustiveCheck}`, { correlationId });
+			throw new Error(`Database type '${_exhaustiveCheck}' is not supported for setup. Only MongoDB is currently supported.`);
+		}
 	}
 
-	// Initialize auth and system models with error handling
+	// Initialize auth models with error handling
 	try {
-		await Promise.all([dbAdapter.auth.setupAuthModels(), dbAdapter.system.setupSystemModels()]);
+		await dbAdapter.auth.setupAuthModels();
 	} catch (err) {
 		logger.error(`Model initialization failed: ${err instanceof Error ? err.message : String(err)}`, { correlationId });
 		await dbAdapter.disconnect();

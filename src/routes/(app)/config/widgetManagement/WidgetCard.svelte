@@ -21,7 +21,7 @@
 	let { widget, onToggle, onUninstall, canManage }: Props = $props();
 </script>
 
-<div class="card">
+<div class="card border border-secondary-500">
 	<!-- Widget Header -->
 	<div class="flex items-start justify-between gap-4 p-4">
 		<div class="flex min-w-0 flex-1 items-start gap-3">

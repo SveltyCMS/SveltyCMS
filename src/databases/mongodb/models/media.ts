@@ -9,8 +9,9 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { MediaItem, DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
-import type { DatabaseId, ISODateString } from '@src/content/types';
+import type { DatabaseId } from '@src/content/types';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import { nowISODateString, toISOString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -26,9 +27,7 @@ export const mediaSchema = new Schema<MediaItem>(
 		_id: {
 			type: String,
 			required: true,
-			default: () => {
-				return new mongoose.Types.ObjectId().toString();
-			}
+			default: () => generateId() // Use UUID instead of ObjectId
 		},
 		// UUID as per dbInterface.ts
 		hash: { type: String, required: true }, // Hash for media
@@ -47,16 +46,16 @@ export const mediaSchema = new Schema<MediaItem>(
 			format: String, // Format of the media file
 			type: mongoose.Schema.Types.Mixed // Allow additional metadata fields via [key: string]: unknown
 		},
-		status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' }, // Status options from MediaItem		createdBy: { type: String, required: true }, // Created by user ID
+		createdBy: { type: String, required: true }, // Created by user ID
 		updatedBy: { type: String, required: true }, // Updated by user ID
-		createdAt: { type: String, default: () => new Date().toISOString() }, // CreatedAt ISODate type
-		updatedAt: { type: String, default: () => new Date().toISOString() }, // UpdatedAt ISODate type
-		versions: { type: [Schema.Types.Mixed], default: [] } // Versions for media file
+		createdAt: { type: String, default: () => nowISODateString() }, // CreatedAt ISODate type
+		updatedAt: { type: String, default: () => nowISODateString() } // UpdatedAt ISODate type
 	},
 	{
 		timestamps: true,
 		collection: 'system_media',
-		strict: true // Enforce strict schema validation
+		strict: true, // Enforce strict schema validation
+		_id: false // Disable Mongoose auto-ObjectId generation
 	}
 );
 
@@ -66,11 +65,11 @@ mediaSchema.index({ filename: 1 });
 mediaSchema.index({ hash: 1 }, { unique: true }); // Unique hash for deduplication
 
 // Compound indexes for common query patterns (50-80% performance boost)
-mediaSchema.index({ folderId: 1, status: 1, createdAt: -1 }); // Folder browsing with status filter
-mediaSchema.index({ createdBy: 1, status: 1, createdAt: -1 }); // User's media library
-mediaSchema.index({ mimeType: 1, status: 1 }); // Filter by file type
-mediaSchema.index({ status: 1, updatedAt: -1 }); // Recent media by status
-mediaSchema.index({ folderId: 1, mimeType: 1, status: 1 }); // Folder + type filtering
+mediaSchema.index({ folderId: 1, createdAt: -1 }); // Folder browsing
+mediaSchema.index({ createdBy: 1, createdAt: -1 }); // User's media library
+mediaSchema.index({ mimeType: 1, createdAt: -1 }); // Filter by file type
+mediaSchema.index({ updatedAt: -1 }); // Recent media
+mediaSchema.index({ folderId: 1, mimeType: 1 }); // Folder + type filtering
 mediaSchema.index({ filename: 'text', originalFilename: 'text' }); // Full-text search on filenames
 
 // Fetch all media files using DatabaseAdapter's crud.findMany
@@ -167,16 +166,23 @@ mediaSchema.statics = {
 	async uploadMedia(mediaData: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> {
 		try {
 			const newMedia = await this.create({ ...mediaData, _id: generateId() });
-			// Convert Mongoose document to plain object with proper types
-			const mediaObj = newMedia.toObject() as any;
+			// Convert Mongoose document to MediaItem with proper types
+			const mediaObj = newMedia.toObject();
 			const mediaWithISODates: MediaItem = {
-				...mediaObj,
-				_id: mediaObj._id as DatabaseId,
-				createdBy: mediaObj.createdBy as DatabaseId,
-				updatedBy: mediaObj.updatedBy as DatabaseId,
-				folderId: mediaObj.folderId as DatabaseId | undefined,
-				createdAt: (typeof mediaObj.createdAt?.toISOString === 'function' ? mediaObj.createdAt.toISOString() : mediaObj.createdAt) as ISODateString,
-				updatedAt: (typeof mediaObj.updatedAt?.toISOString === 'function' ? mediaObj.updatedAt.toISOString() : mediaObj.updatedAt) as ISODateString
+				_id: mediaObj._id,
+				filename: mediaObj.filename,
+				originalFilename: mediaObj.originalFilename,
+				hash: mediaObj.hash,
+				path: mediaObj.path,
+				size: mediaObj.size,
+				mimeType: mediaObj.mimeType,
+				folderId: mediaObj.folderId,
+				thumbnails: mediaObj.thumbnails,
+				metadata: mediaObj.metadata,
+				createdBy: mediaObj.createdBy,
+				updatedBy: mediaObj.updatedBy,
+				createdAt: toISOString(mediaObj.createdAt),
+				updatedAt: toISOString(mediaObj.updatedAt)
 			};
 			return { success: true, data: mediaWithISODates };
 		} catch (error) {
@@ -185,7 +191,8 @@ mediaSchema.statics = {
 			logger.error(`Error uploading media: ${err.message}`);
 			return {
 				success: false,
-				error: { code: 'MEDIA_UPLOAD_ERROR', message: 'Failed to upload media', details: error }
+				message,
+				error: { code: 'MEDIA_UPLOAD_ERROR', message, details: error }
 			};
 		}
 	},

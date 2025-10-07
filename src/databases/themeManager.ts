@@ -3,8 +3,9 @@
  * @description Theme manager for the CMS, utilizing a database-agnostic interface and now multi-tenant aware.
  */
 import { error } from '@sveltejs/kit';
-import type { DatabaseId, ISODateString } from '../content/types';
+import type { DatabaseId } from '../content/types';
 import type { IDBAdapter, Theme } from './dbInterface';
+import { dateToISODateString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -23,8 +24,8 @@ export const DEFAULT_THEME: Theme = {
 		tailwindConfigPath: '',
 		assetsPath: ''
 	},
-	createdAt: new Date().toISOString() as ISODateString,
-	updatedAt: new Date().toISOString() as ISODateString
+	createdAt: dateToISODateString(new Date()),
+	updatedAt: dateToISODateString(new Date())
 };
 
 export class ThemeManager {

@@ -72,7 +72,13 @@ const RatingWidget = createWidget<RatingProps>({
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
-	}
+	},
+
+	// GraphQL schema for rating
+	GraphqlSchema: () => ({
+		typeID: 'Int', // Use Int for rating values
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default RatingWidget;

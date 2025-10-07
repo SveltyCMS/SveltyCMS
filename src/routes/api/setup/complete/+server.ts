@@ -52,9 +52,9 @@ interface AdminConfig {
  */
 async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
 	try {
-		logger.debug(`Fetching first collection path for language: ${language}`);
+		logger.debug(`Fetching first collection path for language: \x1b[34m${language}\x1b[0m`);
 
-		const firstCollection = contentManager.getFirstCollection();
+		const firstCollection = await contentManager.getFirstCollection();
 		if (firstCollection?.path) {
 			// Ensure the collection path has a leading slash
 			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
@@ -124,6 +124,18 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// 7. Invalidate settings cache to force reload with new database connection
 		invalidateSettingsCache();
 		logger.info('Global settings cache invalidated', { correlationId });
+
+		// 7.1 Invalidate user count cache since we just created the first user
+		try {
+			const { cacheService } = await import('@src/databases/CacheService');
+			await cacheService.delete('userCount', undefined);
+			logger.info('User count cache invalidated after first user creation', { correlationId });
+		} catch (cacheErr) {
+			logger.warn('Failed to invalidate user count cache', {
+				correlationId,
+				error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
+			});
+		}
 
 		// 8. Invalidate setup status cache to allow normal routing
 		const { invalidateSetupCache } = await import('@utils/setupCheck');

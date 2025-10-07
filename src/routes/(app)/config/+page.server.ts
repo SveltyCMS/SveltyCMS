@@ -52,7 +52,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 
 		// Fine-grained permission checking for each config item
-		// This allows enterprise-level control where each setting group,
+		// This allows control where each setting group,
 		// menu item, or feature can have individual permissions assigned
 		const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 

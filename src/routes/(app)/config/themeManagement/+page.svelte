@@ -5,8 +5,9 @@
 
 <script lang="ts">
 	import { themeStore, updateTheme } from '@root/src/stores/themeStore.svelte';
-	import type { DatabaseId, ISODateString } from '@src/content/types';
+	import type { DatabaseId } from '@src/content/types';
 	import type { Theme } from '@src/databases/dbInterface';
+	import { dateToISODateString } from '@utils/dateUtils';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -28,7 +29,7 @@
 
 		// Convert the imported files to Theme objects
 		customThemes = Object.entries(customThemesFiles).map(([key, value], index) => {
-			const nowIso = new Date().toISOString() as ISODateString;
+			const nowIso = dateToISODateString(new Date());
 			return {
 				_id: `custom-theme-${index}` as unknown as DatabaseId,
 				name: key.split('/')[3],
@@ -51,8 +52,8 @@
 			isDefault: true,
 			isActive: true,
 			config: { tailwindConfigPath: '', assetsPath: '' },
-			createdAt: new Date().toISOString() as ISODateString,
-			updatedAt: new Date().toISOString() as ISODateString
+			createdAt: dateToISODateString(new Date()),
+			updatedAt: dateToISODateString(new Date())
 		} as Theme,
 		...customThemes
 	]);

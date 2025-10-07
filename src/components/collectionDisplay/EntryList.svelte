@@ -563,9 +563,8 @@ Features:
 					filter: JSON.stringify(activeFilters),
 					sort: JSON.stringify(sortParam),
 					// Add timestamp when language changed to force cache miss
-					_langChange: lastLanguage !== currentLanguage ? languageChangeTimestamp : undefined,
-					// Add cache busting parameter to ensure fresh data
-					_cacheBust: Date.now()
+					_langChange: lastLanguage !== currentLanguage ? languageChangeTimestamp : undefined
+					// Removed _cacheBust - let browser & server caching work for performance
 				};
 
 				const result = await getData(queryParams);

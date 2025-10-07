@@ -72,7 +72,13 @@ const RelationWidget = createWidget<RelationProps, ReturnType<typeof validationS
 			{ $lookup: { from: field.collection, localField: field.db_fieldName, foreignField: '_id', as: 'related_doc' } },
 			{ $match: { [`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' } } }
 		]
-	}
+	},
+
+	// GraphQL schema for relation (returns ID of related document)
+	GraphqlSchema: () => ({
+		typeID: 'String', // Related document ID
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default RelationWidget;

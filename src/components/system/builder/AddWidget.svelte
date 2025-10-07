@@ -1,36 +1,34 @@
 <!-- 
-@files src/components/system/builder/AddWidget.svelte
-@description - Add					{#each Object.entries(guiSchema) as [property, value]}
-				<InputSwitch value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
-			{/each}each Object.entries(guiSchema) as [property, value]}
-				<InputSwitch bind:value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
-			{/each}dget component
+@file src/components/system/builder/AddWidget.svelte
+@description Add widget component for the system builder
 -->
 
 <script lang="ts">
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-	import widgets from '@widgets';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import type { WidgetFunction } from '@src/widgets/types';
 	import InputSwitch from './InputSwitch.svelte';
 
 	let {
 		fields = $bindable([]),
 		addField = $bindable(false),
 		editField = $bindable(false),
-		selected_widget = $bindable<keyof typeof widgets | null>(null),
+		selected_widget = $bindable<string | null>(null),
 		field = $bindable({
 			label: '',
-			widget: { key: null as keyof typeof widgets | null, GuiFields: {} as Record<string, any> }
+			widget: { key: null as string | null, GuiFields: {} as Record<string, any> }
 		})
 	} = $props();
 
-	const widget_keys = Object.keys(widgets) as (keyof typeof widgets)[];
-	let guiSchema = $state<(typeof widgets)[keyof typeof widgets]['GuiSchema'] | undefined>(undefined);
+	const widget_keys = Object.keys($widgetFunctions);
+	let guiSchema = $state<WidgetFunction['GuiSchema'] | undefined>(undefined);
 
 	$effect(() => {
 		if (selected_widget) {
-			guiSchema = widgets[selected_widget]?.GuiSchema;
+			const widgetFn = $widgetFunctions[selected_widget];
+			guiSchema = widgetFn?.GuiSchema as WidgetFunction['GuiSchema'];
 		}
 	});
 

@@ -9,15 +9,16 @@
 import type { ContentNode, Translation } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
 import type { DatabaseError, DatabaseResult } from '@src/databases/dbInterface';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { logger } from '@utils/logger.svelte';
-import type { Model } from 'mongoose';
+import type { Model, Document as MongooseDocument } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
-// --- Type Definitions for Mongoose Documents ---
-/** Represents a generic document in the content structure, which can be a category or a collection. */
-// Omit 'collectionDef' from ContentNode to avoid conflict with Mongoose's Document.collection property
-export interface ContentStructureDocument extends Omit<ContentNode, 'collectionDef' | '_id'>, Document {
+// --- Type Definitions for Mongoose Documents content structure---
+export interface ContentStructureDocument extends Omit<ContentNode, 'collectionDef' | '_id' | 'children' | 'nodeType'>, MongooseDocument {
 	_id: string;
+	nodeType: 'category' | 'collection'; // Explicitly define discriminator key
+	links?: Array<string>; // Array of string links for content structure
 	collectionDef?: import('@src/content/types').Schema;
 	permissions?: Record<string, Record<string, boolean>>;
 	livePreview?: boolean;
@@ -26,7 +27,6 @@ export interface ContentStructureDocument extends Omit<ContentNode, 'collectionD
 	description?: string;
 	slug?: string;
 	status?: import('@src/content/types').StatusType;
-	links?: Array<string>;
 }
 
 /** Represents a category-specific document. */
@@ -45,6 +45,7 @@ let discriminatorsRegistered = false;
 // --- Schema Definitions ---
 
 // Translation sub-schema
+// Note: _id: false prevents Mongoose from adding unnecessary _id to each translation object
 const translationSchema = new Schema<Translation>(
 	{
 		languageTag: { type: String, required: true },
@@ -57,7 +58,7 @@ const translationSchema = new Schema<Translation>(
 // Base schema for the content structure
 const contentStructureSchema = new Schema<ContentStructureDocument>(
 	{
-		_id: { type: String, required: true },
+		_id: { type: String, required: true, default: () => generateId() },
 		name: { type: String, required: true },
 		path: { type: String, index: true }, // Add path field for URL routing
 		icon: { type: String, default: 'bi:folder' },
@@ -84,7 +85,8 @@ const contentStructureSchema = new Schema<ContentStructureDocument>(
 	{
 		timestamps: true,
 		collection: 'system_content_structure',
-		discriminatorKey: 'nodeType' // Use nodeType to differentiate between category and collection
+		discriminatorKey: 'nodeType', // Use nodeType to differentiate between category and collection
+		_id: false // Disable Mongoose auto-ObjectId generation since we use UUID strings
 	}
 );
 
@@ -254,10 +256,13 @@ export function registerContentStructureDiscriminators() {
 
 // --- Model Export ---
 
-// Create the model, or retrieve it if it already exists to prevent recompilation errors.
-export const ContentStructureModel =
-	(mongoose.models.system_content_structure as Model<ContentStructureDocument, typeof contentStructureSchema.statics>) ||
-	mongoose.model<
-		ContentStructureDocument,
-		Model<ContentStructureDocument, object, object, object, object, object> & typeof contentStructureSchema.statics
-	>('system_content_structure', contentStructureSchema);
+// Force model recreation to ensure schema changes take effect (especially _id: false)
+if (mongoose.models.system_content_structure) {
+	delete mongoose.models.system_content_structure;
+}
+
+// Create the model
+export const ContentStructureModel = mongoose.model<
+	ContentStructureDocument,
+	Model<ContentStructureDocument, object, object, object, object, object> & typeof contentStructureSchema.statics
+>('system_content_structure', contentStructureSchema);

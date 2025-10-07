@@ -1,31 +1,16 @@
 /**
  * @file src/databases/mongodb/methods/widgetMethods.ts
  * @description Widget registration and management for the MongoDB adapter.
- * 			// Invalidate widget caches - including the active widgets list cache
-			logger.debug('[widgetMethods.update] Invalidating active widgets cache');
-			
-			// NOTE: This cache clearing is a best-effort attempt but won't work correctly
-			// for multi-tenant setups because widgetMethods doesn't have tenant context.
-			// The REAL cache invalidation happens in /api/widgets/status/+server.ts
-			// which has access to locals.tenantId. We keep this here as defense-in-depth.
-			await Promise.all([
-				invalidateCollectionCache(`widget:id:${widgetId}`),
-				cacheService.delete('widget:active:all'), // No tenant (default)
-				cacheService.delete('widget:active:all', 'default'), // Explicit default tenant
-				cacheService.delete('widget:active:all', 'default-tenant'), // default-tenant
-				invalidateCategoryCache(CacheCategory.WIDGET)
-			]);
-			
-			logger.debug('[widgetMethods.update] Cache invalidated successfully');pendency Injection for the Mongoose model to ensure testability and remove code duplication.
+ * Provides methods to create, read, update, and delete widgets,
+ * as well as activate/deactivate them.
  */
 
 import { logger } from '@utils/logger.svelte';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
-import { createDatabaseError, withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache } from './mongoDBUtils';
+import { createDatabaseError, withCache, CacheCategory, invalidateCollectionCache, invalidateCategoryCache, generateId } from './mongoDBUtils';
 import { cacheService } from '@src/databases/CacheService';
-import { randomUUID } from 'crypto';
 
 // Define the model type for dependency injection.
 type WidgetModelType = Model<IWidget>;
@@ -53,7 +38,7 @@ export class MongoWidgetMethods {
 			// Generate UUID for _id since schema requires it
 			const widgetWithId = {
 				...widgetData,
-				_id: randomUUID()
+				_id: generateId()
 			};
 
 			logger.debug(`[WidgetMethods] Registering widget "${widgetData.name}" to database`, {
@@ -317,5 +302,29 @@ export class MongoWidgetMethods {
 		});
 
 		return result;
+	}
+
+	/**
+	 * Direct database query for active widgets
+	 * This method pushes filtering to the database layer instead of fetching all widgets
+	 * and filtering in application code. This is significantly faster for large widget sets.
+	 * @returns {Promise<Widget[]>} An array of active widget objects.
+	 * @throws {DatabaseError} If the database operation fails.
+	 */
+	async getActiveWidgets(): Promise<Widget[]> {
+		try {
+			logger.debug('[widgetMethods.getActiveWidgets] Querying active widgets from database');
+			const widgets = await this.widgetModel.find({ isActive: true }).lean().exec();
+			logger.debug('[widgetMethods.getActiveWidgets] Query completed', {
+				count: widgets.length,
+				widgets: widgets.map((w) => ({ name: w.name, _id: w._id }))
+			});
+			return widgets;
+		} catch (error) {
+			logger.error('[widgetMethods.getActiveWidgets] Failed to query active widgets', {
+				error: error instanceof Error ? error.message : String(error)
+			});
+			throw createDatabaseError(error, 'WIDGET_FETCH_ACTIVE_FAILED', 'Failed to get active widgets');
+		}
 	}
 }

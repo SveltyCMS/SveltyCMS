@@ -20,6 +20,10 @@ import { collectionsResolvers, createCleanTypeName, registerCollections } from '
 import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
 import { userResolvers, userTypeDefs } from './resolvers/users';
 
+// Widget Store - ensure widgets are loaded before GraphQL setup
+import { widgetStoreActions, isLoaded } from '@stores/widgetStore.svelte';
+import { get } from 'svelte/store';
+
 // Unified Cache Service
 import { cacheService } from '@src/databases/CacheService';
 
@@ -73,6 +77,12 @@ const cacheClient = privateEnv.USE_REDIS
 async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	try {
 		logger.info('Setting up GraphQL schema and resolvers', { tenantId });
+
+		// Ensure widgets are loaded before proceeding
+		if (!get(isLoaded)) {
+			logger.debug('Widgets not loaded yet, initializing...');
+			await widgetStoreActions.initializeWidgets(tenantId);
+		}
 
 		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections(tenantId);
 

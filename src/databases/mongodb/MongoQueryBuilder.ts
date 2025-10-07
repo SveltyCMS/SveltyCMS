@@ -250,7 +250,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
 		return {
 			executionTime,
 			cached: false, // MongoDB doesn't provide direct cache info
-			// Performance tracking for enterprise monitoring
+			// Performance tracking for monitoring
 			queryType: this.distinctField ? 'distinct' : this.groupByField ? 'aggregate' : 'find',
 			usedIndexes: this.optimizationHints?.useIndex || [],
 			batchSize: this.optimizationHints?.batchSize,

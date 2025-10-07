@@ -12,7 +12,7 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@widgets';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
@@ -26,7 +26,7 @@ Features:
 
 	// Reactive statements to derive widget-related data
 	let currentWidgetName = $derived($modalStore[0]?.value?.widget?.Name);
-	let currentGuiSchema = $derived(currentWidgetName ? widgets[currentWidgetName]?.GuiSchema : null);
+	let currentGuiSchema = $derived(currentWidgetName ? $widgetFunctions[currentWidgetName]?.GuiSchema || null : null);
 	let specificFields = $derived(currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : []);
 
 	/** Updates the target widget property */
@@ -43,7 +43,7 @@ Features:
 		<InputSwitch
 			value={targetWidget.value[property]}
 			on:toggle={(e) => handleToggle(e, property)}
-			widget={asAny(currentGuiSchema[property]?.widget)}
+			widget={asAny((currentGuiSchema as any)[property]?.widget)}
 			key={property}
 		/>
 	{/each}

@@ -109,8 +109,8 @@ Features:
 			: 'en'
 	);
 
-	// Package version
-	const pkg = __VERSION__;
+	// Package version - Use server-provided version (single source of truth)
+	const pkg = $derived(data.pkgVersion || '0.0.0');
 
 	// Language selection
 	function handleLanguageSelection(lang: string) {

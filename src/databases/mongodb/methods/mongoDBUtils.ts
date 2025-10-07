@@ -85,11 +85,27 @@ export function isDateLike(val: unknown): val is { toISOString: () => string } {
  * @param data The data structure (object, array, primitive) to process.
  * @returns A deep copy of the data with all dates converted to strings.
  */
+function isObjectIdLike(val: unknown): val is { toHexString: () => string } {
+	if (!val || typeof val !== 'object') {
+		return false;
+	}
+
+	const candidate = val as { toHexString?: unknown; _bsontype?: unknown };
+	const hasToHexString = typeof candidate.toHexString === 'function';
+	const bsonType = typeof candidate._bsontype === 'string' ? candidate._bsontype : undefined;
+
+	return hasToHexString && (!bsonType || bsonType === 'ObjectId' || bsonType === 'ObjectID');
+}
+
 export function processDates<T>(data: T): T {
 	if (!data) return data;
 
 	if (isDateLike(data)) {
 		return data.toISOString() as unknown as T;
+	}
+
+	if (isObjectIdLike(data)) {
+		return data.toHexString() as unknown as T;
 	}
 
 	if (Array.isArray(data)) {
@@ -387,7 +403,7 @@ export async function invalidateCollectionCache(collection: string, tenantId?: s
 		await cacheService.initialize();
 		const pattern = `collection:${collection}:*`;
 		await cacheService.clearByPattern(pattern, tenantId);
-		cacheMetrics.recordClear(pattern, CacheCategory.QUERY, tenantId);
+		cacheMetrics.recordClear(pattern, CacheCategory.CONTENT, tenantId);
 		logger.debug(`Cache invalidated for collection: ${collection}`, { tenantId });
 	} catch (error) {
 		logger.warn(`Failed to invalidate cache for collection ${collection}:`, error);
@@ -404,10 +420,21 @@ export async function invalidateCollectionCache(collection: string, tenantId?: s
 export async function invalidateCategoryCache(category: CacheCategory, tenantId?: string): Promise<void> {
 	try {
 		await cacheService.initialize();
-		const pattern = `*:${category}:*`;
-		await cacheService.clearByPattern(pattern, tenantId);
-		cacheMetrics.recordClear(pattern, category, tenantId);
-		logger.debug(`Cache invalidated for category: ${category}`, { tenantId });
+		const tenantScope = tenantId ?? '*';
+		const patterns = new Set<string>();
+		patterns.add(`${category}:*`);
+		patterns.add(`*:${category}:*`);
+
+		let clearedAny = false;
+		for (const pattern of patterns) {
+			await cacheService.clearByPattern(pattern, tenantScope);
+			cacheMetrics.recordClear(pattern, category, tenantId);
+			clearedAny = true;
+		}
+
+		if (clearedAny) {
+			logger.debug(`Cache invalidated for category: ${category}`, { tenantId: tenantId ?? 'all-tenants' });
+		}
 	} catch (error) {
 		logger.warn(`Failed to invalidate cache for category ${category}:`, error);
 	}

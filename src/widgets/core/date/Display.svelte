@@ -4,7 +4,7 @@
 **Date Widget Display Component**
 
 Renders ISO 8601 date values in localized format using the browser's language settings.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 

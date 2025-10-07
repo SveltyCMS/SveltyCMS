@@ -6,9 +6,8 @@
 
 <script lang="ts">
 	// Modern widget system
-	import type { WidgetKeys } from '@root/src/content/types';
 	import { activeWidgets, widgetFunctions, widgetStoreActions } from '@stores/widgetStore.svelte';
-	import widgets from '@widgets';
+	import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 	import { onMount } from 'svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -71,10 +70,11 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	// Call tooltip
-	function getIconTooltip(item: WidgetKeys): PopupSettings {
+	function getIconTooltip(item: string): PopupSettings {
 		return {
 			event: 'hover',
-			target: item as string
+			target: item,
+			placement: 'top'
 		};
 	}
 </script>
@@ -92,7 +92,7 @@
 
 			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
 				{#each widget_keys.filter((item) => item !== null) as item}
-					{#if item && widgets[item]?.GuiSchema}
+					{#if item && $widgets[item]?.GuiSchema}
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
 								onclick={() => {
@@ -103,7 +103,7 @@
 									? 'bg-primary-500'
 									: ' variant-outline-warning hover:variant-ghost-warning'}"
 							>
-								<iconify-icon icon={widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
+								<iconify-icon icon={$widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
 
 								<!-- helpericon -->
@@ -116,7 +116,7 @@
 							</button>
 							<!-- IconTooltip -->
 							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
-								<p>{widgets[item]?.Description}</p>
+								<p>{$widgets[item]?.Description}</p>
 								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/if}

@@ -19,7 +19,7 @@ import { collection, collections, collectionValue, contentStructure, mode, unAss
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
-import { ensureWidgetsInitialized } from '@widgets';
+import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // Types
 import type { Category, ContentTypes, Schema } from './types';
@@ -168,7 +168,7 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 	logger.trace('Starting getCollections');
 
 	// Initialize widgets
-	await ensureWidgetsInitialized();
+	await widgetStoreActions.initializeWidgets();
 
 	// Return cached collections if available
 	if (collectionModelsCache) {
@@ -256,7 +256,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 	logger.trace('Starting getImports function');
 
 	// Ensure widgets are initialized before importing collections
-	await ensureWidgetsInitialized();
+	await widgetStoreActions.initializeWidgets();
 	logger.trace('Widgets initialized, proceeding with collection imports');
 
 	// Return from cache if available

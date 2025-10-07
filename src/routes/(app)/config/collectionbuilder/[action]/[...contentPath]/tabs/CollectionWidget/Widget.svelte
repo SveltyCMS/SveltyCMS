@@ -10,7 +10,7 @@
 	import { page } from '$app/state';
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 	import { tabSet } from '@stores/store.svelte';
-	import widgets from '@widgets';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
@@ -151,10 +151,11 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			const widgetInstance = widgets[field.widget.Name];
-			if (!widgetInstance?.GuiSchema) return field;
+			const widgetInstance = $widgetFunctions[field.widget.Name];
+			const guiSchema = widgetInstance?.GuiSchema;
+			if (!guiSchema) return field;
 
-			const GuiFields = getGuiFields({ key: field.widget.Name }, widgetInstance.GuiSchema);
+			const GuiFields = getGuiFields({ key: field.widget.Name }, guiSchema as any);
 			for (const [property, value] of Object.entries(field)) {
 				if (typeof value !== 'object' && property !== 'id') {
 					GuiFields[property] = value;

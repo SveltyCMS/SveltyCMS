@@ -107,7 +107,13 @@ const DateWidget = createWidget<DateProps>({
 		sorts: async ({ field, sortDirection }) => ({
 			[field.db_fieldName]: sortDirection
 		})
-	}
+	},
+
+	// GraphQL schema for date
+	GraphqlSchema: () => ({
+		typeID: 'String', // ISO 8601 date string
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default DateWidget;

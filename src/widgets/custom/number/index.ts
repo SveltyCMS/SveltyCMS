@@ -80,7 +80,13 @@ const NumberWidget = createWidget<NumberProps>({
 		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
-	}
+	},
+
+	// GraphQL schema for number
+	GraphqlSchema: () => ({
+		typeID: 'Float', // Use Float for numeric values
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default NumberWidget;

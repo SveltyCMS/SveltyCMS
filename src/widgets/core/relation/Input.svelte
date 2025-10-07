@@ -4,7 +4,7 @@
 **Relation Widget Input Component**
 
 Provides entry selection interface with modal-based browsing and relationship management.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RelationInput bind:value={relationId} field={fieldDefinition} />

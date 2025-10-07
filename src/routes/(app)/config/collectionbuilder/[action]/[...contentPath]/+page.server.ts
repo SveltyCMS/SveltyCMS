@@ -31,7 +31,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
 
 // Widgets
-import widgets from '@widgets';
+import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Auth
 import { hasPermissionByAction } from '@src/databases/auth/permissions';

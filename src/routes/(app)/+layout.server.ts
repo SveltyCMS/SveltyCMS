@@ -28,11 +28,12 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
 	const locales = publicEnv.LOCALES || ['en'];
 	const baseLocale = publicEnv.BASE_LOCALE || 'en';
+	const pkgVersion = publicEnv.PKG_VERSION || '0.0.0';
 
 	try {
 		await contentManager.initialize();
 
-		const contentStructure = contentManager.getNavigationStructure();
+		const contentStructure = await contentManager.getNavigationStructure();
 
 		// Get fresh user data from database to ensure we have the latest avatar info
 		let freshUser = user;
@@ -65,7 +66,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			settings: {
 				SITE_NAME: siteName,
 				LOCALES: locales,
-				BASE_LOCALE: baseLocale
+				BASE_LOCALE: baseLocale,
+				PKG_VERSION: pkgVersion
 			}
 		};
 	} catch (error) {
@@ -80,7 +82,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			settings: {
 				SITE_NAME: siteName,
 				LOCALES: locales,
-				BASE_LOCALE: baseLocale
+				BASE_LOCALE: baseLocale,
+				PKG_VERSION: pkgVersion
 			}
 		};
 	}

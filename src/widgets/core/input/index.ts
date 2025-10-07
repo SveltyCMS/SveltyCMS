@@ -1,6 +1,6 @@
 /**
  * @file src/widgets/core/input/index.ts
- * @description Input Widget Definition - Enterprise Text Input
+ * @description Input Widget Definition - Text Input
  *
  * Implements a professional text input widget using the Three Pillars Architecture.
  * This widget is specialized for text content and supports full translation capabilities.
@@ -102,7 +102,13 @@ const InputWidget = createWidget<InputProps>({
 		sorts: async ({ field, sortDirection, contentLanguage }) => ({
 			[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
 		})
-	}
+	},
+
+	// GraphQL schema for text input
+	GraphqlSchema: () => ({
+		typeID: 'String', // Use primitive String type
+		graphql: '' // No custom type definition needed for primitives
+	})
 });
 
 export default InputWidget;

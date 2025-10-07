@@ -143,7 +143,7 @@ export interface Theme extends BaseEntity {
 export interface Widget extends BaseEntity {
 	name: string;
 	isActive: boolean; // Is the widget globally active?
-	instances: string; // Configurations for widget instances - consider making this type-safe if config structure is known
+	instances: Record<string, unknown>; // Structured configurations for widget instances (supports atomic updates)
 	dependencies: string[]; // Widget identifiers of dependencies
 }
 
@@ -335,6 +335,9 @@ export interface IDBAdapter {
 
 	// Authentication & User Management (moved from authDBInterface)
 	auth: {
+		// Setup method for model registration
+		setupAuthModels(): Promise<void>;
+		
 		// User Management Methods
 		createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
 		updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
@@ -454,7 +457,7 @@ export interface IDBAdapter {
 	// Content Management with Batch Operations
 	content: {
 		nodes: {
-			getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>): Promise<DatabaseResult<ContentNode[]>>;
+			getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>, bypassCache?: boolean): Promise<DatabaseResult<ContentNode[]>>;
 			upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
 			create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
 			createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;

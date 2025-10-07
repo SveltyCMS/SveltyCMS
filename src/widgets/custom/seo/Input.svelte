@@ -4,7 +4,7 @@
 **SEO Widget Input Component**
 
 Provides comprehensive SEO management with real-time analysis, tabbed interface, and social media optimization.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for wSidget system.
 
 @example
 <SeoInput bind:value={seoData} field={{ features: ["social", "advanced"] }} />

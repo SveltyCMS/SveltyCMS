@@ -1,7 +1,7 @@
 <!--
 @file src/widgets/core/input/Input.svelte
 @component
-**Enterprise-Grade Text Input Widget Component**
+**Text Input Widget Component**
 
 @example
 <Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />

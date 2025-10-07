@@ -1,6 +1,6 @@
 /**
  * @file src/widgets/custom/seo/seoTypes.ts
- * @description Comprehensive TypeScript types for enterprise-level SEO analysis
+ * @description Comprehensive TypeScript types for SEO analysis
  */ export interface SeoAnalysisConfig {
 	focusKeyword?: string;
 	locale: string;

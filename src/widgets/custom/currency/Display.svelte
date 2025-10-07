@@ -4,7 +4,7 @@
 **Currency Widget Display Component**
 
 Displays numeric values as properly formatted currency strings using browser localization.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for wSidget system.
 
 @example
 <CurrencyDisplay field={{ currencyCode: "EUR" }} value={1234.56} />

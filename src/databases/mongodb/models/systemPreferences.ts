@@ -7,6 +7,7 @@ import type { DashboardWidgetConfig, Layout, SystemPreferencesDocument } from '@
 import type { DatabaseResult } from '@src/databases/dbInterface';
 import type { FilterQuery, Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
+import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -44,13 +45,14 @@ const SystemPreferencesSchema = new Schema(
 		layoutId: { type: String, required: true }, // Unique layout identifier
 		layout: { type: LayoutSchema, required: true }, // Structured layout data
 		scope: { type: String, enum: ['user', 'system', 'widget'], default: 'user' }, // Scope of the preference
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now }
+		createdAt: { type: String, default: () => nowISODateString() },
+		updatedAt: { type: String, default: () => nowISODateString() }
 	},
 	{
 		timestamps: true,
 		collection: 'system_preferences',
-		strict: true // Enforce strict schema validation
+		strict: true, // Enforce strict schema validation
+		_id: false // Disable Mongoose auto-ObjectId generation
 	}
 );
 

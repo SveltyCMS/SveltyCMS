@@ -9,7 +9,7 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import widgets from '@widgets';
+	import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 	import AddWidget from './AddWidget.svelte';
 
 	import { debounce } from '@utils/utils';

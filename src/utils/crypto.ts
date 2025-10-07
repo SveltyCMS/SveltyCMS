@@ -41,9 +41,7 @@ export const argon2Config = {
 	hashLength: 32
 };
 
-/**
- * AES-256-GCM encryption configuration
- */
+// AES-256-GCM encryption configuration
 export const encryptionConfig = {
 	algorithm: 'aes-256-gcm' as const,
 	keyLength: 32, // 256 bits

@@ -53,7 +53,13 @@ const EmailWidget = createWidget<EmailProps>({
 		db_fieldName: { widget: Input, required: false },
 		required: { widget: Toggles, required: false },
 		placeholder: { widget: Input, required: false }
-	}
+	},
+
+	// GraphQL schema for email input
+	GraphqlSchema: () => ({
+		typeID: 'String', // Use primitive String type
+		graphql: '' // No custom type definition needed for primitives
+	})
 });
 
 export default EmailWidget;

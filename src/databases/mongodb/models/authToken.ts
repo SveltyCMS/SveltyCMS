@@ -23,10 +23,12 @@ import type { Token } from '@src/databases/auth/types';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // Define the Token schema
 export const TokenSchema = new Schema(
 	{
+		_id: { type: String, required: true, default: () => generateId() }, // UUID primary key
 		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
 		tenantId: { type: String, index: true }, // Tenant identifier for multi-tenancy
 		token: { type: String, required: true, unique: true }, // Token string, required field
@@ -37,7 +39,10 @@ export const TokenSchema = new Schema(
 		role: { type: String, required: false }, // Role associated with the token
 		blocked: { type: Boolean, required: false, default: false } // Whether the token is blocked
 	},
-	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
+	{
+		timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
+		_id: false // Disable Mongoose auto-ObjectId generation
+	}
 );
 
 // --- Indexes ---
@@ -61,6 +66,11 @@ export class TokenAdapter {
 	private TokenModel: Model<TokenDocument>;
 
 	constructor() {
+		// Force model recreation if schema changed
+		if (mongoose.models.auth_tokens) {
+			delete mongoose.models.auth_tokens;
+		}
+
 		// Create the Token model
 		this.TokenModel = mongoose.models?.auth_tokens || mongoose.model<TokenDocument>('auth_tokens', TokenSchema);
 	}

@@ -4,7 +4,7 @@
 **Rating Widget Input Component**
 
 Provides interactive star rating input using Skeleton Labs Ratings component.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RatingInput bind:value={rating} field={{ max: 5, iconFull: "star", iconEmpty: "star-outline" }} />

@@ -8,6 +8,8 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { SystemVirtualFolder, DatabaseResult } from '@src/databases/dbInterface';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
+import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -15,7 +17,7 @@ import { logger } from '@utils/logger.svelte';
 // System virtual folder schema
 export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 	{
-		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		_id: { type: String, required: true, default: () => generateId() }, // UUID primary key
 		name: { type: String, required: true },
 		path: { type: String, required: true, unique: true },
 		parentId: { type: String, ref: 'SystemVirtualFolder' }, // Reference to parent folder
@@ -23,13 +25,14 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 		order: { type: Number, default: 0 },
 		type: { type: String, enum: ['folder', 'collection'], required: true },
 		metadata: Schema.Types.Mixed,
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now }
+		createdAt: { type: String, default: () => nowISODateString() },
+		updatedAt: { type: String, default: () => nowISODateString() }
 	},
 	{
 		timestamps: true,
 		collection: 'system_virtual_folders',
 		strict: true, // Enforce strict schema validation
+		_id: false, // Disable Mongoose auto-ObjectId generation
 		statics: {
 			async createVirtualFolder(folder: SystemVirtualFolder): Promise<DatabaseResult<SystemVirtualFolder>> {
 				try {

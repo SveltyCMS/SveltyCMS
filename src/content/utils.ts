@@ -11,11 +11,9 @@
  * - processModule: Extracts schema from module content
  *
  * Widget Utilities:
- * - ensureWidgetsInitialized: Initializes widgets
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
-
-import widgetProxy, { ensureWidgetsInitialized } from '@src/widgets';
+import { widgetRegistryService } from '@src/widgets/WidgetRegistryService';
 import { logger } from '../utils/logger.svelte';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
 
@@ -114,8 +112,6 @@ export function constructContentPaths(contentStructure: ContentNode[]): Record<s
 
 export async function processModule(content: string): Promise<{ schema?: Schema } | null> {
 	try {
-		await ensureWidgetsInitialized();
-
 		const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{32})/i);
 		const uuid = uuidMatch ? uuidMatch[1] : null;
 
@@ -124,7 +120,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			return null;
 		}
 
-		// Extract the schema export by finding the opening brace and matching it
+		// (The code to extract 'schemaContent' remains the same...)
 		const exportMatch = content.match(/export\s+const\s+schema\s*=\s*/);
 		if (!exportMatch) {
 			logger.warn('No schema export found in module');
@@ -170,7 +166,20 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			return null;
 		}
 
-		// Create a simple evaluation context with widgets available
+		// Ensure WidgetRegistryService is initialized before processing (lazy-load trigger)
+		await widgetRegistryService.initialize();
+
+		const widgetsMap = widgetRegistryService.getAllWidgets();
+
+		// Safety check: Ensure widgets are loaded before processing
+		if (widgetsMap.size === 0) {
+			logger.warn('WidgetRegistryService not initialized yet. Cannot process module.');
+			return null;
+		}
+
+		const widgetsObject = Object.fromEntries(widgetsMap.entries());
+		logger.trace(`Processing module with \x1b[34m${widgetsMap.size}\x1b[0m widgets available:`, Array.from(widgetsMap.keys()).join(', '));
+
 		const moduleContent = `
 			return (function() {
 				const widgets = globalThis.widgets;
@@ -179,9 +188,9 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			})();
 		`;
 
-		// Set widgets on globalThis temporarily
+		// Set widgets on globalThis temporarily in a type-safe way
 		if (typeof globalThis !== 'undefined') {
-			(globalThis as any).widgets = widgetProxy;
+			(globalThis as typeof globalThis & { widgets: typeof widgetsObject }).widgets = widgetsObject;
 		}
 
 		// Create and execute the function
@@ -190,7 +199,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 
 		// Clean up
 		if (typeof globalThis !== 'undefined') {
-			delete (globalThis as any).widgets;
+			delete (globalThis as typeof globalThis & { widgets?: typeof widgetsObject }).widgets;
 		}
 
 		if (result && typeof result === 'object' && 'fields' in result) {

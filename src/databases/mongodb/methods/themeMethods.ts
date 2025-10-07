@@ -195,22 +195,34 @@ export class MongoThemeMethods {
 
 	/**
 	 * A private helper to atomically set a unique boolean flag on a document.
-	 * It first unsets the flag for all documents and then sets it for the target document.
-	 * @note For guaranteed atomicity across two collections, MongoDB sessions (transactions) would be required.
-	 * For a single collection, this two-step update is generally safe and robust.
+	 * Uses a single bulkWrite operation for atomicity and efficiency.
+	 * @param {DatabaseId} themeId - The ID of the theme to set the flag on.
+	 * @param {string} flag - The flag name ('isActive' or 'isDefault').
+	 * @returns {Promise<Theme | null>} The updated theme object or null if not found.
+	 * @throws {DatabaseError} If the operation fails.
 	 */
 	private async _setUniqueFlag(themeId: DatabaseId, flag: 'isActive' | 'isDefault'): Promise<Theme | null> {
 		try {
-			// Step 1: Unset the flag for all other themes.
-			await this.themeModel.updateMany({ _id: { $ne: themeId } }, { $set: { [flag]: false } }).exec();
+			// Single atomic bulkWrite operation: unset flag for others, then set for target
+			await this.themeModel.bulkWrite([
+				{
+					// Step 1: Unset the flag for all other themes
+					updateMany: {
+						filter: { _id: { $ne: themeId } },
+						update: { $set: { [flag]: false } }
+					}
+				},
+				{
+					// Step 2: Set the flag for the target theme
+					updateOne: {
+						filter: { _id: themeId },
+						update: { $set: { [flag]: true } }
+					}
+				}
+			]);
 
-			// Step 2: Set the flag for the specified theme and return the updated document.
-			const updatedTheme = await this.themeModel
-				.findByIdAndUpdate(themeId, { $set: { [flag]: true } }, { new: true })
-				.lean()
-				.exec();
-
-			return updatedTheme;
+			// Fetch and return the updated document
+			return await this.themeModel.findById(themeId).lean().exec();
 		} catch (error) {
 			throw createDatabaseError(error, 'THEME_FLAG_UPDATE_FAILED', `Failed to set the '${flag}' flag for theme ${themeId}`);
 		}

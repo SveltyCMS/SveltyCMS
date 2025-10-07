@@ -2,39 +2,16 @@
  * @file src/routes/api/setup/seed.ts
  * @description Seeds the database with default system settings
  *
- * This replaces the static configuration files with database\t// Media configuration
-\t{ key: 'MEDIA_STORAGE_TYPE', value: 'local', description: \t// Mapbox config
-\t{ key: 'USE_MAPBOX', value: false, description: 'Enable Mapbox integration' },
-\t{ key: 'MAPBOX_API_TOKEN', value: '', description: 'Public Mapbox API token (for client-side use)' },
-\t{ key: 'SECRET_MAPBOX_API_TOKEN', value: '', description: 'Secret Mapbox API token (for server-side use)' },
-
-\t// Cloud Storage Credentials (Private)
-\t{ key: 'MEDIA_CLOUD_ACCESS_KEY', value: '', description: 'Access key for S3/R2/compatible cloud storage' },
-\t{ key: 'MEDIA_CLOUD_SECRET_KEY', value: '', description: 'Secret key for S3/R2/compatible cloud storage' },
-\t{ key: 'MEDIA_CLOUDINARY_CLOUD_NAME', value: '', description: 'Cloudinary cloud name' },
-\t{ key: 'MEDIA_CLOUDINARY_API_KEY', value: '', description: 'Cloudinary API key' },
-\t{ key: 'MEDIA_CLOUDINARY_API_SECRET', value: '', description: 'Cloudinary API secret' },
-
-\t// Other APIs
-\t{ key: 'GOOGLE_API_KEY', value: '', description: 'Google API Key for services like Maps and YouTube' },f media storage (local, s3, r2, cloudinary)' },
-\t{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Local: Server path | Cloud: Bucket name' },
-\t{ key: 'MEDIA_OUTPUT_FORMAT_QUALITY', value: { format: 'webp', quality: 80 }, description: 'Image format and quality settings' },
-\t{ key: 'MEDIASERVER_URL', value: '', description: 'Optional: URL of a separate media server or CDN' },
-\t{ key: 'MEDIA_CLOUD_REGION', value: '', description: 'Cloud storage region (e.g., us-east-1, auto for R2)' },
-\t{ key: 'MEDIA_CLOUD_ENDPOINT', value: '', description: 'Custom endpoint for S3-compatible services' },
-\t{ key: 'MEDIA_CLOUD_PUBLIC_URL', value: '', description: 'Public URL for accessing uploaded files' },
-\t{ key: 'IMAGE_SIZES', value: { sm: 600, md: 900, lg: 1200 }, description: 'Image sizes for automatic resizing' },
-\t{ key: 'MAX_FILE_SIZE', value: 10485760, description: 'Maximum file size for uploads in bytes (10MB)' },
-\t{ key: 'BODY_SIZE_LIMIT', value: 10485760, description: 'Body size limit for server requests in bytes (10MB)' },
-\t{ key: 'USE_ARCHIVE_ON_DELETE', value: true, description: 'Enable archiving instead of permanent deletion' }, settings.
+ * This replaces the static configuration files with database settings.
  * Uses database-agnostic interfaces for compatibility across different database engines.
  */
 
 import { publicConfigSchema } from '@root/config/types';
-import type { DatabaseId, ISODateString } from '@src/content/types';
+import type { DatabaseId } from '@src/content/types';
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { logger } from '@utils/logger.svelte';
+import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
 
 // Type for setting data in snapshots
@@ -56,8 +33,8 @@ const defaultTheme: Theme = {
 		tailwindConfigPath: '',
 		assetsPath: ''
 	},
-	createdAt: new Date().toISOString() as ISODateString,
-	updatedAt: new Date().toISOString() as ISODateString
+	createdAt: dateToISODateString(new Date()),
+	updatedAt: dateToISODateString(new Date())
 };
 
 /**
@@ -106,7 +83,7 @@ export async function seedCollections(dbAdapter: DatabaseAdapter): Promise<void>
 		await contentManager.initialize();
 
 		// Get all collections from ContentManager
-		const collections = contentManager.getCollections();
+		const collections = await contentManager.getCollections();
 
 		if (collections.length === 0) {
 			logger.info('ℹ️  No collections found in filesystem, skipping collection seeding');
@@ -154,11 +131,6 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<voi
 
 	if (!adapter) {
 		throw new Error('Database adapter not available. Database must be initialized first.');
-	}
-
-	// Set up system models first
-	if (adapter.system?.setupSystemModels) {
-		await adapter.system.setupSystemModels();
 	}
 
 	// Seed the database with default settings using database-agnostic interface
@@ -211,11 +183,15 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
 	{ key: 'DEFAULT_THEME_PATH', value: '/src/themes/SveltyCMS/SveltyCMSTheme.css', description: 'Path to the default theme CSS file' },
 	{ key: 'DEFAULT_THEME_IS_DEFAULT', value: true, description: 'Whether the default theme is the default theme' },
 
-	// Versioning
-	{ key: 'PKG_VERSION', value: '0.0.5', description: 'Package version for display' },
+	// NOTE: PKG_VERSION is read dynamically from package.json at runtime, not stored in DB
+	// This ensures version always reflects the installed package and helps detect outdated installations
 
 	// Logging
-	{ key: 'LOG_LEVELS', value: ['error', 'warn', 'info'], description: 'Active logging levels' },
+	{
+		key: 'LOG_LEVELS',
+		value: ['info', 'warn', 'error', 'debug'],
+		description: 'Active logging levels (none, info, warn, error, debug, fatal, trace)'
+	},
 	{ key: 'LOG_RETENTION_DAYS', value: 30, description: 'Number of days to keep log files' },
 	{ key: 'LOG_ROTATION_SIZE', value: 10485760, description: 'Maximum size of a log file in bytes before rotation (10MB)' },
 

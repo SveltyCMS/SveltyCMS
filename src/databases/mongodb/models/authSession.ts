@@ -25,8 +25,8 @@ import mongoose, { Schema } from 'mongoose';
 import type { DatabaseResult } from '@src/databases/dbInterface';
 import type { Session, User } from '@src/databases/auth/types';
 
-// Adapter
-import { UserAdapter } from './authUser';
+// Utilities
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
@@ -34,14 +34,18 @@ import { logger } from '@utils/logger.svelte';
 // Define the Session schema
 export const SessionSchema = new Schema(
 	{
+		_id: { type: String, required: true }, // UUID as primary key
 		// Index definitions have been removed from here to prevent duplication.
 		user_id: { type: String, required: true }, // User identifier
 		tenantId: { type: String }, // Tenant identifier for multi-tenancy
-		expires: { type: Date, required: true }, // Expiry timestamp
+		expires: { type: Date, required: true }, // Expiry timestamp - MUST be Date for TTL index
 		rotated: { type: Boolean, default: false }, // Flag to mark rotated sessions
 		rotatedTo: { type: String } // ID of the new session this was rotated to
 	},
-	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
+	{
+		timestamps: true, // Automatically adds createdAt and updatedAt as Date types
+		_id: false // Disable auto ObjectId generation - we provide our own UUID
+	}
 );
 
 // --- Indexes ---
@@ -61,12 +65,41 @@ SessionSchema.index({ rotatedTo: 1 }, { sparse: true }); // Session rotation cha
  */
 export class SessionAdapter {
 	private SessionModel: Model<Session>;
-	private userAdapter: UserAdapter;
 
 	constructor() {
-		// Create the Session model if it doesn't exist
-		this.SessionModel = mongoose.models?.auth_sessions || mongoose.model<Session>('auth_sessions', SessionSchema);
-		this.userAdapter = new UserAdapter();
+		// Delete existing model if it exists to force recreation with new schema
+		if (mongoose.models?.auth_sessions) {
+			delete mongoose.models.auth_sessions;
+		}
+
+		// Create the Session model with the updated schema
+		this.SessionModel = mongoose.model<Session>('auth_sessions', SessionSchema);
+
+		// Clean up old ObjectId-based sessions (migration)
+		this.migrateToUuidSessions().catch((err) => {
+			logger.warn('Failed to migrate sessions to UUID format', { error: err.message });
+		});
+	}
+
+	// Migration: Remove old ObjectId-based sessions
+	private async migrateToUuidSessions(): Promise<void> {
+		try {
+			// Delete all sessions with ObjectId format (24-char hex strings)
+			// UUID format is 32 chars without dashes
+			const result = await this.SessionModel.deleteMany({
+				$or: [
+					{ _id: { $type: 'objectId' } }, // MongoDB ObjectId type
+					{ _id: { $regex: /^[0-9a-f]{24}$/ } } // 24-char hex string (ObjectId format)
+				]
+			});
+
+			if (result.deletedCount && result.deletedCount > 0) {
+				logger.info(`🔄 Migrated sessions: Removed ${result.deletedCount} old ObjectId-based sessions`);
+			}
+		} catch (err) {
+			// Non-critical error - old sessions will expire naturally
+			logger.debug('Session migration check completed', { error: err instanceof Error ? err.message : String(err) });
+		}
 	}
 
 	// Validate token signature and claims
@@ -130,10 +163,11 @@ export class SessionAdapter {
 	// Create a new session
 	async createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<DatabaseResult<Session>> {
 		try {
-			// Create the new session
-			const session = new this.SessionModel(sessionData);
+			// Create the new session with UUID
+			const sessionId = generateId();
+			const session = new this.SessionModel({ ...sessionData, _id: sessionId });
 			await session.save();
-			logger.info(`Session created for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
+			logger.info(`Session created: \x1b[32m${sessionId}\x1b[0m for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
 			const sessionObj = session.toObject();
 			return {
 				success: true,
@@ -153,7 +187,7 @@ export class SessionAdapter {
 		}
 	}
 
-	// Create a new session with options (internal method)
+	// Create a new session with options (optimized with atomic bulkWrite)
 	async createSessionWithOptions(
 		sessionData: { user_id: string; expires: Date; tenantId?: string },
 		options: { invalidateOthers?: boolean } = {}
@@ -161,18 +195,60 @@ export class SessionAdapter {
 		try {
 			// Only invalidate all sessions if not explicitly skipped
 			if (options.invalidateOthers !== false) {
-				const invalidationResult = await this.invalidateAllUserSessions(sessionData.user_id, sessionData.tenantId);
-				if (!invalidationResult.success) {
-					logger.warn(`Failed to invalidate existing sessions: ${invalidationResult.message}`);
-				}
-			}
+				// Use bulkWrite for atomic operation: delete old sessions + insert new one
+				// This is more efficient than separate deleteMany + insertOne calls
+				const now = new Date();
+				const filter: Record<string, unknown> = {
+					user_id: sessionData.user_id,
+					expires: { $gt: now }, // Only delete active (non-expired) sessions
+					$or: [
+						{ rotated: { $ne: true } }, // Delete non-rotated sessions
+						{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000) } } // Delete rotated sessions close to expiry
+					]
+				};
 
-			// Then create the new session
-			const sessionResult = await this.createSession(sessionData);
-			if (!sessionResult.success) {
-				throw new Error(sessionResult.message);
+				if (sessionData.tenantId) {
+					filter.tenantId = sessionData.tenantId;
+				}
+
+				// Create new session document with UUID
+				const sessionId = generateId();
+				const newSession = new this.SessionModel({ ...sessionData, _id: sessionId });
+
+				// Execute both operations atomically with bulkWrite
+				await this.SessionModel.bulkWrite([
+					{
+						// Step 1: Delete all existing active sessions for this user
+						deleteMany: {
+							filter
+						}
+					},
+					{
+						// Step 2: Insert the new session
+						insertOne: {
+							document: newSession
+						}
+					}
+				]);
+
+				logger.info(`Session created: \x1b[32m${sessionId}\x1b[0m for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
+
+				// Return the formatted session
+				return this.formatSession({
+					_id: sessionId,
+					user_id: sessionData.user_id,
+					expires: sessionData.expires,
+					tenantId: sessionData.tenantId,
+					rotated: false
+				});
+			} else {
+				// Just create the new session without invalidating others
+				const sessionResult = await this.createSession(sessionData);
+				if (!sessionResult.success) {
+					throw new Error(sessionResult.message);
+				}
+				return sessionResult.data;
 			}
-			return sessionResult.data;
 		} catch (err) {
 			const message = `Error in SessionAdapter.createSessionWithOptions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -289,7 +365,7 @@ export class SessionAdapter {
 	async deleteSession(session_id: string): Promise<DatabaseResult<void>> {
 		try {
 			await this.SessionModel.findByIdAndDelete(session_id);
-			logger.info(`Session deleted: ${session_id}`);
+			logger.info(`Session deleted: \x1b[33m${session_id}\x1b[0m`);
 			return {
 				success: true,
 				data: undefined
@@ -335,51 +411,83 @@ export class SessionAdapter {
 		}
 	}
 
-	// Validate a session (enhanced to handle rotated sessions)
+	// Validate a session (optimized with MongoDB $lookup aggregation)
 	async validateSession(session_id: string): Promise<DatabaseResult<User | null>> {
 		try {
-			const session = await this.SessionModel.findById(session_id).lean();
-			if (!session) {
-				logger.warn('Session not found', { session_id });
+			// UUID validation (UUIDs are strings, not ObjectIds)
+			if (!session_id || typeof session_id !== 'string' || session_id.length < 32) {
+				logger.warn('Invalid session ID format', { session_id });
 				return { success: true, data: null };
 			}
 
-			if (new Date(session.expires) <= new Date()) {
-				await this.SessionModel.findByIdAndDelete(session_id);
-				logger.warn('Expired session', { session_id });
-				return { success: true, data: null };
-			}
+			// DEBUG: Check if session exists in database
+			const sessionExists = await this.SessionModel.findById(session_id).lean();
+			logger.debug('Session lookup', {
+				session_id,
+				exists: !!sessionExists,
+				expires: sessionExists?.expires,
+				expired: sessionExists ? new Date(sessionExists.expires) <= new Date() : null
+			});
 
-			// If this is a rotated session, check if we should redirect to the new session
-			if (session.rotated && session.rotatedTo) {
-				logger.debug(`Session ${session_id} was rotated to ${session.rotatedTo}, but still valid during grace period`);
-				// Still return the user for the grace period, but log the rotation
-			}
+			// Use MongoDB aggregation pipeline to join session and user in a single query
+			// This replaces two sequential database calls with one optimized query
+			const results = await this.SessionModel.aggregate([
+				// Stage 1: Find the session by its ID (UUID string)
+				{ $match: { _id: session_id } },
+				// Stage 2: Check for expiration
+				{ $match: { expires: { $gt: new Date() } } },
+				// Stage 3: "Join" with the auth_users collection (both using UUID strings)
+				{
+					$lookup: {
+						from: 'auth_users',
+						localField: 'user_id', // UUID string
+						foreignField: '_id', // UUID string
+						as: 'user'
+					}
+				},
+				// Stage 4: Deconstruct the user array
+				{ $unwind: { path: '$user', preserveNullAndEmptyArrays: false } },
+				// Stage 5: Add rotation metadata to user object
+				{
+					$addFields: {
+						'user._sessionRotated': '$rotated',
+						'user._sessionRotatedTo': '$rotatedTo'
+					}
+				},
+				// Stage 6: Make user the root document
+				{ $replaceRoot: { newRoot: '$user' } }
+			]);
 
-			logger.debug('Session validated', { session_id });
-			// getUserById may throw errors, we need to handle them
-			try {
-				const userResult = await this.userAdapter.getUserById(session.user_id);
-				if (userResult.success) {
-					return { success: true, data: userResult.data };
-				} else {
-					const userMessage = `Failed to get user: ${userResult.message || 'Unknown error'}`;
-					logger.error(userMessage);
-					return {
-						success: false,
-						message: userMessage,
-						error: { code: 'USER_RETRIEVAL_ERROR', message: userMessage }
-					};
+			logger.debug('Aggregation results', {
+				session_id,
+				resultsCount: results.length,
+				hasUser: results.length > 0 && !!results[0]
+			});
+
+			if (results.length > 0) {
+				const user = results[0];
+
+				// Log rotation status if applicable
+				if (user._sessionRotated && user._sessionRotatedTo) {
+					logger.debug(`Session ${session_id} was rotated to ${user._sessionRotatedTo}, but still valid during grace period`);
 				}
-			} catch (userErr) {
-				const userMessage = `Error getting user in validateSession: ${userErr instanceof Error ? userErr.message : String(userErr)}`;
-				logger.error(userMessage);
-				return {
-					success: false,
-					message: userMessage,
-					error: { code: 'USER_RETRIEVAL_ERROR', message: userMessage }
-				};
+
+				// Remove session metadata from user object
+				delete user._sessionRotated;
+				delete user._sessionRotatedTo;
+
+				// Normalize ID
+				user._id = user._id.toString();
+
+				logger.debug('Session validated', { session_id });
+				return { success: true, data: user as User };
 			}
+
+			// If no results, the session is invalid, expired, or the user doesn't exist
+			// Clean up the potentially invalid session
+			await this.SessionModel.findByIdAndDelete(session_id);
+			logger.warn('Session invalid or expired', { session_id });
+			return { success: true, data: null };
 		} catch (err) {
 			const message = `Error in SessionAdapter.validateSession: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);

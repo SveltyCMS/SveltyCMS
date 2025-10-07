@@ -52,9 +52,17 @@
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { ensureWidgetsInitialized, widgetFunctions } from '@src/widgets'; // Dynamic import of all widget components using Vite's glob import
+	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte'; // Dynamic import of all widget components using Vite's glob import
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
+	});
+
+	// Subscribe to the widget functions store
+	let widgetFunctions = $state<Record<string, any>>({});
+	$effect(() => {
+		widgetFunctionsStore.subscribe((value) => {
+			widgetFunctions = value;
+		})();
 	});
 
 	let { fields = undefined } = $props<{
@@ -70,7 +78,8 @@
 	// Initialize widgets when Fields component mounts (only needed for edit/create mode)
 	onMount(async () => {
 		try {
-			await ensureWidgetsInitialized();
+			// Force widget reload to bypass cache and apply normalization
+			await widgetStoreActions.initializeWidgets(tenantId);
 			widgetsReady = true;
 		} catch (error) {
 			console.error('[Fields] Failed to initialize widgets:', error);
@@ -464,7 +473,10 @@
 										<!-- Widget Input -->
 										{#if field.widget}
 											{@const widgetName = field.widget.Name}
-											{@const widgetPath = widgetFunctions().get(widgetName)?.componentPath}
+											{@const widgetPath =
+												widgetFunctions[widgetName]?.componentPath ||
+												widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
+												widgetFunctions[widgetName.toLowerCase()]?.componentPath}
 											{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
 
 											{#if WidgetComponent}

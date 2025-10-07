@@ -26,9 +26,7 @@ async function decryptSensitiveData(encryptedData: string, password: string): Pr
 	}
 }
 
-/**
- * Validate import data structure
- */
+// Validate import data structure
 async function validateImportData(data: ExportData): Promise<ValidationResult> {
 	const errors: ValidationError[] = [];
 	const warnings: ValidationWarning[] = [];
@@ -134,9 +132,7 @@ async function validateImportData(data: ExportData): Promise<ValidationResult> {
 	};
 }
 
-/**
- * Detect conflicts between current and import data
- */
+// Detect conflicts between current and import data
 async function detectConflicts(importData: ExportData): Promise<Conflict[]> {
 	const conflicts: Conflict[] = [];
 

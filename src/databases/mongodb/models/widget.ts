@@ -9,6 +9,8 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { Widget, DatabaseResult } from '@src/databases/dbInterface';
+import { nowISODateString } from '@utils/dateUtils';
+import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -16,22 +18,22 @@ import { logger } from '@utils/logger.svelte';
 // Widget schema
 export const widgetSchema = new Schema<Widget>(
 	{
-		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		_id: { type: String, required: true, default: () => generateId() }, // UUID primary key
 		name: { type: String, required: true, unique: true }, // Unique name for the widget
 		isActive: { type: Boolean, default: false }, // Whether the widget is globally active
 		instances: {
-			type: Map,
-			of: Object, // Store configurations for widget instances (type-safe if needed)
+			type: Schema.Types.Mixed, // Structured configurations (supports atomic updates via dot notation)
 			default: {}
 		},
 		dependencies: [String], // Widget identifiers of dependencies
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now }
+		createdAt: { type: String, default: () => nowISODateString() },
+		updatedAt: { type: String, default: () => nowISODateString() }
 	},
 	{
 		timestamps: true,
 		collection: 'system_widgets',
-		strict: true // Enforce strict schema validation
+		strict: true, // Enforce strict schema validation
+		_id: false // Disable Mongoose auto-ObjectId generation
 	}
 );
 
@@ -49,10 +51,13 @@ widgetSchema.statics = {
 			const widgets = await this.find().lean().exec();
 			return { success: true, data: widgets };
 		} catch (error) {
-			logger.error(`Error fetching all widgets: ${error.message}`);
+			const err = error as Error;
+			const message = 'Failed to fetch widgets';
+			logger.error(`Error fetching all widgets: ${err.message}`);
 			return {
 				success: false,
-				error: { code: 'WIDGET_FETCH_ERROR', message: 'Failed to fetch widgets' }
+				message,
+				error: { code: 'WIDGET_FETCH_ERROR', message }
 			};
 		}
 	},
@@ -61,13 +66,16 @@ widgetSchema.statics = {
 	async getActiveWidgets(): Promise<DatabaseResult<string[]>> {
 		try {
 			const widgets = await this.find({ isActive: true }, 'name').lean().exec();
-			const activeWidgetNames = widgets.map((widget) => widget.name);
+			const activeWidgetNames = widgets.map((widget: Widget) => widget.name);
 			return { success: true, data: activeWidgetNames };
 		} catch (error) {
-			logger.error(`Error fetching active widgets: ${error.message}`);
+			const err = error as Error;
+			const message = 'Failed to fetch active widgets';
+			logger.error(`Error fetching active widgets: ${err.message}`);
 			return {
 				success: false,
-				error: { code: 'ACTIVE_WIDGETS_FETCH_ERROR', message: 'Failed to fetch active widgets' }
+				message,
+				error: { code: 'ACTIVE_WIDGETS_FETCH_ERROR', message }
 			};
 		}
 	},
@@ -78,12 +86,11 @@ widgetSchema.statics = {
 			// Check if widget exists first
 			const widget = await this.findOne({ name: widgetName }).exec();
 			if (!widget) {
+				const message = `Widget "${widgetName}" not found in database.`;
 				return {
 					success: false,
-					error: {
-						code: 'WIDGET_NOT_FOUND',
-						message: `Widget "${widgetName}" not found in database.`
-					}
+					message,
+					error: { code: 'WIDGET_NOT_FOUND', message }
 				};
 			}
 
@@ -94,17 +101,17 @@ widgetSchema.statics = {
 			}
 
 			// Activate the widget
-			await this.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
+			await this.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: nowISODateString() } }).exec();
 			logger.info(`Widget "${widgetName}" activated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error activating widget "${widgetName}": ${error.message}`);
+			const err = error as Error;
+			const message = `Failed to activate widget "${widgetName}"`;
+			logger.error(`Error activating widget "${widgetName}": ${err.message}`);
 			return {
 				success: false,
-				error: {
-					code: 'WIDGET_ACTIVATION_ERROR',
-					message: `Failed to activate widget "${widgetName}"`
-				}
+				message,
+				error: { code: 'WIDGET_ACTIVATION_ERROR', message }
 			};
 		}
 	},
@@ -115,12 +122,11 @@ widgetSchema.statics = {
 			// Check if widget exists first
 			const widget = await this.findOne({ name: widgetName }).exec();
 			if (!widget) {
+				const message = `Widget "${widgetName}" not found in database.`;
 				return {
 					success: false,
-					error: {
-						code: 'WIDGET_NOT_FOUND',
-						message: `Widget "${widgetName}" not found in database.`
-					}
+					message,
+					error: { code: 'WIDGET_NOT_FOUND', message }
 				};
 			}
 
@@ -131,17 +137,17 @@ widgetSchema.statics = {
 			}
 
 			// Deactivate the widget
-			await this.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
+			await this.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: nowISODateString() } }).exec();
 			logger.info(`Widget "${widgetName}" deactivated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error deactivating widget "${widgetName}": ${error.message}`);
+			const err = error as Error;
+			const message = `Failed to deactivate widget "${widgetName}"`;
+			logger.error(`Error deactivating widget "${widgetName}": ${err.message}`);
 			return {
 				success: false,
-				error: {
-					code: 'WIDGET_DEACTIVATION_ERROR',
-					message: `Failed to deactivate widget "${widgetName}"`
-				}
+				message,
+				error: { code: 'WIDGET_DEACTIVATION_ERROR', message }
 			};
 		}
 	},
@@ -149,23 +155,64 @@ widgetSchema.statics = {
 	// Update a widget's configuration
 	async updateWidget(widgetName: string, updateData: Partial<Widget>): Promise<DatabaseResult<void>> {
 		try {
-			const result = await this.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+			const result = await this.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: nowISODateString() } }).exec();
 			if (result.modifiedCount === 0) {
+				const message = `Widget "${widgetName}" not found or no changes applied.`;
 				return {
 					success: false,
-					error: {
-						code: 'WIDGET_NOT_FOUND',
-						message: `Widget "${widgetName}" not found or no changes applied.`
-					}
+					message,
+					error: { code: 'WIDGET_NOT_FOUND', message }
 				};
 			}
 			logger.info(`Widget "${widgetName}" updated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error updating widget "${widgetName}": ${error.message}`);
+			const err = error as Error;
+			const message = `Failed to update widget "${widgetName}"`;
+			logger.error(`Error updating widget "${widgetName}": ${err.message}`);
 			return {
 				success: false,
-				error: { code: 'WIDGET_UPDATE_ERROR', message: `Failed to update widget "${widgetName}"` }
+				message,
+				error: { code: 'WIDGET_UPDATE_ERROR', message }
+			};
+		}
+	},
+
+	// Atomically update a specific widget instance configuration
+	// Example: updateWidgetInstance('myWidget', 'dashboard-header', { color: 'blue', size: 'large' })
+	async updateWidgetInstance(widgetName: string, instanceId: string, instanceConfig: Record<string, unknown>): Promise<DatabaseResult<void>> {
+		try {
+			// Use dot notation to atomically update a specific instance without fetching/parsing/writing
+			// This prevents race conditions and is much more efficient
+			const result = await this.updateOne(
+				{ name: widgetName },
+				{
+					$set: {
+						[`instances.${instanceId}`]: instanceConfig,
+						updatedAt: nowISODateString()
+					}
+				}
+			).exec();
+
+			if (result.matchedCount === 0) {
+				const message = `Widget "${widgetName}" not found.`;
+				return {
+					success: false,
+					message,
+					error: { code: 'WIDGET_NOT_FOUND', message }
+				};
+			}
+
+			logger.info(`Widget "${widgetName}" instance "${instanceId}" updated successfully.`);
+			return { success: true, data: undefined };
+		} catch (error) {
+			const err = error as Error;
+			const message = `Failed to update widget instance "${instanceId}" for widget "${widgetName}"`;
+			logger.error(`Error updating widget instance: ${err.message}`);
+			return {
+				success: false,
+				message,
+				error: { code: 'WIDGET_INSTANCE_UPDATE_ERROR', message }
 			};
 		}
 	}

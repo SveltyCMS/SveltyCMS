@@ -63,7 +63,13 @@ const RadioWidget = createWidget<RadioProps, ReturnType<typeof validationSchema>
 			required: true,
 			helper: "Enter an array of objects, e.g., [{label: 'First', value: 1}, {label: 'Second', value: 2}]"
 		}
-	}
+	},
+
+	// GraphQL schema for radio
+	GraphqlSchema: () => ({
+		typeID: 'String', // Radio value as string
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default RadioWidget;

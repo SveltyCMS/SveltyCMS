@@ -1,7 +1,7 @@
 <!--
 @file src/widgets/custom/phoneNumber/Input.svelte
 @component
-**Enterprise-Grade PhoneNumber Widget Component**
+**PhoneNumber Widget Component**
 
 @example
 <PhoneNumber field={{ label: "Phon				placeholder={typeof field?.placeholder === 'string' && field?.placeholder.trim() !== '' ? field.placeholder : '+1234567890'}

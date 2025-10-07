@@ -24,7 +24,7 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	import type { ContentNode, Schema, StatusType, Translation } from '@src/content/types';
+	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
 	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
@@ -34,10 +34,10 @@ Features:
 	import { get } from 'svelte/store';
 	import { untrack } from 'svelte';
 
-	// Patch: declare constructNestedStructure returns ExtendedContentNode[] for this file
-	// (If needed, update utils.ts to export with correct type)
 	// Utils
 	import { debounce } from '@utils/utils';
+	import { validateSchemaWidgets } from '@utils/widgetValidation';
+	import { activeWidgets } from '@stores/widgetStore.svelte';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
@@ -46,13 +46,15 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Extend ContentNode to ensure path property is available
-	interface ExtendedContentNode extends ContentNode {
+	interface ExtendedContentNode extends Omit<ContentNode, 'children' | 'order'> {
 		// All ContentNode properties (_id, name, nodeType, translations, etc.) are inherited
 		path?: string;
-		children?: ExtendedContentNode[];
+		children?: ExtendedContentNode[]; // Recursive reference with ExtendedContentNode
 		lastModified?: Date;
 		fileCount?: number;
 		status?: StatusType;
+		fields?: FieldInstance[]; // Add fields property for collection nodes (array of FieldInstance)
+		order?: number; // Override to make order optional for client-side operations
 	}
 
 	// Tree node interface with additional properties
@@ -68,6 +70,8 @@ Features:
 			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
 			color?: string;
 			visible?: boolean;
+			icon?: string; // Warning icon for inactive widgets
+			title?: string; // Tooltip text
 		};
 		nodeType?: 'category' | 'collection' | 'virtual';
 		path?: string;
@@ -105,7 +109,6 @@ Features:
 		if (contentStructure.value !== lastContentStructure) {
 			lastContentStructure = contentStructure.value;
 			// contentStructure.value is ALREADY nested from getNavigationStructure()
-			// Don't call constructNestedStructure() on it!
 			cachedNestedStructure = contentStructure.value || [];
 		}
 		return cachedNestedStructure;
@@ -174,6 +177,14 @@ Features:
 				const nodeId = node._id;
 				const isExpanded = expanded.has(nodeId) || selectedId === nodeId;
 
+				// Check for inactive widgets if this is a collection
+				let hasInactiveWidgets = false;
+				if (!isCategory && node.fields) {
+					const activeWidgetList = get(activeWidgets);
+					const validation = validateSchemaWidgets({ ...node, fields: node.fields } as Schema, activeWidgetList);
+					hasInactiveWidgets = !validation.valid;
+				}
+
 				let children: CollectionTreeNode[] | undefined;
 				if (isCategory && node.children) {
 					// Sort children by order before mapping
@@ -192,7 +203,14 @@ Features:
 								: undefined,
 							color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
 						}
-					: undefined;
+					: hasInactiveWidgets
+						? {
+								visible: true,
+								color: 'bg-warning-500',
+								icon: 'mdi:alert-circle',
+								title: 'This collection uses inactive widgets'
+							}
+						: undefined;
 
 				return {
 					...node,
@@ -663,7 +681,7 @@ Features:
 				compact={!isFullSidebar}
 				search={debouncedSearch}
 				iconColorClass="text-error-500"
-				showBadges={isFullSidebar}
+				showBadges={true}
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-surface-500">

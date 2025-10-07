@@ -1,7 +1,7 @@
 <!--
 @file src/widgets/custom/email/Input.svelte
 @component
-**Enterprise-Grade Email Widget Component**
+**Email Widget Component**
 
 @example
 <Email field={{ label: "Email", d			id={field.db_fieldName}

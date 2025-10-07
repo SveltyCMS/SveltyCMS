@@ -59,10 +59,10 @@ export { generateRandomToken, generateTokenWithExpiry, SESSION_COOKIE_NAME } fro
 // Import for internal use
 import { SESSION_COOKIE_NAME } from './constants';
 
-// Import shared crypto utilities with enterprise-grade Argon2
+// Import shared crypto utilities with Argon2
 import { hashPassword as cryptoHashPassword, verifyPassword as cryptoVerifyPassword } from '@utils/crypto';
 
-// Import caching for enterprise performance
+// Import caching
 import { cacheService, CacheCategory } from '@src/databases/CacheService';
 
 // Main Auth class
@@ -174,7 +174,7 @@ export class Auth {
 	}
 
 	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
-		// Enterprise caching: Cache user data using USER category (dynamic TTL from settings)
+		// Cache user data using USER category (dynamic TTL from settings)
 		const cacheKey = `user:id:${user_id}`;
 		const cached = await cacheService.get<User>(cacheKey, tenantId, CacheCategory.USER);
 		if (cached) {
@@ -195,7 +195,7 @@ export class Auth {
 		return (result as User | null) ?? null;
 	}
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
-		// Enterprise caching: Cache user lookups by email using USER category
+		// Cache user lookups by email using USER category
 		const cacheKey = `user:email:${criteria.email.toLowerCase()}`;
 		const cached = await cacheService.get<User>(cacheKey, criteria.tenantId, CacheCategory.USER);
 		if (cached) {

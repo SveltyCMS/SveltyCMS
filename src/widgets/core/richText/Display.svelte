@@ -4,7 +4,7 @@
 **RichText Widget Display Component**
 
 Renders sanitized HTML content with optional titles in a prose-styled container.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RichTextDisplay value={{ title: "Article", content: "<p>Rich <strong>text</strong> content</p>" }} />

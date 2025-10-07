@@ -4,7 +4,7 @@
 **Date Widget Input Component**
 
 Provides native HTML date input with automatic ISO 8601 normalization.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <DateInput bind:value={dateValue} field={fieldDefinition} />

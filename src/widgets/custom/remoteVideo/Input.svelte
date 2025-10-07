@@ -4,7 +4,7 @@
 **RemoteVideo Widget Input Component**
 
 Provides URL input with automatic video metadata fetching and preview from multiple platforms.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RemoteVideoInput bind:value={videoData} field={{ allowedPlatforms: ["youtube", "vimeo"] }} />

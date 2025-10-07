@@ -49,7 +49,6 @@ import { logger } from '@utils/logger.svelte';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
-import { fetchAndCacheCollectionData, getFirstCollectionInfo } from '@utils/collections-prefetch';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -78,7 +77,7 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to wait for auth service to be ready
 async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 	const startTime = Date.now();
-	logger.debug(`Waiting for auth service to be ready (timeout: ${maxWaitMs}ms)...`);
+	logger.debug(`Waiting for auth service to be ready (timeout: \x1b[32m${maxWaitMs}ms\x1b[0m)...`);
 
 	while (Date.now() - startTime < maxWaitMs) {
 		try {
@@ -95,7 +94,7 @@ async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 
 			// Check if auth service is ready
 			if (auth && typeof auth.validateSession === 'function') {
-				logger.debug(`Auth service ready after ${Date.now() - startTime}ms`);
+				logger.debug(`Auth service ready after \x1b[32m${Date.now() - startTime}ms\x1b[0m`);
 				return true;
 			}
 
@@ -103,7 +102,7 @@ async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 			const elapsed = Date.now() - startTime;
 			if (elapsed % 5000 < 100) {
 				logger.debug(
-					`Auth service not ready yet, elapsed: ${elapsed}ms, auth: ${!!auth}, validateSession: ${auth && typeof auth.validateSession === 'function'}`
+					`Auth service not ready yet, elapsed: \x1b[32m${elapsed}ms\x1b[0m, auth: \x1b[34m${!!auth}\x1b[0m, validateSession: ${auth && typeof auth.validateSession === 'function'}`
 				);
 			}
 
@@ -131,9 +130,9 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
 	try {
 		await dbInitPromise;
-		logger.debug(`Fetching first collection path for language: ${language}`);
+		logger.debug(`Fetching first collection path for language: \x1b[34m${language}\x1b[0m`);
 
-		const firstCollection = contentManager.getFirstCollection();
+		const firstCollection = await contentManager.getFirstCollection();
 		if (firstCollection?.path) {
 			// Ensure the collection path has a leading slash
 			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
@@ -171,7 +170,7 @@ async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promis
 	// Cache the result if it's a valid path (not null)
 	if (result && result !== '/') {
 		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
-		logger.debug(`Cached new path for language '${language}': ${result}`);
+		logger.debug(`Cached new path for language '\x1b[34m${language}\x1b[0m': \x1b[32m${result}\x1b[0m`);
 	}
 
 	return result;
@@ -496,7 +495,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		// ENHANCEMENT: Pre-emptively get the info for the first collection.
 		// This tells us where the user will likely go after logging in and can be shown in the UI.
-		const firstCollection = await getFirstCollectionInfo(userLanguage);
+		const firstCollectionSchema = await contentManager.getFirstCollection();
+		const firstCollection = firstCollectionSchema
+			? {
+					collectionId: firstCollectionSchema._id,
+					name: firstCollectionSchema.name,
+					path: firstCollectionSchema.path
+				}
+			: null;
 
 		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
@@ -521,7 +527,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			loginForm,
 			forgotForm,
 			resetForm,
-			signUpForm
+			signUpForm,
+			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
 		};
 	} catch (initialError) {
 		const err = initialError as Error;
@@ -538,7 +545,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			forgotForm: await superValidate(wrappedForgotSchema),
 			resetForm: await superValidate(wrappedResetSchema),
 			signUpForm: await superValidate(wrappedSignUpSchema),
-			error: 'The login system encountered an unexpected error. Please try again later.'
+			error: 'The login system encountered an unexpected error. Please try again later.',
+			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
 		};
 	}
 };
@@ -695,7 +703,7 @@ export const actions: Actions = {
 		const langFromStore = get(systemLanguage) as Locale | null;
 		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
 		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
-		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
+		logger.debug(`Validated user language for sign-in: \x1b[34m${userLanguage}\x1b[0m`);
 		// --- END: Language Validation Logic ---
 
 		const startTime = performance.now();
@@ -787,13 +795,8 @@ export const actions: Actions = {
 					redirectPath = collectionPath;
 				}
 
-				// Trigger the data prefetch immediately after successful login.
-				fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-					logger.debug('Data caching failed during sign-in:', err);
-				});
-
 				const endTime = performance.now();
-				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
+				logger.debug(`SignIn completed in \x1b[32m${(endTime - startTime).toFixed(2)}ms\x1b[0m`);
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
 				logger.warn(`Sign-in failed`, { email, errorMessage });
@@ -886,10 +889,10 @@ export const actions: Actions = {
 			});
 
 			updatePromise.catch((err) => {
-				logger.error(`Failed to update user attributes after 2FA login for ${userId}:`, err);
+				logger.error(`Failed to update user attributes after 2FA login for \x1b[32m${userId}\x1b[0m:`, err);
 			});
 
-			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
+			logger.info(`User logged in successfully with 2FA: \x1b[34m${user.username}\x1b[0m (\x1b[32m${userId}\x1b[0m)`);
 
 			// Get redirect path
 			const loggedInUser = await auth.getUserById(userId);
@@ -899,11 +902,6 @@ export const actions: Actions = {
 				const isAdmin = hasPermissionWithRoles(loggedInUser, 'config:collectionbuilder', roles);
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
-
-			// Trigger data prefetch
-			fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-				logger.debug('Data caching failed during 2FA sign-in:', err);
-			});
 
 			throw redirect(303, redirectPath);
 		} catch (e) {
@@ -1121,12 +1119,18 @@ export const actions: Actions = {
 		try {
 			logger.info(`Collection lookup triggered for language: \x1b[34m${userLanguage}}\x1b[0m`);
 
-			// Import and call lookup function (no data fetching, just collection info)
-			const { getFirstCollectionInfo } = await import('@utils/collections-prefetch');
-			const collectionInfo = await getFirstCollectionInfo(userLanguage);
+			// Get first collection from ContentManager (cached lookup)
+			const firstCollectionSchema = await contentManager.getFirstCollection();
+			const collectionInfo = firstCollectionSchema
+				? {
+						collectionId: firstCollectionSchema._id,
+						name: firstCollectionSchema.name,
+						path: firstCollectionSchema.path
+					}
+				: null;
 
 			if (collectionInfo) {
-				logger.info(`Collection lookup completed successfully: \x1b[34m${collectionInfo.name}}\x1b[0m`);
+				logger.info(`Collection lookup completed successfully: \x1b[34m${collectionInfo.name}\x1b[0m`);
 				return { success: true, collection: collectionInfo };
 			} else {
 				logger.debug('No collection found');

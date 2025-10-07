@@ -4,7 +4,7 @@
 **Rating Widget Display Component**
 
 Displays numeric ratings as visual star ratings with customizable icons and colors.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RatingDisplay field={{ max: 5 }} value={4} />

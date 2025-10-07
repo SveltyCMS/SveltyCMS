@@ -7,7 +7,7 @@
  * system preferences, and related content management structures.
  */
 
-import type widgets from '@widgets';
+import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Auth
 import type { RolePermissions } from '@src/databases/auth/types';
@@ -292,3 +292,5 @@ export interface ImportError {
 
 // Sensitive field patterns to exclude from exports
 export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT_SECRET', 'PRIVATE_KEY', 'JWT_SECRET', 'ENCRYPTION_KEY', 'API_KEY'];
+
+export type ContentTypes = {};

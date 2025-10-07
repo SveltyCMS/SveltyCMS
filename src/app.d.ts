@@ -14,7 +14,6 @@ declare global {
 	/// <reference path="./types/**/*.d.ts" />
 
 	// Vite global variables
-	const __VERSION__: string;
 	const __FRESH_INSTALL__: boolean;
 
 	declare type Item = import('svelte-dnd-action').Item;

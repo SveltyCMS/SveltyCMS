@@ -29,7 +29,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 
-	import { initializeWidgets } from '@src/widgets';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Create local tabSet variable for binding
 	let localTabSet = $state(tabSet.value);
@@ -206,7 +206,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	onMount(() => {
 		// Set the initial tab
-		initializeWidgets();
+		widgetStoreActions.initializeWidgets();
 		tabSet.set(0);
 	});
 </script>

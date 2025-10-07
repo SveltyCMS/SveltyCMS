@@ -942,17 +942,17 @@
 												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
 											</div>
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_host?.() || m.setup_db_test_host()}:</span>
+												<span class="font-semibold">{m.label_host()}:</span>
 												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
 											</div>
 											{#if !isFullUri}
 												<div class="sm:col-span-1">
-													<span class="font-semibold">{m.label_port?.() || m.setup_db_test_port()}:</span>
+													<span class="font-semibold">{m.label_port()}:</span>
 													<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
 												</div>
 											{/if}
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_database?.() || m.setup_db_test_database()}:</span>
+												<span class="font-semibold">{m.label_database()}:</span>
 												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
 											</div>
 											{#if wizard.dbConfig.user}

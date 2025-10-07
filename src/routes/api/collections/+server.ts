@@ -37,7 +37,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const includeStats = url.searchParams.get('includeStats') === 'true';
 
 		// Get all collections from ContentManager (returns an array)
-		const allCollections = contentManager.getCollections(tenantId);
+		const allCollections = await contentManager.getCollections(tenantId);
 
 		const accessibleCollections = [];
 

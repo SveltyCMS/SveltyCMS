@@ -4,7 +4,7 @@
 **Address Widget Input Component**
 
 Provides comprehensive address input with interactive Mapbox integration and geocoding.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <AddressInput bind:value={addressData} field={fieldDefinition} />

@@ -4,7 +4,7 @@
 **MegaMenu Widget Display Component**
 
 Renders hierarchical menu structures as nested lists with multilingual support.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <MegaMenuDisplay value={menuItems} />

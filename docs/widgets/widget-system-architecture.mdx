@@ -419,22 +419,6 @@ export async function updateWidgetConfig(widgetName: string, config: Record<stri
 export async function loadWidgets(): Promise<Record<string, Widget>>;
 ```
 
-**Migration Path**:
-
-```typescript
-// OLD (widgetManager)
-import { getActiveWidgets } from '@widgets/widgetManager.svelte';
-const active = getActiveWidgets();
-
-// NEW (widgetStore)
-import { activeWidgets } from '@stores/widgetStore.svelte';
-activeWidgets.subscribe(($active) => {
-	console.log('Active:', $active);
-});
-```
-
----
-
 ## Widget Structure
 
 Each widget follows a consistent directory structure:

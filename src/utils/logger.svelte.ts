@@ -40,7 +40,7 @@ const getEnv = <T>(key: keyof typeof publicEnv, defaultValue: T): T => {
 const isServer = !browser;
 
 // Type Definitions
-type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none';
+type LogLevel = 'none' | 'info' | 'error' | 'warn' | 'fatal' | 'debug' | 'trace';
 
 // Define a type for loggable values
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
@@ -93,7 +93,7 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 	trace: { priority: 6, color: 'cyan' } // Least restrictive: all log levels
 };
 
-// --- PERFORMANCE: Use plain objects instead of $state for config and state ---
+// --- Use plain objects instead of $state for config and state ---
 const config = {
 	logRotationInterval: 60 * 60 * 1000, // 1 hour in milliseconds
 	logDirectory: 'logs',
@@ -118,16 +118,16 @@ const state = {
 	batchTimeout: null as NodeJS.Timeout | null
 };
 
-// --- PERFORMANCE: Cache the max enabled log level priority ---
+// --- Cache the max enabled log level priority ---
 let maxEnabledPriority: number = 0;
 
 function updateMaxEnabledPriority() {
-	// --- REFINEMENT: If building, disable all logs by setting priority to 0 ---
+	// --- If building, disable all logs by setting priority to 0 ---
 	if (building) {
 		maxEnabledPriority = 0;
 		return;
 	}
-	const enabledLevels = getEnv('LOG_LEVELS', ['error', 'warn', 'info']);
+	const enabledLevels = getEnv('LOG_LEVELS', ['fatal', 'error', 'warn', 'info', 'debug', 'trace']);
 	if (!Array.isArray(enabledLevels) || enabledLevels.includes('none')) {
 		maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
 		return;
@@ -256,7 +256,7 @@ const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 
 // Batch processing utilities
 const processBatch = async (): Promise<void> => {
-	// --- REFINEMENT: Clear any pending timeout to prevent a redundant flush ---
+	// --- Clear any pending timeout to prevent a redundant flush ---
 	if (state.batchTimeout) clearTimeout(state.batchTimeout);
 	state.batchTimeout = null;
 
@@ -512,7 +512,7 @@ if (isServer && !building) {
 		}
 	};
 
-	// Enhanced signal handling to prevent TTY/readline issues
+	// Signal handling to prevent TTY/readline issues
 	const handleSignal = (signal: string) => {
 		try {
 			cleanup();
@@ -563,7 +563,7 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 	const maskedArgs = args.map(maskSensitiveData);
 	let sourceFile = '';
 
-	// OPTIMIZATION: Only get the stack trace if the level requires it.
+	// Only get the stack trace if the level requires it.
 	if (isServer && config.sourceFileTracking.includes(level)) {
 		try {
 			const stack = new Error().stack || '';
@@ -596,7 +596,7 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 
 // Public Logger Interface
 export const logger = {
-	// --- PERFORMANCE: Check level *before* calling the internal log function and spreading args ---
+	// --- Check level *before* calling the internal log function and spreading args ---
 	// Note: building check is now centralized in updateMaxEnabledPriority()
 	fatal: (message: string, ...args: LoggableValue[]) => {
 		if (LOG_LEVEL_MAP.fatal.priority <= maxEnabledPriority) log('fatal', message, args);

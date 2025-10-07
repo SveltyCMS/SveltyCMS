@@ -24,6 +24,22 @@ let cacheLoaded = false;
 let privateEnv: PrivateEnv = {} as PrivateEnv;
 let publicEnv: PublicEnv = {} as PublicEnv;
 
+// Read PKG_VERSION dynamically from package.json
+// This ensures version always reflects installed package and helps detect outdated installations
+let cachedPkgVersion: string | null = null;
+async function loadPkgVersion(): Promise<string> {
+	if (cachedPkgVersion) return cachedPkgVersion;
+	try {
+		// Dynamic import works in both dev and production
+		const packageJson = await import('../../package.json');
+		cachedPkgVersion = packageJson.version || '0.0.0';
+		return cachedPkgVersion;
+	} catch {
+		cachedPkgVersion = '0.0.0';
+		return cachedPkgVersion;
+	}
+}
+
 // A boolean indicating whether the settings cache has been loaded
 export function isCacheLoaded(): boolean {
 	return cacheLoaded;
@@ -34,10 +50,15 @@ export function isCacheLoaded(): boolean {
  * @param newPrivate - The private settings object.
  * @param newPublic - The public settings object.
  */
-export function setSettingsCache(newPrivate: PrivateEnv, newPublic: PublicEnv) {
+export async function setSettingsCache(newPrivate: PrivateEnv, newPublic: PublicEnv) {
 	// Expects complete, validated objects that match the schemas
 	privateEnv = newPrivate;
 	publicEnv = newPublic;
+
+	// 🚀  Inject PKG_VERSION dynamically from package.json (not stored in DB)
+	const version = await loadPkgVersion();
+	(publicEnv as Record<string, unknown>)['PKG_VERSION'] = version;
+
 	cacheLoaded = true;
 }
 

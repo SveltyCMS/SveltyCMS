@@ -13,7 +13,7 @@
 		translated: true
 	},tion SEO Widget Definition.
  *
- * An enterprise-grade SEO analysis and optimization tool embedded as a widget.
+ * An SSEO analysis and optimization tool embedded as a widget.
  *
  * @features
  * - **Comprehensive Validation**: Valibot schema validates the entire SEO data object, including length checks.
@@ -76,7 +76,14 @@ const SeoWidget = createWidget({
 			required: false,
 			helper: 'Comma-separated features (social, schema, advanced, ai).'
 		}
-	}
+	},
+
+	// GraphQL schema for SEO (complex object, would need custom type)
+	// For now, return String to serialize as JSON
+	GraphqlSchema: () => ({
+		typeID: 'String', // JSON string representation
+		graphql: '' // No custom type definition needed
+	})
 });
 
 export default SeoWidget;

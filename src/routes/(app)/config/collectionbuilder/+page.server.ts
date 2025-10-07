@@ -35,6 +35,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection builder
+		const hasReadPermission = hasPermissionWithRoles(user, 'collections:read', roles);
+		const hasCreatePermission = hasPermissionWithRoles(user, 'collections:create', roles);
+		const hasConfigPermission = hasPermissionWithRoles(user, 'system:config', roles);
+
 		logger.trace('Permission check details', {
 			userId: user._id,
 			userRole: user.role,
@@ -58,6 +62,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
+		// Initialize ContentManager before accessing data
+		await contentManager.initialize();
+
 		// Fetch the initial content structure directly from database
 		// CollectionBuilder needs the current database state (not in-memory cache) to:
 		// - See the most recently persisted order and parentId values
@@ -70,6 +77,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const userRole = roles.find((role) => role._id === user.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
 
+		// Serialize ObjectIds to strings for client-side usage
+		// This is crucial because MongoDB ObjectId instances cannot be serialized by SvelteKit
+		const serializedStructure = contentStructure.map((node) => ({
+			...node,
+			_id: node._id.toString(),
+			...(node.parentId ? { parentId: node.parentId.toString() } : {})
+		}));
+
 		// Return user data with proper admin status and the content structure
 		const { _id, ...rest } = user;
 		return {
@@ -78,7 +93,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				...rest,
 				isAdmin // Add the properly calculated admin status
 			},
-			contentStructure
+			contentStructure: serializedStructure
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

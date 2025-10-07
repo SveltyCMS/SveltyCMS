@@ -65,8 +65,8 @@ const CheckboxWidget = createWidget<CheckboxProps>({
 
 	// GraphQL schema should return a simple Boolean.
 	GraphqlSchema: () => ({
-		typeID: null, // No custom type needed for Boolean
-		graphql: 'Boolean'
+		typeID: 'Boolean', // Use primitive Boolean type
+		graphql: '' // No custom type definition needed for primitives
 	})
 });
 

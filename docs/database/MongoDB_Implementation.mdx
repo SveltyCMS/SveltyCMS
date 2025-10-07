@@ -1,7 +1,7 @@
 ---
 path: '/docs/database/mongodb-implementation'
 title: 'MongoDB Implementation Guide'
-description: 'Complete MongoDB-specific implementation guide covering enterprise optimizations, indexes, connection pooling, cursor pagination, streaming, and performance tuning for SveltyCMS.'
+description: 'Complete MongoDB-specific implementation guide covering optimizations, indexes, connection pooling, cursor pagination, streaming, and performance tuning for SveltyCMS.'
 order: 4
 icon: 'mdi:leaf'
 author: 'SveltyCMS Team'
@@ -13,18 +13,17 @@ tags:
   - performance
   - optimization
   - indexes
-  - enterprise
 ---
 
 # MongoDB Implementation Guide
 
-This guide covers the **MongoDB-specific** implementation in SveltyCMS, including enterprise-level optimizations, indexing strategy, connection pooling, and advanced features. For database-agnostic architecture, see the [Core Infrastructure](/docs/database/core-infrastructure) documentation.
+This guide covers the **MongoDB-specific** implementation in SveltyCMS, including optimizations, indexing strategy, connection pooling, and advanced features. For database-agnostic architecture, see the [Core Infrastructure](/docs/database/core-infrastructure) documentation.
 
 ---
 
 ## 🎯 Implementation Status
 
-**Current Status**: ✅ **Production Ready** - Enterprise-grade implementation  
+**Current Status**: ✅ **Production Ready** - implementation  
 **MongoDB Version**: 6.0+ compatible  
 **Performance Grade**: **A+ (95/100)**  
 **Total Performance Gain**: **70-90%** improvement across all operations
@@ -51,7 +50,7 @@ This guide covers the **MongoDB-specific** implementation in SveltyCMS, includin
    - Full-text search on media filenames
 
 2. **Phase 2**: Connection & Query Optimization
-   - Enterprise connection pool (50 max, 10 min)
+   - Connection pool (50 max, 10 min)
    - Network compression (30-50% bandwidth savings)
    - .lean() queries (40% memory reduction)
    - Query hints support

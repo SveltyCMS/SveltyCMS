@@ -4,7 +4,7 @@
 **Number Widget Display Component**
 
 Displays numeric values with proper localization and thousand separators.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <NumberDisplay value={1234567.89} />

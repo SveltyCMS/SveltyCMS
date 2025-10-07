@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/dashboard/BaseWidget.svelte
 @component
-**Enhanced base widget with enterprise features**
+**Base widget**
 
 New Features:
 - Manual refresh with loading state

@@ -331,13 +331,26 @@ function transformCodeWithAST(code: string, uuid: string): string {
 // Transformer factory for widget-related changes
 const widgetTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => (sourceFile) => {
 	const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
-		// 1. Remove `import widgets from ...`
-		if (
-			ts.isImportDeclaration(node) &&
-			ts.isStringLiteral(node.moduleSpecifier) &&
-			(node.importClause?.name?.text === 'widgets' || /widgets/.test(node.moduleSpecifier.text))
-		) {
-			return []; // Return an empty array to remove the node
+		// 1. Remove widget imports - handles both old and new patterns
+		if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+			const moduleSpecifier = node.moduleSpecifier.text;
+
+			// Remove old pattern: import widgets from '@widgets'
+			if (node.importClause?.name?.text === 'widgets' || /widgets/.test(moduleSpecifier)) {
+				return []; // Return an empty array to remove the node
+			}
+
+			// Remove new pattern: import { widgetFunctions as widgets } from '@stores/widgetStore.svelte'
+			if (moduleSpecifier.includes('@stores/widgetStore.svelte') || moduleSpecifier.includes('widgetStore.svelte')) {
+				const importClause = node.importClause;
+				if (importClause?.namedBindings && ts.isNamedImports(importClause.namedBindings)) {
+					// Check if any import is aliased to 'widgets'
+					const hasWidgetsImport = importClause.namedBindings.elements.some((element) => element.name.text === 'widgets');
+					if (hasWidgetsImport) {
+						return []; // Remove the entire import
+					}
+				}
+			}
 		}
 
 		// 2. Replace standalone `widgets` identifier with `globalThis.widgets`

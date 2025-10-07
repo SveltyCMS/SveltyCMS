@@ -4,7 +4,7 @@
 **Group Widget Display Component**
 
 Renders grouped content in a read-only display format.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <GroupDisplay field={groupField} value={groupData} children={nestedWidgets} />

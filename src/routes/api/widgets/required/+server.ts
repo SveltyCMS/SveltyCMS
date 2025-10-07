@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	try {
 		// Get all collections from ContentManager, scoped by tenantId
-		const allCollections = contentManager.getCollections();
+		const allCollections = await contentManager.getCollections();
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
 			logger.trace('No collections found', { tenantId });
@@ -51,7 +51,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		requiredWidgets.push(...Array.from(widgetSet));
 
-		const duration = performance.now() - start;
 		logger.trace('Analyzed collection widget dependencies', {
 			tenantId,
 			collectionsAnalyzed: collectionNames.length,

@@ -34,7 +34,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 		}
 
 		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
-		const folders = await dbAdapter.findMany('system_virtual_folders', filter);
+		const result = await dbAdapter.crud.findMany('system_virtual_folders', filter);
+		if (!result.success) {
+			throw error(500, result.error?.message || 'Failed to fetch virtual folders');
+		}
+		const folders = result.data;
 
 		return json({
 			success: true,
@@ -82,7 +86,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			updatedAt: new Date().toISOString()
 		};
 
-		const newFolder = await dbAdapter.create('system_virtual_folders', folderData);
+		const result = await dbAdapter.crud.insert('system_virtual_folders', folderData);
+		if (!result.success) {
+			throw error(500, result.error?.message || 'Failed to create virtual folder');
+		}
+		const newFolder = result.data;
 
 		return json(
 			{

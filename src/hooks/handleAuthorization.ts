@@ -205,7 +205,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 			const { contentManager } = await import('@src/content/ContentManager');
 			const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
 
-			const firstCollection = contentManager.getFirstCollection();
+			const firstCollection = await contentManager.getFirstCollection();
 			if (firstCollection) {
 				// Redirect to first collection as before
 				const userLang = (locals.user as User & { systemLanguage?: string }).systemLanguage || 'en';
@@ -291,7 +291,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 	if (authServiceReady) {
 		if (!locals.user && !isPublic && !isFirstUser) {
-			logger.trace(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to login.`);
+			logger.trace(`Unauthenticated access to \x1b[34m${url.pathname}\x1b[0m. Redirecting to \x1b[34m/login\x1b[0m.`);
 			if (isApi) throw error(401, 'Unauthorized');
 			throw redirect(302, '/login');
 		}

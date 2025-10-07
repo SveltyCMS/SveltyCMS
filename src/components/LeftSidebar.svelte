@@ -17,10 +17,6 @@
 - Displays translation status
 -->
 
-<script module lang="ts">
-	declare const __VERSION__: string;
-</script>
-
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
@@ -144,8 +140,9 @@
 	}
 
 	// GitHub version and theme toggle
-	const pkg = __VERSION__ || '';
-	let githubVersion = '';
+	//  Use server-provided PKG_VERSION (single source of truth from package.json)
+	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
+	let githubVersion = $state('');
 
 	axios
 		.get('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest')

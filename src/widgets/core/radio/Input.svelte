@@ -4,7 +4,7 @@
 **Radio Widget Input Component**
 
 Provides single-choice selection interface using semantic HTML radio button groups.
-Part of the Three Pillars Architecture for enterprise-ready widget system.
+Part of the Three Pillars Architecture for widget system.
 
 @example
 <RadioInput bind:value={selectedValue} field={fieldDefinition} />

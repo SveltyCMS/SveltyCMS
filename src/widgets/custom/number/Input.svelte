@@ -1,10 +1,10 @@
 <!--
 @file src/widgets/custom/number/Input.svelte
 @component
-**Enterprise-Grade Number Widget Component**
+**Number Widget Component**
 
 @example
-<Number field={{ label: "Price", db_fieldName: "price", required: true, min: 0, 				required={field?.required as boolean | undefined}
+<Number field={{ label: "Price", db_fieldName: "price", required: true, min: 0, required={field?.required as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				min={field?.min as number | undefined}
