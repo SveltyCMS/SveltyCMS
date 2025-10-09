@@ -1,6 +1,6 @@
 /**
  * @file src/services/widgetDiscovery.ts
- * @description Widget Discovery Service - Drupal-inspired approach
+ * @description Widget Discovery Service
  *
  * Responsibilities:
  * 1. Scan filesystem for available widgets

@@ -26,12 +26,18 @@ Handles all field types and validation automatically
 			const response = await fetch(`/api/settings/${group.id}`);
 			const data = await response.json();
 
+			// Debug logging
+			console.log(`[${group.id}] API Response:`, data);
+			console.log(`[${group.id}] Values received:`, data.values);
+
 			if (data.success) {
 				values = data.values || {};
+				console.log(`[${group.id}] Values set to:`, values);
 			} else {
 				throw new Error(data.error || 'Failed to load settings');
 			}
 		} catch (err) {
+			console.error(`[${group.id}] Load error:`, err);
 			error = err instanceof Error ? err.message : 'Failed to load settings';
 		} finally {
 			loading = false;
@@ -224,18 +230,18 @@ Handles all field types and validation automatically
 		{/if}
 
 		<!-- Settings Form -->
-		<form on:submit|preventDefault={saveSettings} class="space-y-6">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+		<form on:submit|preventDefault={saveSettings} class="space-y-4 md:space-y-6">
+			<div class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
 				{#each group.fields as field}
-					<div class="form-field" class:col-span-2={field.type === 'array'}>
+					<div class="form-field" class:lg:col-span-2={field.type === 'array' || field.type === 'password'}>
 						<label for={field.key} class="label">
-							<span class="font-semibold">{field.label}</span>
+							<span class="text-sm font-semibold md:text-base">{field.label}</span>
 							{#if field.required}
 								<span class="text-error-500">*</span>
 							{/if}
 						</label>
 
-						<p class="text-surface-600-300-token mb-2 text-sm">
+						<p class="text-surface-600-300-token mb-2 text-xs md:text-sm">
 							{field.description}
 						</p>
 
@@ -345,8 +351,8 @@ Handles all field types and validation automatically
 			</div>
 
 			<!-- Actions -->
-			<div class="flex flex-wrap gap-2 pt-4">
-				<button type="submit" class="variant-filled-primary btn" disabled={saving}>
+			<div class="actions-container flex flex-col gap-2 pt-4 sm:flex-row sm:flex-wrap">
+				<button type="submit" class="variant-filled-primary btn w-full sm:w-auto" disabled={saving}>
 					{#if saving}
 						<span>Saving...</span>
 					{:else}
@@ -355,12 +361,12 @@ Handles all field types and validation automatically
 					{/if}
 				</button>
 
-				<button type="button" class="variant-filled-surface btn" on:click={resetToDefaults} disabled={saving}>
+				<button type="button" class="variant-filled-surface btn w-full sm:w-auto" on:click={resetToDefaults} disabled={saving}>
 					<span>🔄</span>
 					<span>Reset to Defaults</span>
 				</button>
 
-				<button type="button" class="variant-filled-secondary btn" on:click={loadSettings} disabled={saving || loading}>
+				<button type="button" class="variant-filled-secondary btn w-full sm:w-auto" on:click={loadSettings} disabled={saving || loading}>
 					<span>↻</span>
 					<span>Reload</span>
 				</button>
@@ -372,22 +378,31 @@ Handles all field types and validation automatically
 <style lang="postcss">
 	.generic-settings-group {
 		@apply space-y-4;
+		/* Prevent horizontal overflow */
+		max-width: 100%;
+		overflow-x: hidden;
+	}
+
+	.header h2 {
+		@apply text-xl md:text-2xl;
 	}
 
 	.alert {
-		@apply p-4 rounded-container-token;
+		@apply p-3 rounded-container-token md:p-4;
 	}
 
 	.alert-message strong {
-		@apply mb-1 block;
+		@apply mb-1 block text-sm md:text-base;
 	}
 
 	.alert-message p {
-		@apply text-sm;
+		@apply text-xs md:text-sm;
 	}
 
 	.form-field {
 		@apply space-y-2;
+		/* Prevent input overflow */
+		max-width: 100%;
 	}
 
 	.label {
@@ -397,9 +412,39 @@ Handles all field types and validation automatically
 	.input,
 	.select {
 		@apply w-full;
+		/* Better touch targets on mobile */
+		min-height: 44px;
+		/* Prevent overflow */
+		max-width: 100%;
 	}
 
 	.checkbox {
 		@apply w-auto;
+		/* Better touch target */
+		min-width: 20px;
+		min-height: 20px;
+	}
+
+	/* Touch-friendly spacing for mobile */
+	@media (max-width: 640px) {
+		.form-field {
+			@apply space-y-3;
+		}
+
+		.actions-container button {
+			/* Full width on mobile for easier tapping */
+			@apply min-h-[48px];
+		}
+	}
+
+	/* Input group responsiveness */
+	.input-group {
+		@apply flex-col sm:flex-row;
+		/* Prevent overflow */
+		max-width: 100%;
+	}
+
+	.input-group-shim {
+		@apply text-center sm:text-left;
 	}
 </style>

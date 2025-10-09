@@ -18,7 +18,7 @@ import { dev } from '$app/environment';
 
 // Auth
 
-import type { DatabaseConfig } from '@root/config/types';
+import type { DatabaseConfig } from '@src/databases/schemas';
 import { Auth } from '@src/databases/auth';
 import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
 import type { User } from '@src/databases/auth/types';
@@ -415,7 +415,7 @@ async function updatePrivateConfig(dbConfig: DatabaseConfig, correlationId: stri
  * These values are required for the server to start and connect to the database.
  * This file will be populated during the initial setup process.
  */
-import { createPrivateConfig } from './types';
+import { createPrivateConfig } from '@src/databases/schemas';
 
 export const privateEnv = createPrivateConfig({
 	// --- Core Database Connection ---

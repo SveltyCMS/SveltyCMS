@@ -183,4 +183,3 @@ Key features:
 		{/each}
 	{/if}
 </div>
-iv>

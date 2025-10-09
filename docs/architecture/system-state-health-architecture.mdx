@@ -1,0 +1,52 @@
+---
+path: 'docs/architecture/system-state-health-architecture.mdx'
+title: 'SveltyCMS: System State & Health Architecture'
+description: 'An event-driven architecture for managing system readiness and performance.'
+order: 3
+icon: 'mdi:heart-pulse'
+author: 'admin'
+created: '2025-10-09'
+updated: '2025-10-09'
+tags:
+  - 'architecture'
+  - 'health'
+  - 'state'
+  - 'monitoring'
+---
+
+import { Callout } from 'nextra/components'
+
+# System State & Health Architecture
+
+This document outlines the plan to evolve the application's startup and runtime management from simple flags to a robust **state machine**. This architecture improves stability, performance (by reducing unnecessary `await` calls), and provides critical observability for a professional CMS.
+
+## The Core State Machine
+
+A central store will manage the entire application's readiness with five explicit states:
+
+-   `IDLE`: The server has started, but no initialization has begun.
+-   `INITIALIZING`: The main `initializeSystem()` process is running.
+-   `READY`: All critical services are initialized and healthy. The CMS is fully operational.
+-   `DEGRADED`: A non-critical service has failed, but the core CMS can still function.
+-   `FAILED`: A critical service (e.g., Database) has failed. The system is not operational.
+
+The overall state of the system is **derived** from the collective health of its individual services.
+
+## Health Checks for Individual Services
+
+Each major service (Database, Cache, ThemeManager, etc.) will be responsible for reporting its own health status (`'healthy'`, `'unhealthy'`, `'initializing'`) to the central state store. This modular approach allows for pinpointing exactly which part of the system is having issues.
+
+## The `GET /api/health` Endpoint
+
+This public API endpoint will be the face of the state machine, providing a detailed, machine-readable report invaluable for production monitoring, load balancers, and CI/CD pipelines.
+
+```json
+{
+  "overallStatus": "READY",
+  "components": {
+    "database": { "status": "healthy", "message": "Connection successful." },
+    "cache": { "status": "healthy", "message": "Redis connection successful." }
+  }
+}
+
+```

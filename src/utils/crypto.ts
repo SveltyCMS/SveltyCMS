@@ -7,6 +7,7 @@
  * - Key derivation from passwords using Argon2 (better than PBKDF2)
  * - AES-256-GCM encryption/decryption with Argon2-derived keys
  * - Secure random token generation
+ * - SHA256 checksum generation for data integrity
  */
 
 import { logger } from '@utils/logger.svelte';
@@ -202,6 +203,22 @@ export async function decryptData(encryptedData: string, password: string): Prom
 		logger.error('Decryption failed', { error });
 		throw new Error('Failed to decrypt data. Password may be incorrect or data corrupted.');
 	}
+}
+
+/**
+ * Creates a SHA256 checksum for any given data object.
+ * Useful for data integrity checks and detecting changes.
+ *
+ * @param data - The data to hash (will be stringified).
+ * @returns A hex-encoded SHA256 hash.
+ * @throws Error if crypto is not available.
+ */
+export function createChecksum(data: any): string {
+	if (!crypto) {
+		throw new Error('Crypto not available - server-side only');
+	}
+	const str = JSON.stringify(data);
+	return crypto.createHash('sha256').update(str).digest('hex');
 }
 
 /**

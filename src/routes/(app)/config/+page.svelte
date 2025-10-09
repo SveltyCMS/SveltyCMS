@@ -2,10 +2,6 @@
 @files src/routes/(app)/config/+page.svelte
 @component
 **This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings.**
-
-This refactored version uses a data-driven approach with a Svelte #each loop to generate the configuration buttons. This reduces code repetition and makes the component easier to maintain. It also explicitly adds Tailwind CSS border classes to fix the missing border issue.
-
-This version includes corrections for permission contexts and link typos.
 -->
 
 <script lang="ts">
@@ -44,7 +40,8 @@ This version includes corrections for permission contexts and link typos.
 			href: '/config/collectionbuilder',
 			label: m.config_collectionbuilder(),
 			icon: 'fluent-mdl2:build-definition',
-			classes: 'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
+			classes:
+				'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
 			iconColor: 'text-tertiary-600',
 			permission: {
 				contextId: 'config:collectionManagement',
@@ -60,7 +57,8 @@ This version includes corrections for permission contexts and link typos.
 			href: '/api/graphql',
 			label: m.config_graphql(),
 			icon: 'teenyicons:graphql-solid',
-			classes: 'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
+			classes:
+				'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
 			iconColor: 'text-warning-600',
 			target: '_blank',
 			permission: {
@@ -77,7 +75,8 @@ This version includes corrections for permission contexts and link typos.
 			href: '/imageEditor',
 			label: m.config_imageeditor(),
 			icon: 'bi:image',
-			classes: 'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
+			classes:
+				'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
 			iconColor: 'text-primary-600',
 			permission: {
 				contextId: 'content:images',
@@ -93,7 +92,8 @@ This version includes corrections for permission contexts and link typos.
 			href: '/email-previews',
 			label: m.config_emailPreviews(),
 			icon: 'mdi:email-outline',
-			classes: 'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
+			classes:
+				'variant-outline-tertiary dark:variant-outline-secondary border-2 border-tertiary-500/50 dark:border-secondary-500/50',
 			iconColor: 'text-primary-600',
 			target: '_blank',
 			permission: {
@@ -191,6 +191,23 @@ This version includes corrections for permission contexts and link typos.
 				contextType: 'system'
 			}
 		},
+		// START: New Configuration Manager Button
+		{
+			id: 'configurationManager',
+			href: '/config/configurationManager',
+			label: 'Config Manager',
+			icon: 'mdi:sync-circle',
+			classes: 'variant-ghost-secondary dark:text-white',
+			permission: {
+				contextId: 'config:synchronization',
+				name: 'Configuration Manager',
+				description: 'Synchronize configuration between filesystem and database.',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			}
+		},
+		// END: New Configuration Manager Button
 		{
 			id: 'accessManagement',
 			// FIX: Corrected typo from 'assessManagement'
@@ -210,7 +227,12 @@ This version includes corrections for permission contexts and link typos.
 	];
 </script>
 
-<PageTitle name={m.config_pagetitle()} showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
+<PageTitle
+	name={m.config_pagetitle()}
+	showBackButton={true}
+	backUrl="/"
+	icon="material-symbols:build-circle"
+/>
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2">
 	<h2 class="mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
@@ -224,39 +246,51 @@ This version includes corrections for permission contexts and link typos.
 			{#if usePermissionGuard}
 				<PermissionGuard config={item.permission}>
 					{#if item.target === '_blank'}
-						<!-- External links use anchor tags -->
-						<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
-							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+						<a
+							href={item.href}
+							class="config-btn {item.classes}"
+							aria-label={item.label}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"
+							></iconify-icon>
 							<p class="config-text">{item.label}</p>
 						</a>
 					{:else}
-						<!-- Internal links use buttons with click handlers -->
 						<button
 							type="button"
 							class="config-btn {item.classes}"
 							aria-label={item.label}
 							onclick={() => handleInternalNavigation(item.href, item.target)}
 						>
-							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"
+							></iconify-icon>
 							<p class="config-text">{item.label}</p>
 						</button>
 					{/if}
 				</PermissionGuard>
 			{:else if item.target === '_blank'}
-				<!-- External links use anchor tags -->
-				<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
-					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+				<a
+					href={item.href}
+					class="config-btn {item.classes}"
+					aria-label={item.label}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"
+					></iconify-icon>
 					<p class="config-text">{item.label}</p>
 				</a>
 			{:else}
-				<!-- Internal links use buttons with click handlers -->
 				<button
 					type="button"
 					class="config-btn {item.classes}"
 					aria-label={item.label}
 					onclick={() => handleInternalNavigation(item.href, item.target)}
 				>
-					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
+					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"
+					></iconify-icon>
 					<p class="config-text">{item.label}</p>
 				</button>
 			{/if}

@@ -189,9 +189,8 @@ All dynamic CMS settings organized into logical groups
 	}
 </script>
 
-<div class="mx-auto max-w-7xl p-6">
-	<PageTitle name="System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
-
+<PageTitle name="System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
+<div class="wrapper">
 	<!-- Warning Banner -->
 	<div class="alert variant-filled-error mb-4">
 		<div class="alert-message">

@@ -59,7 +59,7 @@ import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
 import type { DatabaseAdapter } from './dbInterface';
 
 // Settings loader
-import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
+import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
 import { invalidateSettingsCache, setSettingsCache } from '@src/stores/globalSettings';
 import { safeParse } from 'valibot';
 

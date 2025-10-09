@@ -90,7 +90,13 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 						});
 					}
 				} catch (cacheGetError) {
-					logger.warn(`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${cacheGetError.message}`);
+					logger.warn(
+						`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${
+							typeof cacheGetError === 'object' && cacheGetError && 'message' in cacheGetError
+								? (cacheGetError as { message: string }).message
+								: String(cacheGetError)
+						}`
+					);
 				}
 			} else {
 				logger.debug(`Cache bypass requested for API GET \x1b[33m${baseKey}\x1b[0m`);

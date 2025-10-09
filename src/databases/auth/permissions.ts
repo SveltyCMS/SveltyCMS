@@ -49,18 +49,29 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
 	const userRole = roles.find((role) => role._id === user.role);
 	if (!userRole) {
-		logger.warn('Role not found for user', { email: user.email });
+		logger.warn('Role not found for user', { email: user.email, userRoleId: user.role, rolesAvailable: roles.map((r) => r._id) });
 		return false;
 	}
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.trace('Admin user granted permission', { email: user.email, permissionId });
+		logger.trace('Admin user granted permission', { email: user.email, permissionId, userRole });
 		return true;
 	}
 
 	// Check if user's role has the specific permission
 	const hasPermission = userRole.permissions.includes(permissionId);
+	if (!hasPermission) {
+		logger.warn('Permission denied for user', {
+			email: user.email,
+			userId: user._id,
+			userRoleId: user.role,
+			userRole,
+			permissionId,
+			userPermissions: userRole.permissions,
+			rolesAvailable: roles.map((r) => ({ id: r._id, isAdmin: r.isAdmin }))
+		});
+	}
 	logger.trace('Permission check for user', { permissionId, granted: hasPermission, email: user.email });
 	return hasPermission;
 }

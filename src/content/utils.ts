@@ -13,7 +13,7 @@
  * Widget Utilities:
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
-import { widgetRegistryService } from '@src/widgets/WidgetRegistryService';
+import { widgetRegistryService } from '@src/services/WidgetRegistryService';
 import { logger } from '../utils/logger.svelte';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
 

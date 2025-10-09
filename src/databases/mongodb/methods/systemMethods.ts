@@ -198,7 +198,17 @@ export class MongoSystemMethods {
 
 			if (scope === 'system') {
 				// Single query with $in operator for all keys at once
+				logger.info(`[systemMethods.getMany] Querying for keys: ${keys.join(', ')}`);
 				const settings = await this.SystemSettingModel.find({ key: { $in: keys } }).lean();
+				logger.info(`[systemMethods.getMany] Found ${settings.length} settings`);
+				if (settings.length > 0) {
+					logger.info(
+						`[systemMethods.getMany] Sample: ${settings
+							.slice(0, 3)
+							.map((s) => `${s.key}=${JSON.stringify(s.value)}`)
+							.join(', ')}`
+					);
+				}
 				return settings.reduce(
 					(acc, setting) => {
 						acc[setting.key] = setting.value as T;

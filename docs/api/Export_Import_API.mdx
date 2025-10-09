@@ -23,7 +23,7 @@ The Export/Import API provides endpoints for backing up, migrating, and restorin
 
 **Base Paths:**
 
-- `/api/export/*` - Export endpoints
+- `/api/systemsetting/*` - System settings export/import endpoints
 - `/api/importData` - Import endpoint
 
 ## Authentication
@@ -47,7 +47,7 @@ Exports all system data including settings, collections, users, and media metada
 #### Request
 
 ```http
-GET /api/export/full
+POST /api/systemsetting/export
 ```
 
 **Query Parameters:**
@@ -330,7 +330,7 @@ Restores a full system backup.
 #### Request
 
 ```http
-POST /api/import/full
+POST /api/systemsetting/import
 ```
 
 **Headers:**
@@ -547,10 +547,10 @@ Migrate from MongoDB to PostgreSQL:
 
 ```bash
 # Export from MongoDB instance
-curl -X GET https://old.example.com/api/export/full > backup.json.enc
+curl -X POST https://old.example.com/api/systemsetting/export > backup.json.enc
 
 # Import to PostgreSQL instance
-curl -X POST https://new.example.com/api/import/full \
+curl -X POST https://new.example.com/api/systemsetting/import \
   -d @backup.json.enc
 ```
 
@@ -569,11 +569,11 @@ curl -X POST https://production.example.com/api/importData \
 
 ```bash
 # Export tenant data
-curl -X GET "https://cms.example.com/api/export/full?tenantId=tenant-a" \
+curl -X POST "https://cms.example.com/api/systemsetting/export?tenantId=tenant-a" \
   > tenant-a-backup.json.enc
 
 # Import to new tenant
-curl -X POST https://new-cms.example.com/api/import/full \
+curl -X POST https://new-cms.example.com/api/systemsetting/import \
   -d @tenant-a-backup.json.enc
 ```
 
@@ -585,8 +585,11 @@ curl -X POST https://new-cms.example.com/api/import/full \
 
 ```javascript
 // Export full system
-const exportResponse = await fetch('/api/export/full?format=json', {
-	credentials: 'include'
+const exportResponse = await fetch('/api/systemsetting/export', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ format: 'json' })
 });
 const exportData = await exportResponse.json();
 
@@ -601,16 +604,12 @@ a.download = `backup-${new Date().toISOString()}.json`;
 a.click();
 
 // Import data
-const importResponse = await fetch('/api/importData', {
+const importResponse = await fetch('/api/systemsetting/import', {
 	method: 'POST',
 	credentials: 'include',
 	headers: { 'Content-Type': 'application/json' },
 	body: JSON.stringify({
-		collections: {
-			posts: [
-				/* data */
-			]
-		},
+		data: exportData,
 		options: {
 			validate: true,
 			skipInvalid: true
@@ -637,7 +636,8 @@ console.log(`Imported ${result.totalImported} records`);
 
 For implementation details, see:
 
-- `src/routes/api/export/full/+server.ts` - Full export endpoint
+- `src/routes/api/systemsetting/export/+server.ts` - Full export endpoint
+- `src/routes/api/systemsetting/import/+server.ts` - Full import endpoint
 - `src/routes/api/importData/+server.ts` - Import endpoint
 - `src/utils/crypto.ts` - Encryption utilities
 - `src/databases/dbInterface.ts` - Database adapter interface

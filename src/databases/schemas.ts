@@ -1,5 +1,5 @@
 /**
- * @file config/types.ts
+ * @file src/databases/schemas.ts
  * @description Configuration schemas and types with Valibot validation.
  * This version is compatible with older Valibot versions by handling
  * cross-field validation in a separate function instead of using `refine`.

@@ -47,7 +47,7 @@ export const currentCollectionId = store<string | null>(null);
 export const collectionsLoading = store<boolean>(false);
 export const collectionsError = store<string | null>(null);
 export const unAssigned = store<Schema>({} as Schema);
-export const collection = store<Schema | null>({} as Schema);
+export const collection = store<Schema | null>(null);
 
 // Create reactive state variables for collectionValue
 let collectionValueState = $state<Record<string, unknown>>({});

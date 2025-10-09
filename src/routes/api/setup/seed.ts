@@ -6,7 +6,7 @@
  * Uses database-agnostic interfaces for compatibility across different database engines.
  */
 
-import { publicConfigSchema } from '@root/config/types';
+import { publicConfigSchema } from '@src/databases/schemas';
 import type { DatabaseId } from '@src/content/types';
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
@@ -37,9 +37,7 @@ const defaultTheme: Theme = {
 	updatedAt: dateToISODateString(new Date())
 };
 
-/**
- * Seeds the default theme into the database
- */
+// Seeds the default theme into the database
 export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void> {
 	logger.info('🎨 Checking if default theme needs seeding...');
 
@@ -122,10 +120,7 @@ export async function seedCollections(dbAdapter: DatabaseAdapter): Promise<void>
 	}
 }
 
-/**
- * Initialize system from setup using database-agnostic interface
- * @param adapter Database adapter to use for operations
- */
+// Initialize system from setup using database-agnostic interface
 export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<void> {
 	logger.info('🚀 Starting system initialization from setup...');
 

@@ -23,23 +23,23 @@ const config = {
 			polyfill: false // Disable polyfills as we handle them in Vite config
 		}),
 
-		// Removed deprecated kit.files.routes override (default 'src/routes' is used)
 		alias: {
-			'@root': '.',
-			'@src': './src',
-			'@api': './src/routes/api',
-			'@components': './src/components',
-			'@collections': './config/collections',
-			'@auth': './src/databases/auth',
-			'@databases': './src/databases',
-			'@utils': './src/utils',
-			'@stores': './src/stores',
-			'@content': './src/content',
-			'@themes': './src/themes',
-			'@hooks': './src/hooks',
-			'@static': './static',
 			$paraglide: './src/paraglide',
+			'@api': './src/routes/api',
+			'@auth': './src/databases/auth',
+			'@collections': './config/collections',
+			'@components': './src/components',
+			'@content': './src/content',
+			'@databases': './src/databases',
+			'@hooks': './src/hooks',
+			'@root': '.',
+			'@services': './src/services',
+			'@src': './src',
+			'@static': './static',
+			'@stores': './src/stores',
+			'@themes': './src/themes',
 			'@types': './src/types',
+			'@utils': './src/utils',
 			'@widgets': './src/widgets'
 		}
 	},

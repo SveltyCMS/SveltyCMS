@@ -13,7 +13,7 @@
  * - Valibot schema validation
  */
 
-import { privateConfigSchema, publicConfigSchema } from '@root/config/types';
+import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
 import { type InferOutput } from 'valibot';
 // Use the direct Valibot types. This is your contract.
 type PrivateEnv = InferOutput<typeof privateConfigSchema>;

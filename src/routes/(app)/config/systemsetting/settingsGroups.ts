@@ -513,7 +513,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'array',
 				category: 'public',
 				required: true,
-				placeholder: 'en,de,fr,es'
+				placeholder: 'en,de'
 			},
 			{
 				key: 'BASE_LOCALE',
@@ -531,7 +531,7 @@ export const settingsGroups: SettingGroup[] = [
 				type: 'array',
 				category: 'public',
 				required: true,
-				placeholder: 'en,de,fr,es'
+				placeholder: 'en,de'
 			}
 		]
 	},

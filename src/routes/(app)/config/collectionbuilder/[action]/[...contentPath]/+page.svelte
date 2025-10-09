@@ -55,7 +55,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	interface Props {
 		data: {
-			collection: Schema & { module: string | undefined };
+			collection?: Schema;
 			contentLanguage: string;
 			user: User;
 		};
@@ -63,43 +63,37 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	const { data }: Props = $props();
 
-	$effect(() => {
-		// Correctly using $effect here
-		if (data.collection?.name && (!collection.value || data.collection.path !== collection.value.path)) {
+	let originalName = $state('');
+	onMount(() => {
+		if (action === 'edit') {
 			loadCollection();
+		} else {
+			collection.set(null);
+			originalName = '';
 		}
 	});
 
-	async function loadCollection() {
-		if (action == 'edit') collection.set(data.collection);
-		else {
-			// Set to null for new collections as _id is required in Schema
-			collection.set(null);
-			/* Potential alternative if you need a placeholder object:
-			collection.set({
-				_id: '', // Use an empty string or generate a temporary client-side ID if needed later
-				name: '',
-				icon: '',
-				description: '',
-				status: 'unpublished',
-				slug: '',
-				fields: []
-			});
-			*/
+	function loadCollection() {
+		if (data.collection) {
+			collection.set(data.collection);
+			originalName = data.collection.name;
+		} else {
+			console.error("Collection data not found for editing.");
+			// Optionally, redirect or show a proper error message
 		}
 	}
 
 	// Default widget data (tab1)
-	let name = $derived(mode.value == 'edit' ? (collection.value ? collection.value.name : collectionPath) : collectionPath);
+	let name = $derived(action == 'edit' ? (collection.value ? collection.value.name : collectionPath) : collectionPath);
 
 	// Page title
 	let pageTitle = $state('');
 	let highlightedPart = $state('');
 
-	// Effect to update page title based on mode and collection name
+	// Effect to update page title based on action and collection name
 	$effect.root(() => {
-		// Set the base page title according to the mode
-		if (mode.value === 'edit') {
+		// Set the base page title according to the action
+		if (action === 'edit') {
 			pageTitle = `Edit ${collectionPath} Collection`;
 		} else if (collectionPath) {
 			pageTitle = `Create ${collectionPath} Collection`;
@@ -119,7 +113,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	function handlePageTitleUpdate(title: string) {
 		highlightedPart = title;
 		collectionPath = title;
-		if (mode.value === 'edit') {
+		if (action === 'edit') {
 			pageTitle = `Edit ${highlightedPart} Collection`;
 		} else {
 			pageTitle = `Create ${highlightedPart} Collection`;
@@ -141,9 +135,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		// Prepare form data
 		const data =
-			mode.value == 'edit'
+			action == 'edit'
 				? obj2formData({
-						originalName: collection.value?.name,
+						originalName: originalName,
 						name: name,
 						icon: collection.value?.icon,
 						status: collection.value?.status,
@@ -171,6 +165,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		if (resp.data.status === 200) {
 			showToast("Collection Saved. You're all set to build your content.", 'success');
+			if (originalName && originalName !== name) {
+				const newPath = page.url.pathname.replace(originalName, name);
+				goto(newPath);
+			}
 		}
 	}
 
@@ -222,7 +220,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 </div>
 
 <div class="wrapper">
-	{#if mode.value == 'edit'}
+	{#if action == 'edit'}
 		<div class="flex justify-center gap-3">
 			<button
 				type="button"

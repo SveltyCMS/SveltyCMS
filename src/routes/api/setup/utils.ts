@@ -3,11 +3,9 @@
  * @description Shared utility functions for the setup API endpoints.
  */
 
-import type { DatabaseConfig } from '@root/config/types';
+import type { DatabaseConfig } from '@src/databases/schemas';
 import type { DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger.svelte';
-// import { safeParse } from 'valibot';
-// import { databaseConfigSchema } from '@utils/setupValidationSchemas'; // TODO: Implement and export this schema
 
 /**
  * Database connection string builder for supported database types.

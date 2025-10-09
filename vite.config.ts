@@ -344,10 +344,9 @@ export default defineConfig((): UserConfig => {
 						// Check all possible fields where the path might be
 						const ids = warning.ids || [];
 						const message = warning.message || '';
-						const cycle = warning.cycle || [];
 
 						// Combine all text to check
-						const allText = [message, ...ids, ...cycle].join(' ');
+						const allText = [message, ...ids].join(' ');
 
 						// If it contains node_modules, it's a third-party circular dependency - suppress it
 						if (allText.includes('node_modules')) {

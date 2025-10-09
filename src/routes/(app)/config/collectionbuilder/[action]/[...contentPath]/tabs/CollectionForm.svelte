@@ -32,6 +32,8 @@
 
 	let props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
 
+	console.log('CollectionForm data:', props.data);
+
 	// Popup Tooltips
 	const NameTooltip: PopupSettings = {
 		event: 'hover',
@@ -146,8 +148,8 @@
 				slug = name ? name.toLowerCase().replace(/ /g, '_') : '';
 			}
 
-			// Update page title based on mode and collection name
-			if (mode.value === 'edit') {
+			// Update page title based on action and collection name
+			if (action === 'edit') {
 				props.handlePageTitleUpdate(name);
 			} else if (name) {
 				props.handlePageTitleUpdate(name);
