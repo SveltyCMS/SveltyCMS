@@ -178,7 +178,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		}
 
 		const widgetsObject = Object.fromEntries(widgetsMap.entries());
-		logger.trace(`Processing module with \x1b[34m${widgetsMap.size}\x1b[0m widgets available:`, Array.from(widgetsMap.keys()).join(', '));
+		// Widgets available info already logged during WidgetRegistryService initialization
 
 		const moduleContent = `
 			return (function() {
@@ -203,7 +203,8 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		}
 
 		if (result && typeof result === 'object' && 'fields' in result) {
-			logger.trace(`Successfully processed collection with UUID: \x1b[33m${uuid}\x1b[0m`);
+			// Successfully processed - log only at debug level to reduce noise
+			logger.debug(`Processed collection: ${uuid}`);
 			return { schema: { ...result, _id: uuid } as Schema };
 		}
 

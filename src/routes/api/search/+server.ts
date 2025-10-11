@@ -11,7 +11,7 @@
  * * Permission-aware results
  * * Performance optimized with QueryBuilder
  */
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Parse query parameters
 
@@ -68,7 +68,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope all filters by tenantId ---
-		const baseFilter: { status?: string; tenantId?: string } = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const baseFilter: { status?: string; tenantId?: string } = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 		if (additionalFilter) {
 			Object.assign(baseFilter, additionalFilter);
 		}

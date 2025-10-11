@@ -3,7 +3,7 @@
  * @description Centralized database error classification for all supported DB engines.
  */
 
-import { logger } from '@src/utils/logger.svelte';
+import { logger } from '@utils/logger.svelte';
 
 export interface ClassifiedError {
 	classification: string;

@@ -13,7 +13,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -33,7 +33,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -82,7 +82,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Parse request body
 
@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const folderData: Partial<SystemVirtualFolder> = {
 			name: name.trim(),
 			parentId: parentId || null,
-			...(privateEnv.MULTI_TENANT && { tenantId }),
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		}; // Create the folder

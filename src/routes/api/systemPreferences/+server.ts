@@ -16,14 +16,17 @@
  * - Proper error handling and logging
  */
 
-import { dbAdapter } from '@src/databases/db';
+import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const GET = async ({ locals, url }) => {
+	// Wait for database initialization
+	await dbInitPromise;
+
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
@@ -34,7 +37,7 @@ export const GET = async ({ locals, url }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	} // Try to get userId from query param, otherwise use locals.user
 
@@ -59,14 +62,23 @@ export const GET = async ({ locals, url }) => {
 
 		if (!dbAdapter?.systemPreferences?.getSystemPreferences) {
 			logger.error('System preferences adapter not available', { tenantId, userId });
-			return json({ preferences: [] }); // Return empty preferences instead of error
+			return json({ preferences: [] }, { status: 200 }); // Return empty preferences instead of error
 		}
 
 		// Get the layout from the database
-		const layout = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
+		const layoutResult = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
+
+		if (!layoutResult.success) {
+			logger.error('Failed to load system preferences:', {
+				error: layoutResult.message,
+				tenantId,
+				userId
+			});
+			return json({ preferences: [] }, { status: 200 }); // Return empty preferences instead of error
+		}
 
 		const response = {
-			preferences: layout?.preferences || []
+			preferences: layoutResult.data?.preferences || []
 		};
 		return json(response);
 	} catch (e) {
@@ -77,11 +89,13 @@ export const GET = async ({ locals, url }) => {
 			stack: e instanceof Error ? e.stack : undefined
 		});
 		// Return empty preferences instead of error to prevent UI breaking
-		return json({ preferences: [] });
+		return json({ preferences: [] }, { status: 200 });
 	}
 };
-
 export const POST = async ({ request, locals }) => {
+	// Wait for database initialization
+	await dbInitPromise;
+
 	const { user, tenantId } = locals;
 	const data = await request.json(); // Try to get userId from request body, otherwise use locals.user
 
@@ -91,7 +105,7 @@ export const POST = async ({ request, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	} // Handle widget state persistence
 

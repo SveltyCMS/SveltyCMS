@@ -6,7 +6,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 // import { dbAdapter } from '@src/databases/db';
@@ -29,11 +29,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 		const result = await dbAdapter.crud.findMany('system_virtual_folders', filter);
 		if (!result.success) {
 			throw error(500, result.error?.message || 'Failed to fetch virtual folders');
@@ -67,7 +67,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -81,7 +81,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const folderData: Partial<SystemVirtualFolder> = {
 			name: name.trim(),
 			parentId: parentId || null,
-			...(privateEnv.MULTI_TENANT && { tenantId }),
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		};

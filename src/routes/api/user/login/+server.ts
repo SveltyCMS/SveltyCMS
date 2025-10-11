@@ -22,7 +22,7 @@
 
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
 import { auth } from '@src/databases/db';
@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 		}
 
 		// In multi-tenant mode, a tenantId is required for login.
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			logger.error('Login attempt failed: Tenant ID is missing in a multi-tenant setup.');
 			throw error(400, 'Could not identify the tenant for this request.');
 		} // Prevent an already authenticated user from trying to log in again.
@@ -63,7 +63,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		// --- MULTI-TENANCY: Scope user lookup to the current tenant ---
 		const userLookupCriteria: { email: string; tenantId?: string } = { email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			userLookupCriteria.tenantId = tenantId;
 		}
 		const user = await auth.getUserByEmail(userLookupCriteria); // **SECURITY**: Use a generic error message for both non-existent users and wrong passwords.
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		const session = await auth.createSession({
 			user_id: user._id,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId to the session
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId to the session
 			expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24-hour session
 		}); // Cache user in session store
 

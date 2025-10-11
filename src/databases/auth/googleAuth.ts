@@ -8,7 +8,8 @@
  */
 
 import { dev } from '$app/environment';
-import { privateEnv, publicEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 import type { Credentials, OAuth2Client } from 'google-auth-library';
 
@@ -28,11 +29,13 @@ function getOAuthRedirectUri(): string {
 }
 
 // Google OAuth
-let googleAuthClient: any;
+let googleAuthClient: OAuth2Client | null = null;
 
 // Initialize Google OAuth client with ID, secret, and redirect URL
 async function googleAuth(): Promise<OAuth2Client | null> {
-	if (!privateEnv.GOOGLE_CLIENT_ID || !privateEnv.GOOGLE_CLIENT_SECRET) {
+	const googleClientId = getPrivateSettingSync('GOOGLE_CLIENT_ID');
+	const googleClientSecret = getPrivateSettingSync('GOOGLE_CLIENT_SECRET');
+	if (!googleClientId || !googleClientSecret) {
 		logger.warn('Google client ID and secret are not provided. OAuth unavailable.');
 		return null;
 	}
@@ -44,7 +47,7 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 			const redirectUri = getOAuthRedirectUri();
 			logger.debug(`Using OAuth redirect URI: \x1b[34m${redirectUri}\x1b[0m`);
 
-			googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
+			googleAuthClient = new google.auth.OAuth2(googleClientId, googleClientSecret, redirectUri);
 		}
 
 		return googleAuthClient;

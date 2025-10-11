@@ -11,7 +11,7 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json } from '@sveltejs/kit';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -83,7 +83,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
 			try {
 				const collectionName = `collection_${collection._id}`;
-				const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+				const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
 				// Use database-agnostic CRUD methods for reliable querying
 				const result = await dbAdapter.crud.findMany(collectionName, filter, {

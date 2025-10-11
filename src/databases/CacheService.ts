@@ -19,19 +19,37 @@ try {
 	browser = false;
 }
 
-import { privateEnv, getPrivateSetting } from '@src/stores/globalSettings';
-
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import type { RedisClientType } from 'redis';
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { RedisClientType } from 'redis';
 
-const CACHE_CONFIG = {
-	USE_REDIS: privateEnv.USE_REDIS,
-	URL: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
-	PASSWORD: privateEnv.REDIS_PASSWORD || undefined,
-	RETRY_ATTEMPTS: 3,
-	RETRY_DELAY: 2000
-};
+// Cache config will be loaded lazily when cache is initialized
+let CACHE_CONFIG: {
+	USE_REDIS: boolean;
+	URL: string;
+	PASSWORD?: string;
+	RETRY_ATTEMPTS: number;
+	RETRY_DELAY: number;
+} | null = null;
+
+function getCacheConfig() {
+	if (!CACHE_CONFIG) {
+		const USE_REDIS = getPrivateSettingSync('USE_REDIS');
+		const REDIS_HOST = getPrivateSettingSync('REDIS_HOST');
+		const REDIS_PORT = getPrivateSettingSync('REDIS_PORT');
+		const REDIS_PASSWORD = getPrivateSettingSync('REDIS_PASSWORD');
+
+		CACHE_CONFIG = {
+			USE_REDIS,
+			URL: `redis://${REDIS_HOST}:${REDIS_PORT}`,
+			PASSWORD: REDIS_PASSWORD || undefined,
+			RETRY_ATTEMPTS: 3,
+			RETRY_DELAY: 2000
+		};
+	}
+	return CACHE_CONFIG;
+}
 
 interface ICacheStore {
 	initialize(): Promise<void>;
@@ -106,10 +124,11 @@ class RedisStore implements ICacheStore {
 
 	async initialize(): Promise<void> {
 		if (this.isInitialized || browser) return;
-		for (let attempt = 1; attempt <= CACHE_CONFIG.RETRY_ATTEMPTS; attempt++) {
+		const config = getCacheConfig();
+		for (let attempt = 1; attempt <= config.RETRY_ATTEMPTS; attempt++) {
 			try {
 				const { createClient } = await import('redis');
-				this.client = createClient({ url: CACHE_CONFIG.URL, password: CACHE_CONFIG.PASSWORD });
+				this.client = createClient({ url: config.URL, password: config.PASSWORD });
 				this.client.on('error', (err) => logger.error('Redis Client Error', err));
 				this.client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
 				await this.client.connect();
@@ -118,10 +137,10 @@ class RedisStore implements ICacheStore {
 				return;
 			} catch (err) {
 				logger.error(`Redis connection attempt ${attempt} failed: ${err instanceof Error ? err.message : String(err)}`);
-				if (attempt === CACHE_CONFIG.RETRY_ATTEMPTS) {
-					throw new Error(`Failed to initialize Redis after ${CACHE_CONFIG.RETRY_ATTEMPTS} attempts.`);
+				if (attempt === config.RETRY_ATTEMPTS) {
+					throw new Error(`Failed to initialize Redis after ${config.RETRY_ATTEMPTS} attempts.`);
 				}
-				await new Promise((r) => setTimeout(r, CACHE_CONFIG.RETRY_DELAY));
+				await new Promise((r) => setTimeout(r, config.RETRY_DELAY));
 			}
 		}
 	}
@@ -182,7 +201,8 @@ class CacheService {
 	private accessLog: Map<string, number[]> = new Map(); // Track access times for analytics
 
 	private constructor() {
-		this.store = !browser && CACHE_CONFIG.USE_REDIS ? new RedisStore() : new InMemoryStore();
+		const config = getCacheConfig();
+		this.store = !browser && config.USE_REDIS ? new RedisStore() : new InMemoryStore();
 	}
 
 	static getInstance(): CacheService {
@@ -209,7 +229,7 @@ class CacheService {
 	private generateKey(baseKey: string, tenantId?: string): string {
 		// If the caller already supplied a fully-qualified tenant-prefixed key, respect it
 		if (baseKey.startsWith('tenant:')) return baseKey;
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			const tenant = tenantId || 'default';
 			return `tenant:${tenant}:${baseKey}`;
 		}
@@ -249,6 +269,7 @@ class CacheService {
 	/**
 	 * Prefetch multiple keys in the background
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	private async prefetchKeys(keys: string[], category?: CacheCategory, _tenantId?: string): Promise<void> {
 		// This is a placeholder - in a real implementation, you would:
 		// 1. Check which keys are not in cache
@@ -258,6 +279,7 @@ class CacheService {
 		logger.debug(`Predictive prefetch triggered for ${keys.length} keys in category ${category || 'default'}`);
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async get<T>(baseKey: string, tenantId?: string, _category?: CacheCategory): Promise<T | null> {
 		await this.ensureInitialized();
 		const key = this.generateKey(baseKey, tenantId);

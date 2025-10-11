@@ -16,6 +16,7 @@
 
 <script lang="ts">
 	import { page } from '$app/state';
+	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	interface Props {
 		char?: string | null;
@@ -25,8 +26,9 @@
 
 	let { char = null, siteName: propSiteName, highlight }: Props = $props();
 
-	// Get site name from prop or fallback to page data or default
-	const siteName = $derived(propSiteName || page.data?.settings?.SITE_NAME || 'SveltyCMS');
+	// Get site name dynamically from global settings store (updates live!)
+	// Fallback chain: prop → live store → page data → default
+	const siteName = $derived(propSiteName || publicEnv.SITE_NAME || page.data?.settings?.SITE_NAME || 'SveltyCMS');
 
 	// Split site name into parts if highlight is provided
 	const parts = $derived.by(() => {

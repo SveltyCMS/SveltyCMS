@@ -20,7 +20,8 @@ import { contentManager } from '@root/src/content/ContentManager';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
-import { privateEnv, publicEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
@@ -327,7 +328,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
+			const googleAuthClient = new google.auth.OAuth2(
+				getPrivateSettingSync('GOOGLE_CLIENT_ID'),
+				getPrivateSettingSync('GOOGLE_CLIENT_SECRET'),
+				redirectUri
+			);
 			const { tokens } = await googleAuthClient.getToken(code);
 			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 

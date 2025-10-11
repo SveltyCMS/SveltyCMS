@@ -22,7 +22,7 @@ import { corePermissions } from './corePermissions';
 import { logger } from '@utils/logger.svelte';
 
 // Import global settings service for DB-based configuration
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 export {
 	checkPermissions,
@@ -89,26 +89,11 @@ export class Auth {
 		return this.db.auth.deleteUserAndSessions(user_id, tenantId);
 	}
 
-	// Additional wrapper methods for common auth operations
-	async createToken(tokenData: {
-		user_id: string;
-		expires: Date;
-		type: string;
-		metadata?: Record<string, unknown>;
-		tenantId?: string;
-	}): Promise<DatabaseResult<Token>> {
-		return this.db.auth.createToken(tokenData);
-	}
-
-	async getUserById(userId: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
-		return this.db.auth.getUserById(userId, tenantId);
-	}
-
-	async blockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<number>> {
+	async blockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return this.db.auth.blockUsers(userIds, tenantId);
 	}
 
-	async unblockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<number>> {
+	async unblockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>> {
 		return this.db.auth.unblockUsers(userIds, tenantId);
 	}
 
@@ -187,7 +172,7 @@ export class Auth {
 				throw error(400, 'Email and password are required');
 			}
 
-			if (privateEnv.MULTI_TENANT && !tenantId) {
+			if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 				throw error(400, 'Tenant ID is required in multi-tenant mode');
 			}
 
@@ -387,30 +372,28 @@ export class Auth {
 		return result;
 	}
 
-	// Overloaded createToken: support (userId, expires, type, tenantId) and ({ user_id, email, expires, type, tenantId })
-	async createToken(
-		arg1: string | { user_id: string; email: string; expires: Date; type: string; tenantId?: string },
-		expires?: Date,
-		type: string = 'access',
-		tenantId?: string
-	): Promise<string> {
-		if (typeof arg1 === 'string') {
-			const userId = arg1;
-			const user = await this.getUserById(userId, tenantId);
-			if (!user) throw new Error('User not found');
-			const result = await this.db.auth.createToken({ user_id: userId, email: user.email.toLowerCase(), expires: expires as Date, type, tenantId });
-			if (typeof result === 'string') return result;
-			if (result && result.success && typeof result.data === 'string') return result.data;
-			if (result && !result.success && result.error?.message) throw new Error(result.error.message);
-			throw new Error('Failed to create token');
-		} else {
-			const payload = arg1;
-			const result = await this.db.auth.createToken(payload);
-			if (typeof result === 'string') return result;
-			if (result && result.success && typeof result.data === 'string') return result.data;
-			if (result && !result.success && result.error?.message) throw new Error(result.error.message);
-			throw new Error('Failed to create token');
-		}
+	/**
+	 * Create a token for a user.
+	 * @param tokenData - Token creation data including user_id, expires, type, and optional tenantId
+	 * @returns The created token string
+	 */
+	async createToken(tokenData: { user_id: string; expires: Date; type: string; tenantId?: string }): Promise<string> {
+		// Get user email (required for token creation)
+		const user = await this.getUserById(tokenData.user_id, tokenData.tenantId);
+		if (!user) throw new Error('User not found');
+
+		const result = await this.db.auth.createToken({
+			user_id: tokenData.user_id,
+			email: user.email.toLowerCase(),
+			expires: tokenData.expires,
+			type: tokenData.type,
+			tenantId: tokenData.tenantId
+		});
+
+		if (typeof result === 'string') return result;
+		if (result && result.success && typeof result.data === 'string') return result.data;
+		if (result && !result.success && result.error?.message) throw new Error(result.error.message);
+		throw new Error('Failed to create token');
 	}
 
 	// Token management wrappers for interface completeness

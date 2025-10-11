@@ -34,7 +34,7 @@
 	import { getTextDirection } from '@utils/utils';
 	// Stores
 	import { contentStructure } from '@stores/collectionStore.svelte';
-	import { publicEnv } from '@stores/globalSettings';
+	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';

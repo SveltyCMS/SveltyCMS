@@ -16,7 +16,7 @@ import { dev } from '$app/environment';
 // Auth
 import type { User, Session } from '@src/databases/schemas';
 import { Auth } from '@src/databases/auth';
-import { invalidateSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setupAdminSchema } from '@src/utils/formSchemas';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
 import type { Locale } from '@src/paraglide/runtime';
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/services/settingsService';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
@@ -434,7 +434,25 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			sameSite: 'lax'
 		});
 
-		// 10. Return success - NO RESTART REQUIRED! ✨
+		// 10. Set theme cookies
+		const theme = cookies.get('theme');
+		const darkMode = cookies.get('darkMode');
+		if (theme) {
+			cookies.set('theme', theme, {
+				path: '/',
+				maxAge: 60 * 60 * 24 * 365,
+				sameSite: 'lax'
+			});
+		}
+		if (darkMode) {
+			cookies.set('darkMode', darkMode, {
+				path: '/',
+				maxAge: 60 * 60 * 24 * 365,
+				sameSite: 'lax'
+			});
+		}
+
+		// 11. Return success - NO RESTART REQUIRED! ✨
 		return json({
 			success: true,
 			message: 'Setup complete! Welcome to SveltyCMS! 🎉',

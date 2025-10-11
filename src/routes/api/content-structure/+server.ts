@@ -12,7 +12,7 @@
  * Utilizes Redis caching for performance, now tenant-aware.
  */
 import { browser } from '$app/environment';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 import type { ContentNodeOperation } from '@root/src/content/types';
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant ID is required for this operation.');
 		}
 
@@ -109,7 +109,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant ID is required for this operation.');
 		}
 
@@ -191,7 +191,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant ID is required for this operation.');
 		}
 

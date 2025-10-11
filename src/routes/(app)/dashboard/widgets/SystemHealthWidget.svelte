@@ -133,13 +133,13 @@
 	function getServiceBadgeClass(status: ServiceHealth): string {
 		switch (status) {
 			case 'healthy':
-				return 'badge-success';
+				return 'variant-filled-primary';
 			case 'unhealthy':
-				return 'badge-error';
+				return 'variant-filled-error';
 			case 'initializing':
-				return 'badge-primary';
+				return 'variant-filled-warning';
 			default:
-				return 'badge-surface';
+				return 'variant-filled-surface';
 		}
 	}
 
@@ -187,7 +187,7 @@
 						<div class="card variant-ghost-surface flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-semibold">{formatServiceName(name)}</span>
-								<span class={`badge-sm badge ${getServiceBadgeClass(service.status)}`}>
+								<span class={`badge ${getServiceBadgeClass(service.status)}`}>
 									{service.status}
 								</span>
 							</div>

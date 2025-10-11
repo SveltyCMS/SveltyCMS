@@ -1,25 +1,11 @@
 <!--
 @file src/routes/login/components/SignUp.svelte
 @component
-**Si	}>();
-
-	const pageData = page.data as PageData;
-	const showOAuth = pageData.showOAuth;
-	const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
-
-	// State managementponent with optional OAuth support**
+**SignUP with optional OAuth support**
 
 Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
- - Demo mode support with auto-reset timer d					<div class="break-words lg:-mt-1">
-						{#if isInviteFlow}
-							{m.form_signup()}
-							<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
-						{:else}
-							{m.form_signup()}
-							<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
-						{/if}
-					</div> active
+ - Demo mode support with auto-reset timer 
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation

@@ -27,8 +27,8 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 		// Initialize ThemeManager if available
 		let theme = DEFAULT_THEME;
 
-		// Skip ThemeManager entirely during setup - no logging needed
-		if (!event.url.pathname.startsWith('/setup') && !event.url.pathname.startsWith('/api/setup')) {
+		// Use centralized state check
+		if (!event.locals.__skipSystemHooks) {
 			try {
 				const themeManager = ThemeManager.getInstance();
 				if (themeManager.isInitialized()) {

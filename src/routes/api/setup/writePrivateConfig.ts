@@ -4,7 +4,7 @@
  */
 
 import type { DatabaseConfig } from '@src/databases/schemas';
-import { logger } from '@src/utils/logger.svelte';
+import { logger } from '@utils/logger.svelte';
 
 /**
  * Writes database credentials and security keys to private.ts

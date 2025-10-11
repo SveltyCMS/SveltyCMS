@@ -22,7 +22,7 @@
  */
 
 import type { Field, FieldInstance, FieldValue } from '@src/content/types';
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Stores

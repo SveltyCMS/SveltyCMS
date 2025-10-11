@@ -176,7 +176,30 @@ export const databaseConfigSchema = object({
 // ----------------- TYPES & HELPERS -----------------
 export type DatabaseConfig = InferOutput<typeof databaseConfigSchema>;
 export type PrivateConfig = InferOutput<typeof privateConfigSchema>;
+
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;
+
+// --- DYNAMIC COLLECTION SCHEMAS ---
+// Placeholder: Replace with actual collection schemas as needed
+export const collectionSchemas = {
+	Names: {
+		name: 'Names',
+		label: 'Names',
+		fields: []
+		// ...other Schema properties
+	},
+	Relation: {
+		name: 'Relation',
+		label: 'Relation',
+		fields: []
+	},
+	WidgetTest: {
+		name: 'WidgetTest',
+		label: 'WidgetTest',
+		fields: []
+	}
+	// Add more collections as needed
+};
 
 export const createPrivateConfig = (arg: PrivateConfig): PrivateConfig => arg;
 export const createPublicConfig = (arg: PublicConfig): PublicConfig => arg;

@@ -17,7 +17,7 @@
  * "expiresInLabel": "7d"
  * }
  */
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -76,7 +76,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}
@@ -106,7 +106,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const token = await auth.createToken({
 			user_id: tokenData.user_id,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Conditionally add tenantId
 			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
 			expires: expiresAt,
 			type: 'registration' // Or another appropriate type

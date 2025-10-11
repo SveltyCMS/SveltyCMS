@@ -23,7 +23,7 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Config
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
 	import { page } from '$app/state';

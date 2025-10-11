@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getDb } from '@src/databases/db';
-import { getAllSettings, invalidateSettingsCache } from '@src/stores/globalSettings';
+import { getAllSettings, invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.svelte';
 import { decryptData } from '@utils/crypto';
 import type {
@@ -254,10 +254,12 @@ async function applyImport(importData: ExportData, options: ImportOptions, confl
 		// This depends on your collection storage structure
 	}
 
-	// Invalidate cache after successful import
+	// Invalidate cache and reload after successful import
 	if (result.success) {
 		invalidateSettingsCache();
-		logger.info('Settings cache invalidated after import');
+		const { loadSettingsFromDB } = await import('@src/databases/db');
+		await loadSettingsFromDB();
+		logger.info('Settings cache invalidated and reloaded after import');
 	}
 
 	logger.info('Import completed', {

@@ -14,9 +14,10 @@ export interface SettingField {
 	key: string;
 	label: string;
 	description: string;
-	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array';
+	type: 'text' | 'number' | 'boolean' | 'password' | 'select' | 'array' | 'language-multi' | 'language-select' | 'loglevel-multi';
 	category: 'private' | 'public';
 	required?: boolean;
+	readonly?: boolean; // Field is display-only, cannot be edited
 	min?: number;
 	max?: number;
 	options?: Array<{ value: string | number; label: string }>;
@@ -138,8 +139,8 @@ export const settingsGroups: SettingGroup[] = [
 		id: 'database',
 		name: 'Database',
 		icon: '🗄️',
-		description: 'Database connection and configuration settings',
-		enabled: true,
+		description: 'Database connection and configuration settings (managed in config/private.ts)',
+		enabled: false, // Disabled: DB settings are bootstrap config in config/private.ts
 		requiresRestart: true,
 		adminOnly: true,
 		permissionId: 'config:settings:database',
@@ -237,7 +238,7 @@ export const settingsGroups: SettingGroup[] = [
 		id: 'redis',
 		name: 'Redis Cache',
 		icon: '💾',
-		description: 'Redis server configuration and cache settings',
+		description: 'Redis server configuration and cache settings (optional - no defaults, configure only if using Redis)',
 		enabled: true,
 		requiresRestart: true,
 		adminOnly: true,
@@ -253,7 +254,7 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'REDIS_HOST',
 				label: 'Redis Host',
-				description: 'Hostname or IP address of Redis server',
+				description: 'Hostname or IP address of Redis server (optional - no default)',
 				type: 'text',
 				category: 'private',
 				placeholder: 'localhost'
@@ -261,7 +262,7 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'REDIS_PORT',
 				label: 'Redis Port',
-				description: 'Port number for Redis connection',
+				description: 'Port number for Redis connection (optional - no default)',
 				type: 'number',
 				category: 'private',
 				min: 1,
@@ -271,7 +272,7 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'REDIS_PASSWORD',
 				label: 'Redis Password',
-				description: 'Password for Redis authentication (optional)',
+				description: 'Password for Redis authentication (optional - no default)',
 				type: 'password',
 				category: 'private'
 			}
@@ -351,16 +352,11 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'JWT_SECRET_KEY',
 				label: 'JWT Secret Key',
-				description: 'Secret key for JSON Web Token signing (min 32 characters)',
+				description: 'Secret key for JSON Web Token signing (read-only, configured via environment)',
 				type: 'password',
 				category: 'private',
 				required: true,
-				validation: (value) => {
-					if (!value || value.length < 32) {
-						return 'JWT Secret Key must be at least 32 characters long';
-					}
-					return null;
-				}
+				readonly: true
 			},
 			{
 				key: 'ENCRYPTION_KEY',
@@ -370,7 +366,7 @@ export const settingsGroups: SettingGroup[] = [
 				category: 'private',
 				required: true,
 				validation: (value) => {
-					if (!value || value.length < 32) {
+					if (!value || typeof value !== 'string' || value.length < 32) {
 						return 'Encryption Key must be at least 32 characters long';
 					}
 					return null;
@@ -386,13 +382,6 @@ export const settingsGroups: SettingGroup[] = [
 				min: 8,
 				max: 128,
 				placeholder: '8'
-			},
-			{
-				key: 'USE_GOOGLE_OAUTH',
-				label: 'Enable Google OAuth',
-				description: 'Allow users to login with Google accounts',
-				type: 'boolean',
-				category: 'public'
 			}
 		]
 	},
@@ -400,16 +389,23 @@ export const settingsGroups: SettingGroup[] = [
 		id: 'oauth',
 		name: 'OAuth & Social Login',
 		icon: '🔐',
-		description: 'Third-party authentication providers',
+		description: 'Third-party authentication providers (optional - no defaults, configure only if using OAuth)',
 		enabled: true,
 		requiresRestart: false,
 		adminOnly: true,
 		permissionId: 'config:settings:oauth',
 		fields: [
 			{
+				key: 'USE_GOOGLE_OAUTH',
+				label: 'Enable Google OAuth',
+				description: 'Allow users to login with Google accounts',
+				type: 'boolean',
+				category: 'public'
+			},
+			{
 				key: 'GOOGLE_CLIENT_ID',
 				label: 'Google Client ID',
-				description: 'OAuth 2.0 client ID from Google Cloud Console',
+				description: 'OAuth 2.0 client ID from Google Cloud Console (optional - no default)',
 				type: 'text',
 				category: 'private',
 				placeholder: 'xxxxx.apps.googleusercontent.com'
@@ -417,14 +413,14 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'GOOGLE_CLIENT_SECRET',
 				label: 'Google Client Secret',
-				description: 'OAuth 2.0 client secret from Google Cloud Console',
+				description: 'OAuth 2.0 client secret from Google Cloud Console (optional - no default)',
 				type: 'password',
 				category: 'private'
 			},
 			{
 				key: 'GOOGLE_API_KEY',
 				label: 'Google API Key',
-				description: 'API key for Google services',
+				description: 'API key for Google services (optional - no default)',
 				type: 'password',
 				category: 'private'
 			}
@@ -501,7 +497,7 @@ export const settingsGroups: SettingGroup[] = [
 				key: 'DEFAULT_CONTENT_LANGUAGE',
 				label: 'Default Content Language',
 				description: 'Default language for content creation',
-				type: 'text',
+				type: 'language-select',
 				category: 'public',
 				required: true,
 				placeholder: 'en'
@@ -509,8 +505,8 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'AVAILABLE_CONTENT_LANGUAGES',
 				label: 'Available Content Languages',
-				description: 'Languages available for content (comma-separated)',
-				type: 'array',
+				description: 'Languages available for content',
+				type: 'language-multi',
 				category: 'public',
 				required: true,
 				placeholder: 'en,de'
@@ -519,7 +515,7 @@ export const settingsGroups: SettingGroup[] = [
 				key: 'BASE_LOCALE',
 				label: 'Base Locale',
 				description: 'Default locale for the CMS interface',
-				type: 'text',
+				type: 'language-select',
 				category: 'public',
 				required: true,
 				placeholder: 'en'
@@ -527,8 +523,8 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'LOCALES',
 				label: 'Available Locales',
-				description: 'Locales available for the interface (comma-separated)',
-				type: 'array',
+				description: 'Locales available for the interface',
+				type: 'language-multi',
 				category: 'public',
 				required: true,
 				placeholder: 'en,de'
@@ -607,6 +603,14 @@ export const settingsGroups: SettingGroup[] = [
 				placeholder: 'https://yoursite.com'
 			},
 			{
+				key: 'EXTRACT_DATA_PATH',
+				label: 'Data Export Path',
+				description: 'File path for exported collection data',
+				type: 'text',
+				category: 'public',
+				placeholder: './exports/data.json'
+			},
+			{
 				key: 'MULTI_TENANT',
 				label: 'Multi-Tenant Mode',
 				description: 'Enable multi-tenant database support',
@@ -667,8 +671,8 @@ export const settingsGroups: SettingGroup[] = [
 			{
 				key: 'LOG_LEVELS',
 				label: 'Log Levels',
-				description: 'Active logging levels (comma-separated)',
-				type: 'array',
+				description: 'Active logging levels (none, fatal, error, warn, info, debug, trace)',
+				type: 'loglevel-multi',
 				category: 'public',
 				required: true,
 				placeholder: 'error,warn,info'
@@ -694,34 +698,6 @@ export const settingsGroups: SettingGroup[] = [
 				max: 104857600,
 				unit: 'bytes',
 				placeholder: '10485760'
-			}
-		]
-	},
-	{
-		id: 'advanced',
-		name: 'Advanced Settings',
-		icon: '⚙️',
-		description: 'Advanced configuration and developer options',
-		enabled: true,
-		requiresRestart: false,
-		adminOnly: true,
-		permissionId: 'config:settings:advanced',
-		fields: [
-			{
-				key: 'EXTRACT_DATA_PATH',
-				label: 'Data Export Path',
-				description: 'File path for exported collection data',
-				type: 'text',
-				category: 'public',
-				placeholder: './exports/data.json'
-			},
-			{
-				key: 'PKG_VERSION',
-				label: 'Package Version',
-				description: 'Application version (auto-synced with package.json)',
-				type: 'text',
-				category: 'public',
-				placeholder: '1.0.0'
 			}
 		]
 	}

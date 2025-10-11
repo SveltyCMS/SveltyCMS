@@ -17,7 +17,7 @@
  * - Allows querying of user data through the GraphQL API
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -108,7 +108,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 			throw Error('Database adapter is not initialized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
 			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
 			throw new Error('Internal Server Error: Tenant context is missing.');
 		}
@@ -118,7 +118,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
 			const query: { tenantId?: string } = {};
-			if (privateEnv.MULTI_TENANT) {
+			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 

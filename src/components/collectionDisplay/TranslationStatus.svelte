@@ -21,7 +21,7 @@
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';

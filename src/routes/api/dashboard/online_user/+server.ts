@@ -5,7 +5,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 import * as v from 'valibot';
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(500, 'Internal Server Error: Auth service unavailable.');
 	}
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 		// Fetch active sessions for all users (not just the current user)

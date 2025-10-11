@@ -33,7 +33,7 @@
  * Used by the main GraphQL setup to generate collection-specific schemas and resolvers
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 import { getFieldName } from '@utils/utils';
 import { widgetFunctions } from '@stores/widgetStore.svelte';
@@ -326,7 +326,7 @@ export async function collectionsResolvers(
 				throw new Error('Authentication required');
 			}
 
-			if (privateEnv.MULTI_TENANT && ctx.tenantId !== tenantId) {
+			if (getPrivateSettingSync('MULTI_TENANT') && ctx.tenantId !== tenantId) {
 				logger.error(`Resolver tenantId mismatch. Expected ${tenantId}, got ${ctx.tenantId}`);
 				throw new Error('Internal server error: Tenant context mismatch.');
 			}
@@ -339,7 +339,7 @@ export async function collectionsResolvers(
 
 			try {
 				const cacheKey = `collections:${collection._id}:${page}:${limit}`;
-				if (privateEnv.USE_REDIS && cacheClient) {
+				if (getPrivateSettingSync('USE_REDIS') && cacheClient) {
 					const cachedResult = await cacheClient.get(cacheKey, ctx.tenantId);
 					if (cachedResult) {
 						return JSON.parse(cachedResult);
@@ -348,7 +348,7 @@ export async function collectionsResolvers(
 
 				// Query builder expects a filter object, but only known fields
 				const query: Record<string, unknown> = {};
-				if (privateEnv.MULTI_TENANT && ctx.tenantId) {
+				if (getPrivateSettingSync('MULTI_TENANT') && ctx.tenantId) {
 					query.tenantId = ctx.tenantId;
 				}
 
@@ -390,7 +390,7 @@ export async function collectionsResolvers(
 					doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
 				});
 
-				if (privateEnv.USE_REDIS && cacheClient) {
+				if (getPrivateSettingSync('USE_REDIS') && cacheClient) {
 					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60, ctx.tenantId);
 				}
 

@@ -13,7 +13,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
@@ -26,7 +26,7 @@ const limiter = new RateLimiter({
 	IPUA: [500, 'm'], // 500 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY,
+		secret: getPrivateSettingSync('JWT_SECRET_KEY'),
 		rate: [500, 'm'], // 500 requests per minute per cookie
 		preflight: true
 	}
@@ -63,6 +63,9 @@ const isStaticAsset = (pathname: string): boolean =>
 	pathname === '/favicon.ico';
 
 export const handleRateLimit: Handle = async ({ event, resolve }) => {
+	if (event.locals.__skipSystemHooks) {
+		return resolve(event);
+	}
 	const clientIp = getClientIp(event);
 	if (isStaticAsset(event.url.pathname) || isLocalhost(clientIp) || building) {
 		return resolve(event);

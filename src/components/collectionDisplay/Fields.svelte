@@ -33,7 +33,7 @@
 
 	// Stores
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 
 	// Config

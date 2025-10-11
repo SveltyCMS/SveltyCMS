@@ -7,22 +7,26 @@
  * and attaches the database adapter for use in subsequent hooks and endpoints.
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSetting } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 import { isServiceHealthy } from '@src/stores/systemState';
 import { error, type Handle } from '@sveltejs/kit';
 import { getTenantIdFromHostname } from './utils/tenant';
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url } = event;
 
-	// Skip authentication entirely for setup routes
-	if (url.pathname.startsWith('/setup') || url.pathname.startsWith('/api/setup')) {
-		// Still attach dbAdapter if available (needed by setup endpoints)
-		if (dbAdapter) {
-			locals.dbAdapter = dbAdapter;
-		}
+	// Use centralized state check
+	if (event.locals.__skipSystemHooks) {
+		logger.trace('Skipping authentication for setup route');
+		return resolve(event);
+	}
+
+	if (!event.locals.__authReady) {
+		logger.trace('Auth service not ready, skipping session validation');
 		return resolve(event);
 	}
 
@@ -39,7 +43,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	locals.dbAdapter = dbAdapter;
 
 	// Handle multi-tenancy if enabled.
-	if (privateEnv.MULTI_TENANT) {
+	const multiTenant = await getPrivateSetting('MULTI_TENANT');
+	if (multiTenant) {
 		const tenantId = getTenantIdFromHostname(url.hostname);
 		if (!tenantId) {
 			throw error(404, `Tenant not found for hostname: ${url.hostname}`);
@@ -50,7 +55,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	// Validate the session and retrieve the user.
 	const sessionId = event.cookies.get(SESSION_COOKIE_NAME);
 	if (sessionId) {
-		const user = await auth.validateSession(sessionId);
+		const user = await auth?.validateSession(sessionId);
 		if (user) {
 			locals.user = user;
 			locals.session_id = sessionId;

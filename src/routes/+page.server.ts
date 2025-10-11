@@ -8,7 +8,8 @@
  * - Redirects to the first collection with the correct language
  * - Throws an error if there are no collections for the tenant
  */
-import { privateEnv, publicEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 import { contentManager } from '@src/content/ContentManager';
 import { dbInitPromise } from '@src/databases/db';
@@ -51,7 +52,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
 		} // Get the first collection redirect URL for the current tenant
 
 		if (url.pathname === '/') {
-			if (privateEnv.MULTI_TENANT && !tenantId) {
+			if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 				throw error(400, 'Tenant could not be identified for this operation.');
 			}
 			const firstCollection = await contentManager.getFirstCollection(tenantId);

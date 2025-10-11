@@ -36,7 +36,8 @@ import { google } from 'googleapis';
 
 // Stores
 import type { Locale } from '@src/paraglide/runtime';
-import { privateEnv, publicEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
@@ -55,7 +56,7 @@ const limiter = new RateLimiter({
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY,
+		secret: getPrivateSettingSync('JWT_SECRET_KEY'),
 		rate: [50, 'm'], // 50 requests per minute per cookie
 		preflight: true
 	}
@@ -640,7 +641,7 @@ export const actions: Actions = {
 				},
 				{
 					expires: sessionExpires,
-					...(privateEnv.MULTI_TENANT && tokenData.details.tenantId && { tenantId: tokenData.details.tenantId })
+					...(getPrivateSettingSync('MULTI_TENANT') && tokenData.details.tenantId && { tenantId: tokenData.details.tenantId })
 				}
 			);
 

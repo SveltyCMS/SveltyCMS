@@ -18,7 +18,7 @@
  * Body: JSON object with 'user_id' and 'newUserData' properties.
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -76,7 +76,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		// If an admin is editing another user, ensure the target user is in the same tenant.
-		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !isEditingSelf) {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}

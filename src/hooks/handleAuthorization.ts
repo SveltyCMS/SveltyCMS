@@ -12,7 +12,7 @@
  * - Cache invalidation helpers
  * - Multi-layer caching strategy
  */
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, redirect, type Handle } from '@sveltejs/kit';
 
 import { cacheService } from '@src/databases/CacheService';
@@ -82,7 +82,7 @@ const getCachedUserCount = async (authServiceReady: boolean, tenantId?: string, 
 	} // Use deduplication for expensive database operations
 	return deduplicate(`getUserCount:${authServiceReady}:${tenantId}`, async () => {
 		let userCount = -1;
-		const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {};
+		const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
 		if (authServiceReady && authService && authService.getUserCount) {
 			try {
 				userCount = await authService.getUserCount(filter);
@@ -129,7 +129,7 @@ const getAdminDataCached = async (_user: User | null, cacheKey: string, tenantId
 		}
 	}
 	let data = null;
-	const filter = privateEnv.MULTI_TENANT && tenantId ? { filter: { tenantId } } : {};
+	const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { filter: { tenantId } } : {};
 	if (authService) {
 		try {
 			if (cacheKey === 'roles' && authService.getAllRoles) {
@@ -185,15 +185,30 @@ const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login'
 
 // Check if the route is public or an OAuth route
 const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail', '/setup', '/api/setup/test-database', '/api/setup/complete'];
+	const publicRoutes = [
+		'/login',
+		'/register',
+		'/forgot-password',
+		'/api/sendMail',
+		'/setup',
+		'/api/setup/test-database',
+		'/api/setup/complete',
+		'/api/system'
+	];
 	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
 };
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const { url, locals } = event;
 
-	// Skip authorization entirely for setup routes - no users/roles exist yet
-	if (url.pathname.startsWith('/setup') || url.pathname.startsWith('/api/setup')) {
+	// Use centralized state check
+	if (event.locals.__skipSystemHooks) {
+		logger.trace('Skipping authorization for setup route');
+		return resolve(event);
+	}
+
+	if (!event.locals.__authReady) {
+		logger.trace('Auth service not ready, skipping authorization');
 		return resolve(event);
 	}
 

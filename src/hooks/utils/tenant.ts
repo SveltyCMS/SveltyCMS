@@ -3,10 +3,10 @@
  * @description Shared tenant utilities for multi-tenant support
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 export const getTenantIdFromHostname = (hostname: string): string | null => {
-	if (!privateEnv.MULTI_TENANT) return null;
+	if (!getPrivateSettingSync('MULTI_TENANT')) return null;
 	if (hostname === 'localhost' || hostname.startsWith('127.0.0.1')) {
 		return 'default';
 	}

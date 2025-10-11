@@ -16,7 +16,7 @@
 import { publicConfigSchema } from '@src/databases/schemas';
 import type { DatabaseId } from '@src/content/types';
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
-import { invalidateSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.svelte';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
@@ -182,8 +182,10 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<{ f
 	// Uses seedCollectionsForSetup() which bypasses ContentManager to avoid global dbAdapter dependency
 	const { firstCollection } = await seedCollectionsForSetup(adapter);
 
-	// Invalidate the settings cache to force a reload
+	// Invalidate the settings cache and reload from database
 	invalidateSettingsCache();
+	const { loadSettingsFromDB } = await import('@src/databases/db');
+	await loadSettingsFromDB();
 
 	logger.info('✅ System initialization completed');
 
@@ -191,7 +193,7 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<{ f
 }
 
 // Default public settings that were previously in config/public.ts
-const defaultPublicSettings: Array<{ key: string; value: unknown; description?: string }> = [
+export const defaultPublicSettings: Array<{ key: string; value: unknown; description?: string }> = [
 	// Host configuration
 	{ key: 'HOST_DEV', value: 'http://localhost:5173', description: 'Development server URL' },
 	{ key: 'HOST_PROD', value: 'https://yourdomain.com', description: 'Production server URL' },
@@ -226,6 +228,10 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
 	{ key: 'DEFAULT_THEME_PATH', value: '/src/themes/SveltyCMS/SveltyCMSTheme.css', description: 'Path to the default theme CSS file' },
 	{ key: 'DEFAULT_THEME_IS_DEFAULT', value: true, description: 'Whether the default theme is the default theme' },
 
+	// Advanced Settings
+	{ key: 'EXTRACT_DATA_PATH', value: './exports/data.json', description: 'File path for exported collection data' },
+	{ key: 'PKG_VERSION', value: '1.0.0', description: 'Application version (can be overridden, but usually read from package.json)' },
+
 	// NOTE: PKG_VERSION is read dynamically from package.json at runtime, not stored in DB
 	// This ensures version always reflects the installed package and helps detect outdated installations
 
@@ -247,7 +253,7 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
  * Note: Sensitive settings like API keys should be set via GUI or CLI
  * Database config, JWT keys, and encryption keys are handled separately in private config files
  */
-const defaultPrivateSettings: Array<{ key: string; value: unknown; description?: string }> = [
+export const defaultPrivateSettings: Array<{ key: string; value: unknown; description?: string }> = [
 	// Security / 2FA
 	{ key: 'USE_2FA', value: false, description: 'Enable Two-Factor Authentication globally' },
 	{ key: 'TWO_FACTOR_AUTH_BACKUP_CODES_COUNT', value: 10, description: 'Backup codes count for 2FA (1-50)' },

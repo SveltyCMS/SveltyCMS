@@ -18,7 +18,7 @@
 
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
@@ -35,7 +35,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		if (!currentUser) {
 			throw error(401, 'Unauthorized');
 		}
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Parse request body to get optional target user ID
 
@@ -53,7 +53,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		const isEditingSelf = currentUser._id === targetUserId;
 
 		// In multi-tenant mode, ensure target user is in same tenant when editing others
-		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !isEditingSelf) {
 			// Ensure the authentication system is initialized
 			if (!auth) {
 				logger.error('Authentication system is not initialized');

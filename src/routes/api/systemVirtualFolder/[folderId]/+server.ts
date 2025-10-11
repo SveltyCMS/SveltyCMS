@@ -5,7 +5,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -46,7 +46,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		let folders: SystemVirtualFolder[] = [];
 		let files: MediaDoc[] = [];
 
-		const tenantFilter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const tenantFilter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
 		if (folderId === 'root') {
 			// Root folder - get top-level folders and files, scoped by tenant

@@ -53,6 +53,11 @@ declare global {
 			darkMode: boolean; // Dark mode preference from cookies
 			__reqStart?: number; // Performance monitoring start time
 			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations
+			// State machine integration
+			__skipSystemHooks?: boolean;
+			__systemReady?: boolean;
+			__authReady?: boolean;
+			__themeReady?: boolean;
 		}
 	}
 

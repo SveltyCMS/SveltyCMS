@@ -10,7 +10,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // GraphQL Yoga
@@ -52,7 +52,7 @@ if (!building) {
 }
 
 // Create a cache client adapter compatible with the expected interface in resolvers
-const cacheClient = privateEnv.USE_REDIS
+const cacheClient = getPrivateSettingSync('USE_REDIS')
 	? {
 			get: async (key: string, tenantId?: string) => {
 				try {

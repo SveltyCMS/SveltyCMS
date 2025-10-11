@@ -20,7 +20,7 @@
  * - Provides the foundation for querying media data through the GraphQL API
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 // System Logs
@@ -106,7 +106,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 			throw Error('Database adapter is not initialized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
 			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
 			throw new Error('Internal Server Error: Tenant context is missing.');
 		}
@@ -116,7 +116,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
 			const query: { tenantId?: string } = {};
-			if (privateEnv.MULTI_TENANT) {
+			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 

@@ -203,22 +203,6 @@
 				contextType: 'system'
 			}
 		},
-		// START: New Configuration Manager Button
-		{
-			id: 'configurationManager',
-			href: '/config/configurationManager',
-			label: 'Config Manager',
-			icon: 'mdi:sync-circle',
-			classes: 'variant-ghost-secondary dark:text-white',
-			permission: {
-				contextId: 'config:synchronization',
-				name: 'Configuration Manager',
-				description: 'Synchronize configuration between filesystem and database.',
-				requiredRole: 'admin',
-				action: 'manage',
-				contextType: 'system'
-			}
-		},
 		// END: New Configuration Manager Button
 		// START: System Health Monitor
 		{

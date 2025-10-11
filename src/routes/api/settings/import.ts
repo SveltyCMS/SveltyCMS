@@ -13,7 +13,7 @@
  * @returns {Response} A JSON object indicating success or failure.
  */
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
-import { updateSettingsFromSnapshot } from '@src/stores/globalSettings';
+import { updateSettingsFromSnapshot } from '@src/services/settingsService';
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 export const POST: RequestHandler = async ({ request, locals }) => {

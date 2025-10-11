@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { getAllSettings } from '@src/stores/globalSettings';
+import { getAllSettings } from '@src/services/settingsService';
 import { logger } from '@utils/logger.svelte';
 import { encryptData } from '@utils/crypto';
 import { nanoid } from 'nanoid';

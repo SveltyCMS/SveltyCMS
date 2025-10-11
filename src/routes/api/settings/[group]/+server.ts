@@ -8,7 +8,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { invalidateSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache } from '@src/services/settingsService';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 import { getSettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
@@ -42,10 +42,18 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		// 1. Start with seed defaults as source of truth
 		const finalValues: Record<string, unknown> = {};
 		const allDefaults = [...defaultPublicSettings, ...defaultPrivateSettings];
+
+		logger.debug(`[${groupId}] Looking for ${fieldKeys.length} keys in ${allDefaults.length} defaults`);
+
 		for (const key of fieldKeys) {
 			const found = allDefaults.find((s) => s.key === key);
 			finalValues[key] = found ? found.value : undefined;
+			if (!found) {
+				logger.warn(`[${groupId}] No default found for key: ${key}`);
+			}
 		}
+
+		logger.debug(`[${groupId}] Initial values from defaults:`, finalValues);
 
 		// 2. Fetch database overrides
 		const dbResult = await dbAdapter.systemPreferences.getMany(fieldKeys);
@@ -77,7 +85,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			values: finalValues
 		});
 	} catch (err) {
-		logger.error(`Failed to get settings for group '${groupId}':`, err);
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+		const errorStack = err instanceof Error ? err.stack : undefined;
+		logger.error(`Failed to get settings for group '${groupId}':`, { message: errorMessage, stack: errorStack, err });
 		throw error(500, 'Failed to retrieve settings');
 	}
 };
@@ -209,8 +219,10 @@ export const PUT: RequestHandler = async ({ request, locals, params }) => {
 			throw error(500, 'Failed to save settings to database');
 		}
 
-		// Invalidate cache to ensure changes are picked up immediately
+		// Invalidate cache and reload settings from database to make changes immediately available
 		invalidateSettingsCache();
+		const { loadSettingsFromDB } = await import('@src/databases/db');
+		await loadSettingsFromDB();
 
 		logger.info(`Settings group '${groupId}' updated by user ${locals.user._id}`, {
 			keys: Object.keys(updates)
@@ -263,8 +275,10 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(500, 'Failed to reset settings to defaults');
 		}
 
-		// Invalidate cache to force reload from defaults
+		// Invalidate cache and reload settings from database to make changes immediately available
 		invalidateSettingsCache();
+		const { loadSettingsFromDB } = await import('@src/databases/db');
+		await loadSettingsFromDB();
 
 		logger.info(`Settings group '${groupId}' reset to defaults by user ${locals.user._id}`);
 

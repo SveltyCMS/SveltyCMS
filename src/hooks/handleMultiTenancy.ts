@@ -10,7 +10,7 @@
  * - Efficient tenant ID extraction from request context
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, type Handle } from '@sveltejs/kit';
 
 import { getTenantIdFromHostname } from './utils/tenant';
@@ -20,7 +20,10 @@ import { logger } from '@utils/logger.svelte';
 
 // Identifies a tenant based on the request hostname.
 export const handleMultiTenancy: Handle = async ({ event, resolve }) => {
-	if (privateEnv.MULTI_TENANT) {
+	if (event.locals.__skipSystemHooks) {
+		return resolve(event);
+	}
+	if (getPrivateSettingSync('MULTI_TENANT')) {
 		const tenantId = getTenantIdFromHostname(event.url.hostname);
 		if (!tenantId) {
 			throw error(404, `Tenant not found for hostname: ${event.url.hostname}`);

@@ -17,7 +17,7 @@
  * Body: JSON object with 'tokenId' and 'newTokenData' properties
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -69,7 +69,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}

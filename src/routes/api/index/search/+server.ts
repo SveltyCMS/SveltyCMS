@@ -13,7 +13,7 @@
  * - Permission checking
  * - Enhanced error handling
  */
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
@@ -36,7 +36,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(500, 'Database adapter not initialized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 

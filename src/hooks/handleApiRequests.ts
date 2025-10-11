@@ -72,7 +72,8 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			const bypassCache = url.searchParams.get('refresh') === 'true' || url.searchParams.get('nocache') === 'true';
 
 			// Tenant-aware key via CacheService tenant prefixing
-			const baseKey = `api:${apiEndpoint}:${locals.user._id}:${url.search}`;
+			// Use full pathname to include dynamic route params (e.g., /api/settings/[group])
+			const baseKey = `api:${apiEndpoint}:${locals.user._id}:${url.pathname}${url.search}`;
 
 			if (!bypassCache) {
 				try {

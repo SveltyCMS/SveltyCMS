@@ -38,6 +38,7 @@ import { handleRateLimit } from './hooks/handleRateLimit';
 import { handleSessionAuth } from './hooks/handleSessionAuth';
 import { handleSetup } from './hooks/handleSetup';
 import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+import { handleSystemState } from './hooks/handleSystemState';
 import { handleTheme } from './hooks/handleTheme';
 
 // Cache TTLs (centralized)
@@ -121,7 +122,9 @@ const buildMiddlewareSequence = (): Handle[] => {
 	middleware.push(handleConfigInit);
 	// 1. Perf start marker
 	middleware.push(handlePerfStart);
-	// 2. Setup gate
+	// 2. System state check
+	middleware.push(handleSystemState);
+	// 3. Setup gate
 	middleware.push(handleSetup);
 	// 3. Static asset caching
 	middleware.push(handleStaticAssetCaching);

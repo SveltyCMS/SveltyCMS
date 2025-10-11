@@ -35,7 +35,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { FieldType } from '.';
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';

@@ -14,7 +14,7 @@
 
 import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
-import { publicEnv } from '@src/stores/globalSettings';
+import { loadSettingsCache } from '@src/services/settingsService';
 
 import type { LayoutServerLoad } from './$types';
 
@@ -24,11 +24,9 @@ import { logger } from '@utils/logger.svelte';
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const { theme, user } = locals;
-	// Get settings from database with error handling
-	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
-	const locales = publicEnv.LOCALES || ['en'];
-	const baseLocale = publicEnv.BASE_LOCALE || 'en';
-	const pkgVersion = publicEnv.PKG_VERSION || '0.0.0';
+
+	// Load settings from server-side cache (defaults from seed data)
+	const { public: publicSettings } = await loadSettingsCache();
 
 	try {
 		await contentManager.initialize();
@@ -63,12 +61,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			theme: theme || DEFAULT_THEME,
 			contentStructure: contentStructure,
 			user: freshUser,
-			settings: {
-				SITE_NAME: siteName,
-				LOCALES: locales,
-				BASE_LOCALE: baseLocale,
-				PKG_VERSION: pkgVersion
-			}
+			publicSettings // Pass public settings to client (includes all defaults from seed)
 		};
 	} catch (error) {
 		logger.error('Failed to load layout data:', error);
@@ -79,12 +72,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			user,
 			contentStructure: [],
 			error: 'Failed to load collection data',
-			settings: {
-				SITE_NAME: siteName,
-				LOCALES: locales,
-				BASE_LOCALE: baseLocale,
-				PKG_VERSION: pkgVersion
-			}
+			publicSettings // Pass public settings even on error
 		};
 	}
 };

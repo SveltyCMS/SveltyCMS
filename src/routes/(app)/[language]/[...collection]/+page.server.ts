@@ -6,7 +6,7 @@
  * Most authentication and user data is already handled by hooks.server.ts.
  */
 
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 

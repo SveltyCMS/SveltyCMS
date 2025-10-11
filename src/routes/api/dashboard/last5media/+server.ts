@@ -5,7 +5,7 @@
 
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 // import { dbAdapter } from '@src/databases/db';
@@ -41,7 +41,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -57,7 +57,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
 		// Use database-agnostic adapter to get recent media files
 		const result = await dbAdapter.media.files.getByFolder(undefined, {

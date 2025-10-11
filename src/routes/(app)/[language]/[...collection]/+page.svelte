@@ -18,7 +18,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
 	// Components

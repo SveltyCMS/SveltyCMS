@@ -10,7 +10,7 @@
  * - Validate and transform incoming roles/permissions data
  * - Handle authorization and access control
  */
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// --- MULTI-TENANCY SECURITY BLOCK ---
 	// This endpoint modifies a global file and is fundamentally incompatible with multi-tenancy.
 	// It is disabled to prevent one tenant from overwriting the roles of all other tenants.
-	if (privateEnv.MULTI_TENANT) {
+	if (getPrivateSettingSync('MULTI_TENANT')) {
 		logger.error('CRITICAL: The permission/update API endpoint was called in multi-tenant mode. This operation is disabled for security reasons.');
 		throw error(501, 'This feature is not available in multi-tenant mode.');
 	}

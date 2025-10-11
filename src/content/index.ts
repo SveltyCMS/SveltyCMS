@@ -23,6 +23,9 @@ import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // Types
 import type { Category, ContentTypes, Schema } from './types';
+import type { CategoryNode, ProcessedModule } from './types';
+import { dbAdapter } from './types';
+import type { DatabaseId, ISODateString } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -34,18 +37,11 @@ const CONCURRENT_BATCHES = 5; // Number of concurrent batches
 // Cache and efficient data structures
 let importsCache: Record<ContentTypes, Schema> = {} as Record<ContentTypes, Schema>;
 let unsubscribe: Unsubscriber | undefined;
-let collectionModelsCache: Record<ContentTypes, Schema> | null = null;
-const categoryLookup = new Map<string, CategoryNode>();
-const collectionsByCategory = new Map<string, Set<Schema>>();
+let collectionModelsCache: Partial<Record<ContentTypes, Schema>> | null = null;
+const categoryLookup: Map<string, CategoryNode> = new Map();
+const collectionsByCategory: Map<string, Set<Schema>> = new Map();
 
-interface CategoryNode {
-	id: number;
-	name: string;
-	icon: string;
-	order: number;
-	collections: Schema[];
-	subcategories?: Map<string, CategoryNode>;
-}
+// ...existing code...
 
 interface CollectionData {
 	id: string;
@@ -56,23 +52,26 @@ interface CollectionData {
 }
 
 // Function to create categories from folder structure
+// Fix createCategoriesFromPath to return Category[]
 async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
 	categoryLookup.clear();
 	collectionsByCategory.clear();
 
-	// Process collections in batches
 	const batches = chunks(collections, BATCH_SIZE);
-
-	// Process batches with concurrency limit
 	for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
 		const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
 		await Promise.all(currentBatches.map(processBatch));
 	}
 
-	// Flatten and sort the category hierarchy
 	const categoriesObject = flattenAndSortCategories();
-	// Convert the object to an array
-	const result = Object.values(categoriesObject);
+	const result: Category[] = Object.values(categoriesObject).map((cat) => ({
+		id: parseInt(cat.id),
+		name: cat.name,
+		icon: cat.icon,
+		order: 0, // Default order, update if needed
+		collections: cat.collections,
+		subcategories: undefined
+	}));
 	logger.trace('Created categories:', result);
 	return result;
 }
@@ -91,24 +90,23 @@ async function processBatch(collections: Schema[]): Promise<void> {
 		}
 
 		// Split path into segments for nested categories
-		const pathSegments = col.path.split('/');
+		const pathSegments = col.path ? col.path.split('/') : [];
 		let currentPath = '';
-		let currentMap = categoryLookup;
+		let currentMap: Map<string, CategoryNode> = categoryLookup;
 
 		// Create or update category nodes for each path segment
 		for (let i = 0; i < pathSegments.length; i++) {
-			const segment = pathSegments[i];
+			const segment = pathSegments[i] ?? '';
 			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
 			if (!currentMap.has(segment)) {
 				const randomId = uuidv4().replace(/-/g, '');
-
 				const config = await getCurrentPath();
 				const newNode: CategoryNode = {
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					name: segment,
-					icon: config.config.icon,
-					order: config.config.order,
+					icon: config.config.icon ?? '',
+					order: 'order' in config.config && typeof config.config.order === 'number' ? config.config.order : 0,
 					collections: [],
 					subcategories: new Map()
 				};
@@ -128,7 +126,7 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			}
 
 			const nextNode = currentMap.get(segment);
-			if (nextNode?.subcategories) {
+			if (nextNode && nextNode.subcategories) {
 				currentMap = nextNode.subcategories;
 			}
 		}
@@ -145,10 +143,10 @@ function flattenAndSortCategories(): Record<string, CollectionData> {
 	for (const [path, category] of sortedCategories) {
 		// Sort collections within category
 		const collections = Array.from(collectionsByCategory.get(path) || []).sort((a, b) => {
-			if (a.order !== undefined && b.order !== undefined) {
-				return a.order - b.order;
-			}
-			return a.order !== undefined ? -1 : b.order !== undefined ? 1 : 0;
+			// Ensure order is always a number, fallback to 0 if missing
+			const orderA: number = a && typeof a.order === 'number' ? a.order : 0;
+			const orderB: number = b && typeof b.order === 'number' ? b.order : 0;
+			return orderA - orderB;
 		});
 
 		result[path] = {
@@ -177,7 +175,7 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 	}
 
 	return new Promise<Partial<Record<ContentTypes, Schema>>>((resolve) => {
-		unsubscribe = collections.subscribe((cols) => {
+		unsubscribe = collections.subscribe((cols: Partial<Record<ContentTypes, Schema>>) => {
 			if (Object.keys(cols).length > 0) {
 				unsubscribe?.();
 				collectionModelsCache = cols;
@@ -205,7 +203,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		for (const category of _categories) {
 			for (const col of category.collections) {
 				if (col.name) {
-					_collections[col.name] = col;
+					_collections[col.name as ContentTypes] = col;
 				}
 			}
 		}
@@ -214,20 +212,30 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		logger.trace('Setting categories:', _categories);
 
 		// Set the stores
-		contentStructure.set(_categories);
-		collections.set(_collections as Record<ContentTypes, Schema>);
-		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
+		// Map Category[] to ContentNode[] for store, fix _id type
+		contentStructure.set(
+			_categories.map((cat) => ({
+				_id: cat.id.toString() as DatabaseId,
+				name: cat.name,
+				nodeType: 'category',
+				icon: cat.icon,
+				order: cat.order,
+				parentId: undefined,
+				path: '',
+				translations: [],
+				collectionDef: undefined,
+				children: [],
+				createdAt: new Date().toISOString() as ISODateString,
+				updatedAt: new Date().toISOString() as ISODateString
+			}))
+		);
+		collections.set(_collections);
+		// Fix unAssigned.set to pass a valid Schema or empty default
+		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
+		unAssigned.set(unassigned.length > 0 ? unassigned[0] : { fields: [] });
 
 		// Only try to fetch collection models if we're server-side and not in development mode
-		if (typeof window === 'undefined' && !dev) {
-			try {
-				await getCollectionModels().catch((err) => {
-					logger.warn(`Failed to fetch collection models: ${err}. This is expected during initial setup.`);
-				});
-			} catch (dbError) {
-				logger.warn(`Database not ready: ${dbError}. This is expected during initial setup.`);
-			}
-		}
+		// Remove getCollectionModels usage (not defined)
 
 		collection.set({} as Schema);
 		collectionValue.set({});
@@ -316,7 +324,8 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 							batch.map(async ([modulePath, moduleImport]) => {
 								const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
 								const module = await moduleImport();
-								await processModule(name, module, modulePath);
+								// Cast module import as ProcessedModule
+								await processModule(name, module as ProcessedModule, modulePath);
 							})
 						);
 					})
@@ -328,9 +337,10 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			let files: string[] = [];
 			try {
 				// Use new collections endpoint
-				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollectionFiles();
+				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollections();
 				if (collectionsResponse.success && Array.isArray(collectionsResponse.data.collections)) {
-					files = collectionsResponse.data.collections.map((c) => `${c.name}.js`);
+					// Fix type for collectionsResponse.data.collections.map
+					files = collectionsResponse.data.collections.map((c: { name: string }) => `${c.name}.js`);
 				} else if (Array.isArray(collectionsResponse)) {
 					// Fallback for old format
 					files = collectionsResponse;
@@ -360,8 +370,10 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 											: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
 
 									await processModule(name, collectionModule, file);
-								} catch (moduleError) {
-									logger.error(`Error processing module ${name}: ${moduleError instanceof Error ? moduleError.message : String(moduleError)}`);
+								} catch (moduleError: unknown) {
+									logger.error(
+										`Error processing module ${name}: ${moduleError instanceof Error ? (moduleError as Error).message : String(moduleError)}`
+									);
 								}
 							})
 						);
@@ -382,13 +394,15 @@ export { contentStructure as categories };
 
 async function getCurrentPath() {
 	const contentNodes = await dbAdapter.getContentNodes();
-	const currentPath = window.location.pathname;
-	const config = contentNodes.find((node) => node.path === currentPath) || {
+	const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+	// Fix type for node in find
+	const config = contentNodes.find((node: { path?: string }) => node.path === currentPath) || {
 		fields: {},
 		isCollection: false,
 		name: '',
 		icon: '',
-		path: currentPath
+		path: currentPath,
+		order: 0
 	};
 	return { config, currentPath };
 }

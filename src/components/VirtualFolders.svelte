@@ -31,7 +31,7 @@ Features:
 	import { showToast } from '@utils/toast';
 	import { onMount } from 'svelte';
 	// Stores
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';

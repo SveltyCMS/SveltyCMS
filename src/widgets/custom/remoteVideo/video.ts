@@ -10,7 +10,7 @@
  * - **Caching**: Implements a simple in-memory cache to reduce redundant API calls.
  * - **Secure**: Designed for server-side execution to protect API keys.
  */
-import { privateEnv } from '@src/stores/globalSettings'; // Assuming this is server-side access to private env vars
+import { getPrivateSettingSync } from '@src/services/settingsService'; // Assuming this is server-side access to private env vars
 import { logger } from '@utils/logger.svelte'; // Assuming this is a server-side logger
 import type { RemoteVideoData, VideoPlatform } from './types';
 
@@ -29,11 +29,12 @@ interface ExternalVideoMetadata {
 	duration?: string; // ISO 8601 duration
 	user_name?: string; // For Vimeo
 	upload_date?: string; // For Vimeo
+	_cachedAt?: number; // Internal cache timestamp
 }
 
 // Extracts a video ID from a given URL
 function extractVideoId(url: string): { platform: VideoPlatform; id: string } | null {
-	const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+	const youtubeRegex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/;
 	const vimeoRegex = /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/;
 	const twitchRegex = /(?:twitch\.tv\/videos\/)(\d+)/;
 	const tiktokRegex = /(?:tiktok\.com\/@(?:[a-zA-Z0-9._]+)\/video\/(\d+))/;
@@ -58,12 +59,13 @@ function extractVideoId(url: string): { platform: VideoPlatform; id: string } | 
 
 // Fetches YouTube video metadata
 async function fetchYouTubeMetadata(videoId: string): Promise<ExternalVideoMetadata | null> {
-	if (!privateEnv.GOOGLE_API_KEY) {
+	const googleApiKey = getPrivateSettingSync('GOOGLE_API_KEY');
+	if (!googleApiKey) {
 		logger.error('GOOGLE_API_KEY is not set for YouTube metadata fetch.');
 		return null;
 	}
 	const parts = 'snippet,contentDetails';
-	const url = `https://www.googleapis.com/youtube/v3/videos?part=${parts}&id=${videoId}&key=${privateEnv.GOOGLE_API_KEY}`;
+	const url = `https://www.googleapis.com/youtube/v3/videos?part=${parts}&id=${videoId}&key=${googleApiKey}`;
 
 	try {
 		const response = await fetch(url);
@@ -128,7 +130,9 @@ async function fetchVimeoMetadata(videoId: string): Promise<ExternalVideoMetadat
 
 // Fetches Twitch video metadata
 async function fetchTwitchMetadata(videoId: string): Promise<ExternalVideoMetadata | null> {
-	if (!privateEnv.TWITCH_TOKEN || !privateEnv.TWITCH_CLIENT_ID) {
+	const twitchToken = getPrivateSettingSync('TWITCH_TOKEN');
+	const twitchClientId = getPrivateSettingSync('TWITCH_CLIENT_ID');
+	if (!twitchToken || !twitchClientId) {
 		logger.error('TWITCH_TOKEN or TWITCH_CLIENT_ID is not set for Twitch metadata fetch.');
 		return null;
 	}
@@ -136,8 +140,8 @@ async function fetchTwitchMetadata(videoId: string): Promise<ExternalVideoMetada
 	try {
 		const response = await fetch(url, {
 			headers: {
-				'Client-ID': privateEnv.TWITCH_CLIENT_ID,
-				Authorization: `Bearer ${privateEnv.TWITCH_TOKEN}`
+				'Client-ID': twitchClientId,
+				Authorization: `Bearer ${twitchToken}`
 			}
 		});
 		if (!response.ok) {
@@ -208,7 +212,7 @@ export async function getRemoteVideoData(url: string): Promise<RemoteVideoData |
 
 	const cacheKey = `${parsed.platform}-${parsed.id}`;
 	const cached = cache.get(cacheKey);
-	if (cached && Date.now() - (cached as any)._cachedAt < CACHE_TTL) {
+	if (cached && cached._cachedAt && Date.now() - cached._cachedAt < CACHE_TTL) {
 		return cached;
 	}
 

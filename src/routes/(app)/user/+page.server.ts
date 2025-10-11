@@ -29,7 +29,7 @@ import { valibot } from 'sveltekit-superforms/adapters';
 import { superValidate } from 'sveltekit-superforms/server';
 
 // System Logger
-import { getUntypedSetting } from '@src/stores/globalSettings';
+import { getUntypedSetting } from '@src/stores/globalSettings.svelte';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async (event) => {

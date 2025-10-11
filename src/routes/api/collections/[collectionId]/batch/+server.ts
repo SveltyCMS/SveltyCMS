@@ -12,7 +12,7 @@
  * * Enhanced error reporting for partial failures
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
 
@@ -95,7 +95,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 		// Build tenant-aware query
 		const query: { _id: { $in: string[] }; tenantId?: string } = { _id: { $in: entryIds } };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 

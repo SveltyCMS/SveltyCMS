@@ -5,7 +5,7 @@
 
 import type { User } from '@src/databases/auth/types';
 import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS, cacheService } from '@src/databases/CacheService';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSetting } from '@src/services/settingsService';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { RateLimiter } from 'sveltekit-rate-limiter/server';
 
@@ -44,8 +44,11 @@ export async function getUserFromSessionId(
 	const now = Date.now();
 	const canUseCache = authServiceReady || authService !== null;
 
+	// Load multi-tenant setting once
+	const isMultiTenant = await getPrivateSetting('MULTI_TENANT');
+
 	const validateUserTenant = (user: User): User | null => {
-		if (privateEnv.MULTI_TENANT && tenantId && user.tenantId !== tenantId) {
+		if (isMultiTenant && tenantId && user.tenantId !== tenantId) {
 			logger.warn(`Session user's tenant ('${user.tenantId}') does not match request tenant ('${tenantId}'). Access denied.`);
 			return null;
 		}

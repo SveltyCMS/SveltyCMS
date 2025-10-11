@@ -14,7 +14,7 @@
  */
 
 // Use DB-backed public settings with safe fallbacks
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 

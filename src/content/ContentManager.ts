@@ -204,8 +204,8 @@ class ContentManager {
 			await this.initialize();
 		}
 
-		logger.trace('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
-		logger.trace('[ContentManager] getContentStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.entries()));
+		// logger.trace('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
+		// logger.trace('[ContentManager] getContentStructure - contentNodeMap entries:', Array.from(this.contentNodeMap.entries()));
 
 		// Create a structured, nested tree from the flat map for UI consumption.
 		const nodes = new Map<string, ContentNode>(
@@ -220,9 +220,6 @@ class ContentManager {
 				tree.push(node as ContentNode);
 			}
 		}
-
-		logger.trace('[ContentManager] getContentStructure - tree size:', tree.length);
-		logger.trace('[ContentManager] getContentStructure - tree:', tree);
 
 		return tree;
 	}
@@ -253,7 +250,6 @@ class ContentManager {
 		}
 
 		const fullStructure = await this.getContentStructure();
-		logger.trace('[ContentManager] getNavigationStructure - fullStructure:', fullStructure);
 
 		// Strip out collection definitions, keep only metadata + translations for localization
 		interface NavigationNode {
@@ -285,7 +281,6 @@ class ContentManager {
 		};
 
 		const result = stripToNavigation(fullStructure);
-		logger.trace('[ContentManager] getNavigationStructure - result:', result);
 		return result;
 	}
 

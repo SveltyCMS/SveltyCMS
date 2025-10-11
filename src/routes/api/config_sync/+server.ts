@@ -9,7 +9,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { configService } from '@src/services/ConfigService';
-import { invalidateSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.svelte';
 
 /**

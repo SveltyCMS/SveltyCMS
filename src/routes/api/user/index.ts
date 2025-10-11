@@ -18,7 +18,7 @@
  */
 
 import { auth } from '@src/databases/db';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type HttpError, type RequestHandler } from '@sveltejs/kit';
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 			throw error(500, 'Internal Server Error');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // **SECURITY**: Authentication is handled by hooks.server.ts - user presence confirms access
 
@@ -69,7 +69,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		}
 
 		const checkCriteria: { email: string; tenantId?: string } = { email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			checkCriteria.tenantId = tenantId;
 		}
 		const existingUser = await auth.checkUser(checkCriteria);
@@ -81,7 +81,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		const newUser = await auth.createUser({
 			email,
 			role,
-			...(privateEnv.MULTI_TENANT && { tenantId })
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId })
 		});
 		const expiresAt = new Date(Date.now() + expirationTime * 1000);
 		const token = await auth.createToken(newUser._id, expiresAt, 'user-invite', tenantId);

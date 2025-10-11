@@ -10,7 +10,7 @@
  * - Error handling and logging.
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -62,7 +62,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		// --- MULTI-TENANCY: Scope checks to the current tenant ---
 		const checkCriteria: { email: string; tenantId?: string } = { email: validatedData.email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			checkCriteria.tenantId = tenantId;
 		} // Quick checks (fail fast)
 

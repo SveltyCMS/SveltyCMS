@@ -464,7 +464,16 @@ export class MongoDBAdapter implements IDBAdapter {
 			// Use bulk database operation instead of sequential deletes (33x faster)
 			deleteMany: (keys: string[], scope?: 'user' | 'system', userId?: DatabaseId) =>
 				this._wrapResult(() => this._system.deleteMany(keys, scope, userId)),
-			clear: (scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.clear(scope, userId))
+			clear: (scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.clear(scope, userId)),
+			// User preferences methods (dashboard layouts & widgets)
+			getSystemPreferences: (userId: string, layoutId: string) => this._wrapResult(() => this._system.getSystemPreferences(userId, layoutId)),
+			setUserPreferences: (userId: string, layoutId: string, layout: import('@src/content/types').Layout) =>
+				this._wrapResult(() => this._system.setUserPreferences(userId, layoutId, layout)),
+			getWidgetState: <T>(userId: string, layoutId: string, widgetId: string) =>
+				this._wrapResult(() => this._system.getWidgetState<T>(userId, layoutId, widgetId)),
+			setWidgetState: (userId: string, layoutId: string, widgetId: string, state: unknown) =>
+				this._wrapResult(() => this._system.setWidgetState(userId, layoutId, widgetId, state)),
+			clearSystemPreferences: (userId: string) => this._wrapResult(() => this._system.clearSystemPreferences(userId))
 		};
 
 		// MEDIA

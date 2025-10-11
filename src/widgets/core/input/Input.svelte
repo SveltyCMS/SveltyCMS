@@ -41,7 +41,7 @@
 		maxLength as valibotMaxLength
 	} from 'valibot';
 	import { validationStore } from '@root/src/stores/store.svelte';
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Props
 	interface Props {

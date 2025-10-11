@@ -13,7 +13,7 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
 
@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			logger.error(`${endpoint} - Tenant ID is missing in a multi-tenant setup.`);
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
@@ -71,7 +71,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		const dbAdapter = locals.dbAdapter;
 		const collectionName = `collection_${schema._id}`;
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 		const result = await dbAdapter.crud.findOne(collectionName, query);
@@ -161,7 +161,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
 
@@ -204,7 +204,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const collectionName = `collection_${schema._id}`;
 		// First verify the entry exists and belongs to the current tenant
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 
@@ -251,7 +251,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
 
@@ -265,7 +265,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		// First verify the entry exists and belongs to the current tenant
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 

@@ -28,6 +28,7 @@
 	import { mode } from '@stores/collectionStore.svelte';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	// Import components and utilities
 	import Collections from '@components/Collections.svelte';
@@ -81,9 +82,11 @@
 	let isDropdownOpen = $state(false);
 	let dropdownRef = $state<HTMLElement | null>(null);
 
-	// Computed values
+	// Computed values - Use dynamic global settings store for live updates
 	const availableLanguages = $derived(
-		[...(page.data?.settings?.LOCALES || ['en'])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(publicEnv.LOCALES || page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
+			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
+		)
 	);
 
 	const filteredLanguages = $derived(
@@ -201,7 +204,8 @@
 	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold"><SiteName siteName={page.data?.settings?.SITE_NAME} highlight="CMS" /> </span>
+			<!-- Site name loads dynamically from global settings store -->
+			<span class="text-token relative text-2xl font-bold"><SiteName highlight="CMS" /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
@@ -408,9 +412,9 @@
 						}
 					}}
 					aria-label="System Configuration"
-					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
+					class="btn-icon hover:bg-surface-500 hover:text-white"
 				>
-					<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
+					<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->

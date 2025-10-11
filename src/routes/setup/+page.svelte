@@ -23,7 +23,7 @@
 	// --- 1. IMPORTS ---
 	import { onDestroy, onMount } from 'svelte';
 	// Stores
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { setupStore } from '@stores/setupStore.svelte';
 	import { systemLanguage } from '@stores/store.svelte';
 	// Componets

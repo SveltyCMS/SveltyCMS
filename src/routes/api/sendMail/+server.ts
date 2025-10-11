@@ -4,16 +4,16 @@
  *
  * This module provides functionality to:
  * - Receive a reques	// 3. Configure Nodemailer Transporter
-	const smtpPort = Number(privateEnv.SMTP_PORT);
+	const smtpPort = Number(getPrivateSettingSync('SMTP_PORT'));
 	const secureConnection = smtpPort === 465;
 
 	const transporter = nodemailer.createTransport({
-		host: privateEnv.SMTP_HOST,
+		host: getPrivateSettingSync('SMTP_HOST'),
 		port: smtpPort,
 		secure: secureConnection,
 		auth: {
-			user: privateEnv.SMTP_USER,
-			pass: privateEnv.SMTP_PASS
+			user: getPrivateSettingSync('SMTP_USER'),
+			pass: getPrivateSettingSync('SMTP_PASS')
 		}, email based on a template.
  * - Render email content using Svelte components and svelte-email-tailwind.
  * - Send emails using Nodemailer with SMTP configuration from environment variables.
@@ -46,7 +46,7 @@ import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
 
 // Environment variables for SMTP configuration
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Permissions
 
@@ -198,14 +198,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// If SMTP host is a known dummy/placeholder, skip sending in dev-friendly way
-	const dummyHost = String(privateEnv.SMTP_HOST || '').toLowerCase();
+	const dummyHost = String(getPrivateSettingSync('SMTP_HOST') || '').toLowerCase();
 	if (/dummy|example|\.invalid$/.test(dummyHost)) {
-		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: privateEnv.SMTP_HOST, tenantId });
+		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: getPrivateSettingSync('SMTP_HOST'), tenantId });
 		return json({
 			success: true,
 			message: 'Email sending skipped due to dummy SMTP host (development mode).',
 			dev_mode: true,
-			dummy_host: privateEnv.SMTP_HOST
+			dummy_host: getPrivateSettingSync('SMTP_HOST')
 		});
 	}
 	// Enhance props with languageTag if your templates expect it
@@ -225,16 +225,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return createErrorResponse((renderErr as Error).message, 500);
 	}
 	// 3. Configure Nodemailer Transporter
-	const smtpPort = Number(privateEnv.SMTP_PORT);
+	const smtpPort = Number(getPrivateSettingSync('SMTP_PORT'));
 	const secureConnection = smtpPort === 465;
 
 	const transporter = nodemailer.createTransport({
-		host: privateEnv.SMTP_HOST,
+		host: getPrivateSettingSync('SMTP_HOST'),
 		port: smtpPort,
 		secure: secureConnection,
 		auth: {
-			user: privateEnv.SMTP_USER,
-			pass: privateEnv.SMTP_PASS
+			user: getPrivateSettingSync('SMTP_USER'),
+			pass: getPrivateSettingSync('SMTP_PASS')
 		},
 		tls: {
 			rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true
@@ -244,7 +244,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// 4. Define Mail Options
 
 	const fromName = props?.sitename || 'SveltyCMS';
-	const mailFrom = privateEnv.SMTP_MAIL_FROM;
+	const mailFrom = getPrivateSettingSync('SMTP_MAIL_FROM');
 	const mailOptions = {
 		from: `"${fromName}" <${mailFrom}>`,
 		to: recipientEmail,

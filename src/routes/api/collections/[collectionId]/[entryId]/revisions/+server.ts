@@ -12,7 +12,7 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	try {
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		// Verify the entry itself belongs to the current tenant before fetching its revisions.
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			const collectionName = `collection_${schema._id}`;
 			const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: params.entryId, tenantId });
 			if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {

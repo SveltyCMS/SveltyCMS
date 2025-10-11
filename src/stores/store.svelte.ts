@@ -4,7 +4,7 @@
  */
 
 import type { Locale } from '@src/paraglide/runtime';
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { store } from '@utils/reactivity.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 

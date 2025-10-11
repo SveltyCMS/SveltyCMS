@@ -223,14 +223,14 @@ Features:
 		</div>
 
 		<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:bg-surface-500">
-			<h4 class="mb-2 text-center text-sm font-semibold tracking-tight text-tertiary-500 dark:text-primary-500">
+			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-tertiary-500 dark:text-primary-500">
 				{m.setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>
 			<ul class="space-y-2 text-sm">
-				<li class="flex items-center {passwordRequirements.length ? 'text-primary-600' : 'text-slate-500'}">
+				<li class="flex items-center {passwordRequirements.length ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.length
-							? 'border-primary-300 bg-primary-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.length}
@@ -239,10 +239,10 @@ Features:
 					</span>
 					{m.setup_help_admin_password_requirements_length?.() || 'Minimum 8 characters'}
 				</li>
-				<li class="flex items-center {passwordRequirements.letter ? 'text-primary-600' : 'text-slate-500'}">
+				<li class="flex items-center {passwordRequirements.letter ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.letter
-							? 'border-primary-300 bg-primary-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.letter}
@@ -251,10 +251,10 @@ Features:
 					</span>
 					{m.setup_help_admin_password_requirements_letter?.() || 'At least one letter (A-Z or a-z)'}
 				</li>
-				<li class="flex items-center {passwordRequirements.number ? 'text-primary-600' : 'text-slate-500'}">
+				<li class="flex items-center {passwordRequirements.number ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.number
-							? 'border-primary-300 bg-primary-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.number}
@@ -263,10 +263,10 @@ Features:
 					</span>
 					{m.setup_help_admin_password_requirements_number?.() || 'At least one number (0-9)'}
 				</li>
-				<li class="flex items-center {passwordRequirements.special ? 'text-primary-600' : 'text-slate-500'}">
+				<li class="flex items-center {passwordRequirements.special ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.special
-							? 'border-primary-300 bg-primary-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.special}
@@ -275,10 +275,10 @@ Features:
 					</span>
 					{m.setup_help_admin_password_requirements_character?.() || 'At least one special character (@$!%*#?&)'}
 				</li>
-				<li class="flex items-center {passwordRequirements.match ? 'text-primary-600' : 'text-slate-500'}">
+				<li class="flex items-center {passwordRequirements.match ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
 						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.match
-							? 'border-primary-300 bg-primary-100 text-primary-600'
+							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
 						{#if passwordRequirements.match}
@@ -287,7 +287,7 @@ Features:
 					</span>
 					{m.setup_help_admin_password_requirements_match?.() || 'Passwords match'}
 				</li>
-				<li class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 text-slate-500">
+				<li class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold text-tertiary-500 dark:text-primary-500">
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon icon="mdi:shield-check" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					</span>

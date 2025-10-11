@@ -12,7 +12,7 @@
  * - **Multi-Level Filtering:** Supports filtering by log level, search text, and date range.
  */
 
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/services/settingsService';
 import { error, json } from '@sveltejs/kit';
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';

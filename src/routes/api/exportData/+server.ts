@@ -18,12 +18,12 @@
  *
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import { publicEnv } from '@src/stores/globalSettings';
+import { publicEnv } from '@src/services/settingsService';
 import type { RequestHandler } from './$types';
 
 // Database adapter for collection queries
@@ -58,7 +58,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -77,7 +77,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		// --- MULTI-TENANCY: Modify the file path to be tenant-specific ---
 		let filePath = extractDataPath;
-		if (privateEnv.MULTI_TENANT && tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && tenantId) {
 			const dir = path.dirname(filePath);
 			const ext = path.extname(filePath);
 			const base = path.basename(filePath, ext);
@@ -109,7 +109,7 @@ async function fetchAllCollectionData(collections: Record<string, DatabaseCollec
 		logger.debug(`Fetching data for collection: ${name}`, { tenantId });
 
 		try {
-			const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant
+			const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant
 			const result = await dbAdapter.getCollectionEntries(name, filter);
 			const entryList = result.success ? result.data : [];
 			return [name, entryList];

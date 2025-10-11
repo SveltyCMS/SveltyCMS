@@ -24,7 +24,7 @@
  * // Returns: { ...userData, sessionId: "...", sessionExpires: "..." }
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { error, json, type HttpError } from '@sveltejs/kit';
@@ -76,7 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.debug('Received and validated request to create user', { email: userData.email, byUser: user?._id, tenantId });
 		// Check if a user with this email already exists within the same tenant to prevent duplicates.
 		const userCheckCriteria: { email: string; tenantId?: string } = { email: userData.email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			userCheckCriteria.tenantId = tenantId;
 		}
 		const existingUser = await auth.checkUser(userCheckCriteria);
@@ -102,7 +102,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const result = await auth.createUserAndSession(
 				{
 					...userData,
-					...(privateEnv.MULTI_TENANT && { tenantId }),
+					...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 					isRegistered: true,
 					lastAuthMethod: 'password'
 				},
@@ -134,7 +134,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Create the user without session (original behavior)
 		const newUser = await auth.createUser({
 			...userData,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Conditionally add tenantId
 			isRegistered: true, // Assuming direct creation means they are fully registered.
 			lastAuthMethod: 'password' // Or a default value.
 		});

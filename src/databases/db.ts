@@ -15,7 +15,6 @@
  */
 
 import { building } from '$app/environment';
-import { publicEnv } from '@src/stores/globalSettings';
 
 // Handle private config that might not exist during setup
 let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -69,7 +68,7 @@ import type { DatabaseAdapter } from './dbInterface';
 
 // Settings loader
 import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
-import { invalidateSettingsCache, setSettingsCache } from '@src/stores/globalSettings';
+import { invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
 import { safeParse } from 'valibot';
 
 // Theme
@@ -107,25 +106,25 @@ let adaptersLoaded = false; // Internal flag
  */
 // Extract setting keys directly from schemas (single source of truth)
 // These are cached to avoid rebuilding arrays on every call
+
+// Infrastructure keys that come from config file, not database
+const INFRASTRUCTURE_KEYS = new Set([
+	'DB_TYPE',
+	'DB_HOST',
+	'DB_PORT',
+	'DB_NAME',
+	'DB_USER',
+	'DB_PASSWORD',
+	'DB_RETRY_ATTEMPTS',
+	'DB_RETRY_DELAY',
+	'DB_POOL_SIZE',
+	'JWT_SECRET_KEY',
+	'ENCRYPTION_KEY',
+	'MULTI_TENANT'
+]);
+
 const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
-const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter(
-	// Exclude infrastructure keys that come from config file, not database
-	(key) =>
-		![
-			'DB_TYPE',
-			'DB_HOST',
-			'DB_PORT',
-			'DB_NAME',
-			'DB_USER',
-			'DB_PASSWORD',
-			'DB_RETRY_ATTEMPTS',
-			'DB_RETRY_DELAY',
-			'DB_POOL_SIZE',
-			'JWT_SECRET_KEY',
-			'ENCRYPTION_KEY',
-			'MULTI_TENANT'
-		].includes(key)
-);
+const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key));
 
 export async function loadSettingsFromDB() {
 	try {
@@ -134,7 +133,7 @@ export async function loadSettingsFromDB() {
 		// Check if database adapter is available
 		if (!dbAdapter || !dbAdapter.systemPreferences) {
 			logger.warn('Database adapter not available during settings load. Using empty cache.');
-			invalidateSettingsCache();
+			await invalidateSettingsCache();
 			return;
 		}
 
@@ -163,7 +162,7 @@ export async function loadSettingsFromDB() {
 			logger.info('No settings found in database (initial setup). Using empty cache.');
 			// During initial setup, bypass validation by calling invalidateSettingsCache
 			// which sets empty cache without validation
-			invalidateSettingsCache();
+			await invalidateSettingsCache();
 			return;
 		}
 
@@ -208,8 +207,9 @@ export async function loadSettingsFromDB() {
 				logger.debug('Failed to clear invalid settings:', clearError);
 			}
 
-			invalidateSettingsCache();
-			return;
+			await invalidateSettingsCache();
+			logger.info('Settings validation failed - system will run with defaults until settings are configured');
+			return; // Return without throwing - allow system to continue in setup mode
 		}
 
 		// Populate the cache with validated settings, merging dynamic private flags into unified cache
@@ -219,9 +219,9 @@ export async function loadSettingsFromDB() {
 		logger.info('✅ System settings loaded and cached from database.');
 	} catch (error) {
 		logger.error('Failed to load settings from database:', error);
-		// In a real-world scenario, you might want to throw this error
-		// to prevent the application from starting with invalid settings.
-		throw new Error('Could not load settings from DB.');
+		// Don't throw - invalidate cache and continue with defaults
+		await invalidateSettingsCache();
+		logger.warn('Settings load failed - system will continue with default configuration');
 	}
 }
 
@@ -314,7 +314,8 @@ async function initializeThemeManager(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
-	const mediaFolderPath = publicEnv.MEDIA_FOLDER || './mediaFolder';
+	const { getPublicSetting } = await import('@src/services/settingsService');
+	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
@@ -367,7 +368,8 @@ async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Prom
 
 			if (systemVirtualFolders.length === 0) {
 				// 🚀 OPTIMIZATION: Streamlined folder creation, minimal logging
-				const defaultMediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFolder';
+				const { getPublicSetting } = await import('@src/services/settingsService');
+				const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
 				const creationResult = await dbAdapter.systemVirtualFolder.create({
 					name: defaultMediaFolder,
 					path: defaultMediaFolder,
@@ -506,7 +508,6 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		const step5StartTime = performance.now();
 
 		// Auth (fast, required immediately)
-		const authStartTime = performance.now();
 		updateServiceHealth('auth', 'initializing', 'Initializing authentication service...');
 		if (!dbAdapter) throw new Error('Database adapter not initialized');
 		auth = new Auth(dbAdapter, getDefaultSessionStore());
@@ -515,12 +516,11 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			throw new Error('Auth initialization failed');
 		}
 		updateServiceHealth('auth', 'healthy', 'Authentication service ready');
-		logger.debug(`✓ Authentication initialized in ${(performance.now() - authStartTime).toFixed(2)}ms`);
+		logger.debug(`✓ Authentication initialized in \x1b[32m${(performance.now() - step5StartTime).toFixed(2)}ms\x1b[0m`);
 
 		// Settings (required for app configuration)
-		const settingsStartTime = performance.now();
 		await loadSettingsFromDB();
-		logger.debug(`✓ Settings loaded from DB in ${(performance.now() - settingsStartTime).toFixed(2)}ms`);
+		logger.debug(`✓ Settings loaded from DB in \x1b[32m${(performance.now() - step5StartTime).toFixed(2)}ms\x1b[0m`);
 
 		// Run slow I/O operations in parallel
 		const parallelStartTime = performance.now();
@@ -531,27 +531,27 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			(async () => {
 				const t = performance.now();
 				await initializeMediaFolder();
-				logger.debug(`  - Media folder: ${(performance.now() - t).toFixed(2)}ms`);
+				logger.debug(`  - Media folder: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
 			})(),
 			(async () => {
 				const t = performance.now();
 				await initializeRevisions();
-				logger.debug(`  - Revisions: ${(performance.now() - t).toFixed(2)}ms`);
+				logger.debug(`  - Revisions: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
 			})(),
 			(async () => {
 				const t = performance.now();
 				await initializeVirtualFolders();
-				logger.debug(`  - Virtual folders: ${(performance.now() - t).toFixed(2)}ms`);
+				logger.debug(`  - Virtual folders: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
 			})(),
 			(async () => {
 				const t = performance.now();
 				await initializeDefaultTheme().then(() => initializeThemeManager());
 				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
-				logger.debug(`  - Themes: ${(performance.now() - t).toFixed(2)}ms`);
+				logger.debug(`  - Themes: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
 			})()
 		]);
 		updateServiceHealth('cache', 'healthy', 'Media, revisions, and virtual folders initialized');
-		logger.debug(`✓ Parallel I/O operations completed in ${(performance.now() - parallelStartTime).toFixed(2)}ms`);
+		logger.debug(`✓ Parallel I/O operations completed in \x1b[32m${(performance.now() - parallelStartTime).toFixed(2)}ms\x1b[0m`);
 
 		const step5Time = performance.now() - step5StartTime;
 		logger.info(`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);

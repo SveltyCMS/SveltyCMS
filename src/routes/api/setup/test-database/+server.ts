@@ -4,7 +4,7 @@
  */
 
 import { databaseConfigSchema, type DatabaseConfig } from '@src/databases/schemas';
-import { logger } from '@src/utils/logger.svelte';
+import { logger } from '@utils/logger.svelte';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { exec } from 'child_process';
 import { existsSync } from 'fs';
@@ -22,9 +22,7 @@ const execAsync = promisify(exec);
 // Package Manager Detection and Driver Installation
 // =================================================================================================
 
-/**
- * Detects the package manager used in the project.
- */
+// Detects the package manager used in the project
 function detectPackageManager(): 'bun' | 'yarn' | 'pnpm' | 'npm' {
 	const cwd = process.cwd();
 

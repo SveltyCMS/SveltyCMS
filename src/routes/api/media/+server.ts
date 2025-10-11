@@ -13,7 +13,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Validate query parameters
 
@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
-		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {}; // Use database-agnostic adapter to get media files
+		const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {}; // Use database-agnostic adapter to get media files
 
 		const result = await dbAdapter.media.files.getByFolder(undefined, {
 			page: 1,

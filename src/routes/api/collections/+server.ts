@@ -11,7 +11,7 @@
  * * Replaces /api/getCollections endpoint
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const { tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
 	// In multi-tenant mode, a tenantId is required.
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		logger.error('List collections attempt failed: Tenant ID is missing in a multi-tenant setup.');
 		throw error(400, 'Could not identify the tenant for this request.');
 	}

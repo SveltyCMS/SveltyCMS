@@ -11,7 +11,7 @@
  * * Permission checking for status modifications, scoped to the current tenant
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
@@ -70,7 +70,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		if (entries && Array.isArray(entries) && entries.length > 0) {
 			// Batch status update
 			const query = { _id: { $in: entries } };
-			if (privateEnv.MULTI_TENANT) {
+			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = tenantId;
 			}
 
@@ -95,7 +95,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		} else {
 			// Single entry status update - verify entry exists and belongs to tenant first
 			const query = { _id: params.entryId };
-			if (privateEnv.MULTI_TENANT) {
+			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = tenantId;
 			}
 

@@ -12,7 +12,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
 import { saveRemoteMedia } from '@utils/media/mediaStorage';
@@ -27,7 +27,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		logger.error('Tenant ID is missing in a multi-tenant setup.');
 		throw error(400, 'Could not identify the tenant for this operation.');
 	}

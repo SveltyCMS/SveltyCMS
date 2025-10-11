@@ -13,7 +13,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings';
+	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { PageData } from './$types';
 	// Components
 	import Seasons from '@components/system/icons/Seasons.svelte';

@@ -13,7 +13,7 @@
 
 // API endpoint to export all settings as a JSON snapshot
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
-import { getAllSettings } from '@src/stores/globalSettings';
+import { getAllSettings } from '@src/services/settingsService';
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 export const GET: RequestHandler = async ({ locals }) => {

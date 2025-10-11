@@ -23,7 +23,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	import * as m from '@src/paraglide/messages';
 
 	// Settings helper
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Utility function for date comparison
 	function isDateInRange(date: Date, start: Date, end: Date): boolean {

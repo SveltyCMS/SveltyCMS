@@ -36,7 +36,7 @@ Features:
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	// Import centralized actions
 	// Config
-	import { publicEnv } from '@src/stores/globalSettings';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	import type { StatusType } from '@src/content/types';

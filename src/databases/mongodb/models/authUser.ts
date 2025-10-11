@@ -18,7 +18,7 @@
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
 
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
@@ -774,7 +774,7 @@ export class UserAdapter {
 
 			user._id = user._id.toString();
 			// Fetch the role from the file-based roles configuration
-			const role = privateEnv.ROLES?.find((r) => r._id === user.role);
+			const role = getPrivateSettingSync('ROLES')?.find((r) => r._id === user.role);
 			if (!role) {
 				logger.warn(`Role not found: \x1b[34m${user.role}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 				return {

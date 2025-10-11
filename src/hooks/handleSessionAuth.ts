@@ -14,7 +14,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@src/stores/globalSettings';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
@@ -51,7 +51,7 @@ const refreshLimiter = new RateLimiter({
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'refreshlimit',
-		secret: privateEnv.JWT_SECRET_KEY,
+		secret: getPrivateSettingSync('JWT_SECRET_KEY'),
 		rate: [100, 'm'], // 100 requests per minute per cookie
 		preflight: true
 	}
@@ -95,14 +95,9 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	// Skip database initialization for setup routes
-	const isSetupRoute = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
-	if (isSetupRoute) {
-		logger.info(`Bypassing authentication for setup route: \x1b[34m${event.url.pathname}\x1b[0m`);
-		// For setup routes, we still want to have the dbAdapter available if it exists
-		if (!event.locals.dbAdapter && dbAdapter) {
-			event.locals.dbAdapter = dbAdapter;
-		}
+	// Use centralized state check
+	if (event.locals.__skipSystemHooks) {
+		logger.trace('Skipping session auth for setup route');
 		return resolve(event);
 	}
 

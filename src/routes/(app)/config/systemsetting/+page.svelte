@@ -6,8 +6,11 @@ All dynamic CMS settings organized into logical groups
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
 	import { showToast } from '@utils/toast';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';
@@ -16,37 +19,99 @@ All dynamic CMS settings organized into logical groups
 	// Import setting component
 	import GenericSettingsGroup from './GenericSettingsGroup.svelte';
 
+	const modalStore = getModalStore();
+
 	// Get user admin status from page data (set by +page.server.ts)
 	export let data: { isAdmin: boolean };
 	const isAdmin = data.isAdmin;
 
 	let tabSet: number = 0;
+	let currentGroupHasUnsavedChanges = false;
 
 	// Filter groups based on user role
 	let availableGroups: SettingGroup[] = [];
 
-	onMount(() => {
-		availableGroups = getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name));
+	// Track which groups need configuration
+	let groupsNeedingConfig = writable<Set<string>>(new Set());
+	let unconfiguredCount = 0;
+
+	// Subscribe to changes in groups needing config
+	groupsNeedingConfig.subscribe((groups) => {
+		unconfiguredCount = groups.size;
 	});
 
-	// Quick actions
-	async function clearCache() {
-		try {
-			const response = await fetch('/api/cache/clear', {
-				method: 'POST'
-			});
+	// Handle unsaved changes callback from child
+	function handleUnsavedChanges(hasChanges: boolean) {
+		currentGroupHasUnsavedChanges = hasChanges;
+	}
 
-			if (response.ok) {
-				showToast('Cache cleared successfully', 'success');
-			} else {
-				const data = await response.json();
-				showToast(data.error || 'Failed to clear cache', 'error');
-			}
-		} catch (error) {
-			console.error('Error clearing cache:', error);
-			showToast('Failed to clear cache', 'error');
+	// Handle tab switch with unsaved changes warning
+	function handleTabSwitch(newTabIndex: number) {
+		if (currentGroupHasUnsavedChanges) {
+			// Show confirmation modal
+			const modal: ModalSettings = {
+				type: 'confirm',
+				title: 'Unsaved Changes',
+				body: '<p>You have unsaved changes in the current settings group.</p><p><strong>Do you want to discard these changes?</strong></p>',
+				response: (confirmed: boolean) => {
+					if (confirmed) {
+						// User confirmed, switch tabs
+						currentGroupHasUnsavedChanges = false;
+						tabSet = newTabIndex;
+					}
+					// If not confirmed, do nothing (stay on current tab)
+				}
+			};
+			modalStore.trigger(modal);
+		} else {
+			// No unsaved changes, switch immediately
+			tabSet = newTabIndex;
 		}
 	}
+
+	// Check all groups for empty fields on page load
+	async function checkAllGroupsForEmptyFields() {
+		const groupsWithEmptyFields = new Set<string>();
+
+		// Check each available group
+		for (const group of availableGroups) {
+			try {
+				const response = await fetch(`/api/settings/${group.id}`);
+				const data = await response.json();
+
+				if (data.success && data.values) {
+					// Check if this group has empty required/critical fields
+					const hasEmptyFields = group.fields.some((field) => {
+						const value = data.values[field.key];
+
+						// Check for empty strings in critical fields
+						if (typeof value === 'string') {
+							return value === '' && (field.required || field.key.includes('HOST') || field.key.includes('EMAIL'));
+						}
+
+						return false;
+					});
+
+					if (hasEmptyFields) {
+						groupsWithEmptyFields.add(group.id);
+					}
+				}
+			} catch (err) {
+				console.error(`Failed to check group ${group.id}:`, err);
+			}
+		}
+
+		// Update the store with all groups that need configuration
+		groupsNeedingConfig.set(groupsWithEmptyFields);
+	}
+
+	onMount(() => {
+		availableGroups = getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name));
+		// Check all groups after they're loaded
+		checkAllGroupsForEmptyFields();
+	});
+
+	// Quick actions (these functions are kept for potential future use)
 
 	function reloadPage() {
 		window.location.reload();
@@ -66,10 +131,6 @@ All dynamic CMS settings organized into logical groups
 	let importStrategy: 'skip' | 'overwrite' | 'merge' = 'skip';
 	let importPassword = '';
 	let dryRun = true;
-
-	async function exportConfig() {
-		showExportModal = true;
-	}
 
 	async function performExport() {
 		// Validate password if sensitive data is included
@@ -112,14 +173,6 @@ All dynamic CMS settings organized into logical groups
 			console.error('Export error:', error);
 			showToast(error instanceof Error ? error.message : 'Export failed', 'error');
 		}
-	}
-
-	function openImportModal() {
-		showImportModal = true;
-		importFile = null;
-		importStrategy = 'skip';
-		importPassword = '';
-		dryRun = true;
 	}
 
 	function handleFileChange(event: Event) {
@@ -183,260 +236,251 @@ All dynamic CMS settings organized into logical groups
 			showToast(error instanceof Error ? error.message : 'Import failed', 'error');
 		}
 	}
-
-	function openDocs() {
-		window.open('/docs/SYSTEM_SETTINGS_STRUCTURE.md', '_blank');
-	}
 </script>
 
-<PageTitle name="System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
-<div class="wrapper">
-	<!-- Warning Banner -->
-	<div class="alert variant-filled-error mb-4">
+<PageTitle name="Dynamic System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
+
+<!-- Info Banner -->
+<p class="text-surface-600-300-token mb-6 px-2">
+	These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with "Restart
+	Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
+	logical groups for easy management.
+</p>
+
+{#if unconfiguredCount > 0}
+	<div class="alert variant-filled-error mb-6">
 		<div class="alert-message">
-			<h3 class="h4">⚠️ Administrator Access Required</h3>
-			<p>
-				These are critical system settings. Changes may affect system behavior and performance. Settings marked with "Restart Required" need a server
-				restart to take effect.
+			<strong
+				>⚠️ Action Required: {unconfiguredCount}
+				{unconfiguredCount === 1 ? 'group needs' : 'groups need'} configuration before production use.</strong
+			>
+			<p class="mt-2">
+				Please configure the following {unconfiguredCount === 1 ? 'group' : 'groups'}:
+				{#each availableGroups.filter((g) => $groupsNeedingConfig.has(g.id)) as group, i}
+					<span class="font-semibold">
+						{group.icon}
+						{group.name}{i < unconfiguredCount - 1 ? ', ' : ''}
+					</span>
+				{/each}
 			</p>
 		</div>
 	</div>
+{/if}
 
-	<!-- Info Banner -->
-	<div class="alert variant-filled-primary mb-6">
-		<div class="alert-message">
-			<h3 class="h4">💡 Dynamic Configuration</h3>
-			<p>
-				Settings are loaded dynamically from the database. Most changes take effect immediately without requiring a server restart. Settings are
-				organized into {availableGroups.length} logical groups for easy management.
-			</p>
-		</div>
-	</div>
-
-	<!-- Settings Interface with Sidebar -->
-	<div class="grid grid-cols-1 gap-4 lg:grid-cols-[250px_1fr]">
-		<!-- Sidebar Navigation -->
-		<div class="card p-4">
-			<h3 class="h5 mb-3">Settings Groups</h3>
-			<nav class="space-y-1">
-				{#each availableGroups as group, i}
-					<button class="group-nav-item w-full p-3 text-left transition-all rounded-token" class:active={tabSet === i} on:click={() => (tabSet = i)}>
-						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2">
-								<span class="text-lg">{group.icon}</span>
-								<span class="text-sm font-medium">{group.name}</span>
-							</div>
+<!-- Settings Interface with Sidebar -->
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-[250px_1fr]">
+	<!-- Sidebar Navigation -->
+	<div class="card py-4">
+		<h3 class="h5 mb-3 text-center font-bold">Settings Groups</h3>
+		<nav class="divide-y divide-surface-300 dark:divide-surface-400">
+			{#each availableGroups as group, i}
+				<button class="group-nav-item w-full p-3 text-left transition-all" class:active={tabSet === i} onclick={() => handleTabSwitch(i)}>
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="text-lg">{group.icon}</span>
+							<span class="text-sm font-medium">{group.name}</span>
+						</div>
+						<div class="flex items-center gap-1">
+							{#if $groupsNeedingConfig.has(group.id)}
+								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
+							{/if}
 							{#if group.requiresRestart}
 								<span class="variant-soft-warning badge text-xs">Restart</span>
 							{/if}
 						</div>
-					</button>
-				{/each}
-			</nav>
-		</div>
+					</div>
+				</button>
+			{/each}
+		</nav>
+	</div>
 
-		<!-- Settings Panel -->
-		<div class="settings-panel-container card">
-			{#each availableGroups as group, i}
-				{#if tabSet === i}
-					<div class="settings-panel p-6">
-						<!-- Use generic component for all groups -->
-						<GenericSettingsGroup {group} />
+	<!-- Settings Panel -->
+	<div class="settings-panel-container card">
+		{#each availableGroups as group, i}
+			{#if tabSet === i}
+				<div class="settings-panel p-6">
+					<!-- Use generic component for all groups -->
+					<GenericSettingsGroup {group} {groupsNeedingConfig} onUnsavedChanges={handleUnsavedChanges} />
+				</div>
+			{/if}
+		{/each}
+	</div>
+</div>
+
+<!-- System Status -->
+<div class="mx-auto mt-8 flex max-w-4xl items-center justify-center">
+	<div class="badge-glass flex items-center gap-3 rounded-full px-6 py-3 text-sm">
+		<span class="text-2xl text-tertiary-500 dark:text-primary-500">●</span>
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">System Operational</span>
+		<span class="text-dark dark:text-white">|</span>
+		<span class="text-surface-600 dark:text-surface-300">Settings:</span>
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Loaded</span>
+		<span class="text-dark dark:text-white">|</span>
+		<span class="text-surface-600 dark:text-surface-300">Groups:</span>
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">{availableGroups.length}</span>
+		<span class="text-dark dark:text-white">|</span>
+		<span class="text-surface-600 dark:text-surface-300">Environment:</span>
+		<span class="font-semibold text-tertiary-500 dark:text-primary-500">Dynamic</span>
+	</div>
+</div>
+
+<!-- Export Modal -->
+{#if showExportModal}
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<div class="modal-backdrop" onclick={() => (showExportModal = false)} role="button" tabindex="-1">
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div
+			class="modal-content card p-6"
+			onclick={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="export-modal-title"
+			tabindex="0"
+		>
+			<h3 id="export-modal-title" class="h3 mb-4">Export Configuration</h3>
+
+			<div class="space-y-4">
+				<label class="flex items-center space-x-2">
+					<input type="checkbox" bind:checked={exportOptions.includeSettings} class="checkbox" />
+					<span>Include System Settings</span>
+				</label>
+
+				<label class="flex items-center space-x-2">
+					<input type="checkbox" bind:checked={exportOptions.includeCollections} class="checkbox" />
+					<span>Include Collections</span>
+				</label>
+
+				<label class="flex items-center space-x-2">
+					<input type="checkbox" bind:checked={exportOptions.includeSensitive} class="checkbox" />
+					<span>Include Sensitive Data (⚠️ Passwords, Secrets - Password Protected)</span>
+				</label>
+
+				{#if exportOptions.includeSensitive}
+					<div class="space-y-2">
+						<label for="export-password" class="label">
+							<span>🔐 Encryption Password (Required)</span>
+						</label>
+						<input
+							id="export-password"
+							type="password"
+							bind:value={exportOptions.sensitivePassword}
+							placeholder="Enter a strong password"
+							class="input"
+							required
+						/>
+						<p class="text-surface-600-300-token text-xs">This password will be required to import the sensitive data. Store it securely!</p>
 					</div>
 				{/if}
-			{/each}
-		</div>
-	</div>
 
-	<!-- Quick Actions -->
-	<div class="card mt-6 p-4">
-		<h3 class="h4 mb-4">Quick Actions</h3>
-		<div class="flex flex-wrap gap-2">
-			<button class="variant-filled-surface btn" on:click={reloadPage}>
-				<span>🔄</span>
-				<span>Reload Page</span>
-			</button>
-			<button class="variant-filled-warning btn" on:click={clearCache}>
-				<span>🗑️</span>
-				<span>Clear Cache</span>
-			</button>
-			<button class="variant-filled-primary btn" on:click={exportConfig}>
-				<span>💾</span>
-				<span>Export Config</span>
-			</button>
-			<button class="variant-filled-secondary btn" on:click={openImportModal}>
-				<span>📥</span>
-				<span>Import Config</span>
-			</button>
-			<button class="variant-filled-tertiary btn" on:click={openDocs}>
-				<span>📚</span>
-				<span>Documentation</span>
-			</button>
-		</div>
-		<div class="text-surface-600-300-token mt-4 text-sm">
-			<p>
-				<strong>Tip:</strong> Use Export Config to backup your settings before making major changes. Import Config supports dry-run mode for safe validation.
-			</p>
-		</div>
-	</div>
-
-	<!-- System Status -->
-	<div class="text-surface-600-300-token mt-6 text-center text-sm">
-		<p>
-			<span class="text-success-500">●</span>
-			System Operational | Settings: <span class="font-semibold">Loaded</span> | Groups: <span class="font-semibold">{availableGroups.length}</span> |
-			Environment: <span class="font-semibold">Dynamic</span>
-		</p>
-	</div>
-
-	<!-- Export Modal -->
-	{#if showExportModal}
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div class="modal-backdrop" on:click={() => (showExportModal = false)} role="button" tabindex="-1">
-			<!-- svelte-ignore a11y-click-events-have-key-events -->
-			<!-- svelte-ignore a11y-no-static-element-interactions -->
-			<div class="modal-content card p-6" on:click|stopPropagation role="dialog" aria-modal="true" aria-labelledby="export-modal-title" tabindex="0">
-				<h3 id="export-modal-title" class="h3 mb-4">Export Configuration</h3>
-
-				<div class="space-y-4">
-					<label class="flex items-center space-x-2">
-						<input type="checkbox" bind:checked={exportOptions.includeSettings} class="checkbox" />
-						<span>Include System Settings</span>
-					</label>
-
-					<label class="flex items-center space-x-2">
-						<input type="checkbox" bind:checked={exportOptions.includeCollections} class="checkbox" />
-						<span>Include Collections</span>
-					</label>
-
-					<label class="flex items-center space-x-2">
-						<input type="checkbox" bind:checked={exportOptions.includeSensitive} class="checkbox" />
-						<span>Include Sensitive Data (⚠️ Passwords, Secrets - Password Protected)</span>
-					</label>
-
-					{#if exportOptions.includeSensitive}
-						<div class="space-y-2">
-							<label for="export-password" class="label">
-								<span>🔐 Encryption Password (Required)</span>
-							</label>
-							<input
-								id="export-password"
-								type="password"
-								bind:value={exportOptions.sensitivePassword}
-								placeholder="Enter a strong password"
-								class="input"
-								required
-							/>
-							<p class="text-surface-600-300-token text-xs">This password will be required to import the sensitive data. Store it securely!</p>
-						</div>
-					{/if}
-
-					<div class="alert variant-soft-warning p-3">
-						<p class="text-sm">
-							<strong>Note:</strong>
-							{#if exportOptions.includeSensitive}
-								Sensitive data (passwords, secrets, tokens) will be encrypted with AES-256-GCM using your password. The exported file is safe to store
-								but keep your password secure!
-							{:else}
-								Exported configuration files contain system settings. Keep them secure and do not share publicly.
-							{/if}
-						</p>
-					</div>
-				</div>
-
-				<div class="mt-6 flex justify-end gap-2">
-					<button class="variant-ghost btn" on:click={() => (showExportModal = false)}> Cancel </button>
-					<button
-						class="variant-filled-primary btn"
-						on:click={performExport}
-						disabled={exportOptions.includeSensitive && !exportOptions.sensitivePassword}
-					>
-						<span>💾</span>
-						<span>Export Now</span>
-					</button>
+				<div class="alert variant-soft-warning p-3">
+					<p class="text-sm">
+						<strong>Note:</strong>
+						{#if exportOptions.includeSensitive}
+							Sensitive data (passwords, secrets, tokens) will be encrypted with AES-256-GCM using your password. The exported file is safe to store
+							but keep your password secure!
+						{:else}
+							Exported configuration files contain system settings. Keep them secure and do not share publicly.
+						{/if}
+					</p>
 				</div>
 			</div>
-		</div>
-	{/if}
 
-	<!-- Import Modal -->
-	{#if showImportModal}
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
-		<!-- svelte-ignore a11y-no-static-element-interactions -->
-		<div class="modal-backdrop" on:click={() => (showImportModal = false)} role="button" tabindex="-1">
-			<!-- svelte-ignore a11y-click-events-have-key-events -->
-			<!-- svelte-ignore a11y-no-static-element-interactions -->
-			<div class="modal-content card p-6" on:click|stopPropagation role="dialog" aria-modal="true" aria-labelledby="import-modal-title" tabindex="0">
-				<h3 id="import-modal-title" class="h3 mb-4">Import Configuration</h3>
-
-				<div class="space-y-4">
-					<div>
-						<label for="import-file" class="label mb-2">
-							<span>Select Configuration File</span>
-						</label>
-						<input id="import-file" type="file" accept=".json" on:change={handleFileChange} class="input" />
-					</div>
-
-					<div>
-						<label for="import-strategy" class="label mb-2">
-							<span>Conflict Resolution Strategy</span>
-						</label>
-						<select id="import-strategy" bind:value={importStrategy} class="select">
-							<option value="skip">Skip - Keep existing values</option>
-							<option value="overwrite">Overwrite - Replace with imported values</option>
-							<option value="merge">Merge - Intelligently combine values</option>
-						</select>
-					</div>
-
-					<div>
-						<label for="import-password" class="label mb-2">
-							<span>🔐 Decryption Password (If file contains encrypted sensitive data)</span>
-						</label>
-						<input id="import-password" type="password" bind:value={importPassword} placeholder="Enter password if required" class="input" />
-						<p class="text-surface-600-300-token mt-1 text-xs">Only needed if the export included encrypted sensitive data</p>
-					</div>
-
-					<label class="flex items-center space-x-2">
-						<input type="checkbox" bind:checked={dryRun} class="checkbox" />
-						<span>Dry Run (Validate only, don't apply changes)</span>
-					</label>
-
-					<div class="alert variant-soft-warning p-3">
-						<p class="text-sm">
-							<strong>⚠️ Important:</strong> Always run a dry-run first to check for conflicts.
-							{#if !dryRun}
-								<strong class="text-warning-500">You are about to apply changes to the system!</strong>
-							{/if}
-						</p>
-					</div>
-				</div>
-
-				<div class="mt-6 flex justify-end gap-2">
-					<button class="variant-ghost btn" on:click={() => (showImportModal = false)}> Cancel </button>
-					<button
-						class="btn"
-						class:variant-filled-secondary={dryRun}
-						class:variant-filled-warning={!dryRun}
-						on:click={performImport}
-						disabled={!importFile}
-					>
-						<span>{dryRun ? '🔍' : '📥'}</span>
-						<span>{dryRun ? 'Validate Import' : 'Import Now'}</span>
-					</button>
-				</div>
+			<div class="mt-6 flex justify-end gap-2">
+				<button class="variant-ghost btn" onclick={() => (showExportModal = false)}> Cancel </button>
+				<button
+					class="variant-filled-primary btn"
+					onclick={performExport}
+					disabled={exportOptions.includeSensitive && !exportOptions.sensitivePassword}
+				>
+					<span>💾</span>
+					<span>Export Now</span>
+				</button>
 			</div>
 		</div>
-	{/if}
-</div>
+	</div>
+{/if}
+
+<!-- Import Modal -->
+{#if showImportModal}
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<!-- svelte-ignore a11y-no-static-element-interactions -->
+	<div class="modal-backdrop" onclick={() => (showImportModal = false)} role="button" tabindex="-1">
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<!-- svelte-ignore a11y-no-static-element-interactions -->
+		<div
+			class="modal-content card p-6"
+			onclick={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="import-modal-title"
+			tabindex="0"
+		>
+			<h3 id="import-modal-title" class="h3 mb-4">Import Configuration</h3>
+
+			<div class="space-y-4">
+				<div>
+					<label for="import-file" class="label mb-2">
+						<span>Select Configuration File</span>
+					</label>
+					<input id="import-file" type="file" accept=".json" onchange={handleFileChange} class="input" />
+				</div>
+
+				<div>
+					<label for="import-strategy" class="label mb-2">
+						<span>Conflict Resolution Strategy</span>
+					</label>
+					<select id="import-strategy" bind:value={importStrategy} class="select">
+						<option value="skip">Skip - Keep existing values</option>
+						<option value="overwrite">Overwrite - Replace with imported values</option>
+						<option value="merge">Merge - Intelligently combine values</option>
+					</select>
+				</div>
+
+				<div>
+					<label for="import-password" class="label mb-2">
+						<span>🔐 Decryption Password (If file contains encrypted sensitive data)</span>
+					</label>
+					<input id="import-password" type="password" bind:value={importPassword} placeholder="Enter password if required" class="input" />
+					<p class="text-surface-600-300-token mt-1 text-xs">Only needed if the export included encrypted sensitive data</p>
+				</div>
+
+				<label class="flex items-center space-x-2">
+					<input type="checkbox" bind:checked={dryRun} class="checkbox" />
+					<span>Dry Run (Validate only, don't apply changes)</span>
+				</label>
+
+				<div class="alert variant-soft-warning p-3">
+					<p class="text-sm">
+						<strong>⚠️ Important:</strong> Always run a dry-run first to check for conflicts.
+						{#if !dryRun}
+							<strong class="text-warning-500">You are about to apply changes to the system!</strong>
+						{/if}
+					</p>
+				</div>
+			</div>
+
+			<div class="mt-6 flex justify-end gap-2">
+				<button class="variant-ghost btn" onclick={() => (showImportModal = false)}> Cancel </button>
+				<button
+					class="btn"
+					class:variant-filled-secondary={dryRun}
+					class:variant-filled-warning={!dryRun}
+					onclick={performImport}
+					disabled={!importFile}
+				>
+					<span>{dryRun ? '🔍' : '📥'}</span>
+					<span>{dryRun ? 'Validate Import' : 'Import Now'}</span>
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style lang="postcss">
 	.alert {
 		@apply rounded-container-token;
-	}
-
-	.alert-message h3 {
-		@apply mb-2;
 	}
 
 	.alert-message p {
@@ -445,19 +489,19 @@ All dynamic CMS settings organized into logical groups
 
 	/* Sidebar navigation styles */
 	.group-nav-item {
-		@apply cursor-pointer border border-transparent transition-all;
+		@apply cursor-pointer transition-all;
 	}
 
 	.group-nav-item:not(.active):hover {
-		@apply border-primary-500 bg-surface-200 shadow-sm;
+		@apply bg-surface-200;
 	}
 
 	:global(.dark) .group-nav-item:not(.active):hover {
-		background-color: rgb(55, 65, 81);
+		@apply bg-surface-700;
 	}
 
 	.group-nav-item.active {
-		@apply border-primary-600 bg-primary-500 font-semibold text-white;
+		@apply bg-primary-500 font-semibold text-white;
 	}
 
 	.group-nav-item.active:hover {
@@ -494,10 +538,16 @@ All dynamic CMS settings organized into logical groups
 		/* On mobile, make sidebar a horizontal scrollable list */
 		nav {
 			@apply flex gap-2 overflow-x-auto pb-2;
+			/* Remove dividers on mobile for horizontal layout */
+			border-top: none;
+		}
+
+		nav > * {
+			border-top: none !important;
 		}
 
 		.group-nav-item {
-			@apply flex-shrink-0 whitespace-nowrap;
+			@apply flex-shrink-0 whitespace-nowrap rounded-token;
 		}
 	}
 </style>
