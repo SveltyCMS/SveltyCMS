@@ -100,9 +100,7 @@ async function installDriver(packageName: string): Promise<{ success: boolean; e
 
 const DB_TIMEOUT = 15000; // 15s server selection timeout
 
-/**
- * Checks if MongoDB driver (mongoose) is available
- */
+// Checks if MongoDB driver (mongoose) is available
 async function checkMongoDBDriver(): Promise<{ available: boolean; error?: string }> {
 	try {
 		// Try to import mongoose to check if it's installed
@@ -123,11 +121,7 @@ async function checkMongoDBDriver(): Promise<{ available: boolean; error?: strin
 // MongoDB Connection Tester
 // =================================================================================================
 
-/**
- * Tests a MongoDB connection with detailed validation and error classification.
- * @param dbConfig The database configuration for MongoDB.
- * @returns A SvelteKit JSON response.
- */
+// Tests a MongoDB connection with detailed validation and error classification.
 async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 	let mongoose: typeof import('mongoose');
 	// Defensive dynamic import and check
@@ -148,9 +142,8 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 		serverSelectionTimeoutMS: DB_TIMEOUT,
 		maxPoolSize: 1,
 		...(isAtlas && {
-			replicaSet: undefined,
-			ssl: true,
-			sslValidate: true
+			tls: true,
+			tlsAllowInvalidCertificates: false
 		})
 	};
 	let conn;
@@ -264,6 +257,7 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 			logger.warn('Auth status check failed:', authError);
 			warnings.push('auth_status_unavailable');
 		}
+
 		const durationMs = Date.now() - start;
 		const authProvided = Boolean(dbConfig.user || dbConfig.password);
 		const authenticated = authenticatedUsers.length > 0;
@@ -277,6 +271,8 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 		let message = '';
 		let classification: string | undefined;
 		let userFriendly: string | undefined;
+
+		// Simple success criteria: connection works and authentication succeeded if credentials provided
 		if (authProvided && !warnings.includes('ping_failed')) {
 			success = true;
 			message = m.api_db_test_success_authenticated();
@@ -309,6 +305,18 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				}
 			}
 		}
+
+		// ============================================================================
+		// AFTER SUCCESSFUL TEST: Write private.ts AND seed database
+		// ============================================================================
+		if (success) {
+			// Test passed - user can proceed to next step
+			// Note: private.ts and database seeding happens when user clicks "Next" button
+			logger.info('✅ Connection test passed! User can proceed to next step.');
+			message = 'Database connected successfully! ✨';
+		}
+
+		// Compile final result payload
 		resultPayload = {
 			success,
 			message,
@@ -423,11 +431,7 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 // Drizzle (SQL) Connection Testers
 // =================================================================================================
 
-/**
- * Tests a PostgreSQL connection using Drizzle.
- * @param dbConfig The database configuration for PostgreSQL.
- * @returns A SvelteKit JSON response.
- */
+// Tests a PostgreSQL connection using Drizzle
 async function testPostgresConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
 	let client;
@@ -492,11 +496,7 @@ async function testPostgresConnection(dbConfig: DatabaseConfig) {
 	}
 }
 
-/**
- * Tests a MySQL/MariaDB connection using Drizzle.
- * @param dbConfig The database configuration for MySQL/MariaDB.
- * @returns A SvelteKit JSON response.
- */
+// Tests a MySQL/MariaDB connection using Drizzle
 async function testMySqlConnection(dbConfig: DatabaseConfig) {
 	const start = Date.now();
 	let connection;
@@ -576,9 +576,20 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('🔍 Raw request body received:', raw, typeof raw, Array.isArray(raw));
 		// IMPORTANT: All dbConfig validation is performed server-side only using databaseConfigSchema.
 		// The frontend should send the raw config object; only the server validates and normalizes it.
+
+		// Convert port to number, handling empty strings for Atlas connections
+		let port: number | undefined;
+		if (typeof raw?.port === 'string') {
+			const portNum = Number(raw.port);
+			// For Atlas (mongodb+srv), port should be undefined if it's 0 or empty
+			port = raw.type === 'mongodb+srv' && (portNum === 0 || raw.port === '') ? undefined : portNum;
+		} else {
+			port = raw?.port;
+		}
+
 		const body = {
 			...raw,
-			port: typeof raw?.port === 'string' ? Number(raw.port) : raw?.port,
+			port,
 			user: raw?.user ?? '',
 			password: raw?.password ?? ''
 		};
@@ -590,8 +601,6 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.error('Invalid database configuration received for testing.', { issues });
 			return json({ success: false, error: 'Invalid database configuration.', details: issues }, { status: 400 });
 		}
-		logger.info('✅ Database configuration validation passed');
-		logger.info('✅ Database configuration is valid and defined');
 
 		logger.info(`🎯 Database type ${dbConfig.type} is supported, proceeding with test...`);
 

@@ -23,6 +23,43 @@ export function classifyDatabaseError(
 	// Log the raw error for debugging
 	logger.error('🔍 Classifying database error:', { raw, lower, code, engine });
 
+	// 🎯 MongoDB Atlas specific errors (check first for most specific errors)
+	if (engine === 'mongodb' && dbConfig?.host?.includes('mongodb.net')) {
+		// TLS/SSL errors for Atlas
+		if (/tls|ssl|certificate|self[- ]?signed/i.test(lower)) {
+			return {
+				classification: 'atlas_tls_error',
+				raw,
+				userFriendly:
+					'MongoDB Atlas TLS/SSL connection error. This usually happens due to: 1) Network firewall blocking the connection, 2) Outdated Node.js TLS configuration, or 3) Certificate validation issues. Try adding "retryWrites=true&w=majority" to your connection options, or check your Node.js version (requires Node.js 14.20+, 16.14+, or 18+).'
+			};
+		}
+		// Common Atlas-specific issues
+		if (/ip.*whitelist|ip.*not.*allowed|network.*access|not.*authorized.*from.*ip/i.test(lower)) {
+			return {
+				classification: 'atlas_ip_whitelist',
+				raw,
+				userFriendly:
+					'Your IP address is not whitelisted in MongoDB Atlas. Go to Network Access in your Atlas dashboard and add your current IP address (0.0.0.0/0 for testing, or your specific IP for production).'
+			};
+		}
+		if (/cluster.*not.*found|hostname.*not.*found|srv.*lookup.*failed/i.test(lower)) {
+			return {
+				classification: 'atlas_cluster_not_found',
+				raw,
+				userFriendly: 'MongoDB Atlas cluster not found. Please check your connection string and ensure the cluster name is correct.'
+			};
+		}
+		if (/user.*not.*found|authentication.*failed.*user/i.test(lower)) {
+			return {
+				classification: 'atlas_user_not_found',
+				raw,
+				userFriendly:
+					'Database user not found in Atlas. Go to Database Access in your Atlas dashboard and create a database user with read/write permissions.'
+			};
+		}
+	}
+
 	// 🔍 Authentication patterns (most specific first)
 	if (/authentication failed|auth.*fail|bad auth|authentication.*error/i.test(lower)) {
 		return { classification: 'authentication_failed', raw, userFriendly: 'Authentication failed. Please check your username and password.' };

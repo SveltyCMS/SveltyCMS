@@ -59,20 +59,45 @@
 
 	function getTroubleshootingTips(classification: string | undefined): string[] {
 		switch (classification) {
+			case 'atlas_ip_whitelist':
+				return [
+					'Go to MongoDB Atlas → Network Access',
+					'Click "Add IP Address"',
+					'Add 0.0.0.0/0 for testing (allows all IPs)',
+					'For production, use your specific IP address',
+					'Changes may take 1-2 minutes to take effect'
+				];
+			case 'atlas_cluster_not_found':
+				return [
+					'Verify your cluster name is correct in the connection string',
+					'Check that your cluster is running (not paused)',
+					'Ensure you copied the full connection string from Atlas',
+					'Try pasting the full connection string into the Host field'
+				];
+			case 'atlas_user_not_found':
+				return [
+					'Go to MongoDB Atlas → Database Access',
+					'Click "Add New Database User"',
+					'Set username and password',
+					'Grant "Read and write to any database" permission',
+					'Wait 1-2 minutes for the user to be created'
+				];
 			case 'authentication_failed':
 			case 'wrong_password':
 				return [
 					'Verify your username and password are correct',
 					'Check if the user has proper database permissions',
 					'Try connecting with admin credentials first',
-					'For Atlas: Ensure IP whitelist includes your IP'
+					'For Atlas: Ensure IP whitelist includes your IP address',
+					'For Atlas: Password may contain special characters that need encoding'
 				];
 			case 'credentials_required':
 			case 'auth_required':
 				return [
 					'This database requires authentication',
 					'Enter your database username and password',
-					'For local development, you may need to create a user first'
+					'For local development, you may need to create a user first',
+					'For Atlas: Copy the connection string with credentials from MongoDB Compass'
 				];
 			case 'host_unreachable':
 			case 'connection_refused':
@@ -80,7 +105,8 @@
 					'Check if the database server is running',
 					'Verify the host address and port are correct',
 					'Check firewall settings',
-					'For Docker: Use container name instead of localhost'
+					'For Docker: Use container name instead of localhost',
+					'For Atlas: Ensure you copied the correct cluster hostname'
 				];
 			case 'database_not_found':
 				return [
@@ -93,14 +119,16 @@
 					'Connection timed out - server may be slow or unreachable',
 					'Check your network connection',
 					'Verify the host and port are correct',
-					'The server may be under heavy load'
+					'The server may be under heavy load',
+					'For Atlas: Check if your cluster is paused'
 				];
 			default:
 				return [
 					'Check your database configuration',
 					'Verify the database server is accessible',
 					'Review the error message above for specific details',
-					'Check the application logs for more information'
+					'Check the application logs for more information',
+					'For Atlas: Try pasting the full connection string from MongoDB Compass'
 				];
 		}
 	}

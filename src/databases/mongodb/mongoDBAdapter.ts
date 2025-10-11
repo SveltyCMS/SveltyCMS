@@ -301,7 +301,7 @@ export class MongoDBAdapter implements IDBAdapter {
 
 		// --- 4. Build the Public-Facing Wrapped API ---
 		this._initializeWrappers();
-		logger.info('MongoDB adapter fully initialized.');
+		logger.info('\x1b[34mMongoDB adapter\x1b[0m fully initialized.');
 	}
 
 	private _initializeWrappers(): void {
@@ -325,6 +325,10 @@ export class MongoDBAdapter implements IDBAdapter {
 			deleteUsers: (userIds) => authAdapter.deleteUsers?.(userIds),
 			blockUsers: (userIds) => authAdapter.blockUsers?.(userIds),
 			unblockUsers: (userIds) => authAdapter.unblockUsers?.(userIds),
+
+			// Combined Performance-Optimized Methods
+			createUserAndSession: (userData, sessionData) => authAdapter.createUserAndSession(userData, sessionData),
+			deleteUserAndSessions: (userId, tenantId) => authAdapter.deleteUserAndSessions(userId, tenantId),
 
 			// Session Management Methods (authAdapter already returns DatabaseResult, don't double-wrap)
 			createSession: (session) => authAdapter.createSession(session),

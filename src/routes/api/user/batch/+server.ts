@@ -64,7 +64,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// Check if all users exist and belong to the tenant
 			const userChecks = await Promise.all(
 				userIds.map(async (userId) => {
-					const userResult = await auth.db.getUserById(userId, tenantId);
+					const userResult = await auth.db.auth.getUserById(userId, tenantId);
 					return userResult.success ? userResult.data : null;
 				})
 			);
@@ -83,15 +83,43 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		switch (action) {
 			case 'delete': {
-				const result = await auth.db.deleteUsers(userIds, tenantId);
-				if (!result.success) {
-					throw error(500, `Failed to delete users: ${result.error}`);
+				// Use optimized deleteUserAndSessions for each user to ensure sessions are cleaned up
+				let totalDeleted = 0;
+				let totalSessionsDeleted = 0;
+
+				for (const userId of userIds) {
+					const result = await auth.deleteUserAndSessions(userId, tenantId);
+					if (result.success && result.data) {
+						totalDeleted++;
+						totalSessionsDeleted += result.data.deletedSessionCount || 0;
+					} else {
+						logger.warn(`Failed to delete user or sessions`, {
+							userId,
+							error: result.message,
+							tenantId
+						});
+					}
 				}
-				successMessage = 'Users deleted successfully.';
+
+				if (totalDeleted === 0) {
+					throw error(500, 'Failed to delete any users');
+				}
+
+				successMessage =
+					totalDeleted === userIds.length
+						? `${totalDeleted} user(s) and ${totalSessionsDeleted} session(s) deleted successfully.`
+						: `${totalDeleted} of ${userIds.length} user(s) deleted (${totalSessionsDeleted} sessions cleaned up). Some deletions failed.`;
+
+				logger.info('User deletion completed', {
+					requested: userIds.length,
+					deleted: totalDeleted,
+					sessionsDeleted: totalSessionsDeleted,
+					tenantId
+				});
 				break;
 			}
 			case 'block': {
-				const result = await auth.db.blockUsers(userIds, tenantId);
+				const result = await auth.db.auth.blockUsers(userIds, tenantId);
 				if (!result.success) {
 					throw error(500, `Failed to block users: ${result.error}`);
 				}
@@ -99,7 +127,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				break;
 			}
 			case 'unblock': {
-				const result = await auth.db.unblockUsers(userIds, tenantId);
+				const result = await auth.db.auth.unblockUsers(userIds, tenantId);
 				if (!result.success) {
 					throw error(500, `Failed to unblock users: ${result.error}`);
 				}

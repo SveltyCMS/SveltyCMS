@@ -164,7 +164,9 @@
 
 	// --- 5. DERIVED STATE ---
 	const dbConfigFingerprint = $derived<string>(JSON.stringify(wizard.dbConfig));
-	const isFullUri = $derived<boolean>(wizard.dbConfig.host.startsWith('mongodb://') || wizard.dbConfig.host.startsWith('mongodb+srv://'));
+	const isFullUri = $derived<boolean>(
+		wizard.dbConfig.host.startsWith('mongodb://') || wizard.dbConfig.host.startsWith('mongodb+srv://') || wizard.dbConfig.type === 'mongodb+srv'
+	);
 	const dbConfigChangedSinceTest = $derived<boolean>(
 		!!lastTestFingerprint && lastTestFingerprint !== dbConfigFingerprint && !!lastDbTestResult?.success
 	);
@@ -293,67 +295,47 @@
 	}
 
 	async function testDatabaseConnection(): Promise<void> {
-		if (!validateStep(0, true)) return;
+		// Handle client-side validation failure
+		if (!validateStep(0, true)) {
+			// Show a general error in the main block
+			errorMessage = 'Please fill in all required fields before testing the connection.';
+			// Create a mock result to ensure the error block appears and is expanded
+			lastDbTestResult = { success: false, error: 'Client-side validation failed.' };
+			showDbDetails = true; // Expand the details on validation failure
+			return;
+		}
+
 		isLoading = true;
 		errorMessage = '';
 		successMessage = '';
 		lastDbTestResult = null;
 
 		try {
+			// Send the wizard.dbConfig directly
 			const response = await fetch('/api/setup/test-database', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(wizard.dbConfig)
+				body: JSON.stringify(wizard.dbConfig) // Send the clean object
 			});
 
-			// Parse the response
 			const data: DatabaseTestResult = await response.json();
 			lastDbTestResult = data;
 
-			// Log response for debugging
 			console.log('Database test response:', data);
 
 			if (data.success) {
 				successMessage = data.message || 'Connection successful!';
-				// Do not show a toast here to avoid duplicate notifications
 				wizard.dbTestPassed = true;
 				lastTestFingerprint = dbConfigFingerprint;
-				errorMessage = ''; // Clear any previous errors
-				showDbDetails = false; // Hide details on success
-				validationErrors = {}; // Clear any field-specific errors
-
-				// Trigger database seeding after successful test
-				try {
-					console.log('Triggering database seeding...');
-					const seedResponse = await fetch('/api/setup/seed-settings', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify(wizard.dbConfig)
-					});
-
-					const seedData = await seedResponse.json();
-					if (seedData.success) {
-						if (seedData.alreadySeeded) {
-							console.log('Database already seeded:', seedData.message);
-						} else {
-							console.log('Database seeded successfully:', seedData.message);
-						}
-					} else {
-						console.warn('Database seeding failed:', seedData.error);
-						// Don't fail the test, just log the warning
-					}
-				} catch (seedError) {
-					console.warn('Error during database seeding:', seedError);
-					// Don't fail the test, just log the warning
-				}
+				errorMessage = '';
+				showDbDetails = false; // Collapse details on success
+				validationErrors = {};
 			} else {
-				// Use userFriendly message first, then technical error as fallback
 				errorMessage = data.userFriendly || data.error || 'Database connection failed. Please check your configuration.';
 				wizard.dbTestPassed = false;
-				successMessage = ''; // Clear any previous success messages
+				successMessage = '';
 				showDbDetails = true; // Auto-expand details on failure
 
-				// React to classification codes to highlight relevant fields
 				const newValidationErrors: ValidationErrors = {};
 				if (data.classification) {
 					switch (data.classification) {
@@ -389,12 +371,10 @@
 					}
 				}
 
-				// Only update validation errors if we have classification-based errors
 				if (Object.keys(newValidationErrors).length > 0) {
 					validationErrors = newValidationErrors;
 				}
 
-				// Log detailed error for debugging
 				console.error('Database test failed:', {
 					userFriendly: data.userFriendly,
 					error: data.error,
@@ -403,12 +383,10 @@
 				});
 			}
 		} catch (e) {
-			// Network or parsing error
 			const errorMsg = e instanceof Error ? e.message : 'A network error occurred.';
 			errorMessage = `Network error: ${errorMsg}`;
 			wizard.dbTestPassed = false;
 			successMessage = '';
-
 			console.error('Network error during database test:', e);
 		} finally {
 			isLoading = false;
@@ -431,23 +409,39 @@
 				body: JSON.stringify({
 					database: wizard.dbConfig,
 					admin: wizard.adminUser,
-					system: wizard.systemSettings
+					system: wizard.systemSettings,
+					firstCollection: wizard.firstCollection // Pass pre-seeded collection for faster redirect
 				})
 			});
 
 			const data: SetupCompleteResponse = await response.json();
+
 			if (!response.ok || !data.success) {
-				throw new Error(data.error || 'Failed to finalize setup.');
+				// Show error toast on failure
+				const errorMsg = data.error || 'Failed to finalize setup.';
+				showToast(errorMsg, 'error', 5000);
+				errorMessage = errorMsg;
+				throw new Error(errorMsg);
 			}
 
-			showToast('Setup complete! Redirecting...', 'success');
+			// Setup complete - show success toast
+			showToast('Setup complete! Welcome to SveltyCMS! 🎉', 'success', 3000);
+
+			// Clear store data
 			clearStore();
 
+			// Wait for toast to be visible, then redirect
 			setTimeout(() => {
-				location.replace(data.redirectPath || '/login');
-			}, 1200);
+				window.location.href = data.redirectPath || '/config/collectionbuilder';
+			}, 1500);
 		} catch (e) {
-			errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during finalization.';
+			const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred during finalization.';
+			errorMessage = errorMsg;
+			// Error toast already shown above in the if block, don't show duplicate
+			// Only show toast here if it's a network error (not thrown by us)
+			if (!errorMessage.includes('Failed to')) {
+				showToast(errorMsg, 'error', 5000);
+			}
 		} finally {
 			isLoading = false;
 		}
@@ -458,21 +452,60 @@
 
 	async function nextStep() {
 		if (!canProceed) return;
-		// On database step, install driver before proceeding
+
+		// On database step, write private.ts and seed database
 		if (wizard.currentStep === 0) {
 			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
 				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
+
+			// STEP 2: Write private.ts and seed database when user clicks "Next"
+			// This happens while user is filling in system settings/admin form
+			if (wizard.dbTestPassed) {
+				try {
+					isLoading = true;
+					console.log('🎯 Writing config and seeding database...');
+
+					const seedResponse = await fetch('/api/setup/seed', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(wizard.dbConfig)
+					});
+
+					const seedData = await seedResponse.json();
+					if (seedData.success) {
+						console.log('✅ Database initialized successfully');
+						showToast('Database initialized successfully! ✨', 'success', 3000);
+
+						// Store first collection info for faster redirect
+						if (seedData.firstCollection) {
+							wizard.firstCollection = seedData.firstCollection;
+							console.log('📁 First collection:', seedData.firstCollection.name);
+						}
+					} else {
+						console.warn('⚠️  Database initialization had issues:', seedData.error);
+						showToast('Setup will continue, data will be created as needed.', 'info', 4000);
+					}
+				} catch (seedError) {
+					console.warn('⚠️  Error during database initialization:', seedError);
+					// Don't block user from continuing
+				} finally {
+					isLoading = false;
+				}
+			}
 		}
+
 		if (wizard.currentStep === 1 || wizard.currentStep === 2) {
 			if (!validateStep(wizard.currentStep, true)) return;
 		}
+
 		if (wizard.currentStep < totalSteps - 1) {
 			wizard.currentStep++;
 			if (wizard.currentStep > wizard.highestStepReached) {
 				wizard.highestStepReached = wizard.currentStep;
 			}
 		}
+
 		errorMessage = '';
 		lastDbTestResult = null;
 		showDbDetails = false;

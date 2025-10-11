@@ -19,6 +19,7 @@ import { privateEnv } from '@src/stores/globalSettings';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
+import { isServiceHealthy } from '@src/stores/systemState';
 import { type Handle, type RequestEvent } from '@sveltejs/kit';
 
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -106,9 +107,17 @@ export const handleSessionAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	try {
-		// Wait for database initialization
-		await dbInitPromise;
-		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
+		// Check if auth service is ready (non-blocking check)
+		// Only wait for database init on first request (handled by dbInitPromise)
+		if (!isServiceHealthy('auth')) {
+			// Auth service not ready yet - trigger initialization but don't block
+			dbInitPromise.catch((err) => {
+				logger.error('Database initialization failed in handleSessionAuth', err);
+			});
+		}
+
+		const authServiceReady = auth !== null && typeof auth.validateSession === 'function' && isServiceHealthy('auth');
+
 		// Expose dbAdapter early (adapter-agnostic)
 		if (!event.locals.dbAdapter && dbAdapter) {
 			event.locals.dbAdapter = dbAdapter;

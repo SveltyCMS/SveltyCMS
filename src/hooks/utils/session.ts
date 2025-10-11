@@ -78,13 +78,17 @@ export async function getUserFromSessionId(
 				return redisCached.user;
 			}
 		} catch (cacheError) {
-			logger.error(`Error reading from session cache store for ${session_id}: ${cacheError.message}`);
+			const errorMsg =
+				typeof cacheError === 'object' && cacheError !== null && 'message' in cacheError
+					? (cacheError as { message: string }).message
+					: String(cacheError);
+			logger.error(`Error reading from session cache store for ${session_id}: ${errorMsg}`);
 		}
 	}
 
 	// DB validation
 	if (!authServiceReady || !authService) {
-		logger.debug(`Auth service not ready, skipping session validation for ${session_id}`);
+		logger.debug(`Auth service not ready, skipping session validation for \x1b[32m${session_id}\x1b[0m`);
 		return null;
 	}
 
@@ -99,7 +103,9 @@ export async function getUserFromSessionId(
 		sessionMetrics.lastActivity.set(session_id, now);
 		return validUser;
 	} catch (dbError) {
-		logger.error(`Session validation DB error for ${session_id}: ${dbError.message}`);
+		const errorMsg =
+			typeof dbError === 'object' && dbError !== null && 'message' in dbError ? (dbError as { message: string }).message : String(dbError);
+		logger.error(`Session validation DB error for ${session_id}: ${errorMsg}`);
 		return null;
 	}
 }
@@ -132,7 +138,11 @@ export async function handleSessionRotation(
 			throw new Error('invalid-session');
 		}
 	} catch (tokenError) {
-		logger.error(`Error getting session token data for ${session_id}: ${tokenError.message}`);
+		const errorMsg =
+			typeof tokenError === 'object' && tokenError !== null && 'message' in tokenError
+				? (tokenError as { message: string }).message
+				: String(tokenError);
+		logger.error(`Error getting session token data for ${session_id}: ${errorMsg}`);
 		event.cookies.delete(cookieName, { path: '/' });
 		throw new Error('invalid-session');
 	}
@@ -177,7 +187,11 @@ export async function handleSessionRotation(
 				});
 				logger.debug(`Token rotated for user ${user._id}. Old: ${oldSessionId}, New: ${newTokenId}`);
 			} catch (rotationError) {
-				logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError.message}`);
+				const rotationErrorMsg =
+					typeof rotationError === 'object' && rotationError !== null && 'message' in rotationError
+						? (rotationError as { message: string }).message
+						: String(rotationError);
+				logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationErrorMsg}`);
 			}
 		}
 	} else if (tokenData && tokenData.user_id !== user._id) {

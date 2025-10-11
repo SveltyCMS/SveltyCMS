@@ -626,13 +626,34 @@ export const actions: Actions = {
 		}
 
 		try {
-			// All checks passed! Create the user.
-			const newUser = await auth.createUser({
-				email,
-				username,
-				password,
-				role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
-				isRegistered: true
+			// Use optimized createUserAndSession for single database transaction
+			const sessionExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+			const userAndSessionResult = await auth.createUserAndSession(
+				{
+					email,
+					username,
+					password,
+					role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
+					isRegistered: true,
+					lastAuthMethod: 'password',
+					lastLogin: new Date()
+				},
+				{
+					expires: sessionExpires,
+					...(privateEnv.MULTI_TENANT && tokenData.details.tenantId && { tenantId: tokenData.details.tenantId })
+				}
+			);
+
+			if (!userAndSessionResult.success || !userAndSessionResult.data) {
+				throw new Error(userAndSessionResult.message || 'Failed to create user and session');
+			}
+
+			const { user: newUser, session: newSession } = userAndSessionResult.data;
+
+			logger.info('User and session created successfully via token registration', {
+				userId: newUser._id,
+				sessionId: newSession._id,
+				email
 			});
 
 			// Invalidate user count cache so the system knows a new user now exists
@@ -672,11 +693,14 @@ export const actions: Actions = {
 				logger.error(`Error invoking /api/sendMail for invited user`, { email, error: emailError });
 			}
 
-			// Create session and update last login
-			await createSessionAndSetCookie(newUser._id as string, event.cookies);
-			auth
-				.updateUserAttributes(newUser._id as string, { lastAuthMethod: 'password', lastLogin: new Date() })
-				.catch((err) => logger.error('Failed to update user attributes after signup', err));
+			// Set session cookie using the already-created session
+			event.cookies.set(auth.sessionCookieName, newSession._id, {
+				path: '/',
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: publicEnv.NODE_ENV === 'production',
+				maxAge: 60 * 60 * 24 * 7 // 7 days to match session expiry
+			});
 
 			// Redirect to first collection
 			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);

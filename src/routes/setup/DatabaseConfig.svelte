@@ -53,6 +53,73 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let isInstallingDriver = $state(false);
 	let installError = $state('');
 	let installSuccess = $state('');
+	let showConnectionStringHelper = $state(false);
+	let showAtlasHelper = $state(true); // Collapsible Atlas helper
+
+	// Parse MongoDB connection string (Atlas or standard)
+	function parseMongoConnectionString(connStr: string): { host: string; user: string; password: string; database?: string } | null {
+		try {
+			// MongoDB connection string patterns:
+			// mongodb://[username:password@]host[:port][/database]
+			// mongodb+srv://[username:password@]host[/database]
+
+			const stdPattern = /^mongodb:\/\/(?:([^:]+):([^@]+)@)?([^/?]+)(?:\/([^?]+))?/;
+			const srvPattern = /^mongodb\+srv:\/\/(?:([^:]+):([^@]+)@)?([^/?]+)(?:\/([^?]+))?/;
+
+			let match = connStr.match(srvPattern);
+			let isSrv = true;
+
+			if (!match) {
+				match = connStr.match(stdPattern);
+				isSrv = false;
+			}
+
+			if (!match) return null;
+
+			const [, user, password, host, database] = match;
+
+			return {
+				host: isSrv ? host : host.includes(':') ? host.split(':')[0] : host,
+				user: user || '',
+				password: password === '<db_password>' || password === '<password>' ? '' : password || '',
+				database: database || ''
+			};
+		} catch (error) {
+			console.error('Error parsing connection string:', error);
+			return null;
+		}
+	}
+
+	// Handle paste event to detect connection strings
+	function handleHostPaste(event: ClipboardEvent) {
+		const pastedText = event.clipboardData?.getData('text') || '';
+
+		if (pastedText.startsWith('mongodb://') || pastedText.startsWith('mongodb+srv://')) {
+			event.preventDefault();
+			const parsed = parseMongoConnectionString(pastedText);
+
+			if (parsed) {
+				// Update dbConfig with parsed values
+				dbConfig.type = pastedText.startsWith('mongodb+srv://') ? 'mongodb+srv' : 'mongodb';
+				dbConfig.host = parsed.host;
+				dbConfig.user = parsed.user;
+				dbConfig.password = parsed.password;
+
+				if (parsed.database) {
+					dbConfig.name = parsed.database;
+				}
+
+				// Show helper message
+				showConnectionStringHelper = true;
+				setTimeout(() => {
+					showConnectionStringHelper = false;
+				}, 5000);
+
+				// Clear any previous test errors
+				clearDbTestError();
+			}
+		}
+	}
 
 	// Expose installDatabaseDriver to parent
 	export async function installDatabaseDriver(dbType: string) {
@@ -95,12 +162,28 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	}
 
 	$effect(() => {
+		// Preserve database name when switching between Atlas and localhost
+		const previousDbName = dbConfig.name;
+
 		if (isAtlas) {
 			dbConfig.port = ''; // Port is not used for Atlas SRV
-			if (dbConfig.host === 'localhost') dbConfig.host = ''; // Clear default host
+			if (dbConfig.host === 'localhost') {
+				dbConfig.host = ''; // Clear default host when switching to Atlas
+			}
 		} else if (dbConfig.type === 'mongodb' && !dbConfig.port) {
 			dbConfig.port = '27017'; // Default port for standard MongoDB
 		}
+
+		// Restore database name if it was cleared
+		if (!dbConfig.name && previousDbName) {
+			dbConfig.name = previousDbName;
+		}
+
+		// Set default database name if empty
+		if (!dbConfig.name) {
+			dbConfig.name = 'SveltyCMS';
+		}
+
 		unsupportedDbSelected = false; // All database types are now supported
 		// No automatic driver install here
 	});
@@ -112,6 +195,49 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{m.setup_database_intro()}
 		</p>
 	</div>
+
+	<!-- MongoDB Atlas Helper Message -->
+	{#if dbConfig.type === 'mongodb+srv'}
+		<div class="mb-6 rounded border border-blue-200 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-500/10">
+			<button
+				type="button"
+				onclick={() => (showAtlasHelper = !showAtlasHelper)}
+				class="flex w-full items-center justify-between p-4 text-left text-blue-900 dark:text-blue-200"
+			>
+				<div class="flex items-center gap-3">
+					<iconify-icon icon="mdi:information" width="20" class="flex-shrink-0"></iconify-icon>
+					<span class="font-semibold">MongoDB Atlas Quick Setup</span>
+				</div>
+				<iconify-icon icon={showAtlasHelper ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="24"></iconify-icon>
+			</button>
+
+			{#if showAtlasHelper}
+				<div class="border-t border-blue-200 p-4 pt-3 text-blue-900 dark:border-blue-500/30 dark:text-blue-200">
+					<p class="text-sm">
+						To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:
+					</p>
+					<ul class="mt-2 space-y-1 text-sm">
+						<li class="flex items-start gap-2">
+							<span class="text-tertiary-500 dark:text-primary-500">1.</span>
+							<span>In MongoDB Atlas, click <strong>"Connect"</strong> → <strong>"Compass"</strong> or <strong>"VS Code"</strong></span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-tertiary-500 dark:text-primary-500">2.</span>
+							<span>Copy the connection string: <code class="text-xs">mongodb+srv://username:password@cluster0.abcde.mongodb.net/</code></span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-tertiary-500 dark:text-primary-500">3.</span>
+							<span>Paste into Host field - we extract the credentials automatically!</span>
+						</li>
+					</ul>
+					<p class="mt-2 text-xs italic">
+						💡 The Host field will show only the cluster hostname (e.g., <code>cluster0.abcde.mongodb.net</code>) after parsing.
+					</p>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	{#if dbConfig.type === 'postgresql' || dbConfig.type === 'mysql'}
 		<div class="mb-6 rounded border border-blue-200 bg-blue-50 p-4 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
 			<p class="font-semibold">Coming Soon!</p>
@@ -191,19 +317,20 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<div>
 					<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{isAtlas ? 'Atlas Connection String (SRV)' : m.setup_database_host()}</span>
+						<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
 						<button type="button" tabindex="-1" use:popup={popupDbHost} aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
 							><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
 						>
 					</label>
 					<div
 						data-popup="popupDbHost"
-						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
 					>
 						<p>
 							{isAtlas
-								? 'Your MongoDB Atlas SRV connection string. Usually starts with "mongodb+srv://".'
-								: m.setup_help_database_host?.() || 'Hostname or IP address where the database server is reachable.'}
+								? "Enter your Atlas cluster hostname (e.g., cluster0.abcde.mongodb.net) OR paste your full connection string (mongodb+srv://username:password@cluster0.abcde.mongodb.net/) and we'll extract the credentials automatically."
+								: m.setup_help_database_host?.() ||
+									'Hostname or IP address where the database server is reachable. You can also paste a full MongoDB connection string.'}
 						</p>
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
@@ -212,10 +339,25 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						bind:value={dbConfig.host}
 						type="text"
 						onchange={clearDbTestError}
-						placeholder={isAtlas ? 'my-cluster.abcde.mongodb.net' : 'localhost'}
+						onpaste={handleHostPaste}
+						placeholder={isAtlas ? 'cluster0.abcde.mongodb.net OR paste full mongodb+srv://...' : 'localhost OR paste full connection string'}
 						class="input w-full rounded {validationErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
 					/>
 					{#if validationErrors.host}<div class="mt-1 text-xs text-error-500">{validationErrors.host}</div>{/if}
+					{#if showConnectionStringHelper}
+						<div
+							class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+						>
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:check-circle" width="16"></iconify-icon>
+								<span class="font-medium">Connection string parsed!</span>
+							</div>
+							<p class="mt-1 text-xs">
+								Hostname, username, and password have been automatically extracted. Please verify the values and replace
+								<code>&lt;db_password&gt;</code> placeholder if needed.
+							</p>
+						</div>
+					{/if}
 				</div>
 
 				{#if !isAtlas}

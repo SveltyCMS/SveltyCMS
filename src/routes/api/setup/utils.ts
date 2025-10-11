@@ -4,7 +4,7 @@
  */
 
 import type { DatabaseConfig } from '@src/databases/schemas';
-import type { DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
+import type { IDBAdapter } from '@src/databases/dbInterface';
 import { logger } from '@utils/logger.svelte';
 
 /**
@@ -37,7 +37,27 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 				queryParams = '?authSource=admin';
 			}
 
-			return `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
+			const connectionString = `${protocol}://${user}${config.host}${port}/${config.name}${queryParams}`;
+
+			// Enhanced logging for Atlas connections
+			if (isSrv) {
+				logger.info('🌐 Building MongoDB Atlas (SRV) connection string', {
+					host: config.host,
+					database: config.name,
+					hasCredentials,
+					user: config.user || 'none'
+				});
+			} else {
+				logger.info('🔧 Building MongoDB connection string', {
+					host: config.host,
+					port: config.port || '27017',
+					database: config.name,
+					hasCredentials,
+					isLocalhost
+				});
+			}
+
+			return connectionString;
 		}
 		default: {
 			// TypeScript ensures exhaustive checking - this should never be reached
@@ -91,7 +111,9 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 						user: config.user,
 						pass: config.password,
 						dbName: config.name,
-						authSource: config.type === 'mongodb+srv' ? undefined : 'admin'
+						// Always use 'admin' as authSource for both MongoDB and Atlas
+						// MongoDB Atlas stores user accounts in the admin database by default
+						authSource: 'admin'
 					})
 			};
 
@@ -122,52 +144,4 @@ export async function getSetupDatabaseAdapter(config: DatabaseConfig): Promise<{
 
 	logger.info(`✅ Successfully created and connected adapters for ${config.type}`, { correlationId });
 	return { dbAdapter, connectionString };
-}
-
-/**
- * Test database connection with performance metrics
- */
-export async function testDatabaseConnection(config: DatabaseConfig): Promise<DatabaseResult<{ healthy: boolean; latency: number }>> {
-	const correlationId = typeof globalThis.crypto?.randomUUID === 'function' ? globalThis.crypto.randomUUID() : (await import('crypto')).randomUUID();
-	logger.info(`Testing database connection for ${config.type}`, { correlationId });
-
-	try {
-		const { dbAdapter } = await getSetupDatabaseAdapter(config);
-		const startTime = Date.now();
-		const healthResult = await dbAdapter.getConnectionHealth();
-		const latency = Date.now() - startTime;
-
-		if (!healthResult.success) {
-			logger.error(`Connection health check failed: ${healthResult.error.message}`, { correlationId });
-			return {
-				success: false,
-				message: 'Connection health check failed',
-				error: {
-					code: 'CONNECTION_FAILED',
-					message: healthResult.error.message,
-					details: healthResult.error.details
-				}
-			};
-		}
-
-		await dbAdapter.disconnect();
-		logger.info(`Connection test successful, latency: ${latency}ms`, { correlationId });
-		return {
-			success: true,
-			data: { healthy: true, latency },
-			meta: { executionTime: latency }
-		};
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-		logger.error(`Connection test failed: ${errorMessage}`, { correlationId });
-		return {
-			success: false,
-			message: 'Connection test failed',
-			error: {
-				code: 'CONNECTION_ERROR',
-				message: errorMessage,
-				details: err instanceof Error ? err.stack : undefined
-			}
-		};
-	}
 }

@@ -19,7 +19,7 @@ import { array, boolean, literal, maxValue, minLength, minValue, number, object,
  */
 export const privateConfigSchema = object({
 	// --- Database configuration (Essential for startup) ---
-	DB_TYPE: literal('mongodb'), // Define the database type (currently only 'mongodb' supported)
+	DB_TYPE: union([literal('mongodb'), literal('mongodb+srv')]), // Define the database type
 	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')), // Database host address
 	DB_PORT: pipe(number(), minValue(1)), // Database port number
 	DB_NAME: pipe(string(), minLength(1, 'Database name is required.')), // Database name
@@ -167,7 +167,7 @@ export const publicConfigSchema = object({
 export const databaseConfigSchema = object({
 	type: union([literal('mongodb'), literal('mongodb+srv')]),
 	host: pipe(string(), minLength(1)),
-	port: pipe(number(), minValue(1)),
+	port: optional(pipe(number(), minValue(0))), // Optional for Atlas (mongodb+srv), 0 or undefined allowed
 	name: pipe(string(), minLength(1)),
 	user: string(),
 	password: string()

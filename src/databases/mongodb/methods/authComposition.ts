@@ -17,10 +17,12 @@
  * providing a single interface for the MongoDB adapter.
  */
 
-import type { IDBAdapter } from '@src/databases/dbInterface';
+import type { IDBAdapter, DatabaseResult } from '@src/databases/dbInterface';
+import type { User, Session } from '@src/databases/schemas';
 import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
+import { logger } from '@utils/logger.svelte';
 
 // Type helper to extract the auth interface from IDBAdapter
 type AuthInterface = IDBAdapter['auth'];
@@ -61,6 +63,125 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		deleteUsers: userAdapter.deleteUsers?.bind(userAdapter),
 		blockUsers: userAdapter.blockUsers?.bind(userAdapter),
 		unblockUsers: userAdapter.unblockUsers?.bind(userAdapter),
+
+		// Combined Performance-Optimized Methods
+		createUserAndSession: async (
+			userData: Partial<User>,
+			sessionData: { expires: Date; tenantId?: string }
+		): Promise<DatabaseResult<{ user: User; session: Session }>> => {
+			try {
+				// Create user first
+				const userResult = await userAdapter.createUser(userData);
+				if (!userResult.success || !userResult.data) {
+					return {
+						success: false,
+						message: userResult.message || 'Failed to create user',
+						error: userResult.error
+					};
+				}
+
+				// Create session for the new user
+				const sessionResult = await sessionAdapter.createSession({
+					user_id: userResult.data._id,
+					expires: sessionData.expires,
+					tenantId: sessionData.tenantId
+				});
+
+				if (!sessionResult.success || !sessionResult.data) {
+					// Rollback: delete the user we just created
+					await userAdapter.deleteUser(userResult.data._id, sessionData.tenantId);
+					return {
+						success: false,
+						message: sessionResult.message || 'Failed to create session',
+						error: sessionResult.error
+					};
+				}
+
+				return {
+					success: true,
+					data: {
+						user: userResult.data,
+						session: sessionResult.data
+					}
+				};
+			} catch (err) {
+				const message = `Error in createUserAndSession: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message);
+				return {
+					success: false,
+					message,
+					error: {
+						code: 'CREATE_USER_AND_SESSION_ERROR',
+						message: err instanceof Error ? err.message : String(err)
+					}
+				};
+			}
+		},
+
+		deleteUserAndSessions: async (
+			user_id: string,
+			tenantId?: string
+		): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> => {
+			try {
+				// Step 1: Get session count before deletion (for reporting)
+				let deletedSessionCount = 0;
+				try {
+					const activeSessions = await sessionAdapter.getActiveSessions(user_id, tenantId);
+					if (activeSessions.success && activeSessions.data) {
+						deletedSessionCount = activeSessions.data.length;
+					}
+				} catch {
+					// Non-fatal: just log and continue
+					logger.debug('Could not count sessions before deletion', { user_id });
+				}
+
+				// Step 2: Delete all user sessions
+				const sessionsResult = await sessionAdapter.invalidateAllUserSessions(user_id, tenantId);
+
+				if (!sessionsResult.success) {
+					logger.warn('Failed to invalidate user sessions, continuing with user deletion', {
+						user_id,
+						error: sessionsResult.message
+					});
+				}
+
+				// Step 3: Delete the user
+				const userResult = await userAdapter.deleteUser(user_id, tenantId);
+
+				if (!userResult.success) {
+					return {
+						success: false,
+						message: userResult.message || 'Failed to delete user',
+						error: userResult.error
+					};
+				}
+
+				logger.info(`User and sessions deleted: user=${user_id}, sessions=${deletedSessionCount}`, {
+					user_id,
+					deletedSessionCount,
+					tenantId
+				});
+
+				return {
+					success: true,
+					data: {
+						deletedUser: true,
+						deletedSessionCount
+					}
+				};
+			} catch (err) {
+				const message = `Error in deleteUserAndSessions: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message, { user_id, tenantId });
+				return {
+					success: false,
+					message,
+					error: {
+						code: 'DELETE_USER_AND_SESSIONS_ERROR',
+						message: err instanceof Error ? err.message : String(err)
+					}
+				};
+			}
+		},
 
 		// Session Management Methods
 		createSession: sessionAdapter.createSession.bind(sessionAdapter),

@@ -4,6 +4,13 @@
  *
  * This replaces the static configuration files with database settings.
  * Uses database-agnostic interfaces for compatibility across different database engines.
+ *
+ * Collection Seeding Strategy:
+ * - seedCollectionsForSetup(): Lightweight version for setup that directly reads compiled
+ *   collections from filesystem and creates models. Bypasses ContentManager to avoid
+ *   global dbAdapter dependency issues during setup mode.
+ * - This allows ContentManager to have collections pre-cached when system fully initializes,
+ *   resulting in faster redirects and better UX after setup completion.
  */
 
 import { publicConfigSchema } from '@src/databases/schemas';
@@ -64,42 +71,69 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void
 }
 
 /**
- * Seeds collections from filesystem into database by creating models
+ * Seeds collections from filesystem into database using ContentManager
+ * ContentManager handles the full schema loading and physical collection creation
+ *
+ * @returns Information about the first collection (for faster redirects)
  */
-export async function seedCollections(dbAdapter: DatabaseAdapter): Promise<void> {
+export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promise<{ firstCollection: { name: string; path: string } | null }> {
+	const overallStart = performance.now();
 	logger.info('📦 Seeding collections from filesystem...');
 
 	if (!dbAdapter || !dbAdapter.collection) {
 		throw new Error('Database adapter or collection interface not available');
 	}
 
+	let firstCollection: { name: string; path: string } | null = null;
+
 	try {
 		// Import contentManager instance to process collection schemas
+		const importStart = performance.now();
 		const { contentManager } = await import('@src/content/ContentManager');
+		const importTime = performance.now() - importStart;
+		logger.debug(`⏱️  ContentManager import: \x1b[32m${importTime.toFixed(2)}ms\x1b[0m`);
 
 		// Initialize ContentManager to scan and load collections from filesystem
+		const initStart = performance.now();
 		await contentManager.initialize();
+		const initTime = performance.now() - initStart;
+		logger.info(`⏱️  ContentManager initialization: \x1b[32m${initTime.toFixed(2)}ms\x1b[0m`);
 
 		// Get all collections from ContentManager
+		const getCollStart = performance.now();
 		const collections = await contentManager.getCollections();
+		const getCollTime = performance.now() - getCollStart;
+		logger.debug(`⏱️  Get collections: \x1b[32m${getCollTime.toFixed(2)}ms\x1b[0m (found ${collections.length})`);
 
 		if (collections.length === 0) {
 			logger.info('ℹ️  No collections found in filesystem, skipping collection seeding');
-			return;
+			return { firstCollection: null };
 		}
 
 		logger.info(`Found ${collections.length} collections to seed`);
 
 		let successCount = 0;
 		let skipCount = 0;
+		const modelCreationStart = performance.now();
 
 		// Register each collection as a model in the database
 		for (const schema of collections) {
 			try {
+				const createStart = performance.now();
 				// Try to create the collection model in database
 				await dbAdapter.collection.createModel(schema);
-				logger.info(`✅ Created collection model: ${schema.name}`);
+				const createTime = performance.now() - createStart;
+				logger.info(`✅ Created collection model: ${schema.name} (\x1b[33m${createTime.toFixed(2)}ms\x1b[0m)`);
 				successCount++;
+
+				// Capture the first collection for redirect
+				if (!firstCollection && schema.path) {
+					firstCollection = {
+						name: schema.name as string,
+						path: schema.path
+					};
+					logger.debug(`First collection identified: \x1b[34m${schema.name}\x1b[0m at ${schema.path}`);
+				}
 			} catch (error) {
 				// Collection might already exist or have schema issues
 				const errorMessage = error instanceof Error ? error.message : String(error);
@@ -112,16 +146,25 @@ export async function seedCollections(dbAdapter: DatabaseAdapter): Promise<void>
 			}
 		}
 
+		const modelCreationTime = performance.now() - modelCreationStart;
+		const overallTime = performance.now() - overallStart;
+
 		logger.info(`✅ Collections seeding completed: ${successCount} created, ${skipCount} skipped`);
+		logger.info(`⏱️  Model creation time: \x1b[32m${modelCreationTime.toFixed(2)}ms\x1b[0m`);
+		logger.info(`⏱️  Total seed time: \x1b[32m${overallTime.toFixed(2)}ms\x1b[0m`);
+
+		return { firstCollection };
 	} catch (error) {
-		logger.error('Failed to seed collections:', error);
+		const overallTime = performance.now() - overallStart;
+		logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms:`, error);
 		// Don't throw - collections can be created later through the UI
 		logger.warn('Continuing setup without collection seeding...');
+		return { firstCollection: null };
 	}
 }
 
 // Initialize system from setup using database-agnostic interface
-export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<void> {
+export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<{ firstCollection: { name: string; path: string } | null }> {
 	logger.info('🚀 Starting system initialization from setup...');
 
 	if (!adapter) {
@@ -134,13 +177,17 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<voi
 	// Seed the default theme
 	await seedDefaultTheme(adapter);
 
-	// Seed collections from filesystem (creates collection tables in database)
-	await seedCollections(adapter);
+	// Seed collections from filesystem
+	// This creates collection models in MongoDB so ContentManager can access them quickly
+	// Uses seedCollectionsForSetup() which bypasses ContentManager to avoid global dbAdapter dependency
+	const { firstCollection } = await seedCollectionsForSetup(adapter);
 
 	// Invalidate the settings cache to force a reload
 	invalidateSettingsCache();
 
 	logger.info('✅ System initialization completed');
+
+	return { firstCollection };
 }
 
 // Default public settings that were previously in config/public.ts
@@ -160,6 +207,7 @@ const defaultPublicSettings: Array<{ key: string; value: unknown; description?: 
 	{ key: 'LOCALES', value: ['en', 'de'], description: 'List of available interface locales' },
 
 	// Media configuration
+	{ key: 'MEDIA_STORAGE_TYPE', value: 'local', description: 'Type of media storage (local, s3, r2, cloudinary)' },
 	{ key: 'MEDIA_FOLDER', value: './mediaFolder', description: 'Server path where media files are stored' },
 	{ key: 'MEDIA_OUTPUT_FORMAT_QUALITY', value: { format: 'webp', quality: 80 }, description: 'Image format and quality settings' },
 	{ key: 'IMAGE_SIZES', value: { sm: 600, md: 900, lg: 1200 }, description: 'Image sizes for automatic resizing' },
@@ -306,7 +354,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 		return;
 	}
 
-	logger.info(`🌱 Seeding ${settingsToSeed.length} missing settings (${Object.keys(existingSettings).length} already exist)...`);
+	logger.info(`🌱 Seeding \x1b[34m${settingsToSeed.length}\x1b[0m missing settings (${Object.keys(existingSettings).length} already exist)...`);
 
 	// Prepare settings for batch operation with category
 	const settingsToSet: Array<{

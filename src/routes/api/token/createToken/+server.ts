@@ -92,21 +92,18 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		}
 		const expires = new Date(Date.now() + expiresInSeconds * 1000); // Create token with pre-generated user_id for when user actually registers
 
-		const token = await auth.db.createToken({
-			user_id: uuidv4(), // This will be used when the user actually registers
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId to the token
-			email: validatedData.email.toLowerCase(),
-			expires,
-			type: 'user-invite',
-			role: validatedData.role
-		});
-
-		if (!token) {
-			logger.error('Failed to create token for email', { email: validatedData.email, tenantId });
-			throw error(500, 'Internal Server Error: Token creation failed.');
 		}
 
-		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
+		// Create token in database
+		const tokenResult = await auth.createToken({
+			user_id: user._id as string,
+			expires: expiryDate,
+			type,
+			metadata: sanitizedMetadata,
+			tenantId: tenantId || undefined
+		});
+
+		if (!tokenResult.success || !tokenResult.data) {		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
 
 		const inviteLink = `${url.origin}/login?invite_token=${token}`; // Send invitation email
 

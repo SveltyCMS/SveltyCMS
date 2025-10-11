@@ -102,8 +102,24 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 /**
  * Invalidates the cached setup status, forcing a recheck on the next call to isSetupComplete().
  * This should be called after setup completion to ensure the cache is updated.
+ * @param clearPrivateEnv - Whether to clear private environment config (default: false during setup completion)
  */
-export function invalidateSetupCache(): void {
+export function invalidateSetupCache(clearPrivateEnv = false): void {
 	setupStatus = null;
 	setupStatusCheckedDb = false;
+
+	// Also clear the database initialization state to force a fresh init
+	// This ensures that after setup completes, the system will fully reinitialize
+	// During setup completion, we DON'T clear privateEnv so initialization can use it
+	if (clearPrivateEnv) {
+		import('@src/databases/db')
+			.then((db) => {
+				if (db.clearPrivateConfigCache) {
+					db.clearPrivateConfigCache(false); // Don't keep privateEnv
+				}
+			})
+			.catch(() => {
+				// Ignore errors during cache clear (db module might not be loaded yet)
+			});
+	}
 }

@@ -52,7 +52,7 @@ class InMemoryStore implements ICacheStore {
 		if (this.isInitialized) return;
 		this.interval = setInterval(() => this.cleanup(), 60_000);
 		this.isInitialized = true;
-		logger.info('In-memory cache initialized.');
+		logger.info('\x1b[34mIn-memory cache\x1b[0m initialized.');
 	}
 
 	private cleanup() {

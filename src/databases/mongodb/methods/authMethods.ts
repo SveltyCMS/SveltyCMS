@@ -57,9 +57,9 @@ export class MongoAuthModelRegistrar {
 		// Use the injected mongoose instance
 		if (!this.mongoose.models[name]) {
 			this.mongoose.model(name, schema);
-			logger.debug(`Model '${name}' was registered.`);
+			logger.debug(`Model '\x1b[34m${name}\x1b[0m' was registered`);
 		} else {
-			logger.debug(`Model '${name}' already exists and was not re-registered.`);
+			logger.debug(`Model '\x1b[34m${name}\x1b[0m' already exists and was not re-registered`);
 		}
 	}
 }

@@ -192,6 +192,11 @@ const isPublicOrOAuthRoute = (pathname: string): boolean => {
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const { url, locals } = event;
 
+	// Skip authorization entirely for setup routes - no users/roles exist yet
+	if (url.pathname.startsWith('/setup') || url.pathname.startsWith('/api/setup')) {
+		return resolve(event);
+	}
+
 	// Determine the active auth service (adapter agnostic)
 	// Prefer imported auth (primary), fall back to any adapter placed on locals
 	const authService: AuthServiceLike | undefined = (auth as unknown as AuthServiceLike) || (locals.dbAdapter?.auth as AuthServiceLike);

@@ -337,7 +337,7 @@ export interface IDBAdapter {
 	auth: {
 		// Setup method for model registration
 		setupAuthModels(): Promise<void>;
-		
+
 		// User Management Methods
 		createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
 		updateUserAttributes(user_id: string, userData: Partial<User>, tenantId?: string): Promise<DatabaseResult<User>>;
@@ -349,6 +349,13 @@ export interface IDBAdapter {
 		deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
 		blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 		unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+
+		// Combined Performance-Optimized Methods
+		createUserAndSession(
+			userData: Partial<User>,
+			sessionData: { expires: Date; tenantId?: string }
+		): Promise<DatabaseResult<{ user: User; session: Session }>>;
+		deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
 
 		// Session Management Methods
 		createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<DatabaseResult<Session>>;

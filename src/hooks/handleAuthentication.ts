@@ -10,14 +10,30 @@
 import { privateEnv } from '@src/stores/globalSettings';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
+import { isServiceHealthy } from '@src/stores/systemState';
 import { error, type Handle } from '@sveltejs/kit';
 import { getTenantIdFromHostname } from './utils/tenant';
 
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url } = event;
 
-	// Wait for the database connection to be ready.
-	await dbInitPromise;
+	// Skip authentication entirely for setup routes
+	if (url.pathname.startsWith('/setup') || url.pathname.startsWith('/api/setup')) {
+		// Still attach dbAdapter if available (needed by setup endpoints)
+		if (dbAdapter) {
+			locals.dbAdapter = dbAdapter;
+		}
+		return resolve(event);
+	}
+
+	// Check if database is ready (non-blocking check)
+	// Only wait on first request (handled by dbInitPromise)
+	if (!isServiceHealthy('database')) {
+		// Database not ready yet - trigger initialization but don't block
+		dbInitPromise.catch((err) => {
+			console.error('Database initialization failed in handleAuthentication', err);
+		});
+	}
 
 	// Attach the database adapter to locals for universal access.
 	locals.dbAdapter = dbAdapter;

@@ -1,39 +1,31 @@
 /**
  * @file src/routes/api/setup/complete/+server.ts
- * @description Finalizes the initial CMS setup by creating the admin user,
- *              persisting database credentials, and logging the user in.
+ * @description Finalizes the initial CMS setup by creating the admin user and session.
  * @summary
- *  - Connects to the database using credentials from the request.
- *  - Creates or updates the admin user.
- *  - Updates `config/private.ts` with the database credentials.
- *  - Invalidates the global settings cache to force a reload on the next request.
- *  - Creates an authenticated session for the admin user.
- *
- * This endpoint assumes that the database has already been seeded via the
- * `/api/setup/seed-settings` endpoint, which is triggered on a successful
- * database connection test in the UI.
+ *  - Reads private.ts directly from filesystem (bypasses Vite cache)
+ *  - Manually creates database adapter and Auth instance for admin user creation
+ *  - Creates the admin user using the setup Auth service
+ *  - Initializes the global system (db.ts) to make adapter available to all services
+ *  - Initializes ContentManager and registers all collection models in database
+ *  - Creates an authenticated session for the new admin user
+ *  - System is ready to use! NO RESTART REQUIRED! ✨
  */
 
 import { dev } from '$app/environment';
 
 // Auth
-
-import type { DatabaseConfig } from '@src/databases/schemas';
+import type { User, Session } from '@src/databases/schemas';
 import { Auth } from '@src/databases/auth';
-import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
-import type { User } from '@src/databases/auth/types';
 import { invalidateSettingsCache } from '@src/stores/globalSettings';
 import { setupAdminSchema } from '@src/utils/formSchemas';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import { randomBytes } from 'crypto';
 import { safeParse } from 'valibot';
-import { getSetupDatabaseAdapter } from '../utils';
 import type { RequestHandler } from './$types';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
-import { auth } from '@src/databases/db';
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings';
 import { systemLanguage } from '@stores/store.svelte';
@@ -75,12 +67,20 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
 	try {
 		const setupData = await request.json();
-		const { database, admin } = setupData as {
-			database: DatabaseConfig;
+		const { admin, firstCollection } = setupData as {
 			admin: AdminConfig;
+			firstCollection?: { name: string; path: string } | null;
 		};
 
-		logger.info('Starting setup finalization', { correlationId, db: database.name, admin: admin.email });
+		logger.info('Starting setup finalization', { correlationId, admin: admin.email });
+
+		// Log if we received first collection info (for faster redirect)
+		if (firstCollection) {
+			logger.debug('Received first collection from seed step:', {
+				name: firstCollection.name,
+				path: firstCollection.path
+			});
+		}
 
 		// 1. Validate admin user data
 		const adminValidation = safeParse(setupAdminSchema, admin);
@@ -89,126 +89,240 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			return json({ success: false, error: `Invalid admin user data: ${issues}` }, { status: 400 });
 		}
 
-		// 1.1 Validate DB credentials presence only for Atlas/remote MongoDB requiring auth
-		// Local MongoDB might not require authentication, so we allow empty credentials
-		// This matches the behavior of the test-database endpoint
-		if (database.type === 'mongodb+srv' && (!database.user || !database.password)) {
+		// 2. Initialize full system using DB config from filesystem (bypass Vite cache)
+		logger.info('Initializing full system with existing configuration...', { correlationId });
+		let setupAuth: Auth;
+		let dbConfig: {
+			type: 'mongodb' | 'mongodb+srv';
+			host: string;
+			port: number;
+			name: string;
+			user: string;
+			password: string;
+		};
+
+		try {
+			// Read private.ts from filesystem to bypass Vite's import cache
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const privateFilePath = path.resolve(process.cwd(), 'config/private.ts');
+
+			logger.debug('Reading private.ts from filesystem', { path: privateFilePath });
+			const privateFileContent = await fs.readFile(privateFilePath, 'utf-8');
+			logger.debug('File read successfully', { length: privateFileContent.length });
+
+			// Debug: Show first 500 characters to understand the format
+			logger.debug('File content preview:', { preview: privateFileContent.substring(0, 500) });
+
+			// Extract database config from the file content
+			// The format is: DB_TYPE: 'value', (inside createPrivateConfig call)
+			const dbTypeMatch = privateFileContent.match(/DB_TYPE:\s*['"]([^'"]+)['"]/);
+			const dbHostMatch = privateFileContent.match(/DB_HOST:\s*['"]([^'"]+)['"]/);
+			const dbPortMatch = privateFileContent.match(/DB_PORT:\s*(\d+)/);
+			const dbNameMatch = privateFileContent.match(/DB_NAME:\s*['"]([^'"]+)['"]/);
+			const dbUserMatch = privateFileContent.match(/DB_USER:\s*['"]([^'"]*)['"]/);
+			const dbPasswordMatch = privateFileContent.match(/DB_PASSWORD:\s*['"]([^'"]*)['"]/);
+			const jwtSecretMatch = privateFileContent.match(/JWT_SECRET_KEY:\s*['"]([^'"]+)['"]/);
+			const encryptionKeyMatch = privateFileContent.match(/ENCRYPTION_KEY:\s*['"]([^'"]+)['"]/);
+
+			logger.debug('Regex matches', {
+				hasDbType: !!dbTypeMatch,
+				hasDbHost: !!dbHostMatch,
+				hasDbName: !!dbNameMatch,
+				hasJwtSecret: !!jwtSecretMatch,
+				hasEncryptionKey: !!encryptionKeyMatch,
+				dbTypeValue: dbTypeMatch?.[1],
+				dbHostValue: dbHostMatch?.[1],
+				dbNameValue: dbNameMatch?.[1]
+			});
+
+			if (!dbTypeMatch || !dbHostMatch || !dbNameMatch || !jwtSecretMatch || !encryptionKeyMatch) {
+				throw new Error(
+					`Could not parse required config from private.ts. Missing: ${[
+						!dbTypeMatch && 'DB_TYPE',
+						!dbHostMatch && 'DB_HOST',
+						!dbNameMatch && 'DB_NAME',
+						!jwtSecretMatch && 'JWT_SECRET',
+						!encryptionKeyMatch && 'ENCRYPTION_KEY'
+					]
+						.filter(Boolean)
+						.join(', ')}`
+				);
+			}
+
+			dbConfig = {
+				type: dbTypeMatch[1] as 'mongodb' | 'mongodb+srv',
+				host: dbHostMatch[1],
+				port: dbPortMatch ? parseInt(dbPortMatch[1]) : 27017,
+				name: dbNameMatch[1],
+				user: dbUserMatch?.[1] || '',
+				password: dbPasswordMatch?.[1] || ''
+			};
+
+			logger.info('Database config parsed from filesystem', {
+				type: dbConfig.type,
+				host: dbConfig.host,
+				port: dbConfig.port,
+				name: dbConfig.name,
+				hasUser: !!dbConfig.user,
+				hasJwtSecret: !!jwtSecretMatch[1],
+				hasEncryptionKey: !!encryptionKeyMatch[1]
+			});
+
+			// Manually create database adapter (same as seed endpoint)
+			const { getSetupDatabaseAdapter } = await import('@src/routes/api/setup/utils');
+			const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+
+			// Create Auth instance with the adapter and session store
+			const { getDefaultSessionStore } = await import('@src/databases/auth/sessionManager');
+			setupAuth = new Auth(dbAdapter, getDefaultSessionStore());
+
+			logger.info('✅ Database adapter and Auth service initialized successfully', { correlationId });
+		} catch (initError) {
+			const errorMessage = initError instanceof Error ? initError.message : String(initError);
+			const errorStack = initError instanceof Error ? initError.stack : undefined;
+			logger.error('Failed to initialize system:', {
+				error: errorMessage,
+				stack: errorStack,
+				correlationId
+			});
 			return json(
 				{
 					success: false,
-					error: 'Credentials required for MongoDB Atlas connections',
-					userFriendly: 'MongoDB Atlas requires a username and password. Please provide valid credentials.'
+					error: `System initialization failed: ${errorMessage}`
 				},
-				{ status: 400 }
+				{ status: 500 }
 			);
 		}
 
-		// 2. Create temporary database adapter and establish connection (agnostic)
-		const { dbAdapter } = await getSetupDatabaseAdapter(database);
-		logger.info('Database connection established for setup finalization', { correlationId });
-
-		// 3. Set up auth models (already done in getSetupDatabaseAdapter)
-		// Models are already initialized by getSetupDatabaseAdapter
-
-		// 4. Create a temporary full Auth instance using the unified database adapter
-		const tempAuth = new Auth(dbAdapter, getDefaultSessionStore());
-		logger.info('Temporary Auth service created for setup finalization', { correlationId });
-
-		// 5. Create or update the admin user
-		const adminUser = await createAdminUser(admin, tempAuth, correlationId);
-		logger.info('Admin user created/updated', { correlationId, userId: adminUser._id, userIdType: typeof adminUser._id });
-
-		// 6. Update the private config file with database credentials
-		await updatePrivateConfig(database, correlationId);
-
-		// 7. Invalidate settings cache to force reload with new database connection
-		invalidateSettingsCache();
-		logger.info('Global settings cache invalidated', { correlationId });
-
-		// 7.1 Invalidate user count cache since we just created the first user
+		// 3. Create admin user AND session using combined optimized method (single DB transaction)
+		let adminUser: User;
+		let session: Session;
 		try {
-			const { cacheService } = await import('@src/databases/CacheService');
-			await cacheService.delete('userCount', undefined);
-			logger.info('User count cache invalidated after first user creation', { correlationId });
-		} catch (cacheErr) {
-			logger.warn('Failed to invalidate user count cache', {
-				correlationId,
-				error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
-			});
-		}
+			if (!setupAuth) {
+				throw new Error('Auth service not initialized');
+			}
 
-		// 8. Invalidate setup status cache to allow normal routing
-		const { invalidateSetupCache } = await import('@utils/setupCheck');
-		invalidateSetupCache();
-		logger.info('Setup status cache invalidated', { correlationId });
+			const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-		// 8.1 Clear private config module cache so new DB credentials are loaded
-		try {
-			const { clearPrivateConfigCache } = await import('@src/databases/db');
-			clearPrivateConfigCache();
-			logger.info('Private config cache cleared after setup completion', { correlationId });
-		} catch (cacheErr) {
-			logger.warn('Failed to clear private config cache after setup completion', {
-				correlationId,
-				error: cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
-			});
-		}
+			// Check if user already exists
+			const existingUser = await setupAuth.getUserByEmail({ email: admin.email });
 
-		// 8.2 Reinitialize the system with new database configuration
-		try {
-			const { reinitializeSystem } = await import('@src/databases/db');
-			const reinitResult = await reinitializeSystem(true);
-			if (reinitResult.status === 'initialized') {
-				logger.info('System reinitialized successfully after setup completion', { correlationId });
+			if (existingUser && existingUser._id) {
+				// Update existing user
+				logger.info('Updating existing admin user', { correlationId, email: admin.email, userId: existingUser._id });
 
-				// Force ContentManager to reload all collections from compiled files
-				// This ensures fields are populated in memory
-				try {
-					await contentManager.initialize(undefined, true); // Force reload
-					logger.info('ContentManager reinitialized with full collection schemas', { correlationId });
-				} catch (cmError) {
-					logger.warn('ContentManager reinitialization had issues', {
-						correlationId,
-						error: cmError instanceof Error ? cmError.message : String(cmError)
-					});
+				await setupAuth.updateUserAttributes(existingUser._id, {
+					username: admin.username,
+					password: admin.password,
+					role: 'admin',
+					isRegistered: true
+				});
+
+				const updatedUser = await setupAuth.getUserByEmail({ email: admin.email });
+				if (!updatedUser) throw new Error('Failed to retrieve updated admin user');
+				adminUser = updatedUser;
+
+				// Create session for updated user
+				const sessionResult = await setupAuth.createSession({ user_id: adminUser._id, expires });
+				if (!sessionResult.success || !sessionResult.data) {
+					throw new Error(sessionResult.message || 'Failed to create session');
 				}
+				session = sessionResult.data;
+
+				logger.info('✅ Admin user updated and session created', { correlationId, userId: adminUser._id, sessionId: session._id });
 			} else {
-				logger.warn('System reinitialization failed or was already in progress', {
+				// Create new user AND session in one optimized call
+				logger.info('Creating new admin user and session (optimized)', { correlationId, email: admin.email });
+
+				const result = await setupAuth.createUserAndSession(
+					{
+						username: admin.username,
+						email: admin.email,
+						password: admin.password,
+						role: 'admin',
+						isRegistered: true
+					},
+					{ expires }
+				);
+
+				if (!result.success || !result.data) {
+					throw new Error(result.message || 'Failed to create user and session');
+				}
+
+				adminUser = result.data.user;
+				session = result.data.session;
+
+				logger.info('✅ Admin user and session created (single transaction)', {
 					correlationId,
-					status: reinitResult.status,
-					error: reinitResult.error
+					userId: adminUser._id,
+					sessionId: session._id
 				});
 			}
-		} catch (reinitErr) {
-			logger.error('Failed to reinitialize system after setup completion', {
-				correlationId,
-				error: reinitErr instanceof Error ? reinitErr.message : String(reinitErr)
+		} catch (authError) {
+			logger.error('Failed to create admin user and session:', authError);
+			return json(
+				{
+					success: false,
+					error: `Failed to create admin user: ${authError instanceof Error ? authError.message : String(authError)}`
+				},
+				{ status: 500 }
+			);
+		}
+
+		// 4. Initialize the global system (db.ts) - reload private.ts from filesystem
+		try {
+			logger.info('🚀 Initializing global system from db.ts...', { correlationId });
+			const { initializeWithFreshConfig } = await import('@src/databases/db');
+
+			// Simply reload private.ts from filesystem - no manual config needed!
+			// The private.ts file was just created, so we force reload to bypass Vite cache
+			const result = await initializeWithFreshConfig();
+
+			if (result.status !== 'initialized') {
+				// System initialization FAILED - cannot continue
+				const errorMsg = `System initialization failed: ${result.error || 'Unknown error'}`;
+				logger.error(errorMsg, { correlationId });
+				return json(
+					{
+						success: false,
+						error: errorMsg
+					},
+					{ status: 500 }
+				);
+			}
+
+			logger.info('✅ Global system initialized successfully', { correlationId });
+		} catch (initError) {
+			// System initialization threw an exception - cannot continue
+			const errorMsg = `System initialization exception: ${initError instanceof Error ? initError.message : String(initError)}`;
+			logger.error(errorMsg, {
+				error: initError instanceof Error ? initError.message : String(initError),
+				stack: initError instanceof Error ? initError.stack : undefined,
+				correlationId
 			});
-			// Don't fail the setup if reinitialization fails - the system might still work
+			return json(
+				{
+					success: false,
+					error: errorMsg
+				},
+				{ status: 500 }
+			);
 		}
 
-		// 9. Create a session for the new admin user
-		const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-		logger.info('Creating session for admin user', { correlationId, userId: adminUser._id, userIdType: typeof adminUser._id });
+		// 5. Now safe to invalidate caches (after system is initialized)
+		invalidateSettingsCache();
+		const { invalidateSetupCache } = await import('@utils/setupCheck');
+		invalidateSetupCache();
+		logger.info('Caches invalidated', { correlationId });
 
-		// Use main auth service if available, otherwise fall back to tempAuth
-		let session;
-		let sessionCookie;
-		if (auth && typeof auth.createSession === 'function') {
-			session = await auth.createSession({ user_id: adminUser._id, expires });
-			sessionCookie = auth.createSessionCookie(session._id);
-			logger.info('Session created with main auth service', { correlationId });
-		} else {
-			session = await tempAuth.createSession({ user_id: adminUser._id, expires });
-			sessionCookie = tempAuth.createSessionCookie(session._id);
-			logger.info('Session created with temp auth service', { correlationId });
-		}
-
-		logger.info('Admin user created and session established, redirecting to dashboard', { correlationId });
-
-		// 10. Send welcome email to the new admin user
+		// 6. Send welcome email to the new admin user (optional - graceful failure)
 		try {
 			const hostLink = url.origin; // Get the full origin (protocol + host)
+			const langFromStore = get(systemLanguage);
+			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+
 			const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
 				method: 'POST',
 				headers: {
@@ -224,48 +338,93 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 						sitename: publicEnv.SITE_NAME || 'SveltyCMS',
 						hostLink: hostLink
 					},
-					languageTag: userLanguage || 'en'
+					languageTag: userLanguage
 				})
 			});
 
 			if (emailResponse.ok) {
-				logger.info('Welcome email sent successfully to admin user', { correlationId, email: admin.email });
+				logger.info('✅ Welcome email sent successfully', { correlationId, to: admin.email });
 			} else {
 				const emailError = await emailResponse.text();
-				logger.warn('Failed to send welcome email to admin user', { correlationId, email: admin.email, error: emailError });
+				logger.warn('Failed to send welcome email (non-fatal)', { correlationId, to: admin.email, error: emailError });
 			}
 		} catch (emailError) {
 			// Don't fail setup if email fails - just log the error
-			logger.warn('Error sending welcome email to admin user', {
+			logger.warn('Error sending welcome email (non-fatal)', {
 				correlationId,
-				email: admin.email,
 				error: emailError instanceof Error ? emailError.message : String(emailError)
 			});
 		}
 
-		// 11. Determine redirect path based on available collections (same logic as login)
-		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
-		logger.info('Setup redirect logic', { correlationId, langFromStore, supportedLocales, userLanguage });
-		let redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+		// 7. Determine redirect path
+		let redirectPath: string;
+		try {
+			const langFromStore = get(systemLanguage);
+			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-		// If no collections found, fall back to collection builder
-		if (!redirectPath) {
+			// Use firstCollection if it was passed from the seed step (faster!)
+			if (firstCollection && firstCollection.path) {
+				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
+				redirectPath = `/${userLanguage}${collectionPath}`;
+				logger.info(`✨ Fast redirect using pre-seeded collection: \x1b[34m${firstCollection.name}\x1b[0m at \x1b[34m${redirectPath}\x1b[0m`, {
+					correlationId
+				});
+			} else {
+				// Fallback: Query ContentManager (slower)
+				logger.debug('No firstCollection passed, querying ContentManager...', { correlationId });
+
+				// Force ContentManager to reload all collections
+				await contentManager.initialize(undefined, true);
+
+				redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+
+				// If no collections found, fall back to collection builder
+				if (!redirectPath) {
+					redirectPath = '/config/collectionbuilder';
+					logger.info('No collections available, redirecting to collection builder', { correlationId });
+				} else {
+					logger.info('Redirecting to first collection', { correlationId, redirectPath });
+				}
+			}
+		} catch (redirectError) {
+			logger.warn('Failed to determine redirect path, using default', {
+				correlationId,
+				error: redirectError instanceof Error ? redirectError.message : String(redirectError)
+			});
 			redirectPath = '/config/collectionbuilder';
-			logger.info('No collections available, redirecting to collection builder', { correlationId, redirectPath });
-		} else {
-			logger.info('Setup completion redirect path determined', { correlationId, redirectPath });
 		}
-		const response = json({
-			success: true,
-			message: 'Setup finalized successfully!',
-			redirectPath,
-			loggedIn: true
-		});
 
-		// 10. Set the session cookie using SvelteKit cookies API
-		// Extract maxAge safely with a typed fallback
+		// 8. Create session cookie (session already created in step 3)
+		let sessionCookie;
+		try {
+			if (!setupAuth) {
+				throw new Error('Auth service not available');
+			}
+
+			if (!session || !session._id) {
+				throw new Error(`Invalid session object: ${JSON.stringify(session)}`);
+			}
+
+			sessionCookie = setupAuth.createSessionCookie(session._id);
+			logger.info('✅ Session cookie created', { correlationId, sessionId: session._id });
+		} catch (sessionError) {
+			logger.error('Failed to create session:', sessionError);
+			logger.error('Session error details:', {
+				errorType: typeof sessionError,
+				errorKeys: sessionError ? Object.keys(sessionError) : [],
+				errorMessage: sessionError instanceof Error ? sessionError.message : 'Not an Error instance'
+			});
+			return json(
+				{
+					success: false,
+					error: `Failed to create session: ${sessionError instanceof Error ? sessionError.message : JSON.stringify(sessionError)}`
+				},
+				{ status: 500 }
+			);
+		}
+
+		// 9. Set session cookie
 		const cookieAttrs = sessionCookie.attributes as { maxAge?: number } | undefined;
 		cookies.set(sessionCookie.name, sessionCookie.value, {
 			path: '/',
@@ -275,9 +434,17 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			sameSite: 'lax'
 		});
 
-		return response;
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+		// 10. Return success - NO RESTART REQUIRED! ✨
+		return json({
+			success: true,
+			message: 'Setup complete! Welcome to SveltyCMS! 🎉',
+			redirectPath,
+			loggedIn: true,
+			requiresHardReload: false, // No hard reload needed
+			requiresServerRestart: false // ✨ No server restart needed!
+		});
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
 		logger.error('Setup finalization failed', { correlationId, error: errorMessage });
 		return json(
 			{
@@ -288,175 +455,3 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		);
 	}
 };
-
-async function createAdminUser(admin: AdminConfig, auth: Auth, correlationId: string): Promise<User> {
-	// Note: Don't hash the password here - let auth.createUser() and auth.updateUserAttributes() handle it
-
-	try {
-		const existingUser = await auth.getUserByEmail({ email: admin.email });
-
-		logger.debug('User lookup result', {
-			correlationId,
-			email: admin.email,
-			existingUser: existingUser,
-			isNull: existingUser === null,
-			isUndefined: existingUser === undefined,
-			type: typeof existingUser,
-			hasId: existingUser?._id ? true : false
-		});
-
-		// If user exists and has valid ID, update it
-		if (existingUser && existingUser._id) {
-			const userId = existingUser._id;
-			logger.info('Updating existing admin user', { correlationId, email: admin.email, userId: userId });
-
-			await auth.updateUserAttributes(userId, {
-				username: admin.username,
-				password: admin.password, // Pass raw password, updateUserAttributes will hash it
-				role: 'admin',
-				isRegistered: true
-			});
-
-			logger.info('Admin user updated successfully', { correlationId, email: admin.email });
-			const updatedUser = await auth.getUserByEmail({ email: admin.email });
-			if (!updatedUser) throw new Error('Failed to retrieve updated admin user');
-			return updatedUser;
-		}
-
-		// No existing user found, create new one
-		logger.info('Creating new admin user', { correlationId, email: admin.email });
-
-		const newUser = await auth.createUser({
-			username: admin.username,
-			email: admin.email,
-			password: admin.password, // Pass raw password, createUser will hash it
-			role: 'admin',
-			isRegistered: true
-		});
-
-		logger.info('Admin user created successfully', {
-			correlationId,
-			email: admin.email,
-			userId: newUser._id,
-			userIdType: typeof newUser._id
-		});
-		return newUser;
-	} catch (error) {
-		// Check for duplicate key error
-		const errorString = JSON.stringify(error);
-		const isDuplicateKeyError =
-			(error instanceof Error && error.message.includes('E11000 duplicate key error')) ||
-			errorString.includes('E11000 duplicate key error') ||
-			errorString.includes('duplicate key');
-
-		if (isDuplicateKeyError) {
-			logger.warn('Duplicate user detected during creation', {
-				correlationId,
-				email: admin.email,
-				errorType: 'duplicate_key'
-			});
-
-			// Try one more time to get the existing user
-			try {
-				const existing = await auth.getUserByEmail({ email: admin.email });
-				if (existing && existing._id) {
-					logger.info('Successfully retrieved existing user after duplicate error', {
-						correlationId,
-						email: admin.email,
-						userId: existing._id
-					});
-
-					// Update the existing user with new details
-					await auth.updateUserAttributes(existing._id, {
-						username: admin.username,
-						password: admin.password,
-						role: 'admin',
-						isRegistered: true
-					});
-
-					return existing;
-				}
-			} catch (lookupErr) {
-				logger.error('Failed to retrieve existing user after duplicate error', {
-					correlationId,
-					email: admin.email,
-					error: lookupErr instanceof Error ? lookupErr.message : String(lookupErr)
-				});
-			}
-
-			throw new Error(`User with email ${admin.email} already exists but could not be retrieved or updated. Please check the database.`);
-		}
-
-		logger.error('Error in createAdminUser', {
-			correlationId,
-			email: admin.email,
-			error: error instanceof Error ? error.message : String(error)
-		});
-		throw new Error(`Failed to create/update admin user: ${error instanceof Error ? error.message : String(error)}`);
-	}
-}
-
-async function updatePrivateConfig(dbConfig: DatabaseConfig, correlationId: string) {
-	const fs = await import('fs/promises');
-	const path = await import('path');
-	const privateConfigPath = path.resolve(process.cwd(), 'config', 'private.ts');
-
-	// Generate a random JWT secret key
-	const jwtSecret = generateRandomKey();
-
-	// Generate a random encryption key if not present
-	const encryptionKey = generateRandomKey();
-
-	// Generate the updated private.ts content
-	const privateConfigContent = `
-/**
- * @file config/private.ts
- * @description Private configuration file containing essential bootstrap variables.
- * These values are required for the server to start and connect to the database.
- * This file will be populated during the initial setup process.
- */
-import { createPrivateConfig } from '@src/databases/schemas';
-
-export const privateEnv = createPrivateConfig({
-	// --- Core Database Connection ---
-	DB_TYPE: '${dbConfig.type}',
-	DB_HOST: '${dbConfig.host}',
-	DB_PORT: ${dbConfig.port},
-	DB_NAME: '${dbConfig.name}',
-	DB_USER: '${dbConfig.user}',
-	DB_PASSWORD: '${dbConfig.password}',
-
-	// --- Connection Behavior ---
-	DB_RETRY_ATTEMPTS: 5,
-	DB_RETRY_DELAY: 3000, // 3 seconds
-
-	// --- Core Security Keys ---
-	JWT_SECRET_KEY: '${jwtSecret}',
-	ENCRYPTION_KEY: '${encryptionKey}',
-
-	// --- Fundamental Architectural Mode ---
-	MULTI_TENANT: false,
-
-	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
-	 * are loaded dynamically from the database after the application starts.
-	 */
-});
-`;
-
-	try {
-		await fs.writeFile(privateConfigPath, privateConfigContent);
-		logger.info('✅ Private config file updated successfully', { correlationId, path: privateConfigPath });
-	} catch (error) {
-		logger.error('Failed to update private config file', {
-			correlationId,
-			path: privateConfigPath,
-			error: error instanceof Error ? error.message : String(error)
-		});
-		// Do not re-throw; failing to write the config is not a fatal error for the setup flow,
-		// but it will require manual configuration.
-	}
-}
-
-function generateRandomKey(): string {
-	return randomBytes(32).toString('hex');
-}

@@ -77,6 +77,41 @@ export class Auth {
 		this.sessionStore = sessionStore;
 	}
 
+	// Combined Performance-Optimized Methods (wrapper for db.auth methods)
+	async createUserAndSession(
+		userData: Partial<User>,
+		sessionData: { expires: Date; tenantId?: string }
+	): Promise<DatabaseResult<{ user: User; session: Session }>> {
+		return this.db.auth.createUserAndSession(userData, sessionData);
+	}
+
+	async deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>> {
+		return this.db.auth.deleteUserAndSessions(user_id, tenantId);
+	}
+
+	// Additional wrapper methods for common auth operations
+	async createToken(tokenData: {
+		user_id: string;
+		expires: Date;
+		type: string;
+		metadata?: Record<string, unknown>;
+		tenantId?: string;
+	}): Promise<DatabaseResult<Token>> {
+		return this.db.auth.createToken(tokenData);
+	}
+
+	async getUserById(userId: string, tenantId?: string): Promise<DatabaseResult<User | null>> {
+		return this.db.auth.getUserById(userId, tenantId);
+	}
+
+	async blockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<number>> {
+		return this.db.auth.blockUsers(userIds, tenantId);
+	}
+
+	async unblockUsers(userIds: string[], tenantId?: string): Promise<DatabaseResult<number>> {
+		return this.db.auth.unblockUsers(userIds, tenantId);
+	}
+
 	// Role management
 
 	getRoles(): Role[] {

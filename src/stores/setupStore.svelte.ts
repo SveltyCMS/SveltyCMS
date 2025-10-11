@@ -4,7 +4,8 @@
  */
 
 // --- Types ---
-export type SupportedDbType = 'mongodb' | 'postgresql' | 'mysql' | 'mariadb' | '';
+export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
+
 export type DbConfig = {
 	type: SupportedDbType;
 	host: string;
@@ -12,7 +13,6 @@ export type DbConfig = {
 	name: string;
 	user: string;
 	password: string;
-	isAtlas: boolean;
 };
 export type AdminUser = {
 	username: string;
@@ -33,7 +33,7 @@ export type SystemSettings = {
 };
 
 // --- Initial State Constants ---
-const initialDbConfig: DbConfig = { type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '', isAtlas: false };
+const initialDbConfig: DbConfig = { type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '' };
 const initialAdminUser: AdminUser = { username: '', email: '', password: '', confirmPassword: '' };
 const initialSystemSettings: SystemSettings = {
 	siteName: 'SveltyCMS',
@@ -83,7 +83,8 @@ function createSetupStore() {
 		systemSettings: { ...initialSystemSettings },
 		currentStep: 0,
 		highestStepReached: 0,
-		dbTestPassed: false
+		dbTestPassed: false,
+		firstCollection: null as { name: string; path: string } | null
 	});
 
 	// Function to setup persistence effect - will be called from component

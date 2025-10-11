@@ -76,9 +76,16 @@ const getPerformanceEmoji = (responseTime: number): string => {
 	return '🐢';
 };
 
-// Perf start hook (very cheap)
+// Perf start hook (logs incoming request and marks start time)
 const handlePerfStart: Handle = async ({ event, resolve }) => {
 	event.locals.__reqStart = performance.now();
+
+	// Log incoming request (before processing)
+	const isSetupRelated = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
+	if (!isSetupRelated || event.url.pathname.startsWith('/api/setup')) {
+		logger.debug(`→ Request \x1b[34m${event.request.method} ${event.url.pathname}${event.url.search}\x1b[0m`);
+	}
+
 	return resolve(event);
 };
 
@@ -89,12 +96,11 @@ const handlePerfLog: Handle = async ({ event, resolve }) => {
 	if (typeof start === 'number') {
 		const dt = performance.now() - start;
 		const emoji = getPerformanceEmoji(dt);
-		// Only log requests that are slow (>100ms) or errors, or not setup-related
-		const isSetupRelated = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
-		const shouldLog = dt > 100 || res.status >= 400 || !isSetupRelated;
+		// Only log completion for slow requests or errors
+		const shouldLog = dt > 100 || res.status >= 400;
 		if (shouldLog) {
-			// Colorize URL (blue) and duration (green) for better scanability
-			logger.debug(`Request \x1b[34m${event.url.pathname}${event.url.search}\x1b[0m \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
+			// Log completion with duration
+			logger.debug(`← Completed \x1b[34m${event.url.pathname}\x1b[0m in \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
 		}
 	}
 	return res;

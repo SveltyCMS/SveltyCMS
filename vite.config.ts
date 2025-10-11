@@ -121,36 +121,36 @@ function setupWizardPlugin(): Plugin {
 			if (wasPrivateConfigMissing) {
 				const content = `
 /**
-* @file config/private.ts
-* @description Private configuration file containing essential bootstrap variables.
-* These values are required for the server to start and connect to the database.
-* This file will be populated during the initial setup process.
-*/
-import { createPrivateConfig } from './types';
+ * @file config/private.ts
+ * @description Private configuration file containing essential bootstrap variables.
+ * These values are required for the server to start and connect to the database.
+ * This file will be populated during the initial setup process.
+ */
+import { createPrivateConfig } from '@src/databases/schemas';
 
 export const privateEnv = createPrivateConfig({
-// --- Core Database Connection ---
-DB_TYPE: 'mongodb', // e.g., 'mongodb', 'mariadb'
-DB_HOST: '',
-DB_PORT: 27017,
-DB_NAME: '',
-DB_USER: '',
-DB_PASSWORD: '',
+	// --- Core Database Connection ---
+	DB_TYPE: 'mongodb',
+	DB_HOST: '',
+	DB_PORT: 27017,
+	DB_NAME: '',
+	DB_USER: '',
+	DB_PASSWORD: '',
 
-// --- Connection Behavior ---
-DB_RETRY_ATTEMPTS: 5,
-DB_RETRY_DELAY: 3000, // 3 seconds
+	// --- Connection Behavior ---
+	DB_RETRY_ATTEMPTS: 5,
+	DB_RETRY_DELAY: 3000, // 3 seconds
 
-// --- Core Security Keys ---
-JWT_SECRET_KEY: '',
-ENCRYPTION_KEY: '',
+	// --- Core Security Keys ---
+	JWT_SECRET_KEY: '',
+	ENCRYPTION_KEY: '',
 
-// --- Fundamental Architectural Mode ---
-MULTI_TENANT: false,
+	// --- Fundamental Architectural Mode ---
+	MULTI_TENANT: false,
 
-/* * NOTE: All other settings (SMTP, OAuth, etc.) are loaded
-* dynamically from the database after the application starts.
-*/
+	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
+	 * are loaded dynamically from the database after the application starts.
+	 */
 });
 `;
 				try {
