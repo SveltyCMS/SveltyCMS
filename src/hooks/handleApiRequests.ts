@@ -10,6 +10,7 @@
  * - Error handling and logging
  */
 
+import { getErrorMessage } from '@utils/errorHandling';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { cacheService } from '@src/databases/CacheService';
 import { error, type Handle } from '@sveltejs/kit';
@@ -91,13 +92,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 						});
 					}
 				} catch (cacheGetError) {
-					logger.warn(
-						`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${
-							typeof cacheGetError === 'object' && cacheGetError && 'message' in cacheGetError
-								? (cacheGetError as { message: string }).message
-								: String(cacheGetError)
-						}`
-					);
+					logger.warn(`Error fetching from API cache for \x1b[31m${baseKey}\x1b[0m: ${getErrorMessage(cacheGetError)}`);
 				}
 			} else {
 				logger.debug(`Cache bypass requested for API GET \x1b[33m${baseKey}\x1b[0m`);
@@ -137,7 +132,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 					});
 				} catch (processingError) {
 					logger.error(
-						`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${locals.user._id}\x1b[0m, tenant: ${locals.tenantId || 'global'}): ${processingError.message}`
+						`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${locals.user._id}\x1b[0m, tenant: ${locals.tenantId || 'global'}): ${getErrorMessage(processingError)}`
 					);
 					throw error(500, 'Failed to process API response');
 				}
@@ -158,7 +153,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 					`Invalidated API cache for keys starting with \x1b[34m${baseKey}:*\x1b[0m (tenant: ${locals.tenantId || 'global'}) after \x1b[32m${event.request.method}\x1b[0m request`
 				);
 			} catch (err) {
-				logger.error(`Failed to invalidate API cache for ${baseKey}: ${err.message}`);
+				logger.error(`Failed to invalidate API cache for ${baseKey}: ${getErrorMessage(err)}`);
 			}
 		}
 		return response;
@@ -181,7 +176,7 @@ export const invalidateApiCache = async (apiEndpoint: string, userId: string, te
 		await cacheService.clearByPattern(`${baseKey}:*`, tenantId);
 		await cacheService.delete(baseKey, tenantId);
 	} catch (e) {
-		logger.error(`Error during explicit API cache invalidation for \x1b[31m${baseKey}\x1b[0m: ${e.message}`);
+		logger.error(`Error during explicit API cache invalidation for \x1b[31m${baseKey}\x1b[0m: ${getErrorMessage(e)}`);
 	}
 };
 

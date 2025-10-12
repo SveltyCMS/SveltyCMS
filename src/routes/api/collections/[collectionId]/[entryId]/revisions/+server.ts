@@ -30,6 +30,10 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	if (!dbAdapter) {
+		throw error(503, 'Service Unavailable: Database service is not properly initialized');
+	}
+
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
 		throw error(404, 'Collection not found');

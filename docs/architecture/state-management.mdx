@@ -1,5 +1,5 @@
 ---
-path: 'docs/architecture/system-state-health-architecture.mdx'
+path: 'docs/architecture/state-management.mdx'
 title: 'System State & Health Architecture'
 description: 'Comprehensive guide to SveltyCMS intelligent state machine with self-learning performance tracking and anomaly detection.'
 order: 3
@@ -324,7 +324,7 @@ The system tracks **4 distinct phases** for each service:
 #### Check System Readiness (Synchronous)
 
 ```typescript
-import { isSystemReady, isServiceHealthy } from '@stores/systemState';
+import { isSystemReady, isServiceHealthy } from '@stores/system';
 
 // Check overall system
 if (isSystemReady()) {
@@ -339,30 +339,39 @@ if (isServiceHealthy('auth')) {
 
 #### Wait for System Readiness (Asynchronous)
 
+These functions now support an `options` object with `timeoutMs` and a standard `AbortSignal` for robust asynchronous control.
+
 ```typescript
-import { waitForSystemReady, waitForServiceHealthy } from '@stores/systemState';
+import { waitForSystemReady, waitForServiceHealthy } from '@stores/system';
 
-// Wait for overall system (intelligent timeout)
+// Set up a controller for cancellation
+const controller = new AbortController();
+const signal = controller.signal;
+
+// Example: Wait for the overall system with a 5-second timeout
 try {
-	await waitForSystemReady();
-	console.log('System is ready!');
+	const isReady = await waitForSystemReady({ timeoutMs: 5000, signal });
+	if (isReady) {
+		console.log('System is ready!');
+	} else {
+		console.warn('System did not become ready in time.');
+	}
 } catch (error) {
-	console.error('System failed to initialize:', error);
+	// This will be a DOMException if the operation was aborted
+	console.error('Wait was aborted:', error.name); // 'AbortError'
 }
 
-// Wait for specific service
-try {
-	await waitForServiceHealthy('database', 5000); // Optional custom timeout
-	console.log('Database is ready!');
-} catch (error) {
-	console.error('Database timeout:', error);
-}
+// You can abort the wait from anywhere else in your code
+// controller.abort();
+
+// Example: Wait for a specific service
+await waitForServiceHealthy('database', { timeoutMs: 2000 });
 ```
 
 #### Report Service Health
 
 ```typescript
-import { updateServiceHealth, startServiceInitialization } from '@stores/systemState';
+import { updateServiceHealth, startServiceInitialization } from '@stores/system';
 
 // Start tracking initialization
 startServiceInitialization('myService');
@@ -378,7 +387,7 @@ try {
 #### Update System State
 
 ```typescript
-import { setSystemState } from '@stores/systemState';
+import { setSystemState } from '@stores/system';
 
 // Manually set system state (usually done automatically)
 setSystemState('INITIALIZING', 'Starting system initialization');
@@ -587,7 +596,7 @@ Service database health updated: initializing → ???
 
 | File                                                           | Purpose                                    |
 | -------------------------------------------------------------- | ------------------------------------------ |
-| `src/stores/systemState.ts`                                    | State machine implementation (1058 lines)  |
+| `src/stores/system.ts`                                         | State machine implementation (1058 lines)  |
 | `src/databases/db.ts`                                          | System initialization with state reporting |
 | `src/routes/api/system/+server.ts`                             | Unified system management API              |
 | `src/routes/api/dashboard/health/+server.ts`                   | Dashboard health endpoint                  |
@@ -596,7 +605,7 @@ Service database health updated: initializing → ???
 
 ### Key Functions
 
-**State Machine (`systemState.ts`):**
+**State Machine (`system/`):**
 
 ```typescript
 // System state management
@@ -668,3 +677,4 @@ The SveltyCMS state machine provides:
 - Bottleneck identification
 
 The architecture is **fully implemented and production-ready** with comprehensive testing, documentation, and integration throughout the codebase.
+.

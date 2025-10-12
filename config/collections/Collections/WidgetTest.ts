@@ -4,7 +4,7 @@
  */
 
 import type { Schema } from '@root/src/content/types';
-import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
+import { widgetProxy as widgets } from '@src/widgets/proxy';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed

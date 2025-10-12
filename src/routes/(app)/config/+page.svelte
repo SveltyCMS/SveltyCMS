@@ -243,7 +243,7 @@
 <PageTitle name={m.config_pagetitle()} showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2">
-	<h2 class="mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
+	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
 		{m.config_body()}
 	</h2>
 

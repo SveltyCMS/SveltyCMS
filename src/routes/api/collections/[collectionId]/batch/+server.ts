@@ -91,6 +91,10 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 
 		// Build tenant-aware query

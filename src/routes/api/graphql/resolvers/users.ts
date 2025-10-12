@@ -97,15 +97,14 @@ interface GraphQLContext {
 
 // Resolvers with pagination support
 export function userResolvers(dbAdapter: DatabaseAdapter) {
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		throw new Error('Database adapter is not initialized');
+	}
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Authentication is handled by hooks.server.ts
 		if (!context.user) {
 			throw new Error('Authentication required');
-		}
-
-		if (!dbAdapter) {
-			logger.error('Database adapter is not initialized');
-			throw Error('Database adapter is not initialized');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {

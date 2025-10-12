@@ -20,6 +20,7 @@ Features:
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
+	import VersionCheck from '@components/VersionCheck.svelte';
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
@@ -108,9 +109,6 @@ Features:
 			? systemLanguage.value
 			: 'en'
 	);
-
-	// Package version - Use server-provided version (single source of truth)
-	const pkg = $derived(data.pkgVersion || '0.0.0');
 
 	// Language selection
 	function handleLanguageSelection(lang: string) {
@@ -395,31 +393,9 @@ Features:
 			{/if}
 		</div>
 
-		<!-- CMS Version -->
-		{#if !isDropdownOpen}
-			<!-- Collection Preview -->
-			{#if firstCollection && (active === 0 || active === 1)}
-				<div
-					class="absolute bottom-16 left-1/2 z-0 flex min-w-[200px] max-w-[300px] -translate-x-1/2 transform flex-col items-center gap-2 rounded-lg bg-gradient-to-r from-surface-50/10 to-[#242728]/10 p-3 text-center transition-opacity duration-300"
-					class:opacity-50={isTransitioning}
-				>
-					<div class="text-xs text-gray-300">After login, you'll go to:</div>
-					<div class="text-sm font-medium text-white">{firstCollection.name}</div>
-				</div>
-			{/if}
-
-			<a
-				href="https://github.com/SveltyCMS/SveltyCMS"
-				target="_blank"
-				rel="noopener"
-				class="absolute bottom-5 left-1/2 right-1/3 z-0 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20 transition-opacity duration-300"
-				class:opacity-50={isTransitioning}
-				tabindex={isTransitioning ? -1 : 0}
-			>
-				<p class="text-[#242728]">Ver.</p>
-				<p class="text-white">{pkg}</p>
-			</a>
-		{/if}
+		<div class="absolute bottom-5 left-1/2 -translate-x-1/2">
+			<VersionCheck transparent={true} />
+		</div>
 	{/if}
 </div>
 

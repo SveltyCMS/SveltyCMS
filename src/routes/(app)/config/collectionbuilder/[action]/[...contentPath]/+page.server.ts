@@ -104,15 +104,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			if (obj === null || typeof obj !== 'object') {
 				return obj;
 			}
-		
+
 			if (obj instanceof Date) {
 				return new Date(obj.getTime());
 			}
-		
+
 			if (Array.isArray(obj)) {
-				return obj.map(item => deepCloneAndRemoveFunctions(item));
+				return obj.map((item) => deepCloneAndRemoveFunctions(item));
 			}
-		
+
 			const newObj = {};
 			for (const key in obj) {
 				if (Object.prototype.hasOwnProperty.call(obj, key)) {

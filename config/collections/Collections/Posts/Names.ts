@@ -3,7 +3,7 @@
  * @description Collection file for Names
  */
 
-import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
+import { widgetProxy as widgets } from '@src/widgets/proxy';
 import type { Schema } from '@root/src/content/types';
 
 export const schema: Schema = {

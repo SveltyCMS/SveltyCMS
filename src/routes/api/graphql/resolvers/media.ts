@@ -92,6 +92,10 @@ type MediaResolverParent = unknown;
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 
 export function mediaResolvers(dbAdapter: DatabaseAdapter) {
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		throw new Error('Database adapter is not initialized');
+	}
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Check media permissions
 		if (!context.user) {
@@ -100,11 +104,6 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 		}
 
 		// Authentication is handled by hooks.server.ts - user presence confirms access
-
-		if (!dbAdapter) {
-			logger.error('Database adapter is not initialized');
-			throw Error('Database adapter is not initialized');
-		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
 			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');

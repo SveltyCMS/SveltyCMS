@@ -409,12 +409,15 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Handle delete image
 	async function handleDeleteImage(file: MediaBase) {
 		try {
-			const q = toFormData({ method: 'POST', image: file._id ?? '' });
-			const response = await axios.post('?/api/mediaHandler/', q, {
-				...config,
-				withCredentials: true // This ensures cookies are sent with the request
+			const response = await fetch('?/deleteMedia', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ image: file })
 			});
-			const result = response.data;
+
+			const result = await response.json();
 			if (result?.success) {
 				showToast('Media deleted successfully.', 'success');
 				await fetchMediaFiles();

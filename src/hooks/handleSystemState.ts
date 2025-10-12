@@ -1,3 +1,7 @@
+/**
+ * @file src/hooks/handleSystemState.ts
+ * @description A SvelteKit hook to manage and expose system state (ready/healthy) for other hooks and routes.
+ */
 
 import { isSystemReady, isServiceHealthy } from '@stores/systemState';
 import type { Handle } from '@sveltejs/kit';

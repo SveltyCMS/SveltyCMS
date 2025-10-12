@@ -3,66 +3,57 @@
  * @description Widget types for the widget system
  */
 
-import type { User } from '@src/databases/auth/types';
-import type { WidgetId } from '@src/databases/auth/types';
-import type { GuiFieldConfig } from '@utils/utils';
 import type { SvelteComponent } from 'svelte';
-import type { Field, Schema } from '../content/types';
+import type { FieldInstance, Schema } from '../content/types';
+import type { User } from '@src/databases/auth/types';
+import type { GuiFieldConfig } from '@utils/utils';
+import type { WidgetPlaceholder } from './placeholder';
 
-export type WidgetStatus = 'active' | 'inactive';
+export type WidgetType = 'core' | 'custom';
 
-export type ModifyRequestParams = {
-	collection: Schema;
-	id?: WidgetId;
-	field: Field;
-	data: { get: () => unknown; update: (newData: unknown) => void };
-	user: User;
-	type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
-	meta_data?: Record<string, unknown>;
-};
-
-export interface Widget {
-	__widgetId: string;
+export interface Widget<T = any> {
+	(field: FieldInstance<T>): FieldInstance<T>;
+	// Static properties
 	Name: string;
-	dependencies?: string[];
-	component?: typeof SvelteComponent;
-	config?: Record<string, unknown>;
-	validateWidget: () => Promise<string | null>; // Required validation method
-	updateTranslationStatus: (value: unknown, field: Field, language: string) => void; // Required translation status
-	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
-	GuiFields?: unknown;
 	Icon?: string;
 	Description?: string;
-	aggregations?: unknown;
+	GuiSchema?: SvelteComponent;
+	GraphqlSchema?: any;
+	aggregations?: any;
+	__widgetType?: WidgetType;
+	__dependencies?: string[];
+	__inputComponentPath?: string;
+	__displayComponentPath?: string;
+	componentPath?: string;
 }
 
 export interface WidgetFunction {
-	(config: Record<string, unknown>): Field;
-	componentPath: string;
-	Name?: string;
-	GuiSchema?: Record<string, GuiFieldConfig>;
-	GraphqlSchema?: GraphqlSchema; // Consider defining a proper type for this
+	(config: Record<string, unknown>): Widget;
+	__widgetId?: string;
+	Name: string;
+	GuiSchema?: unknown;
+	GraphqlSchema?: unknown;
 	Icon?: string;
 	Description?: string;
 	aggregations?: unknown;
-	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
-	dependencies?: string[];
-	toString?: () => string;
-	__widgetId?: string; // For unique widget identification
-	__isCore?: boolean; // To track if widget is core or custom
+	__widgetType?: WidgetType; // Track if core or custom
+	__dependencies?: string[]; // Track widget dependencies
+	__inputComponentPath?: string; // Path to Input component (3-pillar architecture)
+	__displayComponentPath?: string; // Path to Display component (3-pillar architecture)
+	componentPath?: string; // Path to the widget's Input component (for Fields.svelte compatibility)
 }
 
-export interface WidgetModule {
-	default: WidgetFunction; // Default export of a widget module
-}
+export type WidgetModule = {
+	default: WidgetFunction;
+};
 
-export interface WidgetPermissions {
-	permissions: Record<string, Record<string, boolean>>;
-	[key: string]: Record<string, Record<string, boolean>> | unknown;
-}
-
-export interface WidgetPlaceholder {
-	__widgetId: string;
-	__widgetName: string;
-	__widgetConfig: Record<string, unknown>;
-}
+export type WidgetParam = {
+	field: FieldInstance;
+	schema: Schema;
+	user: User;
+	value: any;
+	values: any;
+	onValueChange: (value: any) => void;
+	config: GuiFieldConfig;
+	placeholder: WidgetPlaceholder;
+};

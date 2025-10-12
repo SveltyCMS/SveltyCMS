@@ -21,7 +21,7 @@
  * @exports numerous utility functions and constants
  */
 
-import type { Field, FieldInstance, FieldValue } from '@src/content/types';
+import type { FieldInstance, FieldValue } from '@src/content/types';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
@@ -183,7 +183,7 @@ export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> =
 };
 
 // Returns field's database field name or label
-export function getFieldName(field: Field | FieldInstance, rawName = false): string {
+export function getFieldName(field: FieldInstance, rawName = false): string {
 	if (!field) return '';
 
 	// Use explicit db_fieldName if available
@@ -203,7 +203,7 @@ export function getFieldName(field: Field | FieldInstance, rawName = false): str
 		name = field.widget.Name;
 	}
 	if (!name && 'type' in field) {
-		name = field.type;
+		name = field.type as string;
 	}
 	if (!name) {
 		name = 'unknown_field';
@@ -246,7 +246,7 @@ export function sanitizeGraphQLTypeName(name: string): string {
 }
 
 // Extract data from fields
-export async function extractData(fieldsData: Record<string, Field>): Promise<Record<string, unknown>> {
+export async function extractData(fieldsData: Record<string, FieldInstance>): Promise<Record<string, unknown>> {
 	const result: Record<string, unknown> = {};
 	for (const [key, field] of Object.entries(fieldsData)) {
 		if (field.callback) {
@@ -414,7 +414,7 @@ export const meta_data = {
 
 // Convert data to string
 interface StringHelperParams {
-	field?: Field;
+	field?: FieldInstance;
 	data: unknown[];
 	path?: (lang: string) => string;
 }

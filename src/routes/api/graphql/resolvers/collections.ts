@@ -305,6 +305,9 @@ export async function collectionsResolvers(
 	_privateEnv: { USE_REDIS?: boolean },
 	tenantId?: string
 ) {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
 	const { resolvers, collections } = await registerCollections(tenantId);
 
 	for (const collection of collections) {

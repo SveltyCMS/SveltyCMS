@@ -12,7 +12,7 @@ import { collectionSchemas } from '../databases/schemas';
 
 // Auth
 import type { RolePermissions } from '@src/databases/auth/types';
-import type { WidgetPlaceholder } from '@src/widgets/types';
+import type { WidgetPlaceholder } from '@src/widgets/placeholder';
 
 // Define core value and status types
 export type FieldValue = string | number | boolean | object | null;
@@ -120,7 +120,6 @@ export interface Category {
 	collections: Schema[];
 	subcategories?: Map<string, CategoryNode>;
 }
-
 
 /**
  * CategoryNode: Strongly-typed node for category hierarchy

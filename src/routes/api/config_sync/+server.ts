@@ -12,9 +12,7 @@ import { configService } from '@src/services/ConfigService';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.svelte';
 
-/**
- * GET → Returns filesystem vs. database synchronization status.
- */
+// GET → Returns filesystem vs. database synchronization status
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user || !locals.isAdmin) {
 		throw error(403, 'Forbidden: Administrator access required.');
@@ -31,9 +29,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 };
 
-/**
- * POST → Triggers an 'import' or 'export' synchronization action.
- */
+// POST → Triggers an 'import' or 'export' synchronization action
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user || !locals.isAdmin) {
 		throw error(403, 'Forbidden: Administrator access required.');

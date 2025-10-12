@@ -91,6 +91,29 @@
 	let isLangOpen = $state(false);
 	let langSearch = $state('');
 
+	let { data } = $props();
+	let pkg = data.settings.PKG_VERSION || '0.0.0';
+	let githubVersion = $state('');
+	let pkgBgColor = $state('bg-gray-500 text-white'); // Default color
+	let versionStatusMessage = $state('Checking for updates...');
+	let statusIcon = $state('mdi:loading');
+
+	// --- DARK MODE AUTO-DETECT ---
+	let prefersDark = false;
+	if (typeof window !== 'undefined') {
+		const stored = localStorage.getItem('sveltycms_dark_mode');
+		if (stored === null) {
+			prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			if (prefersDark) {
+				document.documentElement.classList.add('dark');
+				localStorage.setItem('sveltycms_dark_mode', 'true');
+			} else {
+				document.documentElement.classList.remove('dark');
+				localStorage.setItem('sveltycms_dark_mode', 'false');
+			}
+		}
+	}
+
 	// --- 4. LIFECYCLE HOOKS ---
 	// Component registry for Skeleton Labs v2 modals
 	// Must use { ref: Component } format per v2 docs
@@ -102,6 +125,36 @@
 	const modalStore = getModalStore();
 
 	onMount(async () => {
+		try {
+			const response = await fetch('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest');
+			if (!response.ok) {
+				throw new Error(`GitHub API request failed with status ${response.status}`);
+			}
+			const release = await response.json();
+			githubVersion = release.tag_name.replace(/^v/, ''); // remove leading 'v'
+
+			const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
+			const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
+
+			if (githubMajor > localMajor) {
+				pkgBgColor = 'bg-red-500 text-white';
+				versionStatusMessage = `Major update available: v${githubVersion}`;
+				statusIcon = 'mdi:alert-circle';
+			} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
+				pkgBgColor = 'bg-yellow-500 text-black';
+				versionStatusMessage = `We recommend updating to latest: v${githubVersion}`;
+				statusIcon = 'mdi:information';
+			} else {
+				pkgBgColor = 'bg-green-500 text-white';
+				versionStatusMessage = 'You are up to date';
+				statusIcon = 'mdi:check-circle';
+			}
+		} catch (error) {
+			console.error('Error fetching GitHub release info:', error);
+			githubVersion = pkg;
+			versionStatusMessage = 'Could not check for updates';
+			statusIcon = 'mdi:close-circle';
+		}
 		setGlobalToastStore(getToastStore());
 
 		console.log('onMount - modalStore:', modalStore);
@@ -729,6 +782,18 @@
 
 				<p class="w-full text-center text-sm sm:text-base">{m.setup_heading_subtitle()}</p>
 			</div>
+		</div>
+
+		<div class="mb-4 flex justify-center">
+			<a
+				href="https://github.com/SveltyCMS/SveltyCMS/releases"
+				target="_blank"
+				rel="noopener noreferrer"
+				class={`badge rounded-full text-xs font-medium transition-colors ${pkgBgColor} hover:opacity-80`}
+			>
+				<iconify-icon icon={statusIcon} class="mr-1"></iconify-icon>
+				<span>Version {pkg} &mdash; {versionStatusMessage}</span>
+			</a>
 		</div>
 
 		<!-- Main Content with Left Side Steps -->

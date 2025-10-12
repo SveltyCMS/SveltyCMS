@@ -16,7 +16,6 @@
  * It prepares data and handles form validation for the client-side rendering.
  */
 
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
@@ -39,6 +38,33 @@ export const load: PageServerLoad = async (event) => {
 		const isFirstUser: boolean = event.locals.isFirstUser;
 		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
 
+		// If user or roles are missing, log details and return fallback response
+		if (!user) {
+			logger.warn('User object missing in event.locals. Returning fallback response.', {
+				session: event.locals.session ?? null,
+				request: event.request.url
+			});
+			return {
+				user: null,
+				roles: [],
+				addUserForm: await superValidate(event, valibot(addUserTokenSchema)),
+				changePasswordForm: await superValidate(event, valibot(changePasswordSchema)),
+				isFirstUser: false,
+				is2FAEnabledGlobal: Boolean(getUntypedSetting('USE_2FA')),
+				manageUsersPermissionConfig: {
+					contextId: 'config/userManagement',
+					requiredRole: 'admin',
+					action: 'manage',
+					contextType: 'system'
+				},
+				adminData: null,
+				permissions: {
+					'config/adminArea': { hasPermission: false }
+				},
+				error: 'User session not found. Please log in again.'
+			};
+		}
+
 		// Determine admin status properly by checking role
 		const userRole = roles.find((role) => role._id === user?.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
@@ -51,8 +77,8 @@ export const load: PageServerLoad = async (event) => {
 				if (auth) {
 					freshUser = await auth.getUserById(user._id.toString());
 				}
-			} catch (error) {
-				console.warn('Failed to fetch fresh user data, using session data:', error);
+			} catch (dbError) {
+				logger.warn('Failed to fetch fresh user data, using session data.', dbError);
 				freshUser = user; // Fallback to session data
 			}
 		}
@@ -135,8 +161,26 @@ export const load: PageServerLoad = async (event) => {
 			}
 		};
 	} catch (err) {
-		// Log error with an error code
+		// Log error with an error code and more details
 		logger.error('Error during load function (ErrorCode: USER_LOAD_500):', err);
-		throw error(500, 'Internal Server Error');
+		return {
+			user: null,
+			roles: [],
+			addUserForm: null,
+			changePasswordForm: null,
+			isFirstUser: false,
+			is2FAEnabledGlobal: false,
+			manageUsersPermissionConfig: {
+				contextId: 'config/userManagement',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			},
+			adminData: null,
+			permissions: {
+				'config/adminArea': { hasPermission: false }
+			},
+			error: 'Internal Server Error. Please try again later.'
+		};
 	}
 };

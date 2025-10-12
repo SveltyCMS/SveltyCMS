@@ -114,15 +114,9 @@
 		files.forEach((file) => {
 			formData.append('files', file);
 		});
-		// Add the required processType for the backend endpoint
-		formData.append('processType', 'save');
-
-		// Assuming '/api/media/process' handles the actual saving based on FormData
-		// You might need to add folder context here if uploads should go into specific virtual folders
-		// formData.append('folderId', currentFolder?._id || ''); // Example if needed
 
 		try {
-			const response = await fetch('/api/media/process', {
+			const response = await fetch('?/default', {
 				method: 'POST',
 				body: formData
 			});

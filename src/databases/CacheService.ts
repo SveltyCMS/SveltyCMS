@@ -41,7 +41,7 @@ function getCacheConfig() {
 		const REDIS_PASSWORD = getPrivateSettingSync('REDIS_PASSWORD');
 
 		CACHE_CONFIG = {
-			USE_REDIS,
+			USE_REDIS: USE_REDIS === true, // Ensure boolean type
 			URL: `redis://${REDIS_HOST}:${REDIS_PORT}`,
 			PASSWORD: REDIS_PASSWORD || undefined,
 			RETRY_ATTEMPTS: 3,
@@ -125,6 +125,9 @@ class RedisStore implements ICacheStore {
 	async initialize(): Promise<void> {
 		if (this.isInitialized || browser) return;
 		const config = getCacheConfig();
+		if (!config) {
+			throw new Error('Cache configuration is not available');
+		}
 		for (let attempt = 1; attempt <= config.RETRY_ATTEMPTS; attempt++) {
 			try {
 				const { createClient } = await import('redis');

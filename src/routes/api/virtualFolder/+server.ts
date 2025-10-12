@@ -29,6 +29,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
@@ -65,6 +69,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Authentication is handled by hooks.server.ts
 		if (!user) {
 			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+		}
+
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
 		}
 
 		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {

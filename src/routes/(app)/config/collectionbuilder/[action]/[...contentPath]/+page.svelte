@@ -78,7 +78,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			collection.set(data.collection);
 			originalName = data.collection.name;
 		} else {
-			console.error("Collection data not found for editing.");
+			console.error('Collection data not found for editing.');
 			// Optionally, redirect or show a proper error message
 		}
 	}

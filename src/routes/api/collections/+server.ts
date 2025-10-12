@@ -11,6 +11,7 @@
  * * Replaces /api/getCollections endpoint
  */
 
+import { getErrorMessage } from '@utils/errorHandling';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
@@ -71,7 +72,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					};
 				} catch (statsError) {
 					logger.warn(
-						`Failed to get stats for collection ${collection._id}: ${statsError instanceof Error ? statsError.message : String(statsError)}`
+						`Failed to get stats for collection ${collection._id}: ${getErrorMessage(statsError)}`
 					);
 				}
 			}
@@ -92,7 +93,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		});
 	} catch (e) {
 		const duration = performance.now() - start;
-		logger.error(`Failed to get collections: ${e.message} in ${duration.toFixed(2)}ms`);
+		logger.error(`Failed to get collections: ${getErrorMessage(e)} in ${duration.toFixed(2)}ms`);
 		throw error(500, 'Internal Server Error');
 	}
 };

@@ -248,7 +248,7 @@
 	<Collections />
 
 	<!-- Sidebar Left Footer -->
-	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
+	<div class="mb-2 mt-auto">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
 		<div

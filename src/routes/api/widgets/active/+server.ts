@@ -25,13 +25,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		await widgetStoreActions.initializeWidgets(tenantId);
 
 		// Get active widgets from database
-		if (!locals.dbAdapter?.widgets?.getActiveWidgets) {
+		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter?.widgets?.getActiveWidgets) {
 			logger.error('Widget database adapter not available');
 			throw error(500, 'Widget database adapter not available');
 		}
 
-		const result = await locals.dbAdapter.widgets.getActiveWidgets();
-
+		const result = await dbAdapter.widgets.getActiveWidgets();
 		logger.debug('[/api/widgets/active] Raw result from getActiveWidgets()', {
 			tenantId,
 			resultType: Array.isArray(result) ? 'array' : typeof result,

@@ -4,27 +4,13 @@
  * Handles core widgets (always enabled) and custom widgets (optional)
  */
 import { writable, derived } from 'svelte/store';
-import type { Widget, WidgetModule } from '@widgets/types';
+import type { Widget, WidgetModule, WidgetFunction } from '@widgets/types';
 import { logger } from '@utils/logger.svelte';
 
 export type WidgetStatus = 'active' | 'inactive';
 export type WidgetType = 'core' | 'custom';
 
-export interface WidgetFunction {
-	(config: Record<string, unknown>): Widget;
-	__widgetId?: string;
-	Name: string;
-	GuiSchema?: unknown;
-	GraphqlSchema?: unknown;
-	Icon?: string;
-	Description?: string;
-	aggregations?: unknown;
-	__widgetType?: WidgetType; // Track if core or custom
-	__dependencies?: string[]; // Track widget dependencies
-	__inputComponentPath?: string; // Path to Input component (3-pillar architecture)
-	__displayComponentPath?: string; // Path to Display component (3-pillar architecture)
-	componentPath?: string; // Path to the widget's Input component (for Fields.svelte compatibility)
-}
+
 
 interface WidgetStoreState {
 	widgets: Record<string, Widget>;

@@ -25,6 +25,8 @@ Features:
 
 	// Types
 	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
+	// If CollectionTreeNode is used elsewhere, import it as a type
+	// import type { CollectionTreeNode } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
 	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
@@ -57,7 +59,6 @@ Features:
 		order?: number; // Override to make order optional for client-side operations
 	}
 
-	// Tree node interface with additional properties
 	interface CollectionTreeNode {
 		id: string;
 		name: string;
@@ -80,17 +81,21 @@ Features:
 		hasError?: boolean;
 		depth?: number;
 		order?: number; // Add order property for sorting
+		parentId?: string;
 	}
+
+	// ✅ ADD PROPS DEFINITION
+	// Fix: Add explicit type for systemVirtualFolders prop
+	const { systemVirtualFolders = [] } = $props<{ systemVirtualFolders: CollectionTreeNode[] }>();
 
 	// State management
 	let search = $state('');
 	let debouncedSearch = $state('');
-	let isLoading = $state(false);
+	let isLoading = $state(false); // isLoading is now simpler
 	let error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
-	let systemVirtualFolderNodes: CollectionTreeNode[] = $state([]);
+	let systemVirtualFolderNodes = $state<CollectionTreeNode[]>([]);
 	let selectedSystemVirtualFolder = $state<string | null>(null);
-	let hasLoadedSystemVirtualFolders = $state(false);
 
 	// Use enhanced global debounce for search
 	const debouncedSearchUpdate = debounce.create(
@@ -248,110 +253,6 @@ Features:
 			default:
 				return 'bg-primary-500';
 		}
-	}
-
-	// Virtual folder loading with better error handling
-	async function loadSystemVirtualFolders() {
-		isLoading = true;
-		error = null;
-		hasLoadedSystemVirtualFolders = true; // Prevent re-loading
-
-		const createRootNode = (): CollectionTreeNode => ({
-			id: 'root',
-			name: 'Media Root',
-			path: 'mediaFiles',
-			isExpanded: true,
-			onClick: () => handleSystemVirtualFolderSelect('root'),
-			icon: 'bi:house-door',
-			badge: { visible: false },
-			nodeType: 'virtual',
-			depth: 0
-		});
-
-		try {
-			// Force cache bypass by adding a timestamp parameter
-			const response = await fetch(`/api/systemVirtualFolder?t=${Date.now()}`);
-
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
-
-			const data = await response.json();
-			const rootNode = createRootNode();
-
-			if (data.success && data.data?.length > 0) {
-				const allFolders: any[] = data.data;
-				const folderMap = new Map<string, CollectionTreeNode>();
-
-				// Create nodes for each folder
-				allFolders.forEach((folder) => {
-					folderMap.set(folder._id, {
-						id: folder._id,
-						name: folder.name,
-						path: folder.path,
-						isExpanded: expandedNodes.has(folder._id),
-						onClick: () => handleSystemVirtualFolderSelect(folder._id),
-						icon: 'bi:folder',
-						badge: {
-							visible: false,
-							count: folder.fileCount || 0
-						},
-						nodeType: 'virtual',
-						depth: 0, // Will be set later
-						lastModified: folder.lastModified ? new Date(folder.lastModified) : undefined,
-						children: [],
-						order: folder.order || 0 // Add order for sorting
-					});
-				});
-
-				const tree: CollectionTreeNode[] = [];
-				// Link children to parents
-				allFolders.forEach((folder) => {
-					const node = folderMap.get(folder._id)!;
-					if (folder.parentId && folderMap.has(folder.parentId)) {
-						const parent = folderMap.get(folder.parentId)!;
-						if (!parent.children) parent.children = [];
-						parent.children.push(node);
-					} else {
-						tree.push(node);
-					}
-				});
-
-				// Set depth and handle empty children
-				const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
-					// Sort nodes by order first
-					nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-					nodes.forEach((node) => {
-						node.depth = depth;
-						if (node.children && node.children.length > 0) {
-							setDepth(node.children, depth + 1);
-						} else {
-							node.children = undefined;
-						}
-					});
-				};
-				setDepth(tree, 1);
-
-				rootNode.children = tree;
-			}
-
-			systemVirtualFolderNodes = [rootNode];
-			console.log('Virtual folders loaded successfully:', systemVirtualFolderNodes);
-		} catch (err) {
-			console.error('Failed to load virtual folders:', err);
-			error = err instanceof Error ? err.message : 'Failed to load virtual folders';
-			systemVirtualFolderNodes = [createRootNode()];
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	// Function to refresh virtual folders (public method)
-	function refreshSystemVirtualFolders() {
-		console.log('Refreshing virtual folders...');
-		hasLoadedSystemVirtualFolders = false; // Reset the flag to allow reloading
-		loadSystemVirtualFolders();
 	}
 
 	// Virtual folder selection with state management
@@ -579,7 +480,7 @@ Features:
 			if (response.ok) {
 				console.log('Drag drop reorder successful');
 				// Refresh the folder list to show the new structure
-				refreshSystemVirtualFolders();
+				// refreshSystemVirtualFolders();
 			} else {
 				const errorData = await response.json();
 				console.error('Failed to reorder folders via drag & drop:', errorData);
@@ -592,8 +493,70 @@ Features:
 
 	// Effects
 	$effect(() => {
-		if (mode.value === 'media' && !hasLoadedSystemVirtualFolders) {
-			loadSystemVirtualFolders();
+		if (mode.value === 'media') {
+			// Data now comes directly from the prop, no fetching needed.
+			// We just need to build the tree structure from the prop data.
+			const createRootNode = (): CollectionTreeNode => ({
+				id: 'root',
+				name: 'Media Root',
+				path: 'mediaFiles',
+				isExpanded: true,
+				onClick: () => handleSystemVirtualFolderSelect('root'),
+				icon: 'bi:house-door',
+				badge: { visible: false },
+				nodeType: 'virtual',
+				depth: 0
+			});
+
+			const rootNode = createRootNode();
+
+			// The prop `systemVirtualFolders` should already be the flat array of all folders
+			if (systemVirtualFolders && systemVirtualFolders.length > 0) {
+				const folderMap = new Map<string, CollectionTreeNode>();
+
+				// Create nodes and map them
+				systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
+					folderMap.set(folder.id, {
+						...folder, // Spread existing properties from the prop
+						isExpanded: expandedNodes.has(folder.id),
+						onClick: () => handleSystemVirtualFolderSelect(folder.id),
+						children: [], // Initialize children array
+						depth: 0 // Will be set later
+					});
+				});
+
+				const tree: CollectionTreeNode[] = [];
+				// Link children to parents
+				systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
+					const node = folderMap.get(folder.id)!;
+					if (folder.parentId && folderMap.has(folder.parentId)) {
+						const parent = folderMap.get(folder.parentId)!;
+						parent.children!.push(node);
+					} else {
+						tree.push(node);
+					}
+				});
+
+				// Set depth and sort children
+				const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
+					nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+					nodes.forEach((node) => {
+						node.depth = depth;
+						if (node.children && node.children.length > 0) {
+							setDepth(node.children, depth + 1);
+						} else {
+							node.children = undefined;
+						}
+					});
+				};
+				setDepth(tree, 1);
+
+				rootNode.children = tree;
+			}
+
+			systemVirtualFolderNodes = [rootNode];
+
+			// Ensure sidebar is in the correct state
 			if (!isFullSidebar) {
 				handleUILayoutToggle();
 			}
@@ -606,7 +569,7 @@ Features:
 			console.log('Folder created event received:', event.detail);
 			if (isMediaMode) {
 				console.log('Media mode active, refreshing system virtual folders...');
-				refreshSystemVirtualFolders();
+				// refreshSystemVirtualFolders();
 			}
 		};
 
@@ -631,7 +594,7 @@ Features:
 <div class="collections-container mt-2" role="navigation" aria-label="Collections navigation">
 	{#if !isMediaMode}
 		<!-- Search Input -->
-		<div class="{isFullSidebar ? 'mb-2 w-full' : 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]">
+		<div class="{isFullSidebar ? 'mb-2 w-full' : 'mb-1 max-w-[135px]'} input-group input-group-divider grid grid-cols-[1fr_auto]">
 			<div class="relative">
 				<input
 					type="text"
@@ -726,7 +689,6 @@ Features:
 				mode.set('view');
 				selectedSystemVirtualFolder = null;
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
-				hasLoadedSystemVirtualFolders = false; // Reset loading flag
 
 				if (get(screenSize) === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
@@ -759,7 +721,6 @@ Features:
 			<div class="p-4 text-center text-error-500">
 				<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
 				<p class="mt-1 text-sm">{error}</p>
-				<button class="variant-filled-error btn btn-sm mt-2" onclick={loadSystemVirtualFolders}> Retry </button>
 			</div>
 		{:else if systemVirtualFolderNodes.length > 0}
 			<TreeView

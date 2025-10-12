@@ -66,8 +66,8 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		const db = await import('@src/databases/db');
 		const dbAdapter = db.dbAdapter;
 
-		console.log('[setupCheck] dbAdapter exists:', !!dbAdapter);
-		console.log('[setupCheck] dbAdapter.auth exists:', !!dbAdapter?.auth);
+		// console.log('[setupCheck] dbAdapter exists:', !!dbAdapter);
+		// console.log('[setupCheck] dbAdapter.auth exists:', !!dbAdapter?.auth);
 
 		if (!dbAdapter || !dbAdapter.auth) {
 			// Database not initialized yet - don't cache this, allow retry

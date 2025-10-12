@@ -12,6 +12,22 @@ import { nowISODateString } from '@utils/dateUtils';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Define interface for the model with custom static methods
+interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {
+	getPreferenceByLayout(userId: string, layoutId: string): Promise<DatabaseResult<Layout | null>>;
+	setPreference(
+		userId: string,
+		layoutId: string,
+		layout: Layout,
+		options?: {
+			validateWidgets?: boolean;
+			getActiveWidgets?: () => Promise<string[]>;
+		}
+	): Promise<DatabaseResult<{ layout: Layout; warnings?: string[] }>>;
+	validateLayoutWidgets(layout: Layout, activeWidgets: string[]): { layout: Layout; warnings: string[] };
+	deletePreferencesByUser(userId: string): Promise<DatabaseResult<number>>;
+}
+
 // Widget schema aligned with +server.ts
 const WidgetSchema = new Schema<DashboardWidgetConfig>(
 	{
@@ -105,7 +121,7 @@ SystemPreferencesSchema.statics = {
 			// Widget validation if requested and function provided
 			if (options?.validateWidgets && options?.getActiveWidgets) {
 				const activeWidgets = await options.getActiveWidgets();
-				const validatedResult = this.validateLayoutWidgets(layout, activeWidgets);
+				const validatedResult = (this as unknown as SystemPreferencesModelType).validateLayoutWidgets(layout, activeWidgets);
 				finalLayout = validatedResult.layout;
 				warnings.push(...validatedResult.warnings);
 			}
@@ -179,5 +195,5 @@ SystemPreferencesSchema.statics = {
 
 // Create and export the SystemPreferencesModel
 export const SystemPreferencesModel =
-	(mongoose.models?.SystemPreferences as Model<SystemPreferencesDocument> | undefined) ||
-	mongoose.model<SystemPreferencesDocument>('SystemPreferences', SystemPreferencesSchema);
+	(mongoose.models?.SystemPreferences as unknown as SystemPreferencesModelType | undefined) ||
+	(mongoose.model<SystemPreferencesDocument>('SystemPreferences', SystemPreferencesSchema) as unknown as SystemPreferencesModelType);

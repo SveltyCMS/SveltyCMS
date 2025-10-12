@@ -63,10 +63,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		let results = [];
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 		const updateData = { status, updatedBy: user._id };
-
 		if (entries && Array.isArray(entries) && entries.length > 0) {
 			// Batch status update
 			const query = { _id: { $in: entries } };

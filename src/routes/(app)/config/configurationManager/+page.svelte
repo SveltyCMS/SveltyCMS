@@ -7,14 +7,16 @@
 	import { fade, slide } from 'svelte/transition';
 	import { showToast } from '@utils/toast';
 	import PageTitle from '@components/PageTitle.svelte';
+	import { onMount } from 'svelte';
 
 	type ConfigStatus = {
-		status: string;
-		changes?: {
-			new?: { name: string }[];
-			updated?: { name: string }[];
-			deleted?: { name: string }[];
+		status: 'in_sync' | 'changes_detected' | 'error';
+		changes: {
+			new?: { name: string; uuid: string; type: string }[];
+			updated?: { name: string; uuid: string; type: string }[];
+			deleted?: { name: string; uuid: string; type: string }[];
 		};
+		unmetRequirements: { name: string; type: string; requirement: string }[];
 	};
 
 	let status = $state<ConfigStatus | null>(null);
@@ -53,6 +55,11 @@
 	}
 
 	async function performImport() {
+		if (!status || status.unmetRequirements.length > 0) {
+			showToast('Sync blocked due to unmet requirements.', 'warning');
+			return;
+		}
+
 		isProcessing = true;
 		try {
 			let payload: { action: string; payload?: any } = { action: 'import' };
@@ -62,7 +69,6 @@
 				payload.payload = JSON.parse(fileContent);
 				showToast(`Importing from file: ${fileToImport.name}`, 'info');
 			} else {
-				// When no file is selected, fall back to the default filesystem sync
 				showToast('No file selected, performing standard filesystem sync.', 'info');
 			}
 
@@ -74,11 +80,12 @@
 
 			const result = await res.json();
 			if (!res.ok) throw new Error(result.message || `HTTP ${res.status}`);
-			showToast(result.message || 'Import successful!', 'success');
-			await loadStatus(); // Refresh status after import
+
+			showToast(result.message || 'Sync successful!', 'success');
+			await loadStatus(); // Refresh status after sync/import
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
-			showToast(`Import failed: ${errorMsg}`, 'error');
+			showToast(`Sync failed: ${errorMsg}`, 'error');
 		} finally {
 			isProcessing = false;
 			fileToImport = null;
@@ -106,6 +113,15 @@
 	function exportToCSV() {
 		showToast('CSV export is not yet implemented.', 'info');
 	}
+
+	// Sync all detected changes (filesystem -> DB)
+	function syncAllChanges() {
+		performImport();
+	}
+
+	onMount(() => {
+		loadStatus();
+	});
 </script>
 
 <!-- Page Title and Back Button (single instance, at top) -->
@@ -144,6 +160,29 @@
 	<!-- Content -->
 	<section transition:fade|local>
 		{#if activeTab === 'sync'}
+			{#if status?.unmetRequirements && status.unmetRequirements.length > 0}
+				<div class="alert variant-filled-error my-4 p-4" transition:slide>
+					<h4 class="font-bold">Sync Blocked: Unmet Requirements</h4>
+					<p class="text-sm">The following requirements must be met before you can import configuration:</p>
+					<ul class="mt-2 list-disc pl-5 text-sm">
+						{#each status.unmetRequirements as req}
+							<li><strong>{req.name}</strong> ({req.type}): {req.requirement}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
+			<div class="my-4">
+				<button
+					class="variant-filled-tertiary btn w-full dark:variant-filled-primary sm:w-auto"
+					disabled={isProcessing || !status || status.status === 'in_sync' || status.unmetRequirements.length > 0}
+					onclick={syncAllChanges}
+				>
+					<iconify-icon icon="mdi:sync" class={isProcessing ? 'animate-spin' : ''}></iconify-icon>
+					{isProcessing ? 'Syncing...' : 'Sync All Changes'}
+				</button>
+			</div>
+
 			{#if isLoading}
 				<div class="flex animate-pulse flex-col items-center py-12 text-surface-500">
 					<iconify-icon icon="mdi:sync" class="mb-3 animate-spin text-5xl"></iconify-icon>
@@ -175,17 +214,22 @@
 					<div class="overflow-hidden border border-surface-200 dark:border-surface-700">
 						<table class="table w-full text-sm">
 							<thead class="bg-surface-100 dark:bg-surface-800">
-								<tr><th>Name</th><th>Change</th></tr>
+								<tr>
+									<th>Name</th>
+									<th>Type</th>
+									<th>Change</th>
+								</tr>
 							</thead>
 							<tbody>
-								{#each Object.entries(status?.changes || {}) as [type, items]}
+								{#each Object.entries(status?.changes || {}) as [changeType, items]}
 									{#each items as item}
 										<tr class="border-t border-surface-200 hover:bg-surface-50 dark:border-surface-700 dark:hover:bg-surface-800/50">
 											<td>{item.name}</td>
+											<td><span class="variant-soft badge capitalize">{item.type}</span></td>
 											<td>
-												{#if type === 'new'}<span class="variant-filled-tertiary badge dark:variant-filled-primary">New</span>{/if}
-												{#if type === 'updated'}<span class="variant-filled-tertiary badge dark:variant-filled-primary">Updated</span>{/if}
-												{#if type === 'deleted'}<span class="variant-filled-tertiary badge dark:variant-filled-tertiary">Deleted</span>{/if}
+												{#if changeType === 'new'}<span class="variant-filled-success badge">New</span>{/if}
+												{#if changeType === 'updated'}<span class="variant-filled-warning badge">Updated</span>{/if}
+												{#if changeType === 'deleted'}<span class="variant-filled-error badge">Deleted</span>{/if}
 											</td>
 										</tr>
 									{/each}

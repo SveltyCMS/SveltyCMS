@@ -328,8 +328,9 @@ export const actions: Actions = {
 
 	// Action to delete a media file
 	deleteMedia: async ({ request }) => {
-		logger.warn('Request Body', await request.json());
-		const image = (await request.json())?.image;
+		const body = await request.json();
+		logger.warn('Request Body', body);
+		const { image } = body;
 		logger.trace('Received delete request for image:', image);
 
 		if (!image || !image._id) {
@@ -359,6 +360,101 @@ export const actions: Actions = {
 		} catch (err) {
 			logger.error('Error deleting image:', err as LoggableValue);
 			throw error(500, 'Internal Server Error');
+		}
+	},
+
+	remoteUpload: async ({ request, locals }) => {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
+
+		try {
+			const user = locals.user;
+			if (!user) {
+				logger.warn('No user found in locals during file upload');
+				throw redirect(302, '/login');
+			}
+
+			const formData = await request.formData();
+			const remoteUrls = JSON.parse(formData.get('remoteUrls') as string) as string[];
+
+			if (!remoteUrls || !Array.isArray(remoteUrls) || remoteUrls.length === 0) {
+				throw new Error('No URLs provided');
+			}
+
+			const access = {
+				userId: user._id,
+				roleId: user.role,
+				permissions: locals.user?.permissions
+			} as MediaAccess;
+
+			const save_media_file = {
+				application: saveDocument,
+				audio: saveAudio,
+				font: saveDocument,
+				example: saveDocument,
+				image: saveImage,
+				message: saveDocument,
+				model: saveDocument,
+				multipart: saveDocument,
+				text: saveDocument,
+				video: saveVideo
+			};
+
+			const collection_names: Record<string, string> = {
+				application: 'media_documents',
+				audio: 'media_audio',
+				font: 'media_documents',
+				example: 'media_documents',
+				image: 'media_images',
+				message: 'media_documents',
+				model: 'media_documents',
+				multipart: 'media_documents',
+				text: 'media_documents',
+				video: 'media_videos'
+			};
+
+			for (const url of remoteUrls) {
+				const response = await fetch(url);
+				if (!response.ok) {
+					logger.warn(`Failed to fetch remote URL: ${url}`);
+					continue;
+				}
+				const arrayBuffer = await response.arrayBuffer();
+				const buffer = Buffer.from(arrayBuffer);
+				const contentType = response.headers.get('content-type') || 'application/octet-stream';
+				const filename = url.substring(url.lastIndexOf('/') + 1);
+
+				const file = new File([buffer], filename, { type: contentType });
+
+				const type = file.type.split('/')[0] as keyof typeof save_media_file;
+
+				if (type in save_media_file) {
+					const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id, access);
+					const insertResult = await dbAdapter.crud.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
+
+					if (!insertResult.success) {
+						if (insertResult.error?.message?.includes('duplicate')) {
+							logger.warn(`A file with name "${file.name}" already exists`);
+						} else {
+							throw new Error(insertResult.error?.message || 'Failed to save file');
+						}
+					}
+					logger.info(`File uploaded successfully: ${file.name}`);
+				} else {
+					logger.warn(`Unsupported file type: ${file.type}`);
+				}
+			}
+
+			return { success: true };
+		} catch (err) {
+			let userMessage = 'Error uploading file';
+			if (err instanceof Error) {
+				userMessage = err.message;
+			}
+			logger.error(`Error during file upload: ${err instanceof Error ? err.message : String(err)}`);
+			throw error(400, userMessage);
 		}
 	}
 };
