@@ -10,8 +10,6 @@ import { logger } from '@utils/logger.svelte';
 export type WidgetStatus = 'active' | 'inactive';
 export type WidgetType = 'core' | 'custom';
 
-
-
 interface WidgetStoreState {
 	widgets: Record<string, Widget>;
 	widgetFunctions: Record<string, WidgetFunction>;

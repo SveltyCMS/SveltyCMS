@@ -78,7 +78,7 @@ import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 import { logger } from '@utils/logger.svelte';
 
 // System State Management
-import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/systemState';
+import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -128,7 +128,7 @@ const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key)
 
 export async function loadSettingsFromDB() {
 	try {
-		logger.debug('Loading settings from database...');
+		// logger.debug('Loading settings from database...');
 
 		// Check if database adapter is available
 		if (!dbAdapter || !dbAdapter.systemPreferences) {
@@ -502,7 +502,7 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		// Step 4: Lazy-initialize Server-Side Services (will initialize on first use)
 		// WidgetRegistryService and ContentManager are now lazy-loaded for faster startup
 		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
-		logger.info('\x1b[33mStep 4:\x1b[0m Server services (Widgets & Content) will lazy-initialize on first use');
+		logger.info('\x1b[32mStep 4:\x1b[0m Server services (Widgets & Content) will lazy-initialize on first use');
 
 		// Step 5: Initialize Critical Components (optimized for speed)
 		const step5StartTime = performance.now();

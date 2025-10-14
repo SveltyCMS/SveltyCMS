@@ -10,7 +10,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getHealthCheckReport } from '$stores/systemState';
+import { getHealthCheckReport } from '@src/stores/system';
 
 /**
  * GET /api/system/health
@@ -24,12 +24,8 @@ export const GET: RequestHandler = async () => {
 			healthReport.overallStatus === 'READY'
 				? 200
 				: healthReport.overallStatus === 'DEGRADED'
-					? 503
-					: healthReport.overallStatus === 'FAILED'
-						? 503
-						: healthReport.overallStatus === 'INITIALIZING'
-							? 503
-							: 503;
+					? 200 // Degraded is still operational, so return 200 OK
+					: 503; // FAILED, INITIALIZING, or IDLE are 503 Service Unavailable
 
 		return json(
 			{

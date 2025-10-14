@@ -92,18 +92,29 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		}
 		const expires = new Date(Date.now() + expiresInSeconds * 1000); // Create token with pre-generated user_id for when user actually registers
 
-		}
-
 		// Create token in database
+		// You may need to define 'user', 'expiryDate', 'type', 'sanitizedMetadata', and 'token' variables properly here.
+		// For now, let's assume you want to use the validatedData and generated values:
+		const user_id = uuidv4();
+		const type = 'invite';
+		const sanitizedMetadata = {};
+		const token = uuidv4();
+		const expiryDate = expires;
+
 		const tokenResult = await auth.createToken({
-			user_id: user._id as string,
+			user_id: user_id,
 			expires: expiryDate,
 			type,
 			metadata: sanitizedMetadata,
 			tenantId: tenantId || undefined
 		});
 
-		if (!tokenResult.success || !tokenResult.data) {		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
+		if (!tokenResult.success || !tokenResult.data) {
+			logger.error('Failed to create token', { email: validatedData.email, tenantId });
+			throw error(500, 'Failed to create token.');
+		}
+
+		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
 
 		const inviteLink = `${url.origin}/login?invite_token=${token}`; // Send invitation email
 

@@ -21,6 +21,24 @@ import { logger } from '@utils/logger.svelte';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
 
+// ============================================================================
+// EXPORTED DEFAULTS - Single source of truth for default configuration
+// ============================================================================
+
+/** Default system/interface languages (must match project.inlang/settings.json) */
+export const DEFAULT_SYSTEM_LANGUAGES = ['en', 'de'] as const;
+
+/** Default base locale for the CMS interface */
+export const DEFAULT_BASE_LOCALE = 'en' as const;
+
+/** Default content languages available for user content */
+export const DEFAULT_CONTENT_LANGUAGES = ['en', 'de'] as const;
+
+/** Default content language */
+export const DEFAULT_CONTENT_LANGUAGE = 'en' as const;
+
+// ============================================================================
+
 // Type for setting data in snapshots
 interface SettingData {
 	value: unknown;
@@ -71,8 +89,8 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void
 }
 
 /**
- * Seeds collections from filesystem into database using ContentManager
- * ContentManager handles the full schema loading and physical collection creation
+ * Seeds collections from filesystem into database
+ * This bypasses ContentManager to avoid global dbAdapter dependency during setup
  *
  * @returns Information about the first collection (for faster redirects)
  */
@@ -87,23 +105,13 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 	let firstCollection: { name: string; path: string } | null = null;
 
 	try {
-		// Import contentManager instance to process collection schemas
-		const importStart = performance.now();
-		const { contentManager } = await import('@src/content/ContentManager');
-		const importTime = performance.now() - importStart;
-		logger.debug(`⏱️  ContentManager import: \x1b[32m${importTime.toFixed(2)}ms\x1b[0m`);
+		// Import the collection scanner directly to avoid ContentManager
+		const { scanCompiledCollections } = await import('@src/content/collectionScanner');
 
-		// Initialize ContentManager to scan and load collections from filesystem
-		const initStart = performance.now();
-		await contentManager.initialize();
-		const initTime = performance.now() - initStart;
-		logger.info(`⏱️  ContentManager initialization: \x1b[32m${initTime.toFixed(2)}ms\x1b[0m`);
-
-		// Get all collections from ContentManager
-		const getCollStart = performance.now();
-		const collections = await contentManager.getCollections();
-		const getCollTime = performance.now() - getCollStart;
-		logger.debug(`⏱️  Get collections: \x1b[32m${getCollTime.toFixed(2)}ms\x1b[0m (found ${collections.length})`);
+		const scanStart = performance.now();
+		const collections = await scanCompiledCollections();
+		const scanTime = performance.now() - scanStart;
+		logger.debug(`⏱️  Collection scan: \x1b[32m${scanTime.toFixed(2)}ms\x1b[0m (found ${collections.length})`);
 
 		if (collections.length === 0) {
 			logger.info('ℹ️  No collections found in filesystem, skipping collection seeding');
@@ -123,25 +131,30 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 				// Try to create the collection model in database
 				await dbAdapter.collection.createModel(schema);
 				const createTime = performance.now() - createStart;
-				logger.info(`✅ Created collection model: ${schema.name} (\x1b[33m${createTime.toFixed(2)}ms\x1b[0m)`);
+				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (\x1b[33m${createTime.toFixed(2)}ms\x1b[0m)`);
 				successCount++;
 
 				// Capture the first collection for redirect
-				if (!firstCollection && schema.path) {
+				if (!firstCollection && schema.path && schema.name) {
+					const collectionName = schema.name; // Narrow the type
+					const collectionPath = schema.path; // Narrow the type
 					firstCollection = {
-						name: schema.name as string,
-						path: schema.path
+						name: collectionName,
+						path: collectionPath
 					};
-					logger.debug(`First collection identified: \x1b[34m${schema.name}\x1b[0m at ${schema.path}`);
+					logger.debug(`First collection identified: \x1b[34m${collectionName}\x1b[0m at ${collectionPath}`);
 				}
 			} catch (error) {
 				// Collection might already exist or have schema issues
 				const errorMessage = error instanceof Error ? error.message : String(error);
 				if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
-					logger.debug(`Collection '${schema.name}' already exists, skipping`);
+					logger.debug(`Collection '${schema.name || 'unknown'}' already exists, skipping`);
 					skipCount++;
 				} else {
-					logger.warn(`Failed to create collection '${schema.name}': ${errorMessage}`);
+					logger.error(`❌ Failed to create collection '${schema.name || 'unknown'}': ${errorMessage}`);
+					if (error instanceof Error && error.stack) {
+						logger.debug('Stack trace:', error.stack);
+					}
 				}
 			}
 		}
@@ -156,7 +169,14 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 		return { firstCollection };
 	} catch (error) {
 		const overallTime = performance.now() - overallStart;
-		logger.error(`Failed to seed collections after ${overallTime.toFixed(2)}ms:`, error);
+		if (error instanceof Error) {
+			logger.error(`Failed to seed collections after \x1b[32m${overallTime.toFixed(2)}ms\x1b[0m: ${error.message}`);
+			if (error.stack) {
+				logger.debug('Stack trace:', error.stack);
+			}
+		} else {
+			logger.error(`Failed to seed collections after \x1b[32m${overallTime.toFixed(2)}ms\x1b[0m:`, error);
+		}
 		// Don't throw - collections can be created later through the UI
 		logger.warn('Continuing setup without collection seeding...');
 		return { firstCollection: null };
@@ -203,10 +223,10 @@ export const defaultPublicSettings: Array<{ key: string; value: unknown; descrip
 	{ key: 'PASSWORD_LENGTH', value: 8, description: 'Minimum required length for user passwords' },
 
 	// Language Configuration
-	{ key: 'DEFAULT_CONTENT_LANGUAGE', value: 'en', description: 'Default language for content' },
-	{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: ['en', 'de'], description: 'List of available content languages' },
-	{ key: 'BASE_LOCALE', value: 'en', description: 'Default/base locale for the CMS interface' },
-	{ key: 'LOCALES', value: ['en', 'de'], description: 'List of available interface locales' },
+	{ key: 'DEFAULT_CONTENT_LANGUAGE', value: DEFAULT_CONTENT_LANGUAGE, description: 'Default language for content' },
+	{ key: 'AVAILABLE_CONTENT_LANGUAGES', value: DEFAULT_CONTENT_LANGUAGES, description: 'List of available content languages' },
+	{ key: 'BASE_LOCALE', value: DEFAULT_BASE_LOCALE, description: 'Default/base locale for the CMS interface' },
+	{ key: 'LOCALES', value: DEFAULT_SYSTEM_LANGUAGES, description: 'List of available interface locales' },
 
 	// Media configuration
 	{ key: 'MEDIA_STORAGE_TYPE', value: 'local', description: 'Type of media storage (local, s3, r2, cloudinary)' },
@@ -327,7 +347,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 	// Test database accessibility
 	try {
 		// Try a simple getMany operation to test connectivity
-		await dbAdapter.systemPreferences.getMany(['HOST_DEV'], 'system');
+		await dbAdapter.systemPreferences.getMany(['HOST_DEV'], 'system' as string);
 		logger.debug('Database adapter is accessible');
 	} catch (error) {
 		logger.error('Database adapter is not accessible:', error);
@@ -344,7 +364,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 	let existingSettings: Record<string, unknown> = {};
 
 	try {
-		const result = await dbAdapter.systemPreferences.getMany(allKeys, 'system');
+		const result = await dbAdapter.systemPreferences.getMany(allKeys, 'system' as string);
 		if (result.success && result.data) {
 			existingSettings = result.data;
 		}
@@ -447,7 +467,7 @@ export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promis
 	// For now, we'll get the known settings keys
 	const allSettingKeys = [...defaultPublicSettings, ...defaultPrivateSettings].map((s) => s.key);
 
-	const settingsResult = await dbAdapter.systemPreferences.getMany(allSettingKeys, 'system');
+	const settingsResult = await dbAdapter.systemPreferences.getMany(allSettingKeys, 'system' as string);
 
 	if (!settingsResult.success) {
 		throw new Error(`Failed to export settings: ${settingsResult.error?.message}`);

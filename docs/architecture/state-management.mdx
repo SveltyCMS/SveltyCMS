@@ -1,61 +1,126 @@
 ---
 path: 'docs/architecture/state-management.mdx'
 title: 'System State & Health Architecture'
-description: 'Comprehensive guide to SveltyCMS intelligent state machine with self-learning performance tracking and anomaly detection.'
+description: 'A guide to SveltyCMS modular and intelligent state machine, which features performance tracking and anomaly detection.'
 order: 3
 icon: 'mdi:heart-pulse'
-author: 'admin'
+author: 'gemini'
 created: '2025-10-09'
-updated: '2025-10-10'
+updated: '2025-10-13'
 tags:
   - 'architecture'
   - 'health'
   - 'state-machine'
   - 'monitoring'
   - 'performance'
-  - 'ai-learning'
+  - 'self-optimizing'
 ---
 
 # System State & Health Architecture
 
-SveltyCMS features an intelligent **state machine** with **AI-like self-learning** capabilities that manages system readiness, tracks service health, detects anomalies, and automatically optimizes performance thresholds based on your system's actual behavior.
+SveltyCMS features a modular, intelligent **state machine** that manages system readiness, tracks the health of individual services, and provides detailed performance metrics and anomaly detection.
 
 <Callout type="info">
-	This architecture provides production-ready monitoring with automatic calibration, trend detection, and smart timeout calculation—no manual
-	configuration needed!
+	This architecture provides production-ready monitoring with automatic calibration, trend detection, and smart timeout calculation—no manual configuration needed.
 </Callout>
 
 ---
 
-## Overview
+## Architecture Overview
 
-The system state machine is a central orchestrator that:
+The state management system is composed of several focused modules located in `src/stores/system/`. This modular design separates concerns, making the system easier to maintain and extend.
 
-- **Tracks System States**: `IDLE` → `INITIALIZING` → `READY`/`DEGRADED`/`FAILED`
-- **Monitors Services**: Database, Auth, Cache, ContentManager, ThemeManager
-- **Self-Learning**: Automatically calibrates thresholds every 10 health checks
-- **Detects Anomalies**: 5 types with 4 severity levels (CRITICAL, HIGH, MEDIUM, LOW)
-- **Tracks Performance**: Startup, shutdown, idle, and active state metrics
-- **Smart Timeouts**: Calculated from historical data (3x average or 1.5x max)
-- **Public APIs**: Health check and performance endpoints for monitoring tools
+### Architecture Diagram
 
-**Benefits for Users:**
+This diagram illustrates how the different modules of the state system interact with each other and with the rest of the application.
 
-- ✅ No manual configuration needed
-- ✅ Automatic performance optimization
-- ✅ Early warning of system issues
-- ✅ Production-ready monitoring endpoints
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TD
+    subgraph "State Machine Core (/stores/system)"
+        direction LR
+        Config["config.ts<br/>Constants & Initial State"]
+        Types["types.ts<br/>Interfaces & Types"]
+        Metrics["metrics.ts<br/>Anomaly Detection, Calibration"]
+        State["state.ts<br/>Core Store & State Logic"]
+        Async["async.ts<br/>Async Wait Utilities"]
+        Reporting["reporting.ts<br/>Health & Perf Reports"]
+        Index["index.ts<br/>Public API Barrel File"]
+    end
 
-**Benefits for Developers:**
+    subgraph "Application Consumers"
+        direction TB
+        Hooks["/hooks/server.ts<br/>Server Hooks"]
+        APIs["API Endpoints<br/>/routes/api"]
+        GUI["GUI Components<br/>SystemHealth.svelte"]
+    end
 
-- ✅ Clear system state at all times
-- ✅ Non-blocking health checks (87-96% faster requests)
-- ✅ Detailed performance metrics
-- ✅ Easy integration with external monitoring
+    %% Define relationships
+    Config --> State;
+    Types --> State;
+    Metrics --> State;
+    State --> Async;
+    State --> Reporting;
+    State --> Index;
+    Async --> Index;
+    Reporting --> Index;
+
+    Index --> Hooks;
+    Index --> APIs;
+    Index --> GUI;
+
+    %% Define styles for dark theme
+    classDef core fill:#282a36,stroke:#f8f8f2,stroke-width:2px,color:#f8f8f2;
+    classDef logic fill:#44475a,stroke:#f8f8f2,stroke-width:2px,color:#f8f8f2;
+    classDef consumers fill:#6272a4,stroke:#f8f8f2,stroke-width:2px,color:#f8f8f2;
+
+    class Config,Types core;
+    class State,Index,Metrics,Async,Reporting logic;
+    class Hooks,APIs,GUI consumers;
+```
+
+### File Breakdown
+
+| File                | Purpose                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `types.ts`          | Defines all the TypeScript interfaces and types (`SystemState`, `ServiceHealth`, etc.).               |
+| `config.ts`         | Contains static configuration, such as baseline performance times and the initial state object.       |
+| `state.ts`          | The heart of the machine. It holds the Svelte store and the core functions to update and derive state.  |
+| `metrics.ts`        | The "brains." Contains logic for performance tracking, anomaly detection, and self-calibration.         |
+| `async.ts`          | Provides asynchronous utilities (`waitForSystemReady`, `waitForServiceHealthy`) for hooks and services. |
+| `reporting.ts`      | Contains functions that generate structured reports (`getHealthCheckReport`) for the API endpoints.     |
+| `index.ts`          | The public interface. It acts as a barrel file, exporting all necessary functions and types.          |
 
 ---
 
-## Core State Machine
+## The Self-Optimizing State Machine
+
+The "intelligent" nature of the state machine comes from its ability to learn your server's specific performance profile and optimize its monitoring behavior accordingly. This is not just about tracking metrics; it's about using those metrics to make smarter decisions, which directly impacts server resource management.
+
+### 1. Dynamic Timeouts and Resource Management
+
+Instead of using long, hardcoded timeouts when waiting for a service to start, the system calculates them dynamically.
+
+-   **How it Works**: The `getServiceTimeout()` function calculates a timeout based on the service's own performance history (specifically, 3x the running average or 1.5x the historical maximum, whichever is greater).
+-   **Resource Impact**: This is a direct server resource optimization. A service that is truly stuck or misconfigured will fail faster. This prevents requests from piling up in a waiting state, consuming memory and CPU cycles unnecessarily. The system frees up resources more quickly by not waiting for an arbitrarily long period.
+
+### 2. Adaptive Thresholds
+
+The system doesn't use static values to decide if performance is "good" or "bad." It learns what is normal for your specific hardware and network environment.
+
+-   **How it Works**: Every 10 health checks, the `calibrateAnomalyThresholds()` function runs. It adjusts the maximum acceptable startup time and failure tolerance based on the service's recent performance and reliability.
+-   **Resource Impact**: This self-calibration makes monitoring more efficient. It prevents "alert fatigue" on slower or heavily loaded servers that might otherwise trigger constant false alarms. On high-performance servers, it tightens the thresholds, ensuring that even minor performance regressions—which could be early indicators of resource exhaustion (like a memory leak or CPU bottleneck)—are detected before they become critical.
+
+### 3. Proactive Monitoring
+
+The state machine doesn't just report the current status; it actively looks for negative trends.
+
+-   **How it Works**: The system detects if a service's startup time is consistently getting worse (`degrading` trend). Anomaly detection will flag this, as well as low uptime percentages and consecutive failures.
+-   **Resource Impact**: This acts as an early warning system. A degrading performance trend is often a symptom of an underlying resource issue, such as a database connection pool being exhausted, a memory leak slowly consuming RAM, or increased disk I/O latency. By flagging these trends early, an administrator can investigate and resolve resource contention before it leads to a service failure or a full system outage.
+
+---
+
+## Core Concepts
 
 ### System States
 
@@ -66,615 +131,60 @@ The state machine manages five explicit states:
 | `IDLE`         | Server started, no initialization begun          | Initial startup, after shutdown     |
 | `INITIALIZING` | System initialization in progress                | During `initializeSystem()`         |
 | `READY`        | All critical services healthy and operational    | Normal running state                |
-| `DEGRADED`     | Non-critical service failed, core CMS functional | Optional service down (e.g., cache) |
+| `DEGRADED`     | Non-critical service failed, but core CMS is functional | Optional service down (e.g., cache) |
 | `FAILED`       | Critical service failed, system not operational  | Database connection failed          |
-
-**State Transitions:**
-
-```
-SERVER START
-    ↓
-  IDLE
-    ↓ (initializeSystem called)
-INITIALIZING
-    ↓
-    ├─→ READY (all services healthy)
-    ├─→ DEGRADED (non-critical service unhealthy)
-    └─→ FAILED (critical service unhealthy)
-```
-
-The overall state is **automatically derived** from individual service health—no manual state management needed!
 
 ### Service Health
 
-Each service reports its health status:
+Each core service reports its health. The overall system state is **automatically derived** from the health of these individual services.
 
-| Service            | Status                                 | Description                             |
-| ------------------ | -------------------------------------- | --------------------------------------- |
-| **database**       | `healthy`, `unhealthy`, `initializing` | MongoDB/database connection state       |
-| **auth**           | `healthy`, `unhealthy`, `initializing` | Authentication service readiness        |
-| **cache**          | `healthy`, `unhealthy`, `initializing` | Media, revisions, virtual folders cache |
-| **contentManager** | `healthy`, `unhealthy`, `initializing` | Collection and widget management        |
-| **themeManager**   | `healthy`, `unhealthy`, `initializing` | Theme system availability               |
-
-**Critical Services** (system becomes `FAILED` if unhealthy):
-
-- Database
-- Auth
-
-**Non-Critical Services** (system becomes `DEGRADED` if unhealthy):
-
-- Cache
-- ContentManager
-- ThemeManager
+-   **Critical Services**: `database`, `auth`. If one of these fails, the whole system enters the `FAILED` state.
+-   **Non-Critical Services**: `cache`, `contentManager`, `themeManager`. If one of these fails, the system enters the `DEGRADED` state but continues to operate.
 
 ---
 
-## AI-Like Self-Learning Features
+## API & Usage
 
-### 1. Automatic Threshold Calibration
-
-Every **10 health checks**, the system automatically recalibrates performance thresholds based on actual behavior:
+All public functions and types should be imported from the main module index.
 
 ```typescript
-// Startup threshold: 3x average OR 1.5x max (whichever is larger)
-maxStartupTime = Math.max(
-  avgStartupTime * 3,
-  maxStartupTime * 1.5
-);
-
-// Adaptive failure tolerance based on reliability
-if (uptime > 99%) {
-  maxConsecutiveFailures = 2;  // Strict for reliable services
-} else if (uptime > 95%) {
-  maxConsecutiveFailures = 3;
-} else {
-  maxConsecutiveFailures = 5;  // Lenient for struggling services
-}
+import { isSystemReady, updateServiceHealth, getHealthCheckReport } from '@src/stores/system';
 ```
-
-**What This Means:**
-
-- Fast systems get stricter thresholds (catches small slowdowns)
-- Slow systems get lenient thresholds (avoids false alarms)
-- Reliable services get stricter failure limits
-- System adapts to YOUR infrastructure automatically
-
-### 2. Performance Trend Detection
-
-The system compares each measurement to the previous average:
-
-```typescript
-if (currentTime < previousAvg * 0.9) {
-	trend = 'improving'; // 10% faster! 🚀
-} else if (currentTime > previousAvg * 1.1) {
-	trend = 'degrading'; // 10% slower ⚠️
-} else {
-	trend = 'stable'; // All good ✅
-}
-```
-
-**Use Cases:**
-
-- Identify performance regressions after deployments
-- Track system improvement over time
-- Detect gradual degradation before it becomes critical
-
-### 3. Anomaly Detection
-
-The system automatically detects **5 types of anomalies**:
-
-| Anomaly Type              | Detection Logic            | Severity                    |
-| ------------------------- | -------------------------- | --------------------------- |
-| **Slow Startup**          | Startup time > threshold   | HIGH/CRITICAL if >100% over |
-| **Slow Shutdown**         | Shutdown time > threshold  | MEDIUM/HIGH                 |
-| **Consecutive Failures**  | Multiple failures in a row | CRITICAL if ≥2x max         |
-| **Low Uptime**            | Reliability < 90%          | MEDIUM/HIGH                 |
-| **Degrading Performance** | Trend = 'degrading'        | LOW/MEDIUM                  |
-
-**Severity Levels:**
-
-- **CRITICAL**: Immediate attention required (>100% over threshold, 2x consecutive failures)
-- **HIGH**: Serious issue (>50% over threshold, consecutive failures reached)
-- **MEDIUM**: Needs investigation (2-4x baseline, high variance, restarts)
-- **LOW**: Minor concern (slightly slow, 2-5 failures)
-
-### 4. State-Specific Timing
-
-The system tracks **4 distinct phases** for each service:
-
-**Startup** (IDLE → INITIALIZING → READY):
-
-- Count, average, min, max, last time
-- Performance trend (improving/stable/degrading)
-
-**Shutdown** (READY → IDLE):
-
-- Count, average, min, max, last time
-- Performance trend
-
-**Idle** (time spent in IDLE state):
-
-- Count of idle periods, average, min, max
-- Total idle time
-
-**Active** (time spent in READY state):
-
-- Count of active periods, average, min, max
-- Total active time
-
----
-
-## API Endpoints
 
 ### Health Check API
 
-**Endpoint:** `GET /api/system/health` or `GET /api/dashboard/health`
+An unauthenticated endpoint for monitoring tools, load balancers, and Kubernetes probes.
 
-**Purpose:** Public endpoint for monitoring tools, load balancers, Kubernetes probes
+-   **Endpoint:** `GET /api/system/health`
+-   **Success Response (`200 OK`):**
+    -   `overallStatus: "READY"`
+    -   `overallStatus: "DEGRADED"` (The system is operational but a non-critical service has an issue).
+-   **Failure Response (`503 Service Unavailable`):**
+    -   `overallStatus: "FAILED"`
+    -   `overallStatus: "INITIALIZING"`
 
-**Response (200 OK - System Operational):**
+### Performance API
 
-```json
-{
-	"overallStatus": "READY",
-	"timestamp": 1728598765432,
-	"uptime": 86400000,
-	"components": {
-		"database": {
-			"status": "healthy",
-			"message": "Database connected successfully",
-			"lastChecked": 1728598765430,
-			"performance": {
-				"avgInitTime": 520,
-				"reliability": 0.998,
-				"failureCount": 1,
-				"restartCount": 0
-			}
-		},
-		"auth": {
-			"status": "healthy",
-			"message": "Authentication service ready",
-			"lastChecked": 1728598765431,
-			"performance": {
-				"avgInitTime": 45,
-				"reliability": 1.0,
-				"failureCount": 0,
-				"restartCount": 0
-			}
-		}
-		// ... other services
-	}
-}
-```
+An endpoint that provides a detailed performance summary, including bottlenecks and detected anomalies.
 
-**Response (503 Service Unavailable - System Not Ready):**
+-   **Endpoint:** `GET /api/system/performance`
 
-```json
-{
-	"overallStatus": "INITIALIZING",
-	"timestamp": 1728598765432,
-	"uptime": 2000,
-	"components": {
-		"database": {
-			"status": "initializing",
-			"message": "Connecting to database..."
-		}
-	}
-}
-```
+### Key Functions for Developers
 
-**HTTP Status Codes:**
-
-- `200`: System is `READY` or `DEGRADED` (operational)
-- `503`: System is `INITIALIZING`, `FAILED`, or `IDLE` (not ready)
-
-**Use Cases:**
-
-- Kubernetes readiness/liveness probes
-- Load balancer health checks
-- Monitoring systems (Datadog, Prometheus, New Relic)
-- CI/CD pipeline validation
-- Developer debugging
-
-### Performance Analysis API
-
-**Endpoint:** `GET /api/system?action=metrics` _(planned)_
-
-**Purpose:** Detailed performance metrics for analysis
-
-**Response:**
-
-```json
-{
-	"system": {
-		"totalInitializations": 5,
-		"successfulInitializations": 5,
-		"averageTotalInitTime": 1234,
-		"successRate": 100
-	},
-	"services": {
-		"database": {
-			"startup": {
-				"count": 5,
-				"avg": 520,
-				"min": 480,
-				"max": 580,
-				"trend": "stable"
-			},
-			"anomalies": [
-				{
-					"type": "slow_startup",
-					"severity": "medium",
-					"timestamp": 1728598765432,
-					"details": "Startup took 580ms (expected <500ms)"
-				}
-			]
-		}
-	}
-}
-```
+-   **`isSystemReady(): boolean`**: A synchronous check to see if the system is `READY` or `DEGRADED`. Used by the `handleSystemState` hook.
+-   **`updateServiceHealth(...)`**: Used by services during initialization to report their status (`healthy`, `unhealthy`) to the state machine.
+-   **`waitForSystemReady(options)`**: An async function that returns a promise, resolving when the system is ready. Useful in scripts or services that run outside the main request lifecycle.
 
 ---
 
-## Implementation Guide
-
-### For Developers: Using the State Machine
-
-#### Check System Readiness (Synchronous)
-
-```typescript
-import { isSystemReady, isServiceHealthy } from '@stores/system';
-
-// Check overall system
-if (isSystemReady()) {
-	// System is READY, proceed with request
-}
-
-// Check specific service
-if (isServiceHealthy('auth')) {
-	// Auth service is healthy, can authenticate
-}
-```
-
-#### Wait for System Readiness (Asynchronous)
-
-These functions now support an `options` object with `timeoutMs` and a standard `AbortSignal` for robust asynchronous control.
-
-```typescript
-import { waitForSystemReady, waitForServiceHealthy } from '@stores/system';
-
-// Set up a controller for cancellation
-const controller = new AbortController();
-const signal = controller.signal;
-
-// Example: Wait for the overall system with a 5-second timeout
-try {
-	const isReady = await waitForSystemReady({ timeoutMs: 5000, signal });
-	if (isReady) {
-		console.log('System is ready!');
-	} else {
-		console.warn('System did not become ready in time.');
-	}
-} catch (error) {
-	// This will be a DOMException if the operation was aborted
-	console.error('Wait was aborted:', error.name); // 'AbortError'
-}
-
-// You can abort the wait from anywhere else in your code
-// controller.abort();
-
-// Example: Wait for a specific service
-await waitForServiceHealthy('database', { timeoutMs: 2000 });
-```
-
-#### Report Service Health
-
-```typescript
-import { updateServiceHealth, startServiceInitialization } from '@stores/system';
-
-// Start tracking initialization
-startServiceInitialization('myService');
-
-try {
-	await initializeMyService();
-	updateServiceHealth('myService', 'healthy', 'Service initialized successfully');
-} catch (error) {
-	updateServiceHealth('myService', 'unhealthy', 'Initialization failed', error.message);
-}
-```
-
-#### Update System State
-
-```typescript
-import { setSystemState } from '@stores/system';
-
-// Manually set system state (usually done automatically)
-setSystemState('INITIALIZING', 'Starting system initialization');
-```
-
-### For Users: Monitoring System Health
-
-#### Dashboard Widget
-
-Navigate to **Dashboard** → **System Health Widget**
-
-The widget shows:
-
-- Overall system status (color-coded)
-- Individual service health cards
-- System uptime
-- Reinitialize button (admin only)
-- Auto-refresh every 5 seconds
-
-#### Full Health Monitor
-
-Navigate to **Config** → **System Health** (`/config/system-health`)
-
-Features:
-
-- Real-time status display
-- Manual refresh button
-- Auto-refresh toggle
-- Service grid with detailed status
-- Performance metrics
-- Anomaly alerts
-
-#### External Monitoring
-
-Use health endpoint in monitoring tools:
-
-**Kubernetes:**
-
-```yaml
-livenessProbe:
-  httpGet:
-    path: /api/system/health
-    port: 5173
-  initialDelaySeconds: 10
-  periodSeconds: 5
-
-readinessProbe:
-  httpGet:
-    path: /api/system/health
-    port: 5173
-  initialDelaySeconds: 5
-  periodSeconds: 3
-```
-
-**Uptime Monitor (Uptime Robot, Pingdom):**
-
-- URL: `https://your-domain.com/api/system/health`
-- Expected: HTTP 200 with `"overallStatus": "READY"`
-
----
-
-## Performance Metrics
-
-### Baseline Expectations
-
-Expected initialization times for each service:
-
-| Service        | Expected | Warning Threshold |
-| -------------- | -------- | ----------------- |
-| Database       | 500ms    | >1000ms           |
-| Auth           | 50ms     | >100ms            |
-| Cache          | 200ms    | >400ms            |
-| ContentManager | 300ms    | >600ms            |
-| ThemeManager   | 200ms    | >400ms            |
-
-**These are starting values—system automatically calibrates to YOUR infrastructure!**
-
-### Request Performance Impact
-
-Before state machine (blocking `await`):
-
-- Every request waited for initialization: **+1500ms**
-
-After state machine (non-blocking checks):
-
-- Synchronous health checks: **<1ms**
-- **87-96% faster requests** during startup
-
-### Service Metrics
-
-For each service, the system tracks:
-
-| Metric          | Description                                           |
-| --------------- | ----------------------------------------------------- |
-| `avgInitTime`   | Average initialization time (self-learning)           |
-| `minInitTime`   | Fastest initialization recorded                       |
-| `maxInitTime`   | Slowest initialization recorded                       |
-| `reliability`   | Success rate (healthChecks - failures) / healthChecks |
-| `failureCount`  | Number of times service became unhealthy              |
-| `restartCount`  | Number of times service was restarted                 |
-| `lastFailureAt` | Timestamp of last failure                             |
-
----
-
-## Integration with Setup Flow
-
-The state machine integrates with the setup wizard:
-
-1. **Setup Mode**: System stays in `IDLE`, no services initialized
-2. **Test Database**: Temporary adapter created (not tracked by state machine)
-3. **Complete Setup**:
-   - Writes `config/private.ts` with database credentials
-   - Calls `initializeSystem()` which reports to state machine
-   - State transitions: `IDLE` → `INITIALIZING` → `READY`
-   - All services report health
-4. **Post-Setup**: System remains in `READY` state, accepting requests
-
-**Key Fix Applied:**
-
-- Setup completion preserves `privateEnv` during initialization
-- No server restart required after setup
-- Seamless transition from setup to production mode
-
----
-
-## Troubleshooting
-
-### System Stuck in INITIALIZING
-
-**Check logs for:**
-
-```
-System state changed: IDLE → INITIALIZING
-Service database health updated: initializing → ???
-```
-
-**Possible causes:**
-
-- Database connection timeout
-- Network issues
-- Invalid credentials in `config/private.ts`
-
-**Solution:**
-
-- Check database connectivity: `bun run scripts/check-mongodb.js`
-- Verify `config/private.ts` has correct credentials
-- Check logs: `tail -f logs/app.log`
-
-### System Shows DEGRADED
-
-**What it means:**
-
-- Core CMS is functional
-- A non-critical service (cache, contentManager, themeManager) is unhealthy
-
-**Actions:**
-
-- Check which service is unhealthy: `GET /api/system/health`
-- Review logs for that specific service
-- Non-critical services can fail without stopping the CMS
-
-### Service Shows Low Reliability
-
-**What it means:**
-
-- Service is repeatedly failing health checks
-- Reliability = (healthChecks - failures) / healthChecks
-
-**Actions:**
-
-- Check for resource constraints (memory, CPU)
-- Review service-specific logs
-- Look for anomaly alerts in performance metrics
-
-### Anomaly Alerts
-
-**CRITICAL severity:**
-
-- Immediate attention required
-- Service taking >2x expected time
-- Multiple consecutive failures
-
-**HIGH severity:**
-
-- Serious issue, investigate soon
-- Service >50% over threshold
-- Consecutive failures reached
-
-**MEDIUM severity:**
-
-- Needs investigation when convenient
-- Service 2-4x baseline
-- Recent restarts
-
-**LOW severity:**
-
-- Minor concern, monitor
-- Slightly slower than usual
-- 2-5 failures recorded
-
----
-
-## Technical Architecture
-
-### File Structure
-
-| File                                                           | Purpose                                    |
-| -------------------------------------------------------------- | ------------------------------------------ |
-| `src/stores/system.ts`                                         | State machine implementation (1058 lines)  |
-| `src/databases/db.ts`                                          | System initialization with state reporting |
-| `src/routes/api/system/+server.ts`                             | Unified system management API              |
-| `src/routes/api/dashboard/health/+server.ts`                   | Dashboard health endpoint                  |
-| `src/components/SystemHealth.svelte`                           | Full-page health monitor                   |
-| `src/routes/(app)/dashboard/widgets/SystemHealthWidget.svelte` | Dashboard widget                           |
-
-### Key Functions
-
-**State Machine (`system/`):**
-
-```typescript
-// System state management
-export function setSystemState(state: SystemState, reason?: string): void;
-export function getSystemState(): SystemState;
-
-// Service health management
-export function updateServiceHealth(service: ServiceName, status: ServiceHealth, message?: string, error?: string): void;
-export function startServiceInitialization(service: ServiceName): void;
-
-// Synchronous checks
-export function isSystemReady(): boolean;
-export function isServiceHealthy(service: ServiceName): boolean;
-
-// Asynchronous waiters
-export function waitForSystemReady(timeout?: number): Promise<void>;
-export function waitForServiceHealthy(service: ServiceName, timeout?: number): Promise<void>;
-
-// Reporting
-export function getHealthCheckReport(): HealthCheckReport;
-export function getPerformanceSummary(): PerformanceSummary;
-export function identifyBottlenecks(): Bottleneck[];
-```
-
-**Database Integration (`db.ts`):**
-
-```typescript
-// Reports to state machine during initialization
-export async function initializeSystem(forceReload = false, skipSetupCheck = false): Promise<InitializationStatus>;
-
-// Waits for auth service before returning
-export async function reinitializeSystem(): Promise<ReinitializationStatus>;
-```
-
----
-
-## Summary
-
-The SveltyCMS state machine provides:
-
-✅ **Self-Learning Performance Optimization**
-
-- Automatic threshold calibration every 10 health checks
-- Adaptive timeouts based on YOUR system's behavior
-- No manual configuration needed
-
-✅ **Intelligent Anomaly Detection**
-
-- 5 types of anomalies with 4 severity levels
-- Early warning before issues become critical
-- Automatic logging with extensible notifications
-
-✅ **Production-Ready Monitoring**
-
-- Public health check API for external tools
-- Dashboard integration for admins
-- 87-96% faster requests with non-blocking checks
-
-✅ **Clear System State**
-
-- 5 explicit states (IDLE, INITIALIZING, READY, DEGRADED, FAILED)
-- Per-service health tracking
-- Automatic state derivation
-
-✅ **Performance Metrics**
-
-- Startup, shutdown, idle, and active timing
-- Trend detection (improving/stable/degrading)
-- Bottleneck identification
-
-The architecture is **fully implemented and production-ready** with comprehensive testing, documentation, and integration throughout the codebase.
-.
+## GUI Best Practices
+
+The health monitoring page at `/config/system-health` should present the data from the health check API in a user-friendly manner.
+
+<Callout type="tip" title="User-Friendly Display Tips">
+-   **Use Color and Icons**: Represent each state (`READY`, `FAILED`, etc.) with a distinct color (green, red) and icon (check-circle, alert-triangle) for at-a-glance understanding.
+-   **Show Reliability**: Display the `reliability` score as a percentage (e.g., "99.8% Uptime").
+-   **Explain `DEGRADED`**: If the status is `DEGRADED`, clearly state which non-critical service is having an issue, but reassure the user that the core CMS is still functional.
+-   **Provide Actions**: For `FAILED` or `DEGRADED` states, provide a "Re-initialize System" button for administrators and a link to the system logs.
+-   **Human-Readable Messages**: Use the `message` field from the API response to give clear, human-readable status updates for each service.
+</Callout>

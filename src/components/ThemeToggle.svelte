@@ -1,6 +1,10 @@
 <!--
 @file src/components/ThemeToggle.svelte
-@description Shared theme toggle component with consistent logic across the app
+@component
+**Shared theme toggle component with consistent logic across the app**
+
+###Features
+-
 -->
 
 <script lang="ts">
@@ -26,27 +30,29 @@
 
 	// Shared theme toggle logic
 	function toggleTheme() {
-		const currentMode = get(modeCurrent);
-		const newMode = !currentMode;
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
+		// Skeleton's modeCurrent is `true` for dark mode, `false` for light mode.
+		const isCurrentlyDark = get(modeCurrent);
+		const newModeIsDark = !isCurrentlyDark;
+
+		// Update Skeleton's stores
+		setModeUserPrefers(newModeIsDark);
+		setModeCurrent(newModeIsDark);
 
 		// Immediately apply the theme to the DOM
-		if (newMode) {
-			document.documentElement.classList.remove('dark');
-		} else {
-			document.documentElement.classList.add('dark');
-		}
+		document.documentElement.classList.toggle('dark', newModeIsDark);
 
 		// Set cookie for server-side persistence
-		document.cookie = `theme=${newMode ? 'light' : 'dark'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-		document.cookie = `darkMode=${newMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		const themeValue = newModeIsDark ? 'dark' : 'light';
+		const cookieOptions = `path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+
+		document.cookie = `theme=${themeValue}; ${cookieOptions}`;
+		document.cookie = `darkMode=${newModeIsDark}; ${cookieOptions}`;
 	}
 </script>
 
 {#if showTooltip}
 	<button use:popup={themeToggleTooltip} onclick={toggleTheme} aria-label="Toggle theme" class={buttonClass}>
-		{#if !$modeCurrent}
+		{#if $modeCurrent}
 			<iconify-icon icon="bi:sun" width={iconSize}></iconify-icon>
 		{:else}
 			<iconify-icon icon="bi:moon-fill" width={iconSize}></iconify-icon>
@@ -55,17 +61,17 @@
 
 	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
 		<span class="text-sm">
-			{#if !$modeCurrent}
-				Switch to Dark Mode
-			{:else}
+			{#if $modeCurrent}
 				Switch to Light Mode
+			{:else}
+				Switch to Dark Mode
 			{/if}
 		</span>
 		<div class="variant-filled arrow"></div>
 	</div>
 {:else}
 	<button onclick={toggleTheme} aria-label="Toggle theme" class={buttonClass}>
-		{#if !$modeCurrent}
+		{#if $modeCurrent}
 			<iconify-icon icon="bi:sun" width={iconSize}></iconify-icon>
 		{:else}
 			<iconify-icon icon="bi:moon-fill" width={iconSize}></iconify-icon>

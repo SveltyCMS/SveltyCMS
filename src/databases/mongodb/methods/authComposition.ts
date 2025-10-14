@@ -23,6 +23,7 @@ import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
 import { logger } from '@utils/logger.svelte';
+import { hashPassword } from '@utils/crypto';
 
 // Type helper to extract the auth interface from IDBAdapter
 type AuthInterface = IDBAdapter['auth'];
@@ -70,6 +71,11 @@ export function composeMongoAuthAdapter(): AuthInterface {
 			sessionData: { expires: Date; tenantId?: string }
 		): Promise<DatabaseResult<{ user: User; session: Session }>> => {
 			try {
+				// Hash password if provided
+				if (userData.password) {
+					userData.password = await hashPassword(userData.password);
+				}
+
 				// Create user first
 				const userResult = await userAdapter.createUser(userData);
 				if (!userResult.success || !userResult.data) {

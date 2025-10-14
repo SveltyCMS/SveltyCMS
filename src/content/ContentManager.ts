@@ -88,7 +88,12 @@ class ContentManager {
 			logger.info(`📦 ContentManager fully initialized in ${this._getElapsedTime(startTime)}`);
 		} catch (error) {
 			this.initState = 'error';
-			logger.error('ContentManager initialization failed:', error);
+			if (error instanceof Error) {
+				logger.error('ContentManager initialization failed:', error.message);
+				logger.error(error.stack);
+			} else {
+				logger.error('ContentManager initialization failed:', error);
+			}
 			this.initPromise = null; // Allow retry on next call
 			throw error;
 		}

@@ -23,16 +23,14 @@ Key Features:
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
-	// Help popups
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	// Types from setupStore
 	import type { SystemSettings } from '@stores/setupStore.svelte';
 
-	// Props (runes)
+	// --- PROPS ---
 	const {
 		systemSettings,
 		validationErrors,
-		availableLanguages = []
+		availableLanguages = [] // system lange form paraglideJS
 	} = $props<{
 		systemSettings: SystemSettings;
 		validationErrors: Record<string, string>;
@@ -73,9 +71,11 @@ Key Features:
 		systemPickerSearch = '';
 	}
 	function addSystemLanguage(code: string) {
-		if (!systemSettings.systemLanguages.includes(code)) {
-			systemSettings.systemLanguages = [...systemSettings.systemLanguages, code];
-			if (!systemSettings.defaultSystemLanguage) systemSettings.defaultSystemLanguage = code;
+		const c = code.toLowerCase();
+		if (!availableLanguages.includes(c)) return; // ✅ restrict to project languages only
+		if (!systemSettings.systemLanguages.includes(c)) {
+			systemSettings.systemLanguages = [...systemSettings.systemLanguages, c];
+			if (!systemSettings.defaultSystemLanguage) systemSettings.defaultSystemLanguage = c;
 		}
 		closeSystemPicker();
 	}
@@ -102,14 +102,17 @@ Key Features:
 	}
 	let showContentPicker = $state(false);
 	let contentPickerSearch = $state('');
+
 	function openContentPicker() {
 		showContentPicker = true;
 		queueMicrotask(() => document.getElementById('content-lang-search')?.focus());
 	}
+
 	function closeContentPicker() {
 		showContentPicker = false;
 		contentPickerSearch = '';
 	}
+
 	function addContentLanguage(code: string) {
 		const c = code.toLowerCase();
 		if (!c || c.length !== 2 || !iso6391.some((lang) => lang.code === c)) return;
@@ -140,9 +143,12 @@ Key Features:
 	let systemAvailable = $state<string[]>([]);
 	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
 	$effect(() => {
+		// ✅ system languages can only be those defined in availableLanguages
 		systemAvailable = availableLanguages.filter(
 			(l: string) => !systemSettings.systemLanguages.includes(l) && l.toLowerCase().includes(systemPickerSearch.toLowerCase())
 		);
+
+		// ✅ content languages can still be from iso6391 (no restriction)
 		const search = contentPickerSearch.toLowerCase();
 		contentAvailable = iso6391.filter(
 			(lang) =>
@@ -150,6 +156,7 @@ Key Features:
 				(lang.code.toLowerCase().includes(search) || lang.name.toLowerCase().includes(search) || lang.native.toLowerCase().includes(search))
 		);
 	});
+
 	// Per-label popup settings (click for better mobile support; still discoverable via icon hover cursor)
 	const popupSiteName: PopupSettings = { event: 'click', target: 'popupSiteName', placement: 'top' };
 	const popupHostProd: PopupSettings = { event: 'click', target: 'popupHostProd', placement: 'top' };
@@ -363,7 +370,7 @@ Key Features:
 							{#each systemSettings.systemLanguages as lang}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
 									{displayLang(lang)}
-									{#if lang !== systemSettings.defaultSystemLanguage}
+									{#if systemSettings.systemLanguages.length > 1}
 										<button
 											type="button"
 											class="opacity-60 transition hover:opacity-100"
@@ -422,7 +429,11 @@ Key Features:
 							{/if}
 						</div>
 						<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-							{m.setup_note_default_cannot_be_removed?.() || 'Default cannot be removed.'}
+							{#if systemAvailable.length > 0}
+								Click + to add more languages. At least one language must remain.
+							{:else}
+								All configured system languages are active.
+							{/if}
 						</p>
 					</div>
 				</div>

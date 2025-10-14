@@ -1,25 +1,24 @@
 ---
 path: 'docs/architecture/server-hooks.mdx'
 title: 'Server Hooks & Middleware'
-description: 'A deep dive into the SveltyCMS server-side middleware architecture, explaining the state-aware, conditional, and parallel execution of hooks.'
+description: 'A deep dive into the SveltyCMS server-side middleware architecture, explaining the sequential, state-guarded pipeline.'
 order: 4
 icon: 'mdi:server-network'
 author: 'gemini'
 created: '2025-10-12'
-updated: '2025-10-12'
+updated: '2025-10-13'
 tags:
   - 'architecture'
   - 'hooks'
   - 'middleware'
   - 'performance'
-  - 'stability'
+  - 'security'
+  - 'state-management'
 ---
 
 # Server Hooks & Middleware Architecture
 
-SveltyCMS employs a sophisticated, multi-stage middleware pipeline using SvelteKit Server Hooks. This architecture is designed to be highly performant, stable, and configurable, ensuring that requests are handled efficiently and safely.
-
-The entire middleware sequence is orchestrated in `src/hooks.server.ts`.
+SveltyCMS employs a robust, multi-stage middleware pipeline using SvelteKit Server Hooks. This architecture is designed to be predictable, secure, and performant, ensuring that every request is handled efficiently and safely. The entire middleware sequence is orchestrated in `src/hooks.server.ts`.
 
 ---
 
@@ -27,116 +26,114 @@ The entire middleware sequence is orchestrated in `src/hooks.server.ts`.
 
 The middleware architecture is built on three core principles:
 
-1.  **State-Aware**: Hooks do not assume the system is ready. Critical hooks that depend on services like the database or authentication **must** wait for those services to be healthy before executing. This is achieved using the `waitForServiceHealthy()` utility from our state machine.
+1.  **Sequential & Predictable**: Hooks run in a simple, defined order for every request. This linear flow makes the request lifecycle easy to understand, debug, and extend.
 
-2.  **Conditional**: Features are treated as plugins. Hooks that power a specific feature (like Multi-Tenancy or Rate Limiting) are only added to the pipeline if that feature is enabled in the system configuration. This ensures that disabled features have zero performance overhead.
+2.  **Centralized State-Guarding**: The `handleSystemState` hook acts as a single, authoritative gatekeeper at the beginning of the pipeline. It ensures that no requests are processed unless the system is in a `READY` or `DEGRADED` state, preventing entire classes of errors.
 
-3.  **Parallel**: Independent, I/O-bound hooks are executed concurrently using a custom `parallel()` helper. This minimizes request processing time by preventing a sequence of unrelated database or file system lookups from blocking each other.
+3.  **Fail-Fast**: The pipeline is designed to terminate as early as possible. If a critical check fails (like system readiness, setup completion, or authentication), the request is immediately redirected or fails with an appropriate error code, saving system resources.
+
+---
+
+## Interaction with the State Machine
+
+The server hook pipeline is fundamentally integrated with the [System State & Health Architecture](./state-management.mdx). This connection is what makes the system so stable.
+
+### The `handleSystemState` Gatekeeper
+
+The **`handleSystemState`** hook is the second hook to run and is the most critical for system stability. Its job is to consult the state machine before allowing any request to proceed.
+
+1.  **Check State**: On every request, it calls `getSystemState()` to get the current operational state (`IDLE`, `INITIALIZING`, `READY`, `FAILED`, etc.).
+
+2.  **Handle `IDLE` State**: If the state is `IDLE`, it means the server has just started. The hook will `await` the global `dbInitPromise` to ensure the main system initialization completes before proceeding. This resolves any potential race conditions on startup.
+
+3.  **Block or Allow**: It then uses `isSystemReady()` to check if the state is `READY` or `DEGRADED`.
+    -   If **true**, the request continues to the next hook.
+    -   If **false** (the system is `INITIALIZING` or `FAILED`), the hook immediately terminates the request and returns a **503 Service Unavailable** error.
+
+<Callout type="success">
+	**Key Takeaway:** Because of the `handleSystemState` gatekeeper, all subsequent hooks can operate under the assumption that the database, authentication, and other core services are available. This dramatically simplifies their logic and improves overall system robustness.
+</Callout>
 
 ---
 
 ## The Middleware Execution Sequence
 
-Requests are processed through a dynamic sequence of hooks, orchestrated by the `buildMiddlewareSequence` function. Here is a breakdown of the execution order.
+Requests are processed through a static sequence of hooks. Each hook has a specific responsibility and either passes the request to the next hook or terminates the request with a redirect or an error.
 
-```typescript
-// src/hooks.server.ts
+### Request Flow Diagram
 
-const buildMiddlewareSequence = (): Handle[] => {
-	const middleware: Handle[] = [];
+This diagram illustrates the sequential flow of a request through the middleware pipeline.
 
-	// --- 1. Core & Setup Hooks (Run in Parallel) ---
-	middleware.push(
-		parallel([handlePerfStart, handleSystemState, handleStaticAssetCaching]),
-		handleSetup
-	);
+```mermaid
+sequenceDiagram
+    participant Client
+    participant SvelteKit
+    participant Hooks
 
-	// --- 2. Configurable Feature Hooks ---
-	if (getPrivateSettingSync('RATE_LIMITING_ENABLED')) {
-		middleware.push(handleRateLimit);
-	}
-	if (getPrivateSettingSync('MULTI_TENANT')) {
-		middleware.push(handleMultiTenancy);
-	}
-
-	// --- 3. Authentication & Authorization Hooks ---
-	middleware.push(handleSessionAuth, handleAuthorization);
-
-	// --- 4. Content & Presentation Hooks (Run in Parallel) ---
-	middleware.push(handleApiRequests, parallel([handleTheme, handleLocale]), addSecurityHeaders);
-
-	// --- 5. Performance Logging ---
-	middleware.push(handlePerfLog);
-
-	return middleware;
-};
+    Client->>SvelteKit: Request (e.g., GET /dashboard)
+    SvelteKit->>Hooks: handlePerfStart
+    SvelteKit->>Hooks: handleSystemState
+    alt System Not Ready?
+        Hooks-->>Client: 503 Service Unavailable
+    end
+    SvelteKit->>Hooks: handleSetup
+    alt Setup Incomplete?
+        Hooks-->>Client: 302 Redirect to /setup
+    end
+    SvelteKit->>Hooks: handleStaticAssetCaching
+    SvelteKit->>Hooks: handleRateLimit
+    alt Rate Limit Exceeded?
+        Hooks-->>Client: 429 Too Many Requests
+    end
+    SvelteKit->>Hooks: handleAuthentication
+    SvelteKit->>Hooks: handleAuthorization
+    alt Not Authenticated?
+        Hooks-->>Client: 302 Redirect to /login
+    end
+    SvelteKit->>Hooks: handleApiRequests
+    SvelteKit->>Hooks: handleLocale
+    SvelteKit->>Hooks: handleTheme
+    SvelteKit->>Hooks: addSecurityHeaders
+    SvelteKit->>Hooks: handlePerfLog
+    SvelteKit-->>Client: 200 OK (Page Response)
 ```
 
-### Stage 1: Core & Setup (Parallel)
+### Execution Order
 
-The first stage runs three critical, independent hooks in parallel for maximum speed:
+The middleware array in `src/hooks.server.ts` defines the precise execution order:
 
-- **`handlePerfStart`**: Marks the start time of the request for performance monitoring.
-- **`handleSystemState`**: Checks the system's overall health (`READY`, `FAILED`, etc.) and attaches status flags to `event.locals` for other hooks to use. This is the foundation of our state-aware design.
-- **`handleStaticAssetCaching`**: Immediately serves static assets with long-term cache headers, bypassing all further processing.
-
-After this parallel block, **`handleSetup`** runs. It checks if the CMS is installed and redirects to the setup page if necessary.
-
-### Stage 2: Configurable Features
-
-This stage dynamically adds middleware for optional, enterprise-grade features:
-
-- **`handleRateLimit`**: Added only if `RATE_LIMITING_ENABLED` is true. Protects the server from excessive requests.
-- **`handleMultiTenancy`**: Added only if `MULTI_TENANT` is true. Identifies the tenant based on the hostname.
-
-### Stage 3: Authentication & Authorization
-
-This is a critical sequential block that establishes the user's identity and permissions:
-
-- **`handleSessionAuth`**: Validates the user's session cookie. **This hook is state-aware** and waits for the `auth` service to be healthy before proceeding.
-- **`handleAuthorization`**: Loads the user's roles and permissions. **This hook is also state-aware** and waits on the `auth` service.
-
-### Stage 4: Content & Presentation (Parallel)
-
-Once the user is identified, this stage fetches content and presentation data. It runs independent I/O-bound tasks in parallel:
-
-- **`handleApiRequests`**: Manages caching and permissions for API endpoints.
-- **`parallel([handleTheme, handleLocale])`**: Runs two hooks concurrently:
-    - **`handleTheme`**: Loads the user or tenant-specific theme. **This hook is state-aware** and waits for the `database` service.
-    - **`handleLocale`**: Loads the user's language preference from cookies.
-- **`addSecurityHeaders`**: Adds crucial security headers (like CSP, X-Frame-Options) to the final response.
-
-### Stage 5: Performance Logging
-
-The final hook in the sequence:
-
-- **`handlePerfLog`**: Calculates the total request duration and logs it. It must run last to accurately measure the entire processing time.
+1.  **`handlePerfStart`**: Marks the start time of the request for performance monitoring.
+2.  **`handleSystemState`**: The gatekeeper. Blocks requests if the system is `FAILED` or still `INITIALIZING`.
+3.  **`handleSetup`**: Checks if the CMS has been installed. If not, redirects all requests to the `/setup` page.
+4.  **`handleStaticAssetCaching`**: A performance optimization that serves static assets (CSS, JS, images) with aggressive cache headers and bypasses all further processing.
+5.  **`handleRateLimit`**: Applies IP-based rate limiting to prevent abuse and DoS attacks.
+6.  **`handleAuthentication`**: Validates the session cookie, resolves the current tenant (if multi-tenancy is enabled), and attaches the `user` object to `event.locals`.
+7.  **`handleAuthorization`**: Checks the user's role and permissions. Blocks access to protected routes for unauthenticated users.
+8.  **`handleApiRequests`**: A specialized hook that handles caching and role-based permissions for all `/api/*` routes.
+9.  **`handleLocale`**: Reads the user's language preferences from cookies and synchronizes them with the application's state.
+10. **`handleTheme`**: Reads the user's theme preference from a cookie and injects the correct theme class (`dark` or `light`) for Server-Side Rendering (SSR) to prevent flickering.
+11. **`addSecurityHeaders`**: Adds crucial security headers (like CSP, HSTS, etc.) to the final response.
+12. **`handlePerfLog`**: Calculates the total request duration from the start time and logs it, providing valuable performance metrics.
 
 ---
 
 ## Summary of Individual Hooks
 
-A key principle of this architecture is its selective state-awareness. Hooks are categorized by their dependencies:
+This table provides a quick reference for each hook's primary responsibility in the new sequential pipeline.
 
--   **State-Aware Hooks**: Any hook with a dependency on a core service (like the database or auth) is fully state-aware. It uses the `waitForServiceHealthy` utility to guarantee the service is ready before executing. This is critical for stability.
--   **State-Agnostic Hooks**: Simpler hooks that have no external dependencies (e.g., `addSecurityHeaders`, `handlePerfStart`) do not need to be state-aware. By design, they run unconditionally to ensure they are as fast and efficient as possible.
+| Hook File                      | Description                                                                                                |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `handlePerfStart.ts`           | Starts a timer to measure request duration.                                                                |
+| `handleSystemState.ts`         | **Gatekeeper**: Blocks requests if the system is not in an operational state (`READY` or `DEGRADED`).        |
+| `handleSetup.ts`               | Redirects to the `/setup` page if the CMS is not yet installed.                                            |
+| `handleStaticAssetCaching.ts`  | Sets cache headers for static files and ends the request early.                                          |
+| `handleRateLimit.ts`           | Applies IP-based rate limiting to prevent abuse.                                                           |
+| `handleAuthentication.ts`      | Validates the session cookie, handles multi-tenancy, and identifies the user.                            |
+| `handleAuthorization.ts`       | Loads user roles and permissions, and protects routes from unauthenticated access.                       |
+| `handleApiRequests.ts`         | Manages caching and permissions for all `/api` routes.                                                   |
+| `handleLocale.ts`              | Reads language preferences from cookies.                                                                   |
+| `handleTheme.ts`               | Injects the correct theme class for SSR to prevent theme flickering.                                       |
+| `addSecurityHeaders.ts`        | Adds important security headers like CSP and HSTS to the response.                                     |
+| `handlePerfLog.ts`             | Calculates the total request time and logs it.                                                           |
 
-This dual approach ensures both maximum stability for complex operations and maximum performance for simple ones.
-
-| Hook File                      | Description                                                                                                | State-Aware? |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------ |
-| `handleSystemState.ts`         | Checks the global system state and attaches status flags to `event.locals`.                                | ✅           |
-| `handleSetup.ts`               | Redirects to the `/setup` page if the CMS is not yet installed.                                            | -            |
-| `handlePerfStart.ts`           | Starts a timer to measure request duration.                                                                | -            |
-| `handleStaticAssetCaching.ts`  | Sets cache headers for static files and ends the request early.                                          | -            |
-| `handleRateLimit.ts`           | (Conditional) Applies IP-based rate limiting to prevent abuse.                                           | -            |
-| `handleMultiTenancy.ts`        | (Conditional) Determines the current tenant from the request hostname.                                   | -            |
-| `handleSessionAuth.ts`         | Validates the session cookie and identifies the user.                                                    | ✅           |
-| `handleAuthorization.ts`       | Loads user roles and permissions, and protects routes.                                                   | ✅           |
-| `handleApiRequests.ts`         | Manages caching and permissions for all `/api` routes.                                                   | -            |
-| `handleTheme.ts`               | Loads the current theme from the database.                                                               | ✅           |
-| `handleLocale.ts`              | Reads language preferences from cookies.                                                                   | -            |
-| `addSecurityHeaders.ts`        | Adds important security headers like CSP and HSTS to the response.                                     | -            |
-| `handlePerfLog.ts`             | Calculates the total request time and logs it.                                                           | -            |
-
-This robust, state-aware middleware architecture ensures that your SveltyCMS application is stable, performant, and secure by default.
+This streamlined, sequential architecture ensures that your SveltyCMS application is stable, performant, and secure by default.

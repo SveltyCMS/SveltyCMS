@@ -310,7 +310,7 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 		if (success) {
 			// Test passed - user can proceed to next step
 			// Note: private.ts and database seeding happens when user clicks "Next" button
-			logger.info('✅ Connection test passed! User can proceed to next step.');
+			logger.info('✅ Connection test passed! User can proceed to next step');
 			message = 'Database connected successfully! ✨';
 		}
 

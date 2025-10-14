@@ -204,7 +204,7 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 
 		if (result && typeof result === 'object' && 'fields' in result) {
 			// Successfully processed - log only at debug level to reduce noise
-			logger.debug(`Processed collection: ${uuid}`);
+			logger.debug(`Processed collection: \x1b[33m${uuid}\x1b[0m`);
 			return { schema: { ...result, _id: uuid } as Schema };
 		}
 

@@ -12,7 +12,7 @@ const widgetFunctions: Record<string, WidgetFunction> = {};
 
 function processWidgetModule(
 	path: string,
-	module: WidgetModule,
+	module: WidgetModule
 ): {
 	name: string;
 	widgetFn: WidgetFunction;
@@ -38,12 +38,12 @@ function processWidgetModule(
 			GraphqlSchema: originalFn.GraphqlSchema,
 			Icon: originalFn.Icon,
 			Description: originalFn.Description,
-			aggregations: originalFn.aggregations,
+			aggregations: originalFn.aggregations
 		});
 
 		return {
 			name: name,
-			widgetFn,
+			widgetFn
 		};
 	} catch (error) {
 		logger.error(`Failed to process widget module ${path}:`, error);
@@ -79,8 +79,8 @@ export const widgetProxy = new Proxy(widgetFunctions, {
 		if (typeof prop === 'string' && prop in target) {
 			return target[prop];
 		}
-        // Return a dummy function to avoid breaking the app
-        // This will be caught by svelte-check
+		// Return a dummy function to avoid breaking the app
+		// This will be caught by svelte-check
 		return () => ({});
 	}
 });

@@ -58,6 +58,12 @@ declare global {
 			__systemReady?: boolean;
 			__authReady?: boolean;
 			__themeReady?: boolean;
+			// Setup hook caching
+			__setupConfigExists?: boolean;
+			__setupComplete?: boolean;
+			__setupLogged?: boolean;
+			__setupRedirectLogged?: boolean;
+			__setupLoginRedirectLogged?: boolean;
 		}
 	}
 

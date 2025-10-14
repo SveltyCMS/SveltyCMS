@@ -20,13 +20,38 @@ Features:
 - Loading states and error handling.
 -->
 
+<script lang="ts" module>
+	export interface CollectionTreeNode {
+		id: string;
+		name: string;
+		isExpanded: boolean;
+		onClick: () => void;
+		children?: CollectionTreeNode[];
+		icon?: string;
+		badge?: {
+			count?: number;
+			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
+			color?: string;
+			visible?: boolean;
+			icon?: string; // Warning icon for inactive widgets
+			title?: string; // Tooltip text
+		};
+		nodeType?: 'category' | 'collection' | 'virtual';
+		path?: string;
+		lastModified?: Date;
+		isLoading?: boolean;
+		hasError?: boolean;
+		depth?: number;
+		order?: number; // Add order property for sorting
+		parentId?: string;
+	}
+</script>
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
 	// Types
 	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
-	// If CollectionTreeNode is used elsewhere, import it as a type
-	// import type { CollectionTreeNode } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
 	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
@@ -57,31 +82,6 @@ Features:
 		status?: StatusType;
 		fields?: FieldInstance[]; // Add fields property for collection nodes (array of FieldInstance)
 		order?: number; // Override to make order optional for client-side operations
-	}
-
-	interface CollectionTreeNode {
-		id: string;
-		name: string;
-		isExpanded: boolean;
-		onClick: () => void;
-		children?: CollectionTreeNode[];
-		icon?: string;
-		badge?: {
-			count?: number;
-			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
-			color?: string;
-			visible?: boolean;
-			icon?: string; // Warning icon for inactive widgets
-			title?: string; // Tooltip text
-		};
-		nodeType?: 'category' | 'collection' | 'virtual';
-		path?: string;
-		lastModified?: Date;
-		isLoading?: boolean;
-		hasError?: boolean;
-		depth?: number;
-		order?: number; // Add order property for sorting
-		parentId?: string;
 	}
 
 	// ✅ ADD PROPS DEFINITION

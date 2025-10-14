@@ -506,7 +506,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					{m.form_required()}
 
 					<button onclick={handleBack} aria-label="Back" class="variant-outline-secondary btn-icon">
-						<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
+						<iconify-icon icon="ri:arrow-right-line" width="20" class=""></iconify-icon>
 					</button>
 				</div>
 

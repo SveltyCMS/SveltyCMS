@@ -141,6 +141,30 @@ export class MongoCollectionMethods {
 
 		this.models.set(collectionId, { model, wrapped: wrappedModel });
 		logger.info(`Collection model created: \x1b[33m${collectionId}\x1b[0m \x1b[34m(${modelName})\x1b[0m`);
+
+		// NOTE: Physical collection creation disabled
+		// Using generic system_content_structure table for all collections instead of per-collection tables
+		// This is more efficient and reduces database clutter
+		// MongoDB will create collections lazily on first insert if needed
+
+		// Create the physical collection in MongoDB if it doesn't exist
+		// MongoDB creates collections lazily on first insert, but we want them to exist immediately
+		/* DISABLED - Using system_content_structure instead
+		try {
+			const collectionExists = await this.collectionExists(modelName.toLowerCase());
+			if (!collectionExists) {
+				logger.debug(`Creating physical collection: \x1b[33m${modelName}\x1b[0m in database`);
+				await mongoose.connection.db?.createCollection(modelName.toLowerCase());
+				logger.info(`✅ Physical collection created: \x1b[33m${modelName}\x1b[0m`);
+			} else {
+				logger.debug(`Physical collection already exists: \x1b[33m${modelName}\x1b[0m`);
+			}
+		} catch (error) {
+			// Collection might already exist or database might not support it
+			// This is not critical - MongoDB will create it on first insert
+			logger.warn(`Could not create physical collection ${modelName}: ${error instanceof Error ? error.message : String(error)}`);
+		}
+		*/
 	}
 
 	/**

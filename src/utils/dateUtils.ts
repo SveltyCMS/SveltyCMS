@@ -103,6 +103,15 @@ export function nowISODateString(): ISODateString {
 }
 
 /**
+ * Convert ISODateString back to Date object
+ * @param isoDate The ISODateString to convert
+ * @returns A Date object
+ */
+export function isoDateStringToDate(isoDate: ISODateString): Date {
+	return new Date(isoDate);
+}
+
+/**
  * Format date for display with proper locale and timezone handling
  * @param dateInput - Date, timestamp or ISO string
  * @param locale - Locale to format for (default: system language)

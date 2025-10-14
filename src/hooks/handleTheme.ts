@@ -1,99 +1,37 @@
 /**
  * @file src/hooks/handleTheme.ts
- * @description Handles theme management and persistence using cookies
+ * @description Handles server-side theme rendering to prevent theme flickering.
  *
- * Features:
- * - Server-side theme initialization from cookies
- * - Dark/light mode persistence
- * - Prevents flash of unstyled content (FOUC)
- * - Fallback to system preference
- * - Cookie-based theme storage
+ * ### Features
+ * - Reads a single 'theme' cookie to determine the user's preference.
+ * - Injects the 'dark' class into the initial HTML for correct Server-Side Rendering (SSR).
+ * - Sets `event.locals.theme` for use in other server `load` functions.
  */
 
-import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
-import type { Handle } from '@sveltejs/kit';
-
-// System Logger
-import { logger } from '@utils/logger.svelte';
+import type { Handle } from '@sveltekit/kit';
 
 export const handleTheme: Handle = async ({ event, resolve }) => {
-	const { cookies } = event;
+	// 1. Read the single 'theme' cookie as the source of truth ('dark' or 'light').
+	const theme = event.cookies.get('theme') as 'dark' | 'light' | undefined;
 
-	try {
-		// Get theme preference from cookie
-		const themePreference = cookies.get('theme');
-		const darkModePreference = cookies.get('darkMode');
+	// 2. Determine the dark mode state. Default to false (light mode) if no cookie is set.
+	const isDarkMode = theme === 'dark';
 
-		// Initialize ThemeManager if available
-		let theme = DEFAULT_THEME;
+	// 3. Set `locals` for use in your `load` functions.
+	// `event.locals.theme` can be used to pass the theme state to the page.
+	event.locals.theme = theme || 'light';
 
-		// Use centralized state check
-		if (!event.locals.__skipSystemHooks) {
-			try {
-				const themeManager = ThemeManager.getInstance();
-				if (themeManager.isInitialized()) {
-					theme = await themeManager.getTheme(event.locals.tenantId);
-				} else {
-					// ThemeManager not initialized, but not in setup.
-					// This can happen during the first request after setup completes and the server restarts.
-					// Silently use the default theme; the manager will be ready on the next navigation.
-					logger.trace('ThemeManager not ready, using default theme. This is normal after initial setup.');
-				}
-			} catch (error) {
-				logger.warn('Failed to get theme from ThemeManager, using default theme:', error);
+	// 4. Transform the HTML response to prevent flickering.
+	// This function intercepts the final HTML and injects the 'dark' class if needed
+	// BEFORE the browser ever sees the page.
+	return resolve(event, {
+		transformPageChunk: ({ html }) => {
+			if (isDarkMode) {
+				// The initial HTML from app.html might look like: <html lang="en" dir="ltr">
+				// We replace it to inject the dark class.
+				return html.replace('<html lang="en" dir="ltr">', '<html lang="en" dir="ltr" class="dark">');
 			}
+			return html;
 		}
-
-		// Set theme in locals
-		event.locals.theme = theme;
-
-		// Determine dark mode preference
-		let isDarkMode = false;
-
-		if (darkModePreference !== undefined) {
-			// Use saved preference if available
-			isDarkMode = darkModePreference === 'true';
-		} else if (themePreference !== undefined) {
-			// Use saved theme preference if available
-			isDarkMode = themePreference === 'dark';
-		} else {
-			// No saved preference, try to detect device preference from Accept header or other hints
-			// This is a fallback for server-side rendering, but client-side detection is more reliable
-			isDarkMode = false; // Default to light mode for server-side, client will correct it
-		}
-
-		// Set dark mode preference in locals for client-side use
-		event.locals.darkMode = isDarkMode;
-
-		// If we have a theme preference cookie, set it in the response
-		if (themePreference) {
-			// The theme preference is already set in locals,
-			// but we ensure the cookie is set for future requests
-			cookies.set('theme', themePreference, {
-				path: '/',
-				httpOnly: false, // Allow client-side access
-				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
-				maxAge: 60 * 60 * 24 * 365 // 1 year
-			});
-		}
-
-		// If we have a dark mode preference cookie, set it in the response
-		if (darkModePreference) {
-			cookies.set('darkMode', darkModePreference, {
-				path: '/',
-				httpOnly: false, // Allow client-side access
-				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
-				maxAge: 60 * 60 * 24 * 365 // 1 year
-			});
-		}
-	} catch (error) {
-		logger.error('Error in theme handler:', error);
-		// Set fallback theme
-		event.locals.theme = DEFAULT_THEME;
-		event.locals.darkMode = false;
-	}
-
-	return resolve(event);
+	});
 };

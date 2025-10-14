@@ -25,7 +25,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getHealthCheckReport } from '@src/stores/systemState';
+import { getHealthCheckReport } from '@src/stores/system';
 
 export const GET: RequestHandler = async () => {
 	try {

@@ -9,18 +9,17 @@
 - Integration with setupStore for persistence
 - Database-agnostic integration with IDBAdapter and authDBInterface
 @note Code is organized into numbered sections for clarity:
-      1. Imports
-      2. State Management
-      3. Type Definitions
-      4. Local UI State
-      5. Lifecycle Hooks
-      6. Derived State
-      7. Core Logic & API Calls
-      8. UI Handlers
-      9. Lazy Component State & Error Handling
+      
+      1. State Management
+      2. Type Definitions
+      3. Local UI State
+      4. Lifecycle Hooks
+      5. Derived State
+      6. Core Logic & API Calls
+      7. UI Handlers
+      8. Lazy Component State & Error Handling
 -->
 <script lang="ts">
-	// --- 1. IMPORTS ---
 	import { onDestroy, onMount } from 'svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
@@ -30,6 +29,7 @@
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	import WelcomeModal from './WelcomeModal.svelte';
+	import VersionCheck from '@components/VersionCheck.svelte';
 
 	// Skeleton
 	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
@@ -45,6 +45,8 @@
 	import { setGlobalToastStore, showToast } from '@utils/toast';
 	// Valiation
 	import { safeParse } from 'valibot';
+	// Import default configuration from single source of truth
+	import { DEFAULT_SYSTEM_LANGUAGES } from '@src/routes/api/setup/seed';
 
 	// --- 1. STATE MANAGEMENT ---
 	const { wizard, load: loadStore, clear: clearStore, setupPersistence } = setupStore;
@@ -91,13 +93,6 @@
 	let isLangOpen = $state(false);
 	let langSearch = $state('');
 
-	let { data } = $props();
-	let pkg = data.settings.PKG_VERSION || '0.0.0';
-	let githubVersion = $state('');
-	let pkgBgColor = $state('bg-gray-500 text-white'); // Default color
-	let versionStatusMessage = $state('Checking for updates...');
-	let statusIcon = $state('mdi:loading');
-
 	// --- DARK MODE AUTO-DETECT ---
 	let prefersDark = false;
 	if (typeof window !== 'undefined') {
@@ -124,37 +119,7 @@
 	// Initialize modal store at module level (after component registry)
 	const modalStore = getModalStore();
 
-	onMount(async () => {
-		try {
-			const response = await fetch('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest');
-			if (!response.ok) {
-				throw new Error(`GitHub API request failed with status ${response.status}`);
-			}
-			const release = await response.json();
-			githubVersion = release.tag_name.replace(/^v/, ''); // remove leading 'v'
-
-			const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
-			const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
-
-			if (githubMajor > localMajor) {
-				pkgBgColor = 'bg-red-500 text-white';
-				versionStatusMessage = `Major update available: v${githubVersion}`;
-				statusIcon = 'mdi:alert-circle';
-			} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
-				pkgBgColor = 'bg-yellow-500 text-black';
-				versionStatusMessage = `We recommend updating to latest: v${githubVersion}`;
-				statusIcon = 'mdi:information';
-			} else {
-				pkgBgColor = 'bg-green-500 text-white';
-				versionStatusMessage = 'You are up to date';
-				statusIcon = 'mdi:check-circle';
-			}
-		} catch (error) {
-			console.error('Error fetching GitHub release info:', error);
-			githubVersion = pkg;
-			versionStatusMessage = 'Could not check for updates';
-			statusIcon = 'mdi:close-circle';
-		}
+	onMount(() => {
 		setGlobalToastStore(getToastStore());
 
 		console.log('onMount - modalStore:', modalStore);
@@ -267,44 +232,30 @@
 		return false;
 	});
 
-	const availableLanguages = $derived.by<string[]>(() => {
-		// During setup, use the FULL ISO 639-1 language list (100+ languages)
-		// This allows users to choose ANY language during initial setup
-		// After setup, the app will use the configured LOCALES from database
-
+	// System languages: ONLY from project.inlang/settings.json locales
+	const systemLanguages = $derived.by<string[]>(() => {
 		const raw = publicEnv.LOCALES;
-
-		// During setup mode, show ALL available languages from ISO 639-1
-		// This gives users the full choice of languages to configure
-		if (raw === undefined || raw === null) {
-			const allLanguages = iso6391.map((lang) => lang.code);
-			return allLanguages.sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
-		}
-
-		// After setup is complete, use the configured locales from database
 		let normalized: string[] = [];
+
 		if (typeof raw === 'string' && (raw as string).trim()) {
 			normalized = (raw as string).split(/[ ,;]+/).filter(Boolean);
 		} else if (Array.isArray(raw) && raw.length > 0) {
 			normalized = raw.filter((item): item is string => typeof item === 'string');
 		}
 
-		// If we only have limited locales, fall back to full ISO 639-1 list for setup
-		if (normalized.length <= 1) {
-			const allLanguages = iso6391.map((lang) => lang.code);
-			return allLanguages.sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+		// Use DEFAULT_SYSTEM_LANGUAGES from seed.ts as single source of truth
+		if (normalized.length === 0) {
+			return [...DEFAULT_SYSTEM_LANGUAGES];
 		}
 
 		return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 	});
 
-	const filteredLanguages = $derived<string[]>(
-		availableLanguages.filter(
-			(l: string) =>
-				getLanguageName(l, systemLanguage.value).toLowerCase().includes(langSearch.toLowerCase()) ||
-				getLanguageName(l, 'en').toLowerCase().includes(langSearch.toLowerCase())
-		)
-	);
+	// Content languages: ALL ISO 639-1 languages for maximum flexibility
+	const availableLanguages = $derived.by<string[]>(() => {
+		const allLanguages = iso6391.map((lang) => lang.code);
+		return allLanguages.sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+	});
 
 	// Legend data (used in vertical stepper legend)
 	const legendItems = [
@@ -729,7 +680,7 @@
 						<div class="text-xs font-medium uppercase tracking-wider text-surface-500">{m.setup_heading_badge()}</div>
 					</div>
 					<div class="language-selector relative">
-						{#if availableLanguages.length > 5}
+						{#if systemLanguages.length > 5}
 							<button onclick={toggleLang} class="variant-ghost btn rounded px-2 py-1">
 								<span class="hidden sm:inline">{getLanguageName(systemLanguage.value)}</span>
 								<span class="font-mono text-xs font-bold">{systemLanguage.value.toUpperCase()}</span>
@@ -748,7 +699,7 @@
 								>
 									<input bind:value={langSearch} placeholder={m.setup_search_placeholder()} class="input-sm input mb-2 w-full" />
 									<div class="max-h-56 overflow-y-auto">
-										{#each filteredLanguages as lang}
+										{#each systemLanguages.filter((l) => getLanguageName(l).toLowerCase().includes(langSearch.toLowerCase())) as lang}
 											<button
 												onclick={() => selectLanguage(lang)}
 												class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 {systemLanguage.value ===
@@ -773,7 +724,7 @@
 							{/if}
 						{:else}
 							<select bind:value={systemLanguage.value} class="input" onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}>
-								{#each availableLanguages as lang}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
+								{#each systemLanguages as lang}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
 							</select>
 						{/if}
 					</div>
@@ -783,17 +734,9 @@
 				<p class="w-full text-center text-sm sm:text-base">{m.setup_heading_subtitle()}</p>
 			</div>
 		</div>
-
+		<!-- Version Check  -->
 		<div class="mb-4 flex justify-center">
-			<a
-				href="https://github.com/SveltyCMS/SveltyCMS/releases"
-				target="_blank"
-				rel="noopener noreferrer"
-				class={`badge rounded-full text-xs font-medium transition-colors ${pkgBgColor} hover:opacity-80`}
-			>
-				<iconify-icon icon={statusIcon} class="mr-1"></iconify-icon>
-				<span>Version {pkg} &mdash; {versionStatusMessage}</span>
-			</a>
+			<VersionCheck />
 		</div>
 
 		<!-- Main Content with Left Side Steps -->
@@ -979,7 +922,7 @@
 								{toggleConfirmPassword}
 								{checkPasswordRequirements}
 								systemSettings={wizard.systemSettings}
-								{availableLanguages}
+								availableLanguages={systemLanguages}
 								{completeSetup}
 							/>
 						{:else}

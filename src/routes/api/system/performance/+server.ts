@@ -11,7 +11,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getPerformanceSummary, identifyBottlenecks, getRecommendedTimeouts, detectAnomalies, getSystemState } from '$stores/systemState';
+import { getPerformanceSummary, identifyBottlenecks, getRecommendedTimeouts, detectAnomalies, getSystemState } from '@src/stores/system';
 
 /**
  * GET /api/system/performance

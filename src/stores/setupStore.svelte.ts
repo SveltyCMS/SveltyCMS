@@ -3,6 +3,8 @@
  * @description Centralized rune-based store for the setup wizard state.
  */
 
+import { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_CONTENT_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGE } from '@src/routes/api/setup/seed';
+
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
 
@@ -38,10 +40,10 @@ const initialAdminUser: AdminUser = { username: '', email: '', password: '', con
 const initialSystemSettings: SystemSettings = {
 	siteName: 'SveltyCMS',
 	hostProd: 'https://localhost:5173',
-	defaultSystemLanguage: 'en',
-	systemLanguages: ['en', 'de'], // Match seed.ts default LOCALES
-	defaultContentLanguage: 'en',
-	contentLanguages: ['en', 'de'],
+	defaultSystemLanguage: DEFAULT_BASE_LOCALE,
+	systemLanguages: [...DEFAULT_SYSTEM_LANGUAGES],
+	defaultContentLanguage: DEFAULT_CONTENT_LANGUAGE,
+	contentLanguages: [...DEFAULT_CONTENT_LANGUAGES],
 	mediaStorageType: 'local',
 	mediaFolder: './mediaFolder',
 	timezone: 'UTC'

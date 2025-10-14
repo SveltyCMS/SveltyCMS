@@ -2,73 +2,52 @@
  * @file src/hooks.server.ts
  * @description Optimized server-side hooks for SvelteKit CMS application
  *
- * This file handles:
- * - Modular middleware architecture for performance
- * - Conditional loading based on environment settings
- * - Multi-tenant support (configurable)
- * - Redis caching (configurable)
- * - Static asset optimization
- * - Rate limiting
- * - Session authentication and management
- * - Authorization and role management
- * - API request handling with caching
- * - Locale management
- * - Security headers
- * - Performance monitoring
- * - Integration with production-grade configuration system
+ * This file orchestrates a sequence of modular middleware to handle all incoming
+ * server requests. The sequence is ordered to ensure security, efficiency, and
+ * correctness according to a well-defined state machine.
+ *
+ * Middleware Sequence:
+ * 1. Performance monitoring (start)
+ * 2. System state validation (gatekeeper)
+ * 3. Setup mode detection (gatekeeper)
+ * 4. Static asset optimization (early exit)
+ * 5. Rate limiting (security)
+ * 6. Authentication & Multi-tenancy (identification)
+ * 7. Authorization (security)
+ * 8. API request handling (logic)
+ * 9. Internationalization (i18n)
+ * 10. Language preferences (UI)
+ * 11. Theme management (UI)
+ * 12. Security headers (security)
+ * 13. Performance monitoring (end)
  */
 
 import { building } from '$app/environment';
 import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-
-// Cache
-import { sessionCache, sessionMetrics } from '@src/hooks/utils/session';
-
-// System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Import middleware modules
-import { addSecurityHeaders } from './hooks/addSecurityHeaders';
-import { handleApiRequests } from './hooks/handleApiRequests';
-import { handleAuthorization } from './hooks/handleAuthorization';
-import { handleLocale } from './hooks/handleLocale';
-import { handleMultiTenancy } from './hooks/handleMultiTenancy';
-import { handleRateLimit } from './hooks/handleRateLimit';
-import { handleSessionAuth } from './hooks/handleSessionAuth';
+// --- Import all modular middleware hooks (in execution order) ---
+import { handleSystemState } from './hooks/handleSystemState';
 import { handleSetup } from './hooks/handleSetup';
 import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
-import { handleSystemState } from './hooks/handleSystemState';
+import { handleRateLimit } from './hooks/handleRateLimit';
+import { handleAuthentication } from './hooks/handleAuthentication';
+import { handleAuthorization } from './hooks/handleAuthorization';
+import { handleApiRequests } from './hooks/handleApiRequests';
+import { handleLocale } from './hooks/handleLocale';
 import { handleTheme } from './hooks/handleTheme';
+import { addSecurityHeaders } from './hooks/addSecurityHeaders';
 
-// Cache TTLs (centralized)
-import { SESSION_CACHE_TTL_MS as CACHE_TTL_MS } from '@src/databases/CacheService';
-const SESSION_TTL = CACHE_TTL_MS; // for metrics cleanup
+// --- Cache Management (for external utilities) ---
+import { invalidateSessionCache, clearAllSessionCaches } from './hooks/handleAuthentication';
+import { SESSION_CACHE_TTL_MS } from '@src/databases/CacheService';
 
-// Health metrics for monitoring
-const healthMetrics = {
-	requests: { total: 0, errors: 0 },
-	auth: { validations: 0, failures: 0 },
-	cache: { hits: 0, misses: 0 },
-	sessions: { active: 0, rotations: 0 },
-	lastReset: Date.now()
-};
+// --- Performance Monitoring Utilities ---
 
-// Reset metrics every hour to prevent memory growth
-setInterval(
-	() => {
-		Object.assign(healthMetrics, {
-			requests: { total: 0, errors: 0 },
-			auth: { validations: 0, failures: 0 },
-			cache: { hits: 0, misses: 0 },
-			sessions: { active: sessionCache.size, rotations: 0 },
-			lastReset: Date.now()
-		});
-	},
-	60 * 60 * 1000
-);
-
-// Performance monitoring utilities
+/**
+ * Returns an emoji representing request performance based on response time.
+ */
 const getPerformanceEmoji = (responseTime: number): string => {
 	if (responseTime < 75) return '🚀';
 	if (responseTime < 250) return '⚡';
@@ -77,130 +56,159 @@ const getPerformanceEmoji = (responseTime: number): string => {
 	return '🐢';
 };
 
-// Perf start hook (logs incoming request and marks start time)
+/**
+ * Middleware to mark the start time of a request for performance tracking.
+ */
 const handlePerfStart: Handle = async ({ event, resolve }) => {
 	event.locals.__reqStart = performance.now();
 
-	// Log incoming request (before processing)
-	const isSetupRelated = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
-	if (!isSetupRelated || event.url.pathname.startsWith('/api/setup')) {
-		logger.debug(`→ Request \x1b[34m${event.request.method} ${event.url.pathname}${event.url.search}\x1b[0m`);
+	// Log incoming request (useful for debugging)
+	const isSetupRoute = event.url.pathname.startsWith('/setup') || event.url.pathname.startsWith('/api/setup');
+
+	if (!isSetupRoute || event.url.pathname.startsWith('/api/setup')) {
+		logger.debug(`\x1b[32m→\x1b[0m Request \x1b[34m${event.request.method} ${event.url.pathname}${event.url.search}\x1b[0m`);
 	}
 
 	return resolve(event);
 };
 
-// Perf end hook (logs duration)
+/**
+ * Middleware to log request completion time and performance metrics.
+ */
 const handlePerfLog: Handle = async ({ event, resolve }) => {
-	const res = await resolve(event);
+	const response = await resolve(event);
 	const start = event.locals.__reqStart;
+
 	if (typeof start === 'number') {
-		const dt = performance.now() - start;
-		const emoji = getPerformanceEmoji(dt);
-		// Only log completion for slow requests or errors
-		const shouldLog = dt > 100 || res.status >= 400;
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+
+		// Only log slow requests or errors to reduce noise
+		const shouldLog = duration > 100 || response.status >= 400;
+
 		if (shouldLog) {
-			// Log completion with duration
-			logger.debug(`← Completed \x1b[34m${event.url.pathname}\x1b[0m in \x1b[32m${dt.toFixed(1)}ms\x1b[0m ${emoji}`);
+			logger.debug(
+				`\x1b[31m←\x1b[0m Completed \x1b[34m${event.url.pathname}\x1b[0m in \x1b[32m${duration.toFixed(1)}ms\x1b[0m ${emoji} (${response.status})`
+			);
 		}
 	}
-	return res;
+
+	return response;
 };
 
-// Configuration initialization hook
-const handleConfigInit: Handle = async ({ event, resolve }) => {
-	// This hook is now a placeholder.
-	// Global settings are loaded in db.ts and accessed via stores.
-	return resolve(event);
+// --- Health Metrics (for monitoring) ---
+
+const healthMetrics = {
+	requests: { total: 0, errors: 0 },
+	auth: { validations: 0, failures: 0 },
+	cache: { hits: 0, misses: 0 },
+	lastReset: Date.now()
 };
 
-// Build the middleware sequence based on configuration
-const buildMiddlewareSequence = (): Handle[] => {
-	const middleware: Handle[] = [];
+// Reset metrics every hour to prevent memory growth
+if (!building) {
+	setInterval(
+		() => {
+			healthMetrics.requests = { total: 0, errors: 0 };
+			healthMetrics.auth = { validations: 0, failures: 0 };
+			healthMetrics.cache = { hits: 0, misses: 0 };
+			healthMetrics.lastReset = Date.now();
+			logger.trace('Health metrics reset');
+		},
+		60 * 60 * 1000
+	);
+}
 
-	// 0. Configuration initialization
-	middleware.push(handleConfigInit);
-	// 1. Perf start marker
-	middleware.push(handlePerfStart);
-	// 2. System state check
-	middleware.push(handleSystemState);
-	// 3. Setup gate
-	middleware.push(handleSetup);
-	// 3. Static asset caching
-	middleware.push(handleStaticAssetCaching);
-	// 4. Rate limiting
-	middleware.push(handleRateLimit);
-	// 5. Multi-tenancy (sets locals.tenantId)
-	middleware.push(handleMultiTenancy);
-	// 6. Session auth / rotation
-	middleware.push(handleSessionAuth);
-	// 7. Authorization & admin data
-	middleware.push(handleAuthorization);
-	// 8. API request handling & caching
-	middleware.push(handleApiRequests);
-	// 9. Theme management
-	middleware.push(handleTheme);
-	// 10. Locale management
-	middleware.push(handleLocale);
-	// 11. Security headers
-	middleware.push(addSecurityHeaders);
-	// 12. Perf logging (after all other mutations)
-	middleware.push(handlePerfLog);
+// --- Middleware Sequence ---
 
-	return middleware;
-};
+/**
+ * The order of these hooks is critical for security and performance.
+ * Each hook has a specific responsibility in the request lifecycle.
+ */
+const middleware: Handle[] = [
+	// 1. Performance monitoring start (tracks request timing)
+	handlePerfStart,
 
-// Export the main handle function
-export const handle: Handle = sequence(...buildMiddlewareSequence());
+	// 2. System state validation (blocks requests if system is FAILED or INITIALIZING)
+	handleSystemState,
 
-// Export utility functions for external use
+	// 3. Setup mode gatekeeper (redirects to /setup if installation incomplete)
+	handleSetup,
+
+	// 4. Static asset optimization (early exit with caching headers)
+	handleStaticAssetCaching,
+
+	// 5. Rate limiting (prevents abuse and DoS attacks)
+	handleRateLimit,
+
+	// 6. Authentication & Multi-tenancy (validates session, identifies tenant/user)
+	handleAuthentication,
+
+	// 7. Authorization (checks permissions for protected routes)
+	handleAuthorization,
+
+	// 8. API request handling (API-specific logic and caching)
+	handleApiRequests,
+
+	// 9. Internationalization (Paraglide i18n - must run before language cookies)
+	//i18n.handle(),
+
+	// 10. Language preferences (syncs secondary language stores from cookies)
+	handleLocale,
+
+	// 11. Theme management (injects theme class for SSR)
+	handleTheme,
+
+	// 12. Security headers (adds CSP, HSTS, and other security headers)
+	addSecurityHeaders,
+
+	// 13. Performance monitoring end (logs completion time)
+	handlePerfLog
+];
+
+// --- Main Handle Export ---
+
+/**
+ * The main handle function orchestrates all middleware in sequence.
+ * Each middleware hook processes the request in order and can:
+ * - Modify event.locals
+ * - Throw errors or redirects
+ * - Return early with a response
+ * - Call resolve() to continue to the next hook
+ */
+export const handle: Handle = sequence(...middleware);
+
+// --- Utility Functions for External Use ---
+
+/**
+ * Returns a snapshot of current health metrics.
+ */
 export const getHealthMetrics = () => ({ ...healthMetrics });
 
-// Cache invalidation helpers (now integrated with config service)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const invalidateAdminCache = (_cacheKey?: 'roles' | 'users' | 'tokens', _tenantId?: string): void => {
-	// This is now handled in the handleAuthorization hook
-	// Keeping for backward compatibility
-};
+/**
+ * Invalidates a specific user's session from all cache layers.
+ * Useful when logging out a user or revoking their session.
+ */
+export { invalidateSessionCache, clearAllSessionCaches } from './hooks/handleAuthentication';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const invalidateUserCountCache = (_tenantId?: string): void => {
-	// This is now handled in the handleAuthorization hook
-	// Keeping for backward compatibility
-};
+// --- Server Startup Logic ---
 
-export const cleanupSessionMetrics = (): void => {
-	const now = Date.now();
-	const expiredSessions: string[] = [];
-
-	for (const [sessionId, session] of sessionCache.entries()) {
-		const lastActivity = sessionMetrics.lastActivity.get(sessionId) || session.timestamp;
-		if (now - lastActivity > SESSION_TTL) {
-			expiredSessions.push(sessionId);
-		}
-	}
-
-	for (const sessionId of expiredSessions) {
-		sessionCache.delete(sessionId);
-	}
-
-	if (expiredSessions.length > 0) {
-		logger.trace(`Cleaned up ${expiredSessions.length} expired sessions`);
-	}
-};
-
-// Load settings from database at server startup
 if (!building) {
-	// The main initialization logic, including settings, is now in `src/databases/db.ts`.
-	// This ensures settings are loaded before any hooks run.
-	// We can import `dbInitPromise` to ensure the database is ready if needed.
+	/**
+	 * The main initialization logic (settings, DB connection) is handled
+	 * in `src/databases/db.ts` to ensure it runs once on server start.
+	 *
+	 * The system will transition through these states:
+	 * IDLE -> INITIALIZING -> READY (or DEGRADED/FAILED)
+	 *
+	 * The handleSystemState hook will block requests appropriately
+	 * based on the current state.
+	 */
 	import('@src/databases/db')
 		.then(() => {
-			// We don't call initializeOnRequest() here anymore.
-			// It will be called by the `handleSetup` hook on the first real request.
-			logger.info('✅ DB module loaded. Initialization will occur on first non-setup request.');
+			logger.info('✅ DB module loaded. System will initialize on first request via handleSystemState.');
 		})
 		.catch((error) => {
-			logger.error('Failed to load db module for initialization:', error);
+			logger.error('Fatal: Failed to load DB module during server startup:', error);
 		});
 }

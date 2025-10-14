@@ -1,11 +1,5 @@
 /**
- * @file src/routes/api/user		if (!auth) {
-			logger.error('Authentication service not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
-
-		// Prevent an already authenticated user from trying to log in again.
-		if (existingUser) {er.ts
+ * @file src/routes/api/user
  * @description API endpoint for user login.
  *
  * This endpoint handles user authentication by:

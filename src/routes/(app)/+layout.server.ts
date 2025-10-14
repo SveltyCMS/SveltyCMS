@@ -1,15 +1,14 @@
 /**
  * @file src/routes/(app)/+layout.server.ts
- * @description
- * This file is the server-side logic for the all collection data
- *
- * ### Props
- * - `theme` {string} - The theme of the website
- * - `contentStructure` {object} - The structure of the content
- * - `nestedContentStructure` {object} - The nested structure of the content
+ * @description Optimized server-side logic for the main application layout.
  *
  * ### Features
- * - Fetches and returns the content structure for the website
+ * - Fetches data required by all pages within the (app) group.
+ * - Caches the main content structure (`contentManager.getNavigationStructure()`) to improve performance and reduce database load on every navigation.
+ * - Provides a cache invalidation function to be called when content structure changes.
+ * - Relies on session data for the user object, avoiding redundant database queries.
+ * - Ensures all data returned to the client is properly serialized.
+ * - Conditionally fetches data (like virtual folders) only when on specific routes.
  */
 
 import { contentManager } from '@src/content/ContentManager';

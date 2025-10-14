@@ -198,10 +198,10 @@ export class MongoSystemMethods {
 
 			if (scope === 'system') {
 				// Single query with $in operator for all keys at once
-				logger.trace(`Querying for \x1b[34m${keys.length}\x1b[0m keys: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}`);
+				logger.trace(`Querying for \x1b[34m${keys.length}\x1b[0m keys: \x1b[33m${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '...' : ''}\x1b[0m`);
 				const settings = await this.SystemSettingModel.find({ key: { $in: keys } }).lean();
 				logger.trace(`Found \x1b[34m${settings.length}\x1b[0m settings`);
-				if (settings.length > 0 && logger.level === 'trace') {
+				if (settings.length > 0) {
 					logger.trace(
 						`Sample: ${settings
 							.slice(0, 3)

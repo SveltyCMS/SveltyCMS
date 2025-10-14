@@ -26,11 +26,12 @@
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';
-	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	// Import components and utilities
+	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -142,30 +143,6 @@
 		}
 	}
 
-	// GitHub version and theme toggle
-	//  Use server-provided PKG_VERSION (single source of truth from package.json)
-	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
-	let githubVersion = $state('');
-
-	axios
-		.get('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest')
-		.then((response) => {
-			githubVersion = response.data.tag_name.slice(1);
-			const [localMajor, localMinor] = pkg.split('.').map(Number);
-			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
-
-			if (githubMinor > localMinor) {
-				$pkgBgColor = 'variant-filled-warning';
-			} else if (githubMajor !== localMajor) {
-				$pkgBgColor = 'variant-filled-error';
-			}
-		})
-		.catch((error) => {
-			console.error('Error von Github Release found:', error);
-			githubVersion = pkg;
-			$pkgBgColor = 'variant-filled-tertiary';
-		});
-
 	// Navigation handlers - simplified and more direct
 	function handleUserClick() {
 		if (page.url.pathname !== '/user') {
@@ -245,7 +222,7 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections />
+	<Collections systemVirtualFolders={page.data?.contentStructure} />
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto">
@@ -441,15 +418,7 @@
 
 			<!-- CMS Version -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
-				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
-					<span
-						class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if uiStateManager.uiState.value.leftSidebar === 'full'}
-							{m.applayout_version()}
-						{/if}
-						{pkg}
-					</span>
-				</a>
+				<VersionCheck compact={uiStateManager.uiState.value.leftSidebar === 'collapsed'} />
 			</div>
 		</div>
 	</div>
