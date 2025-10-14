@@ -3,8 +3,6 @@
  * @description Svelte 5 rune-based store for setup wizard with reactive state management
  */
 
-import { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_CONTENT_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGE } from '@src/routes/api/setup/constants';
-
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
 
@@ -44,10 +42,10 @@ const initialAdminUser: AdminUser = { username: '', email: '', password: '', con
 const initialSystemSettings: SystemSettings = {
 	siteName: 'SveltyCMS',
 	hostProd: 'https://localhost:5173',
-	defaultSystemLanguage: DEFAULT_BASE_LOCALE,
-	systemLanguages: [...DEFAULT_SYSTEM_LANGUAGES],
-	defaultContentLanguage: DEFAULT_CONTENT_LANGUAGE,
-	contentLanguages: [...DEFAULT_CONTENT_LANGUAGES],
+	defaultSystemLanguage: 'en',
+	systemLanguages: ['en', 'de'], // Will be populated from DB after seeding (reads from settings.json)
+	defaultContentLanguage: 'en',
+	contentLanguages: ['en', 'de'], // Will be populated from DB after seeding (reads from settings.json)
 	mediaStorageType: 'local',
 	mediaFolder: './mediaFolder',
 	timezone: 'UTC'

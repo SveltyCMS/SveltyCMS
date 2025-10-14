@@ -113,7 +113,9 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage) {
+		// Set cookie via store (bridge to ParaglideJS)
 		systemLanguage.set(lang as any);
+		// Update local state immediately
 		_languageTag = lang as any;
 		isDropdownOpen = false;
 		searchQuery = '';

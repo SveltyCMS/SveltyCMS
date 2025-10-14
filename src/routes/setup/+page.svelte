@@ -9,7 +9,6 @@
 - Integration with setupStore for persistence
 - Database-agnostic integration with IDBAdapter and authDBInterface
 @note Code is organized into numbered sections for clarity:
-      
       1. State Management
       2. Type Definitions
       3. Local UI State
@@ -37,6 +36,7 @@
 	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { getLocale } from '@src/paraglide/runtime';
 	// Utils
 	import { setupAdminSchema } from '@utils/formSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
@@ -44,8 +44,11 @@
 	import { setGlobalToastStore, showToast } from '@utils/toast';
 	// Valiation
 	import { safeParse } from 'valibot';
-	// Import default configuration from single source of truth
-	import { DEFAULT_SYSTEM_LANGUAGES } from '@src/routes/api/setup/constants';
+	// Types
+	import type { PageData } from './$types';
+
+	// --- 0. PAGE DATA ---
+	let { data }: { data: PageData } = $props();
 
 	// --- 1. STATE MANAGEMENT ---
 	const { wizard, load: loadStore, clear: clearStore, setupPersistence } = setupStore;
@@ -91,6 +94,9 @@
 	// Language dropdown UI state
 	let isLangOpen = $state(false);
 	let langSearch = $state('');
+
+	// ParaglideJS current language (reactive)
+	let currentLanguageTag = $state(getLocale());
 
 	// --- DARK MODE AUTO-DETECT ---
 	let prefersDark = false;
@@ -238,8 +244,15 @@
 		return false;
 	});
 
-	// System languages: ONLY from project.inlang/settings.json locales
+	// System languages: From server-side load (reads project.inlang/settings.json)
+	// During setup, publicEnv.LOCALES is empty, so we use data.availableLanguages
 	const systemLanguages = $derived.by<string[]>(() => {
+		// First try data from server (direct from settings.json)
+		if (data.availableLanguages && data.availableLanguages.length > 0) {
+			return [...new Set(data.availableLanguages)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+		}
+
+		// Fallback to publicEnv.LOCALES (after setup is complete)
 		const raw = publicEnv.LOCALES;
 		let normalized: string[] = [];
 
@@ -249,12 +262,12 @@
 			normalized = raw.filter((item): item is string => typeof item === 'string');
 		}
 
-		// Use DEFAULT_SYSTEM_LANGUAGES from seed.ts as single source of truth
-		if (normalized.length === 0) {
-			return [...DEFAULT_SYSTEM_LANGUAGES];
+		if (normalized.length > 0) {
+			return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 		}
 
-		return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+		// Final fallback
+		return ['en', 'de'];
 	});
 
 	// Legend data (used in vertical stepper legend)
@@ -523,22 +536,11 @@
 		}
 	}
 
-	function skipEmailStep() {
-		// Mark email as skipped
-		wizard.emailSettings.smtpConfigured = false;
-		wizard.emailSettings.skipWelcomeEmail = true;
-
-		// Move to next step
-		if (wizard.currentStep < totalSteps - 1) {
-			wizard.currentStep++;
-			if (wizard.currentStep > wizard.highestStepReached) {
-				wizard.highestStepReached = wizard.currentStep;
-			}
-		}
-	}
-
 	function selectLanguage(lang: string) {
+		// Set the cookie that ParaglideJS reads (via systemLanguage store)
 		systemLanguage.set(lang as typeof systemLanguage.value);
+		// Update local state immediately from ParaglideJS
+		currentLanguageTag = lang as typeof currentLanguageTag;
 		isLangOpen = false;
 		langSearch = '';
 	}
@@ -704,8 +706,8 @@
 					<div class="language-selector relative">
 						{#if systemLanguages.length > 5}
 							<button onclick={toggleLang} class="variant-ghost btn rounded px-2 py-1">
-								<span class="hidden sm:inline">{getLanguageName(systemLanguage.value)}</span>
-								<span class="font-mono text-xs font-bold">{systemLanguage.value.toUpperCase()}</span>
+								<span class="hidden sm:inline">{getLanguageName(currentLanguageTag)}</span>
+								<span class="font-mono text-xs font-bold">{currentLanguageTag.toUpperCase()}</span>
 								<svg
 									class="ml-1 h-3.5 w-3.5 transition-transform {isLangOpen ? 'rotate-180' : ''}"
 									fill="none"
@@ -724,13 +726,13 @@
 										{#each systemLanguages.filter((l) => getLanguageName(l).toLowerCase().includes(langSearch.toLowerCase())) as lang}
 											<button
 												onclick={() => selectLanguage(lang)}
-												class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 {systemLanguage.value ===
+												class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 {currentLanguageTag ===
 												lang
 													? 'bg-surface-200/80 font-medium dark:bg-surface-600/70'
 													: ''}"
 											>
 												<span>{getLanguageName(lang)} {lang.toUpperCase()}</span>
-												{#if systemLanguage.value === lang}
+												{#if currentLanguageTag === lang}
 													<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
 														<path
 															fill-rule="evenodd"
@@ -745,7 +747,7 @@
 								</div>
 							{/if}
 						{:else}
-							<select bind:value={systemLanguage.value} class="input" onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}>
+							<select bind:value={currentLanguageTag} class="input" onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}>
 								{#each systemLanguages as lang}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
 							</select>
 						{/if}
@@ -755,10 +757,6 @@
 
 				<p class="w-full text-center text-sm sm:text-base">{m.setup_heading_subtitle()}</p>
 			</div>
-		</div>
-		<!-- Version Check  -->
-		<div class="mb-4 flex justify-center">
-			<VersionCheck />
 		</div>
 
 		<!-- Main Content with Left Side Steps -->
@@ -864,23 +862,30 @@
 							</div>
 						{/each}
 						<!-- Setup Steps Legend -->
-						<div class=" mt-6 border-t pt-6">
-							<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
-							<ul class="space-y-2 text-xs">
-								{#each legendItems as item}
-									<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
-										<div
-											class="flex h-5 w-5 items-center justify-center rounded-full font-semibold leading-none
+						<div class="mt-6 flex items-end gap-6 border-t pt-6">
+							<div class="flex-1">
+								<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
+								<ul class="space-y-2 text-xs">
+									{#each legendItems as item}
+										<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
+											<div
+												class="flex h-5 w-5 items-center justify-center rounded-full font-semibold leading-none
 												{item.key === 'completed' ? ' bg-primary-500 text-white' : ''}
 												{item.key === 'current' ? ' bg-error-500 text-white shadow-sm' : ''}
 												{item.key === 'pending' ? ' bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600' : ''}"
-										>
-											<span class="text-[0.65rem]">{item.content}</span>
-										</div>
-										<span class="text-slate-600 dark:text-slate-400">{item.label}</span>
-									</li>
-								{/each}
-							</ul>
+											>
+												<span class="text-[0.65rem]">{item.content}</span>
+											</div>
+											<span class="text-slate-600 dark:text-slate-400">{item.label}</span>
+										</li>
+									{/each}
+								</ul>
+							</div>
+
+							<!-- Version Check  -->
+							<div class="flex shrink-0 items-center">
+								<VersionCheck />
+							</div>
 						</div>
 					</div>
 				</div>
@@ -901,6 +906,9 @@
 							{:else if wizard.currentStep === 2}
 								<iconify-icon icon="mdi:cog" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
 								{m.setup_step_system()}
+							{:else if wizard.currentStep === 3}
+								<iconify-icon icon="mdi:email" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+								{m.setup_step_email()}
 							{:else}
 								<iconify-icon icon="mdi:check-circle" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
 								{m.setup_step_complete()}
@@ -946,9 +954,6 @@
 								systemSettings={wizard.systemSettings}
 								availableLanguages={systemLanguages}
 								{completeSetup}
-								onNext={nextStep}
-								onBack={prevStep}
-								onSkip={skipEmailStep}
 							/>
 						{:else}
 							<div class="animate-pulse">Loading step...</div>
@@ -962,30 +967,30 @@
 								class:border-error-400={!!errorMessage}
 							>
 								<div
-									class="flex items-start gap-2 px-3.5 py-3"
+									class="flex items-center gap-2 px-3.5 py-3"
 									class:bg-primary-50={!!successMessage}
 									class:text-green-800={!!successMessage}
 									class:bg-red-50={!!errorMessage}
 									class:text-error-600={!!errorMessage}
 								>
-									<svg class="mt-0.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										{#if successMessage}
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 										{:else}
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 										{/if}
 									</svg>
-									<div class="flex-1 pr-4">
+									<div class="flex-1">
 										{successMessage || errorMessage}
 									</div>
-									<button type="button" class="btn-sm ml-auto mt-0.5 flex items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
+									<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
 										<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
 										<span class="hidden sm:inline">{showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
 									</button>
 									<!-- Dismiss status message -->
 									<button
 										type="button"
-										class="btn-icon btn-sm ml-1 mt-0.5 h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
+										class="btn-icon btn-sm h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
 										aria-label="Close message"
 										onclick={() => {
 											successMessage = '';

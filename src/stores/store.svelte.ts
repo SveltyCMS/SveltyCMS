@@ -321,6 +321,25 @@ function createRuneBackedStore<T>(initial: T) {
 
 // --- Legacy Svelte 3/4 Stores (for compatibility) ---
 
+/**
+ * Language Management with ParaglideJS Integration
+ *
+ * Architecture:
+ * - systemLanguage store: UI state management (read/write interface for components)
+ * - ParaglideJS: Reads from `systemLanguage` cookie, provides translations via getLocale()
+ *
+ * Flow:
+ * 1. Component calls: systemLanguage.set('de')
+ * 2. Store automatically sets cookie: systemLanguage=de
+ * 3. ParaglideJS reads cookie and updates translations
+ * 4. Components read via: getLocale() or systemLanguage.value
+ *
+ * Why not use ParaglideJS directly?
+ * - ParaglideJS doesn't provide a client-side API to change language
+ * - It relies on cookies/URL routing for language detection
+ * - Our store provides the reactive bridge between UI and ParaglideJS
+ */
+
 // Get initial values from cookies or use defaults (with error handling for server-side)
 let initialSystemLanguage: Locale;
 let initialContentLanguage: Locale;

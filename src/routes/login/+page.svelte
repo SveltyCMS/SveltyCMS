@@ -114,6 +114,7 @@ Features:
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
+			// Set cookie via store (bridge to ParaglideJS)
 			systemLanguage.set(lang as (typeof systemLanguage)['value']);
 			isDropdownOpen = false;
 			searchQuery = '';

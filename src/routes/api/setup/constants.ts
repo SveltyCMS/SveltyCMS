@@ -1,31 +1,40 @@
 /**
  * @file src/routes/api/setup/constants.ts
- * @description Shared constants for setup configuration (client-safe)
+ * @description DOCUMENTATION ONLY - These constants are NOT imported anywhere
  *
- * This file contains only constant exports that are safe to import in both
- * client-side and server-side code. NO server-only dependencies (fs, node:*, etc).
+ * ⚠️ DO NOT IMPORT THIS FILE
+ * This file exists only for documentation. The actual values are:
+ * - Read from project.inlang/settings.json by seed.ts at build/startup time
+ * - Seeded into the database
+ * - Accessed via publicEnv.LOCALES at runtime
+ *
+ * To add a new system language:
+ * 1. Add it to project.inlang/settings.json locales array
+ * 2. Create the corresponding message file in src/messages/{locale}.json
+ * 3. Restart the development server
+ * 4. Run setup wizard again to seed the new locale into the database
  */
 
 /**
- * Default system/interface languages (must match project.inlang/settings.json)
- * These are the languages available for the CMS interface itself.
+ * Fallback system/interface languages (DOCUMENTATION ONLY - see seed.ts)
+ * Actual source: project.inlang/settings.json → seed.ts → database → publicEnv.LOCALES
  */
 export const DEFAULT_SYSTEM_LANGUAGES = ['en', 'de'] as const;
 
 /**
- * Default base locale for the CMS interface
- * This is the fallback language when no user preference is set.
+ * Fallback base locale (DOCUMENTATION ONLY - see seed.ts)
+ * Actual source: project.inlang/settings.json → seed.ts → database → publicEnv.BASE_LOCALE
  */
 export const DEFAULT_BASE_LOCALE = 'en' as const;
 
 /**
- * Default content languages available for user content
- * These are the languages users can create content in.
+ * Fallback content languages (DOCUMENTATION ONLY - see seed.ts)
+ * Actual source: project.inlang/settings.json → seed.ts → database
  */
 export const DEFAULT_CONTENT_LANGUAGES = ['en', 'de'] as const;
 
 /**
- * Default content language
- * This is the default language for new content items.
+ * Fallback content language (DOCUMENTATION ONLY - see seed.ts)
+ * Actual source: project.inlang/settings.json → seed.ts → database
  */
 export const DEFAULT_CONTENT_LANGUAGE = 'en' as const;

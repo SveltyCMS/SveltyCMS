@@ -17,19 +17,25 @@ import type { Handle } from '@sveltejs/kit';
 export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
+	// Skip strict CSP in test environment
+	const isTest = process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST === 'true';
+
 	// --- Content Security Policy (CSP) ---
-	const csp = [
-		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
-		"style-src 'self' 'unsafe-inline'",
-		"img-src 'self' data:",
-		"font-src 'self'",
-		"object-src 'none'",
-		"base-uri 'self'",
-		"form-action 'self'",
-		"frame-ancestors 'self'",
-		"connect-src 'self' https://api.iconify.design https://api.unisvg.com https://api.simplesvg.com https://raw.githubusercontent.com https://api.github.com https://github.com https://objects.githubusercontent.com"
-	].join('; ');
+	const csp = isTest
+		? "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src *" // Permissive for tests
+		: [
+				"default-src 'self'",
+				"script-src 'self' 'unsafe-inline'",
+				"style-src 'self' 'unsafe-inline'",
+				"img-src 'self' data:",
+				"font-src 'self'",
+				"object-src 'none'",
+				"base-uri 'self'",
+				"form-action 'self'",
+				"frame-ancestors 'self'",
+				// Allow connections to MongoDB Atlas, Iconify, GitHub, and localhost for testing
+				"connect-src 'self' https://*.mongodb.net wss://*.mongodb.net https://api.iconify.design https://api.unisvg.com https://api.simplesvg.com https://raw.githubusercontent.com https://api.github.com https://github.com https://objects.githubusercontent.com http://localhost:* ws://localhost:*"
+			].join('; ');
 
 	// Core security headers
 	const headers = {

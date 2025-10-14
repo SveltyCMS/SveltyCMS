@@ -21,13 +21,17 @@ import { logger } from '@utils/logger.svelte';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
 
+// Import inlang settings directly (TypeScript handles JSON imports)
+import inlangSettings from '@root/project.inlang/settings.json';
+
 // ============================================================================
-// EXPORTED DEFAULTS - Imported and re-exported from constants.ts
+// EXPORTED DEFAULTS - Loaded from project.inlang/settings.json
 // ============================================================================
 
-import { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGES, DEFAULT_CONTENT_LANGUAGE } from './constants';
-
-export { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGES, DEFAULT_CONTENT_LANGUAGE };
+export const DEFAULT_SYSTEM_LANGUAGES = inlangSettings.locales || ['en', 'de'];
+export const DEFAULT_BASE_LOCALE = inlangSettings.baseLocale || 'en';
+export const DEFAULT_CONTENT_LANGUAGES = DEFAULT_SYSTEM_LANGUAGES;
+export const DEFAULT_CONTENT_LANGUAGE = DEFAULT_BASE_LOCALE;
 
 // ============================================================================
 

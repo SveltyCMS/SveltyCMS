@@ -172,7 +172,7 @@ Key Features:
 	<!-- System Settings -->
 	<div class="mb-8">
 		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
-			Configure the basic settings for your CMS including site name, language preferences, and media storage.
+			{m.setup_system_intro()}
 		</p>
 	</div>
 
