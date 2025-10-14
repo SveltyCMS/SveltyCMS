@@ -22,20 +22,12 @@ import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
 
 // ============================================================================
-// EXPORTED DEFAULTS - Single source of truth for default configuration
+// EXPORTED DEFAULTS - Imported and re-exported from constants.ts
 // ============================================================================
 
-/** Default system/interface languages (must match project.inlang/settings.json) */
-export const DEFAULT_SYSTEM_LANGUAGES = ['en', 'de'] as const;
+import { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGES, DEFAULT_CONTENT_LANGUAGE } from './constants';
 
-/** Default base locale for the CMS interface */
-export const DEFAULT_BASE_LOCALE = 'en' as const;
-
-/** Default content languages available for user content */
-export const DEFAULT_CONTENT_LANGUAGES = ['en', 'de'] as const;
-
-/** Default content language */
-export const DEFAULT_CONTENT_LANGUAGE = 'en' as const;
+export { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGES, DEFAULT_CONTENT_LANGUAGE };
 
 // ============================================================================
 
@@ -124,12 +116,17 @@ export async function seedCollectionsForSetup(dbAdapter: DatabaseAdapter): Promi
 		let skipCount = 0;
 		const modelCreationStart = performance.now();
 
-		// Register each collection as a model in the database
+		// ✅ FIX: Register each collection SEQUENTIALLY with delay to prevent race condition
+		// Mongoose's model() registry is NOT thread-safe during rapid parallel calls
 		for (const schema of collections) {
 			try {
 				const createStart = performance.now();
 				// Try to create the collection model in database
 				await dbAdapter.collection.createModel(schema);
+
+				// Add small delay to ensure model registration completes before next one
+				await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms delay
+
 				const createTime = performance.now() - createStart;
 				logger.info(`✅ Created collection model: ${schema.name || 'unknown'} (\x1b[33m${createTime.toFixed(2)}ms\x1b[0m)`);
 				successCount++;

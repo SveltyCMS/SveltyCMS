@@ -169,8 +169,9 @@ export const dbAdapter = {
 	getContentNodes: async (): Promise<ContentNode[]> => []
 };
 
-// Collection Schema Definition
+// Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
+	id?: number;
 	_id?: string;
 	name?: ContentTypes | string;
 	label?: string;

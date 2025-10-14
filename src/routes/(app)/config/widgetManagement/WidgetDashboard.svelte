@@ -14,6 +14,7 @@ Features:
 	import { onMount } from 'svelte';
 	import WidgetCard from './WidgetCard.svelte';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Props
 	let { data }: { data: any } = $props();
@@ -182,8 +183,7 @@ Features:
 
 			// Force refresh: Clear cache and reload widget store + widget list
 			// This ensures the UI is perfectly in sync with database
-			const widgetStore = await import('@stores/widgetStore.svelte');
-			await widgetStore.widgetStoreActions.initializeWidgets(tenantId);
+			await widgetStoreActions.initializeWidgets(tenantId);
 			await loadWidgets();
 
 			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);

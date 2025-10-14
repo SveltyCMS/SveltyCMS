@@ -17,7 +17,7 @@ const config = {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter({
 			out: 'build', // default: true | The directory to build the server to
-			precompress: false, // default: false | Enables precompressing using gzip & brotli for assets & prerendered pages
+			precompress: true, // ✅ Enables precompressing using gzip & brotli for assets & prerendered pages
 			envPrefix: '', // default: '' | If you need to change the name of the environment variables used to configure the deployment
 			external: ['typescript', 'ts-node', '@typescript-eslint/parser', '@typescript-eslint/eslint-plugin'], // Prevent TypeScript and related modules from being bundled into the server
 			polyfill: false // Disable polyfills as we handle them in Vite config

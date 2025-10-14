@@ -52,7 +52,9 @@
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte'; // Dynamic import of all widget components using Vite's glob import
+	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
+
+	// Eager load all widget components for immediate use in Fields
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
 	});

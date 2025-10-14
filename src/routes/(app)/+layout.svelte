@@ -126,17 +126,6 @@
 		document.documentElement.lang = lang;
 	});
 
-	// Function to initialize collections using ContentManager
-	async function initializeCollections() {
-		try {
-			//console.log('contentStructure', data.contentStructure);
-			contentStructure.set(data.contentStructure);
-		} catch (error) {
-			console.error('Error loading collections:', error);
-			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
-		}
-	}
-
 	// Theme management
 	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
 		const prefersDarkMode = event.matches;
@@ -230,29 +219,6 @@
 
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
-
-		// Initialize data (deferred to next microtask)
-		queueMicrotask(() => initializeCollections());
-
-		// Fallback: if collections are empty after hydration, fetch from API
-		if (browser) {
-			setTimeout(async () => {
-				try {
-					if (!Array.isArray(contentStructure.value) || contentStructure.value.length === 0) {
-						const res = await fetch('/api/content-structure?action=getContentStructure', { credentials: 'include' });
-						if (res.ok) {
-							const json = await res.json();
-							const nodes = json?.contentNodes || json?.data?.contentStructure || [];
-							if (Array.isArray(nodes)) {
-								contentStructure.set(nodes);
-							}
-						}
-					}
-				} catch (err) {
-					console.warn('Fallback fetch for contentStructure failed:', err);
-				}
-			}, 0);
-		}
 	});
 
 	// Navigation loading handlers

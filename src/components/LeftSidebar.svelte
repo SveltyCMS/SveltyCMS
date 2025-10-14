@@ -25,7 +25,7 @@
 	import { page } from '$app/state';
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
-	import { mode } from '@stores/collectionStore.svelte';
+	import { mode, contentStructure } from '@stores/collectionStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
@@ -222,7 +222,7 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections systemVirtualFolders={page.data?.contentStructure} />
+	<Collections systemVirtualFolders={contentStructure.value} />
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto">

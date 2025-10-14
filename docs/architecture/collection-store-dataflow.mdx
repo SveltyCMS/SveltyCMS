@@ -1,12 +1,12 @@
 ---
-path: 'docs/Dev_Guide/CollectionStore_DataFlow.mdx'
+path: 'docs/architecture/collection-store-dataflow.mdx'
 title: 'Collection Store Data Flow'
 description: 'How SveltyCMS loads, manages, and synchronizes collection/entry data using the collection store'
 order: 51
 icon: 'mdi:database-sync'
 author: 'admin'
 created: '2025-08-11'
-updated: '2025-10-02'
+updated: '2025-10-14'
 tags:
   - 'developer'
   - 'collections'
@@ -27,6 +27,39 @@ This document describes the **canonical data flow** for loading, editing, and sa
 - **Loader Overlay:** The global loader overlay is managed via the `globalLoadingStore` and is only shown during actual data loading or saving.
 
 ## 🔄 Data Flow Overview
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Page as +page.svelte
+    participant Store as collectionStore
+    participant API as /api/collections
+    participant DB as Database
+
+    User->>Page: Navigate to /en/Collections/Posts
+    Page->>API: GET /api/collections/posts-uuid
+    API->>DB: Query entries
+    DB-->>API: Return data
+    API-->>Page: Collection + Entries
+    Page->>Store: Set collection.value
+    Page->>Store: Set collectionValue.value
+    Store-->>Page: Data updated
+
+    Note over User,Store: UI Components Read from Store
+
+    User->>Page: Edit entry field
+    Page->>Store: Update collectionValue
+
+    User->>Page: Click Save
+    Page->>API: PUT /api/collections/posts-uuid/entry-id
+    API->>DB: Update entry
+    DB-->>API: Updated entry
+    API-->>Page: Success + new data
+    Page->>Store: Update with server response
+    Store-->>Page: Data synchronized
+```
+
+### Flow Steps
 
 1. **Page Load**
    - `[language]/[...collection]/+page.svelte` loads the collection and entry from the server.

@@ -1,9 +1,9 @@
 /**
- * @file src/stores/setupStore.svelte.ts
- * @description Centralized rune-based store for the setup wizard state.
+ * @file setupStore.svelte.ts
+ * @description Svelte 5 rune-based store for setup wizard with reactive state management
  */
 
-import { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_CONTENT_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGE } from '@src/routes/api/setup/seed';
+import { DEFAULT_SYSTEM_LANGUAGES, DEFAULT_CONTENT_LANGUAGES, DEFAULT_BASE_LOCALE, DEFAULT_CONTENT_LANGUAGE } from '@src/routes/api/setup/constants';
 
 // --- Types ---
 export type SupportedDbType = 'mongodb' | 'mongodb+srv' | 'postgresql' | 'mysql' | 'mariadb' | '';
@@ -33,6 +33,10 @@ export type SystemSettings = {
 	mediaFolder: string;
 	timezone: string;
 };
+export type EmailSettings = {
+	smtpConfigured: boolean;
+	skipWelcomeEmail: boolean;
+};
 
 // --- Initial State Constants ---
 const initialDbConfig: DbConfig = { type: 'mongodb', host: 'localhost', port: '27017', name: 'SveltyCMS', user: '', password: '' };
@@ -48,6 +52,10 @@ const initialSystemSettings: SystemSettings = {
 	mediaFolder: './mediaFolder',
 	timezone: 'UTC'
 };
+const initialEmailSettings: EmailSettings = {
+	smtpConfigured: false,
+	skipWelcomeEmail: true
+};
 
 // --- Persistence Keys ---
 const KEY_PREFIX = 'setupWizard:';
@@ -55,6 +63,7 @@ const KEYS = {
 	db: `${KEY_PREFIX}dbConfig`,
 	admin: `${KEY_PREFIX}adminUser`,
 	system: `${KEY_PREFIX}systemSettings`,
+	email: `${KEY_PREFIX}emailSettings`,
 	step: `${KEY_PREFIX}currentStep`,
 	highestStep: `${KEY_PREFIX}highestStep`,
 	dbTest: `${KEY_PREFIX}dbTestPassed`
@@ -83,6 +92,7 @@ function createSetupStore() {
 		dbConfig: { ...initialDbConfig },
 		adminUser: { ...initialAdminUser },
 		systemSettings: { ...initialSystemSettings },
+		emailSettings: { ...initialEmailSettings },
 		currentStep: 0,
 		highestStepReached: 0,
 		dbTestPassed: false,
@@ -98,6 +108,7 @@ function createSetupStore() {
 				storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
 				storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
 				storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
+				storage.setItem(KEYS.email, JSON.stringify(wizard.emailSettings));
 				storage.setItem(KEYS.step, String(wizard.currentStep));
 				storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
 				storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
@@ -147,6 +158,12 @@ function createSetupStore() {
 
 					wizard.systemSettings = { ...initialSystemSettings, ...loadedSystem };
 				}
+
+				const rawEmail = storage.getItem(KEYS.email);
+				if (rawEmail) {
+					wizard.emailSettings = { ...initialEmailSettings, ...JSON.parse(rawEmail) };
+				}
+
 				wizard.currentStep = parseInt(storage.getItem(KEYS.step) || '0', 10);
 				wizard.highestStepReached = parseInt(storage.getItem(KEYS.highestStep) || '0', 10);
 				wizard.dbTestPassed = storage.getItem(KEYS.dbTest) === 'true';
@@ -170,6 +187,7 @@ function createSetupStore() {
 				dbConfig: { ...initialDbConfig },
 				adminUser: { ...initialAdminUser },
 				systemSettings: { ...initialSystemSettings },
+				emailSettings: { ...initialEmailSettings },
 				currentStep: 0,
 				highestStepReached: 0,
 				dbTestPassed: false

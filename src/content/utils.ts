@@ -112,15 +112,6 @@ export function constructContentPaths(contentStructure: ContentNode[]): Record<s
 
 export async function processModule(content: string): Promise<{ schema?: Schema } | null> {
 	try {
-		const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{32})/i);
-		const uuid = uuidMatch ? uuidMatch[1] : null;
-
-		if (!uuid) {
-			logger.warn('No UUID found in module content');
-			return null;
-		}
-
-		// (The code to extract 'schemaContent' remains the same...)
 		const exportMatch = content.match(/export\s+const\s+schema\s*=\s*/);
 		if (!exportMatch) {
 			logger.warn('No schema export found in module');
@@ -133,12 +124,10 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 		let stringChar = '';
 		let endIdx = startIdx;
 
-		// Parse through the content to find the matching closing brace
 		for (let i = startIdx; i < content.length; i++) {
 			const char = content[i];
 			const prevChar = i > 0 ? content[i - 1] : '';
 
-			// Handle string literals
 			if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
 				if (!inString) {
 					inString = true;
@@ -166,19 +155,15 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			return null;
 		}
 
-		// Ensure WidgetRegistryService is initialized before processing (lazy-load trigger)
 		await widgetRegistryService.initialize();
-
 		const widgetsMap = widgetRegistryService.getAllWidgets();
 
-		// Safety check: Ensure widgets are loaded before processing
 		if (widgetsMap.size === 0) {
 			logger.warn('WidgetRegistryService not initialized yet. Cannot process module.');
 			return null;
 		}
 
 		const widgetsObject = Object.fromEntries(widgetsMap.entries());
-		// Widgets available info already logged during WidgetRegistryService initialization
 
 		const moduleContent = `
 			return (function() {
@@ -188,27 +173,23 @@ export async function processModule(content: string): Promise<{ schema?: Schema 
 			})();
 		`;
 
-		// Set widgets on globalThis temporarily in a type-safe way
 		if (typeof globalThis !== 'undefined') {
-			(globalThis as typeof globalThis & { widgets: typeof widgetsObject }).widgets = widgetsObject;
+			(globalThis as { widgets?: Record<string, unknown> }).widgets = widgetsObject;
 		}
 
-		// Create and execute the function
 		const moduleFunc = new Function(moduleContent);
 		const result = moduleFunc();
 
-		// Clean up
 		if (typeof globalThis !== 'undefined') {
-			delete (globalThis as typeof globalThis & { widgets?: typeof widgetsObject }).widgets;
+			delete (globalThis as { widgets?: Record<string, unknown> }).widgets;
 		}
 
-		if (result && typeof result === 'object' && 'fields' in result) {
-			// Successfully processed - log only at debug level to reduce noise
-			logger.debug(`Processed collection: \x1b[33m${uuid}\x1b[0m`);
-			return { schema: { ...result, _id: uuid } as Schema };
+		if (result && typeof result === 'object' && 'fields' in result && '_id' in result) {
+			logger.debug(`Processed collection: \x1b[33m${result._id}\x1b[0m`);
+			return { schema: result as Schema };
 		}
 
-		logger.warn(`Module processed but no fields found. Result type: ${typeof result}`);
+		logger.warn(`Module processed but no fields or _id found. Result type: ${typeof result}`);
 		return null;
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);

@@ -1,4 +1,4 @@
-import { publicEnv } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 

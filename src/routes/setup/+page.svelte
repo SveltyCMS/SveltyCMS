@@ -37,8 +37,7 @@
 	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	// Utils - Import full ISO 639-1 language list for setup
-	import iso6391 from '@utils/iso639-1.json';
+	// Utils
 	import { setupAdminSchema } from '@utils/formSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { systemConfigSchema } from '@utils/setupValidationSchemas';
@@ -46,7 +45,7 @@
 	// Valiation
 	import { safeParse } from 'valibot';
 	// Import default configuration from single source of truth
-	import { DEFAULT_SYSTEM_LANGUAGES } from '@src/routes/api/setup/seed';
+	import { DEFAULT_SYSTEM_LANGUAGES } from '@src/routes/api/setup/constants';
 
 	// --- 1. STATE MANAGEMENT ---
 	const { wizard, load: loadStore, clear: clearStore, setupPersistence } = setupStore;
@@ -207,6 +206,10 @@
 		{ label: m.setup_step_database(), shortDesc: m.setup_step_database_desc() },
 		{ label: m.setup_step_admin(), shortDesc: m.setup_step_admin_desc() },
 		{ label: m.setup_step_system(), shortDesc: m.setup_step_system_desc() },
+		{
+			label: m.setup_step_email ? m.setup_step_email() : 'Email (Optional)',
+			shortDesc: m.setup_step_email_desc ? m.setup_step_email_desc() : 'Configure SMTP for email functionality'
+		},
 		{ label: m.setup_step_complete(), shortDesc: m.setup_step_complete_desc() }
 	]);
 	const totalSteps = $derived<number>(steps.length);
@@ -215,6 +218,7 @@
 		wizard.dbTestPassed || wizard.highestStepReached > 0,
 		wizard.highestStepReached > 1 && validateStep(1, false),
 		wizard.highestStepReached > 2 && validateStep(2, false),
+		wizard.highestStepReached > 3, // Email is optional, always considered complete
 		false
 	]);
 
@@ -223,12 +227,14 @@
 		true, // Step 0 (Database) is always clickable
 		wizard.highestStepReached >= 1, // Step 1 (Admin) is clickable if we've reached it
 		wizard.highestStepReached >= 2, // Step 2 (System) is clickable if we've reached it
-		wizard.highestStepReached >= 3 // Step 3 (Complete) is clickable if we've reached it
+		wizard.highestStepReached >= 3, // Step 3 (Email) is clickable if we've reached it
+		wizard.highestStepReached >= 4 // Step 4 (Complete) is clickable if we've reached it
 	]);
 
 	const canProceed = $derived.by<boolean>(() => {
 		if (wizard.currentStep === 0) return wizard.dbTestPassed;
 		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
+		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
 		return false;
 	});
 
@@ -249,12 +255,6 @@
 		}
 
 		return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
-	});
-
-	// Content languages: ALL ISO 639-1 languages for maximum flexibility
-	const availableLanguages = $derived.by<string[]>(() => {
-		const allLanguages = iso6391.map((lang) => lang.code);
-		return allLanguages.sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 	});
 
 	// Legend data (used in vertical stepper legend)
@@ -414,7 +414,8 @@
 					database: wizard.dbConfig,
 					admin: wizard.adminUser,
 					system: wizard.systemSettings,
-					firstCollection: wizard.firstCollection // Pass pre-seeded collection for faster redirect
+					firstCollection: wizard.firstCollection, // Pass pre-seeded collection for faster redirect
+					skipWelcomeEmail: wizard.emailSettings.skipWelcomeEmail // Pass SMTP configuration status
 				})
 			});
 
@@ -522,6 +523,20 @@
 		}
 	}
 
+	function skipEmailStep() {
+		// Mark email as skipped
+		wizard.emailSettings.smtpConfigured = false;
+		wizard.emailSettings.skipWelcomeEmail = true;
+
+		// Move to next step
+		if (wizard.currentStep < totalSteps - 1) {
+			wizard.currentStep++;
+			if (wizard.currentStep > wizard.highestStepReached) {
+				wizard.highestStepReached = wizard.currentStep;
+			}
+		}
+	}
+
 	function selectLanguage(lang: string) {
 		systemLanguage.set(lang as typeof systemLanguage.value);
 		isLangOpen = false;
@@ -579,6 +594,7 @@
 	let DatabaseConfig: any = null;
 	let AdminConfig: any = null;
 	let SystemConfig: any = null;
+	let EmailConfig: any = null;
 	let ReviewConfig: any = null;
 	let stepLoadError = $state('');
 	let CurrentStepComponent = $state<any>(null);
@@ -598,6 +614,9 @@
 						if (!SystemConfig) SystemConfig = (await import('./SystemConfig.svelte')).default;
 						break;
 					case 3:
+						if (!EmailConfig) EmailConfig = (await import('./EmailConfig.svelte')).default;
+						break;
+					case 4:
 						if (!ReviewConfig) ReviewConfig = (await import('./ReviewConfig.svelte')).default;
 						break;
 				}
@@ -618,6 +637,9 @@
 					CurrentStepComponent = SystemConfig;
 					break;
 				case 3:
+					CurrentStepComponent = EmailConfig;
+					break;
+				case 4:
 					CurrentStepComponent = ReviewConfig;
 					break;
 				default:
@@ -625,7 +647,7 @@
 			}
 		});
 		// Prefetch next step in background
-		if (wizard.currentStep < 3) {
+		if (wizard.currentStep < 4) {
 			loadStep(wizard.currentStep + 1);
 		}
 	});
@@ -924,6 +946,9 @@
 								systemSettings={wizard.systemSettings}
 								availableLanguages={systemLanguages}
 								{completeSetup}
+								onNext={nextStep}
+								onBack={prevStep}
+								onSkip={skipEmailStep}
 							/>
 						{:else}
 							<div class="animate-pulse">Loading step...</div>

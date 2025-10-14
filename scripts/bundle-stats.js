@@ -19,7 +19,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { gzipSync } from 'zlib';
+import { gzipSync, brotliCompressSync } from 'zlib';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,9 +47,7 @@ const colors = {
 	bold: '\x1b[1m'
 };
 
-/**
- * Get all JS chunk files
- */
+// Get all JS chunk files
 function getChunkFiles() {
 	try {
 		const files = fs.readdirSync(CONFIG.outputDir);
@@ -60,27 +58,27 @@ function getChunkFiles() {
 	}
 }
 
-/**
- * Analyze a single chunk file
- */
+// Analyze a single chunk file
 function analyzeChunk(filePath) {
 	const content = fs.readFileSync(filePath);
 	const size = content.length;
 	const gzipSize = gzipSync(content).length;
-	const compressionRatio = ((1 - gzipSize / size) * 100).toFixed(1);
+	const brotliSize = brotliCompressSync(content).length;
+	const gzipRatio = ((1 - gzipSize / size) * 100).toFixed(1);
+	const brotliRatio = ((1 - brotliSize / size) * 100).toFixed(1);
 
 	return {
 		name: path.basename(filePath),
 		size,
 		gzipSize,
-		compressionRatio,
+		brotliSize,
+		gzipRatio,
+		brotliRatio,
 		path: filePath
 	};
 }
 
-/**
- * Format bytes to human-readable
- */
+// Format bytes to human-readable
 function formatBytes(bytes, decimals = 2) {
 	if (bytes === 0) return '0 B';
 	const k = 1024;
@@ -89,18 +87,14 @@ function formatBytes(bytes, decimals = 2) {
 	return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
 }
 
-/**
- * Get status color based on size
- */
+// Get status color based on size
 function getStatusColor(size) {
 	if (size > CONFIG.budgets.maxChunkSize) return colors.red;
 	if (size > CONFIG.budgets.warningSize) return colors.yellow;
 	return colors.green;
 }
 
-/**
- * Load historical data
- */
+// Load historical data
 function loadHistory() {
 	try {
 		if (fs.existsSync(CONFIG.historyFile)) {
@@ -112,9 +106,7 @@ function loadHistory() {
 	return [];
 }
 
-/**
- * Save current stats to history
- */
+// Save current stats to history
 function saveHistory(stats) {
 	try {
 		const history = loadHistory();
@@ -136,9 +128,7 @@ function saveHistory(stats) {
 	}
 }
 
-/**
- * Compare with previous build
- */
+// Compare with previous build
 function compareWithPrevious(currentStats) {
 	const history = loadHistory();
 	if (history.length === 0) return null;
@@ -152,9 +142,7 @@ function compareWithPrevious(currentStats) {
 	};
 }
 
-/**
- * Generate recommendations
- */
+// Generate recommendations
 function generateRecommendations(chunks) {
 	const recommendations = [];
 
@@ -169,11 +157,11 @@ function generateRecommendations(chunks) {
 	}
 
 	// Check compression ratio
-	const poorCompression = chunks.filter((c) => parseFloat(c.compressionRatio) < 60);
+	const poorCompression = chunks.filter((c) => parseFloat(c.brotliRatio) < 60);
 	if (poorCompression.length > 0) {
 		recommendations.push({
 			level: 'warning',
-			message: `${poorCompression.length} chunk(s) have poor compression (<60%)`,
+			message: `${poorCompression.length} chunk(s) have poor Brotli compression (<60%)`,
 			action: 'Check for large uncompressible assets (images, fonts)'
 		});
 	}
@@ -191,9 +179,7 @@ function generateRecommendations(chunks) {
 	return recommendations;
 }
 
-/**
- * Print report
- */
+// Print report
 function printReport(stats, comparison, recommendations) {
 	console.log(`\n${colors.bold}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
 	console.log(`${colors.bold}${colors.blue}          📊 BUNDLE SIZE ANALYSIS REPORT${colors.reset}`);
@@ -202,8 +188,11 @@ function printReport(stats, comparison, recommendations) {
 	// Summary
 	console.log(`${colors.bold}Summary:${colors.reset}`);
 	console.log(`  Total Chunks: ${stats.chunks.length}`);
-	console.log(`  Total Size:   ${formatBytes(stats.totalSize)} (${formatBytes(stats.totalGzipSize)} gzipped)`);
-	console.log(`  Compression:  ${stats.avgCompression}% average\n`);
+	console.log(`  Total Size:   ${formatBytes(stats.totalSize)}`);
+	console.log(`  Gzip:         ${formatBytes(stats.totalGzipSize)} (${stats.avgCompression}% compression)`);
+	console.log(
+		`  Brotli:       ${formatBytes(stats.totalBrotliSize)} (${stats.avgBrotliCompression}% compression) ${colors.green}⚡ Recommended${colors.reset}\n`
+	);
 
 	// Comparison
 	if (comparison) {
@@ -222,10 +211,11 @@ function printReport(stats, comparison, recommendations) {
 	stats.chunks.slice(0, 10).forEach((chunk, i) => {
 		const statusColor = getStatusColor(chunk.size);
 		const status = chunk.size > CONFIG.budgets.maxChunkSize ? '❌' : chunk.size > CONFIG.budgets.warningSize ? '⚠️ ' : '✅';
+		const brotliSavings = (((chunk.gzipSize - chunk.brotliSize) / chunk.gzipSize) * 100).toFixed(0);
 
 		console.log(`  ${status} ${statusColor}${(i + 1).toString().padStart(2)}. ${chunk.name.padEnd(30)}${colors.reset}`);
 		console.log(
-			`     ${colors.gray}${formatBytes(chunk.size).padEnd(10)} (${formatBytes(chunk.gzipSize)} gzipped, ${chunk.compressionRatio}% compression)${colors.reset}`
+			`     ${colors.gray}${formatBytes(chunk.size).padEnd(10)} → gzip: ${formatBytes(chunk.gzipSize)} (${chunk.gzipRatio}%) → brotli: ${formatBytes(chunk.brotliSize)} (${chunk.brotliRatio}%, ${colors.green}-${brotliSavings}%${colors.gray})${colors.reset}`
 		);
 	});
 
@@ -245,9 +235,7 @@ function printReport(stats, comparison, recommendations) {
 	console.log(`\n${colors.bold}${colors.blue}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
 }
 
-/**
- * Main execution
- */
+// Main execution
 function main() {
 	console.log(`${colors.blue}Analyzing build output...${colors.reset}\n`);
 
@@ -258,13 +246,17 @@ function main() {
 	// Calculate statistics
 	const totalSize = chunks.reduce((sum, c) => sum + c.size, 0);
 	const totalGzipSize = chunks.reduce((sum, c) => sum + c.gzipSize, 0);
-	const avgCompression = (chunks.reduce((sum, c) => sum + parseFloat(c.compressionRatio), 0) / chunks.length).toFixed(1);
+	const totalBrotliSize = chunks.reduce((sum, c) => sum + c.brotliSize, 0);
+	const avgCompression = (chunks.reduce((sum, c) => sum + parseFloat(c.gzipRatio), 0) / chunks.length).toFixed(1);
+	const avgBrotliCompression = (chunks.reduce((sum, c) => sum + parseFloat(c.brotliRatio), 0) / chunks.length).toFixed(1);
 
 	const stats = {
 		chunks,
 		totalSize,
 		totalGzipSize,
-		avgCompression
+		totalBrotliSize,
+		avgCompression,
+		avgBrotliCompression
 	};
 
 	// Compare with previous build

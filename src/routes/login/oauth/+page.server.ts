@@ -348,28 +348,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			logger.info('Successfully processed OAuth callback and created session');
 
-			// Prefetch first collection data for instant loading (fire and forget)
-			import('@utils/collections-prefetch')
-				.then(async ({ prefetchFirstCollectionData }) => {
-					const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-					const userLanguage = url.searchParams.get('lang') || defaultLanguage || 'en';
-					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
-						logger.debug('Prefetch failed during OAuth callback:', err);
-					});
-				})
-				.catch(() => {
-					// Silently fail if prefetch module can't be loaded
-				});
+			// Redirect to the first available collection
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			const userLanguage = url.searchParams.get('lang') || defaultLanguage;
+			const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(userLanguage);
 
-			// Redirect to first collection
-			let redirectUrl = '/';
-			const firstCollection = await contentManager.getFirstCollection();
-			if (firstCollection && firstCollection.path) {
-				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
-			}
-			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
-			throw redirect(302, redirectUrl);
+			logger.debug(`Redirecting to: \x1b[34m${redirectUrl || '/'}\x1b[0m`);
+			throw redirect(302, redirectUrl || '/');
 		} catch (err) {
 			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
 				throw err;

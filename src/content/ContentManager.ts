@@ -794,8 +794,10 @@ class ContentManager {
 	}
 }
 
+// Now, define helper functions outside the class.
 function toDatabaseId(id: string): DatabaseId {
 	return id as DatabaseId;
 }
 
+// And finally, export the instance.
 export const contentManager = ContentManager.getInstance();

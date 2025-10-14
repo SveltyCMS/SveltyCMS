@@ -23,7 +23,7 @@ import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import { publicEnv } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { RequestHandler } from './$types';
 
 // Database adapter for collection queries

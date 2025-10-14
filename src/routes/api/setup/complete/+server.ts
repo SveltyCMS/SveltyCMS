@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
 import type { Locale } from '@src/paraglide/runtime';
-import { publicEnv } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
@@ -67,9 +67,10 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
 	try {
 		const setupData = await request.json();
-		const { admin, firstCollection } = setupData as {
+		const { admin, firstCollection, skipWelcomeEmail } = setupData as {
 			admin: AdminConfig;
 			firstCollection?: { name: string; path: string } | null;
+			skipWelcomeEmail?: boolean;
 		};
 
 		logger.info('Starting setup finalization', { correlationId, admin: admin.email });
@@ -317,43 +318,48 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		logger.info('Caches invalidated', { correlationId });
 
 		// 6. Send welcome email to the new admin user (optional - graceful failure)
-		try {
-			const hostLink = url.origin; // Get the full origin (protocol + host)
-			const langFromStore = get(systemLanguage);
-			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		// Only send if SMTP was configured during setup
+		if (!skipWelcomeEmail) {
+			try {
+				const hostLink = url.origin; // Get the full origin (protocol + host)
+				const langFromStore = get(systemLanguage);
+				const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+				const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'x-internal-call': 'true' // Mark as internal call to bypass auth
-				},
-				body: JSON.stringify({
-					recipientEmail: admin.email,
-					subject: `Welcome to ${publicEnv.SITE_NAME || 'SveltyCMS'}`,
-					templateName: 'welcomeUser',
-					props: {
-						username: admin.username,
-						sitename: publicEnv.SITE_NAME || 'SveltyCMS',
-						hostLink: hostLink
+				const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'x-internal-call': 'true' // Mark as internal call to bypass auth
 					},
-					languageTag: userLanguage
-				})
-			});
+					body: JSON.stringify({
+						recipientEmail: admin.email,
+						subject: `Welcome to ${publicEnv.SITE_NAME || 'SveltyCMS'}`,
+						templateName: 'welcomeUser',
+						props: {
+							username: admin.username,
+							sitename: publicEnv.SITE_NAME || 'SveltyCMS',
+							hostLink: hostLink
+						},
+						languageTag: userLanguage
+					})
+				});
 
-			if (emailResponse.ok) {
-				logger.info('✅ Welcome email sent successfully', { correlationId, to: admin.email });
-			} else {
-				const emailError = await emailResponse.text();
-				logger.warn('Failed to send welcome email (non-fatal)', { correlationId, to: admin.email, error: emailError });
+				if (emailResponse.ok) {
+					logger.info('✅ Welcome email sent successfully', { correlationId, to: admin.email });
+				} else {
+					const emailError = await emailResponse.text();
+					logger.warn('Failed to send welcome email (non-fatal)', { correlationId, to: admin.email, error: emailError });
+				}
+			} catch (emailError) {
+				// Don't fail setup if email fails - just log the error
+				logger.warn('Error sending welcome email (non-fatal)', {
+					correlationId,
+					error: emailError instanceof Error ? emailError.message : String(emailError)
+				});
 			}
-		} catch (emailError) {
-			// Don't fail setup if email fails - just log the error
-			logger.warn('Error sending welcome email (non-fatal)', {
-				correlationId,
-				error: emailError instanceof Error ? emailError.message : String(emailError)
-			});
+		} else {
+			logger.info('Skipping welcome email (SMTP not configured during setup)', { correlationId });
 		}
 
 		// 7. Determine redirect path

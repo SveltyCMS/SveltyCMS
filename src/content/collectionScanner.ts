@@ -7,15 +7,14 @@
  */
 
 import { logger } from '@utils/logger.svelte';
-import { getFs } from '@utils/fsAdapter';
-import { processModule } from '@utils/parseSchemaDefinition';
+import * as fs from 'node:fs/promises';
+import { processModule } from './utils';
 import type { Schema } from './types';
 
 /**
  * Recursively scans a directory for .js files
  */
 async function recursivelyGetFiles(dir: string): Promise<string[]> {
-	const fs = await getFs();
 	const entries = await fs.readdir(dir, { withFileTypes: true });
 	const files = await Promise.all(
 		entries.map(async (entry) => {
@@ -50,7 +49,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 	const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 
 	try {
-		const fs = await getFs();
 		await fs.access(compiledDirectoryPath);
 	} catch {
 		logger.trace(`Compiled collections directory not found: ${compiledDirectoryPath}. Assuming fresh start.`);
@@ -62,7 +60,6 @@ export async function scanCompiledCollections(): Promise<Schema[]> {
 		.filter((file) => file.endsWith('.js'))
 		.map(async (filePath) => {
 			try {
-				const fs = await getFs();
 				const content = await fs.readFile(filePath, 'utf-8');
 				const moduleData = await processModule(content);
 				if (!moduleData?.schema) return null;
