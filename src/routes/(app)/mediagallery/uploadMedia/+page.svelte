@@ -29,7 +29,7 @@
 	import RemoteUpload from './RemoteUpload.svelte';
 
 	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+import { TabGroup, Tab } from '@skeletonlabs/skeleton-svelte';
 
 	let tabSet: number = $state(0);
 </script>

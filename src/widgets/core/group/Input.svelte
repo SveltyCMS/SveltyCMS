@@ -78,6 +78,7 @@
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.group-container {
 		@apply w-full;
 	}

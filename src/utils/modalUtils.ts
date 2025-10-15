@@ -4,7 +4,7 @@
  *
  */
 
-import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton-svelte';
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 

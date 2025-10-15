@@ -146,6 +146,7 @@ User selects date → automatically converts to ISO 8601 UTC format
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.input-container {
 		position: relative;
 		padding-bottom: 1.5rem; /* Make space for the error message */

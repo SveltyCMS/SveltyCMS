@@ -41,8 +41,8 @@ This component provides a streamlined interface for managing collection entries 
 	import { getLocale } from '@src/paraglide/runtime';
 	import { showScheduleModal } from '@utils/modalUtils';
 	import Toggles from './system/inputs/Toggles.svelte';
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Skeleton v4
+	import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	const modalStore = getModalStore();
 

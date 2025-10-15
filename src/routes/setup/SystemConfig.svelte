@@ -23,7 +23,7 @@ Key Features:
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+import { popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import type { SystemSettings } from '@stores/setupStore.svelte';
 
 	// --- PROPS ---

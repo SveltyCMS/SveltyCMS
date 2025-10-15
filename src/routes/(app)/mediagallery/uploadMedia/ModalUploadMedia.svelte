@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// ParaglideJS

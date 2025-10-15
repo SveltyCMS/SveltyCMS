@@ -36,7 +36,7 @@
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// Skeleton components and utilities
-	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+    import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';

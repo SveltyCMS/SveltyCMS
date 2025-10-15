@@ -38,7 +38,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
 	// Skeleton
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';

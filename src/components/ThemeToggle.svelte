@@ -8,7 +8,7 @@
 -->
 
 <script lang="ts">
-	import { modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+import { modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton-svelte';
 	import { get } from 'svelte/store';
 
 	// Props

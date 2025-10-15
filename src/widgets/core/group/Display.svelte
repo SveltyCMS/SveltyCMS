@@ -109,6 +109,7 @@ Part of the Three Pillars Architecture for widget system.
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.group-display {
 		@apply mb-4 w-full;
 	}

@@ -222,6 +222,8 @@
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
+    @reference "tailwindcss";
 	.input-container {
 		position: relative;
 		padding-bottom: 1.5rem;

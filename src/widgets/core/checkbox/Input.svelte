@@ -58,6 +58,7 @@
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.checkbox {
 		@apply h-5 w-5 cursor-pointer rounded border-gray-300 transition-colors duration-200;
 		appearance: none;

@@ -10,7 +10,7 @@ Allows administrators to monitor system status and restart services.
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { systemState, type SystemState, type ServiceHealth } from '@src/stores/system';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+import { getToastStore } from '@skeletonlabs/skeleton-svelte';
 
 	const toastStore = getToastStore();
 

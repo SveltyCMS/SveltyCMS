@@ -415,6 +415,7 @@
 </ul>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	:global(.focused-label) {
 		@apply text-primary-400;
 	}

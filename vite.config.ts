@@ -443,10 +443,10 @@ export default defineConfig((): UserConfig => {
 								return 'vendor-db';
 							}
 
-							// Skeleton UI components
-							if (id.includes('@skeletonlabs/skeleton')) {
-								return 'skeleton-ui';
-							}
+                            // Skeleton UI components
+                            if (id.includes('@skeletonlabs/skeleton-svelte')) {
+                                return 'skeleton-ui';
+                            }
 
 							// Svelte ecosystem (including SvelteKit to avoid circular deps)
 							if (id.includes('svelte')) {
@@ -478,7 +478,7 @@ export default defineConfig((): UserConfig => {
 
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
-			include: ['@skeletonlabs/skeleton']
+            include: ['@skeletonlabs/skeleton-svelte']
 		}
 	};
 });

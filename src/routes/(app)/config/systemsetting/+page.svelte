@@ -15,8 +15,8 @@ All dynamic CMS settings organized into logical groups
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+    import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+    import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';
@@ -274,6 +274,7 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.alert {
 		@apply rounded-container-token;
 	}

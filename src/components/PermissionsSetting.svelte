@@ -179,6 +179,7 @@ Features:
 {/if}
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.badge {
 		@apply rounded px-2 py-1 text-xs;
 	}

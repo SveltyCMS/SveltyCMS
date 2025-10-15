@@ -116,6 +116,7 @@ Interactive level configuration with add/remove level capabilities
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.megamenu-gui-fields {
 		@apply space-y-6;
 	}

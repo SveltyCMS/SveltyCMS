@@ -31,10 +31,10 @@
 	import WelcomeModal from './WelcomeModal.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
 
-	// Skeleton
-	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
+	// Skeleton v4
+	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
+	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton-svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Utils

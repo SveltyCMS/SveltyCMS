@@ -115,6 +115,7 @@ optional duration and a simple relative context (Current / Past / Future).
 </span>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.date-range-display {
 		@apply font-medium text-gray-900 dark:text-gray-100;
 	}

@@ -45,8 +45,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
+	// Skeleton v4
+	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton-svelte';
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 

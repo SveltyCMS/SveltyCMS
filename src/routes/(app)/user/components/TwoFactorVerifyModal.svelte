@@ -25,7 +25,7 @@ This modal			class="input text-center font-mono tracking-wider"
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton';
+import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	import * as m from '@src/paraglide/messages';
 
 	// Props
@@ -207,6 +207,7 @@ This modal			class="input text-center font-mono tracking-wider"
 </div>
 
 <style>
+    @reference "tailwindcss";
 	.modal-content {
 		@apply p-6;
 	}

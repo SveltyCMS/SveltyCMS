@@ -15,8 +15,8 @@ import type { Config } from 'tailwindcss';
 import forms from '@tailwindcss/forms';
 import typography from '@tailwindcss/typography';
 
-// Import the Skeleton plugin
-import { skeleton } from '@skeletonlabs/tw-plugin';
+// Import the Skeleton v4 Tailwind plugin
+import { skeleton } from '@skeletonlabs/skeleton/tailwind/skeleton.cjs';
 // Import Custom Theme
 import { SveltyCMSTheme } from './src/themes/SveltyCMS/SveltyCMSTheme';
 
@@ -24,11 +24,7 @@ const config = {
 	// Opt for dark mode to be handled via the class method
 	darkMode: 'class',
 
-	content: [
-		'./src/**/*.{html,js,svelte,ts}',
-		// Append Path for the Skeleton NPM package and files:
-		join(require.resolve('@skeletonlabs/skeleton'), '../**/*.{html,js,svelte,ts}')
-	],
+    content: ['./src/**/*.{html,js,svelte,ts}'],
 
 	theme: {
 		extend: {
@@ -48,17 +44,15 @@ const config = {
 		}
 	},
 
-	plugins: [
-		forms,
-		typography,
-		// Append the Skeleton plugin (after other plugins)
-
-		skeleton({
-			themes: {
-				custom: [SveltyCMSTheme]
-			}
-		})
-	]
+    plugins: [
+        forms,
+        typography,
+        skeleton({
+            themes: {
+                custom: [SveltyCMSTheme]
+            }
+        })
+    ]
 } satisfies Config;
 
 export default config;

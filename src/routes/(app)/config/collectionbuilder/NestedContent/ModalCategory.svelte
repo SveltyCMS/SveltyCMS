@@ -6,7 +6,7 @@
 <script lang="ts">
 	// Stores
 	import { contentStructure } from '@src/stores/collectionStore.svelte';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';

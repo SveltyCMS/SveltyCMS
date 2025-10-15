@@ -291,6 +291,7 @@
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	:global(.config-btn) {
 		@apply flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20;
 	}

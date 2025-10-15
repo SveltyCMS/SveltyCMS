@@ -18,7 +18,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { showToast } from '@utils/toast';
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+import { TabGroup, Tab } from '@skeletonlabs/skeleton-svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';

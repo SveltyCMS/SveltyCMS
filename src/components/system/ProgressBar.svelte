@@ -55,6 +55,7 @@
 </div>
 
 <style>
+    @reference "tailwindcss";
 	.progress-container {
 		@apply w-full;
 	}

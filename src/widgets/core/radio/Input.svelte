@@ -59,6 +59,7 @@ Renders radio group with options from field.options array
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.radio-container.invalid .legend {
 		color: #ef4444;
 	}

@@ -35,8 +35,8 @@ This component provides a user interface for managing 2FA settings:
 	import TwoFactorSetupModal from './TwoFactorSetupModal.svelte';
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
 	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
+import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 

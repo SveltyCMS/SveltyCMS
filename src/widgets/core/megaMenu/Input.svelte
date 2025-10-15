@@ -35,7 +35,7 @@ Interactive menu builder with add/edit/reorder capabilities
 -->
 
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton';
+    import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 	import type { MenuItem, MenuEditContext } from './types';
 	import { contentLanguage } from '@src/stores/store.svelte';
@@ -267,6 +267,7 @@ Interactive menu builder with add/edit/reorder capabilities
 </div>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.megamenu-container {
 		@apply space-y-4;
 	}

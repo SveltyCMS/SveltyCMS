@@ -24,7 +24,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+import { getModalStore } from '@skeletonlabs/skeleton-svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -280,6 +280,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 </div>
 
 <style>
+    @reference "tailwindcss";
 	.modal-content {
 		@apply p-6;
 	}

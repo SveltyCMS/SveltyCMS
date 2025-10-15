@@ -23,7 +23,7 @@
 <script lang="ts">
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 

@@ -87,6 +87,7 @@ Renders: 24.09.2025 (German) or 9/24/2025 (US) based on browser locale
 </span>
 
 <style lang="postcss">
+    @reference "tailwindcss";
 	.date-display {
 		@apply text-gray-900 dark:text-gray-100;
 		@apply font-medium;
