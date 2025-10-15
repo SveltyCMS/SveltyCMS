@@ -202,17 +202,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			<button
 				type="button"
 				onclick={() => (showAtlasHelper = !showAtlasHelper)}
+				aria-expanded={showAtlasHelper}
+				aria-controls="atlas-helper-content"
 				class="flex w-full items-center justify-between p-4 text-left text-blue-900 dark:text-blue-200"
 			>
 				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:information" width="20" class="flex-shrink-0"></iconify-icon>
+					<iconify-icon icon="mdi:information" width="20" class="flex-shrink-0" aria-hidden="true"></iconify-icon>
 					<span class="font-semibold">MongoDB Atlas Quick Setup</span>
 				</div>
-				<iconify-icon icon={showAtlasHelper ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="24"></iconify-icon>
+				<iconify-icon icon={showAtlasHelper ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="24" aria-hidden="true"></iconify-icon>
 			</button>
 
 			{#if showAtlasHelper}
-				<div class="border-t border-blue-200 p-4 pt-3 text-blue-900 dark:border-blue-500/30 dark:text-blue-200">
+				<div id="atlas-helper-content" class="border-t border-blue-200 p-4 pt-3 text-blue-900 dark:border-blue-500/30 dark:text-blue-200">
 					<p class="text-sm">
 						To connect to MongoDB Atlas, paste your connection string into the <strong>Host</strong> field:
 					</p>
@@ -260,7 +262,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						tabindex="-1"
 						use:popup={popupDbType}
 						aria-label="Help: Database Type"
-						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -277,23 +280,24 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<option value="mysql">MySQL</option>
 				</select>
 				{#if isInstallingDriver}
-					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-						<iconify-icon icon="mdi:loading" class="animate-spin" width="16"></iconify-icon>
+					<div class="mt-2 flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400" role="status">
+						<iconify-icon icon="mdi:loading" class="animate-spin" width="16" aria-hidden="true"></iconify-icon>
 						<span>Installing database driver...</span>
 					</div>
 				{/if}
 				{#if installSuccess}
-					<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-						<iconify-icon icon="mdi:check-circle" width="16"></iconify-icon>
+					<div class="mt-2 flex items-center gap-2 text-sm text-green-600 dark:text-green-400" role="status">
+						<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
 						<span>{installSuccess}</span>
 					</div>
 				{/if}
 				{#if installError}
 					<div
 						class="mt-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+						role="alert"
 					>
 						<div class="flex items-center gap-2">
-							<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+							<iconify-icon icon="mdi:alert-circle" width="16" aria-hidden="true"></iconify-icon>
 							<span class="font-medium">Driver Installation Failed</span>
 						</div>
 						<p class="mt-1">{installError}</p>
@@ -304,193 +308,214 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				{/if}
 			</div>
 
-			{#if true}
-				<div>
-					<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
-						<button type="button" tabindex="-1" use:popup={popupDbHost} aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
-							><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
-						>
-					</label>
-					<div
-						data-popup="popupDbHost"
-						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+			<div>
+				<label for="db-host" class="mb-1 flex items-center gap-1 text-sm font-medium">
+					<iconify-icon icon="mdi:server-network" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<span>{isAtlas ? 'Atlas Cluster Host' : m.setup_database_host()}</span>
+					<button type="button" tabindex="-1" use:popup={popupDbHost} aria-label="Help: Host" class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
-						<p>
-							{isAtlas
-								? "Enter your Atlas cluster hostname (e.g., cluster0.abcde.mongodb.net) OR paste your full connection string (mongodb+srv://username:password@cluster0.abcde.mongodb.net/) and we'll extract the credentials automatically."
-								: m.setup_help_database_host?.() ||
-									'Hostname or IP address where the database server is reachable. You can also paste a full MongoDB connection string.'}
-						</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
-					<input
-						id="db-host"
-						bind:value={dbConfig.host}
-						type="text"
-						onchange={clearDbTestError}
-						onpaste={handleHostPaste}
-						placeholder={isAtlas ? 'cluster0.abcde.mongodb.net OR paste full mongodb+srv://...' : 'localhost OR paste full connection string'}
-						class="input w-full rounded {validationErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-					/>
-					{#if validationErrors.host}<div class="mt-1 text-xs text-error-500">{validationErrors.host}</div>{/if}
-					{#if showConnectionStringHelper}
-						<div
-							class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
-						>
-							<div class="flex items-center gap-2">
-								<iconify-icon icon="mdi:check-circle" width="16"></iconify-icon>
-								<span class="font-medium">Connection string parsed!</span>
-							</div>
-							<p class="mt-1 text-xs">
-								Hostname, username, and password have been automatically extracted. Please verify the values and replace
-								<code>&lt;db_password&gt;</code> placeholder if needed.
-							</p>
-						</div>
-					{/if}
+				</label>
+				<div
+					data-popup="popupDbHost"
+					class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+				>
+					<p>
+						{isAtlas
+							? "Enter your Atlas cluster hostname (e.g., cluster0.abcde.mongodb.net) OR paste your full connection string (mongodb+srv://username:password@cluster0.abcde.mongodb.net/) and we'll extract the credentials automatically."
+							: m.setup_help_database_host?.() ||
+								'Hostname or IP address where the database server is reachable. You can also paste a full MongoDB connection string.'}
+					</p>
+					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 				</div>
-
-				{#if !isAtlas}
-					<div>
-						<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
-							<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-							<span>{m.setup_database_port()}</span>
-							<button type="button" tabindex="-1" use:popup={popupDbPort} aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
-								><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
-							>
-						</label>
-						<div
-							data-popup="popupDbPort"
-							class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-						>
-							<p>{m.setup_help_database_port?.() || 'Network port the database server listens on. Defaults vary by engine.'}</p>
-							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+				<input
+					id="db-host"
+					bind:value={dbConfig.host}
+					type="text"
+					onchange={clearDbTestError}
+					onpaste={handleHostPaste}
+					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net OR paste full mongodb+srv://...' : 'localhost OR paste full connection string'}
+					class="input w-full rounded {validationErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					aria-invalid={!!validationErrors.host}
+					aria-describedby={validationErrors.host ? 'db-host-error' : undefined}
+				/>
+				{#if validationErrors.host}<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.host}</div>{/if}
+				{#if showConnectionStringHelper}
+					<div
+						class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+						role="status"
+					>
+						<div class="flex items-center gap-2">
+							<iconify-icon icon="mdi:check-circle" width="16" aria-hidden="true"></iconify-icon>
+							<span class="font-medium">Connection string parsed!</span>
 						</div>
-						<input
-							id="db-port"
-							bind:value={dbConfig.port}
-							type="text"
-							onchange={clearDbTestError}
-							placeholder={m.setup_database_port_placeholder?.() || '27017'}
-							class="input w-full rounded {validationErrors.port
-								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
-								: 'border-slate-200'}"
-						/>
-						{#if validationErrors.port}<div class="mt-1 text-xs text-error-500">{validationErrors.port}</div>{/if}
+						<p class="mt-1 text-xs">
+							Hostname, username, and password have been automatically extracted. Please verify the values and replace
+							<code>&lt;db_password&gt;</code> placeholder if needed.
+						</p>
 					</div>
 				{/if}
+			</div>
+
+			{#if !isAtlas}
 				<div>
-					<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_database_name()}</span>
-						<button
-							type="button"
-							tabindex="-1"
-							use:popup={popupDbName}
-							aria-label="Help: Database Name"
-							class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+					<label for="db-port" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon icon="mdi:ethernet" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+						<span>{m.setup_database_port()}</span>
+						<button type="button" tabindex="-1" use:popup={popupDbPort} aria-label="Help: Port" class="ml-1 text-slate-400 hover:text-primary-500"
+							><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 						>
 					</label>
 					<div
-						data-popup="popupDbName"
+						data-popup="popupDbPort"
 						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
 					>
-						<p>{m.setup_help_database_name?.() || 'Name of the database/schema to use or create.'}</p>
+						<p>{m.setup_help_database_port?.() || 'Network port the database server listens on. Defaults vary by engine.'}</p>
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
 					<input
-						id="db-name"
-						bind:value={dbConfig.name}
+						id="db-port"
+						bind:value={dbConfig.port}
 						type="text"
 						onchange={clearDbTestError}
-						placeholder={m.setup_database_name_placeholder?.() || 'SveltyCMS'}
-						class="input w-full rounded {validationErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+						placeholder={m.setup_database_port_placeholder?.() || '27017'}
+						class="input w-full rounded {validationErrors.port ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+						aria-invalid={!!validationErrors.port}
+						aria-describedby={validationErrors.port ? 'db-port-error' : undefined}
 					/>
-					{#if validationErrors.name}<div class="mt-1 text-xs text-error-500">{validationErrors.name}</div>{/if}
-				</div>
-				<div>
-					<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_database_user()}</span>
-						<button
-							type="button"
-							tabindex="-1"
-							use:popup={popupDbUser}
-							aria-label="Help: Database User"
-							class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
-						>
-					</label>
-					<div
-						data-popup="popupDbUser"
-						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>{m.setup_help_database_user?.() || 'Database user with rights to create tables and read/write data.'}</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
-					<input
-						id="db-user"
-						bind:value={dbConfig.user}
-						type="text"
-						onchange={clearDbTestError}
-						placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
-						class="input rounded {validationErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-					/>
-					{#if validationErrors.user}<div class="mt-1 text-xs text-error-500">{validationErrors.user}</div>{/if}
-				</div>
-				<div>
-					<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>{m.setup_database_password()}</span>
-						<button
-							type="button"
-							tabindex="-1"
-							use:popup={popupDbPassword}
-							aria-label="Help: Database Password"
-							class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
-						>
-					</label>
-					<div
-						data-popup="popupDbPassword"
-						class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>{m.setup_help_database_password?.() || 'Password for the database user. Store securely; not shown in logs.'}</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
-					<div class="relative">
-						<input
-							id="db-password"
-							bind:value={dbConfig.password}
-							onchange={clearDbTestError}
-							onkeydown={(e) => {
-								if (e.key === 'Enter') {
-									e.preventDefault();
-									handleTestConnection();
-								}
-							}}
-							type={showDbPassword ? 'text' : 'password'}
-							placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
-							class="input w-full rounded {validationErrors.password
-								? 'border-error-500 focus:border-error-500 focus:ring-error-500'
-								: 'border-slate-200'}"
-						/>
-						<button
-							type="button"
-							onclick={toggleDbPassword}
-							class="absolute inset-y-0 right-0 flex min-w-[2.5rem] items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
-							aria-label={showDbPassword ? 'Hide password' : 'Show password'}
-						>
-							<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18"></iconify-icon>
-						</button>
-					</div>
-					{#if validationErrors.password}<div class="mt-1 text-xs text-error-500">{validationErrors.password}</div>{/if}
+					{#if validationErrors.port}<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.port}</div>{/if}
 				</div>
 			{/if}
+			<div>
+				<label for="db-name" class="mb-1 flex items-center gap-1 text-sm font-medium">
+					<iconify-icon icon="mdi:database-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<span>{m.setup_database_name()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbName}
+						aria-label="Help: Database Name"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
+				</label>
+				<div
+					data-popup="popupDbName"
+					class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+				>
+					<p>{m.setup_help_database_name?.() || 'Name of the database/schema to use or create.'}</p>
+					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+				</div>
+				<input
+					id="db-name"
+					bind:value={dbConfig.name}
+					type="text"
+					onchange={clearDbTestError}
+					placeholder={m.setup_database_name_placeholder?.() || 'SveltyCMS'}
+					class="input w-full rounded {validationErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					aria-invalid={!!validationErrors.name}
+					aria-describedby={validationErrors.name ? 'db-name-error' : undefined}
+				/>
+				{#if validationErrors.name}<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.name}</div>{/if}
+			</div>
+			<div>
+				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
+					<iconify-icon icon="mdi:account-key" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<span>{m.setup_database_user()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbUser}
+						aria-label="Help: Database User"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
+				</label>
+				<div
+					data-popup="popupDbUser"
+					class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+				>
+					<p>{m.setup_help_database_user?.() || 'Database user with rights to create tables and read/write data.'}</p>
+					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+				</div>
+				<input
+					id="db-user"
+					bind:value={dbConfig.user}
+					type="text"
+					onchange={clearDbTestError}
+					placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
+					class="input rounded {validationErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					aria-invalid={!!validationErrors.user}
+					aria-describedby={validationErrors.user ? 'db-user-error' : undefined}
+				/>
+				{#if validationErrors.user}<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.user}</div>{/if}
+			</div>
+			<div>
+				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
+					<iconify-icon icon="mdi:key-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
+					<span>{m.setup_database_password()}</span>
+					<button
+						type="button"
+						tabindex="-1"
+						use:popup={popupDbPassword}
+						aria-label="Help: Database Password"
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
+					>
+				</label>
+				<div
+					data-popup="popupDbPassword"
+					class="card z-30 hidden w-80 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
+				>
+					<p>{m.setup_help_database_password?.() || 'Password for the database user. Store securely; not shown in logs.'}</p>
+					<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
+				</div>
+				<div class="relative">
+					<input
+						id="db-password"
+						bind:value={dbConfig.password}
+						onchange={clearDbTestError}
+						onkeydown={(e) => {
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								handleTestConnection();
+							}
+						}}
+						type={showDbPassword ? 'text' : 'password'}
+						placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
+						class="input w-full rounded {validationErrors.password
+							? 'border-error-500 focus:border-error-500 focus:ring-error-500'
+							: 'border-slate-200'}"
+						aria-invalid={!!validationErrors.password}
+						aria-describedby={validationErrors.password ? 'db-password-error' : undefined}
+					/>
+					<button
+						type="button"
+						onclick={toggleDbPassword}
+						class="absolute inset-y-0 right-0 flex min-w-[2.5rem] items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+						aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
+					>
+						<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
+					</button>
+				</div>
+				{#if validationErrors.password}
+					<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.password}</div>
+				{/if}
+			</div>
 		</div>
 		{#if !unsupportedDbSelected}
-			<button onclick={handleTestConnection} disabled={isLoading} class="variant-filled-tertiary btn w-full dark:variant-filled-primary">
+			<button
+				onclick={handleTestConnection}
+				disabled={isLoading}
+				aria-label={isLoading ? 'Testing database connection, please wait' : 'Test database connection'}
+				class="variant-filled-tertiary btn w-full dark:variant-filled-primary"
+			>
 				{#if isLoading}
-					<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"></div>
+					<div
+						class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"
+						role="status"
+						aria-label="Loading"
+					></div>
 					Testing Connection...
 				{:else}
 					{m.setup_button_test_connection()}
@@ -500,6 +525,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		{#if dbConfigChangedSinceTest}
 			<div
 				class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+				role="alert"
 			>
 				{m.setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
 			</div>

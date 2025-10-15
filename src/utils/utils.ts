@@ -183,7 +183,7 @@ export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> =
 };
 
 // Returns field's database field name or label
-export function getFieldName(field: FieldInstance, rawName = false): string {
+export function getFieldName(field: Partial<FieldInstance> & { label: string }, rawName = false): string {
 	if (!field) return '';
 
 	// Use explicit db_fieldName if available

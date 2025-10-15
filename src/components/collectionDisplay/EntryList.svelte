@@ -944,7 +944,7 @@ Features:
 			for (const field of currentCollection.fields) {
 				// Type guard to ensure field is an object and not unknown
 				if (typeof field === 'object' && field !== null && 'label' in field && 'type' in field) {
-					const fieldName = getFieldName(field as { label: string; type: string }, false);
+					const fieldName = getFieldName(field as any, false);
 					// Set a default value based on the field type or widget
 					// Note: We can't determine if field is translatable from type definition,
 					// so we'll set simple null value. Translation initialization handled elsewhere.

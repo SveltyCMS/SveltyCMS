@@ -32,7 +32,8 @@
 
 	// Import components and utilities
 	import VersionCheck from '@components/VersionCheck.svelte';
-	import Collections from '@components/Collections.svelte';
+		import Collections from '@components/Collections.svelte';
+	import type { CollectionTreeNode } from '@components/Collections.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// Skeleton components and utilities
@@ -41,9 +42,31 @@
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+	import type { ContentNode } from '@src/content/types';
 
 	// Define user data and state variables - make it reactive to page data changes
 	const user = $derived(page.data.user);
+
+	const collectionTreeNodes = $derived.by(() => {
+		const mapNodes = (nodes: ContentNode[]): CollectionTreeNode[] => {
+			return nodes.map((node) => {
+				const newNode: CollectionTreeNode = {
+					id: node._id,
+					name: node.name,
+					isExpanded: false, // Default value
+					onClick: () => {
+						if (node.path) {
+							goto(node.path);
+						}
+					},
+					icon: node.icon,
+					children: node.children ? mapNodes(node.children) : undefined
+				};
+				return newNode;
+			});
+		};
+		return mapNodes(contentStructure.value || []);
+	});
 
 	// Tooltip settings
 	const UserTooltip: PopupSettings = {
@@ -224,7 +247,7 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections systemVirtualFolders={contentStructure.value} />
+	<Collections systemVirtualFolders={collectionTreeNodes} />
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto">

@@ -180,17 +180,23 @@
 	<!-- Why SMTP is Needed -->
 	<div class="card variant-ghost-primary p-4">
 		<!-- Header - Always visible with toggle button -->
-		<button type="button" class="flex w-full items-start gap-3 text-left" onclick={() => (showWhySmtp = !showWhySmtp)}>
-			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl text-primary-500"></iconify-icon>
+		<button
+			type="button"
+			class="flex w-full items-start gap-3 text-left"
+			onclick={() => (showWhySmtp = !showWhySmtp)}
+			aria-expanded={showWhySmtp}
+			aria-controls="why-smtp-content"
+		>
+			<iconify-icon icon="mdi:information" class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"></iconify-icon>
 			<div class="flex-1">
 				<h3 class="font-semibold text-primary-700 dark:text-primary-400">{m.setup_email_why_title()}</h3>
 			</div>
-			<iconify-icon icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="mt-0.5 shrink-0 text-xl text-primary-500"></iconify-icon>
+			<iconify-icon icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"></iconify-icon>
 		</button>
 
 		<!-- Collapsible content -->
 		{#if showWhySmtp}
-			<div class="ml-8 mt-2 space-y-2">
+			<div id="why-smtp-content" class="ml-8 mt-2 space-y-2">
 				<p class="text-surface-600-300 text-sm">{m.setup_email_why_desc()}</p>
 				<ul class="text-surface-600-300 list-inside list-disc space-y-1 text-sm">
 					<li>{m.setup_email_feature_user_mgmt()}</li>
@@ -208,7 +214,7 @@
 	<div class="space-y-2">
 		<label class="label">
 			<span class="font-medium">{m.setup_email_provider()}</span>
-			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)}>
+			<select class="select" bind:value={selectedPreset} onchange={() => applyPreset(selectedPreset)} aria-label="Select an SMTP provider preset">
 				{#each presets as preset}
 					<option value={preset.name}>{preset.name}</option>
 				{/each}
@@ -217,8 +223,8 @@
 		{#if selectedPreset !== m.setup_email_preset_custom()}
 			{@const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
-				<div class="card variant-ghost-warning flex items-start gap-2 p-3">
-					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500"></iconify-icon>
+				<div class="card variant-ghost-warning flex items-start gap-2 p-3" role="alert">
+					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
 				</div>
 			{/if}
@@ -266,12 +272,13 @@
 					<button
 						type="button"
 						class="variant-ghost-surface btn btn-sm"
+						aria-label="Switch back to standard SMTP ports"
 						onclick={() => {
 							useCustomPort = false;
 							smtpPort = 587; // Reset to default
 						}}
 					>
-						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg"></iconify-icon>
+						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"></iconify-icon>
 						{m.setup_email_button_use_standard()}
 					</button>
 				</div>
@@ -282,6 +289,7 @@
 					<select
 						class="select flex-1"
 						bind:value={smtpPort}
+						aria-label="Select a standard SMTP port"
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
@@ -291,8 +299,13 @@
 							<option value={port.value}>{port.label}</option>
 						{/each}
 					</select>
-					<button type="button" class="variant-ghost-surface btn btn-sm whitespace-nowrap" onclick={() => (useCustomPort = true)}>
-						<iconify-icon icon="mdi:pencil" class="text-lg"></iconify-icon>
+					<button
+						type="button"
+						class="variant-ghost-surface btn btn-sm whitespace-nowrap"
+						aria-label="Enter a custom SMTP port"
+						onclick={() => (useCustomPort = true)}
+					>
+						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{m.setup_email_button_custom()}
 					</button>
 				</div>

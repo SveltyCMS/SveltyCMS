@@ -118,65 +118,7 @@ async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 	return false;
 }
 
-// --- START: Updated Language-Aware Redirect Functions ---
-
-// Cache redirect paths per language for performance optimization
-const cachedFirstCollectionPaths = new Map<Locale, { path: string; expiry: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-
-/**
- * Constructs a redirect URL to the first available collection, prefixed with the given language.
- * @param language The validated user language (e.g., 'en', 'de').
- */
-async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
-	try {
-		await dbInitPromise;
-		logger.debug(`Fetching first collection path for language: \x1b[34m${language}\x1b[0m`);
-
-		const firstCollection = await contentManager.getFirstCollection();
-		if (firstCollection?.path) {
-			// Ensure the collection path has a leading slash
-			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
-			const redirectUrl = `/${language}${collectionPath}`;
-			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
-			return redirectUrl;
-		}
-
-		logger.warn('No collections found via getFirstCollection(), returning null.');
-		return null; // Return null if no collections are configured
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return null; // Return null on error
-	}
-}
-
-/**
- * A cached version of fetchAndRedirectToFirstCollection to avoid redundant lookups.
- * The cache is language-aware.
- * @param language The validated user language.
- */
-async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promise<string> {
-	const now = Date.now();
-	const cachedEntry = cachedFirstCollectionPaths.get(language);
-
-	// Return cached result if still valid
-	if (cachedEntry && now < cachedEntry.expiry) {
-		logger.debug(`Returning cached path for language '${language}': ${cachedEntry.path}`);
-		return cachedEntry.path;
-	}
-
-	// Fetch fresh data
-	const result = await fetchAndRedirectToFirstCollection(language);
-
-	// Cache the result if it's a valid path (not null)
-	if (result && result !== '/') {
-		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
-		logger.debug(`Cached new path for language '\x1b[34m${language}\x1b[0m': \x1b[32m${result}\x1b[0m`);
-	}
-
-	return result;
-}
-// --- END: Updated Language-Aware Redirect Functions ---
+import { getCachedFirstCollectionPath } from '@stores/collectionStore.svelte';
 
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
@@ -494,17 +436,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if OAuth should be shown
 		const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 
-		// ENHANCEMENT: Pre-emptively get the info for the first collection.
-		// This tells us where the user will likely go after logging in and can be shown in the UI.
-		const firstCollectionSchema = await contentManager.getFirstCollection();
-		const firstCollection = firstCollectionSchema
-			? {
-					collectionId: firstCollectionSchema._id,
-					name: firstCollectionSchema.name,
-					path: firstCollectionSchema.path
-				}
-			: null;
-
 		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
 		try {
@@ -524,7 +455,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			firstUserExists,
 			showOAuth,
 			hasExistingOAuthUsers,
-			firstCollection, // Pass collection info to the client
 			loginForm,
 			forgotForm,
 			resetForm,
@@ -793,7 +723,7 @@ export const actions: Actions = {
 			// Run authentication and collection path retrieval in parallel for faster response
 			const [authResult, collectionPath] = await Promise.all([
 				signInUser(email, password, isToken, event.cookies),
-				fetchAndRedirectToFirstCollectionCached(userLanguage) // Use cached version
+				getCachedFirstCollectionPath(userLanguage) // Use cached version from store
 			]);
 
 			resp = authResult;

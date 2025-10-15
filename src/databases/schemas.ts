@@ -1,9 +1,21 @@
 /**
  * @file src/databases/schemas.ts
- * @description Configuration schemas and types with Valibot validation.
- * This version is compatible with older Valibot versions by handling
- * cross-field validation in a separate function instead of using `refine`.
- * It maintains enhanced, developer-friendly error reporting.
+ * @description Defines validation schemas for application configuration and base database structures.
+ * @summary
+ * This file serves as the "rulebook" for the application's configuration and base database models,
+ * primarily using Valibot for schema definition and validation. It ensures the integrity of
+ * critical configuration and provides foundational data structures.
+ *
+ * Key definitions in this file include:
+ * - `privateConfigSchema`: Validates `private.ts`, covering sensitive data like database credentials and API keys.
+ * - `publicConfigSchema`: Validates `public.ts`, covering public settings like site name and feature flags.
+ * - `databaseConfigSchema`: Defines the structure for database connections during setup.
+ * - Validation logic and helpers for ensuring configuration is correct at startup.
+ *
+ * You should edit this file when you need to:
+ * - Add or change a required environment variable for the system to run.
+ * - Define the validation rules for new configuration settings.
+ * - Specify the base schema for a new database table or collection.
  */
 
 import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';

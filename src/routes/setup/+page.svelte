@@ -239,7 +239,7 @@
 
 	const canProceed = $derived.by<boolean>(() => {
 		if (wizard.currentStep === 0) return wizard.dbTestPassed;
-		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
+		if (wizard.currentStep === 1 || wizard.currentStep === 2) return true;
 		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
 		return false;
 	});

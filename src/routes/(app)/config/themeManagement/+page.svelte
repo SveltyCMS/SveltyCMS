@@ -60,11 +60,11 @@
 
 	// Effects for theme changes
 	$effect.root(() => {
-		if (selectedTheme) updateTheme(selectedTheme);
+		if (selectedTheme) updateTheme(selectedTheme.name);
 	});
 
 	$effect.root(() => {
-		if (livePreviewTheme) updateTheme(livePreviewTheme);
+		if (livePreviewTheme) updateTheme(livePreviewTheme.name);
 	});
 
 	// Initialize selectedTheme with current theme
@@ -85,7 +85,7 @@
 
 	function resetPreview() {
 		livePreviewTheme = null;
-		if (selectedTheme) updateTheme(selectedTheme);
+		if (selectedTheme) updateTheme(selectedTheme.name);
 	}
 
 	function handleThemeChange() {

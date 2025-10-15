@@ -32,7 +32,6 @@ Features:
 
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
-	const firstCollection = $state(data.firstCollection);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);

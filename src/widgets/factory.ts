@@ -33,7 +33,8 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 	/** Type-safe default values for the widget's custom properties. */
 	defaults?: Partial<TProps>;
 
-	/** Valibot validation schema for the widget's data.
+	/**
+	 * Valibot validation schema for the widget's data.
 	 *  Accepts either a static schema object (Valibot BaseSchema) or a function that receives the FieldInstance and returns one.
 	 *  Kept as `unknown` to avoid over-constraining the factory; callers may provide properly-typed Valibot schemas.
 	 */
@@ -46,7 +47,7 @@ export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
 		graphql: string;
 		resolver?: Record<string, unknown>;
 	};
-	aggregations?: WidgetDefinition['aggregations'];
+	aggregations?: unknown;
 }
 
 /**
@@ -108,7 +109,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		} = combinedProps;
 
 		const fieldInstance: FieldInstance = {
-			widget: widgetDefinition,
+			widget: widgetDefinition as any, // TODO: Fix this 'any'
 			label,
 			db_fieldName: db_fieldName || (label ? label.toLowerCase().replace(/\s+/g, '_') : 'unnamed_field'),
 			required: required ?? false,

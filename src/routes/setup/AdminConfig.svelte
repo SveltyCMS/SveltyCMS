@@ -1,6 +1,6 @@
 <!--
 @file src/routes/setup/AdminConfig.svelte
-@description Administrator account setup step for SveltyCMS setup wizard. Handles admin user creation, password validation, and error display.
+@description Administrator account setup step for SveltyCMS setup wizard. Handles admin user creation, password validation, and error display
 
 Features:
 - Enter admin username, email, password, and confirm password
@@ -81,7 +81,7 @@ Features:
 						aria-label="Help: Username"
 						class="ml-1 text-slate-400 hover:text-primary-500"
 					>
-						<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+						<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 					</button>
 				</label>
 				<div
@@ -98,9 +98,13 @@ Features:
 					type="text"
 					placeholder={m.setup_admin_placeholder_username?.() || 'Enter username'}
 					class="input w-full rounded {validationErrors.username ? 'border-error-500' : 'border-slate-200'}"
+					aria-invalid={!!validationErrors.username}
+					aria-describedby={validationErrors.username ? 'admin-username-error' : undefined}
 				/>
 				{#if validationErrors.username}
-					<div class="mt-1 text-xs text-error-500">{validationErrors.username}</div>
+					<div id="admin-username-error" class="mt-1 text-xs text-error-500" role="alert">
+						{validationErrors.username}
+					</div>
 				{/if}
 			</div>
 			<div>
@@ -108,7 +112,7 @@ Features:
 					<iconify-icon icon="mdi:email" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 					<span>{m.form_email?.() || 'Email'}</span>
 					<button type="button" tabindex="-1" use:popup={popupAdminEmail} aria-label="Help: Email" class="ml-1 text-slate-400 hover:text-primary-500"
-						><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -125,9 +129,13 @@ Features:
 					type="email"
 					placeholder={m.setup_admin_placeholder_email?.() || 'admin@example.com'}
 					class="input w-full rounded {validationErrors.email ? 'border-error-500' : 'border-slate-200'}"
+					aria-invalid={!!validationErrors.email}
+					aria-describedby={validationErrors.email ? 'admin-email-error' : undefined}
 				/>
 				{#if validationErrors.email}
-					<div class="mt-1 text-xs text-error-500">{validationErrors.email}</div>
+					<div id="admin-email-error" class="mt-1 text-xs text-error-500" role="alert">
+						{validationErrors.email}
+					</div>
 				{/if}
 			</div>
 			<div>
@@ -139,7 +147,8 @@ Features:
 						tabindex="-1"
 						use:popup={popupAdminPassword}
 						aria-label="Help: Password"
-						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -160,6 +169,8 @@ Features:
 						type={showAdminPassword ? 'text' : 'password'}
 						placeholder={m.setup_admin_placeholder_password?.() || 'Enter secure password'}
 						class="input w-full rounded {validationErrors.password ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!validationErrors.password}
+						aria-describedby={validationErrors.password ? 'admin-password-error' : undefined}
 					/>
 					<button
 						type="button"
@@ -168,11 +179,13 @@ Features:
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
 						aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
 					>
-						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18"></iconify-icon>
+						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
 				{#if validationErrors.password}
-					<div class="mt-1 text-xs text-error-500">{validationErrors.password}</div>
+					<div id="admin-password-error" class="mt-1 text-xs text-error-500" role="alert">
+						{validationErrors.password}
+					</div>
 				{/if}
 			</div>
 			<div>
@@ -184,7 +197,8 @@ Features:
 						type="button"
 						use:popup={popupAdminConfirmPassword}
 						aria-label="Help: Confirm Password"
-						class="ml-1 text-slate-400 hover:text-primary-500"><iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon></button
+						class="ml-1 text-slate-400 hover:text-primary-500"
+						><iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon></button
 					>
 				</label>
 				<div
@@ -205,31 +219,35 @@ Features:
 						type={showConfirmPassword ? 'text' : 'password'}
 						placeholder={m.setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
 						class="input w-full rounded {validationErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!validationErrors.confirmPassword}
+						aria-describedby={validationErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 					/>
 					<button
 						type="button"
 						tabindex="-1"
 						onclick={toggleConfirmPassword}
 						class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
-						aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+						aria-label={showConfirmPassword ? 'Hide password confirmation' : 'Show password confirmation'}
 					>
-						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18"></iconify-icon>
+						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
 				{#if validationErrors.confirmPassword}
-					<div class="mt-1 text-xs text-error-500">{validationErrors.confirmPassword}</div>
+					<div id="admin-confirm-password-error" class="mt-1 text-xs text-error-500" role="alert">
+						{validationErrors.confirmPassword}
+					</div>
 				{/if}
 			</div>
 		</div>
 
 		<div class="mt-4 rounded border-l-4 border-tertiary-500 bg-white p-4 shadow-xl dark:bg-surface-500">
-			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-tertiary-500 dark:text-primary-500">
+			<h4 class="mb-2 text-center text-sm font-bold tracking-tight text-tertiary-500 dark:text-primary-500" id="password-reqs-heading">
 				{m.setup_help_admin_password?.() || 'Password Requirements'}
 			</h4>
-			<ul class="space-y-2 text-sm">
+			<ul class="space-y-2 text-sm" aria-labelledby="password-reqs-heading">
 				<li class="flex items-center {passwordRequirements.length ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
-						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.length
+						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
@@ -238,10 +256,11 @@ Features:
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_length?.() || 'Minimum 8 characters'}
+					<span class="sr-only">, {passwordRequirements.length ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li class="flex items-center {passwordRequirements.letter ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
-						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.letter
+						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
@@ -250,10 +269,11 @@ Features:
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_letter?.() || 'At least one letter (A-Z or a-z)'}
+					<span class="sr-only">, {passwordRequirements.letter ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li class="flex items-center {passwordRequirements.number ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
-						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.number
+						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
@@ -262,10 +282,11 @@ Features:
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_number?.() || 'At least one number (0-9)'}
+					<span class="sr-only">, {passwordRequirements.number ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li class="flex items-center {passwordRequirements.special ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
-						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.special
+						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
@@ -274,10 +295,11 @@ Features:
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_character?.() || 'At least one special character (@$!%*#?&)'}
+					<span class="sr-only">, {passwordRequirements.special ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li class="flex items-center {passwordRequirements.match ? 'text-tertiary-500 dark:text-primary-500' : 'text-slate-500'}">
 					<span
-						class="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full border {passwordRequirements.match
+						class="mr-2 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
 							? 'border-primary-300 bg-primary-100 text-primary-500'
 							: 'border-slate-300 bg-slate-100 text-slate-400'}"
 					>
@@ -286,6 +308,7 @@ Features:
 						{/if}
 					</span>
 					{m.setup_help_admin_password_requirements_match?.() || 'Passwords match'}
+					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li class="mt-2 flex items-center justify-center border-t border-slate-200 pt-2 font-bold text-tertiary-500 dark:text-primary-500">
 					<span class="mr-2 inline-flex h-5 w-5 items-center justify-center">

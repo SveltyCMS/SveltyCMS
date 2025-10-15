@@ -1,10 +1,22 @@
 /**
  * @file src/content/types.ts
- * @description Content Type Definition for Content Manager
+ * @description Defines the application-level TypeScript interfaces for content modeling and runtime data.
+ * @summary
+ * This file is the central repository for TypeScript interfaces governing the application's content
+ * model and runtime data structures. It defines the "vocabulary" used across the frontend and backend
+ * for entities like collections, fields, widgets, and content nodes.
  *
- * This file defines the core TypeScript types and interfaces for the SveltyCMS content manager.
- * It includes type definitions for widgets, fields, collections, categories, dashboard widgets,
- * system preferences, and related content management structures.
+ * Key definitions in this file include:
+ * - `Schema`: The structure of a collection.
+ * - `FieldInstance`: A configured instance of a widget within a collection.
+ * - `WidgetDefinition`: The blueprint for a widget.
+ * - `ContentNode`: A unified type for categories and collections in the content tree.
+ * - Core types like `FieldValue`, `StatusType`, and strongly-typed IDs.
+ *
+ * You should edit this file when you need to:
+ * - Define the shape of a new content structure (e.g., a new kind of widget or field).
+ * - Create a type that represents a composed or processed version of data for use in the UI.
+ * - Describe the data contract for API endpoints related to content.
  */
 
 import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
@@ -13,6 +25,7 @@ import { collectionSchemas } from '../databases/schemas';
 // Auth
 import type { RolePermissions } from '@src/databases/auth/types';
 import type { WidgetPlaceholder } from '@src/widgets/placeholder';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Define core value and status types
 export type FieldValue = string | number | boolean | object | null;
@@ -67,6 +80,20 @@ export interface ContentNode {
 // Widget field type definition
 export type WidgetKeys = keyof typeof widgets;
 export type WidgetTypes = (typeof widgets)[WidgetKeys];
+
+// Widget Definition
+export interface WidgetDefinition {
+	widgetId: string;
+	Name: string;
+	Icon?: string;
+	Description?: string;
+	inputComponentPath: string;
+	displayComponentPath: string;
+	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>>;
+	defaults?: Partial<Record<string, unknown>>;
+	GuiFields: Record<string, unknown>;
+	aggregations?: unknown;
+}
 
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {

@@ -38,30 +38,7 @@ interface AdminConfig {
 	confirmPassword: string;
 }
 
-/**
- * Constructs a redirect URL to the first available collection, prefixed with the given language.
- * @param language The validated user language (e.g., 'en', 'de').
- */
-async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
-	try {
-		logger.debug(`Fetching first collection path for language: \x1b[34m${language}\x1b[0m`);
-
-		const firstCollection = await contentManager.getFirstCollection();
-		if (firstCollection?.path) {
-			// Ensure the collection path has a leading slash
-			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
-			const redirectUrl = `/${language}${collectionPath}`;
-			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
-			return redirectUrl;
-		}
-
-		logger.warn('No collections found via getFirstCollection(), returning null.');
-		return null; // Return null if no collections are configured
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return null; // Return null on error
-	}
-}
+import { getCachedFirstCollectionPath } from '@src/stores/collectionStore.svelte';
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
@@ -383,7 +360,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				// Force ContentManager to reload all collections
 				await contentManager.initialize(undefined, true);
 
-				redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+				redirectPath = await getCachedFirstCollectionPath(userLanguage);
 
 				// If no collections found, fall back to collection builder
 				if (!redirectPath) {

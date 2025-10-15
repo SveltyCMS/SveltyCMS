@@ -1,5 +1,5 @@
 /**
- * @file src/stores/collectionStore.ts
+ * @file src/stores/collectionStore.svelte.ts
  * @description Manages the collection state
  *
  * Features:
@@ -10,15 +10,65 @@
  */
 
 import type { Schema } from '@src/content/types';
-import { store } from '@utils/reactivity.svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import type { ContentNode } from '../content/types';
 
-// Helper: Initialize collectionValue status if missing
-function ensureCollectionValueStatus() {
-	if (collectionValueState && !('status' in collectionValueState)) {
-		collectionValueState.status = collection.value?.status ?? 'unpublish';
+import { contentManager } from '@src/content/ContentManager';
+import type { Locale } from '@src/paraglide/runtime';
+import { logger } from '@utils/logger.svelte';
+
+/**
+ * Constructs a redirect URL to the first available collection, prefixed with the given language.
+ * Returns null if no collections are found, allowing the caller to decide on a fallback route.
+ * @param language The validated user language (e.g., 'en', 'de').
+ */
+export async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string | null> {
+	try {
+		logger.debug(`Fetching first collection path for language: \x1b[34m${language}\x1b[0m`);
+
+		const firstCollection = await contentManager.getFirstCollection();
+		if (firstCollection?.path) {
+			// Ensure the collection path has a leading slash
+			const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
+			const redirectUrl = `/${language}${collectionPath}`;
+			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
+			return redirectUrl;
+		}
+
+		logger.warn('No collections found via getFirstCollection(), returning null.');
+		return null; // Return null if no collections are configured
+	} catch (err) {
+		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
+		return null; // Return null on error
 	}
+}
+
+const cachedFirstCollectionPaths = new SvelteMap<Locale, { path: string; expiry: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+/**
+ * A cached function to get the redirect path for the first available collection.
+ * The cache is language-aware and helps avoid redundant database lookups.
+ * @param language The validated user language.
+ */
+export async function getCachedFirstCollectionPath(language: Locale): Promise<string | null> {
+	const now = Date.now();
+	const cachedEntry = cachedFirstCollectionPaths.get(language);
+
+	// Return cached result if still valid
+	if (cachedEntry && now < cachedEntry.expiry) {
+		return cachedEntry.path;
+	}
+
+	// Fetch fresh data by calling the utility function
+	const result = await fetchAndRedirectToFirstCollection(language);
+
+	// Cache the result if it's a valid path
+	if (result) {
+		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
+	}
+
+	return result;
 }
 
 // Define types
@@ -38,71 +88,48 @@ export const statusMap = {
 	archived: 'archived'
 };
 
-// Create reactive stores
-export const collections = store<{ [uuid: string]: Schema }>({});
-export const collectionsById = store<SvelteMap<string, Schema>>(new SvelteMap());
-export const currentCollectionId = store<string | null>(null);
+// --- State using Svelte 5 Runes ---
+export const collections = $state<{ [uuid: string]: Schema }>({});
+export const collectionsById = new SvelteMap<string, Schema>();
+export const currentCollectionId = $state<string | null>(null);
+export const collectionsLoading = $state<boolean>(false);
+export const collectionsError = $state<string | null>(null);
+export const unAssigned = $state<Schema>({} as Schema);
+export const collection = $state<Schema | null>(null);
+export const collectionValue = $state<Record<string, unknown>>({});
+export const mode = $state<ModeType>('view');
+export const modifyEntry = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
+export const selectedEntries = $state<string[]>([]);
+export const targetWidget = $state<Widget>({ permissions: {} });
+export const contentStructure = $state<ContentNode[]>([]);
 
-// Keep existing stores
-export const collectionsLoading = store<boolean>(false);
-export const collectionsError = store<string | null>(null);
-export const unAssigned = store<Schema>({} as Schema);
-export const collection = store<Schema | null>(null);
-
-// Create reactive state variables for collectionValue
-let collectionValueState = $state<Record<string, unknown>>({});
-export const collectionValue = {
-	get value() {
-		ensureCollectionValueStatus();
-		return collectionValueState;
-	},
-	set: (newValue: Record<string, unknown>) => {
-		collectionValueState = newValue;
-		ensureCollectionValueStatus();
-	},
-	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
-		const newValue = fn(collectionValueState);
-		collectionValueState = newValue;
-		ensureCollectionValueStatus();
+// --- Effects ---
+$effect(() => {
+	if (collectionValue && !('status' in collectionValue)) {
+		collectionValue.status = collection?.status ?? 'unpublish';
 	}
-};
+});
 
-// Create reactive state variables for mode
-let modeState = $state<ModeType>('view');
-export const mode = {
-	get value() {
-		return modeState;
-	},
-	set: (newMode: ModeType) => {
-		modeState = newMode;
-	},
-	update: (fn: (value: ModeType) => ModeType) => {
-		const newMode = fn(modeState);
-		modeState = newMode;
-	}
-};
+// --- Derived State ---
+export const totalCollections = $derived(Object.keys(collections).length);
+export const hasSelectedEntries = $derived(selectedEntries.length > 0);
+export const currentCollectionName = $derived(collection?.name);
 
-export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
-export const selectedEntries = store<string[]>([]);
-export const targetWidget = store<Widget>({ permissions: {} });
-
-export const contentStructure = store<ContentNode[]>([]);
-
-// Reactive calculations
-export const totalCollections = store(() => Object.keys(collections.value).length);
-export const hasSelectedEntries = store(() => selectedEntries.value.length > 0);
-export const currentCollectionName = store(() => collection.value?.name);
-
-// Entry management
+// --- Entry Management ---
 export const entryActions = {
 	addEntry(entryId: string) {
-		selectedEntries.update((entries) => [...entries, entryId]);
+		if (!selectedEntries.includes(entryId)) {
+			selectedEntries.push(entryId);
+		}
 	},
 	removeEntry(entryId: string) {
-		selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
+		const index = selectedEntries.indexOf(entryId);
+		if (index > -1) {
+			selectedEntries.splice(index, 1);
+		}
 	},
 	clear() {
-		selectedEntries.set([]);
+		selectedEntries.length = 0;
 	}
 };
 

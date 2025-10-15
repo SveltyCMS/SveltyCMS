@@ -192,7 +192,7 @@ Key Features:
 							aria-label="Help: Site Name"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
 					</label>
 					<div
@@ -209,8 +209,12 @@ Key Features:
 						type="text"
 						placeholder={m.setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
 						class="input w-full rounded {validationErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!validationErrors.siteName}
+						aria-describedby={validationErrors.siteName ? 'site-name-error' : undefined}
 					/>
-					{#if validationErrors.siteName}<div class="mt-1 text-xs text-error-500">{validationErrors.siteName}</div>{/if}
+					{#if validationErrors.siteName}
+						<div id="site-name-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.siteName}</div>
+					{/if}
 
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon icon="mdi:earth" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
@@ -222,7 +226,7 @@ Key Features:
 							aria-label="Help: Production URL"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
 					</label>
 					<div
@@ -238,8 +242,12 @@ Key Features:
 						type="url"
 						placeholder="https://mysite.com"
 						class="input w-full rounded {validationErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!validationErrors.hostProd}
+						aria-describedby={validationErrors.hostProd ? 'host-prod-error' : undefined}
 					/>
-					{#if validationErrors.hostProd}<div class="mt-1 text-xs text-error-500">{validationErrors.hostProd}</div>{/if}
+					{#if validationErrors.hostProd}
+						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.hostProd}</div>
+					{/if}
 				</div>
 
 				<!-- Media Storage Configuration Group -->
@@ -254,7 +262,7 @@ Key Features:
 							aria-label="Help: Media Storage Type"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</label>
 					<div
@@ -282,7 +290,7 @@ Key Features:
 							aria-label="Help: Media Folder"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+							<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 						</button>
 					</label>
 					<div
@@ -304,9 +312,9 @@ Key Features:
 					/>
 
 					{#if systemSettings.mediaStorageType !== 'local'}
-						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20">
+						<div class="rounded-md border border-amber-300/50 bg-amber-50/50 p-3 dark:border-amber-700/50 dark:bg-amber-900/20" role="status">
 							<p class="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
-								<iconify-icon icon="mdi:information-outline" width="16"></iconify-icon>
+								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"></iconify-icon>
 								<strong>Note:</strong> Cloud storage credentials (API keys, secrets, regions) must be configured in System Settings after setup is complete.
 							</p>
 						</div>
@@ -328,7 +336,7 @@ Key Features:
 							aria-label="Help: Default System Language"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
 					</label>
 					<div
@@ -345,7 +353,7 @@ Key Features:
 					</select>
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon="mdi:translate-variant" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span>{m.setup_label_system_languages?.() || m.setup_help_system_languages?.() || 'System Languages'}</span>
 							<button
 								tabindex="-1"
@@ -354,7 +362,7 @@ Key Features:
 								aria-label="Help: System Languages"
 								class="ml-1 text-slate-400 hover:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</div>
 						<div
@@ -365,7 +373,7 @@ Key Features:
 							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 						</div>
 						<div
-							class="relative flex flex-wrap gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
+							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
 							{#each systemSettings.systemLanguages as lang}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
@@ -375,7 +383,7 @@ Key Features:
 											type="button"
 											class="opacity-60 transition hover:opacity-100"
 											onclick={() => removeSystemLang(lang)}
-											aria-label="Remove language"
+											aria-label={`Remove ${displayLang(lang)}`}
 										>
 											&times;
 										</button>
@@ -385,13 +393,13 @@ Key Features:
 							{#if systemAvailable.length}
 								<button
 									type="button"
-									class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+									class="variant-filled-surface badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
 									onclick={openSystemPicker}
 									aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
 									aria-controls="system-lang-picker"
 								>
-									<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+									<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 									{m.button_add?.() || 'Add'}
 								</button>
 							{/if}
@@ -421,7 +429,7 @@ Key Features:
 												onclick={() => addSystemLanguage(sug)}
 											>
 												<span>{displayLang(sug)}</span>
-												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
 											</button>
 										{/each}
 									</div>
@@ -439,7 +447,8 @@ Key Features:
 				</div>
 				<div class="space-y-3 rounded-md border border-slate-300/50 bg-surface-50/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<iconify-icon icon="mdi:book-open-page-variant" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"
+						></iconify-icon>
 						<span>{m.setup_label_default_content_language?.() || m.setup_help_default_content_language?.() || 'Default Content Language'}</span>
 						<button
 							tabindex="-1"
@@ -448,7 +457,7 @@ Key Features:
 							aria-label="Help: Default Content Language"
 							class="ml-1 text-slate-400 hover:text-primary-500"
 						>
-							<iconify-icon icon="mdi:help-circle-outline" width="16"></iconify-icon>
+							<iconify-icon icon="mdi:help-circle-outline" width="16" aria-hidden="true"></iconify-icon>
 						</button>
 					</div>
 					<div
@@ -461,17 +470,19 @@ Key Features:
 					<select
 						bind:value={systemSettings.defaultContentLanguage}
 						class="input w-full rounded {validationErrors.defaultContentLanguage ? 'border-error-500' : ''}"
+						aria-invalid={!!validationErrors.defaultContentLanguage}
+						aria-describedby={validationErrors.defaultContentLanguage ? 'default-content-lang-error' : undefined}
 					>
 						{#each systemSettings.contentLanguages as lang}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
 					{#if validationErrors.defaultContentLanguage}
-						<div class="mt-1 text-xs text-error-500">{validationErrors.defaultContentLanguage}</div>
+						<div id="default-content-lang-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.defaultContentLanguage}</div>
 					{/if}
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon="mdi:book-multiple" width="14" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 							<span>{m.setup_label_content_languages?.() || m.setup_help_content_languages?.() || 'Content Languages'}</span>
 							<button
 								tabindex="-1"
@@ -480,7 +491,7 @@ Key Features:
 								aria-label="Help: Content Languages"
 								class="ml-1 text-slate-400 hover:text-primary-500"
 							>
-								<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
+								<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"></iconify-icon>
 							</button>
 						</div>
 						<div
@@ -491,7 +502,7 @@ Key Features:
 							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 						</div>
 						<div
-							class="relative flex flex-wrap gap-2 rounded border p-2 pr-16 {validationErrors.contentLanguages
+							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {validationErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
@@ -503,7 +514,7 @@ Key Features:
 											type="button"
 											class="opacity-60 transition hover:opacity-100"
 											onclick={() => removeContentLang(lang)}
-											aria-label="Remove language"
+											aria-label={`Remove ${displayLang(lang)}`}
 										>
 											&times;
 										</button>
@@ -512,13 +523,13 @@ Key Features:
 							{/each}
 							<button
 								type="button"
-								class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+								class="variant-filled-surface badge absolute right-2 top-1/2 -translate-y-1/2 rounded-full"
 								onclick={openContentPicker}
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}
 								aria-controls="content-lang-picker"
 							>
-								<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+								<iconify-icon icon="mdi:plus" width="14" aria-hidden="true"></iconify-icon>
 								{m.button_add?.() || 'Add'}
 							</button>
 							{#if showContentPicker}
@@ -558,7 +569,7 @@ Key Features:
 													>{sug.name} ({sug.code.toUpperCase()})
 													<span class="text-slate-500 dark:text-slate-400"> - {sug.native}</span></span
 												>
-												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500"></iconify-icon>
+												<iconify-icon icon="mdi:plus-circle-outline" width="14" class="text-primary-500" aria-hidden="true"></iconify-icon>
 											</button>
 										{/each}
 									</div>
@@ -569,43 +580,15 @@ Key Features:
 							{m.setup_note_add_codes_default_cannot_be_removed?.() || 'Add existing or custom codes. Default cannot be removed.'}
 						</p>
 						{#if validationErrors.contentLanguages}
-							<div class="mt-1 text-xs text-error-500">{validationErrors.contentLanguages}</div>
+							<div class="mt-1 text-xs text-error-500" role="alert">{validationErrors.contentLanguages}</div>
 						{/if}
 					</div>
 				</div>
 			</div>
 		</section>
 
-		<!-- Timezone & Media -->
 		<section class="space-y-8">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-				<!-- <div>
-					<label for="timezone" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon icon="mdi:clock-outline" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
-						<span>Timezone</span>
-						<button type="button" use:popup={popupTimezone} aria-label="Help: Timezone" class="ml-1 text-slate-400 hover:text-primary-500">
-							<iconify-icon icon="mdi:help-circle-outline" width="14"></iconify-icon>
-						</button>
-					</label>
-					<div
-						data-popup="popupTimezone"
-						class="card z-30 hidden w-72 rounded-md border border-slate-300/50 bg-surface-50 p-3 text-xs shadow-xl dark:border-slate-600 dark:bg-surface-700"
-					>
-						<p>Default timezone for scheduling and date display. Users may override in personal settings.</p>
-						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
-					</div>
-					<select id="timezone" bind:value={systemSettings.timezone} class="input w-full rounded">
-						<option value="UTC">UTC (Coordinated Universal Time)</option>
-						<option value="America/New_York">Eastern Time (ET)</option>
-						<option value="America/Chicago">Central Time (CT)</option>
-						<option value="America/Denver">Mountain Time (MT)</option>
-						<option value="America/Los_Angeles">Pacific Time (PT)</option>
-						<option value="Europe/London">London (GMT)</option>
-						<option value="Europe/Paris">Paris (CET)</option>
-						<option value="Asia/Tokyo">Tokyo (JST)</option>
-					</select>
-				</div> -->
-			</div>
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-2"></div>
 		</section>
 	</div>
 </div>
