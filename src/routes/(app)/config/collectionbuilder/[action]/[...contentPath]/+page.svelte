@@ -14,7 +14,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { mode, collection } from '@src/stores/collectionStore.svelte';
+	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -68,15 +68,15 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		if (action === 'edit') {
 			loadCollection();
 		} else {
-			collection.set(null);
+			setCollection(null);
 			originalName = '';
 		}
 	});
 
 	function loadCollection() {
 		if (data.collection) {
-			collection.set(data.collection);
-			originalName = data.collection.name;
+			setCollection(data.collection);
+			originalName = data.collection.name || '';
 		} else {
 			console.error('Collection data not found for editing.');
 			// Optionally, redirect or show a proper error message
@@ -84,7 +84,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	}
 
 	// Default widget data (tab1)
-	let name = $derived(action == 'edit' ? (collection.value ? collection.value.name : collectionPath) : collectionPath);
+	let name = $derived(action == 'edit' ? (collection ? collection.name : collectionPath) : collectionPath);
 
 	// Page title
 	let pageTitle = $state('');
@@ -125,7 +125,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		console.log(collection.value, name, page.params);
+		console.log(collection, name, page.params);
 
 		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
@@ -139,21 +139,21 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 				? obj2formData({
 						originalName: originalName,
 						name: name,
-						icon: collection.value?.icon,
-						status: collection.value?.status,
-						slug: collection.value?.slug,
-						description: collection.value?.description,
-						permissions: collection.value?.permissions,
-						fields: collection.value?.fields
+						icon: collection?.icon,
+						status: collection?.status,
+						slug: collection?.slug,
+						description: collection?.description,
+						permissions: collection?.permissions,
+						fields: collection?.fields
 					})
 				: obj2formData({
 						name: name,
-						icon: collection.value?.icon,
-						status: collection.value?.status,
-						slug: collection.value?.slug,
-						description: collection.value?.description,
-						permissions: collection.value?.permissions,
-						fields: collection.value?.fields
+						icon: collection?.icon,
+						status: collection?.status,
+						slug: collection?.slug,
+						description: collection?.description,
+						permissions: collection?.permissions,
+						fields: collection?.fields
 					});
 
 		// Send the form data to the server
@@ -173,7 +173,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', collection.value?.name);
+		console.log('Delete collection:', collection?.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -182,7 +182,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collection.value?.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collection?.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}
@@ -267,9 +267,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		<!-- Tab Panels -->
 		{#if tabSet.value === 0}
-			<CollectionForm data={collection.value} {handlePageTitleUpdate} />
+			<CollectionForm data={collection} {handlePageTitleUpdate} />
 		{:else if tabSet.value === 1}
-			<CollectionWidget fields={collection.value?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
+			<CollectionWidget fields={collection?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

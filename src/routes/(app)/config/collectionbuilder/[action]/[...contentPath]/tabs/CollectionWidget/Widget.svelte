@@ -8,9 +8,10 @@
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 	// Stores
 	import { page } from '$app/state';
-	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collectionValue, setCollectionValue, setTargetWidget } from '@src/stores/collectionStore.svelte';
 	import { tabSet } from '@stores/store.svelte';
 	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import { get } from 'svelte/store';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
@@ -50,7 +51,7 @@
 
 	// Fields state with proper typing
 	let fields = $state<Field[]>(
-		((collectionValue.value.fields as any[]) || []).map((field, index) => {
+		((collectionValue.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -63,7 +64,7 @@
 
 	// Effect to update fields when collection value changes
 	$effect.root(() => {
-		fields = ((collectionValue.value.fields as any[]) || []).map((field, index) => {
+		fields = ((collectionValue.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -93,7 +94,7 @@
 		if (selectedWidget.permissions === undefined) {
 			selectedWidget.permissions = {};
 		}
-		targetWidget.set(selectedWidget);
+		setTargetWidget(selectedWidget);
 		const c: ModalComponent = { ref: ModalWidgetForm };
 		const modal: ModalSettings = {
 			type: 'component',
@@ -110,18 +111,18 @@
 					// If the existing widget is found, update its properties
 					const updatedField = { ...fields[existingIndex], ...r };
 					fields = [...fields.slice(0, existingIndex), updatedField, ...fields.slice(existingIndex + 1)];
-					collectionValue.update((c) => ({
-						...c,
+					setCollectionValue({
+						...collectionValue,
 						fields
-					}));
+					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
 					const newField = { ...r, id: fields.length + 1 };
 					fields = [...fields, newField];
-					collectionValue.update((c) => ({
-						...c,
+					setCollectionValue({
+						...collectionValue,
 						fields
-					}));
+					});
 				}
 			}
 		};
@@ -141,7 +142,7 @@
 				if (!r) return;
 				const { selectedWidget } = r;
 				const widget = { widget: { key: selectedWidget, Name: selectedWidget }, permissions: {} };
-				targetWidget.set(widget);
+				setTargetWidget(widget as any);
 				modalWidgetForm(widget as Field);
 			}
 		};
@@ -151,7 +152,7 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			const widgetInstance = $widgetFunctions[field.widget.Name];
+			const widgetInstance = get(widgetFunctions)[field.widget.Name];
 			const guiSchema = widgetInstance?.GuiSchema;
 			if (!guiSchema) return field;
 
@@ -166,10 +167,10 @@
 		});
 
 		// Update the collection fields
-		collectionValue.update((c) => ({
-			...c,
+		setCollectionValue({
+			...collectionValue,
 			fields
-		}));
+		});
 
 		onSave();
 	}

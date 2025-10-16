@@ -17,7 +17,7 @@
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { mode, collection } from '@root/src/stores/collectionStore.svelte';
+	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -80,10 +80,10 @@
 
 	// Update collection value when icon changes
 	$effect(() => {
-		if (!collection.value) return;
-		if (selectedIcon !== collection.value?.icon) {
-			collection.set({
-				...collection.value,
+		if (!collection) return;
+		if (selectedIcon !== collection?.icon) {
+			setCollection({
+				...collection,
 				icon: selectedIcon
 			});
 		}
@@ -91,20 +91,20 @@
 
 	// Update collection value when form fields change (only if editing an existing collection)
 	$effect(() => {
-		if (collection.value?._id) {
+		if (collection?._id) {
 			// Check if values have actually changed to avoid unnecessary updates
 			if (
-				collection.value.name === name &&
-				collection.value.slug === slug &&
-				collection.value.description === description &&
-				collection.value.status === status &&
-				collection.value.icon === selectedIcon
+				collection.name === name &&
+				collection.slug === slug &&
+				collection.description === description &&
+				collection.status === status &&
+				collection.icon === selectedIcon
 			) {
 				return;
 			}
 
-			collection.set({
-				...collection.value, // Spread existing values (including _id)
+			setCollection({
+				...collection, // Spread existing values (including _id)
 				name,
 				slug,
 				description,
@@ -142,7 +142,7 @@
 
 	// Update slug and page title when collection value changes
 	$effect(() => {
-		if (collection.value) {
+		if (collection) {
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
 				slug = name ? name.toLowerCase().replace(/ /g, '_') : '';

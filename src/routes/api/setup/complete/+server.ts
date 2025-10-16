@@ -174,8 +174,8 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		}
 
 		// 3. Create admin user AND session using combined optimized method (single DB transaction)
-		let adminUser: User;
-		let session: Session;
+		let adminUser: User | undefined;
+		let session: Session | undefined;
 		try {
 			if (!setupAuth) {
 				throw new Error('Auth service not initialized');
@@ -197,12 +197,25 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					isRegistered: true
 				});
 
+				logger.debug('User attributes updated, fetching updated user...', { correlationId, userId: existingUser._id });
+
 				const updatedUser = await setupAuth.getUserByEmail({ email: admin.email });
 				if (!updatedUser) throw new Error('Failed to retrieve updated admin user');
 				adminUser = updatedUser;
 
+				logger.debug('Updated user retrieved, creating session...', { correlationId, userId: adminUser._id });
+
 				// Create session for updated user
 				const sessionResult = await setupAuth.createSession({ user_id: adminUser._id, expires });
+
+				logger.debug('Session creation result:', {
+					correlationId,
+					success: sessionResult.success,
+					hasData: !!sessionResult.data,
+					message: sessionResult.message,
+					dataType: typeof sessionResult.data
+				});
+
 				if (!sessionResult.success || !sessionResult.data) {
 					throw new Error(sessionResult.message || 'Failed to create session');
 				}
@@ -224,6 +237,15 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					{ expires }
 				);
 
+				logger.debug('createUserAndSession result:', {
+					correlationId,
+					success: result.success,
+					hasData: !!result.data,
+					message: result.message,
+					dataType: typeof result.data,
+					dataKeys: result.data ? Object.keys(result.data) : []
+				});
+
 				if (!result.success || !result.data) {
 					throw new Error(result.message || 'Failed to create user and session');
 				}
@@ -231,18 +253,58 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				adminUser = result.data.user;
 				session = result.data.session;
 
+				logger.debug('User and session assigned from result', {
+					correlationId,
+					hasUser: !!adminUser,
+					hasSession: !!session,
+					userId: adminUser?._id,
+					sessionId: session?._id
+				});
+
 				logger.info('✅ Admin user and session created (single transaction)', {
 					correlationId,
 					userId: adminUser._id,
 					sessionId: session._id
 				});
 			}
+
+			// Verify we have both user and session before proceeding
+			logger.debug('Verifying user and session data...', {
+				correlationId,
+				hasAdminUser: !!adminUser,
+				hasSession: !!session,
+				adminUserType: typeof adminUser,
+				sessionType: typeof session
+			});
+
+			if (!adminUser || !session) {
+				throw new Error(`Missing data after auth operations - adminUser: ${!!adminUser}, session: ${!!session}`);
+			}
+
+			logger.debug('Verification passed, exiting try block...', { correlationId });
 		} catch (authError) {
 			logger.error('Failed to create admin user and session:', authError);
 			return json(
 				{
 					success: false,
 					error: `Failed to create admin user: ${authError instanceof Error ? authError.message : String(authError)}`
+				},
+				{ status: 500 }
+			);
+		}
+
+		// Verify session and user are properly set
+		if (!session || !adminUser) {
+			logger.error('Session or admin user not properly initialized', {
+				hasSession: !!session,
+				hasAdminUser: !!adminUser,
+				sessionId: session?._id,
+				userId: adminUser?._id
+			});
+			return json(
+				{
+					success: false,
+					error: 'Failed to initialize admin user and session'
 				},
 				{ status: 500 }
 			);

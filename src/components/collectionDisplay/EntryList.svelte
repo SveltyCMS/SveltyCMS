@@ -42,7 +42,7 @@ Features:
 	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
-	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
@@ -759,11 +759,12 @@ Features:
 
 		// Explicitly reference tracked variables to prevent unused warnings
 		// These variables are used indirectly by getCurrentFetchKey()
-		void [currentPage, rowsPerPage, filters, sorting, language];
+		void [currentPage, rowsPerPage, filters, sorting, language, mode];
 
 		// Determine what type of refresh is needed
 		const isCollectionSwitch = lastCollectionId !== currentCollId;
-		const isValidForRefresh = currentCollId && !collectionState.isChanging && !collectionState.isInitializing && mode !== 'create' && mode !== 'edit';
+		const isValidForRefresh =
+			currentCollId && !collectionState.isChanging && !collectionState.isInitializing && currentMode !== 'create' && currentMode !== 'edit';
 
 		// Only proceed if we have a valid state for refresh
 		if (isValidForRefresh) {
@@ -818,9 +819,9 @@ Features:
 			untrack(() => {
 				meta_data.clear();
 				// Only clear the collection value, do not auto-save draft
-				const currentValue = collectionValue.value;
+				const currentValue = collectionValue;
 				if (currentValue && Object.keys(currentValue).length > 0) {
-					collectionValue.set({});
+					setCollectionValue({});
 				}
 				// Refresh data when returning to view mode (after save/edit)
 				const currentCollId = collection.value?._id;
@@ -866,7 +867,7 @@ Features:
 	});
 
 	// Tick Row - modify STATUS of an Entry
-	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
+	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
 			showToast('No entries selected', 'warning');
@@ -959,10 +960,10 @@ Features:
 		}
 
 		// Set the new entry data FIRST
-		collectionValue.set(newEntry);
+		setCollectionValue(newEntry);
 
 		// THEN switch the mode
-		mode.set('create');
+		setMode('create');
 
 		// Use a microtask to allow the UI to update before other actions
 		await Promise.resolve();
@@ -1485,20 +1486,20 @@ Features:
 													const originalEntry = entryList.find((e) => e._id === entry._id);
 													if (originalEntry) {
 														// Load the entry data into collectionValue
-														collectionValue.set(originalEntry);
+														setCollectionValue(originalEntry);
 
 														// Set mode to edit
-														mode.set('edit');
+														setMode('edit');
 
 														// If the entry is publish, automatically set it to unpublish
 														// This follows CMS best practices where editing publish content
 														// creates a draft that needs to be republish
 														if (originalEntry.status === 'publish') {
 															// Update the local collectionValue to unpublish status
-															collectionValue.update((current) => ({
-																...current,
+															setCollectionValue({
+																...collectionValue,
 																status: 'unpublish'
-															})); // Show user feedback about the status change
+															}); // Show user feedback about the status change
 															showToast('Entry moved to draft mode for editing. Republish when ready.', 'warning');
 														}
 

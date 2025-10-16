@@ -32,7 +32,7 @@
 	const collectionName = $derived(page.params?.collection);
 
 	// Stores
-	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collectionStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 
@@ -68,7 +68,7 @@
 	});
 
 	let { fields = undefined } = $props<{
-		fields?: NonNullable<typeof collection.value>['fields'];
+		fields?: NonNullable<(typeof collection)['value']>['fields'];
 	}>();
 
 	// Component State
@@ -106,10 +106,10 @@
 	// --- Let widgets handle their own validation - no duplicate validation here ---
 
 	$effect(() => {
-		if (widgetsReady && collection.value && (collection.value as any)?.module && !processedCollection) {
+		if (widgetsReady && collection && (collection as any)?.module && !processedCollection) {
 			untrack(async () => {
 				try {
-					const processed = await processModule((collection.value as any).module);
+					const processed = await processModule((collection as any).module);
 					if (processed?.schema?.fields) {
 						processedCollection = processed.schema;
 						fieldsFromModule = processed.schema.fields;
@@ -124,18 +124,19 @@
 	});
 	// Derived state for fields - combines all possible field sources
 
-	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
+	let derivedFields = $derived(fields || fieldsFromModule || collection?.value?.fields || []);
 	// Persistent form data that survives tab switches (from old working code)
 
 	let formDataSnapshot = $state<Record<string, any>>({});
 	let isFormDataInitialized = $state(false);
+	let lastEntryId = $state<string | undefined>(undefined);
 	// Use a single local state for form data, initialized from the global store
 
 	let currentCollectionValue = $state<Record<string, any>>({});
 	// Reactive function to get default collection value
 
 	let defaultCollectionValue = $derived.by(() => {
-		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
+		const tempCollectionValue: Record<string, any> = collectionValue ? { ...(collectionValue as any) } : {};
 		for (const field of derivedFields) {
 			const safeField = ensureFieldProperties(field);
 			const fieldName = getFieldName(safeField, false);
@@ -178,7 +179,7 @@
 	); // Update translation progress when data changes
 
 	$effect(() => {
-		const currentCollectionValue = collectionValue.value;
+		const currentCollectionValue = collectionValue;
 		const fields = collection.value?.fields;
 
 		if (!fields || !currentCollectionValue || !collection.value?.name) return;
@@ -197,7 +198,7 @@
 			if (isTranslated && collection.value?.name) {
 				const fieldName = `${collection.value.name}.${getFieldName(field as any)}`;
 				const dbFieldName = getFieldName(field as any, false);
-				const fieldValue = currentCollectionValue[dbFieldName];
+				const fieldValue = (currentCollectionValue as Record<string, unknown>)[dbFieldName];
 
 				for (const lang of (publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en']) as Locale[]) {
 					if (!progress[lang]) continue;
@@ -223,28 +224,26 @@
 		}
 	});
 
-	// Update the main collection value store when form data changes (debounced)
-	let updateTimeout: ReturnType<typeof setTimeout> | undefined;
+	// Update the main collection value store when form data changes (immediate sync for save reliability)
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
-			if (updateTimeout) clearTimeout(updateTimeout);
-			updateTimeout = setTimeout(() => {
-				collectionValue.update((current) => ({
-					...current,
+			untrack(() => {
+				setCollectionValue({
+					...collectionValue,
 					...currentCollectionValue
-				}));
-			}, 300);
+				});
+			});
 		}
 	});
 
 	// --- Revision Logic ---
 
 	async function fetchRevisionsMeta() {
-		if (!collection.value?._id || !collectionValue.value?._id) return;
+		if (!collection.value?._id || !(collectionValue as any)?._id) return;
 		isRevisionsLoading = true;
 		try {
 			const collectionId = String(collection.value._id);
-			const entryId = String(collectionValue.value._id);
+			const entryId = String((collectionValue as any)._id);
 			const result = await getRevisions(collectionId, entryId, { metaOnly: true });
 			if (result.success) {
 				revisionsMeta = result.data || [];
@@ -257,18 +256,18 @@
 	}
 
 	async function fetchAndCompareRevision(revisionId: string) {
-		if (!revisionId || !collection.value?._id || !collectionValue.value?._id) return;
+		if (!revisionId || !collection.value?._id || !(collectionValue as any)?._id) return;
 		isRevisionDetailLoading = true;
 		diffObject = null;
 		selectedRevisionData = null;
 		try {
 			const collectionId = String(collection.value._id);
-			const entryId = String(collectionValue.value._id);
+			const entryId = String((collectionValue as any)._id);
 			const result = await getRevisionDiff({
 				collectionId: collectionId,
 				entryId: entryId,
 				revisionId: revisionId,
-				currentData: collectionValue.value
+				currentData: collectionValue as Record<string, unknown>
 			});
 
 			if (result.success && result.data) {
@@ -292,8 +291,8 @@
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
 			confirmText: 'Revert',
 			onConfirm: () => {
-				const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
-				collectionValue.set(revertData);
+				const revertData = { ...selectedRevisionData, _id: (collectionValue as any)._id };
+				setCollectionValue(revertData);
 				showToast('Content reverted. Please save your changes.', 'info');
 				localTabSet = 0;
 			}
@@ -307,8 +306,8 @@
 
 	// Initialize form data when the entry changes or fields become available
 	$effect(() => {
-		if (!isFormDataInitialized && collectionValue.value && derivedFields.length > 0) {
-			formDataSnapshot = { ...collectionValue.value };
+		if (!isFormDataInitialized && collectionValue && derivedFields.length > 0) {
+			formDataSnapshot = { ...(collectionValue as Record<string, any>) };
 			// Ensure all fields have proper initial values
 			const initialValue = { ...defaultCollectionValue };
 			// Double-check that all derived fields have values
@@ -321,6 +320,7 @@
 				}
 			}
 			currentCollectionValue = initialValue;
+			lastEntryId = (collectionValue as any)?._id; // Track the current entry ID
 			isFormDataInitialized = true;
 		}
 	}); // Form data persistence across tab switches
@@ -344,17 +344,22 @@
 		}
 	});
 
-	// Initialize local state from global store when it changes
+	// Initialize local state from global store ONLY when switching to a different entry
 	$effect(() => {
-		const globalData = collectionValue.value;
-		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized) {
+		const globalData = collectionValue as any;
+		const currentEntryId = globalData?._id;
+
+		// Only reinitialize if we're switching to a different entry (or from no entry to an entry)
+		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized && currentEntryId !== lastEntryId) {
+			console.log('[Fields] Entry changed, reinitializing form data', { from: lastEntryId, to: currentEntryId });
 			currentCollectionValue = { ...globalData };
+			lastEntryId = currentEntryId;
 		}
 	});
 
 	$effect(() => {
-		if (collectionValue.value?._id) {
-			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${collectionValue.value._id}`;
+		if ((collectionValue as any)?._id) {
+			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any)._id}`;
 		}
 	});
 
@@ -576,7 +581,7 @@
 						<input type="text" class="input flex-grow" readonly value={apiUrl} />
 						<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
 					</div>
-					<CodeBlock language="json" code={JSON.stringify(collectionValue.value, null, 2)} />
+					<CodeBlock language="json" code={JSON.stringify(collectionValue as any, null, 2)} />
 				</div>
 			{/if}
 		</svelte:fragment>

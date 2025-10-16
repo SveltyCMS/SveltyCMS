@@ -682,8 +682,10 @@ export class MongoDBAdapter implements IDBAdapter {
 			insertMany: async () => {
 				throw new Error('insertMany not implemented in MongoCrudMethods');
 			},
-			updateMany: async () => {
-				throw new Error('updateMany not implemented in MongoCrudMethods');
+			updateMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>) => {
+				const repo = this._getRepository(coll);
+				if (!repo) return this._repoNotFound(coll);
+				return this._wrapResult(() => repo.updateMany(query, data as Partial<T>));
 			},
 			deleteMany: <T extends BaseEntity>(coll: string, query: FilterQuery<T>) => {
 				const repo = this._getRepository(coll);

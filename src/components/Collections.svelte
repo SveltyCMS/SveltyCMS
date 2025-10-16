@@ -49,12 +49,13 @@ Features:
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	// Types
 	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
-	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
+	import { collection, contentStructure, mode, setCollection, setMode } from '@src/stores/collectionStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
@@ -111,9 +112,9 @@ Features:
 
 	let nestedStructure = $derived.by(() => {
 		// Only recalculate if content structure actually changed
-		if (contentStructure.value !== lastContentStructure) {
-			lastContentStructure = contentStructure.value;
-			// contentStructure.value is ALREADY nested from getNavigationStructure()
+		if (contentStructure !== lastContentStructure) {
+			lastContentStructure = contentStructure;
+			// contentStructure is ALREADY nested from getNavigationStructure()
 			cachedNestedStructure = contentStructure.value || [];
 		}
 		return cachedNestedStructure;
@@ -295,8 +296,8 @@ Features:
 				}
 
 				// Immediately update UI state for responsiveness
-				mode.set('view');
-				collection.set(null);
+				setMode('view');
+				setCollection(null);
 				shouldShowNextButton.set(true);
 
 				// Clear EntryList cache to prevent stale data
@@ -581,6 +582,16 @@ Features:
 		};
 	});
 
+	// Reset mode when navigating away from mediagallery
+	$effect(() => {
+		const pathname = page.url.pathname;
+		// If we're NOT on the mediagallery route but mode is still 'media', reset it to 'view'
+		if (!pathname.includes('/mediagallery') && mode.value === 'media') {
+			console.log('[Collections] Not on mediagallery route, resetting mode from media to view');
+			setMode('view');
+		}
+	});
+
 	// Cleanup on unmount
 	$effect(() => {
 		return () => {
@@ -659,7 +670,7 @@ Features:
 				? '3'
 				: '1'} group transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
-				mode.set('media');
+				setMode('media');
 				goto('/mediagallery');
 				if (get(screenSize) === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
@@ -677,7 +688,6 @@ Features:
 			{/if}
 		</button>
 	{/if}
-
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
@@ -685,8 +695,8 @@ Features:
 				? '3'
 				: '1'} group transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
-				collection.set(null);
-				mode.set('view');
+				setCollection(null);
+				setMode('view');
 				selectedSystemVirtualFolder = null;
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
 

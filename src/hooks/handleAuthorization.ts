@@ -112,6 +112,10 @@ async function getCachedUserCount(tenantId?: string): Promise<number> {
 	// Layer 3: Database query (with deduplication)
 	return deduplicate(`getUserCount:${tenantId || 'global'}`, async () => {
 		try {
+			if (!auth) {
+				logger.warn('Auth service not available for user count check');
+				return -1;
+			}
 			const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
 			const count = await auth.getUserCount(filter);
 
@@ -161,6 +165,16 @@ async function getAdminDataCached(cacheKey: 'roles' | 'users' | 'tokens', tenant
 	const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { filter: { tenantId } } : {};
 
 	try {
+		if (!auth) {
+			logger.warn(`Auth service not available for ${cacheKey} query`);
+			// Fallback to config roles if database is not available
+			if (cacheKey === 'roles') {
+				await initializeRoles();
+				return roles;
+			}
+			return [];
+		}
+
 		if (cacheKey === 'roles') {
 			data = await auth.getAllRoles();
 			// If no roles in database, initialize from config
@@ -204,10 +218,27 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const isApi = url.pathname.startsWith('/api/');
 	const isPublic = isPublicOrOAuthRoute(url.pathname);
 
+	// Skip browser/tool requests
+	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
+		return resolve(event);
+	}
+
+	// --- EARLY EXIT FOR PUBLIC ROUTES ---
+	// Public routes don't need authorization checks or database access
+	if (isPublic) {
+		// Set defaults for public routes
+		locals.isAdmin = false;
+		locals.hasManageUsersPermission = false;
+		locals.allUsers = [];
+		locals.allTokens = [];
+		locals.isFirstUser = false;
+		return resolve(event);
+	}
+
 	// --- SETUP GUARD ---
-	// Skip all authorization logic during setup mode
+	// Skip all authorization logic during setup mode or when accessing setup route
 	const { isSetupComplete } = await import('@utils/setupCheck');
-	if (!isSetupComplete()) {
+	if (!isSetupComplete() || url.pathname.startsWith('/setup')) {
 		return resolve(event);
 	}
 

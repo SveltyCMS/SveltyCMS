@@ -57,7 +57,7 @@ export function buildTree(nodes: ContentNode[]): ContentNode[] {
 				parent.children!.push(node);
 			} else {
 				// Parent not found, treat as root
-				logger.warn(`[buildTree] Parent ${parentId} not found for node ${node._id}, treating as root`);
+				logger.warn(`[buildTree] Parent \x1b[34m${parentId}\x1b[0m not found for node \x1b[32m${node._id}\x1b[0m, treating as root`);
 				roots.push(node);
 			}
 		} else {
@@ -66,7 +66,7 @@ export function buildTree(nodes: ContentNode[]): ContentNode[] {
 		}
 	}
 
-	logger.trace(`[buildTree] Built tree with ${roots.length} root nodes from ${nodes.length} total nodes`);
+	logger.trace(`[buildTree] Built tree with \x1b[34m${roots.length}\x1b[0m root nodes from \x1b[32m${nodes.length}\x1b[0m total nodes`);
 	return roots;
 }
 

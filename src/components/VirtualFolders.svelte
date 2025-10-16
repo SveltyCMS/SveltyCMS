@@ -33,7 +33,7 @@ Features:
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
-	import { mode } from '@stores/collectionStore.svelte';
+	import { setMode } from '@stores/collectionStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { get } from 'svelte/store';
 	// Import types
@@ -177,7 +177,7 @@ Features:
 
 	// Return to Collections
 	function returnToCollections(): void {
-		mode.set('view');
+		setMode('view');
 		goto('/'); // Adjust this route as needed
 		if (get(screenSize) === 'SM') {
 			toggleUIElement('leftSidebar', 'hidden');

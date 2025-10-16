@@ -11,15 +11,15 @@ import type { WidgetPlaceholder } from './placeholder';
 
 export type WidgetType = 'core' | 'custom';
 
-export interface Widget<T = any> {
-	(field: FieldInstance<T>): FieldInstance<T>;
+export interface Widget {
+	(field: FieldInstance): FieldInstance;
 	// Static properties
 	Name: string;
 	Icon?: string;
 	Description?: string;
 	GuiSchema?: SvelteComponent;
-	GraphqlSchema?: any;
-	aggregations?: any;
+	GraphqlSchema?: unknown;
+	aggregations?: unknown;
 	__widgetType?: WidgetType;
 	__dependencies?: string[];
 	__inputComponentPath?: string;
@@ -51,9 +51,9 @@ export type WidgetParam = {
 	field: FieldInstance;
 	schema: Schema;
 	user: User;
-	value: any;
-	values: any;
-	onValueChange: (value: any) => void;
+	value: unknown;
+	values: unknown;
+	onValueChange: (value: unknown) => void;
 	config: GuiFieldConfig;
 	placeholder: WidgetPlaceholder;
 };

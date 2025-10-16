@@ -11,7 +11,7 @@
  */
 
 import type { ToastStore } from '@skeletonlabs/skeleton';
-import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';
 
@@ -119,7 +119,7 @@ export const statusStore = {
 
 				if (result.success) {
 					// Update the collection value store
-					collectionValue.update((current) => ({ ...current, status: newStatus }));
+					setCollectionValue({ ...collectionValue.value, status: newStatus });
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
@@ -137,7 +137,7 @@ export const statusStore = {
 				}
 			} else {
 				// New entry - just update local state
-				collectionValue.update((current) => ({ ...current, status: newStatus }));
+				setCollectionValue({ ...collectionValue.value, status: newStatus });
 				console.log(`[StatusStore] Local update for new entry from ${componentName}`);
 				return true;
 			}

@@ -114,7 +114,7 @@ async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 		}
 	}
 
-	logger.error(`Auth service not ready after ${maxWaitMs}ms timeout`);
+	logger.error(`Auth service not ready after \x1b[32m${maxWaitMs}ms\x1b[0m timeout`);
 	return false;
 }
 
@@ -178,13 +178,52 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 	// --- END: Language Validation Logic ---
 
 	try {
+		// Check system state first - don't wait if system is FAILED
+		const { getSystemState } = await import('@src/stores/system');
+		const systemState = getSystemState();
+
+		if (systemState.overallState === 'FAILED') {
+			logger.error('System is in FAILED state, cannot proceed with login');
+			return {
+				firstUserExists: true,
+				showOAuth: false,
+				hasExistingOAuthUsers: false,
+				loginForm: await superValidate(wrappedLoginSchema),
+				forgotForm: await superValidate(wrappedForgotSchema),
+				resetForm: await superValidate(wrappedResetSchema),
+				signUpForm: await superValidate(wrappedSignUpSchema),
+				authNotReady: true,
+				authNotReadyMessage: 'System initialization failed. Please check the database connection and configuration.'
+			};
+		}
+
 		// Ensure initialization is complete
 		await dbInitPromise;
 
 		// Wait for auth service to be ready instead of throwing error immediately
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
-			logger.warn('Authentication system is not ready yet, returning fallback data');
+			logger.warn('Authentication system is not ready yet, checking if database is empty');
+
+			// Check if this is a "database empty" scenario
+			const { isSetupCompleteAsync } = await import('@utils/setupCheck');
+			const setupComplete = await isSetupCompleteAsync();
+
+			if (!setupComplete) {
+				logger.error('Database is empty but config exists. This typically means the database was manually dropped.');
+				return {
+					firstUserExists: true,
+					showOAuth: false,
+					hasExistingOAuthUsers: false,
+					loginForm: await superValidate(wrappedLoginSchema),
+					forgotForm: await superValidate(wrappedForgotSchema),
+					resetForm: await superValidate(wrappedResetSchema),
+					signUpForm: await superValidate(wrappedSignUpSchema),
+					authNotReady: true,
+					authNotReadyMessage: 'Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.'
+				};
+			}
+
 			// Return fallback data instead of throwing error
 			return {
 				firstUserExists: true,
@@ -1188,7 +1227,7 @@ async function signInUser(
 			logger.error(`Failed to update user attributes for ${user._id}:`, err);
 		});
 
-		logger.info(`User logged in successfully: ${user.username} (${user._id})`);
+		logger.info(`User logged in successfully: \x1b[34m${user.username}\x1b[0m (\x1b[32m${user._id}\x1b[0m)`);
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;

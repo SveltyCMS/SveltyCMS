@@ -11,7 +11,7 @@ Features:
 
 <script lang="ts">
 	// Stores
-	import { mode } from '@root/src/stores/collectionStore.svelte';
+	import { mode, setMode } from '@root/src/stores/collectionStore.svelte';
 
 	// Props
 	const props = $props<{
@@ -36,7 +36,7 @@ Features:
 	// The default functions now call the event handlers passed in as props.
 	const defaultButtons = {
 		Create: {
-			fn: props['on:create'] || (() => mode.set('create')),
+			fn: props['on:create'] || (() => setMode('create')),
 			icon: 'gravity-ui:plus',
 			bg_color: '#15d515',
 			color: 'white'

@@ -44,7 +44,7 @@
 	// Modal types import
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@src/stores/collectionStore.svelte';
 	import { isDesktop, screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, headerActionButton, shouldShowNextButton, tabSet, validationStore } from '@stores/store.svelte';
@@ -67,15 +67,15 @@
 	let previousTabSet = $state<number>(tabSet.value);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
-		typeof collectionValue.value?._scheduled === 'number' ? new Date(collectionValue.value._scheduled).toISOString().slice(0, 16) : ''
+		typeof (collectionValue as any)?._scheduled === 'number' ? new Date((collectionValue as any)._scheduled).toISOString().slice(0, 16) : ''
 	);
 	let createdAtDate = $state<string>(
-		typeof collectionValue.value?.createdAt === 'number' ? new Date(collectionValue.value.createdAt * 1000).toISOString().slice(0, 16) : ''
+		typeof (collectionValue as any)?.createdAt === 'number' ? new Date((collectionValue as any).createdAt * 1000).toISOString().slice(0, 16) : ''
 	);
 	let showMore = $state<boolean>(false);
 
 	function getIsPublish(): boolean {
-		const status: StatusType = (collectionValue.value?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
+		const status: StatusType = ((collectionValue as any)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
 		return status === StatusTypes.publish;
 	}
 	let isPublish = $derived.by(getIsPublish);
@@ -101,12 +101,12 @@
 
 		try {
 			// If entry exists, update via API
-			if (collectionValue.value?._id && collection.value && collection.value._id) {
-				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
+			if ((collectionValue as any)?._id && collection.value?._id) {
+				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue as any)._id), newStatus);
 
 				if (result.success) {
 					// Update the collection value store
-					collectionValue.update((current) => ({ ...current, status: newStatus }));
+					setCollectionValue({ ...(collectionValue as any), status: newStatus });
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
@@ -120,7 +120,7 @@
 				}
 			} else {
 				// New entry - just update local state
-				collectionValue.update((current) => ({ ...current, status: newStatus }));
+				setCollectionValue({ ...(collectionValue as any), status: newStatus });
 				console.log('[HeaderEdit] Local update for new entry');
 				return true;
 			}
@@ -149,7 +149,7 @@
 		// Only log when HeaderEdit is actually active (not disabled by RightSidebar)
 		if (!shouldDisableStatusToggle) {
 			console.log('[HeaderEdit] Status Debug (Active):', {
-				collectionValueStatus: collectionValue.value?.status,
+				collectionValueStatus: (collectionValue as any)?.status,
 				collectionStatus: collection.value?.status,
 				isPublish,
 				mode: mode.value,
@@ -161,11 +161,11 @@
 	function openScheduleModal(): void {
 		showScheduleModal({
 			onSchedule: (date: Date) => {
-				collectionValue.update((cv: any) => ({
-					...cv,
+				setCollectionValue({
+					...(collectionValue as any),
 					status: StatusTypes.schedule,
 					_scheduled: date.getTime()
-				}));
+				});
 				console.log('[HeaderEdit] Entry scheduled');
 			}
 		});
@@ -173,7 +173,7 @@
 
 	$effect(() => {
 		if (tabSet.value !== previousTabSet) {
-			tempData[previousLanguage] = collectionValue.value;
+			tempData[previousLanguage] = collectionValue as any;
 			previousTabSet = tabSet.value;
 		}
 	});
@@ -188,25 +188,24 @@
 		if (mode.value === 'edit' || mode.value === 'create') {
 			showMore = false;
 		}
-	});
-
-	// Status Store Effects removed: statusStore is not used, use local status logic only
+	}); // Status Store Effects removed: statusStore is not used, use local status logic only
 
 	// Shared save logic for HeaderEdit and RightSidebar
-	function prepareAndSaveEntry() {
+	// Shared save logic for HeaderEdit and RightSidebar
+	async function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
 			console.warn('[HeaderEdit] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
-		const dataToSave = { ...collectionValue.value };
+		const dataToSave = { ...(collectionValue as any) };
 
 		// Status rules: Schedule takes precedence, otherwise use current collection status
 		if (schedule && schedule.trim() !== '') {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
-			dataToSave.status = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
+			dataToSave.status = (collectionValue as any)?.status || collection.value?.status || StatusTypes.unpublish;
 			delete dataToSave._scheduled;
 		}
 		if (mode.value === 'create') {
@@ -214,15 +213,15 @@
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 		if (process.env.NODE_ENV !== 'production') {
-			console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
+			console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', (collectionValue as any)?.status);
 		}
-		saveEntry(dataToSave);
+		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
 
 	// Save form data with validation
 	async function saveData() {
-		prepareAndSaveEntry();
+		await prepareAndSaveEntry();
 	}
 
 	// Permission and UI derived values
@@ -235,18 +234,21 @@
 		// Clear collectionValue before setting mode to 'view' to prevent auto-draft save
 		if (mode.value === 'create') {
 			console.log('[HeaderEdit] Cancel in create mode - clearing collectionValue to prevent auto-draft');
-			collectionValue.set({});
+			setCollectionValue({});
 		}
-		mode.set('view');
+		setMode('view');
+
+		// Hide right sidebar
+		toggleUIElement('rightSidebar', 'hidden');
+
+		// Restore left sidebar to appropriate state
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
 
 	// Delete confirmation modal - use centralized function
 	function openDeleteModal(): void {
 		deleteCurrentEntry(getModalStore(), isAdmin);
-	}
-
-	// Next button handler for menu creation workflow
+	} // Next button handler for menu creation workflow
 	function next(): void {
 		console.log('[HeaderEdit] Next button clicked');
 		// Add your next logic here
@@ -257,7 +259,7 @@
 		showCloneModal({
 			count: 1,
 			onConfirm: async () => {
-				const entry = collectionValue.value;
+				const entry = collectionValue as any;
 				const coll = collection.value;
 				if (!entry || !coll?._id) {
 					showToast('No entry or collection selected.', 'warning');
@@ -276,7 +278,7 @@
 					if (result.success) {
 						showToast('Entry cloned successfully.', 'success');
 						invalidateCollectionCache(coll._id);
-						mode.set('view');
+						setMode('view');
 					} else {
 						showToast(result.error || 'Failed to clone entry', 'error');
 					}
@@ -479,10 +481,10 @@
 			{/if}
 
 			<div class="mt-2 text-sm">
-				<p>Created by: {collectionValue.value?.createdBy || user.username}</p>
-				{#if collectionValue.value?.updatedBy}
+				<p>Created by: {(collectionValue as any)?.createdBy || user.username}</p>
+				{#if (collectionValue as any)?.updatedBy}
 					<p class="text-tertiary-500">
-						Last updated by: {collectionValue.value.updatedBy}
+						Last updated by: {(collectionValue as any).updatedBy}
 					</p>
 				{/if}
 			</div>

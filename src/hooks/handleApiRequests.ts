@@ -101,12 +101,12 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		if (!hasApiPermission(locals.user.role, apiEndpoint)) {
 			logger.warn(
 				`User \x1b[34m${locals.user._id}\x1b[0m (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
-					`denied access to /api/${apiEndpoint} - insufficient permissions`
+					`denied access to\x1b[33m/api/${apiEndpoint}\x1b[0m - insufficient permissions`
 			);
 			throw error(403, `Forbidden: Your role (${locals.user.role}) does not have permission to access this API endpoint.`);
 		}
 
-		logger.trace(`User ${locals.user.email || locals.user._id} granted access to /api/${apiEndpoint}`, {
+		logger.trace(`User \x1b[34m${locals.user._id}\x1b[0m granted access to \x1b[33m/api/${apiEndpoint}\x1b[0m`, {
 			role: locals.user.role,
 			tenant: locals.tenantId || 'global'
 		});

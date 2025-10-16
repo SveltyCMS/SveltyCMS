@@ -28,8 +28,7 @@
 	}
 
 	// Stores
-	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { contentStructure } from '@root/src/stores/collectionStore.svelte';
+	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -54,6 +53,8 @@
 
 	interface ApiResponse {
 		error?: string;
+		success?: boolean;
+		contentStructure?: ContentNode[];
 		[key: string]: any; // Allows for success, contentStructure, message
 	}
 
@@ -215,8 +216,10 @@
 				nodesToSave = {};
 				// Re-sync `currentConfig` with the *actual* structure returned by the server
 				// This is crucial for consistency, especially after complex reorders.
-				contentStructure.set(result.contentStructure);
-				currentConfig = result.contentStructure;
+				if (result.contentStructure) {
+					setContentStructure(result.contentStructure);
+					currentConfig = result.contentStructure;
+				}
 				console.debug('API save successful. New contentStructure:', result.contentStructure);
 			} else {
 				// Revert currentConfig to the last known good state if save fails
@@ -234,8 +237,8 @@
 
 	// Navigates to the new collection creation page.
 	function handleAddCollectionClick(): void {
-		mode.set('create');
-		collectionValue.set({
+		setMode('create');
+		setCollectionValue({
 			name: 'new',
 			icon: '',
 			description: '',

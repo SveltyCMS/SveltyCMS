@@ -18,7 +18,6 @@ User selects date → automatically converts to ISO 8601 UTC format
 - **Native Date Picker**: Uses browser's built-in date input for optimal UX
 - **ISO 8601 Normalization**: Converts user input to standardized UTC format
 - **Timezone Consistency**: Ensures data consistency across different user timezones
-- **Svelte 5 Runes**: Modern reactive patterns with `$derived.by()` and `$props()`
 - **Automatic Validation**: HTML5 date validation with required field support
 -->
 

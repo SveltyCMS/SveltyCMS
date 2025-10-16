@@ -36,7 +36,7 @@
 	let debounceTimeout: number | undefined;
 
 	// Define props
-	let { field, value = collectionValue.value[getFieldName(field)] } = $props<{
+	let { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
 		field: FieldType & { path: string };
 		value?: File | MediaImage;
 	}>();

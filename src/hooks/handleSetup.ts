@@ -22,7 +22,7 @@
  */
 
 import { redirect, type Handle } from '@sveltejs/kit';
-import { isSetupComplete, isSetupCompleteAsync } from '@utils/setupCheck';
+import { isSetupComplete } from '@utils/setupCheck';
 import { logger } from '@utils/logger.svelte';
 
 // --- CONSTANTS ---
@@ -85,28 +85,13 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/setup');
 	}
 
-	// --- Step 2: Full Setup Check (Async, cached per request) ---
-	if (event.locals.__setupComplete === undefined) {
-		event.locals.__setupComplete = await isSetupCompleteAsync();
-	}
-	const setupComplete = event.locals.__setupComplete;
+	// --- Step 2: Config Exists - Setup Was Completed ---
+	// If private.ts exists, setup has been completed.
+	// Even if the database is empty (manually wiped), we should NOT go back to setup.
+	// Instead, let the auth system handle it (redirect to /login where they'll see auth errors).
+	// The admin can then restore the database or contact support.
 
-	if (!setupComplete) {
-		if (!event.locals.__setupLogged) {
-			logger.warn('Config exists but database is empty. Setup required.');
-			event.locals.__setupLogged = true;
-		}
-		if (isAllowedDuringSetup(pathname)) {
-			return resolve(event, createSetupResolver());
-		}
-		if (!event.locals.__setupRedirectLogged) {
-			logger.debug(`Redirecting \x1b[34m${pathname}\x1b[0m to /setup (database empty)`);
-			event.locals.__setupRedirectLogged = true;
-		}
-		throw redirect(302, '/setup');
-	}
-
-	// --- Step 3: Setup is Complete ---
+	// --- Step 3: Setup is Complete - Block Access to Setup Routes ---
 	if (pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
 		if (!event.locals.__setupLoginRedirectLogged) {
 			logger.trace(`Setup complete. Blocking access to \x1b[34m${pathname}\x1b[0m, redirecting to /login`);

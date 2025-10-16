@@ -78,14 +78,14 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		// Path-based lookup - find the UUID for this path
 		// The collection param is like "Collections/Names", add leading slash to match stored paths
 		const collectionPath = `/${collection}`;
-		logger.debug(`Looking up collection by path: ${collectionPath}`);
+		logger.debug(`Looking up collection by path: \x1b[34m${collectionPath}\x1b[0m`);
 
 		for (const [uuid, schemaData] of collectionMap.entries()) {
-			logger.trace(`Comparing path: ${schemaData.path} with ${collectionPath}`);
+			logger.trace(`Comparing path: \x1b[34m${schemaData.path}\x1b[0m with \x1b[33m${collectionPath}\x1b[0m`);
 			if (schemaData.path === collectionPath) {
 				currentCollection = schemaData;
 				collectionIdentifier = uuid;
-				logger.debug(`Collection found by path: ${collectionPath} -> UUID: ${uuid}`);
+				logger.debug(`Collection found by path: \x1b[34m${collectionPath}\x1b[0m -> UUID: \x1b[33m${uuid}\x1b[0m`);
 				break;
 			}
 		}

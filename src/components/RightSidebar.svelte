@@ -33,7 +33,7 @@ This component provides a streamlined interface for managing collection entries 
 	// Stores
 	import { page } from '$app/state';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@stores/collectionStore.svelte';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 	// Utils & Components
@@ -55,7 +55,7 @@ This component provides a streamlined interface for managing collection entries 
 
 	// --- Status Management using collection status directly  ---
 	function getIsPublish(): boolean {
-		const status = collectionValue.value?.status ?? collection.value?.status ?? StatusTypes.unpublish;
+		const status = (collectionValue as any)?.status ?? collection.value?.status ?? StatusTypes.unpublish;
 		return status === StatusTypes.publish;
 	}
 	let isLoading = $state(false);
@@ -78,16 +78,15 @@ This component provides a streamlined interface for managing collection entries 
 
 		try {
 			// If entry exists, update via API
-			if (collectionValue.value?._id && collection.value?._id) {
+			if ((collectionValue as any)?._id && collection.value?._id) {
 				const { updateEntryStatus } = await import('@src/utils/apiClient');
-				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
+				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue as any)._id), newStatus);
 
 				if (result.success) {
 					// Update the collection value store
-					collectionValue.update((current) => ({ ...current, status: newStatus }));
+					setCollectionValue({ ...(collectionValue as any), status: newStatus });
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
-
 					if (process.env.NODE_ENV !== 'production') {
 						console.log('[RightSidebar] API update successful');
 					}
@@ -100,7 +99,7 @@ This component provides a streamlined interface for managing collection entries 
 				}
 			} else {
 				// New entry - just update local state
-				collectionValue.update((current) => ({ ...current, status: newStatus }));
+				setCollectionValue({ ...(collectionValue as any), status: newStatus });
 				if (process.env.NODE_ENV !== 'production') {
 					console.log('[RightSidebar] Local update for new entry');
 				}
@@ -127,12 +126,12 @@ This component provides a streamlined interface for managing collection entries 
 
 	// Handle schedule updates
 	$effect(() => {
-		const cv = collectionValue.value;
+		const cv = collectionValue as any;
 		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
 	});
 	let dates = $derived({
-		created: collectionValue.value?.createdAt
-			? new Date(String(collectionValue.value.createdAt)).toLocaleDateString(getLocale(), {
+		created: (collectionValue as any)?.createdAt
+			? new Date(String((collectionValue as any).createdAt)).toLocaleDateString(getLocale(), {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -140,8 +139,8 @@ This component provides a streamlined interface for managing collection entries 
 					minute: '2-digit'
 				})
 			: '-',
-		updated: collectionValue.value?.updatedAt
-			? new Date(String(collectionValue.value.updatedAt)).toLocaleDateString(getLocale(), {
+		updated: (collectionValue as any)?.updatedAt
+			? new Date(String((collectionValue as any).updatedAt)).toLocaleDateString(getLocale(), {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -161,15 +160,17 @@ This component provides a streamlined interface for managing collection entries 
 	});
 
 	function openScheduleModal(): void {
+		console.log('[RightSidebar] Opening schedule modal');
 		showScheduleModal({
 			onSchedule: (date: Date, action: string) => {
+				console.log('[RightSidebar] Schedule callback:', { date, action });
 				schedule = date.toISOString();
 				if (action === StatusTypes.schedule) {
-					collectionValue.update((cv) => ({
-						...cv,
+					setCollectionValue({
+						...(collectionValue as any),
 						status: StatusTypes.schedule,
 						_scheduled: date.getTime()
-					}));
+					});
 					if (process.env.NODE_ENV !== 'production') {
 						console.log('[RightSidebar] Entry scheduled');
 					}
@@ -179,20 +180,20 @@ This component provides a streamlined interface for managing collection entries 
 	}
 
 	// Shared save logic for HeaderEdit and RightSidebar
-	function prepareAndSaveEntry() {
+	async function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
 			console.warn('[RightSidebar] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
-		const dataToSave = { ...collectionValue.value };
+		const dataToSave = { ...(collectionValue as any) };
 
 		// Status rules: Schedule takes precedence, otherwise use current collection status
 		if (schedule && schedule.trim() !== '') {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
-			dataToSave.status = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
+			dataToSave.status = (collectionValue as any)?.status || collection.value?.status || StatusTypes.unpublish;
 			delete dataToSave._scheduled;
 		}
 
@@ -202,9 +203,10 @@ This component provides a streamlined interface for managing collection entries 
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 		if (process.env.NODE_ENV !== 'production') {
-			console.log('[RightSidebar] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
+			console.log('[RightSidebar] Saving data:', dataToSave);
+			console.log('[RightSidebar] Collection fields:', collection.value?.fields);
 		}
-		saveEntry(dataToSave);
+		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
 		handleUILayoutToggle();
 	}
 
@@ -310,17 +312,17 @@ This component provides a streamlined interface for managing collection entries 
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{collectionValue.value?.createdBy || user?.username || 'system'}
+								{(collectionValue as any)?.createdBy || user?.username || 'system'}
 							</span>
 						</div>
 					</div>
 
-					{#if collectionValue.value?.updatedBy}
+					{#if (collectionValue as any)?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{collectionValue.value.updatedBy || user?.username || 'system'}
+									{(collectionValue as any).updatedBy || user?.username || 'system'}
 								</span>
 							</div>
 						</div>

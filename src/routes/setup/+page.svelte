@@ -239,7 +239,7 @@
 
 	const canProceed = $derived.by<boolean>(() => {
 		if (wizard.currentStep === 0) return wizard.dbTestPassed;
-		if (wizard.currentStep === 1 || wizard.currentStep === 2) return true;
+		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
 		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
 		return false;
 	});
@@ -679,7 +679,7 @@
 	<!-- Modal with component registry for this page -->
 	<Modal components={modalComponentRegistry} />
 	<Toast />
-	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 		<!-- Header -->
 		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
 			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -755,14 +755,16 @@
 					<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="variant-ghost btn-icon" iconSize={22} />
 				</div>
 
-				<p class="w-full text-center text-sm sm:text-base">{m.setup_heading_subtitle()}</p>
+				<p class="w-full text-center text-sm sm:text-base">
+					{m.setup_heading_subtitle({ siteName: wizard.systemSettings.siteName || 'SveltyCMS' })}
+				</p>
 			</div>
 		</div>
 
 		<!-- Main Content with Left Side Steps -->
 		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
 			<!-- Step Indicator (Left Side) - Horizontal on mobile, vertical on desktop -->
-			<div class="w-full shrink-0 lg:w-72">
+			<div class="w-full shrink-0 lg:w-80 xl:w-96">
 				<div class="flex flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
 					<!-- Mobile: Horizontal step indicator -->
 					<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
@@ -892,209 +894,207 @@
 			</div>
 
 			<!-- Main Card (Right Side) -->
-			<div class="flex flex-1 flex-col rounded-xl border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
-				<div class="flex flex-col rounded-xl border">
-					<!-- Card Header with Step Title -->
-					<div class="flex flex-shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
-						<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
-							{#if wizard.currentStep === 0}
-								<iconify-icon icon="mdi:database" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
-								{m.setup_step_database()}
-							{:else if wizard.currentStep === 1}
-								<iconify-icon icon="mdi:account" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
-								{m.setup_step_admin()}
-							{:else if wizard.currentStep === 2}
-								<iconify-icon icon="mdi:cog" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
-								{m.setup_step_system()}
-							{:else if wizard.currentStep === 3}
-								<iconify-icon icon="mdi:email" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
-								{m.setup_step_email()}
-							{:else}
-								<iconify-icon icon="mdi:check-circle" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
-								{m.setup_step_complete()}
-							{/if}
-						</h2>
-						<button
-							onclick={() => {
-								if (typeof window !== 'undefined' && !confirm('Clear all setup data?')) return;
-								clearStore();
-							}}
-							type="button"
-							class="variant-ghost btn btn-sm rounded text-xs"
-							aria-label="Reset data"
-							title="Reset data"
-						>
-							<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-							Reset Data
-						</button>
-					</div>
-
-					<!-- Card Content -->
-					<div class="p-4 sm:p-6 lg:p-8">
-						{#if stepLoadError}
-							<div class="mb-4 rounded bg-red-100 p-4 text-red-700">{stepLoadError}</div>
-						{:else if CurrentStepComponent}
-							<CurrentStepComponent
-								bind:dbConfig={wizard.dbConfig}
-								{validationErrors}
-								{isLoading}
-								bind:showDbPassword
-								{toggleDbPassword}
-								{testDatabaseConnection}
-								{dbConfigChangedSinceTest}
-								{clearDbTestError}
-								bind:this={dbConfigComponent}
-								bind:adminUser={wizard.adminUser}
-								{passwordRequirements}
-								bind:showAdminPassword
-								bind:showConfirmPassword
-								{toggleAdminPassword}
-								{toggleConfirmPassword}
-								{checkPasswordRequirements}
-								systemSettings={wizard.systemSettings}
-								availableLanguages={systemLanguages}
-								{completeSetup}
-							/>
+			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
+				<!-- Card Header with Step Title -->
+				<div class="flex flex-shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
+					<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
+						{#if wizard.currentStep === 0}
+							<iconify-icon icon="mdi:database" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							{m.setup_step_database()}
+						{:else if wizard.currentStep === 1}
+							<iconify-icon icon="mdi:account" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							{m.setup_step_admin()}
+						{:else if wizard.currentStep === 2}
+							<iconify-icon icon="mdi:cog" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							{m.setup_step_system()}
+						{:else if wizard.currentStep === 3}
+							<iconify-icon icon="mdi:email" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							{m.setup_step_email()}
 						{:else}
-							<div class="animate-pulse">Loading step...</div>
+							<iconify-icon icon="mdi:check-circle" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							{m.setup_step_complete()}
 						{/if}
+					</h2>
+					<button
+						onclick={() => {
+							if (typeof window !== 'undefined' && !confirm('Clear all setup data?')) return;
+							clearStore();
+						}}
+						type="button"
+						class="variant-ghost btn btn-sm rounded text-xs"
+						aria-label="Reset data"
+						title="Reset data"
+					>
+						<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+						Reset Data
+					</button>
+				</div>
 
-						<!-- Status Messages -->
-						{#if (successMessage || errorMessage) && lastDbTestResult}
+				<!-- Card Content -->
+				<div class="p-4 sm:p-6 lg:p-8">
+					{#if stepLoadError}
+						<div class="mb-4 rounded bg-red-100 p-4 text-red-700">{stepLoadError}</div>
+					{:else if CurrentStepComponent}
+						<CurrentStepComponent
+							bind:dbConfig={wizard.dbConfig}
+							{validationErrors}
+							{isLoading}
+							bind:showDbPassword
+							{toggleDbPassword}
+							{testDatabaseConnection}
+							{dbConfigChangedSinceTest}
+							{clearDbTestError}
+							bind:this={dbConfigComponent}
+							bind:adminUser={wizard.adminUser}
+							{passwordRequirements}
+							bind:showAdminPassword
+							bind:showConfirmPassword
+							{toggleAdminPassword}
+							{toggleConfirmPassword}
+							{checkPasswordRequirements}
+							systemSettings={wizard.systemSettings}
+							availableLanguages={systemLanguages}
+							{completeSetup}
+						/>
+					{:else}
+						<div class="animate-pulse">Loading step...</div>
+					{/if}
+
+					<!-- Status Messages -->
+					{#if (successMessage || errorMessage) && lastDbTestResult}
+						<div
+							class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
+							class:border-primary-400={!!successMessage}
+							class:border-error-400={!!errorMessage}
+						>
 							<div
-								class="mt-4 flex flex-col rounded-md border-l-4 p-0 text-sm"
-								class:border-primary-400={!!successMessage}
-								class:border-error-400={!!errorMessage}
+								class="flex items-center gap-2 px-3.5 py-3"
+								class:bg-primary-50={!!successMessage}
+								class:text-green-800={!!successMessage}
+								class:bg-red-50={!!errorMessage}
+								class:text-error-600={!!errorMessage}
 							>
-								<div
-									class="flex items-center gap-2 px-3.5 py-3"
-									class:bg-primary-50={!!successMessage}
-									class:text-green-800={!!successMessage}
-									class:bg-red-50={!!errorMessage}
-									class:text-error-600={!!errorMessage}
-								>
-									<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										{#if successMessage}
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-										{:else}
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-										{/if}
-									</svg>
-									<div class="flex-1">
-										{successMessage || errorMessage}
-									</div>
-									<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
-										<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
-										<span class="hidden sm:inline">{showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
-									</button>
-									<!-- Dismiss status message -->
-									<button
-										type="button"
-										class="btn-icon btn-sm h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
-										aria-label="Close message"
-										onclick={() => {
-											successMessage = '';
-											errorMessage = '';
-											showDbDetails = false;
-										}}
-									>
-										<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
-									</button>
+								<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									{#if successMessage}
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+									{:else}
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+									{/if}
+								</svg>
+								<div class="flex-1">
+									{successMessage || errorMessage}
 								</div>
-								{#if showDbDetails}
-									<div class="border-t border-surface-200 bg-surface-50 text-xs dark:border-surface-600 dark:bg-surface-700">
-										<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
+								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
+									<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
+									<span class="hidden sm:inline">{showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
+								</button>
+								<!-- Dismiss status message -->
+								<button
+									type="button"
+									class="btn-icon btn-sm h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
+									aria-label="Close message"
+									onclick={() => {
+										successMessage = '';
+										errorMessage = '';
+										showDbDetails = false;
+									}}
+								>
+									<iconify-icon icon="mdi:close" class="h-4 w-4"></iconify-icon>
+								</button>
+							</div>
+							{#if showDbDetails}
+								<div class="border-t border-surface-200 bg-surface-50 text-xs dark:border-surface-600 dark:bg-surface-700">
+									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
+										<div class="sm:col-span-1">
+											<span class="font-semibold">{m.setup_db_test_latency()}:</span>
+											<span class="text-terrary-500 dark:text-primary-500">{lastDbTestResult.latencyMs ?? '—'} ms</span>
+										</div>
+										<div class="sm:col-span-1">
+											<span class="font-semibold">{m.setup_db_test_engine()}:</span>
+											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
+										</div>
+										<div class="sm:col-span-1">
+											<span class="font-semibold">{m.label_host()}:</span>
+											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
+										</div>
+										{#if !isFullUri}
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.setup_db_test_latency()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{lastDbTestResult.latencyMs ?? '—'} ms</span>
+												<span class="font-semibold">{m.label_port()}:</span>
+												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
 											</div>
+										{/if}
+										<div class="sm:col-span-1">
+											<span class="font-semibold">{m.label_database()}:</span>
+											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
+										</div>
+										{#if wizard.dbConfig.user}
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.setup_db_test_engine()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
+												<span class="font-semibold">{m.label_user?.() || m.setup_db_test_user()}:</span>
+												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.user}</span>
 											</div>
-											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_host()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
+										{/if}
+										{#if lastDbTestResult.classification}
+											<div class="sm:col-span-2">
+												<span class="font-semibold">Code:</span>
+												<span class="text-terrary-500 dark:text-primary-500">{lastDbTestResult.classification}</span>
 											</div>
-											{#if !isFullUri}
-												<div class="sm:col-span-1">
-													<span class="font-semibold">{m.label_port()}:</span>
-													<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
-												</div>
-											{/if}
-											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_database()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
-											</div>
-											{#if wizard.dbConfig.user}
-												<div class="sm:col-span-1">
-													<span class="font-semibold">{m.label_user?.() || m.setup_db_test_user()}:</span>
-													<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.user}</span>
-												</div>
-											{/if}
-											{#if lastDbTestResult.classification}
-												<div class="sm:col-span-2">
-													<span class="font-semibold">Code:</span>
-													<span class="text-terrary-500 dark:text-primary-500">{lastDbTestResult.classification}</span>
+										{/if}
+									</div>
+									{#if !lastDbTestResult.success}
+										<div class="border-t border-surface-200 p-3 dark:border-surface-600">
+											{#if lastDbTestResult.userFriendly}
+												<div class="mb-2 font-semibold text-error-600">Error:</div>
+												<div class="mb-3 rounded bg-red-50 p-2 text-sm text-error-700 dark:bg-error-900/20 dark:text-white">
+													{lastDbTestResult.userFriendly}
 												</div>
 											{/if}
 										</div>
-										{#if !lastDbTestResult.success}
-											<div class="border-t border-surface-200 p-3 dark:border-surface-600">
-												{#if lastDbTestResult.userFriendly}
-													<div class="mb-2 font-semibold text-error-600">Error:</div>
-													<div class="mb-3 rounded bg-red-50 p-2 text-sm text-error-700 dark:bg-error-900/20 dark:text-white">
-														{lastDbTestResult.userFriendly}
-													</div>
-												{/if}
-											</div>
-										{/if}
-									</div>
-								{/if}
-							</div>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+				<!-- Navigation -->
+				<div class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
+					<!-- Previous Button -->
+					<div class="flex-1">
+						{#if wizard.currentStep > 0}
+							<button onclick={prevStep} class="variant-filled-tertiary btn dark:variant-filled-primary">
+								<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+								{m.button_previous()}
+							</button>
 						{/if}
 					</div>
-					<!-- Navigation -->
-					<div class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
-						<!-- Previous Button -->
-						<div class="flex-1">
-							{#if wizard.currentStep > 0}
-								<button onclick={prevStep} class="variant-filled-tertiary btn dark:variant-filled-primary">
-									<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-									{m.button_previous()}
-								</button>
-							{/if}
-						</div>
 
-						<!-- Step Indicator -->
-						<div class="flex-shrink-0 text-center text-sm font-medium">
-							{m.setup_progress_step_of({ current: String(wizard.currentStep + 1), total: String(totalSteps) })}
-						</div>
+					<!-- Step Indicator -->
+					<div class="flex-shrink-0 text-center text-sm font-medium">
+						{m.setup_progress_step_of({ current: String(wizard.currentStep + 1), total: String(totalSteps) })}
+					</div>
 
-						<!-- Next/Complete Button -->
-						<div class="flex flex-1 justify-end">
-							{#if wizard.currentStep < steps.length - 1}
-								<button
-									onclick={nextStep}
-									disabled={!canProceed}
-									aria-disabled={!canProceed}
-									class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
-								>
-									{m.button_next()}
-									<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-								</button>
-							{:else if wizard.currentStep === steps.length - 1}
-								<button
-									onclick={completeSetup}
-									disabled={isLoading}
-									aria-disabled={isLoading}
-									class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
-								>
-									{isLoading ? 'Completing...' : m.button_complete?.() || 'Complete'}
-									<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
-								</button>
-							{/if}
-						</div>
+					<!-- Next/Complete Button -->
+					<div class="flex flex-1 justify-end">
+						{#if wizard.currentStep < steps.length - 1}
+							<button
+								onclick={nextStep}
+								disabled={!canProceed}
+								aria-disabled={!canProceed}
+								class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
+							>
+								{m.button_next()}
+								<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+							</button>
+						{:else if wizard.currentStep === steps.length - 1}
+							<button
+								onclick={completeSetup}
+								disabled={isLoading}
+								aria-disabled={isLoading}
+								class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+							>
+								{isLoading ? 'Completing...' : m.button_complete?.() || 'Complete'}
+								<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+							</button>
+						{/if}
 					</div>
 				</div>
 			</div>

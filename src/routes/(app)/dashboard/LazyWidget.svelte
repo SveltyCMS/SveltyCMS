@@ -85,7 +85,6 @@ Dynamically loads dashboard widgets on-demand, reducing initial page load time.
 		</div>
 	{:else if WidgetComponent}
 		<!-- Render the actual widget -->
-		<!-- In Svelte 5 runes mode, components are dynamic by default -->
 		<WidgetComponent {config} {onRemove} />
 	{/if}
 </div>

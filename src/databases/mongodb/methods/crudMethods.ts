@@ -165,6 +165,22 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
+	async updateMany(query: FilterQuery<T>, data: UpdateQuery<T>): Promise<{ modifiedCount: number; matchedCount: number }> {
+		try {
+			const updateData = {
+				...(data as object),
+				updatedAt: nowISODateString()
+			};
+			const result = await this.model.updateMany(query, { $set: updateData });
+			return {
+				modifiedCount: result.modifiedCount,
+				matchedCount: result.matchedCount
+			};
+		} catch (error) {
+			throw createDatabaseError(error, 'UPDATE_MANY_ERROR', `Failed to update multiple documents in ${this.model.modelName}`);
+		}
+	}
+
 	async deleteMany(query: FilterQuery<T>): Promise<{ deletedCount: number }> {
 		try {
 			const result = await this.model.deleteMany(query);

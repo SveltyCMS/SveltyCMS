@@ -19,7 +19,10 @@ import { dbInitPromise } from '@src/databases/db';
 let initializationAttempted = false;
 
 export const handleSystemState: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
+
 	let systemState = getSystemState();
+	logger.debug(`[handleSystemState] Request to \x1b[34m${pathname}\x1b[0m, system state: \x1b[32m${systemState.overallState}\x1b[0m`);
 
 	// If the system is IDLE, it means initialization hasn't been triggered yet on the request lifecycle.
 	// This ensures that we wait for the server's startup initialization to complete.
@@ -31,10 +34,19 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 		logger.info(`Initialization check complete. System state is now: \x1b[34m${systemState.overallState}\x1b[0m`);
 	}
 
-	// Allow setup wizard and static assets during first-time setup
+	// Allow setup wizard and static assets during first-time setup (IDLE state)
 	if (systemState.overallState === 'IDLE') {
-		const { pathname } = event.url;
-		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/api/dashboard/health', '/static', '/assets', '/favicon.ico'];
+		const allowedPaths = [
+			'/setup',
+			'/api/setup',
+			'/api/system/health',
+			'/api/dashboard/health',
+			'/static',
+			'/assets',
+			'/favicon.ico',
+			'/.well-known',
+			'/_'
+		];
 		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/';
 		if (isAllowedRoute) {
 			logger.trace(`Allowing request to \x1b[34m${pathname}\x1b[0m during \x1b[34mIDLE (setup mode)\x1b[0m state.`);
@@ -43,11 +55,18 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 	}
 
 	const isReady = isSystemReady(); // This should be true for 'READY' or 'DEGRADED' states
-	const { pathname } = event.url;
 
 	// --- State: FAILED ---
-	// If a critical service has failed, block everything with a 503 Service Unavailable error.
+	// If a critical service has failed, block all requests except health checks
 	if (systemState.overallState === 'FAILED') {
+		// Allow health checks and browser/tool requests even when system is FAILED
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/.well-known', '/_'];
+		const isAllowedRoute = allowedPaths.some((prefix) => pathname.startsWith(prefix));
+		if (isAllowedRoute) {
+			logger.trace(`Allowing health check/tool request to \x1b[34m${pathname}\x1b[0m despite FAILED state.`);
+			return resolve(event);
+		}
+
 		const lastFailedTransition = systemState.performanceMetrics.stateTransitions
 			.slice()
 			.reverse()

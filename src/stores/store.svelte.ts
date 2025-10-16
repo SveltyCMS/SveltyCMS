@@ -5,7 +5,6 @@
 
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { store } from '@utils/reactivity.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 
 // --- Helper Functions & Interfaces ---
@@ -353,38 +352,220 @@ try {
 	initialContentLanguage = 'en' as Locale;
 }
 
-export const systemLanguage = store<Locale>(initialSystemLanguage);
-export const contentLanguage = store<Locale>(initialContentLanguage);
+// Create reactive state for languages with cookie syncing
+let _systemLanguage = $state<Locale>(initialSystemLanguage);
+let _contentLanguage = $state<Locale>(initialContentLanguage);
 
-// Other legacy stores
-export const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-export const headerActionButton2 = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-export const pkgBgColor = store('variant-filled-primary');
-export const file = store<File | null>(null);
-export const saveEditedImage = store(false);
-export const saveFunction = store<SaveFunction>({
+// Subscriber sets for manual subscription tracking (server-safe)
+const systemLanguageSubscribers = new SvelteSet<(value: Locale) => void>();
+const contentLanguageSubscribers = new SvelteSet<(value: Locale) => void>();
+
+// Notify all subscribers
+function notifySystemLanguage() {
+	for (const fn of systemLanguageSubscribers) {
+		try {
+			fn(_systemLanguage);
+		} catch {
+			// noop: subscriber errors shouldn't break notifications
+		}
+	}
+}
+
+function notifyContentLanguage() {
+	for (const fn of contentLanguageSubscribers) {
+		try {
+			fn(_contentLanguage);
+		} catch {
+			// noop: subscriber errors shouldn't break notifications
+		}
+	}
+}
+
+// Language stores with Svelte store API compatibility (server-safe)
+export const systemLanguage = {
+	get value() {
+		return _systemLanguage;
+	},
+	set value(newValue: Locale) {
+		_systemLanguage = newValue;
+		if (typeof document !== 'undefined' && newValue) {
+			document.cookie = `systemLanguage=${newValue}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		}
+		notifySystemLanguage();
+	},
+	set(newValue: Locale) {
+		this.value = newValue;
+	},
+	update(fn: (value: Locale) => Locale) {
+		this.value = fn(this.value);
+	},
+	subscribe(run: (value: Locale) => void) {
+		systemLanguageSubscribers.add(run);
+		// Run immediately with current value (Svelte store convention)
+		try {
+			run(_systemLanguage);
+		} catch {
+			// noop on initial call
+		}
+		return () => {
+			systemLanguageSubscribers.delete(run);
+		};
+	}
+};
+
+export const contentLanguage = {
+	get value() {
+		return _contentLanguage;
+	},
+	set value(newValue: Locale) {
+		_contentLanguage = newValue;
+		if (typeof document !== 'undefined' && newValue) {
+			document.cookie = `contentLanguage=${newValue}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		}
+		notifyContentLanguage();
+	},
+	set(newValue: Locale) {
+		this.value = newValue;
+	},
+	update(fn: (value: Locale) => Locale) {
+		this.value = fn(this.value);
+	},
+	subscribe(run: (value: Locale) => void) {
+		contentLanguageSubscribers.add(run);
+		// Run immediately with current value (Svelte store convention)
+		try {
+			run(_contentLanguage);
+		} catch {
+			// noop on initial call
+		}
+		return () => {
+			contentLanguageSubscribers.delete(run);
+		};
+	}
+};
+
+// Simple reactive state for other stores
+let _headerActionButton = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+let _headerActionButton2 = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+let _pkgBgColor = $state('variant-filled-primary');
+let _file = $state<File | null>(null);
+let _saveEditedImage = $state(false);
+let _saveFunction = $state<SaveFunction>({
 	fn: () => {},
 	reset: () => {}
 });
-// Switch to rune-backed values while preserving store API
+let _validationErrors = $state<ValidationErrors>({});
+
+// Subscriber sets for manual subscription tracking
+const headerActionButtonSubscribers = new SvelteSet<(value: ConstructorOfATypedSvelteComponent | string | undefined) => void>();
+const headerActionButton2Subscribers = new SvelteSet<(value: ConstructorOfATypedSvelteComponent | string | undefined) => void>();
+const pkgBgColorSubscribers = new SvelteSet<(value: string) => void>();
+const fileSubscribers = new SvelteSet<(value: File | null) => void>();
+const saveEditedImageSubscribers = new SvelteSet<(value: boolean) => void>();
+const saveFunctionSubscribers = new SvelteSet<(value: SaveFunction) => void>();
+const validationErrorsSubscribers = new SvelteSet<(value: ValidationErrors) => void>();
+
+// Helper to create simple store wrappers
+function createSimpleStore<T>(getter: () => T, setter: (value: T) => void, subscribers: SvelteSet<(value: T) => void>) {
+	const notify = () => {
+		const currentValue = getter();
+		for (const fn of subscribers) {
+			try {
+				fn(currentValue);
+			} catch {
+				// noop
+			}
+		}
+	};
+
+	return {
+		get value() {
+			return getter();
+		},
+		set value(newValue: T) {
+			setter(newValue);
+			notify();
+		},
+		set(newValue: T) {
+			this.value = newValue;
+		},
+		update(fn: (value: T) => T) {
+			this.value = fn(this.value);
+		},
+		subscribe(run: (value: T) => void) {
+			subscribers.add(run);
+			try {
+				run(getter());
+			} catch {
+				// noop
+			}
+			return () => {
+				subscribers.delete(run);
+			};
+		}
+	};
+}
+
+// Export stores with Svelte store API compatibility
+export const headerActionButton = createSimpleStore(
+	() => _headerActionButton,
+	(v) => {
+		_headerActionButton = v;
+	},
+	headerActionButtonSubscribers
+);
+
+export const headerActionButton2 = createSimpleStore(
+	() => _headerActionButton2,
+	(v) => {
+		_headerActionButton2 = v;
+	},
+	headerActionButton2Subscribers
+);
+
+export const pkgBgColor = createSimpleStore(
+	() => _pkgBgColor,
+	(v) => {
+		_pkgBgColor = v;
+	},
+	pkgBgColorSubscribers
+);
+
+export const file = createSimpleStore(
+	() => _file,
+	(v) => {
+		_file = v;
+	},
+	fileSubscribers
+);
+
+export const saveEditedImage = createSimpleStore(
+	() => _saveEditedImage,
+	(v) => {
+		_saveEditedImage = v;
+	},
+	saveEditedImageSubscribers
+);
+
+export const saveFunction = createSimpleStore(
+	() => _saveFunction,
+	(v) => {
+		_saveFunction = v;
+	},
+	saveFunctionSubscribers
+);
+
+export const validationErrors = createSimpleStore(
+	() => _validationErrors,
+	(v) => {
+		_validationErrors = v;
+	},
+	validationErrorsSubscribers
+);
+
+// These are already using createRuneBackedStore which is fine
 export const saveLayerStore = createRuneBackedStore<() => Promise<void>>(async () => {});
 export const shouldShowNextButton = createRuneBackedStore(false);
-export const validationErrors = store<ValidationErrors>({});
-
-// Update cookies when language stores change
-systemLanguage.subscribe((sysLang) => {
-	if (typeof document !== 'undefined' && sysLang) {
-		document.cookie = `systemLanguage=${sysLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-	}
-});
-
-contentLanguage.subscribe((contentLang) => {
-	if (typeof document !== 'undefined' && contentLang) {
-		document.cookie = `contentLanguage=${contentLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-	}
-});
-
-// --- Backward Compatibility Helpers ---
 
 // For components still using the old store-like API for runes
 export const tabSet = {

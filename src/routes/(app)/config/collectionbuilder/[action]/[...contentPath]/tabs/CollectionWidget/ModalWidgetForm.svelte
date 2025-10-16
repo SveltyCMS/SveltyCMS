@@ -17,7 +17,7 @@ It handles widget configuration, permissions, and specific options.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
 	import { getModalStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -50,7 +50,7 @@ It handles widget configuration, permissions, and specific options.
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
 		if (modalData?.response) {
-			modalData.response(targetWidget.value);
+			modalData.response(targetWidget);
 		}
 		modalStore.close();
 	}
@@ -60,12 +60,13 @@ It handles widget configuration, permissions, and specific options.
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			collectionValue.update((c) => {
-				if (c && Array.isArray(c.fields)) {
-					c.fields = c.fields.filter((field: any) => field.id !== modalData?.value.id);
-				}
-				return c;
-			});
+			if (collectionValue && Array.isArray(collectionValue.fields)) {
+				const newFields = (collectionValue.fields as any[]).filter((field: any) => field.id !== modalData?.value.id);
+				setCollectionValue({
+					...collectionValue,
+					fields: newFields
+				});
+			}
 			modalStore.close();
 		}
 	}

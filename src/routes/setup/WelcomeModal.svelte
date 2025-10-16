@@ -24,19 +24,9 @@
 </script>
 
 {#if $modalStore[0]}
-	<div
-		class="card mx-auto max-w-lg space-y-4 p-4 lg:p-8"
-		role="dialog"
-		aria-labelledby="welcome-heading"
-		aria-describedby="welcome-body"
-	>
+	<div class="card mx-auto max-w-lg space-y-4 p-4 lg:p-8" role="dialog" aria-labelledby="welcome-heading" aria-describedby="welcome-body">
 		<!-- Close button -->
-		<button
-			type="button"
-			class="btn-icon btn-sm absolute right-4 top-4"
-			aria-label="Close welcome dialog"
-			onclick={handleClose}
-		>
+		<button type="button" class="btn-icon btn-sm absolute right-4 top-4" aria-label="Close welcome dialog" onclick={handleClose}>
 			<iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
 		</button>
 

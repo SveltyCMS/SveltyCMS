@@ -25,13 +25,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 	// Stores
-	import { mode } from '@src/stores/collectionStore.svelte';
+	import { setMode } from '@src/stores/collectionStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Utils & Media
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
-	import { config, toFormData } from '@utils/utils';
 	// Components
 	import Breadcrumb from '@components/Breadcrumb.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
@@ -142,7 +141,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Initialize component with runes
 	$effect(() => {
-		mode.set('media');
+		setMode('media');
 
 		if (data && data.systemVirtualFolders) {
 			systemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({

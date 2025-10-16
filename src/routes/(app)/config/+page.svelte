@@ -9,12 +9,12 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { collection } from '@src/stores/collectionStore.svelte';
+	import { setCollection } from '@src/stores/collectionStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
-		collection.set(null);
+		setCollection(null);
 	});
 
 	function handleInternalNavigation(href: string, target?: string) {

@@ -25,14 +25,14 @@
 	import { page } from '$app/state';
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
-	import { mode, contentStructure } from '@stores/collectionStore.svelte';
+	import { contentStructure, setMode } from '@stores/collectionStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 
 	// Import components and utilities
 	import VersionCheck from '@components/VersionCheck.svelte';
-		import Collections from '@components/Collections.svelte';
+	import Collections from '@components/Collections.svelte';
 	import type { CollectionTreeNode } from '@components/Collections.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -176,7 +176,7 @@
 				console.log('Mobile detected, hiding sidebar before navigation');
 				toggleUIElement('leftSidebar', 'hidden');
 			}
-			mode.set('view');
+			setMode('view');
 			goto('/user');
 		}
 	}
@@ -188,7 +188,7 @@
 				console.log('Mobile detected, hiding sidebar before navigation');
 				toggleUIElement('leftSidebar', 'hidden');
 			}
-			mode.set('view');
+			setMode('view');
 			goto('/config');
 		}
 	}

@@ -15,6 +15,8 @@ Features:
 -->
 
 <script lang="ts">
+	import { onMount } from 'svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -29,6 +31,12 @@ Features:
 
 	// --- Component State ---
 	const modalStore = getModalStore();
+
+	onMount(() => {
+		console.log('[ScheduleModal] Component mounted');
+		console.log('[ScheduleModal] Modal store:', $modalStore);
+		console.log('[ScheduleModal] Parent:', parent);
+	});
 	type ActionType = 'publish' | 'unpublish' | 'delete';
 
 	let scheduleDateOnly = $state('');

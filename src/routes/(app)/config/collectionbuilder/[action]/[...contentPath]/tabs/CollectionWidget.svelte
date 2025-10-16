@@ -7,12 +7,13 @@ component
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
-	import { collection, targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collection, setTargetWidget } from '@src/stores/collectionStore.svelte';
 	import { tabSet } from '@stores/store.svelte';
 	import { asAny, getGuiFields } from '@utils/utils';
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
 	import { widgetFunctions } from '@stores/widgetStore.svelte';
+	import { get } from 'svelte/store';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -39,7 +40,7 @@ component
 				field.widget?.Name || // For existing widgets
 				field.__type || // For schema-defined widgets
 				field.type || // Backup type field
-				Object.keys($widgetFunctions).find((key) => field[key]) || // Check if field has widget property
+				Object.keys(get(widgetFunctions)).find((key) => field[key]) || // Check if field has widget property
 				'Unknown Widget'; // Fallback
 
 			return {
@@ -90,7 +91,7 @@ component
 			response: (r: { selectedWidget: string } | undefined) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				const widgetInstance = $widgetFunctions[selectedWidget];
+				const widgetInstance = get(widgetFunctions)[selectedWidget];
 				if (selectedWidget && widgetInstance) {
 					// Create a new widget object with the selected widget data
 					const newWidget = {
@@ -113,7 +114,7 @@ component
 		if (!selectedWidget.permissions) {
 			selectedWidget.permissions = {};
 		}
-		targetWidget.set(selectedWidget);
+		setTargetWidget(selectedWidget);
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
@@ -142,14 +143,11 @@ component
 					fields = [...fields, newField];
 				}
 				// Update the collectionValue store
-				collection.update((c) => {
-					if (c) {
-						c.fields = fields;
-					}
+				if (collection) {
+					collection.fields = fields;
+				}
 
-					console.log('updated collection', c);
-					return c;
-				});
+				console.log('updated collection', collection);
 			}
 		};
 		modalStore.trigger(modal);
@@ -159,7 +157,7 @@ component
 	async function handleSave() {
 		try {
 			const updatedFields = fields.map((field) => {
-				const widgetInstance = field.widget?.Name ? $widgetFunctions[field.widget.Name] : undefined;
+				const widgetInstance = field.widget?.Name ? get(widgetFunctions)[field.widget.Name] : undefined;
 				if (field.widget?.Name && widgetInstance) {
 					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgetInstance.GuiSchema));
 					for (const [property, value] of Object.entries(field)) {
@@ -173,12 +171,9 @@ component
 			});
 
 			// Update the collection fields
-			collection.update((c) => {
-				if (c) {
-					c.fields = updatedFields;
-				}
-				return c;
-			});
+			if (collection) {
+				collection.fields = updatedFields;
+			}
 
 			await props.handleCollectionSave();
 		} catch (error) {

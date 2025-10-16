@@ -13,7 +13,7 @@
  */
 
 import type { Handle } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { getPrivateSetting, getPrivateSettingSync } from '@src/services/settingsService';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import type { User } from '@src/databases/auth/types';
@@ -98,7 +98,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 	// Layer 1: In-memory cache (fastest)
 	const memCached = sessionCache.get(sessionId);
 	if (memCached && now - memCached.timestamp < SESSION_CACHE_TTL_MS) {
-		logger.trace(`Session cache hit (in-memory): ${sessionId.substring(0, 8)}...`);
+		logger.trace(`Session cache hit (in-memory): \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m`);
 		return memCached.user;
 	}
 
@@ -144,16 +144,16 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 			// Update both cache layers
 			sessionCache.set(sessionId, sessionData);
 
-			const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
+			const cacheKey = tenantId ? `session:\x1b[34m${tenantId}\x1b[0m:\x1b[33m${sessionId}\x1b[0m` : `session:\x1b[33m${sessionId}\x1b[0m`;
 			await cacheService
 				.set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId)
 				.catch((err) => logger.warn(`Failed to cache session: ${err.message}`));
 
-			logger.trace(`Session validated from database: ${sessionId.substring(0, 8)}...`);
+			logger.trace(`Session validated from database: \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m`);
 			return user;
 		}
 	} catch (err) {
-		logger.error(`Session validation failed for ${sessionId.substring(0, 8)}...: ${err instanceof Error ? err.message : String(err)}`);
+		logger.error(`Session validation failed for \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m: ${err instanceof Error ? err.message : String(err)}`);
 	}
 
 	return null;
@@ -164,16 +164,39 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	const { locals, url, cookies } = event;
 
+	// Skip browser/tool requests that aren't part of the application
+	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
+		return resolve(event);
+	}
+
+	// Skip authentication for public routes (login, register, etc.)
+	const publicRoutes = ['/login', '/register', '/forgot-password'];
+	const isPublicRoute = publicRoutes.some((route) => url.pathname.startsWith(route));
+	if (isPublicRoute) {
+		return resolve(event);
+	}
+
 	// --- SETUP GUARD ---
-	// Skip authentication/session logic if setup is not complete
+	// Skip authentication/session logic if setup is not complete or on setup route
 	// This prevents DB errors and allows the setup UI to render
 	const { isSetupComplete } = await import('@utils/setupCheck');
-	if (!isSetupComplete()) {
+	if (!isSetupComplete() || url.pathname.startsWith('/setup')) {
 		return resolve(event);
 	}
 
 	// Attach the database adapter for universal access in endpoints and subsequent hooks
 	locals.dbAdapter = dbAdapter;
+
+	// Check if database is available before proceeding
+	if (!dbAdapter) {
+		logger.warn('Database adapter not available yet. System may still be initializing.');
+		// For protected routes, if no DB is available and no user session exists, redirect to login
+		if (!cookies.get(SESSION_COOKIE_NAME)) {
+			throw redirect(302, '/login');
+		}
+		// If they have a session cookie but DB is not available, let them through but they won't be authenticated
+		return resolve(event);
+	}
 
 	// Step 1: Handle multi-tenancy (if enabled)
 	const multiTenant = await getPrivateSetting('MULTI_TENANT');
@@ -199,7 +222,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 			// Multi-tenancy security check: ensure user belongs to this tenant
 			if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
 				logger.warn(
-					`Tenant isolation violation: User ${user._id} (tenant: ${user.tenantId}) ` + `attempted to access tenant ${locals.tenantId}. Access denied.`
+					`Tenant isolation violation: User \x1b[34m${user._id}\x1b[0 (tenant: ${user.tenantId}) ` +
+						`attempted to access tenant ${locals.tenantId}. Access denied.`
 				);
 
 				// Clear the invalid session cookie
@@ -210,7 +234,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 				// Valid user for this tenant (or multi-tenancy is disabled)
 				locals.user = user;
 				locals.session_id = sessionId;
-				logger.trace(`User authenticated: ${user._id}`);
+				logger.trace(`User authenticated: \x1b[34m${user._id}\x1b[0m`);
 			}
 		} else {
 			// Session ID exists but is invalid - clean up the cookie

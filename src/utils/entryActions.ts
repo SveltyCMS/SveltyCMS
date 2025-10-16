@@ -10,7 +10,7 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
-import { collection, collectionValue, mode } from '@stores/collectionStore.svelte';
+import { collection, collectionValue, setCollectionValue, setMode } from '@stores/collectionStore.svelte';
 import { showToast } from '@utils/toast';
 import {
 	batchDeleteEntries,
@@ -156,9 +156,9 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 	if (result.success) {
 		showToast('Entry saved', 'success');
 		if (result.data) {
-			collectionValue.set(result.data as Record<string, unknown>);
+			setCollectionValue(result.data as Record<string, unknown>);
 		}
-		mode.set('view');
+		setMode('view');
 		invalidateCollectionCache(collId);
 	} else {
 		showToast(result.error || 'Failed to save entry', 'error');
@@ -175,7 +175,6 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 	}
 
 	const entryStatus: StatusType = (entry.status as StatusType) || StatusTypes.draft;
-	const isPublishDraft = entryStatus === StatusTypes.publish || entryStatus === '';
 	const isArchived = entryStatus === StatusTypes.archive;
 	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
 
@@ -248,14 +247,14 @@ function showDeleteConfirmationModal(collectionId: string, entryId: string, acti
 			try {
 				if (isArchive) {
 					await updateStatus(collectionId, entryId, StatusTypes.archive);
-					collectionValue.update((cv) => ({ ...cv, status: StatusTypes.archive }));
+					setCollectionValue({ ...collectionValue.value, status: StatusTypes.archive });
 					showToast('Entry archived successfully.', 'success');
 				} else {
 					await deleteEntry(collectionId, entryId);
 					showToast(m.entry_deleted_success(), 'success');
 				}
-				mode.set('view');
-				collectionValue.set({});
+				setMode('view');
+				setCollectionValue({});
 				invalidateCollectionCache(collectionId);
 			} catch (e) {
 				showToast(m.delete_entry_error({ error: (e as Error).message }), 'error');
@@ -281,7 +280,7 @@ export async function permanentlyDeleteEntry(entryId: string) {
 				await deleteEntry(coll._id, entryId);
 				showToast('Entry permanently deleted.', 'success');
 				invalidateCollectionCache(coll._id);
-				mode.set('view');
+				setMode('view');
 			} catch (e) {
 				showToast(`Error permanently deleting entry: ${(e as Error).message}`, 'error');
 			}
@@ -302,7 +301,7 @@ export async function setEntryStatus(newStatus: StatusType) {
 	}
 	try {
 		await updateStatus(coll._id, entry._id, newStatus);
-		collectionValue.update((cv) => ({ ...cv, status: newStatus }));
+		setCollectionValue({ ...collectionValue.value, status: newStatus });
 		showToast(m.entry_status_updated({ status: newStatus }), 'success');
 	} catch (e) {
 		showToast(m.set_status_error({ error: (e as Error).message }), 'error');
@@ -324,11 +323,11 @@ export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDat
 		try {
 			// 'scheduled' is not a valid StatusType, use 'publish' or 'draft' as needed
 			await updateStatus(coll._id!, entry._id!, StatusTypes.publish);
-			collectionValue.update((cv) => ({
-				...cv,
+			setCollectionValue({
+				...collectionValue.value,
 				status: StatusTypes.publish,
 				scheduledDate: scheduledDate.toISOString()
-			}));
+			});
 			showToast(entryMessages.entryScheduled(scheduledDate.toLocaleDateString()), 'success');
 		} catch (e) {
 			showToast(entryMessages.errorScheduling((e as Error).message), 'error');
@@ -340,12 +339,12 @@ export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDat
 			onSchedule: async (date: Date, action: string) => {
 				try {
 					await updateStatus(coll._id!, entry._id!, StatusTypes.publish);
-					collectionValue.update((cv) => ({
-						...cv,
+					setCollectionValue({
+						...collectionValue.value,
 						status: StatusTypes.publish,
 						scheduledDate: date.toISOString(),
 						scheduledAction: action
-					}));
+					});
 					showToast(entryMessages.entryScheduled(date.toLocaleDateString()), 'success');
 				} catch (e) {
 					showToast(entryMessages.errorScheduling((e as Error).message), 'error');
@@ -386,7 +385,7 @@ export async function cloneCurrentEntry() {
 				if (result.success) {
 					showToast(entryMessages.entryCloned(), 'success');
 					invalidateCollectionCache(coll._id);
-					mode.set('view');
+					setMode('view');
 				} else {
 					throw new Error(result.error || 'Failed to create clone');
 				}

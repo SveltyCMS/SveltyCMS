@@ -163,22 +163,26 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				} else {
 					const errorMsg = installResult?.error || 'Unknown installation error';
 					logger.error('Failed to install MongoDB driver automatically:', errorMsg);
-					resultPayload = {
-						success: false,
-						error: 'MongoDB driver not installed and automatic installation failed',
-						details: `Please install manually: ${errorMsg}`,
-						installOutput: installResult?.output
-					};
-					return;
+					return json(
+						{
+							success: false,
+							error: 'MongoDB driver not installed and automatic installation failed',
+							details: `Please install manually: ${errorMsg}`,
+							installOutput: installResult?.output
+						},
+						{ status: 500 }
+					);
 				}
 			} catch (installError) {
 				logger.error('Error during automatic driver installation:', installError);
-				resultPayload = {
-					success: false,
-					error: 'MongoDB driver not installed',
-					details: 'To test MongoDB connections, install the mongoose package: bun add mongoose'
-				};
-				return;
+				return json(
+					{
+						success: false,
+						error: 'MongoDB driver not installed',
+						details: 'To test MongoDB connections, install the mongoose package: bun add mongoose'
+					},
+					{ status: 500 }
+				);
 			}
 		} else {
 			try {
@@ -186,22 +190,26 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 				logger.info('Successfully imported mongoose');
 			} catch (importError) {
 				logger.error('Failed to import mongoose:', importError);
-				resultPayload = {
-					success: false,
-					error: 'MongoDB driver import failed',
-					details: 'Failed to import mongoose after confirming it was available.'
-				};
-				return;
+				return json(
+					{
+						success: false,
+						error: 'MongoDB driver import failed',
+						details: 'Failed to import mongoose after confirming it was available.'
+					},
+					{ status: 500 }
+				);
 			}
 		}
 		if (!mongoose) {
 			logger.error('Failed to import mongoose after driver check');
-			resultPayload = {
-				success: false,
-				error: 'MongoDB driver not available',
-				details: 'Failed to import mongoose. Please check your installation.'
-			};
-			return;
+			return json(
+				{
+					success: false,
+					error: 'MongoDB driver not available',
+					details: 'Failed to import mongoose. Please check your installation.'
+				},
+				{ status: 500 }
+			);
 		}
 		logger.info('🔌 Attempting MongoDB connection...', {
 			host: dbConfig.host,
@@ -217,15 +225,17 @@ async function testMongoDbConnection(dbConfig: DatabaseConfig) {
 		if (isAtlas && !dbConfig.user && !dbConfig.password) {
 			logger.warn('❌ Atlas connection attempted without credentials');
 			const durationMs = Date.now() - start;
-			resultPayload = {
-				success: false,
-				error: 'MongoDB Atlas requires authentication',
-				userFriendly: 'MongoDB Atlas requires a username and password. Please provide your database credentials.',
-				classification: 'credentials_required',
-				latencyMs: durationMs,
-				details: 'Atlas clusters always require authentication. Please provide your database username and password.'
-			};
-			return;
+			return json(
+				{
+					success: false,
+					error: 'MongoDB Atlas requires authentication',
+					userFriendly: 'MongoDB Atlas requires a username and password. Please provide your database credentials.',
+					classification: 'credentials_required',
+					latencyMs: durationMs,
+					details: 'Atlas clusters always require authentication. Please provide your database username and password.'
+				},
+				{ status: 400 }
+			);
 		}
 		conn = await mongoose.createConnection(connectionString, options).asPromise();
 		const nativeDb = conn.getClient().db(dbConfig.name);

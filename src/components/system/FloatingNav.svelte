@@ -29,7 +29,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	import type { User } from '@src/databases/auth/types';
 
 	// Stores
-	import { mode } from '@stores/collectionStore.svelte';
+	import { setMode } from '@stores/collectionStore.svelte';
 	import { toggleUIElement } from '@stores/UIStore.svelte';
 	// Skeleton UI - Import popup action and modal store
 	import { getModalStore, popup } from '@skeletonlabs/skeleton';
@@ -389,7 +389,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			aria-label={endpoints[0]?.tooltip || 'Home'}
 			tabindex="0"
 			on:click={() => {
-				mode.set('view');
+				setMode('view');
 				modalStore.clear();
 				toggleUIElement('leftSidebar', 'hidden');
 				endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
@@ -397,7 +397,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			}}
 			on:keydown={(event) => {
 				if (event.key === 'Enter' || event.key === ' ') {
-					mode.set('view');
+					setMode('view');
 					modalStore.clear();
 					toggleUIElement('leftSidebar', 'hidden');
 					endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');

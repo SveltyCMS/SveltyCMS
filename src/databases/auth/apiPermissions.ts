@@ -23,8 +23,8 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:systemPreferences': ['admin'], // System preferences (user dashboard layout/sizes)
 	'api:config_sync': ['admin'], // Configuration sync (import/export)
 
-	// Authentication & Security - All authenticated users can manage their own 2FA
-	'api:auth/2fa': ['*'], // 2FA management (setup, disable, backup codes)
+	// Authentication & Security - All authenticated users can manage their own auth/2FA
+	'api:auth': ['*'], // Authentication endpoints (2FA setup, disable, backup codes, etc.)
 
 	// User Management - Admin and Editor
 	'api:user': ['admin', 'editor'], // User management (includes profile updates)

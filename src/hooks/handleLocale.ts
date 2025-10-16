@@ -73,9 +73,15 @@ function safelySetLanguage(cookieName: string, cookieValue: string | undefined, 
 export const handleLocale: Handle = async ({ event, resolve }) => {
 	const { cookies } = event;
 
+	// Safety check: Ensure stores are available (server-side initialization)
+	if (!systemLanguage || !contentLanguage) {
+		logger.warn('Language stores not available on server, skipping handleLocale');
+		return resolve(event);
+	}
+
 	// Sync system language store from cookie
 	const systemLangCookie = cookies.get('systemLanguage');
-	const systemLangSet = safelySetLanguage('systemLanguage', systemLangCookie, systemLanguage.set);
+	const systemLangSet = safelySetLanguage('systemLanguage', systemLangCookie, (value) => systemLanguage.set(value));
 
 	// Clean up invalid system language cookie
 	if (systemLangCookie && !systemLangSet) {
@@ -85,7 +91,7 @@ export const handleLocale: Handle = async ({ event, resolve }) => {
 
 	// Sync content language store from cookie
 	const contentLangCookie = cookies.get('contentLanguage');
-	const contentLangSet = safelySetLanguage('contentLanguage', contentLangCookie, contentLanguage.set);
+	const contentLangSet = safelySetLanguage('contentLanguage', contentLangCookie, (value) => contentLanguage.set(value));
 
 	// Clean up invalid content language cookie
 	if (contentLangCookie && !contentLangSet) {

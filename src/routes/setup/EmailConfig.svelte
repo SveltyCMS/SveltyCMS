@@ -191,7 +191,8 @@
 			<div class="flex-1">
 				<h3 class="font-semibold text-primary-700 dark:text-primary-400">{m.setup_email_why_title()}</h3>
 			</div>
-			<iconify-icon icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"></iconify-icon>
+			<iconify-icon icon={showWhySmtp ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="mt-0.5 shrink-0 text-xl text-primary-500" aria-hidden="true"
+			></iconify-icon>
 		</button>
 
 		<!-- Collapsible content -->

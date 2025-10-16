@@ -17,10 +17,11 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollection, setCollectionValue, setMode } from '@root/src/stores/collectionStore.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
+	import { logger } from '@utils/logger.svelte';
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import EntryList from '@components/collectionDisplay/EntryList.svelte';
@@ -53,16 +54,16 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			return;
 		}
 
-		collection.set(data.collection);
+		setCollection(data.collection);
 
 		// Initialize collectionValue with language keys
 		const initialValue: Record<string, any> = {
-			_id: collectionValue.value?._id,
-			slug: collectionValue.value?.slug
+			_id: (collectionValue as any)?._id,
+			slug: (collectionValue as any)?.slug
 		};
-		collectionValue.set(initialValue);
+		setCollectionValue(initialValue);
 
-		mode.set('view'); // Set mode to view to render EntryList
+		setMode('view'); // Set mode to view to render EntryList
 		isLoading = false;
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
 	}
@@ -71,6 +72,12 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		// Correctly using $effect here
 		if (data.collection.name && (!collection.value || data.collection.path !== collection.value.path)) {
 			loadCollection();
+		} else if (data.collection.name && collection.value) {
+			// Collection already loaded - ensure mode is correct for collection view
+			if (mode.value === 'media' || mode.value === 'modify') {
+				logger.debug(`Collection already loaded, but mode is ${mode.value}, setting to view`);
+				setMode('view');
+			}
 		}
 	});
 
@@ -112,7 +119,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	});
 	$effect(() => {
 		if (mode.value === 'media') {
-			mode.set('view');
+			setMode('view');
 		}
 	});
 

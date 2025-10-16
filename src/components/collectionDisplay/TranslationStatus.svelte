@@ -93,7 +93,7 @@
 	// Update translation progress when field values change
 	$effect(() => {
 		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue.value;
+		const currentCollectionValue = collectionValue as any;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			updateTranslationProgressFromFields(currentCollection, currentCollectionValue);

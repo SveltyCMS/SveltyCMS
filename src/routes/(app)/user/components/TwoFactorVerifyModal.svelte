@@ -121,7 +121,7 @@ This modal			class="input text-center font-mono tracking-wider"
 	}
 </script>
 
-<div class="modal-content max-w-md">
+<div class="max-w-md p-6">
 	<div class="mb-6 text-center">
 		<div class="mb-4">
 			<iconify-icon icon="mdi:shield-key" width="48" class="mx-auto text-primary-500"></iconify-icon>
@@ -145,12 +145,11 @@ This modal			class="input text-center font-mono tracking-wider"
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				placeholder={useBackupCode ? m.twofa_backup_code_placeholder() : m.twofa_code_placeholder()}
-				class="input text-center font-mono tracking-wider"
-				class:text-2xl={!useBackupCode}
-				class:text-lg={useBackupCode}
+				class={'input text-center font-mono tracking-wider ' +
+					(useBackupCode ? 'text-lg' : 'text-2xl') +
+					(error ? ' border-error-500 focus:border-error-500' : '')}
 				maxlength={useBackupCode ? 10 : 6}
 				autocomplete="off"
-				class:input-error={error}
 			/>
 
 			<!-- Character counter for backup codes -->
@@ -205,13 +204,3 @@ This modal			class="input text-center font-mono tracking-wider"
 		</div>
 	</div>
 </div>
-
-<style>
-	.modal-content {
-		@apply p-6;
-	}
-
-	.input-error {
-		@apply border-error-500 focus:border-error-500;
-	}
-</style>

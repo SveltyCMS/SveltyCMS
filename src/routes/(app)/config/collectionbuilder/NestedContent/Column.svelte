@@ -20,7 +20,7 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Stores
-	import { mode } from '@stores/collectionStore.svelte';
+	import { setMode } from '@stores/collectionStore.svelte';
 
 	// Svelte DND-actions
 	import type { DatabaseId } from '@root/src/databases/dbInterface';
@@ -102,7 +102,7 @@ Features:
 	async function handleCollectionClick(item: Pick<DndItem, 'path'>) {
 		try {
 			isUpdating = true; // Indicate loading/updating state
-			mode.set('edit');
+			setMode('edit');
 			await goto(`/config/collectionbuilder/edit${item.path}`);
 		} catch (error) {
 			console.error('Error navigating to collection:', error);

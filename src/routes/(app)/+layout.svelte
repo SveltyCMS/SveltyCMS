@@ -21,7 +21,6 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { browser } from '$app/environment';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
@@ -33,7 +32,7 @@
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import { getTextDirection } from '@utils/utils';
 	// Stores
-	import { contentStructure } from '@stores/collectionStore.svelte';
+	import { setContentStructure } from '@stores/collectionStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
@@ -50,6 +49,14 @@
 	// Skeleton
 	import { getModalStore, getToastStore, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	import { setGlobalModalStore } from '@utils/modalUtils';
+
+	// Import modal components
+	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
+
+	// Modal component registry for Skeleton UI
+	const modalComponentRegistry: Record<string, any> = {
+		scheduleModal: ScheduleModal
+	};
 	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
@@ -110,7 +117,7 @@
 		// Defer store updates to the next microtask to avoid UpdatedAtError during reactive batch updates
 		const defer = (fn: () => void) => (typeof queueMicrotask === 'function' ? queueMicrotask(fn) : Promise.resolve().then(fn));
 		if (Array.isArray(data.contentStructure)) {
-			defer(() => contentStructure.set(data.contentStructure));
+			defer(() => setContentStructure(data.contentStructure));
 		}
 	});
 
@@ -291,7 +298,7 @@
 			<FloatingNav />
 		{/if}
 		<Toast />
-		<Modal />
+		<Modal components={modalComponentRegistry} />
 		{#if $isSearchVisible}
 			<SearchComponent />
 		{/if}

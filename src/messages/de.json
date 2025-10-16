@@ -353,7 +353,7 @@
 	"setup_database_port": "Datenbankport",
 	"setup_database_user": "Datenbankbenutzer",
 	"setup_heading_badge": "Installationsassistent",
-	"setup_heading_subtitle": "Konfigurieren Sie Ihr Content-Management-System in wenigen einfachen Schritten",
+	"setup_heading_subtitle": "Konfigurieren Sie Ihr {siteName} in wenigen einfachen Schritten",
 	"setup_heading_title": "Setup {siteName}",
 	"setup_language_continue": "Setup fortsetzen",
 	"setup_language_description": "Diese Sprache wird für die Einrichtungsoberfläche verwendet. Sie können die Inhaltssprachen Ihrer Site später im Einrichtungsprozess konfigurieren.",

@@ -15,7 +15,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import { collection, collections, collectionValue, contentStructure, mode, unAssigned } from '@root/src/stores/collectionStore.svelte';
+import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
@@ -237,9 +237,9 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		// Only try to fetch collection models if we're server-side and not in development mode
 		// Remove getCollectionModels usage (not defined)
 
-		collection.set({} as Schema);
-		collectionValue.set({});
-		mode.set('view');
+		setCollection({} as Schema);
+		setCollectionValue({});
+		setMode('view');
 
 		logger.info(`Collections updated successfully. Count: ${Object.keys(_collections).length}`);
 	} catch (err) {

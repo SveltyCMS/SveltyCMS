@@ -51,6 +51,9 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const isAdmin = Boolean(userRole?.isAdmin);
 
 	try {
+		// Ensure ContentManager is initialized before accessing collections
+		await contentManager.initialize(tenantId);
+
 		// Note: tenantId validation is handled by hooks in multi-tenant mode
 		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {

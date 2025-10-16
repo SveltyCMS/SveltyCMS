@@ -98,7 +98,7 @@ export interface WidgetDefinition {
 // Field Instance - An actual field using a widget with specific configuration
 export interface FieldInstance {
 	/** A reference to the widget's immutable definition. */
-	widget: import('@src/widgets/types').WidgetFunction;
+	widget: WidgetDefinition;
 
 	// Field properties
 	label: string;

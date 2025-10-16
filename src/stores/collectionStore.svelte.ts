@@ -75,7 +75,7 @@ export async function getCachedFirstCollectionPath(language: Locale): Promise<st
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
 // Widget interface
-interface Widget {
+export interface Widget {
 	permissions: Record<string, Record<string, boolean>>;
 	[key: string]: Record<string, Record<string, boolean>> | unknown;
 }
@@ -95,25 +95,95 @@ export const currentCollectionId = $state<string | null>(null);
 export const collectionsLoading = $state<boolean>(false);
 export const collectionsError = $state<string | null>(null);
 export const unAssigned = $state<Schema>({} as Schema);
-export const collection = $state<Schema | null>(null);
-export const collectionValue = $state<Record<string, unknown>>({});
-export const mode = $state<ModeType>('view');
-export const modifyEntry = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
-export const selectedEntries = $state<string[]>([]);
-export const targetWidget = $state<Widget>({ permissions: {} });
-export const contentStructure = $state<ContentNode[]>([]);
 
-// --- Effects ---
-$effect(() => {
-	if (collectionValue && !('status' in collectionValue)) {
-		collectionValue.status = collection?.status ?? 'unpublish';
+// Wrapper objects for reassignable state (Svelte 5 requirement)
+let _collection = $state<Schema | null>(null);
+let _collectionValue = $state<Record<string, unknown>>({});
+let _mode = $state<ModeType>('view');
+let _modifyEntry = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
+let _targetWidget = $state<Widget>({ permissions: {} });
+let _contentStructure = $state<ContentNode[]>([]);
+
+export const collection = {
+	get value() {
+		return _collection;
+	},
+	set value(v) {
+		_collection = v;
 	}
-});
+};
+export const collectionValue = {
+	get value() {
+		return _collectionValue;
+	},
+	set value(v) {
+		_collectionValue = v;
+		// Ensure status is set if not present
+		if (_collectionValue && !('status' in _collectionValue)) {
+			_collectionValue.status = _collection?.status ?? 'unpublish';
+		}
+	}
+};
+export const mode = {
+	get value() {
+		return _mode;
+	},
+	set value(v) {
+		logger.debug(`mode.value setter: ${_mode} -> ${v}`);
+		_mode = v;
+		// Trigger UI layout update when mode changes
+		// Use dynamic import to avoid circular dependency
+		if (typeof window !== 'undefined') {
+			import('./UIStore.svelte')
+				.then(({ uiStateManager }) => {
+					logger.debug(`Triggering uiStateManager.updateLayout() for mode: ${v}`);
+					requestAnimationFrame(() => uiStateManager.updateLayout());
+				})
+				.catch(() => {
+					// Ignore errors if UIStore is not available
+				});
+		}
+	}
+};
+export const modifyEntry = {
+	get value() {
+		return _modifyEntry;
+	},
+	set value(v) {
+		_modifyEntry = v;
+	}
+};
+export const targetWidget = {
+	get value() {
+		return _targetWidget;
+	},
+	set value(v) {
+		_targetWidget = v;
+	}
+};
+export const contentStructure = {
+	get value() {
+		return _contentStructure;
+	},
+	set value(v) {
+		_contentStructure = v;
+	}
+};
 
-// --- Derived State ---
-export const totalCollections = $derived(Object.keys(collections).length);
-export const hasSelectedEntries = $derived(selectedEntries.length > 0);
-export const currentCollectionName = $derived(collection?.name);
+export const selectedEntries = $state<string[]>([]);
+
+// --- Derived State (exported as functions per Svelte 5 requirements) ---
+export function getTotalCollections() {
+	return Object.keys(collections).length;
+}
+
+export function getHasSelectedEntries() {
+	return selectedEntries.length > 0;
+}
+
+export function getCurrentCollectionName() {
+	return _collection?.name;
+}
 
 // --- Entry Management ---
 export const entryActions = {
@@ -132,6 +202,32 @@ export const entryActions = {
 		selectedEntries.length = 0;
 	}
 };
+
+// --- Store Actions ---
+export function setCollection(newCollection: Schema | null) {
+	_collection = newCollection;
+}
+
+export function setMode(newMode: ModeType) {
+	logger.debug(`setMode called: ${_mode} -> ${newMode}`);
+	mode.value = newMode; // Use the setter to trigger UI updates
+}
+
+export function setCollectionValue(newValue: Record<string, unknown>) {
+	_collectionValue = newValue;
+}
+
+export function setModifyEntry(newFn: (status?: keyof typeof statusMap) => Promise<void>) {
+	_modifyEntry = newFn;
+}
+
+export function setContentStructure(newContentStructure: ContentNode[]) {
+	_contentStructure = newContentStructure;
+}
+
+export function setTargetWidget(newWidget: Widget) {
+	_targetWidget = newWidget;
+}
 
 // Type exports
 export type { ModeType };

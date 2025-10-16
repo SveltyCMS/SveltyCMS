@@ -16,7 +16,7 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
-import type { StatusType } from '@src/content/types';
+import { StatusTypes, type StatusType } from '@src/content/types';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -36,6 +36,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!user) {
 		throw error(401, 'Unauthorized');
 	}
+
+	// Ensure ContentManager is initialized before accessing collections
+	await contentManager.initialize(tenantId);
 
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
@@ -57,7 +60,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(400, 'Status is required');
 		}
 
-		const validStatuses: StatusType[] = ['publish', 'unpublish', 'draft', 'archived'];
+		// All valid status types from StatusTypes constant
+		const validStatuses = Object.values(StatusTypes) as StatusType[];
 		if (!validStatuses.includes(status)) {
 			throw error(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
 		}

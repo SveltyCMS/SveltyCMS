@@ -36,7 +36,7 @@
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { collection } from '@src/stores/collectionStore.svelte';
+	import { setCollection } from '@src/stores/collectionStore.svelte';
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
@@ -78,7 +78,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collection.set(null);
+		setCollection(null);
 
 		// Note: Avatar initialization is handled by the layout component
 		// to ensure consistent avatar state across the application

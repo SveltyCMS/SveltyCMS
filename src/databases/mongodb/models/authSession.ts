@@ -167,7 +167,7 @@ export class SessionAdapter {
 			const sessionId = generateId();
 			const session = new this.SessionModel({ ...sessionData, _id: sessionId });
 			await session.save();
-			logger.info(`Session created: \x1b[32m${sessionId}\x1b[0m for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
+			logger.info(`Session created: \x1b[33m${sessionId}\x1b[0m for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
 			const sessionObj = session.toObject();
 			return {
 				success: true,
