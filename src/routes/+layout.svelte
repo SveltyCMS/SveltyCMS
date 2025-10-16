@@ -10,10 +10,7 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
-	// Initializing Skeleton stores (v4)
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton-svelte';
-	// Import from Floating UI
-	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
+    // Removed deprecated Skeleton v4 global popup store configuration
 
 	// Paraglide locale bridge (migrated from setup/+layout.svelte wrapper)
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
@@ -28,8 +25,6 @@
 		}
 	});
 
-	initializeStores();
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Props
 	interface Props {

@@ -31,8 +31,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	// Stores
 	import { mode } from '@stores/collectionStore.svelte';
 	import { toggleUIElement } from '@stores/UIStore.svelte';
-	// Skeleton UI - Import popup action and modal store
-import { getModalStore, popup } from '@skeletonlabs/skeleton-svelte';
+// Skeleton UI - Import modal store; popup via compat shim
+import { getModalStore } from '@skeletonlabs/skeleton-svelte';
+import { popup } from '@utils/skeletonCompat';
 	const modalStore = getModalStore();
 
 	// --- Tooltip State ---

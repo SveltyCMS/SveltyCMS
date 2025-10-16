@@ -13,7 +13,8 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Skelton
-import { popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
+import { popup } from '@utils/skeletonCompat';
 	// Types from setupStore
 	import type { AdminUser } from '@stores/setupStore.svelte';
 

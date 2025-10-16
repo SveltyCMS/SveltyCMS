@@ -25,8 +25,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-import { popup } from '@skeletonlabs/skeleton-svelte';
+// Skeleton compat popup
+import { popup } from '@utils/skeletonCompat';
 import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	// Collection Manager
 

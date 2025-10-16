@@ -8,17 +8,12 @@
  * - Configuration of the Skeleton plugin with a custom theme (SveltyCMSTheme)
  */
 
-import { join } from 'path';
 import type { Config } from 'tailwindcss';
 
 // Import Tailwind plugins
 import forms from '@tailwindcss/forms';
 import typography from '@tailwindcss/typography';
 
-// Import the Skeleton v4 Tailwind plugin
-import { skeleton } from '@skeletonlabs/skeleton/tailwind/skeleton.cjs';
-// Import Custom Theme
-import { SveltyCMSTheme } from './src/themes/SveltyCMS/SveltyCMSTheme';
 
 const config = {
 	// Opt for dark mode to be handled via the class method
@@ -46,12 +41,7 @@ const config = {
 
     plugins: [
         forms,
-        typography,
-        skeleton({
-            themes: {
-                custom: [SveltyCMSTheme]
-            }
-        })
+        typography
     ]
 } satisfies Config;
 

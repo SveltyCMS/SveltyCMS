@@ -18,7 +18,7 @@ export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
 	// --- Content Security Policy (CSP) ---
-	const csp = [
+	const cspDirectives: string[] = [
 		"default-src 'self'",
 		"script-src 'self' 'unsafe-inline'",
 		"style-src 'self' 'unsafe-inline'",
@@ -29,7 +29,15 @@ export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 		"form-action 'self'",
 		"frame-ancestors 'self'",
 		"connect-src 'self' https://api.iconify.design https://api.unisvg.com https://api.simplesvg.com https://raw.githubusercontent.com https://api.github.com https://github.com https://objects.githubusercontent.com"
-	].join('; ');
+	];
+
+	// Allow Vite dev server websocket and worker in development (to fix CSP violations during HMR)
+	if (dev) {
+		cspDirectives.push("worker-src 'self' blob:");
+		cspDirectives.push("connect-src 'self' ws: wss: https://api.iconify.design https://api.unisvg.com https://api.simplesvg.com https://raw.githubusercontent.com https://api.github.com https://github.com https://objects.githubusercontent.com");
+	}
+
+	const csp = cspDirectives.join('; ');
 
 	// Core security headers
 	const headers = {

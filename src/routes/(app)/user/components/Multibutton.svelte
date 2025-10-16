@@ -25,7 +25,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	// Skeleton
 import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton-svelte';
-import { ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton-svelte';
+import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton-svelte';
+import { popup } from '@utils/skeletonCompat';
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import ModalEditForm from './ModalEditForm.svelte';

@@ -32,9 +32,8 @@
 	import VersionCheck from '@components/VersionCheck.svelte';
 
 	// Skeleton v4
-	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, type ModalSettings, Modal, Toast, createToaster, setInitialClassState } from '@skeletonlabs/skeleton-svelte';
 	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
-	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton-svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Utils
@@ -118,8 +117,11 @@
 	// Initialize modal store at module level (after component registry)
 	const modalStore = getModalStore();
 
+	// Initialize toaster store (Skeleton v4)
+	const toaster = createToaster();
+
 	onMount(() => {
-		setGlobalToastStore(getToastStore());
+		setGlobalToastStore(toaster);
 
 		console.log('onMount - modalStore:', modalStore);
 		console.log('onMount - modalComponentRegistry:', modalComponentRegistry);
@@ -673,10 +675,19 @@
 	</style>
 </svelte:head>
 
-<div class="bg-surface-50-900 min-h-screen w-full transition-colors">
+<div class="setup-page bg-surface-50-900 min-h-screen w-full transition-colors">
 	<!-- Modal with component registry for this page -->
 	<Modal components={modalComponentRegistry} />
-	<Toast />
+	<!-- Skeleton v4 Toasts -->
+	<Toast.Group toaster={toaster}>
+		{#snippet children(toast)}
+			<Toast.Root toast={toast}>
+				<Toast.Title />
+				<Toast.Message />
+				<Toast.CloseTrigger />
+			</Toast.Root>
+		{/snippet}
+	</Toast.Group>
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
 		<!-- Header -->
 		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">

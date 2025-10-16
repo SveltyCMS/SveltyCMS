@@ -47,16 +47,11 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-	// Skeleton v4
-	import { getModalStore, getToastStore, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton-svelte';
+    // Skeleton v4 (migrated)
+    import { Toast, createToaster } from '@skeletonlabs/skeleton-svelte';
 	import { setGlobalModalStore } from '@utils/modalUtils';
 	import { setGlobalToastStore } from '@utils/toast';
-	// Required for popups to function
-	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
-	// import type { ContentNode } from '@root/src/databases/dbInterface';
-	import { storePopup } from '@skeletonlabs/skeleton-svelte';
-
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
+    // Removed deprecated global popup store and Floating UI setup; Skeleton v4 components handle positioning
 
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -67,9 +62,9 @@
 	}
 
 	let { children, data }: Props = $props();
-	// Initialize global modal store during component setup
-	setGlobalModalStore(getModalStore());
-	setGlobalToastStore(getToastStore());
+    // Initialize Toast store for Skeleton v4
+    const toaster = createToaster();
+    setGlobalToastStore(toaster);
 
 	// --- State Management ---
 	globalLoadingStore.startLoading(loadingOperations.initialization); // Start initial loading immediately.
@@ -127,22 +122,16 @@
 	});
 
 	// Theme management
-	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
-		const prefersDarkMode = event.matches;
-		setModeUserPrefers(prefersDarkMode);
-		setModeCurrent(prefersDarkMode);
+    function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
+        const prefersDarkMode = event.matches;
 
-		// Immediately apply the theme to the DOM
-		if (prefersDarkMode) {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-		}
+        // Immediately apply the theme to the DOM
+        document.documentElement.classList.toggle('dark', prefersDarkMode);
 
-		// Set cookie for server-side persistence
-		document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-		document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-	}
+        // Set cookie for server-side persistence
+        document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+        document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+    }
 
 	// Keyboard shortcuts
 	function onKeyDown(event: KeyboardEvent) {
@@ -168,40 +157,16 @@
 		const savedTheme = getCookie('theme');
 		const savedDarkMode = getCookie('darkMode');
 
-		if (savedTheme) {
-			const newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-
-			// Immediately apply the theme to the DOM
-			if (newMode) {
-				document.documentElement.classList.remove('dark');
-			} else {
-				document.documentElement.classList.add('dark');
-			}
-		} else if (savedDarkMode) {
-			const newMode = savedDarkMode === 'true';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-
-			// Immediately apply the theme to the DOM
-			if (newMode) {
-				document.documentElement.classList.remove('dark');
-			} else {
-				document.documentElement.classList.add('dark');
-			}
-		} else {
-			// No saved preference found, use device preference
-			const prefersDarkMode = mediaQuery.matches;
-			setModeUserPrefers(prefersDarkMode);
-			setModeCurrent(prefersDarkMode);
-
-			// Immediately apply the theme to the DOM
-			if (prefersDarkMode) {
-				document.documentElement.classList.add('dark');
-			} else {
-				document.documentElement.classList.remove('dark');
-			}
+        if (savedTheme) {
+            const newModeIsDark = savedTheme !== 'light';
+            document.documentElement.classList.toggle('dark', newModeIsDark);
+        } else if (savedDarkMode) {
+            const newModeIsDark = savedDarkMode === 'true';
+            document.documentElement.classList.toggle('dark', newModeIsDark);
+        } else {
+            // No saved preference found, use device preference
+            const prefersDarkMode = mediaQuery.matches;
+            document.documentElement.classList.toggle('dark', prefersDarkMode);
 
 			// Save the device preference as the initial user preference
 			document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
@@ -290,8 +255,13 @@
 		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
 			<FloatingNav />
 		{/if}
-		<Toast />
-		<Modal />
+        <!-- Toasts (Skeleton v4) -->
+        <Toast.Group toaster={toaster}>
+            { (toast) => (
+                <Toast toast={toast} />
+            ) }
+        </Toast.Group>
+        <!-- Modal removed while migrating to Skeleton v4 Dialog API -->
 		{#if $isSearchVisible}
 			<SearchComponent />
 		{/if}

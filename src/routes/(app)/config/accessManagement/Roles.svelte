@@ -24,8 +24,9 @@ It provides the following functionality:
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import RoleModal from './RoleModal.svelte';
-	// Skeleton
-import { getModalStore, popup, type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+// Skeleton
+import { getModalStore, type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+import { popup } from '@utils/skeletonCompat';
 	import { showToast } from '@utils/toast';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';

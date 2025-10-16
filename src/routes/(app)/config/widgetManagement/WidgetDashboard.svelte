@@ -13,7 +13,8 @@ Features:
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import WidgetCard from './WidgetCard.svelte';
-import { popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
+import { popup } from '@utils/skeletonCompat';
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Props

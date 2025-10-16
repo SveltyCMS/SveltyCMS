@@ -25,7 +25,7 @@ Key features:
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
-import { popup } from '@skeletonlabs/skeleton-svelte';
+import { popup } from '@utils/skeletonCompat';
 
 	// Events
 	import { createEventDispatcher } from 'svelte';
