@@ -25,6 +25,7 @@ export interface ImageEditorState {
 	stage: Konva.Stage | null;
 	layer: Konva.Layer | null;
 	imageNode: Konva.Image | null;
+	imageGroup: Konva.Group | null;
 	activeState: string;
 	stateHistory: string[];
 }
@@ -40,6 +41,7 @@ function createImageEditorStore() {
 		stage: null,
 		layer: null,
 		imageNode: null,
+		imageGroup: null,
 		activeState: '',
 		stateHistory: []
 	});
@@ -72,8 +74,57 @@ function createImageEditorStore() {
 		state.imageNode = imageNode;
 	}
 
+	function setImageGroup(imageGroup: Konva.Group) {
+		state.imageGroup = imageGroup;
+	}
+
 	function setActiveState(activeState: string) {
 		state.activeState = activeState;
+	}
+
+	function cleanupTempNodes() {
+		if (!state.layer) return;
+
+		// Remove all temporary nodes by name and class
+		const tempSelectors = [
+			'.cropTool',
+			'.transformer',
+			'.blurTool',
+			'.focalPointTool',
+			'.cropOverlayGroup',
+			'[name="cropTool"]',
+			'[name="cropHighlight"]',
+			'[name="cropOverlay"]'
+		];
+
+		tempSelectors.forEach((selector) => {
+			state.layer!.find(selector).forEach((node) => {
+				try {
+					node.destroy();
+				} catch (e) {
+					console.warn('Error destroying node:', e);
+				}
+			});
+		});
+
+		// Also remove all transformers explicitly
+		state.layer.find('Transformer').forEach((node) => {
+			try {
+				node.destroy();
+			} catch (e) {
+				console.warn('Error destroying transformer:', e);
+			}
+		});
+
+		state.layer.batchDraw();
+	}
+
+	function takeSnapshot() {
+		if (!state.stage) return;
+
+		// Save current canvas state to history
+		const stateData = state.stage.toJSON();
+		saveStateHistory(stateData);
 	}
 
 	function addEditAction(action: EditAction) {
@@ -135,6 +186,7 @@ function createImageEditorStore() {
 		state.stage = null;
 		state.layer = null;
 		state.imageNode = null;
+		state.imageGroup = null;
 		state.activeState = '';
 		state.stateHistory = [];
 	}
@@ -163,14 +215,17 @@ function createImageEditorStore() {
 		setStage,
 		setLayer,
 		setImageNode,
+		setImageGroup,
 		setActiveState,
 		addEditAction,
 		saveStateHistory,
+		takeSnapshot,
 		undo,
 		redo,
 		undoState,
 		redoState,
 		clearHistory,
+		cleanupTempNodes,
 		reset
 	};
 }
