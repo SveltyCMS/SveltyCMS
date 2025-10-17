@@ -1,7 +1,7 @@
 {
 	"name": "sveltycms",
 	"description": "A powerful Headless CMS with sveltekit power",
-	"version": "0.0.5",
+	"version": "0.1.0-next.1",
 	"type": "module",
 	"engines": {
 		"node": ">=20.0.0"
