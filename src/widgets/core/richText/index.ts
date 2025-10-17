@@ -15,7 +15,7 @@
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { check, object, optional, string, type Input } from 'valibot';
+import { check, object, optional, string, type InferInput as ValibotInput } from 'valibot';
 import type { RichTextProps } from './types';
 
 // Helper to check if HTML content is effectively empty.

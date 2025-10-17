@@ -5,7 +5,6 @@
 -->
 <script lang="ts">
 	import Konva from 'konva';
-	import { createEventDispatcher } from 'svelte';
 
 	interface Props {
 		stage: Konva.Stage;
@@ -14,8 +13,7 @@
 		onFilterApplied?: () => void;
 	}
 
-	const { layer, imageNode, onFilterApplied = () => {} } = $props() as Props;
-	const dispatch = createEventDispatcher<{ filter: { filterType: string; value: number | boolean }; resetFilters: void }>();
+	const { stage, layer, imageNode, onFilterApplied = () => {} } = $props() as Props;
 
 	$effect.root(() => {
 		return () => {
@@ -52,7 +50,7 @@
 		filters[filterType] = value;
 
 		// Apply filters to the image node
-		const activeFilters: any[] = [];
+		const activeFilters: ((imageData: ImageData) => void)[] = [];
 
 		if (filters.brightness !== 0) {
 			activeFilters.push(Konva.Filters.Brighten);

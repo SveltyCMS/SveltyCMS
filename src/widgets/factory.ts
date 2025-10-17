@@ -85,8 +85,7 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 		// validationSchema may be a function or a static schema. Keep as-is so other systems can call it.
 		validationSchema: config.validationSchema as unknown as BaseSchema<unknown, unknown, BaseIssue<unknown>>,
 		defaults: config.defaults,
-		GuiFields:
-			(config.GuiSchema && (config.GuiSchema as unknown as Record<string, Record<string, unknown>>).properties) || ({} as Record<string, unknown>),
+		GuiFields: config.GuiSchema || ({} as Record<string, unknown>),
 		aggregations: config.aggregations
 		// ... other definition properties like GraphqlSchema
 	};

@@ -24,6 +24,10 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
+
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 import { isoDate, minLength, pipe, string, type InferInput as ValibotInput } from 'valibot';
 
 import type { DateProps } from './types';
@@ -80,7 +84,7 @@ const DateWidget = createWidget<DateProps>({
 		 * Filters entries based on a date or date range.
 		 * Expects filter string format: "YYYY-MM-DD" or "YYYY-MM-DD_YYYY-MM-DD"
 		 */
-		filters: async ({ field, filter }) => {
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => {
 			const fieldName = field.db_fieldName;
 			const [startDateStr, endDateStr] = filter.split('_');
 
@@ -104,7 +108,7 @@ const DateWidget = createWidget<DateProps>({
 			return [{ $match: { [fieldName]: { $gte: startDate, $lte: endOfDay } } }];
 		},
 		// Sorts entries by the date field.
-		sorts: async ({ field, sortDirection }) => ({
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
 	},

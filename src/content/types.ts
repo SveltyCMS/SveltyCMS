@@ -136,65 +136,6 @@ export interface FieldInstance {
 export type FieldDefinition = unknown | WidgetPlaceholder;
 
 // ContentTypes is now dynamic, based on collectionSchemas
-export type ContentTypes = keyof typeof collectionSchemas;
-
-// Category type for content hierarchy
-export interface Category {
-	id: number;
-	name: string;
-	icon: string;
-	order: number;
-	collections: Schema[];
-	subcategories?: Map<string, CategoryNode>;
-}
-
-/**
- * CategoryNode: Strongly-typed node for category hierarchy
- * - id: unique number (from uuid)
- * - name: category name
- * - icon: icon string
- * - order: sort order
- * - collections: array of Schema
- * - subcategories: Map of subcategory nodes (always present)
- */
-export interface CategoryNode {
-	id: number;
-	name: string;
-	icon: string;
-	order: number;
-	collections: Schema[];
-	subcategories: Map<string, CategoryNode>;
-}
-
-// ProcessedModule type stub
-export type ProcessedModule = { schema: Schema } | Record<string, unknown>;
-
-export interface Schema {
-	id?: number; // Added for compatibility
-	_id?: string;
-	name?: ContentTypes | string;
-	label?: string;
-	slug?: string;
-	icon?: string;
-	order?: number;
-	description?: string;
-	strict?: boolean;
-	revision?: boolean;
-	revisionLimit?: number;
-	path?: string;
-	permissions?: RolePermissions;
-	livePreview?: boolean;
-	status?: StatusType;
-	links?: Array<ContentTypes>;
-	fields: FieldDefinition[];
-	translations?: Translation[]; // Optional translations with enhanced metadata
-	tenantId?: string; // For multi-tenant support
-}
-
-// dbAdapter stub for index.ts compatibility
-export const dbAdapter = {
-	getContentNodes: async (): Promise<ContentNode[]> => []
-};
 
 // Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
@@ -382,3 +323,5 @@ export interface ImportError {
 
 // Sensitive field patterns to exclude from exports
 export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT_SECRET', 'PRIVATE_KEY', 'JWT_SECRET', 'ENCRYPTION_KEY', 'API_KEY'];
+
+export type ContentTypes = {};

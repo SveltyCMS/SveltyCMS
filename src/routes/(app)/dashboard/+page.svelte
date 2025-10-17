@@ -423,6 +423,7 @@
 								<SvelteComponent
 									{...item}
 									theme={currentTheme}
+									currentUser={data.pageData?.user}
 									onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
 									onCloseRequest={() => removeWidget(item.id)}
 								/>

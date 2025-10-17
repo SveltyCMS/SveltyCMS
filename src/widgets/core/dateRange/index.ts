@@ -20,6 +20,10 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
+
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 import { check, isoDate, minLength, object, pipe, string, type InferInput as ValibotInput } from 'valibot';
 
 import type { DateRangeProps } from './types';
@@ -71,7 +75,7 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 		 * Filters for entries where the provided date falls within the entry's date range.
 		 * Expects filter string format: "YYYY-MM-DD"
 		 */
-		filters: async ({ field, filter }) => {
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => {
 			const fieldName = field.db_fieldName;
 			const filterDate = new Date(filter);
 			if (isNaN(filterDate.getTime())) return [];
@@ -87,7 +91,7 @@ const DateRangeWidget = createWidget<DateRangeProps>({
 			];
 		},
 		// Sorting will be based on the start date of the range.
-		sorts: async ({ field, sortDirection }) => ({
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[`${field.db_fieldName}.start`]: sortDirection
 		})
 	}

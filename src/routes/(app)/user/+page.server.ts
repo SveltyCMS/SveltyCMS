@@ -19,7 +19,7 @@
 import type { PageServerLoad } from './$types';
 
 // Auth
-import type { Role, Token, User } from '@src/databases/auth/types';
+import type { Role, User } from '@src/databases/auth/types';
 import type { PermissionConfig } from '@src/databases/auth/permissions';
 
 // Superforms
@@ -97,41 +97,16 @@ export const load: PageServerLoad = async (event) => {
 				}
 			: null;
 
+		// Admin data will now be fetched on-demand via API endpoints
+		// This improves initial page load performance significantly
 		let adminData = null;
 
 		if (isAdmin || hasManageUsersPermission) {
-			const allUsers: User[] = event.locals?.allUsers ?? [];
-			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? event.locals?.allTokens ?? [];
-
-			// Format users and tokens for the admin area
-			const formattedUsers = allUsers.map((user) => ({
-				_id: user._id.toString(),
-				blocked: user.blocked || false,
-				avatar: user.avatar || null,
-				email: user.email,
-				username: user.username || null,
-				role: user.role,
-				activeSessions: user.lastActiveAt ? 1 : 0, // Placeholder for active sessions
-				lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
-				createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
-				updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
-			}));
-
-			const formattedTokens = allTokens.map((token) => ({
-				_id: token._id || token.user_id,
-				user_id: token.user_id,
-				token: token.token || '',
-				blocked: false, // This needs to be calculated based on expiration or a specific field if available
-				email: token.email || '',
-				role: token.role || 'user', // Ensure role is passed
-				expires: token.expires ? new Date(token.expires).toISOString() : null,
-				createdAt: token.createdAt ? new Date(token.createdAt).toISOString() : null,
-				updatedAt: token.updatedAt ? new Date(token.updatedAt).toISOString() : null
-			}));
-
+			// No longer pre-loading allUsers and allTokens here
+			// The AdminArea component will fetch this data via API calls
 			adminData = {
-				users: formattedUsers,
-				tokens: formattedTokens
+				users: [], // Empty arrays - data loaded on demand
+				tokens: []
 			};
 		}
 

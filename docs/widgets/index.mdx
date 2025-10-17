@@ -1,12 +1,12 @@
 ---
 path: 'docs/widgets/index.mdx'
 title: 'Widget System Documentation'
-description: 'Complete widget system documentation covering 3-pillar architecture, management, and marketplace'
+description: 'Complete widget system documentation covering 3-pillar architecture, management, and development'
 order: 70
 icon: 'mdi:widgets'
 author: 'admin'
-created: '2025-10-04'
-updated: '2025-10-04'
+created: '2025-10-17'
+updated: '2025-10-17'
 tags:
   - 'developer'
   - 'widgets'
@@ -17,37 +17,258 @@ tags:
 
 # Widget System Documentation
 
-SveltyCMS features a comprehensive widget system based on the **3-Pillar Architecture** with integrated management and marketplace capabilities.
+Welcome to the comprehensive SveltyCMS widget system documentation. The widget system is built on a modern **3-Pillar Architecture** providing type safety, performance optimization, and developer-friendly patterns.
 
-## 🏗️ Architecture Overview
+## 📚 Documentation Structure
 
-### 3-Pillar Design
+### Core Documentation
 
-The modern widget architecture separates concerns into three distinct pillars:
+```mermaid
+graph TD
+    INDEX[📚 Widget System Index<br/>You are here]
 
-1. **📋 Definition** - Widget blueprint and configuration (index.ts)
-2. **✏️ Input** - Interactive component for editing (Input.svelte)
-3. **👁️ Display** - Lightweight component for viewing (Display.svelte)
+    VISUAL[📊 Visual Overview<br/>Mermaid diagrams & flows]
+    OVERVIEW[🏗️ Widget System Overview<br/>High-level concepts & features]
+    ARCH[⚙️ Widget Architecture<br/>Technical implementation]
+    DEV[👨‍💻 Development Guide<br/>Creating custom widgets]
 
-This separation provides:
+    INDEX --> VISUAL
+    INDEX --> OVERVIEW
+    INDEX --> ARCH
+    INDEX --> DEV
 
-- **Better Performance**: Lightweight display components for lists
-- **Clear Separation**: Distinct edit vs. view modes
-- **Maintainability**: Easier to update and test individual components
-- **Reusability**: Components can be shared across implementations
+    style INDEX fill:#e1f5fe
+    style VISUAL fill:#ffeb3b,color:#000
+    style OVERVIEW fill:#f3e5f5
+    style ARCH fill:#fff8e1
+    style DEV fill:#e8f5e8
+```
 
-### Widget Types
+### 0. [Visual Overview](/docs/widgets/widget-system-visual-overview.mdx) ⭐
 
-#### Core Widgets (Always Available)
+**Visual guide** with comprehensive Mermaid diagrams explaining the entire system.
 
-Located in `src/widgets/core/`:
+**Covers:**
 
-- **Input Controls**: text, email, number, phone, password
-- **Selection**: checkbox, radio, dropdown
-- **Media**: mediaUpload, image, video
-- **Content**: richText, markdown
-- **Date/Time**: date (with timePicker option), dateRange
-- **Relationships**: relation, references
+- 🎯 Complete system flow diagrams
+- 🏗️ 3-Pillar architecture deep dive
+- 🔄 Widget lifecycle & data flow
+- 🏪 Store state management
+- 🗄️ Database relationships
+- 📊 Performance strategies
+
+**Read this when:** You prefer visual learning or need to understand system interactions.
+
+### 1. [Widget System Overview](/docs/widgets/widget-system-overview.mdx)
+
+**Start here** for understanding the widget system concepts and capabilities.
+
+**Covers:**
+
+- 🏗️ 3-Pillar Architecture (Definition, Input, Display)
+- 🎯 Widget types (Core vs Custom)
+- 🔄 System features and lifecycle
+- 📁 Directory structure
+- 🚀 Performance optimizations
+
+**Read this when:** You're new to the widget system or need a high-level understanding.
+
+### 2. [Widget Architecture](/docs/widgets/widget-architecture.mdx)
+
+**Technical deep-dive** into the widget system implementation.
+
+**Covers:**
+
+- 🏭 Widget Factory System
+- 🏪 Widget Store Management
+- 🗄️ Database Integration
+- 🔧 Runtime Implementation
+- 🛡️ Type Safety
+- 📊 Performance Optimizations
+
+**Read this when:** You need to understand how the system works internally or debug issues.
+
+### 3. [Development Guide](/docs/widgets/widget-development-guide.mdx)
+
+**Practical tutorial** for creating and customizing widgets.
+
+**Covers:**
+
+- 🚀 Quick start tutorial
+- 📝 Step-by-step widget creation
+- 🔧 Advanced features
+- 🧪 Testing strategies
+- 📦 Widget management
+- 🚀 Deployment best practices
+
+**Read this when:** You want to create custom widgets or modify existing ones.
+
+## 🎯 Quick Navigation
+
+### For Different Roles
+
+```mermaid
+graph LR
+    subgraph "Content Creators"
+        C1[Using existing widgets<br/>in collections]
+        C2[Widget configuration<br/>options]
+    end
+
+    subgraph "Developers"
+        D1[Creating custom<br/>widgets]
+        D2[Understanding widget<br/>architecture]
+        D3[Testing and<br/>debugging]
+    end
+
+    subgraph "Administrators"
+        A1[Managing widget<br/>activation]
+        A2[Multi-tenant<br/>configuration]
+        A3[Performance<br/>monitoring]
+    end
+
+    C1 --> OVERVIEW
+    C2 --> DEV
+    D1 --> DEV
+    D2 --> ARCH
+    D3 --> DEV
+    A1 --> OVERVIEW
+    A2 --> ARCH
+    A3 --> ARCH
+
+    style C1 fill:#e8f5e8
+    style D1 fill:#f3e5f5
+    style A1 fill:#fff8e1
+```
+
+### By Task
+
+| I want to...                   | Read this                                                       | Section                |
+| ------------------------------ | --------------------------------------------------------------- | ---------------------- |
+| Understand widget concepts     | [System Overview](/docs/widgets/widget-system-overview.mdx)     | Core Concepts          |
+| Use widgets in collections     | [System Overview](/docs/widgets/widget-system-overview.mdx)     | Quick Start            |
+| Create a custom widget         | [Development Guide](/docs/widgets/widget-development-guide.mdx) | Step-by-Step Tutorial  |
+| Understand the factory pattern | [Architecture](/docs/widgets/widget-architecture.mdx)           | Factory System         |
+| Debug widget issues            | [Architecture](/docs/widgets/widget-architecture.mdx)           | Runtime Implementation |
+| Configure widget validation    | [Development Guide](/docs/widgets/widget-development-guide.mdx) | Advanced Features      |
+| Enable/disable widgets         | [System Overview](/docs/widgets/widget-system-overview.mdx)     | Widget Management      |
+| Optimize widget performance    | [Architecture](/docs/widgets/widget-architecture.mdx)           | Performance            |
+
+## 🚀 Quick Start Examples
+
+### Using Existing Widgets
+
+```typescript
+// In a collection schema
+import { widgets } from '@src/widgets';
+
+export default {
+	fields: [
+		widgets.Input({
+			label: 'Title',
+			required: true,
+			maxLength: 100
+		}),
+		widgets.RichText({
+			label: 'Content',
+			translated: true
+		}),
+		widgets.Date({
+			label: 'Published Date',
+			required: true
+		})
+	]
+};
+```
+
+### Creating a Simple Custom Widget
+
+```typescript
+// src/widgets/custom/rating/index.ts
+import { createWidget } from '@src/widgets/factory';
+
+const RatingWidget = createWidget({
+	Name: 'Rating',
+	Icon: 'mdi:star',
+	Description: 'Star rating widget',
+	inputComponentPath: '/src/widgets/custom/rating/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/rating/Display.svelte',
+	validationSchema: number(),
+	defaults: {
+		maxRating: 5,
+		allowHalfStars: false
+	}
+});
+
+export default RatingWidget;
+```
+
+## 📖 Individual Widget Documentation
+
+Each widget includes its own comprehensive documentation:
+
+### Core Widgets
+
+- **[Input Widget](/src/widgets/core/input/input.mdx)** - Text input with validation
+- **[Rich Text Widget](/src/widgets/core/richText/richText.mdx)** - WYSIWYG editor
+- **[Date Widget](/src/widgets/core/date/date.mdx)** - Date and time picker
+- **[Media Upload Widget](/src/widgets/core/mediaUpload/mediaUpload.mdx)** - File upload
+- **[Relation Widget](/src/widgets/core/relation/relation.mdx)** - Entity relationships
+
+### Custom Widgets
+
+- **[SEO Widget](/src/widgets/custom/seo/seo.mdx)** - SEO meta tags and schema
+- **[Address Widget](/src/widgets/custom/address/address.mdx)** - Address with geocoding
+- **[Currency Widget](/src/widgets/custom/currency/currency.mdx)** - Monetary values
+- **[Color Picker Widget](/src/widgets/custom/colorPicker/colorPicker.mdx)** - Color selection
+
+## 🛠️ System Features
+
+### 3-Pillar Architecture
+
+Every widget follows the same architectural pattern:
+
+1. **📋 Definition** (`index.ts`) - Widget configuration and validation
+2. **✏️ Input** (`Input.svelte`) - Interactive editing component
+3. **👁️ Display** (`Display.svelte`) - Optimized display component
+
+### Key Capabilities
+
+- ✅ **Type Safety** - Full TypeScript support throughout
+- 🔄 **Dynamic Loading** - Widgets loaded on-demand for performance
+- 🏢 **Multi-Tenant** - Different widget configurations per tenant
+- 🔒 **Security** - Permission-based widget access control
+- 📚 **Self-Documenting** - Each widget includes MDX documentation
+- 🧪 **Testable** - Comprehensive testing support
+
+## 🔗 Related Documentation
+
+### API References
+
+- **[Widget API](/docs/api/Widget_API.mdx)** - REST API endpoints
+- **[Collection API](/docs/api/Collection_API.mdx)** - Collection management
+- **[GraphQL API](/docs/api/GraphQL_API.mdx)** - GraphQL schema generation
+
+### Architecture Guides
+
+- **[Collection Store Dataflow](/docs/architecture/collection-store-dataflow.mdx)** - Data flow patterns
+- **[Database Methods](/docs/architecture/database-methods.mdx)** - Database operations
+- **[Code Structure](/docs/architecture/code-structure.mdx)** - Overall codebase structure
+
+### Development Resources
+
+- **[Testing Guide](/docs/testing/testing.mdx)** - Testing strategies
+- **[TypeScript Guide](/docs/guides/typescript.mdx)** - Type safety best practices
+- **[Contributing Guide](/docs/contributing/index.mdx)** - Contributing to widgets
+
+---
+
+## 🎯 Next Steps
+
+1. **New to widgets?** Start with [Widget System Overview](/docs/widgets/widget-system-overview.mdx)
+2. **Want to create widgets?** Follow the [Development Guide](/docs/widgets/widget-development-guide.mdx)
+3. **Need technical details?** Dive into [Widget Architecture](/docs/widgets/widget-architecture.mdx)
+4. **Looking for specific widgets?** Browse the individual widget documentation above
+
 - **Structure**: group, repeater
 
 #### Custom Widgets (Optional)

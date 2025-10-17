@@ -1,61 +1,616 @@
 ---
 path: 'docs/widgets/widget-architecture.mdx'
-title: 'Widget Architecture Guide'
-description: 'Modern widget architecture guide for SveltyCMS covering factory system, type safety, multi-language support, and database operations.'
+title: 'Widget Architecture'
+description: 'Technical architecture guide for SveltyCMS widget system covering factory pattern, store management, and implementation details'
+order: 2
 icon: 'mdi:cube-outline'
-published: true
-order: 3
 author: 'admin'
-created: '2025-10-05'
-updated: '2025-10-05'
+created: '2025-10-17'
+updated: '2025-10-17'
 tags:
-  - 'widget'
+  - 'widgets'
   - 'architecture'
   - 'factory'
-  - 'developer'
+  - 'technical'
   - 'typescript'
 ---
 
-# Modern Widget Architecture Guide
+# Widget Architecture
 
-## Overview
+This document covers the technical architecture and implementation details of the SveltyCMS widget system.
 
-SveltyCMS has been upgraded with a modern, widget architecture that provides type-safe widget development, multi-language support, and advanced database operations.
+## 🏗️ System Architecture
 
-## Architecture Components
+### Component Overview
 
-### 1. Widget Factory System
+```mermaid
+graph TB
+    subgraph "Widget Factory System"
+        WF[widget/factory.ts<br/>createWidget()]
+        WT[widget/types.ts<br/>Type Definitions]
+        WI[widget/index.ts<br/>Widget Loader]
+    end
 
-The modern architecture separates concerns between:
+    subgraph "Widget Store Management"
+        WS[widgetStore.svelte.ts<br/>State Management]
+        WD[widgetDiscovery.ts<br/>Filesystem Scanner]
+        API[Widget APIs<br/>REST Endpoints]
+    end
 
-- **Widget Definitions**: Blueprint of what a widget can do
-- **Field Instances**: Specific implementation of a widget in a collection
+    subgraph "Database Layer"
+        DB[(widgets table<br/>Configuration)]
+        MT[(multi_tenant<br/>Support)]
+    end
+
+    subgraph "Runtime System"
+        CR[Collection Runtime<br/>Field Instances]
+        CB[Collection Builder<br/>Widget Selection]
+        MW[MissingWidget.svelte<br/>Fallback Handler]
+    end
+
+    WF --> WS
+    WI --> WS
+    WD --> WS
+    WS --> DB
+    WS --> API
+    WS --> CR
+    WS --> CB
+    CR --> MW
+
+    style WF fill:#e1f5fe
+    style WS fill:#f3e5f5
+    style DB fill:#fff8e1
+    style CR fill:#e8f5e8
+```
+
+## 🏭 Widget Factory System
+
+### Factory Pattern Implementation
+
+The widget factory provides type-safe widget creation with the `createWidget()` function:
 
 ```typescript
-// Create a widget definition
-const widgetFactory = createWidget({
-	Name: 'TextInput',
-	Icon: 'mdi:text',
-	Description: 'Text input widget with validation',
-	componentPath: '/src/widgets/core/input/Input.svelte',
-	GuiSchema: {
-		properties: {
-			label: { type: 'string' },
-			placeholder: { type: 'string' },
-			maxlength: { type: 'number' }
-		}
-	}
-});
+// src/widgets/factory.ts
+export function createWidget<TProps extends WidgetProps = WidgetProps>(config: WidgetConfig<TProps>) {
+	// 1. Create immutable widget definition
+	const widgetDefinition: WidgetDefinition = {
+		widgetId: config.Name,
+		Name: config.Name,
+		Icon: config.Icon,
+		Description: config.Description,
+		inputComponentPath: config.inputComponentPath || '',
+		displayComponentPath: config.displayComponentPath || '',
+		validationSchema: config.validationSchema,
+		defaults: config.defaults,
+		GuiFields: config.GuiSchema || {},
+		aggregations: config.aggregations
+	};
 
-// Create a field instance
-const titleField = widgetFactory({
-	label: 'Article Title',
-	db_fieldName: 'title',
-	required: true,
-	placeholder: 'Enter title here',
-	maxlength: 100
+	// 2. Return factory function for field instances
+	const widgetFactory = (fieldConfig: FieldConfig<TProps>): FieldInstance => {
+		const combinedProps = { ...config.defaults, ...fieldConfig };
+
+		return {
+			widget: widgetDefinition,
+			label: fieldConfig.label,
+			db_fieldName: fieldConfig.db_fieldName || generateFieldName(fieldConfig.label),
+			required: fieldConfig.required ?? false,
+			translated: fieldConfig.translated ?? false,
+			...combinedProps
+		};
+	};
+
+	// 3. Attach metadata for system compatibility
+	widgetFactory.Name = config.Name;
+	widgetFactory.GuiSchema = config.GuiSchema;
+	// ... other properties
+
+	return widgetFactory;
+}
+```
+
+### Three Pillars Implementation
+
+```mermaid
+graph TD
+    subgraph "Definition Pillar"
+        IDX[index.ts<br/>Widget Blueprint]
+        TYPES[types.ts<br/>TypeScript Definitions]
+        VALID[Validation Schema<br/>Valibot Rules]
+        GUI[GuiSchema<br/>Configuration UI]
+    end
+
+    subgraph "Input Pillar"
+        INPUT[Input.svelte<br/>Interactive Component]
+        FORM[Form Handling<br/>User Input]
+        VAL[Live Validation<br/>Error Display]
+    end
+
+    subgraph "Display Pillar"
+        DISPLAY[Display.svelte<br/>Read-only Component]
+        RENDER[Value Rendering<br/>Formatted Output]
+        PERF[Performance Optimized<br/>Lightweight]
+    end
+
+    IDX --> INPUT
+    IDX --> DISPLAY
+    TYPES --> INPUT
+    TYPES --> DISPLAY
+    VALID --> VAL
+    GUI --> FORM
+
+    style IDX fill:#e1f5fe
+    style INPUT fill:#f3e5f5
+    style DISPLAY fill:#e8f5e8
+```
+
+## 🏪 Widget Store Management
+
+### Store Architecture
+
+```mermaid
+stateDiagram-v2
+    [*] --> Initialization
+
+    Initialization --> Scanning: Widget Discovery
+    Scanning --> DatabaseSync: Compare with DB
+    DatabaseSync --> Loading: Load Active Widgets
+    Loading --> Ready: Store Populated
+
+    Ready --> WidgetActivation: Admin Action
+    WidgetActivation --> DependencyCheck: Validate Dependencies
+    DependencyCheck --> DatabaseUpdate: Persist Changes
+    DatabaseUpdate --> StoreUpdate: Update Runtime
+    StoreUpdate --> Ready
+
+    Ready --> CollectionRequest: Collection Needs Widget
+    CollectionRequest --> WidgetLookup: Find in Store
+    WidgetLookup --> WidgetReturn: Return Widget Function
+    WidgetReturn --> Ready
+
+    Ready --> MissingWidget: Widget Not Found
+    MissingWidget --> FallbackRender: Show Placeholder
+    FallbackRender --> Ready
+```
+
+### Widget Discovery Process
+
+```typescript
+// src/services/widgetDiscovery.ts
+export async function discoverWidgets(): Promise<WidgetDiscoveryResult> {
+	// 1. Scan filesystem for widgets
+	const filesystemWidgets = await scanWidgetDirectories();
+
+	// 2. Load existing database configuration
+	const databaseWidgets = await loadWidgetConfig();
+
+	// 3. Compare and identify changes
+	const analysis = compareWidgetStates(filesystemWidgets, databaseWidgets);
+
+	// 4. Auto-register new widgets
+	await registerNewWidgets(analysis.newWidgets);
+
+	// 5. Mark missing widgets as unavailable
+	await markMissingWidgets(analysis.missingWidgets);
+
+	return {
+		available: analysis.availableWidgets,
+		active: analysis.activeWidgets,
+		changes: analysis.changes
+	};
+}
+```
+
+### Store State Management
+
+```mermaid
+graph LR
+    subgraph "Store State"
+        WF[widgetFunctions<br/>Active Widget Functions]
+        AW[activeWidgets<br/>Enabled Widget List]
+        CW[coreWidgets<br/>Core Widget Names]
+        WM[widgetMetadata<br/>Widget Information]
+    end
+
+    subgraph "Store Actions"
+        INIT[initializeWidgets<br/>Bootstrap System]
+        TOGGLE[toggleWidget<br/>Enable/Disable]
+        DEPS[validateDependencies<br/>Check Conflicts]
+        RELOAD[reloadWidgets<br/>Refresh State]
+    end
+
+    INIT --> WF
+    INIT --> AW
+    INIT --> CW
+    TOGGLE --> WF
+    TOGGLE --> AW
+    DEPS --> WF
+    RELOAD --> WF
+
+    style WF fill:#e3f2fd
+    style INIT fill:#f3e5f5
+```
+
+## 🗄️ Database Integration
+
+### Schema Design
+
+```sql
+-- Widget configuration table
+CREATE TABLE widgets (
+  id INTEGER PRIMARY KEY,
+  name VARCHAR(255) UNIQUE NOT NULL,    -- Widget folder name (case-sensitive)
+  display_name VARCHAR(255),            -- Human-readable name
+  description TEXT,
+  icon VARCHAR(255),
+  widget_type ENUM('core', 'custom'),
+  is_active BOOLEAN DEFAULT true,
+  dependencies JSON,                     -- Array of dependent widget names
+  configuration JSON,                    -- Widget-specific settings
+  tenant_id VARCHAR(255),               -- Multi-tenant support
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance
+CREATE INDEX idx_widgets_name ON widgets(name);
+CREATE INDEX idx_widgets_type ON widgets(widget_type);
+CREATE INDEX idx_widgets_active ON widgets(is_active);
+CREATE INDEX idx_widgets_tenant ON widgets(tenant_id);
+```
+
+### Multi-Tenant Configuration
+
+```mermaid
+graph TD
+    subgraph "Tenant A"
+        A1[Core Widgets: Enabled]
+        A2[SEO Widget: Enabled]
+        A3[Currency Widget: Disabled]
+    end
+
+    subgraph "Tenant B"
+        B1[Core Widgets: Enabled]
+        B2[SEO Widget: Disabled]
+        B3[Currency Widget: Enabled]
+    end
+
+    subgraph "Tenant C"
+        C1[Core Widgets: Enabled]
+        C2[All Custom: Disabled]
+    end
+
+    DB[(Database<br/>Widget Config)] --> A1
+    DB --> A2
+    DB --> A3
+    DB --> B1
+    DB --> B2
+    DB --> B3
+    DB --> C1
+    DB --> C2
+
+    style A1 fill:#c8e6c9
+    style B1 fill:#c8e6c9
+    style C1 fill:#c8e6c9
+    style A2 fill:#c8e6c9
+    style B3 fill:#c8e6c9
+    style A3 fill:#ffcdd2
+    style B2 fill:#ffcdd2
+    style C2 fill:#ffcdd2
+```
+
+## 🔧 Runtime Implementation
+
+### Widget Loading Process
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Store as Widget Store
+    participant Loader as Widget Loader
+    participant FS as Filesystem
+    participant Cache as Memory Cache
+
+    App->>Store: Request widget 'input'
+    Store->>Cache: Check cache
+
+    alt Widget in cache
+        Cache-->>Store: Return cached widget
+        Store-->>App: Widget function
+    else Widget not cached
+        Store->>Loader: Load widget 'input'
+        Loader->>FS: Dynamic import
+        FS-->>Loader: Widget module
+        Loader->>Cache: Cache widget
+        Loader-->>Store: Widget function
+        Store-->>App: Widget function
+    end
+```
+
+### Error Handling and Fallbacks
+
+```typescript
+// MissingWidget.svelte - Fallback component
+export class MissingWidgetHandler {
+	static render(widgetName: string, context: WidgetContext) {
+		logger.warn(`Widget '${widgetName}' not found, rendering fallback`);
+
+		return {
+			component: MissingWidget,
+			props: {
+				widgetName,
+				message: `Widget "${widgetName}" is not available`,
+				suggestions: this.getSuggestions(widgetName),
+				context
+			}
+		};
+	}
+
+	static getSuggestions(widgetName: string): string[] {
+		// Fuzzy matching for similar widget names
+		return availableWidgets.filter((name) => levenshteinDistance(name, widgetName) <= 2);
+	}
+}
+```
+
+## 🔌 API Integration
+
+### REST Endpoints
+
+```mermaid
+graph LR
+    subgraph "Widget APIs"
+        LIST[GET /api/widgets/list<br/>List all widgets]
+        TOGGLE[POST /api/widgets/toggle<br/>Enable/disable widget]
+        META[GET /api/widgets/metadata<br/>Widget information]
+        DEPS[GET /api/widgets/dependencies<br/>Dependency tree]
+    end
+
+    subgraph "Store Integration"
+        WS[Widget Store<br/>State Management]
+        DB[(Database<br/>Persistence)]
+    end
+
+    LIST --> WS
+    TOGGLE --> WS
+    META --> WS
+    DEPS --> WS
+    WS --> DB
+
+    style LIST fill:#e3f2fd
+    style TOGGLE fill:#fff3e0
+    style WS fill:#f3e5f5
+```
+
+### API Response Format
+
+```typescript
+// GET /api/widgets/list response
+interface WidgetListResponse {
+	widgets: Array<{
+		name: string; // Filesystem identifier
+		displayName: string; // UI display name
+		description: string; // Widget description
+		icon: string; // Icon identifier
+		type: 'core' | 'custom'; // Widget category
+		isActive: boolean; // Current activation state
+		dependencies: string[]; // Required widgets
+		pillar: {
+			definition: {
+				hasGuiSchema: boolean;
+				hasValidation: boolean;
+				hasAggregations: boolean;
+			};
+			input: {
+				componentPath: string;
+				hasDocumentation: boolean;
+			};
+			display: {
+				componentPath: string;
+				isOptimized: boolean;
+			};
+		};
+	}>;
+	metadata: {
+		totalWidgets: number;
+		activeWidgets: number;
+		coreWidgets: number;
+		customWidgets: number;
+	};
+}
+```
+
+## 🛡️ Type Safety Implementation
+
+### Widget Type Definitions
+
+```typescript
+// src/widgets/types.ts
+export interface WidgetDefinition {
+	widgetId: string;
+	Name: string;
+	Icon?: string;
+	Description?: string;
+	inputComponentPath: string;
+	displayComponentPath: string;
+	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>>;
+	defaults?: Record<string, unknown>;
+	GuiFields: Record<string, unknown>;
+	aggregations?: unknown;
+}
+
+export interface FieldInstance {
+	widget: WidgetDefinition;
+	label: string;
+	db_fieldName: string;
+	required: boolean;
+	translated: boolean;
+	width?: number;
+	helper?: string;
+	permissions?: Record<string, Record<string, boolean>>;
+	[key: string]: unknown; // Widget-specific properties
+}
+```
+
+### Generic Factory Types
+
+```typescript
+// Type-safe widget properties
+type WidgetProps = Record<string, unknown>;
+
+// Widget configuration interface
+export interface WidgetConfig<TProps extends WidgetProps = WidgetProps> {
+	Name: string;
+	Icon?: string;
+	Description?: string;
+	inputComponentPath?: string;
+	displayComponentPath?: string;
+	defaults?: Partial<TProps>;
+	validationSchema: unknown | ((field: FieldInstance) => unknown);
+	GuiSchema?: Record<string, unknown>;
+	aggregations?: unknown;
+}
+
+// Field configuration type
+export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
+	label: string;
+	db_fieldName?: string;
+	required?: boolean;
+	translated?: boolean;
+	width?: number;
+	helper?: string;
+	permissions?: Record<string, Record<string, boolean>>;
+} & Partial<TProps>;
+```
+
+## 🔍 Validation System
+
+### Valibot Integration
+
+```typescript
+// Dynamic validation schema creation
+const createValidationSchema = (field: FieldInstance) => {
+	const baseSchema = string();
+	const rules = [];
+
+	// Apply field-specific rules
+	if (field.required) {
+		rules.push(minLength(1, 'This field is required'));
+	}
+
+	if (field.maxLength) {
+		rules.push(maxLength(field.maxLength, `Maximum ${field.maxLength} characters`));
+	}
+
+	// Build final schema
+	const schema = pipe(baseSchema, ...rules);
+
+	// Handle translation
+	if (field.translated) {
+		return object({ _any: any() }); // Flexible object for translations
+	}
+
+	return field.required ? schema : optional(schema, '');
+};
+```
+
+## 📊 Performance Optimizations
+
+### Code Splitting Strategy
+
+```mermaid
+graph TD
+    subgraph "Bundle Optimization"
+        CORE[Core Widgets<br/>Always Loaded]
+        DYNAMIC[Custom Widgets<br/>Dynamic Import]
+        LAZY[Lazy Components<br/>On-Demand Loading]
+    end
+
+    subgraph "Runtime Performance"
+        CACHE[Component Caching<br/>Memory Optimization]
+        TREE[Tree Shaking<br/>Dead Code Elimination]
+        SPLIT[Route Splitting<br/>Page-Level Chunks]
+    end
+
+    CORE --> CACHE
+    DYNAMIC --> LAZY
+    LAZY --> CACHE
+    CACHE --> TREE
+    TREE --> SPLIT
+
+    style CORE fill:#c8e6c9
+    style DYNAMIC fill:#fff3e0
+    style CACHE fill:#e1f5fe
+```
+
+### Memory Management
+
+- **Widget Instances**: Cached and reused across collections
+- **Component Cleanup**: Automatic disposal when not needed
+- **Store Optimization**: Minimal reactive state for performance
+- **Bundle Analysis**: Regular monitoring of widget bundle sizes
+
+## 🧪 Testing Strategy
+
+### Unit Testing
+
+```typescript
+// Widget factory testing
+describe('createWidget', () => {
+	test('should create widget with proper type safety', () => {
+		const widget = createWidget<InputProps>({
+			Name: 'TestInput',
+			validationSchema: string(),
+			GuiSchema: {
+				label: { widget: Input, required: true }
+			}
+		});
+
+		expect(widget.Name).toBe('TestInput');
+		expect(widget.GuiSchema).toBeDefined();
+	});
 });
 ```
+
+### Integration Testing
+
+- **Store Operations**: Widget activation/deactivation
+- **Database Sync**: Configuration persistence
+- **API Endpoints**: REST API functionality
+- **Collection Integration**: Widget usage in collections
+
+## 🚀 Deployment Considerations
+
+### Build Process
+
+1. **Widget Discovery**: Scan filesystem during build
+2. **Type Generation**: Generate TypeScript definitions
+3. **Bundle Optimization**: Split widgets into chunks
+4. **Documentation**: Generate widget documentation
+
+### Production Monitoring
+
+- **Widget Usage**: Track widget usage across collections
+- **Performance Metrics**: Monitor load times and memory usage
+- **Error Tracking**: Log widget-related errors
+- **Dependency Alerts**: Monitor for breaking changes
+
+---
+
+## Related Documentation
+
+- [Widget System Overview](/docs/widgets/widget-system-overview.mdx) - High-level concepts
+- [Development Guide](/docs/widgets/widget-development-guide.mdx) - Creating widgets
+- [API Documentation](/docs/api/Widget_API.mdx) - API reference
+  const titleField = widgetFactory({
+  label: 'Article Title',
+  db_fieldName: 'title',
+  required: true,
+  placeholder: 'Enter title here',
+  maxlength: 100
+  });
+
+````
 
 ### 2. Type Safety
 
@@ -80,7 +635,7 @@ interface FieldInstance {
 	required?: boolean;
 	// ... widget-specific properties
 }
-```
+````
 
 ### 3. Language Support
 

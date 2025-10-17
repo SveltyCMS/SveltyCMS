@@ -28,6 +28,8 @@ export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 		user: locals.user ?? null,
 		isAdmin: locals.isAdmin ?? false,
 		isMultiTenant,
+		// CSP nonce for secure inline scripts/styles
+		cspNonce: locals.cspNonce,
 		tenantId: locals.tenantId ?? null,
 		settings: {
 			SITE_NAME: siteName,

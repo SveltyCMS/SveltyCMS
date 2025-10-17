@@ -25,7 +25,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 	// Stores
-	import { setMode } from '@src/stores/collectionStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Utils & Media
@@ -46,12 +45,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 	const modalStore = getModalStore();
 
 	// Props using runes
-	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
+	const { data = { user: undefined, media: [], systemVirtualFolders: [], currentFolder: null } } = $props<{
 		data?: {
 			user: { _id: string; email: string; role: string } | undefined;
 			media: MediaBase[];
 			systemVirtualFolders: SystemVirtualFolder[];
-			currentFolder: SystemVirtualFolder | null; // Add currentFolder from load data
+			currentFolder: SystemVirtualFolder | null;
 		};
 	}>();
 
@@ -141,10 +140,11 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Initialize component with runes
 	$effect(() => {
-		setMode('media');
+		// Note: Mode is now managed by Collections component based on route
 
 		if (data && data.systemVirtualFolders) {
-			systemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
+			// Process initial folder data from server
+			allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
@@ -154,10 +154,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 		fetchUpdatedSystemVirtualFolders()
 			.then((all) => {
 				allSystemVirtualFolders = all;
-				// If we are at the root, update `folders` to be the top-level folders from the full list.
-				if (!currentSystemVirtualFolder) {
-					systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
-				}
 			})
 			.catch((error) => {
 				console.error('Failed to load virtual folders in effect:', error);
@@ -167,9 +163,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 						...folder,
 						path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 					}));
-					if (!currentSystemVirtualFolder) {
-						systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
-					}
 				}
 			});
 
@@ -330,7 +323,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			if (data.success) {
 				files = Array.isArray(data.data.contents?.files) ? data.data.contents.files : [];
-				systemVirtualFolders = Array.isArray(data.data.contents?.folders) ? data.data.contents.folders : [];
+				// Folders are handled by allSystemVirtualFolders
 			} else {
 				throw new Error(data.error || 'Unknown error');
 			}
@@ -346,7 +339,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 			}
 			showToast(errorMessage, 'error');
 			files = [];
-			systemVirtualFolders = [];
 		} finally {
 			isLoading = false;
 			globalLoadingStore.stopLoading(loadingOperations.dataFetch);

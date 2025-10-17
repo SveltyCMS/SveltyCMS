@@ -511,6 +511,8 @@
 	"userpage_edit_usersetting": "Edit User Settings:",
 	"userpage_editavatar": "Edit Avatar",
 	"userpage_title": "User Profile",
+	"userpage_profile": "Profile",
+	"userpage_security": "Security",
 	"userpage_user_id": "User ID:",
 	"validation_fix_before_save": "Please fix validation errors before saving.",
 	"version": "Version",

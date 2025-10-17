@@ -16,7 +16,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { initializeRoles, roles } from '@root/config/roles';
-import { auth } from '@src/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		// 2. User has correct role for 'api:token' endpoint
 		// 3. User belongs to correct tenant (if multi-tenant)
 
-		if (!auth) {
+		if (!auth || !dbAdapter) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
@@ -93,19 +93,18 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		const expires = new Date(Date.now() + expiresInSeconds * 1000); // Create token with pre-generated user_id for when user actually registers
 
 		// Create token in database
-		// You may need to define 'user', 'expiryDate', 'type', 'sanitizedMetadata', and 'token' variables properly here.
-		// For now, let's assume you want to use the validatedData and generated values:
+		// For invite tokens, we use the database adapter directly since the user doesn't exist yet
 		const user_id = uuidv4();
 		const type = 'invite';
-		const sanitizedMetadata = {};
-		const token = uuidv4();
 		const expiryDate = expires;
 
-		const tokenResult = await auth.createToken({
+		// Use dbAdapter directly for invite tokens since the user doesn't exist yet
+		const tokenResult = await dbAdapter.auth.createToken({
 			user_id: user_id,
+			email: validatedData.email.toLowerCase(), // Use the provided email directly
 			expires: expiryDate,
 			type,
-			metadata: sanitizedMetadata,
+			role: validatedData.role, // Include the selected role
 			tenantId: tenantId || undefined
 		});
 
@@ -114,7 +113,10 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			throw error(500, 'Failed to create token.');
 		}
 
-		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
+		// Get the actual token string from the database result
+		const token = tokenResult.data;
+
+		logger.info('Token created successfully', { email: validatedData.email, role: validatedData.role, tenantId }); // Generate invitation link
 
 		const inviteLink = `${url.origin}/login?invite_token=${token}`; // Send invitation email
 

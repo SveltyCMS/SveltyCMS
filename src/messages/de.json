@@ -511,6 +511,8 @@
 	"userpage_edit_usersetting": "Benutzereinstellungen bearbeiten:",
 	"userpage_editavatar": "Avatar bearbeiten",
 	"userpage_title": "Benutzerprofil",
+	"userpage_profile": "Profil",
+	"userpage_security": "Sicherheit",
 	"userpage_user_id": "Benutzer-ID:",
 	"validation_fix_before_save": "Bitte beheben Sie Validierungsfehler vor dem Speichern.",
 	"version": "Version",

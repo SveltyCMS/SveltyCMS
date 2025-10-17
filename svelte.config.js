@@ -41,6 +41,22 @@ const config = {
 			'@types': './src/types',
 			'@utils': './src/utils',
 			'@widgets': './src/widgets'
+		},
+
+		// Use SvelteKit's built-in CSP support
+		csp: {
+			mode: 'auto',
+			directives: {
+				'default-src': ['self'],
+				'script-src': ['self', 'unsafe-eval'], // unsafe-eval needed for dev HMR
+				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
+				'img-src': ['self', 'data:', 'https://api.iconify.design', 'https://api.unisvg.com'],
+				'font-src': ['self', 'data:'],
+				'connect-src': ['self', 'https://api.iconify.design', 'https://raw.githubusercontent.com', 'wss:', 'ws:'],
+				'object-src': ['none'],
+				'base-uri': ['self'],
+				'form-action': ['self']
+			}
 		}
 	},
 

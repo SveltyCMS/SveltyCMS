@@ -31,10 +31,9 @@ Features:
 
 	/** Updates the target widget property */
 	function handleToggle(event: CustomEvent<boolean>, property: string) {
-		targetWidget.update((w) => {
-			w[property] = event.detail;
-			return w;
-		});
+		const currentWidget = targetWidget.value;
+		currentWidget[property] = event.detail;
+		targetWidget.value = currentWidget;
 	}
 </script>
 

@@ -24,10 +24,11 @@
  * @prerequisite System state is READY and JWT secret is available
  */
 
-import { building, dev } from '$app/environment';
+import { building } from '$app/environment';
 import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
+import { metricsService } from '@src/services/MetricsService';
 import { logger } from '@utils/logger.svelte';
 
 // --- RATE LIMITER CONFIGURATION ---
@@ -153,6 +154,9 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 	// Check if request exceeds rate limit
 	if (await limiter.isLimited(event)) {
+		// Track rate limit violation in unified metrics
+		metricsService.incrementRateLimitViolations();
+
 		logger.warn(
 			`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, ` +
 				`endpoint: \x1b[34m${url.pathname}\x1b[0m, ` +

@@ -23,6 +23,10 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
+
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 import {
 	any,
 	maxLength,
@@ -96,10 +100,10 @@ const InputWidget = createWidget<InputProps>({
 
 	// Aggregations for text search and sorting.
 	aggregations: {
-		filters: async ({ field, filter, contentLanguage }) => [
+		filters: async ({ field, filter, contentLanguage }: { field: AggregationField; filter: string; contentLanguage: string }) => [
 			{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
 		],
-		sorts: async ({ field, sortDirection, contentLanguage }) => ({
+		sorts: async ({ field, sortDirection, contentLanguage }: { field: AggregationField; sortDirection: number; contentLanguage: string }) => ({
 			[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
 		})
 	},

@@ -144,14 +144,6 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 		}
 	}
 
-	function resetFocalPoint() {
-		shapes = shapes.map((shape) => {
-			shape.position({ x: stage.width() / 2, y: stage.height() / 2 });
-			return shape;
-		});
-		layer.draw();
-	}
-
 	function exitShapeOverlay() {
 		onExitShapeOverlay();
 	}

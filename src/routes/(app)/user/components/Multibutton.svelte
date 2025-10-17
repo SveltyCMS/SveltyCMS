@@ -480,7 +480,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					showToast(toastMessage, 'success');
 
 					// Dispatch token update event for parent component to handle local state updates
-					if (type === 'token' && (action === 'block' || action === 'unblock')) {
+					if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
 						dispatch('tokenUpdate', {
 							tokenIds: safeSelectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
 							action: action

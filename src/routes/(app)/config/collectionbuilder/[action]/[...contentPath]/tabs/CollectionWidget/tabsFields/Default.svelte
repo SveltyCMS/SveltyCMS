@@ -37,6 +37,18 @@ Features:
 
 	let { guiSchema }: Props = $props();
 
+	// Get all properties from the guiSchema
+	let allProperties = $derived(Object.keys(guiSchema || {}));
+
+	// Define standard/default properties that should appear first
+	const standardProperties = ['label', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'];
+
+	// Get additional properties from the widget's GuiSchema
+	let additionalProperties = $derived(allProperties.filter((prop) => !standardProperties.includes(prop) && prop !== 'permissions'));
+
+	// Combine them in order: standard first, then additional
+	let displayProperties = $derived([...standardProperties, ...additionalProperties]);
+
 	function defaultValue(property: string) {
 		if (property === 'required' || property === 'translated') {
 			return false;
@@ -44,11 +56,10 @@ Features:
 	}
 
 	function handleUpdate(event: CustomEvent, property: string) {
-		targetWidget.update((w) => {
-			w[property] = event.detail.value;
-
-			return w;
-		});
+		// Update the targetWidget store
+		const currentWidget = targetWidget.value;
+		currentWidget[property] = event.detail.value;
+		targetWidget.value = currentWidget;
 	}
 </script>
 
@@ -62,14 +73,16 @@ Features:
 	</div>
 
 	<div class="options-table">
-		{#each ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
-			<InputSwitch
-				value={targetWidget.value[property] ?? defaultValue(property)}
-				icon={targetWidget.value[property] as string}
-				widget={asAny(guiSchema[property]?.widget)}
-				key={property}
-				on:update={(e) => handleUpdate(e, property)}
-			/>
+		{#each displayProperties as property}
+			{#if guiSchema[property]}
+				<InputSwitch
+					value={targetWidget.value[property] ?? defaultValue(property)}
+					icon={targetWidget.value[property] as string}
+					widget={asAny(guiSchema[property]?.widget)}
+					key={property}
+					on:update={(e) => handleUpdate(e, property)}
+				/>
+			{/if}
 		{/each}
 	</div>
 {/if}

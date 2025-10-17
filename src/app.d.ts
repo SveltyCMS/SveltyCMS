@@ -53,6 +53,7 @@ declare global {
 			darkMode: boolean; // Dark mode preference from cookies
 			__reqStart?: number; // Performance monitoring start time
 			dbAdapter?: DatabaseAdapter | null; // Database adapter for adapter-agnostic operations
+			cspNonce?: string; // CSP nonce for this request (managed by SvelteKit)
 			// State machine integration
 			__skipSystemHooks?: boolean;
 			__systemReady?: boolean;

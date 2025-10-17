@@ -1,18 +1,201 @@
 ---
-path: 'docs/dev-guide/security-plugin.mdx'
-title: 'Build-Time Security Plugin'
-description: 'Vite plugin that prevents accidental exposure of private database settings to client-side code through build-time validation.'
-order: 10
+path: 'docs/architecture/security-plugin.mdx'
+title: 'Enterprise Security Architecture'
+description: 'Comprehensive security system with runtime threat detection, automated response, and nonce-based CSP for enterprise-grade protection.'
+order: 4
 icon: 'mdi:shield-check'
-author: 'admin'
-created: '2025-10-03'
-updated: '2025-10-03'
+author: 'enterprise-team'
+created: '2025-10-12'
+updated: '2025-10-17'
 tags:
   - 'security'
-  - 'vite'
-  - 'build-tools'
-  - 'settings'
-  - 'validation'
+  - 'csp'
+  - 'threat-detection'
+  - 'xss-prevention'
+  - 'enterprise'
+  - 'automated-response'
+  - 'real-time-monitoring'
+---
+
+# Enterprise Security Architecture
+
+SveltyCMS implements a **multi-layered, enterprise-grade security system** that combines **build-time validation**, **runtime threat detection**, and **automated security response**. The architecture provides comprehensive protection against XSS, CSRF, injection attacks, and sophisticated threat patterns.
+
+---
+
+## Security Architecture Overview
+
+### Core Security Components
+
+1. **Build-Time Security Validation** - Static analysis and dependency security scanning
+2. **Runtime Threat Detection** - Real-time security event monitoring and correlation
+3. **Nonce-Based Content Security Policy** - Cryptographically secure XSS prevention
+4. **Automated Security Response** - Dynamic threat mitigation and blocking
+5. **Security Metrics & Analytics** - Comprehensive security monitoring dashboard
+
+---
+
+## Runtime Security Services
+
+### SecurityResponseService - Automated Threat Detection
+
+**Purpose**: Real-time threat analysis with automated response capabilities
+**File**: `src/services/SecurityResponseService.ts`
+
+```typescript
+export class SecurityResponseService {
+	private threats: Map<string, ThreatProfile> = new Map();
+	private blockedIPs: Set<string> = new Set();
+	private rateLimits: Map<string, RateLimit> = new Map();
+
+	async analyzeRequest(request: SecurityRequest): Promise<ThreatLevel> {
+		const threats = [
+			this.detectSQLInjection(request),
+			this.detectXSSAttempt(request),
+			this.detectCSRFAttack(request),
+			this.detectBruteForce(request),
+			this.detectAnomalousPatterns(request)
+		];
+
+		const maxThreat = Math.max(...threats);
+		return this.classifyThreat(maxThreat);
+	}
+
+	async executeResponse(threatLevel: ThreatLevel, clientIP: string): Promise<void> {
+		switch (threatLevel) {
+			case 'critical':
+				await this.blockIP(clientIP, '24h');
+				await this.alertSecurityTeam(threatLevel, clientIP);
+				break;
+			case 'high':
+				await this.blockIP(clientIP, '1h');
+				await this.increaseSurveillance(clientIP);
+				break;
+			case 'medium':
+				await this.applyRateLimit(clientIP, { requests: 10, window: '1m' });
+				break;
+		}
+	}
+}
+```
+
+**Key Features**:
+
+- **Multi-Vector Threat Detection**: SQL injection, XSS, CSRF, brute force analysis
+- **Dynamic Response**: Automated blocking, rate limiting, and alerting
+- **Threat Correlation**: Pattern recognition across multiple requests
+- **Escalation Management**: Graduated response based on threat severity
+
+### MetricsService - Security Analytics
+
+**Purpose**: Unified security and performance metrics with real-time analysis
+**File**: `src/services/MetricsService.ts`
+
+```typescript
+export class MetricsService {
+	// Security-specific metrics
+	incrementSecurityEvent(type: SecurityEventType): void {
+		this.counters.set(`security.${type}`, (this.counters.get(`security.${type}`) || 0) + 1);
+	}
+
+	getSecurityReport(): SecurityMetrics {
+		return {
+			totalThreats: this.counters.get('security.threats_detected') || 0,
+			blockedIPs: this.counters.get('security.ips_blocked') || 0,
+			cspViolations: this.counters.get('security.csp_violations') || 0,
+			authFailures: this.counters.get('security.auth_failures') || 0,
+			threatsByType: this.getThreatsBreakdown(),
+			securityTrends: this.calculateSecurityTrends()
+		};
+	}
+}
+```
+
+---
+
+## Content Security Policy (CSP) Implementation
+
+### Nonce-Based CSP Architecture
+
+**Purpose**: Cryptographically secure XSS prevention with dynamic nonce generation
+**File**: `src/hooks/addSecurityHeaders.ts`
+
+```typescript
+export function generateNonce(): string {
+	return crypto.randomUUID().replace(/-/g, '');
+}
+
+export function buildCSP(nonce: string): string {
+	return [
+		"default-src 'self'",
+		`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+		`style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+		"object-src 'none'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'none'",
+		'block-all-mixed-content',
+		`report-uri /api/security/csp-violations`
+	].join('; ');
+}
+
+export async function addSecurityHeaders({ event, resolve }) {
+	const response = await resolve(event);
+	const nonce = event.locals.nonce;
+
+	// Apply nonce-based CSP
+	response.headers.set('Content-Security-Policy', buildCSP(nonce));
+
+	// Additional security headers
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+	// HSTS for production
+	if (event.url.protocol === 'https:') {
+		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+	}
+
+	return response;
+}
+```
+
+**Key Features**:
+
+- **Crypto-Secure Nonces**: Unpredictable nonces prevent XSS injection
+- **Violation Reporting**: CSP violations automatically reported to security service
+- **Defense in Depth**: Multiple security headers for comprehensive protection
+- **Production Hardening**: HSTS enforcement for HTTPS-only environments
+
+### CSP Violation Handling
+
+**Purpose**: Real-time CSP violation monitoring and threat response
+**File**: `src/routes/api/security/csp-violations/+server.ts`
+
+```typescript
+export async function POST({ request, getClientAddress }) {
+	const violation = await request.json();
+	const clientIP = getClientAddress();
+
+	// Analyze violation severity
+	const threatLevel = await securityResponseService.analyzeCSPViolation({
+		violatedDirective: violation['violated-directive'],
+		blockedURI: violation['blocked-uri'],
+		sourceFile: violation['source-file'],
+		clientIP
+	});
+
+	// Execute automated response
+	await securityResponseService.executeResponse(threatLevel, clientIP);
+
+	// Update security metrics
+	metricsService.incrementSecurityEvent('csp_violation');
+
+	return new Response(null, { status: 204 });
+}
+```
+
 ---
 
 # Build-Time Security Plugin
@@ -351,14 +534,164 @@ securityCheckPlugin({
 - [Authentication System](./01_Authentication/Authentication_System.mdx) - 3-Layer Security Architecture
 - [Settings System](../User_Guide/Admin_User_Management.md) - Managing system settings
 - [Environment Variables](./00_Installation/environment-variables.md) - Static vs dynamic settings
+- [Server Hooks Architecture](./server-hooks.mdx) - Enterprise middleware pipeline
+
+---
+
+## Security Dashboard Integration
+
+### Real-Time Security Monitoring
+
+**SecurityWidget** - Enterprise security dashboard component
+**File**: `src/components/dashboard/SecurityWidget.svelte`
+
+```svelte
+<script>
+	import { onMount } from 'svelte';
+	import { securityMetrics } from '$stores/security';
+
+	let securityData = {
+		totalThreats: 0,
+		blockedIPs: 0,
+		cspViolations: 0,
+		recentEvents: []
+	};
+
+	onMount(async () => {
+		// Real-time security metrics
+		const response = await fetch('/api/security/metrics');
+		securityData = await response.json();
+
+		// Live updates
+		const eventSource = new EventSource('/api/security/events');
+		eventSource.onmessage = (event) => {
+			const securityEvent = JSON.parse(event.data);
+			securityData.recentEvents.unshift(securityEvent);
+			securityData = securityData; // Trigger reactivity
+		};
+	});
+</script>
+
+<div class="security-dashboard">
+	<div class="threat-overview">
+		<div class="metric-card critical">
+			<h3>Active Threats</h3>
+			<span class="count">{securityData.totalThreats}</span>
+		</div>
+
+		<div class="metric-card warning">
+			<h3>Blocked IPs</h3>
+			<span class="count">{securityData.blockedIPs}</span>
+		</div>
+
+		<div class="metric-card info">
+			<h3>CSP Violations</h3>
+			<span class="count">{securityData.cspViolations}</span>
+		</div>
+	</div>
+
+	<div class="security-events">
+		<h3>Recent Security Events</h3>
+		{#each securityData.recentEvents as event}
+			<div class="event {event.severity}">
+				<span class="timestamp">{new Date(event.timestamp).toLocaleTimeString()}</span>
+				<span class="type">{event.type}</span>
+				<span class="details">{event.details.ip}</span>
+			</div>
+		{/each}
+	</div>
+</div>
+```
+
+---
+
+## Security API Endpoints
+
+### Comprehensive Security Management API
+
+**Security Metrics Endpoint**
+
+```typescript
+// GET /api/security/metrics
+export async function GET() {
+	const metrics = metricsService.getSecurityReport();
+	return json(metrics);
+}
+```
+
+**Threat Management Endpoint**
+
+```typescript
+// POST /api/security/threats/block
+export async function POST({ request }) {
+	const { ip, duration, reason } = await request.json();
+
+	await securityResponseService.blockIP(ip, duration);
+	metricsService.incrementSecurityEvent('manual_block');
+
+	return json({ success: true, message: `IP ${ip} blocked for ${duration}` });
+}
+```
+
+**Security Events Stream**
+
+```typescript
+// GET /api/security/events (Server-Sent Events)
+export async function GET() {
+	const stream = new ReadableStream({
+		start(controller) {
+			securityResponseService.onSecurityEvent((event) => {
+				controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
+			});
+		}
+	});
+
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			Connection: 'keep-alive'
+		}
+	});
+}
+```
+
+---
+
+## Enterprise Security Features
+
+### Advanced Threat Detection
+
+- **Behavioral Analysis**: Pattern recognition across user sessions
+- **Anomaly Detection**: Statistical analysis of request patterns
+- **Geographic Filtering**: IP geolocation-based threat assessment
+- **Device Fingerprinting**: Hardware-based threat correlation
+
+### Automated Response Capabilities
+
+- **Dynamic Rate Limiting**: Adaptive throttling based on threat levels
+- **IP Blocking**: Temporary and permanent IP blacklisting
+- **Session Termination**: Automatic logout for compromised accounts
+- **Alert Escalation**: Real-time notifications to security teams
+
+### Compliance & Audit
+
+- **Security Event Logging**: Comprehensive audit trail
+- **Compliance Reporting**: GDPR, SOC2, ISO 27001 compliance support
+- **Forensic Analysis**: Detailed attack pattern analysis
+- **Performance Impact**: Minimal overhead security operations
+
+---
 
 ## Summary
 
-The Vite Security Plugin provides **build-time enforcement** for dynamic settings security, ensuring that:
+The enterprise security architecture provides **comprehensive protection** through:
 
-1. ✅ Private database settings never leak to client-side JavaScript
-2. ✅ Sensitive credentials remain server-only
-3. ✅ Developers get immediate feedback during build (not after deployment)
-4. ✅ Production deployments are protected from accidental credential exposure
+1. ✅ **Build-Time Validation**: Static analysis prevents vulnerabilities before deployment
+2. ✅ **Runtime Threat Detection**: Real-time analysis with automated response
+3. ✅ **Nonce-Based CSP**: Cryptographically secure XSS prevention
+4. ✅ **Automated Response**: Dynamic threat mitigation without manual intervention
+5. ✅ **Enterprise Monitoring**: Real-time security dashboard with detailed analytics
+6. ✅ **Credentials Protection**: Build-time enforcement prevents sensitive data exposure
 
-This plugin is your **last line of defense** against one of the most critical security vulnerabilities: exposing database passwords, JWT secrets, and encryption keys to the browser.
+This multi-layered approach ensures enterprise-grade security while maintaining optimal performance and user experience.

@@ -13,8 +13,7 @@
 	import Konva from 'konva';
 	import type { ZoomProps } from './zoomTypes';
 
-	const props = $props() as ZoomProps;
-	const { stage, layer, imageNode, onZoomApplied, onZoomCancelled } = props;
+	const { stage, layer, imageNode, onZoomApplied, onZoomCancelled } = $props<ZoomProps>();
 
 	let scale = $state(1);
 	let width = $state(imageNode.width());

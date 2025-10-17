@@ -129,6 +129,18 @@ Features:
 		debouncedSearchUpdate(search);
 	});
 
+	// Initialize mode based on current route on component mount
+	$effect(() => {
+		const pathname = page.url.pathname;
+		console.log('[Collections] Initialization effect - pathname:', pathname);
+
+		// Only set mode if we're not on a mediagallery route
+		if (!pathname.includes('/mediagallery') && mode.value === 'media') {
+			console.log('[Collections] Initializing mode to view for non-mediagallery route');
+			setMode('view');
+		}
+	});
+
 	// Collection counting with persistent caching
 	let collectionCountCache = new Map<string, number>();
 
@@ -169,8 +181,19 @@ Features:
 		// Track only the inputs we care about
 		const structure = nestedStructure;
 		const lang = contentLanguage.value;
-		const selectedId = collection.value?._id;
 		const expanded = expandedNodes;
+
+		// Debug logging for collections data
+		console.log('[Collections] Data loading debug:', {
+			mode: mode.value,
+			isMediaMode: mode.value === 'media',
+			structureLength: structure?.length || 0,
+			contentStructureValue: contentStructure.value?.length || 0,
+			structure: structure
+		});
+
+		// Use untrack to read the selected collection ID without creating reactivity dependency
+		const selectedId = untrack(() => collection.value?._id);
 
 		// Use untrack to prevent reading collectionStructureNodes from triggering this effect
 		untrack(() => {
@@ -582,17 +605,24 @@ Features:
 		};
 	});
 
-	// Reset mode when navigating away from mediagallery
+	// Effect to handle mode synchronization with route
 	$effect(() => {
 		const pathname = page.url.pathname;
-		// If we're NOT on the mediagallery route but mode is still 'media', reset it to 'view'
-		if (!pathname.includes('/mediagallery') && mode.value === 'media') {
-			console.log('[Collections] Not on mediagallery route, resetting mode from media to view');
-			setMode('view');
-		}
-	});
+		console.log('[Collections] Route effect triggered - pathname:', pathname, 'current mode:', mode.value);
 
-	// Cleanup on unmount
+		// Directly set mode based on current route
+		if (pathname.includes('/mediagallery')) {
+			if (mode.value !== 'media') {
+				console.log('[Collections] Setting mode to media for mediagallery route');
+				setMode('media');
+			}
+		} else {
+			if (mode.value === 'media') {
+				console.log('[Collections] Resetting mode to view for non-mediagallery route, pathname:', pathname);
+				setMode('view');
+			}
+		}
+	}); // Cleanup on unmount
 	$effect(() => {
 		return () => {
 			if (navigationTimeout) {
@@ -603,7 +633,7 @@ Features:
 </script>
 
 <div class="collections-container mt-2" role="navigation" aria-label="Collections navigation">
-	{#if !isMediaMode}
+	{#if !isMediaMode || true}
 		<!-- Search Input -->
 		<div class="{isFullSidebar ? 'mb-2 w-full' : 'mb-1 max-w-[135px]'} input-group input-group-divider grid grid-cols-[1fr_auto]">
 			<div class="relative">
@@ -648,6 +678,14 @@ Features:
 				<button class="variant-filled-error btn btn-sm mt-2" onclick={() => window.location.reload()}> Retry </button>
 			</div>
 		{:else if collectionStructureNodes.length > 0}
+			<!-- Collections Header in Media Mode -->
+			{#if isMediaMode && isFullSidebar}
+				<div class="mb-2 flex items-center border-b border-surface-300 pb-2">
+					<iconify-icon icon="bi:collection" width="20" class="mr-2 text-error-500"></iconify-icon>
+					<h3 class="text-sm font-medium text-surface-700 dark:text-surface-300">Collections</h3>
+				</div>
+			{/if}
+
 			<TreeView
 				k={0}
 				nodes={collectionStructureNodes}
@@ -718,6 +756,12 @@ Features:
 		</button>
 
 		<!-- Enhanced Virtual Folders Display -->
+		{#if isFullSidebar}
+			<div class="mb-2 mt-4 flex items-center border-b border-surface-300 pb-2">
+				<iconify-icon icon="bi:folder" width="20" class="mr-2 text-primary-500"></iconify-icon>
+				<h3 class="text-sm font-medium text-surface-700 dark:text-surface-300">Media Folders</h3>
+			</div>
+		{/if}
 		{#if isLoading}
 			<div class="p-4 text-center">
 				<div class="flex items-center justify-center space-x-2">

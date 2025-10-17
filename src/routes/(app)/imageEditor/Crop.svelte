@@ -1,81 +1,216 @@
-<!-- 
+<!--
 @file src/routes/(app)/imageEditor/Crop.svelte
 @component
-**This component provides cropping functionality for an image within a Konva stage, allowing users to define a crop area and apply the crop**
+**Crop tool - Konva canvas logic only**
+Handles crop, rotate, scale transformations on the Konva canvas.
+UI components are external (CropTopToolbar, CropBottomBar).
 
-### Props 
-- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
-- `imageNode`: Konva.Image - The Konva image node representing the original image.
-- `onCropApplied` (optional): Function to be called when the crop is applied.
-- `onCancelCrop` (optional): Function to be called when the crop is canceled.
-- `onCropReset` (optional): Function to be called when the crop is reset.
+### Props
+- `stage`: Konva.Stage - The Konva stage
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added
+- `imageNode`: Konva.Image - The Konva image node representing the original image
+- `container`: Konva.Group - The container group holding the image
+- `onApply`: Function called when crop is applied
+- `onCancel`: Function called when crop is canceled
+
+### Exports
+- `cropShape`: Current crop shape (bindable)
+- `rotationAngle`: Current rotation angle (bindable)
+- `scaleValue`: Current scale percentage (bindable)
+- `rotateLeft()`: Rotate -90 degrees
+- `flipHorizontal()`: Flip horizontally
+- `setCropShape()`: Change crop shape
+- `apply()`: Apply crop and exit
 -->
 
 <script lang="ts">
 	import Konva from 'konva';
 
 	interface Props {
+		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		onCrop?: (data: { x: number; y: number; width: number; height: number; shape: string }) => void;
-		onCancelCrop?: () => void;
-		onCropReset?: () => void;
+		container: Konva.Group;
+		cropShape?: 'rectangle' | 'square' | 'circular';
+		rotationAngle?: number;
+		scaleValue?: number;
+		onApply?: (data: { x: number; y: number; width: number; height: number; shape: string }) => void;
+		onCancel?: () => void;
 	}
 
-	const { layer, imageNode, onCrop = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
+	let {
+		stage,
+		layer,
+		imageNode,
+		container,
+		cropShape = $bindable('rectangle'),
+		rotationAngle = $bindable(0),
+		scaleValue = $bindable(100),
+		onApply = () => {},
+		onCancel = () => {}
+	} = $props() as Props;
 
-	let cropShape = $state<'rectangle' | 'square' | 'circular'>('rectangle');
+	// Internal state
 	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);
 	let transformer = $state<Konva.Transformer | null>(null);
 	let cropOverlay = $state<Konva.Rect | null>(null);
+	let cropHighlight = $state<Konva.Rect | Konva.Circle | null>(null);
+	let rotationGrid = $state<Konva.Group | null>(null);
+	let isFlippedH = $state(false);
+	let isFlippedV = $state(false);
+	let aspectRatio = $state<string>('free'); // 'free', '1:1', '4:3', '16:9', '3:2', '9:16'
 
-	// Initialize crop tool
-	$effect.root(() => {
-		initCropTool();
+	// Initialize crop tool once on mount
+	let mounted = false;
+
+	$effect(() => {
+		if (!mounted && stage && layer && imageNode && container) {
+			mounted = true;
+			console.log('Crop tool mounted, initializing...', { stage, layer, imageNode, container });
+
+			// Small delay to ensure all Konva elements are ready
+			setTimeout(() => {
+				initCropTool();
+			}, 10);
+
+			return () => {
+				// Cleanup on unmount
+				console.log('Crop tool unmounting, cleaning up...');
+				cleanupCropTool();
+				cleanupRotationGrid();
+			};
+		}
 	});
 
+	// ========== CROP FUNCTIONS ==========
+
+	function parseAspectRatio(ratio: string): number | null {
+		if (ratio === 'free') return null;
+		const [w, h] = ratio.split(':').map(Number);
+		return w / h;
+	}
+
 	function initCropTool() {
+		console.log('initCropTool called', { imageNode, layer, cropShape, container });
+
+		// Validate required elements
+		if (!stage || !layer || !imageNode || !container) {
+			console.error('Missing required elements for crop tool initialization');
+			return;
+		}
+
 		// Clear previous crop tool and transformer
 		if (cropTool) cropTool.destroy();
 		if (transformer) transformer.destroy();
 		if (cropOverlay) cropOverlay.destroy();
+		if (cropHighlight) cropHighlight.destroy();
 
-		const imageWidth = imageNode.width();
-		const imageHeight = imageNode.height();
-		const size = Math.min(imageWidth, imageHeight) / 4; // Reduced initial size
+		// Get the actual rendered dimensions in stage coordinates
+		// The image is inside a transformed container, so we need to get the bounding box
+		const containerBox = container.getClientRect();
+		const stageWidth = stage.width();
+		const stageHeight = stage.height();
 
-		// Create an overlay to dim the area outside the crop region
+		// Validate dimensions
+		if (containerBox.width === 0 || containerBox.height === 0) {
+			console.error('Container has zero dimensions:', containerBox);
+			return;
+		}
+
+		// Calculate crop size based on the visible image size
+		const visibleWidth = containerBox.width;
+		const visibleHeight = containerBox.height;
+		const size = Math.min(visibleWidth, visibleHeight) * 0.6; // 60% of smallest dimension
+
+		console.log('Container dimensions:', {
+			containerBox,
+			visibleWidth,
+			visibleHeight,
+			size,
+			stageWidth,
+			stageHeight
+		});
+
+		// Create a group for the overlay effect (dark outside, clear inside)
+		// This prevents the cutout from affecting the image layer
+		const overlayGroup = new Konva.Group({
+			name: 'cropOverlayGroup'
+		});
+
+		// Create dark overlay covering entire stage
 		cropOverlay = new Konva.Rect({
 			x: 0,
 			y: 0,
-			width: imageWidth,
-			height: imageHeight,
-			fill: 'rgba(0, 0, 0, 0.5)',
-			globalCompositeOperation: 'destination-over',
-			listening: false
+			width: stageWidth,
+			height: stageHeight,
+			fill: 'rgba(0, 0, 0, 0.7)',
+			listening: false,
+			name: 'cropOverlay'
 		});
 
-		layer.add(cropOverlay);
+		overlayGroup.add(cropOverlay);
 
-		// Initialize the crop tool
+		// Initialize the crop tool in stage coordinates (center of visible image)
+		const centerX = containerBox.x + containerBox.width / 2;
+		const centerY = containerBox.y + containerBox.height / 2;
+
+		// Create the cutout shape (punches hole in overlay within this group only)
+		if (cropShape === 'circular') {
+			cropHighlight = new Konva.Circle({
+				x: centerX,
+				y: centerY,
+				radius: size / 2,
+				fill: 'black',
+				globalCompositeOperation: 'destination-out',
+				listening: false,
+				name: 'cropHighlight'
+			});
+		} else {
+			cropHighlight = new Konva.Rect({
+				x: centerX - size / 2,
+				y: centerY - (cropShape === 'square' ? size / 2 : (size * 0.75) / 2),
+				width: size,
+				height: cropShape === 'square' ? size : size * 0.75,
+				fill: 'black',
+				globalCompositeOperation: 'destination-out',
+				listening: false,
+				name: 'cropHighlight'
+			});
+		}
+
+		overlayGroup.add(cropHighlight);
+
+		// CRITICAL: Cache the group to make globalCompositeOperation work
+		// Use stage dimensions for cache to avoid dimension errors on resize
+		overlayGroup.cache({
+			x: 0,
+			y: 0,
+			width: stageWidth,
+			height: stageHeight,
+			pixelRatio: 1
+		});
+
+		layer.add(overlayGroup);
+
+		// Create the crop tool border
 		if (cropShape === 'circular') {
 			cropTool = new Konva.Circle({
-				x: imageWidth / 2,
-				y: imageHeight / 2,
+				x: centerX,
+				y: centerY,
 				radius: size / 2,
 				stroke: 'white',
-				strokeWidth: 3, // Consistent stroke width
+				strokeWidth: 3,
 				draggable: true,
 				name: 'cropTool'
 			});
 		} else {
 			cropTool = new Konva.Rect({
-				x: (imageWidth - size) / 2,
-				y: (imageHeight - size) / 2,
+				x: centerX - size / 2,
+				y: centerY - (cropShape === 'square' ? size / 2 : (size * 0.75) / 2),
 				width: size,
 				height: cropShape === 'square' ? size : size * 0.75,
 				stroke: 'white',
-				strokeWidth: 3, // Consistent stroke width
+				strokeWidth: 3,
 				draggable: true,
 				name: 'cropTool'
 			});
@@ -83,24 +218,56 @@
 
 		layer.add(cropTool);
 
+		// Proper layering: image → overlay group (with cutout) → crop tool border
+		container.moveToTop();
+		overlayGroup.moveToTop();
+		cropTool.moveToTop();
+
 		// Configure the transformer tool
+		const ratio = parseAspectRatio(aspectRatio);
+		const shouldKeepRatio = cropShape !== 'rectangle' || ratio !== null;
+
 		transformer = new Konva.Transformer({
 			nodes: [cropTool],
-			keepRatio: cropShape !== 'rectangle',
+			keepRatio: shouldKeepRatio,
 			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+			rotateEnabled: true,
+			rotationSnaps: [0, 45, 90, 135, 180, 225, 270, 315],
 			anchorStrokeWidth: 2,
 			anchorSize: 10,
 			borderStrokeWidth: 2,
+			borderStroke: 'white',
+			anchorStroke: 'white',
+			anchorFill: '#4f46e5', // Primary color
+			rotateAnchorOffset: 30,
 			boundBoxFunc: (oldBox, newBox) => {
 				// Limit resize
 				if (newBox.width < 30 || newBox.height < 30) {
 					return oldBox;
 				}
+
+				// Apply aspect ratio constraint if set
+				if (ratio !== null && cropShape === 'rectangle') {
+					const width = newBox.width;
+					const height = width / ratio;
+					return {
+						...newBox,
+						height: Math.max(30, height)
+					};
+				}
+
 				return newBox;
 			}
 		});
 
 		layer.add(transformer);
+		transformer.moveToTop(); // Ensure transformer is on top
+
+		// Set up interaction handlers for smooth caching
+		cropTool.on('transformstart', () => {
+			// Disable cache during interaction for smooth updates
+			overlayGroup.clearCache();
+		});
 
 		cropTool.on('transform', () => {
 			if (cropTool instanceof Konva.Circle) {
@@ -109,70 +276,344 @@
 				cropTool.scaleX(1);
 				cropTool.scaleY(1);
 			}
+			// Update highlight without re-caching during transform
+			updateHighlight(false);
 		});
 
+		cropTool.on('transformend', () => {
+			// Re-cache after transform is complete
+			updateHighlight(true);
+		});
+
+		cropTool.on('dragstart', () => {
+			// Disable cache during drag
+			overlayGroup?.clearCache();
+		});
+
+		// Add drag boundary to keep crop tool within image bounds
+		cropTool.on('dragmove', () => {
+			const pos = cropTool.position();
+			const bounds = {
+				minX: containerBox.x,
+				minY: containerBox.y,
+				maxX: containerBox.x + containerBox.width,
+				maxY: containerBox.y + containerBox.height
+			};
+
+			if (cropTool instanceof Konva.Circle) {
+				const radius = cropTool.radius();
+				pos.x = Math.max(bounds.minX + radius, Math.min(pos.x, bounds.maxX - radius));
+				pos.y = Math.max(bounds.minY + radius, Math.min(pos.y, bounds.maxY - radius));
+			} else {
+				const width = cropTool.width();
+				const height = cropTool.height();
+				pos.x = Math.max(bounds.minX, Math.min(pos.x, bounds.maxX - width));
+				pos.y = Math.max(bounds.minY, Math.min(pos.y, bounds.maxY - height));
+			}
+
+			cropTool.position(pos);
+			// Update highlight without re-caching during drag
+			updateHighlight(false);
+		});
+
+		cropTool.on('dragend', () => {
+			// Re-cache after drag is complete
+			updateHighlight(true);
+		});
+
+		layer.batchDraw();
+
+		// Force redraw to ensure visibility
+		stage.batchDraw();
+
+		console.log('Crop tool initialized and drawn', {
+			cropTool: cropTool?.attrs,
+			transformer: transformer?.attrs,
+			cropOverlay: cropOverlay?.attrs,
+			centerX,
+			centerY,
+			layerChildren: layer.getChildren().length,
+			cropToolVisible: cropTool?.visible(),
+			transformerVisible: transformer?.visible()
+		});
+	}
+
+	function updateHighlight(shouldCache: boolean = true) {
+		if (!cropTool || !cropHighlight) return;
+
+		// Get the overlay group
+		const overlayGroup = layer.findOne('.cropOverlayGroup') as Konva.Group;
+		if (!overlayGroup) return;
+
+		// Sync highlight with crop tool's transform properties
+		if (cropTool instanceof Konva.Circle && cropHighlight instanceof Konva.Circle) {
+			// For circles, sync position and radius
+			cropHighlight.position(cropTool.position());
+			cropHighlight.radius(cropTool.radius());
+			cropHighlight.rotation(cropTool.rotation());
+			cropHighlight.scaleX(cropTool.scaleX());
+			cropHighlight.scaleY(cropTool.scaleY());
+		} else if (cropTool instanceof Konva.Rect && cropHighlight instanceof Konva.Rect) {
+			// For rectangles, sync all transform properties including rotation
+			cropHighlight.position(cropTool.position());
+			cropHighlight.width(cropTool.width());
+			cropHighlight.height(cropTool.height());
+			cropHighlight.rotation(cropTool.rotation());
+			cropHighlight.scaleX(cropTool.scaleX());
+			cropHighlight.scaleY(cropTool.scaleY());
+		}
+
+		// Only re-cache after interaction is complete, not during
+		if (shouldCache) {
+			const stageWidth = stage.width();
+			const stageHeight = stage.height();
+			overlayGroup.cache({
+				x: 0,
+				y: 0,
+				width: stageWidth,
+				height: stageHeight,
+				pixelRatio: 1
+			});
+		}
+
+		layer.batchDraw();
+	}
+
+	function cleanupCropTool() {
+		if (cropTool) {
+			cropTool.destroy();
+			cropTool = null;
+		}
+		if (transformer) {
+			transformer.destroy();
+			transformer = null;
+		}
+		// Remove overlay group (contains both overlay and highlight)
+		const overlayGroup = layer.findOne('.cropOverlayGroup');
+		if (overlayGroup) {
+			overlayGroup.destroy();
+		}
+		// Also clean individual refs
+		if (cropOverlay) {
+			cropOverlay = null;
+		}
+		if (cropHighlight) {
+			cropHighlight = null;
+		}
 		layer.draw();
 	}
 
-	function applyCrop() {
-		if (!cropTool) return;
+	// ========== ROTATION FUNCTIONS ==========
 
+	function initRotationGrid() {
+		cleanupRotationGrid();
+
+		// Create rule of thirds grid
+		rotationGrid = new Konva.Group();
+
+		const stageWidth = stage.width();
+		const stageHeight = stage.height();
+
+		// Vertical lines
+		for (let i = 1; i <= 2; i++) {
+			const line = new Konva.Line({
+				points: [(stageWidth / 3) * i, 0, (stageWidth / 3) * i, stageHeight],
+				stroke: 'rgba(255, 255, 255, 0.5)',
+				strokeWidth: 1,
+				dash: [5, 5],
+				listening: false
+			});
+			rotationGrid.add(line);
+		}
+
+		// Horizontal lines
+		for (let i = 1; i <= 2; i++) {
+			const line = new Konva.Line({
+				points: [0, (stageHeight / 3) * i, stageWidth, (stageHeight / 3) * i],
+				stroke: 'rgba(255, 255, 255, 0.5)',
+				strokeWidth: 1,
+				dash: [5, 5],
+				listening: false
+			});
+			rotationGrid.add(line);
+		}
+
+		layer.add(rotationGrid);
+		rotationGrid.moveToTop();
+		layer.draw();
+	}
+
+	function cleanupRotationGrid() {
+		if (rotationGrid) {
+			rotationGrid.destroy();
+			rotationGrid = null;
+			layer.draw();
+		}
+	}
+
+	function applyRotation() {
+		if (container) {
+			container.rotation(rotationAngle);
+			layer.draw();
+		}
+	}
+
+	// Watch for rotation angle changes
+	let lastAppliedRotation = 0;
+	$effect(() => {
+		if (rotationAngle !== lastAppliedRotation) {
+			lastAppliedRotation = rotationAngle;
+			applyRotation();
+		}
+	});
+
+	// ========== SCALE FUNCTIONS ==========
+
+	function applyScale() {
+		if (container) {
+			const scale = scaleValue / 100;
+			container.scale({ x: scale, y: scale });
+
+			// Center the scaled image
+			const imageWidth = imageNode.width() * scale;
+			const imageHeight = imageNode.height() * scale;
+			const stageWidth = stage.width();
+			const stageHeight = stage.height();
+
+			container.position({
+				x: (stageWidth - imageWidth) / 2,
+				y: (stageHeight - imageHeight) / 2
+			});
+
+			layer.draw();
+		}
+	}
+
+	// Watch for scale value changes
+	let lastAppliedScale = 100;
+	$effect(() => {
+		if (scaleValue !== lastAppliedScale) {
+			lastAppliedScale = scaleValue;
+			applyScale();
+		}
+	});
+
+	// ========== EXPORTED FUNCTIONS ==========
+
+	export function rotateLeft() {
+		console.log('rotateLeft called, current angle:', rotationAngle);
+		rotationAngle = (rotationAngle - 90) % 360;
+		console.log('New angle:', rotationAngle);
+	}
+
+	export function flipHorizontal() {
+		console.log('flipHorizontal called');
+		isFlippedH = !isFlippedH;
+		if (container) {
+			container.scaleX(container.scaleX() * -1);
+			layer.draw();
+		}
+	}
+
+	export function flipVertical() {
+		isFlippedV = !isFlippedV;
+		if (container) {
+			container.scaleY(container.scaleY() * -1);
+			layer.draw();
+		}
+	}
+
+	export function setCropShape(shape: 'rectangle' | 'square' | 'circular') {
+		cropShape = shape;
+		initCropTool();
+	}
+
+	export function cleanup() {
+		console.log('Manual cleanup called from parent');
+		cleanupCropTool();
+		cleanupRotationGrid();
+	}
+
+	export function setAspectRatio(ratio: string) {
+		console.log('Setting aspect ratio:', ratio);
+		aspectRatio = ratio;
+
+		// Reinitialize crop tool with new aspect ratio constraint
+		if (cropTool && transformer) {
+			initCropTool();
+		}
+	}
+
+	export function apply() {
+		if (!cropTool) {
+			onApply({ x: 0, y: 0, width: 0, height: 0, shape: cropShape });
+			return;
+		}
+
+		// Get crop tool bounds in stage coordinates BEFORE cleanup
+		const cropBox = cropTool.getClientRect();
+
+		// Get container transform to convert from stage space to image space
+		const containerTransform = container.getAbsoluteTransform();
+		const containerInverse = containerTransform.copy().invert();
+
+		// Convert crop box corners from stage coordinates to image coordinates
+		const topLeft = containerInverse.point({ x: cropBox.x, y: cropBox.y });
+		const bottomRight = containerInverse.point({
+			x: cropBox.x + cropBox.width,
+			y: cropBox.y + cropBox.height
+		});
+
+		// Get the current image dimensions (might already be cropped)
+		const currentWidth = imageNode.width();
+		const currentHeight = imageNode.height();
+
+		// Check if image is already cropped
+		const existingCropX = imageNode.cropX() || 0;
+		const existingCropY = imageNode.cropY() || 0;
+
+		// Calculate crop rectangle in image coordinate space
+		// The image node is centered at (0, 0) relative to the container
+		// So we need to offset by current width/height divided by 2
+		const offsetX = currentWidth / 2;
+		const offsetY = currentHeight / 2;
+
+		// Convert to image pixel coordinates relative to current crop
+		const relativeX = Math.max(0, Math.min(currentWidth, Math.round(topLeft.x + offsetX)));
+		const relativeY = Math.max(0, Math.min(currentHeight, Math.round(topLeft.y + offsetY)));
+		const relativeWidth = Math.max(1, Math.min(currentWidth - relativeX, Math.round(bottomRight.x - topLeft.x)));
+		const relativeHeight = Math.max(1, Math.min(currentHeight - relativeY, Math.round(bottomRight.y - topLeft.y)));
+
+		// If this is a successive crop, add to existing crop coordinates
 		const cropData = {
-			x: cropTool.x(),
-			y: cropTool.y(),
-			width: cropTool.width ? cropTool.width() : (cropTool as Konva.Circle).radius() * 2,
-			height: cropTool.height ? cropTool.height() : (cropTool as Konva.Circle).radius() * 2,
+			x: existingCropX + relativeX,
+			y: existingCropY + relativeY,
+			width: relativeWidth,
+			height: relativeHeight,
 			shape: cropShape
 		};
 
-		onCrop(cropData);
+		console.log('Applying crop:', {
+			cropBox,
+			containerTransform: containerTransform.m,
+			topLeft,
+			bottomRight,
+			currentSize: { currentWidth, currentHeight },
+			existingCrop: { existingCropX, existingCropY },
+			relative: { relativeX, relativeY, relativeWidth, relativeHeight },
+			finalCropData: cropData
+		});
+
+		// Cleanup UI elements AFTER getting crop data
+		cleanupCropTool();
+		cleanupRotationGrid();
+
+		onApply(cropData);
 	}
 
-	function exitCrop() {
-		onCancelCrop();
+	export function cancel() {
+		onCancel();
 	}
-
-	function resetCrop() {
-		initCropTool();
-		onCropReset();
-	}
-
-	// Effect to reinitialize crop tool when shape changes
-	$effect.root(() => {
-		if (cropShape) {
-			initCropTool();
-		}
-	});
 </script>
 
-<!-- Crop Controls UI -->
-<div class="wrapper">
-	<div class="flex w-full items-center justify-between">
-		<div class="flex items-center gap-2">
-			<!-- Back button at top of component -->
-			<button onclick={exitCrop} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
-				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
-			</button>
-
-			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Crop Settings</h3>
-		</div>
-
-		<div class="flex flex-col space-y-2">
-			<label for="cropShape" class="text-sm font-medium">Crop Shape:</label>
-			<select id="cropShape" bind:value={cropShape} class="select-bordered select">
-				<option value="rectangle">Rectangle</option>
-				<option value="square">Square</option>
-				<option value="circular">Circular</option>
-			</select>
-		</div>
-
-		<div class="mt-4 flex justify-around gap-4">
-			<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn text-center">Reset</button>
-
-			<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
-				<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
-				Apply Crop
-			</button>
-		</div>
-	</div>
-</div>
+<!-- No UI - this component only handles Konva canvas logic -->

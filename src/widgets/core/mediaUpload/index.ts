@@ -15,7 +15,11 @@
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { array, minLength, optional, pipe, string, type Input } from 'valibot';
+
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
+import { array, minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { MediaProps } from './types';
 
 // The validation schema is a function that adapts to the `multiupload` setting.
@@ -51,7 +55,7 @@ const MediaWidget = createWidget<MediaProps, ReturnType<typeof validationSchema>
 
 	// Aggregation performs a lookup to search by the actual media file name.
 	aggregations: {
-		filters: async ({ field, filter }) => [
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
 			// Join with the 'media_files' collection.
 			{
 				$lookup: {

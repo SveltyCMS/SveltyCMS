@@ -124,12 +124,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 				'success'
 			);
 
-			// Return a success payload so parent components can react (e.g., switch views)
+			// Invalidate data first, then close modal
+			await invalidateAll();
+
+			// Close modal and trigger response handler
+			console.log('Closing modal with success result:', { success: true, action: isEditMode ? 'edit' : 'create' }); // Debug log
 			if (parent.onClose) {
 				(parent.onClose as any)({ success: true, action: isEditMode ? 'edit' : 'create' });
 			}
+			// Close modal with response data
+			if ($modalStore[0]?.response) {
+				$modalStore[0].response({ success: true, action: isEditMode ? 'edit' : 'create' });
+			}
 			modalStore.close();
-			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'An unknown error occurred';
 			showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`, 'error');
@@ -151,12 +158,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 			}
 
 			showToast(`<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_deleted_successfully()}`, 'success');
-			// Return success so parent can update UI
+			// Invalidate data first, then close modal
+			await invalidateAll();
+
+			// Close modal and trigger response handler
+			console.log('Closing modal after delete with success result:', { success: true, action: 'delete' }); // Debug log
 			if (parent.onClose) {
 				(parent.onClose as any)({ success: true, action: 'delete' });
 			}
+			// Close modal with response data
+			if ($modalStore[0]?.response) {
+				$modalStore[0].response({ success: true, action: 'delete' });
+			}
 			modalStore.close();
-			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.
@@ -185,7 +199,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
@@ -196,7 +210,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
-		<article class="text-center text-sm">
+		<article class="text-center text-sm text-black dark:text-white">
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
 		<form class="modal-form {cForm}" onsubmit={onFormSubmit} id="token-form">
@@ -211,6 +225,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					required
 					autocomplete="email"
 					icon="mdi:email"
+					inputClass="dark-mode-input"
 				/>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -254,7 +269,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 			<!-- Expires field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<label for="expires-select" class="mb-2 block text-sm font-medium text-black dark:text-white">{m.modaltokenuser_tokenvalidity()}</label>
-				<select id="expires-select" bind:value={formData.expires} class="input" aria-label="Token Validity">
+				<select
+					id="expires-select"
+					bind:value={formData.expires}
+					class="input bg-white text-black dark:bg-surface-700 dark:text-white"
+					aria-label="Token Validity"
+				>
 					<option value="2 hrs">2 Hours</option>
 					<option value="12 hrs">12 Hours</option>
 					<option value="2 days">2 Days (default)</option>
@@ -283,3 +303,13 @@ It handles token creation, updates, and deletion with proper validation and erro
 		</footer>
 	</div>
 {/if}
+
+<style>
+	:global(.dark-mode-input) {
+		color: black;
+	}
+
+	:global(.dark .dark-mode-input) {
+		color: white;
+	}
+</style>

@@ -60,6 +60,9 @@
 	// Define password as state
 	let password = $state('hash-password');
 
+	// Two-Factor Auth modal state
+	let show2FAModal = $state(false);
+
 	// Function to execute actions
 	function executeActions() {
 		const actions = $triggerActionStore;
@@ -173,7 +176,7 @@
 				/>
 
 				<!-- Edit button -->
-				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
@@ -182,6 +185,22 @@
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
 					{m.role()}<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
+				<!-- Two-Factor Authentication Status -->
+				{#if is2FAEnabledGlobal}
+					<button onclick={() => (show2FAModal = !show2FAModal)} class="variant-ghost-surface btn-sm w-full max-w-xs">
+						<div class="flex w-full items-center justify-between">
+							<span>Two-Factor Auth</span>
+							<div class="flex items-center gap-1">
+								<iconify-icon
+									icon="mdi:{user?.is2FAEnabled ? 'shield-check' : 'shield-off'}"
+									width="20"
+									class={user?.is2FAEnabled ? 'text-primary-500' : 'text-error-500'}
+								></iconify-icon>
+								<span class="text-xs">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
+							</div>
+						</div>
+					</button>
+				{/if}
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
 					<div class="gradient-primary badge w-full max-w-xs text-white">
@@ -235,8 +254,8 @@
 		</div>
 	</div>
 
-	{#if is2FAEnabledGlobal}
-		<!-- Two-Factor Authentication Section -->
+	<!-- Two-Factor Authentication Section -->
+	{#if is2FAEnabledGlobal && show2FAModal}
 		<div class="wrapper2 mb-4">
 			<TwoFactorAuth {user} />
 		</div>
@@ -254,7 +273,7 @@
 		silent={true}
 	>
 		<div class="wrapper2">
-			<AdminArea adminData={data.adminData} currentUser={user} roles={data.roles} />
+			<AdminArea currentUser={user} {isMultiTenant} roles={data.roles} />
 		</div>
 	</PermissionGuard>
 </div>

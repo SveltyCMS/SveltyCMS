@@ -35,9 +35,19 @@ It handles widget configuration, permissions, and specific options.
 
 	// Local variables
 	let modalData = $derived($modalStore[0]);
-	let widgetKey = $derived(modalData?.value?.widget?.key as string);
+	// Widget key is the folder name (lowercase), not the widget Name
+	let widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
 	let availableWidgets = $derived($widgetFunctions || {});
 	let guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
+
+	// Debug logging
+	$effect(() => {
+		console.log('Modal data:', modalData);
+		console.log('Widget key:', widgetKey);
+		console.log('Available widgets:', Object.keys(availableWidgets));
+		console.log('GuiSchema:', guiSchema);
+		console.log('GuiSchema keys:', Object.keys(guiSchema));
+	});
 
 	// Derive options from guiSchema
 	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);
@@ -60,10 +70,10 @@ It handles widget configuration, permissions, and specific options.
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			if (collectionValue && Array.isArray(collectionValue.fields)) {
-				const newFields = (collectionValue.fields as any[]).filter((field: any) => field.id !== modalData?.value.id);
+			if (collectionValue && Array.isArray(collectionValue.value.fields)) {
+				const newFields = (collectionValue.value.fields as any[]).filter((field: any) => field.id !== modalData?.value.id);
 				setCollectionValue({
-					...collectionValue,
+					...collectionValue.value,
 					fields: newFields
 				});
 			}

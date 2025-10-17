@@ -160,6 +160,15 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 		}
 		setMode('view');
 		invalidateCollectionCache(collId);
+
+		// Clear client-side cache in EntryList component
+		if (typeof document !== 'undefined') {
+			document.dispatchEvent(
+				new CustomEvent('clearEntryListCache', {
+					detail: { reason: 'entry-saved', collectionId: collId }
+				})
+			);
+		}
 	} else {
 		showToast(result.error || 'Failed to save entry', 'error');
 	}

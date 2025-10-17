@@ -231,10 +231,7 @@ export class MediaService {
 						version: 1,
 						url: fileInfo.url,
 						createdAt: new Date(),
-						createdBy: userId,
-						size: file.size,
-						hash: fileInfo.hash,
-						processingTimeMs: performance.now() - startTime
+						createdBy: userId
 					}
 				],
 				access,
@@ -246,7 +243,7 @@ export class MediaService {
 
 			logger.debug('Saving media to database', {
 				filename: cleanMedia.filename,
-				type: cleanMedia.type,
+				mimeType: cleanMedia.mimeType,
 				processingTime: performance.now() - startTime
 			});
 
@@ -282,23 +279,21 @@ export class MediaService {
 				stack: err instanceof Error ? err.stack : undefined,
 				processingTime: performance.now() - startTime
 			});
-			throw error(500, {
-				message,
-				fileName: file?.name,
-				error: err instanceof Error ? err.stack : undefined,
-				processingTime: performance.now() - startTime
-			});
+			throw error(500, message);
 		}
 	}
 
 	private createCleanMediaObject(object: MediaBaseWithThumbnails): Omit<MediaItem, '_id'> {
-		const dbObject = {
+		const dbObject: Omit<MediaItem, '_id'> = {
 			...object,
+			originalFilename: object.filename, // Use filename as originalFilename
 			createdAt: object.createdAt.toISOString() as ISODateString,
 			updatedAt: object.updatedAt.toISOString() as ISODateString,
 			createdBy: object.user as DatabaseId,
-			updatedBy: object.user as DatabaseId
-		} as Omit<MediaItem, '_id'>;
+			updatedBy: object.user as DatabaseId,
+			thumbnails: object.thumbnails || {},
+			metadata: object.metadata || {}
+		};
 
 		return dbObject;
 	}

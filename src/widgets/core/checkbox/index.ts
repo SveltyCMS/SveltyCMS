@@ -14,6 +14,10 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { createWidget } from '@src/widgets/factory';
+
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
 import { boolean, type InferInput as ValibotInput } from 'valibot';
 
 import type { CheckboxProps } from './types';
@@ -57,8 +61,8 @@ const CheckboxWidget = createWidget<CheckboxProps>({
 
 	// Correct database aggregation logic for booleans.
 	aggregations: {
-		filters: async ({ field, filter }) => [{ $match: { [field.db_fieldName]: filter === 'true' } }],
-		sorts: async ({ field, sortDirection }) => ({
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [{ $match: { [field.db_fieldName]: filter === 'true' } }],
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
 			[field.db_fieldName]: sortDirection
 		})
 	},

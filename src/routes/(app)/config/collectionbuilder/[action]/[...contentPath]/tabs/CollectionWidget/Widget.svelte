@@ -51,7 +51,7 @@
 
 	// Fields state with proper typing
 	let fields = $state<Field[]>(
-		((collectionValue.fields as any[]) || []).map((field, index) => {
+		((collectionValue.value.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -64,7 +64,7 @@
 
 	// Effect to update fields when collection value changes
 	$effect.root(() => {
-		fields = ((collectionValue.fields as any[]) || []).map((field, index) => {
+		fields = ((collectionValue.value.fields as any[]) || []).map((field, index) => {
 			const baseField = {
 				id: index + 1,
 				label: field.label || '',
@@ -168,7 +168,7 @@
 
 		// Update the collection fields
 		setCollectionValue({
-			...collectionValue,
+			...collectionValue.value,
 			fields
 		});
 

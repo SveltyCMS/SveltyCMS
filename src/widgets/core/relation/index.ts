@@ -23,6 +23,10 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
+
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; collection: string; displayField: string; [key: string]: unknown };
+
 import { minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
 import type { RelationProps } from './types';
 
@@ -68,7 +72,7 @@ const RelationWidget = createWidget<RelationProps, ReturnType<typeof validationS
 	},
 	// Aggregation performs a lookup to search by the related entry's displayField.
 	aggregations: {
-		filters: async ({ field, filter }) => [
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
 			{ $lookup: { from: field.collection, localField: field.db_fieldName, foreignField: '_id', as: 'related_doc' } },
 			{ $match: { [`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' } } }
 		]

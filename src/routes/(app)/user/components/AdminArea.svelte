@@ -62,11 +62,6 @@
 		[key: string]: any;
 	}
 
-	interface AdminData {
-		users: UserData[];
-		tokens: TokenData[];
-	}
-
 	interface TableHeader {
 		label: string;
 		key: string;
@@ -79,40 +74,93 @@
 		isSorted: number; // 1: asc, -1: desc, 0: none
 	}
 
-	// Props
+	// Props - Using API for scalability
 	let {
-		adminData,
 		currentUser = null,
 		isMultiTenant = false,
 		roles = []
-	} = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean; roles?: Role[] }>();
+	} = $props<{ currentUser?: { _id: string; [key: string]: any } | null; isMultiTenant?: boolean; roles?: Role[] }>();
 
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
+
+	// State for API-fetched data (replaces adminData usage for scalability)
+	let tableData = $state<(UserData | TokenData)[]>([]);
+	let totalItems = $state(0);
+
+	async function fetchData() {
+		isLoading = true;
+		const endpoint = showUserList ? '/api/admin/users' : '/api/admin/tokens';
+		const params = new URLSearchParams();
+		params.set('page', String(currentPage));
+		params.set('limit', String(rowsPerPage));
+		params.set('sort', sorting.sortedBy || 'createdAt');
+		if (sorting.isSorted !== 0) {
+			params.set('order', sorting.isSorted === 1 ? 'asc' : 'desc');
+		}
+		if (globalSearchValue) {
+			params.set('search', globalSearchValue);
+		}
+
+		try {
+			const response = await fetch(`${endpoint}?${params.toString()}`);
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to fetch data');
+			}
+			const result = await response.json();
+			if (result.success) {
+				tableData = result.data;
+				totalItems = result.pagination.totalItems;
+			}
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			console.error('AdminArea fetch error:', errorMessage);
+			showToast(`Error fetching data: ${errorMessage}`, 'error');
+			tableData = [];
+			totalItems = 0;
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	// Custom event handler for token updates from Multibutton
 	function handleTokenUpdate(event: CustomEvent<{ tokenIds: string[]; action: string }>) {
 		const { tokenIds, action } = event.detail;
 
-		if (adminData && adminData.tokens) {
+		// Update the tableData instead of adminData for scalability
+		if (tableData) {
 			let updated = false;
-			const updatedTokens = adminData.tokens.map((token: TokenData) => {
-				if (tokenIds.includes(token.token)) {
-					updated = true;
-					if (action === 'block') {
-						return { ...token, blocked: true };
-					} else if (action === 'unblock') {
-						return { ...token, blocked: false };
-					}
-				}
-				return token;
-			});
 
+			if (action === 'delete') {
+				// Remove deleted tokens from the table
+				const updatedData = tableData.filter((item: any) => !tokenIds.includes(item.token));
+				if (updatedData.length !== tableData.length) {
+					tableData = updatedData;
+					updated = true;
+				}
+			} else {
+				// Handle block/unblock actions
+				const updatedData = tableData.map((item: any) => {
+					if (tokenIds.includes(item.token)) {
+						updated = true;
+						if (action === 'block') {
+							return { ...item, blocked: true };
+						} else if (action === 'unblock') {
+							return { ...item, blocked: false };
+						}
+					}
+					return item;
+				});
+
+				if (updated) {
+					tableData = updatedData;
+				}
+			}
+
+			// Clear selection after any action
 			if (updated) {
-				adminData = {
-					...adminData,
-					tokens: updatedTokens
-				};
+				selectedRows = [];
 			}
 		}
 	} // Table header definitions
@@ -152,25 +200,9 @@
 	let columnShow = $state(false);
 	let selectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
-	let tableData = $derived.by<(UserData | TokenData)[]>(() => {
-		if (!adminData) return [];
-		if (showUserList) {
-			return adminData.users as UserData[];
-		} else if (showUsertoken) {
-			const tokens = adminData.tokens as TokenData[];
-			if (showExpiredTokens) {
-				return tokens; // Show all tokens including expired ones
-			} else {
-				// Filter out expired tokens
-				const now = new Date();
-				return tokens.filter((token) => {
-					if (!token.expires) return true; // Keep tokens without expiration
-					return new Date(token.expires) > now; // Keep only non-expired tokens
-				});
-			}
-		}
-		return []; // Return empty array if neither condition is met
-	});
+
+	// Note: tableData is now a $state variable set by fetchData() above, not derived from adminData
+
 	// Derived rows to display and selection will be defined below
 	let density = $state(
 		(() => {
@@ -200,6 +232,21 @@
 		}));
 	});
 
+	// Reactive effect to fetch data when dependencies change
+	$effect(() => {
+		// Rerun when any of these reactive variables change
+		showUserList;
+		showUsertoken;
+		currentPage;
+		rowsPerPage;
+		sorting;
+		globalSearchValue;
+
+		untrack(() => {
+			fetchData();
+		});
+	});
+
 	// Modal for token editing
 	function modalTokenUser() {
 		const modalSettings: ModalSettings = {
@@ -211,18 +258,7 @@
 				slot: `
 					<div class="mb-4">
 						<h3 class="text-lg font-bold">Existing Tokens</h3>
-						{#if adminData?.tokens?.length > 0}
-							<ul class="max-h-40 overflow-y-auto">
-								{#each adminData.tokens as token}
-									<li class="flex items-center justify-between border-b py-2">
-										<span class="truncate">{token.email}</span>
-										<span class="text-sm text-gray-500">Expires: {token.expires && token.expires !== null ? new Date(token.expires).toLocaleString() : 'Never'}</span>
-									</li>
-								{/each}
-							</ul>
-						{:else}
-							<p class="text-gray-500">No existing tokens</p>
-						{/if}
+						<p class="text-gray-500">Token list will refresh after creation</p>
 					</div>
 				`,
 				props: {
@@ -233,10 +269,12 @@
 				}
 			},
 			response: (result) => {
-				// On success, switch to the token table view
+				console.log('Modal response received:', result); // Debug log
+				// On success, refresh data without changing view state
 				if (result && result.success) {
-					showUsertoken = true;
-					showUserList = false;
+					console.log('Token creation successful, refreshing data...'); // Debug log
+					// Don't change the view state, just refresh the data
+					fetchData(); // Refetch data
 					return;
 				}
 				if (result?.success === false) {
@@ -263,10 +301,12 @@
 				}
 			},
 			response: (result) => {
-				// On success, keep focus on tokens view
+				console.log('Edit modal response received:', result); // Debug log
+				// On success, refresh the data without changing view state
 				if (result && result.success) {
-					showUsertoken = true;
-					showUserList = false;
+					console.log('Token edit/delete successful, refreshing data...'); // Debug log
+					// Don't change the view state, just refresh the data
+					fetchData(); // Refetch data
 					return;
 				}
 				if (result?.success === false) {
@@ -390,17 +430,9 @@
 			const result = await response.json();
 
 			if (result.success) {
-				// Update the user in the data by creating a new adminData object to trigger reactivity
-				if (adminData) {
-					const updatedUsers = adminData.users.map((u: UserData) => (u._id === user._id ? { ...u, blocked: !u.blocked } : u));
-
-					// Create a new adminData object to trigger reactivity
-					adminData = {
-						...adminData,
-						users: updatedUsers
-					};
-				}
-
+				// Update the user in tableData to reflect changes immediately
+				const updatedData = tableData.map((item: any) => (item._id === user._id ? { ...item, blocked: !item.blocked } : item));
+				tableData = updatedData;
 				showToast(`User ${actionPastTense} successfully`, 'success');
 			} else {
 				throw new Error(result.message || `Failed to ${action} user`);
@@ -454,17 +486,9 @@
 			const result = await response.json();
 
 			if (result.success) {
-				// Update the token in the data by creating a new adminData object to trigger reactivity
-				if (adminData) {
-					const updatedTokens = adminData.tokens.map((t: TokenData) => (t.token === token.token ? { ...t, blocked: !t.blocked } : t));
-
-					// Create a new adminData object to trigger reactivity
-					adminData = {
-						...adminData,
-						tokens: updatedTokens
-					};
-				}
-
+				// Update the token in tableData to reflect changes immediately
+				const updatedData = tableData.map((item: any) => (item.token === token.token ? { ...item, blocked: !item.blocked } : item));
+				tableData = updatedData;
 				showToast(`Token ${actionPastTense} successfully`, 'success');
 			} else {
 				throw new Error(result.message || `Failed to ${action} token`);
@@ -495,54 +519,17 @@
 		showUserList = false;
 	}
 
-	// --- DERIVED STATE: filter, sort, paginate ---
-	let filteredAndSortedData = $derived.by<(UserData | TokenData)[]>(() => {
-		let filtered = [...tableData]; // Create a copy to avoid mutation
+	// --- SERVER-SIDE PAGINATION: API handles filtering, sorting, pagination ---
+	// tableData is now the current page from API, not all data
+	// totalItems is the total count from API
 
-		// Global search
-		const searchLower = (globalSearchValue || '').toLowerCase();
-		if (searchLower) {
-			filtered = filtered.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(searchLower)));
-		}
-
-		// Column filters
-		for (const [key, value] of Object.entries(filters)) {
-			if (value) {
-				const v = value.toLowerCase();
-				filtered = filtered.filter((row) =>
-					String((row as any)[key])
-						.toLowerCase()
-						.includes(v)
-				);
-			}
-		}
-
-		// Sorting
-		if (sorting.sortedBy && sorting.isSorted !== 0 && filtered.length > 0) {
-			const { sortedBy, isSorted } = sorting;
-			filtered = [...filtered].sort((a: any, b: any) => {
-				const aValue = String(a?.[sortedBy] ?? '').toLowerCase();
-				const bValue = String(b?.[sortedBy] ?? '').toLowerCase();
-				return isSorted === 1 ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-			});
-		}
-
-		return filtered;
-	});
-
-	let paginatedData = $derived.by<(UserData | TokenData)[]>(() => {
-		const start = (currentPage - 1) * rowsPerPage;
-		const end = start + rowsPerPage;
-		return filteredAndSortedData.slice(start, end);
-	});
-
-	let pagesCount = $derived.by<number>(() => Math.ceil(filteredAndSortedData.length / rowsPerPage) || 1);
+	let pagesCount = $derived.by<number>(() => Math.ceil(totalItems / rowsPerPage) || 1);
 
 	let selectedRows = $derived.by<(UserData | TokenData)[]>(
 		() =>
 			Object.entries(selectedMap)
 				.filter(([_, isSelected]) => isSelected)
-				.map(([index]) => paginatedData[parseInt(index)])
+				.map(([index]) => tableData[parseInt(index)])
 				.filter((item) => item !== undefined && item !== null) as (UserData | TokenData)[]
 	);
 
@@ -612,9 +599,11 @@
 				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 			</button>
 
-			{#if showUsertoken && adminData?.tokens}
+			{#if showUsertoken && !showUserList && tableData}
 				{@const now = new Date()}
-				{@const expiredTokens = adminData.tokens.filter((token: TokenData) => token.expires && new Date(token.expires) < now)}
+				{@const expiredTokens = tableData.filter(
+					(item): item is TokenData => 'token' in item && 'expires' in item && item.expires && new Date(item.expires) < now
+				)}
 				{#if expiredTokens.length > 0}
 					<button
 						onclick={() => (showExpiredTokens = !showExpiredTokens)}
@@ -651,13 +640,7 @@
 			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton
-					{selectedRows}
-					type={showUserList ? 'user' : 'token'}
-					totalUsers={adminData?.users?.length || 0}
-					{currentUser}
-					on:tokenUpdate={handleTokenUpdate}
-				/>
+				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={totalItems} {currentUser} on:tokenUpdate={handleTokenUpdate} />
 			</div>
 		</div>
 
@@ -734,7 +717,7 @@
 								checked={selectAll}
 								onCheck={(checked) => {
 									selectAll = checked;
-									for (let i = 0; i < paginatedData.length; i++) {
+									for (let i = 0; i < tableData.length; i++) {
 										selectedMap[i] = checked;
 									}
 								}}
@@ -765,7 +748,7 @@
 					</thead>
 
 					<tbody>
-						{#each paginatedData as row, index}
+						{#each tableData as row, index}
 							{@const isExpired = showUsertoken && row.expires && new Date(row.expires) < new Date()}
 							<tr
 								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
@@ -881,7 +864,7 @@
 					bind:currentPage
 					bind:rowsPerPage
 					{pagesCount}
-					totalItems={filteredAndSortedData.length}
+					{totalItems}
 					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
 					onUpdatePage={(page) => {
 						currentPage = page;

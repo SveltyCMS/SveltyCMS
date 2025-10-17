@@ -27,19 +27,12 @@ import { error, type Handle } from '@sveltejs/kit';
 import { getErrorMessage } from '@utils/errorHandling';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { cacheService, API_CACHE_TTL_S } from '@src/databases/CacheService';
+import { metricsService } from '@src/services/MetricsService';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// --- HEALTH METRICS ---
-
-/**
- * Tracks API performance and usage statistics.
- * Reset periodically to prevent memory growth.
- */
-let healthMetrics = {
-	cache: { hits: 0, misses: 0 },
-	requests: { total: 0, errors: 0 }
-};
+// --- METRICS INTEGRATION ---
+// API metrics are now handled by the unified MetricsService for enterprise-grade monitoring
 
 // --- UTILITY FUNCTIONS ---
 
@@ -80,7 +73,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	healthMetrics.requests.total++;
+	metricsService.incrementApiRequests();
 
 	try {
 		const apiEndpoint = getApiEndpoint(url.pathname);
@@ -126,7 +119,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 					if (cached) {
 						logger.debug(`Cache hit for API GET \x1b[33m${url.pathname}\x1b[0m (tenant: ${locals.tenantId || 'global'})`);
-						healthMetrics.cache.hits++;
+						metricsService.recordApiCacheHit();
 
 						return new Response(JSON.stringify(cached.data), {
 							status: 200,
@@ -152,7 +145,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			if (apiEndpoint === 'graphql') {
 				const newHeaders = new Headers(response.headers);
 				newHeaders.set('X-Cache', 'BYPASS');
-				healthMetrics.cache.misses++;
+				metricsService.recordApiCacheMiss();
 
 				return new Response(response.body, {
 					status: response.status,
@@ -176,7 +169,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 						locals.tenantId
 					);
 
-					healthMetrics.cache.misses++;
+					metricsService.recordApiCacheMiss();
 
 					return new Response(responseBody, {
 						status: response.status,
@@ -218,7 +211,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 		return response;
 	} catch (err) {
-		healthMetrics.requests.errors++;
+		metricsService.incrementApiErrors();
 		// Re-throw to let SvelteKit's error handler deal with it
 		throw err;
 	}
@@ -252,21 +245,29 @@ export async function invalidateApiCache(apiEndpoint: string, userId: string, te
 }
 
 /**
- * Returns a snapshot of current API health metrics.
- * Useful for monitoring and debugging.
+ * Returns API metrics from the unified metrics service.
+ * Provides comprehensive API performance data.
  */
 export function getApiHealthMetrics() {
-	return { ...healthMetrics };
+	const report = metricsService.getReport();
+	return {
+		cache: {
+			hits: report.api.cacheHits,
+			misses: report.api.cacheMisses,
+			hitRate: report.api.cacheHitRate
+		},
+		requests: {
+			total: report.api.requests,
+			errors: report.api.errors
+		}
+	};
 }
 
 /**
- * Resets all API health metrics to zero.
- * Should be called periodically (e.g., every hour) to prevent memory growth.
+ * API metrics are now managed by the unified MetricsService.
+ * This function is kept for compatibility but delegates to the central service.
  */
 export function resetApiHealthMetrics(): void {
-	healthMetrics = {
-		cache: { hits: 0, misses: 0 },
-		requests: { total: 0, errors: 0 }
-	};
-	logger.trace('API health metrics reset');
+	// API metrics are now part of the unified service which handles its own resets
+	logger.trace('API health metrics managed by unified MetricsService');
 }
