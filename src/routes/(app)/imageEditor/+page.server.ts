@@ -12,6 +12,7 @@
  */
 
 import type { PageServerLoad } from './$types';
+import { redirect } from '@sveltejs/kit'; // <-- FIXED: Added missing import
 
 // System Logges
 import { logger } from '@utils/logger.svelte';

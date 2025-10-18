@@ -21,23 +21,23 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Import individual tool components
-	import Crop from './Crop.svelte';
-	import CropTopToolbar from './CropTopToolbar.svelte';
-	import CropBottomBar from './CropBottomBar.svelte';
-	import Blur from './Blur.svelte';
-	import Rotate from './Rotate.svelte';
-	import Zoom from './Zoom.svelte';
-	import FocalPoint from './FocalPoint.svelte';
-	import Watermark from './Watermark.svelte';
-	import Filter from './Filter.svelte';
-	import TextOverlay from './TextOverlay.svelte';
-	import ShapeOverlay from './ShapeOverlay.svelte';
+	import Crop from './components/Crop.svelte';
+	import CropTopToolbar from './components/CropTopToolbar.svelte';
+	import CropBottomBar from './components/CropBottomBar.svelte';
+	import Blur from './components/Blur.svelte';
+	import Rotate from './components/Rotate.svelte';
+	import Zoom from './components/Zoom.svelte';
+	import FocalPoint from './components/FocalPoint.svelte';
+	import Watermark from './components/Watermark.svelte';
+	import Filter from './components/Filter.svelte';
+	import TextOverlay from './components/TextOverlay.svelte';
+	import ShapeOverlay from './components/ShapeOverlay.svelte';
 
 	// New layout components
-	import EditorSidebar from './EditorSidebar.svelte';
-	import EditorCanvas from './EditorCanvas.svelte';
-	import EditorToolPanel from './EditorToolPanel.svelte';
-	import MobileToolbar from './MobileToolbar.svelte';
+	import EditorSidebar from './components/EditorSidebar.svelte';
+	import EditorCanvas from './components/EditorCanvas.svelte';
+	import EditorToolPanel from './components/EditorToolPanel.svelte';
+	import MobileToolbar from './components/MobileToolbar.svelte';
 
 	// Konva
 	import Konva from 'konva';
@@ -265,34 +265,17 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		stage.batchDraw();
 	}
 
+	// PERFORMANCE: This snapshot is lightweight.
+	// It saves only the attributes (props) of the nodes, not a full canvas image.
 	function takeSnapshot() {
-		const { stage, imageNode, imageGroup } = imageEditorStore.state;
-		if (!stage || !imageNode || !imageGroup) return;
+		const { imageNode, imageGroup } = imageEditorStore.state;
+		if (!imageNode || !imageGroup) return;
 
-		try {
-			const dataURL = stage.toDataURL();
-			const snapshot = {
-				dataURL,
-				imageProps: {
-					width: imageNode.width(),
-					height: imageNode.height(),
-					x: imageNode.x(),
-					y: imageNode.y(),
-					originalImageSrc: originalImage?.src
-				},
-				group: {
-					x: imageGroup.x(),
-					y: imageGroup.y(),
-					rotation: imageGroup.rotation(),
-					scaleX: imageGroup.scaleX(),
-					scaleY: imageGroup.scaleY()
-				}
-			};
-
-			imageEditorStore.addEditAction(snapshot);
-		} catch (error) {
-			console.warn('Failed to take snapshot:', error);
-		}
+		const snapshot = {
+			imageAttrs: imageNode.getAttrs(),
+			groupAttrs: imageGroup.getAttrs()
+		};
+		imageEditorStore.addEditAction(snapshot);
 	}
 
 	function applyEdit() {

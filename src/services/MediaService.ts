@@ -327,6 +327,34 @@ export class MediaService {
 		}
 	}
 
+	// Manipulates an image with operations like focal point and watermarking
+	public async manipulateMedia(id: string, manipulations: any, userId: string, tenantId?: string): Promise<MediaType> {
+		this.ensureInitialized();
+		logger.info('Media manipulation called', { id, manipulations, userId, tenantId });
+
+		// Placeholder implementation
+		if (!id) {
+			throw error(400, 'Media ID is required for manipulation.');
+		}
+
+		// TODO: Full implementation will involve:
+		// 1. Fetching the media item from the DB.
+		// 2. Reading the image file from storage.
+		// 3. Using `sharp` to apply manipulations.
+		// 4. Saving the new image as a new version.
+		// 5. Updating the media item in the DB with the new version info.
+		// 6. Returning the updated media item.
+
+		console.log('Media manipulation not yet implemented.', { id, manipulations });
+
+		// Return the original media item for now
+		const mediaItem = await this.db.crud.findOne('MediaItem', { _id: this.db.convertId(id), tenantId });
+		if (!mediaItem) {
+			throw error(404, 'Media item not found');
+		}
+		return mediaItem;
+	}
+
 	// Deletes a media item
 	public async deleteMedia(id: string): Promise<void> {
 		this.ensureInitialized();
