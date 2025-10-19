@@ -18,13 +18,7 @@
 		onBlurApplied?: () => void;
 	}
 
-	const {
-		stage,
-		layer,
-		imageNode,
-		onBlurReset = () => {},
-		onBlurApplied = () => {}
-	} = $props() as Props;
+	const { stage, layer, imageNode, onBlurReset = () => {}, onBlurApplied = () => {} } = $props() as Props;
 
 	let mosaicStrength = $state(10);
 	let blurRegion: Konva.Rect | null = $state(null);
@@ -76,7 +70,7 @@
 			blurRegion?.destroy();
 			transformer?.destroy();
 			mosaicOverlay?.destroy();
-			
+
 			// Nullify states
 			blurRegion = null;
 			transformer = null;
@@ -152,7 +146,7 @@
 
 			blurRegion.on('transform', applyMosaic);
 			blurRegion.on('dragmove', applyMosaic);
-			
+
 			layer.batchDraw();
 			applyMosaic();
 		}
@@ -175,10 +169,10 @@
 
 		const ctx = offscreenContext;
 		const canvas = offscreenCanvas;
-		
+
 		// Get the absolute bounding box of the blur region on the stage
 		const rect = blurRegion.getClientRect({ relativeTo: stage });
-		
+
 		const tileSize = Math.max(1, Math.floor(mosaicStrength));
 
 		// 1. Clear canvas and draw the full original image
@@ -197,16 +191,28 @@
 		// This samples the pixels
 		ctx.drawImage(
 			canvas,
-			rect.x, rect.y, rect.width, rect.height, // Source region
-			rect.x, rect.y, rect.width / tileSize, rect.height / tileSize // Destination region (tiny)
+			rect.x,
+			rect.y,
+			rect.width,
+			rect.height, // Source region
+			rect.x,
+			rect.y,
+			rect.width / tileSize,
+			rect.height / tileSize // Destination region (tiny)
 		);
 
 		// 4. Draw the tiny version back up to the original size
 		// This scales the sampled pixels, creating the mosaic effect
 		ctx.drawImage(
 			canvas,
-			rect.x, rect.y, rect.width / tileSize, rect.height / tileSize, // Source region (tiny)
-			rect.x, rect.y, rect.width, rect.height // Destination region (full size)
+			rect.x,
+			rect.y,
+			rect.width / tileSize,
+			rect.height / tileSize, // Source region (tiny)
+			rect.x,
+			rect.y,
+			rect.width,
+			rect.height // Destination region (full size)
 		);
 
 		// 5. Re-enable smoothing for other operations
@@ -216,7 +222,7 @@
 		mosaicOverlay.image(canvas);
 		// Cache the overlay for performance
 		mosaicOverlay.cache();
-		
+
 		layer.batchDraw();
 	}
 
@@ -229,14 +235,14 @@
 		blurRegion?.destroy();
 		transformer?.destroy();
 		mosaicOverlay?.destroy();
-		
+
 		// Clear states
 		blurRegion = null;
 		transformer = null;
 		mosaicOverlay = null;
 
 		layer.batchDraw();
-		
+
 		if (isApply) {
 			onBlurApplied();
 		} else {

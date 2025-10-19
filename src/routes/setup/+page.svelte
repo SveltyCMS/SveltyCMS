@@ -16,7 +16,7 @@
       5. Derived State
       6. Core Logic & API Calls
       7. UI Handlers
-      8. Lazy Component State & Error Handling
+	  8. Lazy Component State & Error Handling
 -->
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
@@ -33,7 +33,7 @@
 	// Skeleton
 	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
 	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
+	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
@@ -97,22 +97,6 @@
 
 	// ParaglideJS current language (reactive)
 	let currentLanguageTag = $state(getLocale());
-
-	// --- DARK MODE AUTO-DETECT ---
-	let prefersDark = false;
-	if (typeof window !== 'undefined') {
-		const stored = localStorage.getItem('sveltycms_dark_mode');
-		if (stored === null) {
-			prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-			if (prefersDark) {
-				document.documentElement.classList.add('dark');
-				localStorage.setItem('sveltycms_dark_mode', 'true');
-			} else {
-				document.documentElement.classList.remove('dark');
-				localStorage.setItem('sveltycms_dark_mode', 'false');
-			}
-		}
-	}
 
 	// --- 4. LIFECYCLE HOOKS ---
 	// Component registry for Skeleton Labs v2 modals
@@ -657,7 +641,6 @@
 
 <svelte:head>
 	<title>SveltyCMS Setup</title>
-	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 	<style>
 		:global(.setup-page .toast-container) {
 			position: fixed !important;

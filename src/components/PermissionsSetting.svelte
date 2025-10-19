@@ -177,9 +177,3 @@ Features:
 		{/if}
 	</div>
 {/if}
-
-<style lang="postcss">
-	.badge {
-		@apply rounded px-2 py-1 text-xs;
-	}
-</style>

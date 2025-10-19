@@ -10,14 +10,24 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
+	import { onMount } from 'svelte';
+
 	// Initializing Skeleton stores
 	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
 	// Import from Floating UI
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 
-	// Paraglide locale bridge (migrated from setup/+layout.svelte wrapper)
+	// Paraglide locale bridge
 	import { locales as availableLocales, getLocale, setLocale } from '@src/paraglide/runtime';
 	import { systemLanguage } from '@stores/store.svelte';
+
+	// Centralized theme management
+	import { themeStore, initializeThemeStore, initializeDarkMode } from '@stores/themeStore.svelte';
+
+	// Initialize theme and other client-side logic on mount
+	onMount(() => {
+		initializeDarkMode();
+	});
 
 	let currentLocale = $state(getLocale());
 	$effect(() => {
@@ -26,6 +36,21 @@
 			setLocale(desired as any, { reload: false });
 			currentLocale = desired;
 		}
+	});
+
+	// Auto-refresh logic for theme
+	$effect(() => {
+		if (!themeStore.autoRefreshEnabled) return;
+
+		const interval = 30 * 60 * 1000; // 30 minutes
+		const intervalId = setInterval(() => {
+			console.log('Auto-refreshing theme...');
+			initializeThemeStore().catch(console.error);
+		}, interval);
+
+		return () => {
+			clearInterval(intervalId);
+		};
 	});
 
 	initializeStores();

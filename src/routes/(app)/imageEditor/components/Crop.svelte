@@ -563,14 +563,8 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		// Convert to image pixel coordinates relative to current crop
 		const relativeX = Math.max(0, Math.min(currentWidth, Math.round(topLeft.x + offsetX)));
 		const relativeY = Math.max(0, Math.min(currentHeight, Math.round(topLeft.y + offsetY)));
-		const relativeWidth = Math.max(
-			1,
-			Math.min(currentWidth - relativeX, Math.round(bottomRight.x - topLeft.x))
-		);
-		const relativeHeight = Math.max(
-			1,
-			Math.min(currentHeight - relativeY, Math.round(bottomRight.y - topLeft.y))
-		);
+		const relativeWidth = Math.max(1, Math.min(currentWidth - relativeX, Math.round(bottomRight.x - topLeft.x)));
+		const relativeHeight = Math.max(1, Math.min(currentHeight - relativeY, Math.round(bottomRight.y - topLeft.y)));
 
 		// If this is a successive crop, add to existing crop coordinates
 		const cropData = {
@@ -592,4 +586,5 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		onCancel();
 	}
 </script>
+
 <!-- No UI - this component only handles Konva canvas logic -->

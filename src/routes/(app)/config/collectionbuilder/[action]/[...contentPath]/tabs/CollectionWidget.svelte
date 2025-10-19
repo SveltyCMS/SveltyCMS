@@ -143,8 +143,8 @@ component
 					fields = [...fields, newField];
 				}
 				// Update the collectionValue store
-				if (collection) {
-					collection.fields = fields;
+				if (collection?.value) {
+					collection.value.fields = fields;
 				}
 
 				console.log('updated collection', collection);
@@ -171,8 +171,8 @@ component
 			});
 
 			// Update the collection fields
-			if (collection) {
-				collection.fields = updatedFields;
+			if (collection?.value) {
+				collection.value.fields = updatedFields;
 			}
 
 			await props.handleCollectionSave();

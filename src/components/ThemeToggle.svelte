@@ -1,15 +1,15 @@
 <!--
 @file src/components/ThemeToggle.svelte
 @component
-**Shared theme toggle component with consistent logic across the app**
-
-###Features
--
+**A simple, display-only component for toggling the application theme.**
+It relies entirely on the centralized `themeStore` for its state and logic.
+### Features
+- Theme toggle button with icons
+- Optional tooltip for user guidance
 -->
-
 <script lang="ts">
-	import { modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
-	import { get } from 'svelte/store';
+	import { themeStore, toggleDarkMode } from '@stores/themeStore.svelte';
+	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
 	// Props
 	interface Props {
@@ -27,32 +27,11 @@
 		target: 'ThemeToggleTooltip',
 		placement: tooltipPlacement
 	};
-
-	// Shared theme toggle logic
-	function toggleTheme() {
-		// Skeleton's modeCurrent is `true` for dark mode, `false` for light mode.
-		const isCurrentlyDark = get(modeCurrent);
-		const newModeIsDark = !isCurrentlyDark;
-
-		// Update Skeleton's stores
-		setModeUserPrefers(newModeIsDark);
-		setModeCurrent(newModeIsDark);
-
-		// Immediately apply the theme to the DOM
-		document.documentElement.classList.toggle('dark', newModeIsDark);
-
-		// Set cookie for server-side persistence
-		const themeValue = newModeIsDark ? 'dark' : 'light';
-		const cookieOptions = `path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-
-		document.cookie = `theme=${themeValue}; ${cookieOptions}`;
-		document.cookie = `darkMode=${newModeIsDark}; ${cookieOptions}`;
-	}
 </script>
 
 {#if showTooltip}
-	<button use:popup={themeToggleTooltip} onclick={toggleTheme} aria-label="Toggle theme" class={buttonClass}>
-		{#if $modeCurrent}
+	<button use:popup={themeToggleTooltip} onclick={() => toggleDarkMode()} aria-label="Toggle theme" class={buttonClass}>
+		{#if themeStore.isDarkMode}
 			<iconify-icon icon="bi:sun" width={iconSize}></iconify-icon>
 		{:else}
 			<iconify-icon icon="bi:moon-fill" width={iconSize}></iconify-icon>
@@ -61,7 +40,7 @@
 
 	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
 		<span class="text-sm">
-			{#if $modeCurrent}
+			{#if themeStore.isDarkMode}
 				Switch to Light Mode
 			{:else}
 				Switch to Dark Mode
@@ -70,8 +49,8 @@
 		<div class="variant-filled arrow"></div>
 	</div>
 {:else}
-	<button onclick={toggleTheme} aria-label="Toggle theme" class={buttonClass}>
-		{#if $modeCurrent}
+	<button onclick={() => toggleDarkMode()} aria-label="Toggle theme" class={buttonClass}>
+		{#if themeStore.isDarkMode}
 			<iconify-icon icon="bi:sun" width={iconSize}></iconify-icon>
 		{:else}
 			<iconify-icon icon="bi:moon-fill" width={iconSize}></iconify-icon>

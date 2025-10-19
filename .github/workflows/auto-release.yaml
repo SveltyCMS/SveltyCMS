@@ -24,7 +24,7 @@ jobs:
         with:
           # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
           fetch-depth: 0
-          
+
       # ✅ Setup Node.js (semantic-release now needs Node 22.14+)
       - name: Setup Node.js
         uses: actions/setup-node@v6

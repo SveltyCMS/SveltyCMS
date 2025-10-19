@@ -254,19 +254,25 @@
 			{#if usePermissionGuard}
 				<PermissionGuard config={item.permission}>
 					{#if item.target === '_blank'}
-						<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
-							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-							<p class="config-text">{item.label}</p>
+						<a
+							href={item.href}
+							class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
+							aria-label={item.label}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+							<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 						</a>
 					{:else}
 						<button
 							type="button"
-							class="config-btn {item.classes}"
+							class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
 							aria-label={item.label}
 							onclick={() => handleInternalNavigation(item.href, item.target)}
 						>
-							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-							<p class="config-text">{item.label}</p>
+							<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+							<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 						</button>
 					{/if}
 				</PermissionGuard>
@@ -289,15 +295,3 @@
 		{/each}
 	</div>
 </div>
-
-<style lang="postcss">
-	:global(.config-btn) {
-		@apply flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20;
-	}
-	:global(.config-icon) {
-		@apply text-3xl lg:text-2xl;
-	}
-	:global(.config-text) {
-		@apply w-full truncate text-xs font-medium uppercase lg:text-sm;
-	}
-</style>

@@ -17,7 +17,7 @@ import { builtinModules } from 'module';
 import path from 'path';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
-import { defineConfig } from 'vite';
+import { defineConfig, createLogger } from 'vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
 import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
@@ -313,6 +313,15 @@ function cmsWatcherPlugin(): Plugin {
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
 
+const customLogger = createLogger();
+const originalWarn = customLogger.warn;
+customLogger.warn = (msg, options) => {
+	if (msg.includes('Circular dependency')) {
+		return;
+	}
+	originalWarn(msg, options);
+};
+
 export default defineConfig((): UserConfig => {
 	// Only log during dev mode, not during builds
 	if (!isBuild) {
@@ -324,6 +333,7 @@ export default defineConfig((): UserConfig => {
 	}
 
 	return {
+		customLogger,
 		plugins: [
 			// Security check plugin runs first to detect private setting imports
 			securityCheckPlugin({
@@ -390,7 +400,7 @@ export default defineConfig((): UserConfig => {
 
 						// If it contains node_modules, it's a third-party circular dependency - suppress it
 						if (allText.includes('node_modules')) {
-							return;
+							return; // Suppress warnings from these specific packages
 						}
 					}
 
