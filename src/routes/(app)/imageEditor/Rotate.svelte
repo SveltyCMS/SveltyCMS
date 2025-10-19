@@ -11,6 +11,7 @@
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
@@ -82,16 +83,25 @@
 	}
 
 	function rotateLeft() {
+		// Take snapshot before making changes
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		rotationAngle = (rotationAngle - 90) % 360;
 		rotateImage();
 	}
 
 	function rotateRight() {
+		// Take snapshot before making changes
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		rotationAngle = (rotationAngle + 90) % 360;
 		rotateImage();
 	}
 
 	function rotateCustom() {
+		// Take snapshot before making changes
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		rotateImage();
 	}
 
@@ -105,6 +115,9 @@
 	}
 
 	function applyRotation() {
+		// Take snapshot before applying rotation
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		gridLayer?.hide();
 		layer.batchDraw();
 		onRotateApplied?.();
@@ -115,11 +128,40 @@
 	}
 
 	function resetRotation() {
+		// Take snapshot before resetting rotation
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		rotationAngle = 0;
 		imageNode.rotation(0);
 		gridLayer?.hide();
 		layer.batchDraw();
 		onRotateReset?.();
+	}
+
+	export function cleanup() {
+		console.log('Rotate tool cleanup called');
+		if (gridLayer) {
+			gridLayer.destroy();
+			gridLayer = null;
+		}
+		// Reset cursor style
+		if (stage && stage.container()) {
+			stage.container().style.cursor = 'default';
+		}
+		layer.batchDraw();
+	}
+
+	export function saveState() {
+		// Save current rotation state before switching tools
+		console.log('Saving rotate tool state', { rotationAngle });
+		// The parent component will handle taking a snapshot
+	}
+
+	export function beforeExit() {
+		// Called before switching to another tool
+		console.log('Rotate tool beforeExit called');
+		saveState();
+		cleanup();
 	}
 </script>
 

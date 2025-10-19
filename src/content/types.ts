@@ -87,6 +87,19 @@ export interface Schema {
 	links?: Array<ContentTypes>; // Optional links to other collections
 	fields: FieldDefinition[]; // Collection fields
 	translations?: Translation[]; // Optional translations with enhanced metadata
+	watermarkSettings?: WatermarkSettings; // Optional watermark settings for media in this collection
+}
+
+// Watermark settings interface
+export interface WatermarkSettings {
+	enabled: boolean;
+	image?: string; // Path to watermark image
+	position?: 'top-left' | 'top-center' | 'top-right' | 'center-left' | 'center' | 'center-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+	opacity?: number; // 0-1
+	scale?: number; // 0-200 (percentage)
+	offsetX?: number; // -100 to 100
+	offsetY?: number; // -100 to 100
+	rotation?: number; // 0-360 degrees
 }
 
 export type MinimalContentNode = {
@@ -133,6 +146,7 @@ export interface CollectionData {
 	slug?: string; // Optional slug
 	status?: StatusType; // Optional status
 	links?: Array<ContentTypes>; // Optional links to other collections
+	watermarkSettings?: WatermarkSettings; // Optional watermark settings for media in this collection
 }
 
 // Collection types for collections registry

@@ -85,11 +85,16 @@ Provides a clean interface for tool parameters and quick actions.
 		shapeoverlay: {
 			title: 'Shapes',
 			description: 'Add geometric shapes and arrows',
+			tips: ['Select shape type from toolbar', 'Click and drag to create shape', 'Adjust fill and stroke colors', 'Resize using corner handles']
+		},
+		finetune: {
+			title: 'Fine-Tune',
+			description: 'Adjust brightness, contrast, saturation and more',
 			tips: [
-				'Select shape type from toolbar',
-				'Click and drag to create shape',
-				'Adjust fill and stroke colors',
-				'Resize using corner handles'
+				'Use presets for quick enhancements',
+				'Adjust individual sliders for precise control',
+				'Hold the compare button to see original',
+				'Combine multiple adjustments for best results'
 			]
 		}
 	};
@@ -108,12 +113,7 @@ Provides a clean interface for tool parameters and quick actions.
 					{currentTool.description}
 				</p>
 			</div>
-			<button
-				onclick={onClose}
-				class="btn-icon variant-ghost"
-				aria-label="Close panel"
-				title="Close panel"
-			>
+			<button onclick={onClose} class="variant-ghost btn-icon" aria-label="Close panel" title="Close panel">
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</div>
@@ -122,15 +122,9 @@ Provides a clean interface for tool parameters and quick actions.
 			<!-- Tool-specific content will be injected here by the main editor -->
 			<div class="tool-placeholder">
 				<div class="placeholder-icon">
-					<iconify-icon
-						icon="mdi:cog"
-						width="24"
-						class="text-surface-400 dark:text-surface-500"
-					></iconify-icon>
+					<iconify-icon icon="mdi:cog" width="24" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 				</div>
-				<p class="text-sm text-surface-600 dark:text-surface-300">
-					Tool controls will appear here
-				</p>
+				<p class="text-sm text-surface-600 dark:text-surface-300">Tool controls will appear here</p>
 			</div>
 
 			<!-- Help section -->
@@ -151,15 +145,13 @@ Provides a clean interface for tool parameters and quick actions.
 
 			<!-- Quick actions -->
 			<div class="quick-actions">
-				<h4 class="action-title">
-					Quick Actions
-				</h4>
+				<h4 class="action-title">Quick Actions</h4>
 				<div class="action-buttons">
-					<button class="btn variant-outline-surface btn-sm w-full">
+					<button class="variant-outline-surface btn btn-sm w-full">
 						<iconify-icon icon="mdi:undo" width="16" class="mr-1"></iconify-icon>
 						Reset
 					</button>
-					<button class="btn variant-filled-primary btn-sm w-full">
+					<button class="variant-filled-primary btn btn-sm w-full">
 						<iconify-icon icon="mdi:check" width="16" class="mr-1"></iconify-icon>
 						Apply
 					</button>
@@ -173,15 +165,15 @@ Provides a clean interface for tool parameters and quick actions.
 				<h5 class="shortcuts-title">Keyboard Shortcuts</h5>
 				<div class="shortcut-list">
 					<div class="shortcut-item">
-						<kbd class="kbd kbd-sm">Esc</kbd>
+						<kbd class="kbd-sm kbd">Esc</kbd>
 						<span class="text-xs text-surface-500">Exit tool</span>
 					</div>
 					<div class="shortcut-item">
-						<kbd class="kbd kbd-sm">⌘Z</kbd>
+						<kbd class="kbd-sm kbd">⌘Z</kbd>
 						<span class="text-xs text-surface-500">Undo</span>
 					</div>
 					<div class="shortcut-item">
-						<kbd class="kbd kbd-sm">⌘⇧Z</kbd>
+						<kbd class="kbd-sm kbd">⌘⇧Z</kbd>
 						<span class="text-xs text-surface-500">Redo</span>
 					</div>
 				</div>
@@ -192,7 +184,7 @@ Provides a clean interface for tool parameters and quick actions.
 
 <style>
 	.editor-tool-panel {
-		@apply flex flex-col w-80 border-l;
+		@apply flex w-80 flex-col border-l;
 		@apply transition-all duration-300 ease-in-out;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
@@ -211,7 +203,7 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.panel-header {
-		@apply flex items-start justify-between gap-3 p-4 border-b;
+		@apply flex items-start justify-between gap-3 border-b p-4;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -228,11 +220,11 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.panel-content {
-		@apply flex-1 flex flex-col gap-6 p-4 overflow-y-auto;
+		@apply flex flex-1 flex-col gap-6 overflow-y-auto p-4;
 	}
 
 	.tool-placeholder {
-		@apply flex flex-col items-center gap-3 p-8 rounded-lg border-2 border-dashed;
+		@apply flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-300) / 1);
 	}
@@ -243,7 +235,7 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.placeholder-icon {
-		@apply flex items-center justify-center w-12 h-12 rounded-full;
+		@apply flex h-12 w-12 items-center justify-center rounded-full;
 		background-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -280,7 +272,7 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.panel-footer {
-		@apply p-4 border-t;
+		@apply border-t p-4;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
@@ -295,7 +287,7 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.shortcuts-title {
-		@apply text-xs font-medium text-surface-600 dark:text-surface-300 uppercase tracking-wider;
+		@apply text-xs font-medium uppercase tracking-wider text-surface-600 dark:text-surface-300;
 	}
 
 	.shortcut-list {
@@ -308,8 +300,8 @@ Provides a clean interface for tool parameters and quick actions.
 
 	/* Custom kbd styling */
 	.kbd {
-		@apply px-1.5 py-0.5 bg-surface-200 dark:bg-surface-600 border border-surface-300 dark:border-surface-500;
-		@apply rounded text-xs font-mono text-surface-700 dark:text-surface-200;
+		@apply border border-surface-300 bg-surface-200 px-1.5 py-0.5 dark:border-surface-500 dark:bg-surface-600;
+		@apply rounded font-mono text-xs text-surface-700 dark:text-surface-200;
 	}
 
 	.kbd-sm {

@@ -163,7 +163,7 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 
 		<!-- Action Buttons -->
 		<div class="mt-4 flex justify-around gap-4">
-			<button onclick={resetFocalPoint} class="variant-filled-primary btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
+			<button onclick={exitShapeOverlay} class="variant-outline btn" aria-label="Exit shape overlay mode"> Exit </button>
 		</div>
 	</div>
 

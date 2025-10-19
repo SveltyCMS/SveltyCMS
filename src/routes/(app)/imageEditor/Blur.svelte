@@ -10,6 +10,7 @@
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
@@ -157,6 +158,10 @@
 	function applyMosaic() {
 		if (!blurRegion) return;
 
+		// Take snapshot before applying blur
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
+
 		const canvas = document.createElement('canvas');
 		canvas.width = stage.width();
 		canvas.height = stage.height();
@@ -209,36 +214,75 @@
 
 	function exitBlur() {
 		// Clean up any existing blur elements before exiting
-		if (blurRegion) {
-			blurRegion.destroy();
-		}
-		if (transformer) {
-			transformer.destroy();
-		}
-		if (mosaicOverlay) {
-			mosaicOverlay.destroy();
-		}
+		cleanupBlurElements();
 		layer.batchDraw();
 		onBlurReset();
 	}
 
 	function resetMosaic() {
-		if (blurRegion) {
-			blurRegion.destroy();
-		}
-		if (transformer) {
-			transformer.destroy();
-		}
-		if (mosaicOverlay) {
-			mosaicOverlay.destroy();
-		}
+		// Clean up blur elements and reset state
+		cleanupBlurElements();
 		layer.batchDraw();
 		onBlurReset();
 	}
 
 	function applyFinalMosaic() {
+		// Take snapshot before applying final blur
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
+		// Apply the mosaic effect permanently
 		applyMosaic();
 		onBlurApplied();
+	}
+
+	function cleanupBlurElements() {
+		console.log('Cleaning up blur elements');
+
+		// Clean up blur region
+		if (blurRegion) {
+			blurRegion.destroy();
+			blurRegion = null;
+		}
+
+		// Clean up transformer
+		if (transformer) {
+			transformer.destroy();
+			transformer = null;
+		}
+
+		// Clean up mosaic overlay
+		if (mosaicOverlay) {
+			mosaicOverlay.destroy();
+			mosaicOverlay = null;
+		}
+
+		// Reset cursor style
+		if (stage && stage.container()) {
+			stage.container().style.cursor = 'default';
+		}
+
+		// Reset selection state
+		isSelecting = false;
+		startPoint = null;
+	}
+
+	export function cleanup() {
+		console.log('Blur tool cleanup called');
+		cleanupBlurElements();
+		layer.batchDraw();
+	}
+
+	export function saveState() {
+		// Save current blur state before switching tools
+		console.log('Saving blur tool state', { mosaicStrength });
+		// The parent component will handle taking a snapshot
+	}
+
+	export function beforeExit() {
+		// Called before switching to another tool
+		console.log('Blur tool beforeExit called');
+		saveState();
+		cleanup();
 	}
 </script>
 

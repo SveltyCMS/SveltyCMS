@@ -94,7 +94,11 @@ function createImageEditorStore() {
 			'.cropOverlayGroup',
 			'[name="cropTool"]',
 			'[name="cropHighlight"]',
-			'[name="cropOverlay"]'
+			'[name="cropOverlay"]',
+			'.rotationGrid',
+			'.gridLayer',
+			'.blurRegion',
+			'.mosaicOverlay'
 		];
 
 		tempSelectors.forEach((selector) => {
@@ -116,11 +120,154 @@ function createImageEditorStore() {
 			}
 		});
 
+		// Remove any image overlays that might be from blur tool
+		state.layer.find('Image').forEach((node) => {
+			// Only remove overlay images, not the main image node
+			if (node !== state.imageNode) {
+				try {
+					node.destroy();
+				} catch (e) {
+					console.warn('Error destroying overlay image:', e);
+				}
+			}
+		});
+
+		// Remove any temporary groups
+		state.layer.find('Group').forEach((node) => {
+			// Check if it's a temporary overlay group
+			if (node.name() === 'cropOverlayGroup' || node.name().includes('temp')) {
+				try {
+					node.destroy();
+				} catch (e) {
+					console.warn('Error destroying temporary group:', e);
+				}
+			}
+		});
+
+		// Clear any caches to prevent ghosting
+		state.layer.clearCache();
 		state.layer.batchDraw();
+	}
+
+	function cleanupToolSpecific(toolName: string) {
+		if (!state.layer) return;
+
+		console.log(`Cleaning up tool: ${toolName}`);
+
+		switch (toolName) {
+			case 'crop':
+				// Clean up crop-specific elements
+				state.layer.find('.cropTool').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying crop tool:', e);
+					}
+				});
+				state.layer.find('.cropOverlayGroup').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying crop overlay group:', e);
+					}
+				});
+				state.layer.find('[name="cropHighlight"]').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying crop highlight:', e);
+					}
+				});
+				break;
+
+			case 'rotate':
+				// Clean up rotate-specific elements
+				state.layer.find('.rotationGrid').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying rotation grid:', e);
+					}
+				});
+				state.layer.find('.gridLayer').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying grid layer:', e);
+					}
+				});
+				break;
+
+			case 'blur':
+				// Clean up blur-specific elements
+				state.layer.find('.blurRegion').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying blur region:', e);
+					}
+				});
+				state.layer.find('.mosaicOverlay').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying mosaic overlay:', e);
+					}
+				});
+				// Remove any temporary images created by blur tool
+				state.layer.find('Image').forEach((node) => {
+					// Only remove overlay images, not the main image node
+					if (node !== state.imageNode) {
+						try {
+							node.destroy();
+						} catch (e) {
+							console.warn('Error destroying blur overlay image:', e);
+						}
+					}
+				});
+				break;
+
+			case 'focalpoint':
+				// Clean up focal point specific elements
+				state.layer.find('.focalPointTool').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying focal point tool:', e);
+					}
+				});
+				break;
+		}
+
+		// Always clean up transformers
+		state.layer.find('Transformer').forEach((node) => {
+			try {
+				node.destroy();
+			} catch (e) {
+				console.warn('Error destroying transformer:', e);
+			}
+		});
+
+		// Clear cache and redraw
+		state.layer.clearCache();
+		state.layer.batchDraw();
+	}
+
+	function saveToolState(toolName: string) {
+		// Take a snapshot before switching tools to preserve the current state
+		console.log(`Saving state for tool: ${toolName}`);
+		if (state.stage) {
+			takeSnapshot();
+		}
 	}
 
 	function takeSnapshot() {
 		if (!state.stage) return;
+
+		// Force a redraw to ensure the current state is captured
+		if (state.layer) {
+			state.layer.batchDraw();
+		}
 
 		// Save current canvas state to history
 		const stateData = state.stage.toJSON();
@@ -163,13 +310,15 @@ function createImageEditorStore() {
 	function undoState(): string | null {
 		if (!canUndoState) return null;
 		state.currentHistoryIndex--;
-		return state.stateHistory[state.currentHistoryIndex];
+		const stateData = state.stateHistory[state.currentHistoryIndex];
+		return stateData;
 	}
 
 	function redoState(): string | null {
 		if (!canRedoState) return null;
 		state.currentHistoryIndex++;
-		return state.stateHistory[state.currentHistoryIndex];
+		const stateData = state.stateHistory[state.currentHistoryIndex];
+		return stateData;
 	}
 
 	function clearHistory() {
@@ -226,6 +375,8 @@ function createImageEditorStore() {
 		redoState,
 		clearHistory,
 		cleanupTempNodes,
+		cleanupToolSpecific,
+		saveToolState,
 		reset
 	};
 }

@@ -41,9 +41,7 @@ tool controls for mobile/tablet editing experience.
 			name: 'Finetune',
 			icon: 'mdi:tune',
 			description: 'Adjust colors',
-			category: 'adjust',
-			disabled: true,
-			comingSoon: true
+			category: 'adjust'
 		},
 		{
 			id: 'blur',
@@ -83,39 +81,19 @@ tool controls for mobile/tablet editing experience.
 	const toolInfo = {
 		crop: {
 			title: 'Crop & Transform',
-			tips: [
-				'Pinch to zoom and pan',
-				'Drag corners to resize crop area',
-				'Tap preset ratios for quick sizing',
-				'Use sliders for rotation'
-			]
+			tips: ['Pinch to zoom and pan', 'Drag corners to resize crop area', 'Tap preset ratios for quick sizing', 'Use sliders for rotation']
 		},
 		blur: {
 			title: 'Blur Effects',
-			tips: [
-				'Tap and drag to select blur region',
-				'Adjust intensity with slider',
-				'Multiple regions supported',
-				'Tap outside to deselect'
-			]
+			tips: ['Tap and drag to select blur region', 'Adjust intensity with slider', 'Multiple regions supported', 'Tap outside to deselect']
 		},
 		focalpoint: {
 			title: 'Focal Point',
-			tips: [
-				'Tap to set focal point',
-				'Use grid lines as guides',
-				'Affects smart cropping',
-				'Tap remove to reset'
-			]
+			tips: ['Tap to set focal point', 'Use grid lines as guides', 'Affects smart cropping', 'Tap remove to reset']
 		},
 		watermark: {
 			title: 'Watermark',
-			tips: [
-				'Upload watermark image',
-				'Drag to reposition',
-				'Pinch to resize',
-				'Use presets for quick placement'
-			]
+			tips: ['Upload watermark image', 'Drag to reposition', 'Pinch to resize', 'Use presets for quick placement']
 		}
 	};
 
@@ -196,11 +174,7 @@ tool controls for mobile/tablet editing experience.
 				<h3 class="text-lg font-semibold text-surface-700 dark:text-surface-200">
 					{currentToolInfo.title}
 				</h3>
-				<button
-					onclick={closeToolPanel}
-					class="btn-icon variant-ghost-surface"
-					aria-label="Close"
-				>
+				<button onclick={closeToolPanel} class="variant-ghost-surface btn-icon" aria-label="Close">
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</button>
 			</div>
@@ -222,9 +196,7 @@ tool controls for mobile/tablet editing experience.
 
 			<!-- Tool-specific controls will be injected by parent component -->
 			<div class="tool-controls-placeholder">
-				<p class="text-sm text-surface-500 dark:text-surface-400 text-center">
-					Tool controls appear here
-				</p>
+				<p class="text-center text-sm text-surface-500 dark:text-surface-400">Tool controls appear here</p>
 			</div>
 		</div>
 	</div>
@@ -254,7 +226,7 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.mobile-tool-btn {
-		@apply flex flex-col items-center justify-center gap-1.5 px-4 py-2 rounded-lg;
+		@apply flex flex-col items-center justify-center gap-1.5 rounded-lg px-4 py-2;
 		@apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500;
 		color: rgb(var(--color-surface-600) / 1);
 		min-width: 72px; /* Consistent button width */
@@ -293,7 +265,7 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.soon-dot {
-		@apply absolute -top-1 -right-1 w-2 h-2 bg-warning-500 rounded-full ring-2;
+		@apply absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning-500 ring-2;
 		--tw-ring-color: rgb(var(--color-surface-50) / 1);
 	}
 
@@ -342,12 +314,12 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.sheet-handle {
-		@apply flex justify-center pt-2 pb-1;
+		@apply flex justify-center pb-1 pt-2;
 		@apply cursor-grab active:cursor-grabbing;
 	}
 
 	.handle-bar {
-		@apply w-12 h-1 rounded-full;
+		@apply h-1 w-12 rounded-full;
 		background-color: rgb(var(--color-surface-300) / 1);
 	}
 
@@ -362,7 +334,7 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.sheet-header {
-		@apply flex items-center justify-between gap-3 pb-3 border-b;
+		@apply flex items-center justify-between gap-3 border-b pb-3;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -388,7 +360,7 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.tool-controls-placeholder {
-		@apply p-8 rounded-lg border-2 border-dashed;
+		@apply rounded-lg border-2 border-dashed p-8;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-300) / 1);
 	}

@@ -282,7 +282,7 @@ export class Auth {
 			if (!user || !user.password) return null;
 
 			const argon2 = await import('argon2');
-			const isValid = await argon2.verify(user.password, password);
+			const isValid = await argon2.verify(user.password, password, argon2Attributes);
 			if (!isValid) return null;
 
 			const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -371,7 +371,7 @@ export class Auth {
 			return { status: false, message: 'User not found' };
 		}
 		const argon2 = await import('argon2');
-		const hashedPassword = await argon2.hash(password);
+		const hashedPassword = await argon2.hash(password, argon2Attributes);
 		await this.updateUser(user._id, { password: hashedPassword }, tenantId);
 		return { status: true };
 	}

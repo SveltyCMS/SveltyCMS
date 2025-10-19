@@ -5,15 +5,18 @@
 -->
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
 		onFilterApplied?: () => void;
+		onFilterChange?: (filterType: string, value: number | boolean) => void;
+		onFilterReset?: () => void;
 	}
 
-	const { stage, layer, imageNode, onFilterApplied = () => {} } = $props() as Props;
+	const { stage, layer, imageNode, onFilterApplied = () => {}, onFilterChange = () => {}, onFilterReset = () => {} } = $props() as Props;
 
 	$effect.root(() => {
 		return () => {
@@ -47,6 +50,10 @@
 	});
 
 	function applyFilter(filterType: string, value: number | boolean) {
+		// Take snapshot before applying filter
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
+
 		filters[filterType] = value;
 
 		// Apply filters to the image node
@@ -92,10 +99,14 @@
 		imageNode.filters(activeFilters);
 		layer.batchDraw();
 
-		dispatch('filter', { filterType, value });
+		onFilterChange(filterType, value);
 	}
 
 	function resetFilters() {
+		// Take snapshot before resetting filters
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
+
 		filters = {
 			brightness: 0,
 			contrast: 0,
@@ -115,7 +126,7 @@
 		imageNode.blurRadius(0);
 		layer.batchDraw();
 
-		dispatch('resetFilters');
+		onFilterReset();
 	}
 
 	function formatValue(value: number, suffix: string = ''): string {
@@ -123,6 +134,9 @@
 	}
 
 	function exitFilters() {
+		// Take snapshot before applying filters
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		onFilterApplied();
 	}
 </script>

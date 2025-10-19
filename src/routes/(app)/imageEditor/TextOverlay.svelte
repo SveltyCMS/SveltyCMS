@@ -19,10 +19,11 @@ The text is draggable, and the component supports multiple text overlays on the 
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		onExitTextOverlay?: () => void;
+		onExitText?: () => void;
+		onTextAdded?: () => void;
 	}
 
-	const { stage, layer, imageNode, onExitTextOverlay = () => {} } = $props() as Props;
+	const { stage, layer, imageNode, onExitText = () => {}, onTextAdded = () => {} } = $props() as Props;
 
 	let text = $state('');
 	let fontSize = $state(24);
@@ -74,6 +75,7 @@ The text is draggable, and the component supports multiple text overlays on the 
 		layer.draw();
 		selectText(textNode);
 		text = '';
+		onTextAdded();
 	}
 
 	function selectText(textNode: Konva.Text) {
@@ -157,7 +159,7 @@ The text is draggable, and the component supports multiple text overlays on the 
 	}
 
 	function exitTextOverlay() {
-		onExitTextOverlay();
+		onExitText();
 	}
 </script>
 
@@ -168,7 +170,7 @@ The text is draggable, and the component supports multiple text overlays on the 
 		<div class="flex w-full items-center justify-between">
 			<div class="flex items-center gap-2">
 				<!-- Back button at top of component -->
-				<button onclick={exitTextOverlay} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+				<button onclick={exitTextOverlay} aria-label="Exit text overlay mode" class="variant-outline-tertiary btn-icon">
 					<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
 				</button>
 

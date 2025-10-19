@@ -15,6 +15,9 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 <script lang="ts">
 	import Konva from 'konva';
 	import type { WatermarkProps, WatermarkPosition } from './watermarkTypes';
+	import { collection } from '@stores/collectionStore.svelte';
+	import type { WatermarkSettings } from '@src/content/types';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	const WATERMARK_POSITION = {
 		'top-left': 'top-left',
@@ -40,6 +43,47 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 
 	let watermarkPreview: string | null = $state(null);
 	let watermarkNode: Konva.Image | null = $state(null);
+
+	// Sync with collection watermark settings
+	$effect(() => {
+		const watermarkSettings = collection.value?.watermarkSettings;
+		if (watermarkSettings?.enabled) {
+			// Apply collection settings
+			if (watermarkSettings.image) {
+				// Load the watermark image from collection settings
+				watermarkPreview = watermarkSettings.image;
+			}
+
+			if (watermarkSettings.position) {
+				position = watermarkSettings.position as WatermarkPosition;
+			}
+
+			if (watermarkSettings.opacity !== undefined) {
+				opacity = watermarkSettings.opacity;
+			}
+
+			if (watermarkSettings.scale !== undefined) {
+				scale = watermarkSettings.scale;
+			}
+
+			if (watermarkSettings.offsetX !== undefined) {
+				offsetX = watermarkSettings.offsetX;
+			}
+
+			if (watermarkSettings.offsetY !== undefined) {
+				offsetY = watermarkSettings.offsetY;
+			}
+
+			if (watermarkSettings.rotation !== undefined) {
+				rotation = watermarkSettings.rotation;
+			}
+
+			// Apply the watermark if we have an image
+			if (watermarkPreview) {
+				applyWatermark();
+			}
+		}
+	});
 
 	// Cleanup effect
 	$effect.root(() => {
@@ -126,6 +170,9 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 	}
 
 	function handleChange() {
+		// Take snapshot before changing watermark
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		applyWatermark();
 		onWatermarkChange?.({
 			watermarkFile,
@@ -152,6 +199,9 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 	}
 
 	function removeWatermark() {
+		// Take snapshot before removing watermark
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		watermarkFile = null;
 		watermarkPreview = null;
 		if (watermarkNode) {
@@ -167,6 +217,9 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 	}
 
 	function triggerExitWatermark() {
+		// Take snapshot before exiting watermark
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		onExitWatermark?.();
 	}
 </script>

@@ -172,7 +172,7 @@
 				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
 			</button>
 
-			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Rotation Settings</h3>
+			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Focal Point Settings</h3>
 		</div>
 
 		<!-- Action Buttons -->

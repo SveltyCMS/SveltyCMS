@@ -25,6 +25,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
@@ -417,10 +418,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		// Vertical lines
 		for (let i = 1; i <= 2; i++) {
 			const line = new Konva.Line({
-				points: [
-					(stageWidth / 3) * i, 0,
-					(stageWidth / 3) * i, stageHeight
-				],
+				points: [(stageWidth / 3) * i, 0, (stageWidth / 3) * i, stageHeight],
 				stroke: 'rgba(255, 255, 255, 0.5)',
 				strokeWidth: 1,
 				dash: [5, 5],
@@ -432,10 +430,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		// Horizontal lines
 		for (let i = 1; i <= 2; i++) {
 			const line = new Konva.Line({
-				points: [
-					0, (stageHeight / 3) * i,
-					stageWidth, (stageHeight / 3) * i
-				],
+				points: [0, (stageHeight / 3) * i, stageWidth, (stageHeight / 3) * i],
 				stroke: 'rgba(255, 255, 255, 0.5)',
 				strokeWidth: 1,
 				dash: [5, 5],
@@ -508,12 +503,18 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 	export function rotateLeft() {
 		console.log('rotateLeft called, current angle:', rotationAngle);
+		// Take snapshot before making changes
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		rotationAngle = (rotationAngle - 90) % 360;
 		console.log('New angle:', rotationAngle);
 	}
 
 	export function flipHorizontal() {
 		console.log('flipHorizontal called');
+		// Take snapshot before making changes
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		isFlippedH = !isFlippedH;
 		if (container) {
 			container.scaleX(container.scaleX() * -1);
@@ -522,6 +523,9 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	export function flipVertical() {
+		// Take snapshot before making changes
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 		isFlippedV = !isFlippedV;
 		if (container) {
 			container.scaleY(container.scaleY() * -1);
@@ -540,6 +544,19 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		cleanupRotationGrid();
 	}
 
+	export function saveState() {
+		// Save current crop state before switching tools
+		console.log('Saving crop tool state');
+		// The parent component will handle taking a snapshot
+	}
+
+	export function beforeExit() {
+		// Called before switching to another tool
+		console.log('Crop tool beforeExit called');
+		saveState();
+		cleanup();
+	}
+
 	export function setAspectRatio(ratio: string) {
 		console.log('Setting aspect ratio:', ratio);
 		aspectRatio = ratio;
@@ -555,6 +572,10 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			onApply({ x: 0, y: 0, width: 0, height: 0, shape: cropShape });
 			return;
 		}
+
+		// Take snapshot before applying crop
+		const { takeSnapshot } = imageEditorStore;
+		takeSnapshot();
 
 		// Get crop tool bounds in stage coordinates BEFORE cleanup
 		const cropBox = cropTool.getClientRect();

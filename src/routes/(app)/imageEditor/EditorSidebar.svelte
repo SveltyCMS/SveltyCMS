@@ -37,9 +37,7 @@ and proper active state indication.
 			name: 'Finetune',
 			icon: 'mdi:tune',
 			description: 'Brightness, contrast, saturation',
-			category: 'adjust',
-			disabled: true, // Not yet implemented
-			comingSoon: true
+			category: 'adjust'
 		},
 		{
 			id: 'blur',
@@ -126,9 +124,7 @@ and proper active state indication.
 		{#if !hasImage}
 			<div class="no-image-hint">
 				<iconify-icon icon="mdi:information-outline" width="16" class="text-surface-400"></iconify-icon>
-				<span class="text-xs text-surface-500 dark:text-surface-400">
-					Upload an image to enable tools
-				</span>
+				<span class="text-xs text-surface-500 dark:text-surface-400"> Upload an image to enable tools </span>
 			</div>
 		{/if}
 	</div>
@@ -136,7 +132,7 @@ and proper active state indication.
 
 <style>
 	.editor-sidebar {
-		@apply flex flex-col w-16 lg:w-20 border-r;
+		@apply flex w-16 flex-col border-r lg:w-20;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 100%;
@@ -148,7 +144,7 @@ and proper active state indication.
 	}
 
 	.sidebar-header {
-		@apply flex items-center justify-center p-4 border-b;
+		@apply flex items-center justify-center border-b p-4;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -157,15 +153,15 @@ and proper active state indication.
 	}
 
 	.logo {
-		@apply flex items-center justify-center w-8 h-8 lg:w-10 lg:h-10;
+		@apply flex h-8 w-8 items-center justify-center lg:h-10 lg:w-10;
 	}
 
 	.sidebar-tools {
-		@apply flex flex-col gap-1 p-2 flex-1;
+		@apply flex flex-1 flex-col gap-1 p-2;
 	}
 
 	.tool-button {
-		@apply relative flex flex-col items-center justify-center gap-1 p-2 lg:p-3 rounded-lg transition-all duration-200;
+		@apply relative flex flex-col items-center justify-center gap-1 rounded-lg p-2 transition-all duration-200 lg:p-3;
 		@apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
 		color: rgb(var(--color-surface-600) / 1);
 		min-height: 3rem;
@@ -196,7 +192,7 @@ and proper active state indication.
 	}
 
 	.tool-button.disabled {
-		@apply opacity-50 cursor-not-allowed;
+		@apply cursor-not-allowed opacity-50;
 	}
 
 	.tool-button.disabled:hover {
@@ -218,11 +214,11 @@ and proper active state indication.
 	}
 
 	.coming-soon-badge {
-		@apply absolute -top-1 -right-1 bg-warning-500 text-warning-50 rounded-full px-1.5 py-0.5;
+		@apply absolute -right-1 -top-1 rounded-full bg-warning-500 px-1.5 py-0.5 text-warning-50;
 	}
 
 	.sidebar-footer {
-		@apply p-2 border-t;
+		@apply border-t p-2;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -231,7 +227,7 @@ and proper active state indication.
 	}
 
 	.no-image-hint {
-		@apply flex flex-col items-center gap-1 text-center p-2;
+		@apply flex flex-col items-center gap-1 p-2 text-center;
 	}
 
 	/* Responsive adjustments */

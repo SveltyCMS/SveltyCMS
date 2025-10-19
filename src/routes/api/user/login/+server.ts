@@ -77,7 +77,13 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 		}
 
 		const argon2 = await import('argon2');
-		const isValidPassword = await argon2.verify(user.password, password);
+		const argon2Attributes = {
+			memory: 65536,
+			time: 3,
+			parallelism: 4,
+			type: argon2.argon2id
+		};
+		const isValidPassword = await argon2.verify(user.password, password, argon2Attributes);
 
 		if (!isValidPassword) {
 			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, { userId: user._id, tenantId });
