@@ -24,6 +24,8 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { isSetupComplete } from '@utils/setupCheck';
 import { logger } from '@utils/logger.svelte';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 // --- CONSTANTS ---
 
@@ -85,13 +87,44 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 		throw redirect(302, '/setup');
 	}
 
-	// --- Step 2: Config Exists - Setup Was Completed ---
-	// If private.ts exists, setup has been completed.
+	// --- Step 2: Config Exists - But Check If It Has Valid Values ---
+	// Vite might create private.ts with empty strings on first run
+	// We need to verify the config actually has values before blocking setup
+
+	const privateConfigPath = join(process.cwd(), 'config', 'private.ts');
+	const configContent = readFileSync(privateConfigPath, 'utf8');
+
+	// Check if essential values are filled (not empty strings)
+	// Pattern matches: JWT_SECRET_KEY: '' or JWT_SECRET_KEY: ""
+	const hasValidJwtSecret = configContent.includes('JWT_SECRET_KEY') && !/JWT_SECRET_KEY:\s*['"]{2}\s*[,}]/.test(configContent);
+	const hasValidDbHost = configContent.includes('DB_HOST') && !/DB_HOST:\s*['"]{2}\s*[,}]/.test(configContent);
+	const hasValidDbName = configContent.includes('DB_NAME') && !/DB_NAME:\s*['"]{2}\s*[,}]/.test(configContent);
+
+	const configHasValues = hasValidJwtSecret && hasValidDbHost && hasValidDbName;
+
+	if (!configHasValues) {
+		// Config file exists but has no values - treat as not configured
+		if (!event.locals.__setupLogged) {
+			logger.warn('Config file exists but has empty values. System requires setup.');
+			event.locals.__setupLogged = true;
+		}
+		if (isAllowedDuringSetup(pathname)) {
+			return resolve(event, createSetupResolver());
+		}
+		if (!event.locals.__setupRedirectLogged) {
+			logger.debug(`Redirecting ${pathname} to /setup (config incomplete)`);
+			event.locals.__setupRedirectLogged = true;
+		}
+		throw redirect(302, '/setup');
+	}
+
+	// --- Step 3: Config Has Values - Setup Was Completed ---
+	// If private.ts exists with valid values, setup has been completed.
 	// Even if the database is empty (manually wiped), we should NOT go back to setup.
 	// Instead, let the auth system handle it (redirect to /login where they'll see auth errors).
 	// The admin can then restore the database or contact support.
 
-	// --- Step 3: Setup is Complete - Block Access to Setup Routes ---
+	// --- Step 4: Setup is Complete - Block Access to Setup Routes ---
 	if (pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
 		if (!event.locals.__setupLoginRedirectLogged) {
 			logger.trace(`Setup complete. Blocking access to \x1b[34m${pathname}\x1b[0m, redirecting to /login`);

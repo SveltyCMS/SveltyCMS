@@ -41,6 +41,7 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 			'/api/setup',
 			'/api/system/health',
 			'/api/dashboard/health',
+			'/login', // Allow login page (will redirect to setup if needed)
 			'/static',
 			'/assets',
 			'/favicon.ico',

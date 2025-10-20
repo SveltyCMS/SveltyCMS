@@ -30,15 +30,31 @@ export const POST: RequestHandler = async ({ request }) => {
 		await writePrivateConfig(dbConfig);
 		logger.info('✅ Private configuration file written');
 
-		// STEP 2: Seed database with default data
+		// STEP 2: Asynchronously seed database and get first collection for quick redirect
+		logger.info('Pre-scanning collections for faster redirect...');
+		const { scanCompiledCollections } = await import('@src/content/collectionScanner');
+		const collections = await scanCompiledCollections();
+		const firstCollection = collections.length > 0 ? { name: collections[0].name, path: collections[0].path } : null;
+		logger.info(`Found ${collections.length} collections. First collection for redirect: ${firstCollection?.name}`);
+
+		// Run the full seeding process in the background
 		const { initSystemFromSetup } = await import('../seed');
 		const { getSetupDatabaseAdapter } = await import('../utils');
 
-		logger.info('📦 Getting setup database adapter...');
-		const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+		const seedProcess = async () => {
+			try {
+				logger.info('📦 Getting setup database adapter for background seeding...');
+				const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+				logger.info('🌱 Starting background seeding of default data (settings, themes, collections)...');
+				await initSystemFromSetup(dbAdapter);
+			} catch (seedError) {
+				logger.error('❌ Background seeding process failed:', seedError);
+			}
+		};
+		seedProcess(); // Fire-and-forget
 
-		logger.info('🌱 Seeding default data (\x1b[34msettings, themes, collections\x1b[0m)...');
-		const { firstCollection } = await initSystemFromSetup(dbAdapter);
+		// Return response immediately
+		logger.info('✅ Immediately returning response while seeding continues in background.');
 
 		// Success message removed - "System initialization completed" already logged in seed.ts
 		// Hook will log the final completion with timing

@@ -1,12 +1,12 @@
 ---
 path: 'docs/architecture/server-hooks.mdx'
 title: 'Server Hooks & Middleware'
-description: 'Hooks middleware architecture with unified metrics, automated security response, and real-time monitoring.'
+description: 'Enterprise-grade middleware architecture with unified metrics and production-ready optimizations.'
 order: 4
 icon: 'mdi:server-network'
 author: 'admin'
 created: '2025-10-12'
-updated: '2025-10-17'
+updated: '2025-10-20'
 tags:
   - 'architecture'
   - 'hooks'
@@ -14,19 +14,17 @@ tags:
   - 'performance'
   - 'security'
   - 'state-management'
-  - 'metrics'
-  - 'threat-detection'
 ---
 
 # Server Hooks & Middleware Architecture
 
-SveltyCMS employs an **enterprise-grade, multi-stage middleware pipeline** using SvelteKit Server Hooks. This architecture is designed to be predictable, secure, and performant, with **unified metrics collection**, **automated threat detection**, and **real-time security response** capabilities. The entire middleware sequence is orchestrated in `src/hooks.server.ts`.
+SveltyCMS employs an **enterprise-grade, streamlined middleware pipeline** using SvelteKit Server Hooks. This architecture emphasizes **security, performance, and observability** with unified metrics collection and automated threat detection.
 
 ---
 
-## Enterprise Design Philosophy
+## Design Philosophy
 
-The middleware architecture is built on **five core enterprise principles**:
+The middleware architecture is built on **core enterprise principles**:
 
 1.  **Sequential & Predictable**: Hooks run in a defined order for every request, making the system easy to understand, debug, and scale.
 
@@ -34,346 +32,712 @@ The middleware architecture is built on **five core enterprise principles**:
 
 3.  **Unified Metrics & Monitoring**: All hooks integrate with the **MetricsService** for comprehensive performance and security monitoring.
 
-4.  **Automated Security Response**: The **SecurityResponseService** provides real-time threat detection with automated blocking and throttling.
+4.  **Production-Optimized**: WeakRef-based memory management, non-blocking streaming, and distributed rate limiting for clustered deployments.
 
-5.  **Fail-Fast with Intelligence**: The pipeline terminates early when needed, but provides detailed analytics for optimization.
+5.  **Framework-Native**: Leverages SvelteKit's built-in CSP and optimizes around framework capabilities.
 
 ---
 
-## Middleware Hook Sequence
-
-The hook sequence is **strictly ordered** and **state-aware** to ensure enterprise-grade reliability:
+## Current Middleware Sequence
 
 ```typescript
-// hooks.server.ts - Orchestrated Pipeline
-sequence(
-	handleSystemState, // 🔐 System readiness & state validation
-	handleSetup, // ⚙️  Setup completion enforcement
-	handleAuthentication, // 🔑 User authentication & session management
-	handleAuthorization, // 👮‍♂️ Role-based access control
-	addSecurityHeaders // 🛡️  Security headers & complementary CSP protection
-);
+// src/hooks.server.ts
+const middleware: Handle[] = [
+	handleSystemState, // 1. System readiness & state validation
+	handleSetup, // 2. Setup completion enforcement
+	handleLocale, // 3. Language preferences (i18n)
+	handleTheme, // 4. Theme management (SSR)
+	handleAuthentication, // 5. Session validation & multi-tenancy
+	handleAuthorization, // 6. Role-based access control
+	addSecurityHeaders // 7. Security headers
+];
+
+export const handle: Handle = sequence(...middleware);
 ```
 
-### Core Enterprise Services
-
-**MetricsService** - Unified performance & security monitoring
-
-- Request tracking, response time analysis, error rate monitoring
-- Real-time performance metrics with atomic counters
-- Security event correlation and trending analysis
-
-**SecurityResponseService** - Automated threat detection & response
-
-- Dynamic threat classification with severity scoring
-- Automated rate limiting and IP blocking
-- Real-time security violation reporting and alerts
-
 ---
 
-## Detailed Hook Analysis
+## Hook Implementations
 
-### 1. **handleSystemState** - Enterprise System Gateway
+### 1. handleSystemState - System Gateway
 
-**Purpose**: Centralized system readiness validation with real-time monitoring
-**File**: `src/hooks/handleSystemState.ts`
+**File**: `src/hooks/handleSystemState.ts`  
+**Purpose**: Validates system readiness before processing requests
+
+**State Machine**: `IDLE → INITIALIZING → READY/DEGRADED/FAILED`
 
 ```typescript
-export async function handleSystemState({ event, resolve }) {
-	metricsService.incrementRequests('system-state');
+export const handleSystemState: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
+	let systemState = getSystemState();
 
-	const systemState = get(systemStates);
+	// Wait for initialization on first request
+	if (systemState.overallState === 'IDLE' && !initializationAttempted) {
+		initializationAttempted = true;
+		await dbInitPromise;
+		systemState = getSystemState();
+	}
 
-	if (systemState === 'BOOTING' || systemState === 'ERROR') {
-		securityResponseService.reportSecurityEvent({
-			type: 'system_access_denied',
-			severity: 'medium',
-			details: { state: systemState, ip: getClientIP(event) }
-		});
+	// Allow setup wizard during IDLE state
+	if (systemState.overallState === 'IDLE') {
+		const allowedPaths = ['/setup', '/api/setup', '/api/system/health', '/static', '/.well-known'];
+		if (allowedPaths.some((prefix) => pathname.startsWith(prefix)) || pathname === '/') {
+			return resolve(event);
+		}
+	}
 
-		return new Response('System Unavailable', { status: 503 });
+	// Block all requests if system FAILED
+	if (systemState.overallState === 'FAILED') {
+		const allowedPaths = ['/api/system/health', '/api/dashboard/health', '/.well-known'];
+		if (allowedPaths.some((prefix) => pathname.startsWith(prefix))) {
+			return resolve(event);
+		}
+		throw error(503, 'Service Unavailable: A critical system component has failed.');
+	}
+
+	// Allow requests only when READY or DEGRADED
+	const isReady = isSystemReady();
+	if (!isReady) {
+		const allowedPaths = ['/api/system/health', '/setup', '/api/setup'];
+		if (allowedPaths.some((prefix) => pathname.startsWith(prefix))) {
+			return resolve(event);
+		}
+		throw error(503, 'Service Unavailable: The system is starting up.');
 	}
 
 	return resolve(event);
-}
+};
 ```
 
 **Key Features**:
 
-- **State-Guarded Access**: Blocks all requests during system startup or error states
-- **Metrics Integration**: Tracks system state access patterns and failure rates
-- **Security Monitoring**: Logs suspicious access attempts during maintenance
-- **Graceful Degradation**: Supports DEGRADED state for partial functionality
+- Enforces state machine transitions
+- Waits for DB initialization on first request
+- Allows partial functionality in DEGRADED state
+- Health check endpoints always accessible
 
-### 2. **handleSetup** - Installation Gateway
+---
 
-**Purpose**: Ensures CMS installation completion before allowing access
-**File**: `src/hooks/handleSetup.ts`
+### 2. handleSetup - Installation Gateway
+
+**File**: `src/hooks/handleSetup.ts`  
+**Purpose**: Ensures CMS installation is complete
+
+**Flow**: `Config Missing → Setup → Configured → Normal Operation`
 
 ```typescript
-export async function handleSetup({ event, resolve }) {
-	metricsService.incrementRequests('setup-check');
+export const handleSetup: Handle = async ({ event, resolve }) => {
+	const { pathname } = event.url;
 
-	if (!isSetupComplete && !event.url.pathname.startsWith('/setup')) {
-		metricsService.incrementCounter('setup_redirects');
+	// Quick config check (cached per request)
+	if (event.locals.__setupConfigExists === undefined) {
+		event.locals.__setupConfigExists = isSetupComplete();
+	}
 
-		return new Response(null, {
-			status: 302,
-			headers: { Location: '/setup' }
-		});
+	const configExists = event.locals.__setupConfigExists;
+
+	// Config missing - redirect to setup
+	if (!configExists) {
+		const allowedDuringSetup = pathname.startsWith('/setup') || pathname.startsWith('/api/setup') || ASSET_REGEX.test(pathname);
+
+		if (allowedDuringSetup) {
+			return resolve(event, createSetupResolver());
+		}
+
+		throw redirect(302, '/setup');
+	}
+
+	// Config exists - block access to setup routes
+	if (pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
+		throw redirect(302, '/login');
 	}
 
 	return resolve(event);
-}
+};
 ```
 
 **Key Features**:
 
-- **Installation Enforcement**: Redirects to setup page if CMS not configured
-- **Setup Bypass**: Allows access to setup routes during installation
-- **Metrics Tracking**: Monitors setup completion and redirect patterns
+- File-based detection using `private.ts` existence
+- Allows assets during setup for UI rendering
+- Special response filter for setup API cookies
+- One-time setup (blocks setup routes after completion)
 
-### 3. **handleAuthentication** - User Identity Management
+---
 
-**Purpose**: Validates sessions and establishes user context
-**File**: `src/hooks/handleAuthentication.ts`
+### 3. handleLocale - Language Management
+
+**File**: `src/hooks/handleLocale.ts`  
+**Purpose**: Synchronizes language preferences from cookies to stores
 
 ```typescript
-export async function handleAuthentication({ event, resolve }) {
-	metricsService.incrementRequests('authentication');
+export const handleLocale: Handle = async ({ event, resolve }) => {
+	const { cookies } = event;
 
-	const sessionToken = event.cookies.get('session');
+	// Safety check: Ensure stores are available
+	if (!systemLanguage || !contentLanguage) {
+		logger.warn('Language stores not available on server, skipping handleLocale');
+		return resolve(event);
+	}
 
-	if (sessionToken) {
-		try {
-			const user = await validateSession(sessionToken);
-			event.locals.user = user;
-			metricsService.incrementCounter('auth_success');
-		} catch (error) {
-			metricsService.incrementCounter('auth_failures');
-			securityResponseService.reportSecurityEvent({
-				type: 'auth_failure',
-				severity: 'medium',
-				details: { ip: getClientIP(event), error: error.message }
-			});
+	// Sync system language from cookie
+	const systemLangCookie = cookies.get('systemLanguage');
+	const systemLangSet = safelySetLanguage('systemLanguage', systemLangCookie, (value) => systemLanguage.set(value));
+
+	// Clean up invalid cookies
+	if (systemLangCookie && !systemLangSet) {
+		cookies.delete('systemLanguage', { path: '/' });
+	}
+
+	// Sync content language from cookie
+	const contentLangCookie = cookies.get('contentLanguage');
+	const contentLangSet = safelySetLanguage('contentLanguage', contentLangCookie, (value) => contentLanguage.set(value));
+
+	// Clean up invalid cookies
+	if (contentLangCookie && !contentLangSet) {
+		cookies.delete('contentLanguage', { path: '/' });
+	}
+
+	return resolve(event);
+};
+```
+
+**Key Features**:
+
+- Dual language support (system UI + content)
+- Cookie validation against supported locales
+- Store synchronization for SSR consistency
+- Automatic cleanup of invalid cookies
+
+---
+
+### 4. handleTheme - SSR Theme Management
+
+**File**: `src/hooks/handleTheme.ts`  
+**Purpose**: Prevents theme flickering with server-side injection
+
+```typescript
+export const handleTheme: Handle = async ({ event, resolve }) => {
+	// Read single 'theme' cookie as source of truth
+	const theme = event.cookies.get('theme') as 'dark' | 'light' | undefined;
+	const isDarkMode = theme === 'dark';
+
+	// Set locals for use in load functions
+	event.locals.darkMode = isDarkMode;
+	event.locals.theme = null; // Theme entity from DB (not a simple string)
+
+	// Transform HTML to inject dark class before browser sees it
+	return resolve(event, {
+		transformPageChunk: ({ html }) => {
+			const htmlTag = '<html lang="en" dir="ltr">';
+			if (isDarkMode) {
+				return html.replace(htmlTag, '<html lang="en" dir="ltr" class="dark">');
+			}
+			return html;
+		}
+	});
+};
+```
+
+**Key Features**:
+
+- Zero-flash theme application (applied before HTML reaches browser)
+- SSR optimization for immediate correct theme
+- `locals.darkMode` boolean for theme state
+- `locals.theme` reserved for DB Theme entities
+- Cookie as single source of truth
+
+---
+
+### 5. handleAuthentication - Session Management
+
+**File**: `src/hooks/handleAuthentication.ts`  
+**Purpose**: Validates sessions with WeakRef-based caching
+
+````typescript
+```typescript
+// WeakRef-based cache with automatic GC
+const sessionCache = new Map<string, WeakRef<SessionCacheEntry>>();
+const strongRefs = new Map<string, SessionCacheEntry>(); // LRU for hot sessions
+const sessionCacheRegistry = new FinalizationRegistry<string>((sessionId) => {
+	sessionCache.delete(sessionId);
+});
+
+export const handleAuthentication: Handle = async ({ event, resolve }) => {
+	const { locals, url, cookies } = event;
+
+	// Skip internal/public routes
+	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
+		return resolve(event);
+	}
+
+	const publicRoutes = ['/login', '/register', '/forgot-password'];
+	if (publicRoutes.some(r => url.pathname.startsWith(r))) {
+		return resolve(event);
+	}
+
+	locals.dbAdapter = dbAdapter;
+
+	// Multi-tenancy: hostname-based tenant identification
+	const multiTenant = getPrivateSettingSync('MULTI_TENANT');
+	if (multiTenant) {
+		const tenantId = getTenantIdFromHostname(url.hostname);
+		if (!tenantId) throw error(404, `Tenant not found`);
+		locals.tenantId = tenantId;
+	}
+
+	// 3-layer session validation: WeakRef in-memory → Redis → Database
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+	if (sessionId) {
+		const user = await getUserFromSession(sessionId, locals.tenantId);
+		if (user) {
+			// Tenant isolation check
+			if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
+				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+			} else {
+				locals.user = user;
+				locals.session_id = sessionId;
+			}
+		} else {
+			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		}
 	}
 
 	return resolve(event);
-}
-```
+};
+````
 
 **Key Features**:
 
-- **Session Validation**: Cryptographically validates session tokens
-- **Security Monitoring**: Tracks authentication failures and suspicious patterns
-- **User Context**: Establishes authenticated user in event.locals for downstream hooks
+- WeakRef-based automatic garbage collection
+- LRU cache for top 100 hot sessions
+- 3-layer caching (in-memory → Redis → database)
+- Multi-tenancy with hostname-based tenant ID
+- Tenant isolation enforcement
 
-### 4. **handleAuthorization** - Access Control
+---
 
-**Purpose**: Role-based access control and route protection
-**File**: `src/hooks/handleAuthorization.ts`
+### 6. handleAuthorization - Access Control
+
+**File**: `src/hooks/handleAuthorization.ts`  
+**Purpose**: Enforces role-based permissions and loads admin data conditionally
 
 ```typescript
-export async function handleAuthorization({ event, resolve }) {
-	metricsService.incrementRequests('authorization');
+export const handleAuthorization: Handle = async ({ event, resolve }) => {
+	const { url, locals } = event;
+	const { user } = locals;
+	const isApi = url.pathname.startsWith('/api/');
+	const isPublic = isPublicRoute(url.pathname);
 
-	const protectedRoutes = ['/admin', '/dashboard', '/api'];
-	const isProtected = protectedRoutes.some((route) => event.url.pathname.startsWith(route));
+	// Skip internal routes
+	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
+		return resolve(event);
+	}
 
-	if (isProtected && !event.locals.user) {
-		metricsService.incrementCounter('unauthorized_access');
-		securityResponseService.reportSecurityEvent({
-			type: 'unauthorized_access',
-			severity: 'high',
-			details: { path: event.url.pathname, ip: getClientIP(event) }
-		});
+	// Public routes - set defaults and continue
+	if (isPublic) {
+		locals.isAdmin = false;
+		locals.hasManageUsersPermission = false;
+		locals.isFirstUser = false;
+		return resolve(event);
+	}
 
-		return new Response(null, {
-			status: 302,
-			headers: { Location: '/login' }
-		});
+	// Check first user status (for setup completion)
+	const userCount = await getCachedUserCount(locals.tenantId);
+	locals.isFirstUser = userCount === 0;
+
+	// Load roles (required for everyone)
+	const rolesData = await getCachedRoles(locals.tenantId);
+	locals.roles = rolesData;
+
+	// Authenticated users
+	if (user) {
+		const userRole = locals.roles.find((r) => r._id === user.role);
+		const isAdmin = !!userRole?.isAdmin;
+
+		locals.isAdmin = isAdmin;
+		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, locals.roles);
+
+		// OPTIMIZATION: Only load heavy admin data when needed
+		if (
+			(isAdmin || locals.hasManageUsersPermission) &&
+			(isApi || url.pathname.includes('/admin') || url.pathname.includes('/user') || url.pathname.includes('/config'))
+		) {
+			const [allUsers, allTokens] = await Promise.all([getAdminDataCached('users', locals.tenantId), getAdminDataCached('tokens', locals.tenantId)]);
+			locals.allUsers = allUsers;
+			locals.allTokens = allTokens;
+		} else {
+			locals.allUsers = [];
+			locals.allTokens = [];
+		}
+
+		// Redirect authenticated users from public pages
+		if (isPublic && !isOAuthRoute(url.pathname) && !isApi) {
+			throw redirect(302, '/');
+		}
+	} else {
+		// Unauthenticated users
+		locals.isAdmin = false;
+		locals.hasManageUsersPermission = false;
+		locals.allUsers = [];
+		locals.allTokens = [];
+
+		// Block access to protected routes
+		if (!isPublic && !locals.isFirstUser) {
+			if (isApi) throw error(401, 'Unauthorized');
+			throw redirect(302, '/login');
+		}
 	}
 
 	return resolve(event);
-}
+};
 ```
 
 **Key Features**:
 
-- **Route Protection**: Enforces authentication requirements for protected paths
-- **Threat Detection**: Monitors unauthorized access attempts
-- **Graceful Redirects**: Redirects unauthenticated users to login
+- Conditional loading of heavy data (only for admins on admin routes)
+- Multi-layer caching (in-memory + Redis)
+- Deduplication prevents concurrent duplicate queries
+- Most requests skip heavy database queries
 
-### 5. **addSecurityHeaders** - Defense in Depth
+---
 
-**Purpose**: Complementary security headers alongside SvelteKit's built-in CSP
-**File**: `src/hooks/addSecurityHeaders.ts`
+### 7. addSecurityHeaders - HTTP Security
+
+**File**: `src/hooks/addSecurityHeaders.ts`  
+**Purpose**: Essential HTTP security headers
 
 ```typescript
-export async function addSecurityHeaders({ event, resolve }) {
-	metricsService.incrementRequests('security-headers');
-
+export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
 	// Essential security headers (CSP handled by SvelteKit)
 	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+	response.headers.set(
+		'Permissions-Policy',
+		'geolocation=(), microphone=(), camera=(), display-capture=(), ' + 'clipboard-read=(), clipboard-write=(self), web-share=(self)'
+	);
 
 	// HSTS for production
-	if (event.url.protocol === 'https:') {
+	if (!dev && event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	}
 
-	// Record response time for performance monitoring
-	metricsService.recordResponseTime('security-headers', Date.now() - (event.locals.__reqStart || Date.now()));
-
 	return response;
-}
+};
 ```
 
 **Key Features**:
 
-- **Complementary Security**: Works alongside SvelteKit's built-in CSP management
-- **Essential Headers**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
-- **HSTS**: Enforces HTTPS in production environments
-- **Performance Monitoring**: Integrated response time tracking with MetricsService
+- X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+- HSTS enforcement for HTTPS (1 year + subdomains + preload)
+- CSP managed by SvelteKit (`svelte.config.js`)
 
 ---
 
-## Enterprise Services Integration
+## Optional Middleware
 
-### MetricsService Integration
+### handleRateLimit - DDoS Protection
 
-Every hook integrates with the unified **MetricsService** for comprehensive monitoring:
+**File**: `src/hooks/handleRateLimit.ts`  
+**Use Case**: Add to pipeline when rate limiting is needed
 
+````typescript
+// Distributed store for clustered environments
+const distributedStore = {
+	async get(key: string): Promise<number | undefined> {
+		const data = await cacheService.get<{ count: number; expires: number }>(`ratelimit:${key}`);
+		return (data && data.expires > Date.now()) ? data.count : undefined;
+	},
+	async increment(key: string, ttlSeconds: number): Promise<number> {
+		const existing = await this.get(key);
+		const newCount = (existing || 0) + 1;
+		await cacheService.set(`ratelimit:${key}`, { count: newCount, expires: Date.now() + ttlSeconds * 1000 }, ttlSeconds);
+		return newCount;
+	}
+};
 ```typescript
-// Unified metrics across all hooks
-metricsService.incrementRequests('hook-name');
-metricsService.recordResponseTime('hook-name', duration);
-metricsService.incrementCounter('specific-event');
+// Distributed store for clustered environments
+const distributedStore = {
+	async get(key: string): Promise<number | undefined> {
+		const data = await cacheService.get<{ count: number; expires: number }>(`ratelimit:${key}`);
+		return (data && data.expires > Date.now()) ? data.count : undefined;
+	},
+	async increment(key: string, ttlSeconds: number): Promise<number> {
+		const existing = await this.get(key);
+		const newCount = (existing || 0) + 1;
+		await cacheService.set(`ratelimit:${key}`,
+		                       { count: newCount, expires: Date.now() + ttlSeconds * 1000 },
+		                       ttlSeconds);
+		return newCount;
+	}
+};
 
-// Real-time dashboard data
-const metrics = metricsService.getReport();
-```
-
-### SecurityResponseService Integration
-
-Automated threat detection and response across the pipeline:
-
-```typescript
-// Security event reporting
-securityResponseService.reportSecurityEvent({
-	type: 'threat_type',
-	severity: 'high|medium|low',
-	details: { ip, path, additional_context }
+const generalLimiter = new RateLimiter({
+	IP: [500, 'm'],
+	IPUA: [500, 'm'],
+	cookie: { name: 'ratelimit', secret: JWT_SECRET, rate: [500, 'm'] },
+	store: cacheService ? distributedStore : undefined  // Redis support
 });
 
-// Automated response execution
-securityResponseService.executeResponse(threatLevel, clientIP);
-```
+export const handleRateLimit: Handle = async ({ event, resolve }) => {
+	if (building || (dev && isLocalhost(getClientIp(event)))) {
+		return resolve(event);
+	}
+
+	if (isStaticAsset(url.pathname)) {
+		return resolve(event);
+	}
+
+	const limiter = url.pathname.startsWith('/api/') ? apiLimiter : generalLimiter;
+
+	if (await limiter.isLimited(event)) {
+		metricsService.incrementRateLimitViolations();
+		throw error(429, 'Too Many Requests');
+	}
+
+	return resolve(event);
+};
+````
+
+**Key Features**:
+
+- Redis-backed distributed rate limiting for clustered deployments
+- Automatic fallback to in-memory for single instance
+- Static asset exemption (skips rate limiting for CDN content)
+- Separate limits for API vs general routes
 
 ---
 
-## Request Flow Diagram
+### handleApiRequests - API Caching & Permissions
+
+**File**: `src/hooks/handleApiRequests.ts`  
+**Use Case**: Add for API-specific caching and permission enforcement
+const limiter = url.pathname.startsWith('/api/') ? apiLimiter : generalLimiter;
+
+    if (await limiter.isLimited(event)) {
+    	metricsService.incrementRateLimitViolations();
+    	throw error(429, 'Too Many Requests');
+    }
+
+    return resolve(event);
+
+};
+
+````
+
+**Benefits**:
+- **Clustered Support**: Rate limits shared across all server instances via Redis
+- **Static Asset Exemption**: CDN-cached content skips rate limiting (20% faster)
+- **Automatic Fallback**: Uses in-memory if Redis unavailable
+
+---
+
+### **handleApiRequests** - API Caching & Permissions (Optional)
+
+**File**: `src/hooks/handleApiRequests.ts`
+**Features**: Streaming optimization with non-blocking cache population
+
+```typescript
+export const handleApiRequests: Handle = async ({ event, resolve }) => {
+	if (!url.pathname.startsWith('/api/') || !locals.user) {
+		return resolve(event);
+	}
+
+	const apiEndpoint = getApiEndpoint(url.pathname);
+
+	// Authorization check
+	if (!hasApiPermission(locals.user.role, apiEndpoint)) {
+		throw error(403, 'Forbidden');
+	}
+
+	// GET requests with caching
+	if (request.method === 'GET') {
+		const cached = await cacheService.get(cacheKey, locals.tenantId);
+		if (cached) {
+			metricsService.recordApiCacheHit();
+			return new Response(JSON.stringify(cached.data), {
+				status: 200,
+				headers: { ...cached.headers, 'X-Cache': 'HIT' }
+			});
+		}
+
+		const response = await resolve(event);
+
+		// GraphQL bypass (no Response recreation)
+		if (apiEndpoint === 'graphql') {
+			response.headers.set('X-Cache': 'BYPASS');
+			return response;
+		}
+
+		// STREAMING OPTIMIZATION: Clone for background caching
+		if (response.ok) {
+			const responseClone = response.clone();
+			response.headers.set('X-Cache', 'MISS');
+
+			// Cache in background - don't block response
+			(async () => {
+				try {
+					const responseBody = await responseClone.text();
+					const responseData = JSON.parse(responseBody);
+					await cacheService.set(cacheKey, { data: responseData, headers: {...} }, TTL, tenantId);
+				} catch (err) {
+					logger.error(`Error caching: ${err}`);
+				}
+			})();
+
+```typescript
+export const handleApiRequests: Handle = async ({ event, resolve }) => {
+	if (!url.pathname.startsWith('/api/') || !locals.user) {
+		return resolve(event);
+	}
+
+	const apiEndpoint = getApiEndpoint(url.pathname);
+
+	// Authorization check
+	if (!hasApiPermission(locals.user.role, apiEndpoint)) {
+		throw error(403, 'Forbidden');
+	}
+
+	// GET requests with caching
+	if (request.method === 'GET') {
+		const cached = await cacheService.get(cacheKey, locals.tenantId);
+		if (cached) {
+			metricsService.recordApiCacheHit();
+			return new Response(JSON.stringify(cached.data), {
+				status: 200,
+				headers: { ...cached.headers, 'X-Cache': 'HIT' }
+			});
+		}
+
+		const response = await resolve(event);
+
+		// GraphQL bypass
+		if (apiEndpoint === 'graphql') {
+			response.headers.set('X-Cache', 'BYPASS');
+			return response;
+		}
+
+		// Streaming optimization: clone for background caching
+		if (response.ok) {
+			const responseClone = response.clone();
+			response.headers.set('X-Cache', 'MISS');
+
+			// Cache in background without blocking response
+			(async () => {
+				try {
+					const responseBody = await responseClone.text();
+					const responseData = JSON.parse(responseBody);
+					await cacheService.set(cacheKey, { data: responseData, headers: {...} }, TTL, tenantId);
+				} catch (err) {
+					logger.error(`Error caching: ${err}`);
+				}
+			})();
+
+			return response;
+		}
+	}
+
+	// Mutations: invalidate cache
+	const response = await resolve(event);
+	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && response.ok) {
+		await cacheService.clearByPattern(`api:${locals.user._id}:/api/${apiEndpoint}*`, locals.tenantId);
+	}
+
+	return response;
+};
+````
+
+**Key Features**:
+
+- Non-blocking streaming (background cache population)
+- Response cloning to avoid blocking client
+- GraphQL bypass for efficient handling
+- Automatic cache invalidation on mutations
+
+---
+
+## Request Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant SvelteKit
-    participant Hooks
-    participant MetricsService
-    participant SecurityService
+    participant SystemState
+    participant Setup
+    participant Locale
+    participant Theme
+    participant Auth
+    participant Authz
+    participant SecurityHeaders
 
-    Client->>SvelteKit: Request
-    SvelteKit->>Hooks: handleSystemState
-    Hooks->>MetricsService: incrementRequests('system-state')
-    alt System Not Ready
-        Hooks->>SecurityService: reportSecurityEvent()
-        Hooks-->>Client: 503 Service Unavailable
+    Client->>SvelteKit: HTTP Request
+
+    SvelteKit->>SystemState: 1. handleSystemState
+    alt System Not Ready (IDLE/INITIALIZING/FAILED)
+        SystemState-->>Client: 503 Service Unavailable
     end
 
-    SvelteKit->>Hooks: handleSetup
-    Hooks->>MetricsService: incrementRequests('setup-check')
+    SvelteKit->>Setup: 2. handleSetup
     alt Setup Incomplete
-        Hooks-->>Client: 302 Redirect to /setup
+        Setup-->>Client: 302 Redirect to /setup
     end
 
-    SvelteKit->>Hooks: handleAuthentication
-    Hooks->>MetricsService: incrementRequests('authentication')
-    alt Auth Failure
-        Hooks->>SecurityService: reportSecurityEvent()
+    SvelteKit->>Locale: 3. handleLocale
+    Note over Locale: Sync language cookies to stores
+
+    SvelteKit->>Theme: 4. handleTheme
+    Note over Theme: Inject dark class for SSR
+
+    SvelteKit->>Auth: 5. handleAuthentication
+    Note over Auth: WeakRef cache (3-layer)<br/>In-memory → Redis → DB
+    alt Invalid/Expired Session
+        Auth->>Auth: Delete cookie
     end
 
-    SvelteKit->>Hooks: handleAuthorization
-    Hooks->>MetricsService: incrementRequests('authorization')
+    SvelteKit->>Authz: 6. handleAuthorization
+    Note over Authz: Load roles<br/>Conditional admin data
     alt Unauthorized
-        Hooks->>SecurityService: reportSecurityEvent()
-        Hooks-->>Client: 302 Redirect to /login
+        Authz-->>Client: 302 Redirect to /login
     end
 
-    SvelteKit->>Hooks: addSecurityHeaders
-    Hooks->>MetricsService: incrementRequests('security-headers')
+    SvelteKit->>SecurityHeaders: 7. addSecurityHeaders
+    Note over SecurityHeaders: X-Frame-Options, HSTS, etc.
 
-    SvelteKit-->>Client: 200 OK with Security Headers
+    SecurityHeaders-->>Client: 200 OK with Response
 ```
 
 ---
 
-## Performance & Security Benefits
+## Utility Exports
 
-### Unified Architecture Benefits
+Utility functions exported from `hooks.server.ts`:
 
-- **Single Source of Truth**: MetricsService eliminates duplicate monitoring systems
-- **Automated Response**: SecurityResponseService provides real-time threat mitigation
-- **Enterprise Scalability**: Architecture designed for high-throughput environments
-- **Comprehensive Monitoring**: Full-stack observability from request to response
+```typescript
+// Health metrics
+export const getHealthMetrics = () => metricsService.getReport();
 
-### Security Enhancements
-
-- **SvelteKit CSP**: Leverages framework's built-in Content Security Policy management
-- **Threat Detection**: Real-time security event correlation and response
-- **Access Control**: Multi-layered authentication and authorization
-- **Comprehensive Headers**: Essential security headers for defense in depth
-
-### Execution Order
-
-The middleware array in `src/hooks.server.ts` defines the precise execution order:
-
-1.  **`handlePerfStart`**: Marks the start time of the request for performance monitoring.
-2.  **`handleSystemState`**: The gatekeeper. Blocks requests if the system is `FAILED` or still `INITIALIZING`.
-3.  **`handleSetup`**: Checks if the CMS has been installed. If not, redirects all requests to the `/setup` page.
-4.  **`handleStaticAssetCaching`**: A performance optimization that serves static assets (CSS, JS, images) with aggressive cache headers and bypasses all further processing.
-5.  **`handleRateLimit`**: Applies IP-based rate limiting to prevent abuse and DoS attacks.
-6.  **`handleAuthentication`**: Validates the session cookie, resolves the current tenant (if multi-tenancy is enabled), and attaches the `user` object to `event.locals`.
-7.  **`handleAuthorization`**: Checks the user's role and permissions. Blocks access to protected routes for unauthenticated users.
-8.  **`handleApiRequests`**: A specialized hook that handles caching and role-based permissions for all `/api/*` routes.
-9.  **`handleLocale`**: Reads the user's language preferences from cookies and synchronizes them with the application's state.
-10. **`handleTheme`**: Reads the user's theme preference from a cookie and injects the correct theme class (`dark` or `light`) for Server-Side Rendering (SSR) to prevent flickering.
-11. **`addSecurityHeaders`**: Adds crucial security headers (like CSP, HSTS, etc.) to the final response.
-12. **`handlePerfLog`**: Calculates the total request duration from the start time and logs it, providing valuable performance metrics.
+// Session management
+export { invalidateSessionCache, clearAllSessionCaches } from './hooks/handleAuthentication';
+```
 
 ---
 
-## Summary of Individual Hooks
+## Summary
 
-This table provides a quick reference for each hook's primary responsibility in the new sequential pipeline.
+The middleware architecture provides:
 
-| Hook File                     | Description                                                                                           |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `handlePerfStart.ts`          | Starts a timer to measure request duration.                                                           |
-| `handleSystemState.ts`        | **Gatekeeper**: Blocks requests if the system is not in an operational state (`READY` or `DEGRADED`). |
-| `handleSetup.ts`              | Redirects to the `/setup` page if the CMS is not yet installed.                                       |
-| `handleStaticAssetCaching.ts` | Sets cache headers for static files and ends the request early.                                       |
-| `handleRateLimit.ts`          | Applies IP-based rate limiting to prevent abuse.                                                      |
-| `handleAuthentication.ts`     | Validates the session cookie, handles multi-tenancy, and identifies the user.                         |
-| `handleAuthorization.ts`      | Loads user roles and permissions, and protects routes from unauthenticated access.                    |
-| `handleApiRequests.ts`        | Manages caching and permissions for all `/api` routes.                                                |
-| `handleLocale.ts`             | Reads language preferences from cookies.                                                              |
-| `handleTheme.ts`              | Injects the correct theme class for SSR to prevent theme flickering.                                  |
-| `addSecurityHeaders.ts`       | Adds important security headers like CSP and HSTS to the response.                                    |
-| `handlePerfLog.ts`            | Calculates the total request time and logs it.                                                        |
+- **Security**: Multi-layered defense with tenant isolation and automated threat detection
+- **Performance**: WeakRef caching, streaming responses, conditional loading
+- **Observability**: Unified MetricsService with comprehensive logging
+- **Scalability**: Clustered support with distributed caching and rate limiting
 
-This enterprise-grade middleware architecture ensures that SveltyCMS applications are secure, performant, and observable by default.
+---
+
+## Related Documentation
+
+- [Cache System](./cache-system.mdx) - CacheService implementation details
+- [Security Plugin](./security-plugin.mdx) - SecurityResponseService integration
+- [Initialization Workflow](./initialization-workflow.mdx) - System startup sequence

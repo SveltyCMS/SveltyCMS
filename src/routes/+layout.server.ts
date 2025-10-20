@@ -1,8 +1,6 @@
 /**
  * @file src/routes/+layout.server.ts
  * @description Root server-side layout handler.
- * This runs for every request and is responsible for establishing the
- * correct language and user/tenant context for the entire application.
  */
 import { version } from '../../package.json';
 // Use server-side settings service with setup-safe fallbacks
@@ -31,6 +29,7 @@ export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 		// CSP nonce for secure inline scripts/styles
 		cspNonce: locals.cspNonce,
 		tenantId: locals.tenantId ?? null,
+		darkMode: locals.darkMode, // <-- THIS LINE IS REQUIRED
 		settings: {
 			SITE_NAME: siteName,
 			BASE_LOCALE: baseLocale,

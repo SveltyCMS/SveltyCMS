@@ -1,6 +1,6 @@
 /**
  * @file src/hooks/handleApiRequests.ts
- * @description Middleware for API request authorization and intelligent caching
+ * @description Middleware for API request authorization and intelligent caching with streaming optimization
  *
  * ### Responsibilities
  * - Enforces role-based API access control using permission rules
@@ -8,12 +8,18 @@
  * - Automatically invalidates caches on mutations (POST/PUT/DELETE/PATCH)
  * - Tracks performance metrics (cache hits, misses, errors)
  * - Handles cache bypass with query parameters
+ * - Optimizes streaming performance by using response clones
  *
  * ### Caching Strategy
  * - **Cached**: Successful GET requests (per user, per tenant, per endpoint)
  * - **Not Cached**: GraphQL queries (complex caching handled separately)
  * - **Bypass**: Add `?refresh=true` or `?nocache=true` to skip cache
  * - **Invalidation**: Automatic on mutations, manual via `invalidateApiCache()`
+ *
+ * ### Performance Optimizations
+ * - Uses response.clone() to avoid blocking streaming for large responses
+ * - Background cache population doesn't delay response to client
+ * - Minimal memory overhead for large payloads
  *
  * ### Prerequisites
  * - handleSystemState confirmed system is READY
@@ -28,37 +34,23 @@ import { getErrorMessage } from '@utils/errorHandling';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { cacheService, API_CACHE_TTL_S } from '@src/databases/CacheService';
 import { metricsService } from '@src/services/MetricsService';
-// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // --- METRICS INTEGRATION ---
 // API metrics are now handled by the unified MetricsService for enterprise-grade monitoring
 
-// --- UTILITY FUNCTIONS ---
-
-/**
- * Extracts the API endpoint from the URL pathname.
- *
- * @example
- * getApiEndpoint('/api/settings/system') // 'settings'
- * getApiEndpoint('/api/user/profile') // 'user'
- */
+/** Extracts the API endpoint from the URL pathname. */
 function getApiEndpoint(pathname: string): string | null {
 	const parts = pathname.split('/api/')[1]?.split('/');
 	return parts?.[0] || null;
 }
 
-/**
- * Generates a cache key for API responses.
- * Includes user ID, endpoint, and full query to ensure uniqueness.
- */
+/** Generates a cache key for API responses. */
 function generateCacheKey(pathname: string, search: string, userId: string): string {
 	return `api:${userId}:${pathname}${search}`;
 }
 
-/**
- * Checks if cache should be bypassed based on query parameters.
- */
+/** Checks if cache should be bypassed based on query parameters. */
 function shouldBypassCache(searchParams: URLSearchParams): boolean {
 	return searchParams.get('refresh') === 'true' || searchParams.get('nocache') === 'true';
 }
@@ -84,13 +76,11 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		}
 
 		// --- 1. Authorization Check ---
-		// Special case: logout endpoint is always allowed
 		if (url.pathname === '/api/user/logout') {
 			logger.trace('Logout endpoint - bypassing permission checks');
 			return resolve(event);
 		}
 
-		// Check if user's role has permission to access this API endpoint
 		if (!hasApiPermission(locals.user.role, apiEndpoint)) {
 			logger.warn(
 				`User \x1b[34m${locals.user._id}\x1b[0m (role: ${locals.user.role}, tenant: ${locals.tenantId || 'global'}) ` +
@@ -109,7 +99,6 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			const bypassCache = shouldBypassCache(url.searchParams);
 			const cacheKey = generateCacheKey(url.pathname, url.search, locals.user._id);
 
-			// Try to serve from cache (unless bypassed)
 			if (!bypassCache) {
 				try {
 					const cached = await cacheService.get<{
@@ -132,7 +121,6 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 					}
 				} catch (cacheError) {
 					logger.warn(`Cache read error for \x1b[31m${cacheKey}\x1b[0m: ${getErrorMessage(cacheError)}`);
-					// Continue to resolve request if cache fails
 				}
 			} else {
 				logger.debug(`Cache bypass requested for \x1b[33m${url.pathname}\x1b[0m`);
@@ -141,49 +129,54 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 			// Resolve the request (cache miss or bypassed)
 			const response = await resolve(event);
 
-			// Special case: GraphQL has its own caching logic
+			// --- OPTIMIZED: GraphQL bypass, no new Response created ---
 			if (apiEndpoint === 'graphql') {
-				const newHeaders = new Headers(response.headers);
-				newHeaders.set('X-Cache', 'BYPASS');
+				response.headers.set('X-Cache', 'BYPASS');
 				metricsService.recordApiCacheMiss();
-
-				return new Response(response.body, {
-					status: response.status,
-					headers: newHeaders
-				});
+				return response;
 			}
 
-			// Cache successful responses
+			// --- STREAMING OPTIMIZATION: Cache successful responses without blocking ---
 			if (response.ok) {
-				try {
-					const responseBody = await response.text();
-					const responseData = JSON.parse(responseBody);
+				metricsService.recordApiCacheMiss();
 
-					await cacheService.set(
-						cacheKey,
-						{
-							data: responseData,
-							headers: Object.fromEntries(response.headers)
-						},
-						API_CACHE_TTL_S,
-						locals.tenantId
-					);
+				// Clone the response to read body without consuming the original stream
+				const responseClone = response.clone();
 
-					metricsService.recordApiCacheMiss();
+				// Set cache header immediately
+				response.headers.set('X-Cache', 'MISS');
 
-					return new Response(responseBody, {
-						status: response.status,
-						headers: {
-							...Object.fromEntries(response.headers),
-							'Content-Type': 'application/json',
-							'X-Cache': 'MISS'
+				// Cache in background - don't await to avoid blocking the response stream
+				// This is especially important for large payloads (e.g., file downloads, large JSON)
+				(async () => {
+					try {
+						const responseBody = await responseClone.text();
+						const responseData = JSON.parse(responseBody);
+
+						await cacheService.set(
+							cacheKey,
+							{
+								data: responseData,
+								headers: Object.fromEntries(responseClone.headers)
+							},
+							API_CACHE_TTL_S,
+							locals.tenantId
+						);
+
+						logger.trace(`Background cache set complete for \x1b[33m${url.pathname}\x1b[0m`);
+					} catch (processingError) {
+						// Only log JSON parse errors if response is expected to be JSON
+						const contentType = responseClone.headers.get('content-type');
+						if (contentType?.includes('application/json')) {
+							logger.error(`Error caching API response for \x1b[34m/api/${apiEndpoint}\x1b[0m: ${getErrorMessage(processingError)}`);
+						} else {
+							logger.trace(`Skipped caching non-JSON response for \x1b[34m/api/${apiEndpoint}\x1b[0m`);
 						}
-					});
-				} catch (processingError) {
-					logger.error(`Error caching API response for \x1b[34m/api/${apiEndpoint}\x1b[0m: ${getErrorMessage(processingError)}`);
-					// Return the original response if caching fails
-					return response;
-				}
+					}
+				})();
+
+				// Return original response immediately (streaming not blocked)
+				return response;
 			}
 
 			return response;
@@ -192,49 +185,32 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 		// --- 3. Handle Mutations (POST, PUT, DELETE, PATCH) ---
 		const response = await resolve(event);
 
-		// Invalidate cache on successful mutations
 		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && response.ok) {
 			try {
-				// Invalidate all cached responses for this endpoint and user
 				const patternToInvalidate = `api:${locals.user._id}:/api/${apiEndpoint}`;
-
 				await cacheService.clearByPattern(`${patternToInvalidate}*`, locals.tenantId);
 
 				logger.debug(
-					`Invalidated API cache for pattern ${patternToInvalidate}* ` + `(tenant: ${locals.tenantId || 'global'}) after ${request.method} request`
+					`Invalidated API cache for pattern ${patternToInvalidate}* (tenant: ${locals.tenantId || 'global'}) after ${request.method} request`
 				);
 			} catch (invalidationError) {
 				logger.error(`Failed to invalidate API cache after ${request.method}: ${getErrorMessage(invalidationError)}`);
-				// Don't fail the request if cache invalidation fails
 			}
 		}
 
 		return response;
 	} catch (err) {
 		metricsService.incrementApiErrors();
-		// Re-throw to let SvelteKit's error handler deal with it
 		throw err;
 	}
 };
 
 // --- UTILITY EXPORTS ---
 
-/**
- * Manually invalidates API cache for a specific endpoint and user.
- * Useful when you need to clear cache outside of the normal request flow.
- *
- * @param apiEndpoint - The API endpoint to invalidate (e.g., 'settings', 'user')
- * @param userId - The user ID whose cache should be cleared
- * @param tenantId - Optional tenant ID for multi-tenant systems
- *
- * @example
- * // Clear all cached settings API responses for a user
- * await invalidateApiCache('settings', user._id, tenantId);
- */
+/** Manually invalidates API cache for a specific endpoint and user. */
 export async function invalidateApiCache(apiEndpoint: string, userId: string, tenantId?: string): Promise<void> {
 	const baseKey = `api:${userId}:/api/${apiEndpoint}`;
-
-	logger.debug(`Manually invalidating API cache for pattern \x1b[31m${baseKey}\x1b[0m* ` + `(tenant: ${tenantId || 'global'})`);
+	logger.debug(`Manually invalidating API cache for pattern \x1b[31m${baseKey}\x1b[0m* (tenant: ${tenantId || 'global'})`);
 
 	try {
 		await cacheService.clearByPattern(`${baseKey}*`, tenantId);
@@ -244,10 +220,7 @@ export async function invalidateApiCache(apiEndpoint: string, userId: string, te
 	}
 }
 
-/**
- * Returns API metrics from the unified metrics service.
- * Provides comprehensive API performance data.
- */
+/** Returns API metrics from the unified metrics service. */
 export function getApiHealthMetrics() {
 	const report = metricsService.getReport();
 	return {
@@ -263,11 +236,7 @@ export function getApiHealthMetrics() {
 	};
 }
 
-/**
- * API metrics are now managed by the unified MetricsService.
- * This function is kept for compatibility but delegates to the central service.
- */
+/** API metrics are now managed by the unified MetricsService. */
 export function resetApiHealthMetrics(): void {
-	// API metrics are now part of the unified service which handles its own resets
 	logger.trace('API health metrics managed by unified MetricsService');
 }

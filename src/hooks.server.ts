@@ -9,14 +9,20 @@
  * Middleware Sequence:
  * 1. System state validation (gatekeeper)
  * 2. Setup completion enforcement (installation gate)
- * 3. CSP nonce generation (XSS prevention)
- * 4. Authentication & session management (identity)
- * 5. Authorization & access control (security)
- * 6. Security headers with nonce-based CSP (defense in depth)
+ * 3. Language preferences (i18n cookie synchronization)
+ * 4. Theme management (SSR dark mode support)
+ * 5. Authentication & session management (identity)
+ * 6. Authorization & access control (security)
+ * 7. Security headers with nonce-based CSP (defense in depth)
  *
  * Core Services:
  * - MetricsService: Unified performance & security monitoring
  * - SecurityResponseService: Automated threat detection & response
+ *
+ * Utility Exports:
+ * - getHealthMetrics(): Returns comprehensive metrics report
+ * - invalidateSessionCache(): Invalidates specific user session
+ * - clearAllSessionCaches(): Clears all cached sessions
  */
 
 import { building } from '$app/environment';
@@ -30,67 +36,11 @@ import { handleSystemState } from './hooks/handleSystemState';
 import { handleSetup } from './hooks/handleSetup';
 import { handleAuthentication } from './hooks/handleAuthentication';
 import { handleAuthorization } from './hooks/handleAuthorization';
+import { handleLocale } from './hooks/handleLocale';
+import { handleTheme } from './hooks/handleTheme';
 import { addSecurityHeaders } from './hooks/addSecurityHeaders';
 
-// --- Performance Monitoring Utilities ---
-
-// --- Enterprise Middleware Pipeline ---
-
-// --- Unified Metrics Service ---
-// All metrics are now handled by the centralized MetricsService
-// This eliminates duplicate metrics systems and provides enterprise-grade monitoring
-
-// --- Middleware Sequence ---
-
-/**
- * Simplified enterprise middleware pipeline with SvelteKit's built-in CSP.
- * Each hook integrates with MetricsService for comprehensive monitoring.
- */
-const middleware: Handle[] = [
-	// 1. System state validation (enterprise gatekeeper with metrics)
-	handleSystemState,
-
-	// 2. Setup completion enforcement (installation gate with tracking)
-	handleSetup,
-
-	// 3. Authentication & session management (with security monitoring)
-	handleAuthentication,
-
-	// 4. Authorization & access control (with threat detection)
-	handleAuthorization,
-
-	// 5. Essential security headers (SvelteKit handles CSP automatically)
-	addSecurityHeaders
-];
-
-// --- Main Handle Export ---
-
-/**
- * The main handle function orchestrates all middleware in sequence.
- * Each middleware hook processes the request in order and can:
- * - Modify event.locals
- * - Throw errors or redirects
- * - Return early with a response
- * - Call resolve() to continue to the next hook
- */
-export const handle: Handle = sequence(...middleware);
-
-// --- Utility Functions for External Use ---
-
-/**
- * Returns a comprehensive metrics report from the unified metrics service.
- * Provides enterprise-grade monitoring data across all middleware.
- */
-export const getHealthMetrics = () => metricsService.getReport();
-
-/**
- * Invalidates a specific user's session from all cache layers.
- * Useful when logging out a user or revoking their session.
- */
-export { invalidateSessionCache } from './hooks/handleAuthentication';
-
 // --- Server Startup Logic ---
-
 if (!building) {
 	/**
 	 * The main initialization logic (settings, DB connection) is handled
@@ -110,3 +60,34 @@ if (!building) {
 			logger.error('Fatal: Failed to load DB module during server startup:', error);
 		});
 }
+
+// --- Middleware Sequence ---
+const middleware: Handle[] = [
+	// 1. System state validation (enterprise gatekeeper with metrics)
+	handleSystemState,
+
+	// 2. Setup completion enforcement (installation gate with tracking)
+	handleSetup,
+
+	// 3. Language preferences (i18n)
+	handleLocale,
+
+	// 4. Theme management
+	handleTheme,
+
+	// 5. Authentication & session management (with security monitoring)
+	handleAuthentication,
+
+	// 6. Authorization & access control (with threat detection)
+	handleAuthorization,
+
+	// 7. Essential security headers (SvelteKit handles CSP automatically)
+	addSecurityHeaders
+];
+
+// --- Main Handle Export ---
+export const handle: Handle = sequence(...middleware);
+
+// --- Utility Functions for External Use ---
+export const getHealthMetrics = () => metricsService.getReport();
+export { invalidateSessionCache, clearAllSessionCaches } from './hooks/handleAuthentication';

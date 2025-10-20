@@ -516,15 +516,15 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	}
 </script>
 
-<div class="image-editor" class:mobile={isMobile} class:tablet={isTablet}>
+<div class="h-full w-full" class:mobile={isMobile} class:tablet={isTablet}>
 	<!-- Desktop/Tablet Layout -->
 	{#if !isMobile}
-		<div class="editor-layout">
+		<div class="flex h-full">
 			<!-- Left Sidebar -->
 			<EditorSidebar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.file} />
 
 			<!-- Main Canvas Area -->
-			<div class="editor-main">
+			<div class="flex min-w-0 flex-1 flex-col">
 				<!-- Top Controls -->
 				<div class="editor-controls">
 					<div class="controls-left">
@@ -580,7 +580,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				</div>
 
 				<!-- Canvas Container -->
-				<div class="canvas-wrapper">
+				<div class="relative flex flex-1 flex-col">
 					<EditorCanvas bind:containerRef hasImage={!!storeState.file}>
 						<!-- Crop Top Toolbar - overlaid on canvas -->
 						{#if activeState === 'crop'}
@@ -616,7 +616,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			<div class="mobile-controls">
 				<div class="controls-left">
 					{#if onCancel}
-						<button onclick={handleCancel} class="variant-ghost btn-icon">
+						<button onclick={handleCancel} aria-label="Cancel" class="variant-ghost btn-icon">
 							<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 						</button>
 					{/if}
@@ -636,7 +636,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			</div>
 
 			<!-- Canvas (Mobile) -->
-			<div class="canvas-wrapper-mobile">
+			<div class="relative flex flex-1 flex-col">
 				<EditorCanvas bind:containerRef hasImage={!!storeState.file}>
 					<!-- Crop Top Toolbar - overlaid on canvas -->
 					{#if activeState === 'crop'}
@@ -805,23 +805,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 <div class="success-message" role="alert">Image saved successfully!</div>
 
 <style>
-	.image-editor {
-		@apply h-full w-full;
-	}
-
-	.editor-layout {
-		@apply flex h-full;
-	}
-
-	.editor-main {
-		@apply flex min-w-0 flex-1 flex-col;
-	}
-
-	.canvas-wrapper,
-	.canvas-wrapper-mobile {
-		@apply relative flex flex-1 flex-col;
-	}
-
 	.editor-controls {
 		@apply flex items-center justify-between gap-4 border-b p-4;
 		background-color: rgb(var(--color-surface-50) / 1);

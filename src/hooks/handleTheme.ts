@@ -3,33 +3,35 @@
  * @description Handles server-side theme rendering to prevent theme flickering.
  *
  * ### Features
- * - Reads a single 'theme' cookie to determine the user's preference.
- * - Injects the 'dark' class into the initial HTML for correct Server-Side Rendering (SSR).
- * - Sets `event.locals.theme` for use in other server `load` functions.
+ * - Reads a single 'theme' cookie ('dark' | 'light') as the source of truth.
+ * - Injects the 'dark' class into the initial HTML for correct SSR.
+ * - Sets `event.locals.darkMode` (boolean) and `event.locals.theme` (string) for use in other server `load` functions.
  */
 
-import type { Handle } from '@sveltekit/kit';
+import type { Handle } from '@sveltejs/kit';
 
 export const handleTheme: Handle = async ({ event, resolve }) => {
-	// 1. Read the single 'theme' cookie as the source of truth ('dark' or 'light').
+	// 1. Read the single 'theme' cookie
 	const theme = event.cookies.get('theme') as 'dark' | 'light' | undefined;
 
-	// 2. Determine the dark mode state. Default to false (light mode) if no cookie is set.
+	// 2. Determine the dark mode state
 	const isDarkMode = theme === 'dark';
 
-	// 3. Set `locals` for use in your `load` functions.
-	// `event.locals.theme` can be used to pass the theme state to the page.
-	event.locals.theme = theme || 'light';
+	// 3. Set darkMode (boolean) for use in other server load functions
+	event.locals.darkMode = isDarkMode;
+	// Note: locals.theme expects a Theme entity from DB, not a simple string
+	// For theme preference, use locals.darkMode instead
+	event.locals.theme = null;
 
-	// 4. Transform the HTML response to prevent flickering.
-	// This function intercepts the final HTML and injects the 'dark' class if needed
-	// BEFORE the browser ever sees the page.
+	// 4. Transform the HTML response to prevent flickering
 	return resolve(event, {
 		transformPageChunk: ({ html }) => {
+			// This string MUST match your <html ...> tag in app.html
+			const htmlTag = '<html lang="en" dir="ltr">';
+
 			if (isDarkMode) {
-				// The initial HTML from app.html might look like: <html lang="en" dir="ltr">
-				// We replace it to inject the dark class.
-				return html.replace('<html lang="en" dir="ltr">', '<html lang="en" dir="ltr" class="dark">');
+				// Inject the 'dark' class
+				return html.replace(htmlTag, '<html lang="en" dir="ltr" class="dark">');
 			}
 			return html;
 		}

@@ -1,31 +1,19 @@
 /**
  * @file src/hooks/handleAuthorization.ts
- * @description Authorization middleware with role management and admin data caching
+ * @description Lightweight authorization middleware for user role and route protection
  *
- * ### Responsibilities
- * - Loads user roles and determines admin status
- * - Enforces route protection (redirects unauthenticated users)
- * - Handles first-user detection (for setup completion)
- * - Conditionally loads admin data (users, tokens) with intelligent caching
- * - Manages authenticated user redirects from public pages
- *
- * ### Caching Strategy
- * - **Layer 1**: In-memory cache (fastest, per-instance)
- * - **Layer 2**: Distributed cache like Redis (shared across instances)
- * - **Layer 3**: Database query (source of truth)
- *
- * ### Prerequisites
- * - handleSystemState has confirmed system is READY
- * - handleAuthentication has validated session and set locals.user
- *
- * @prerequisite System state is READY and auth service is available
+ * ### Improvements
+ * - Removed setup guard (redundant)
+ * - Removed heavy global data loading (users/tokens)
+ * - Simplified redirect logic for authenticated users
+ * - Public and static routes skip database access entirely
  */
 
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { initializeRoles, roles } from '@root/config/roles';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
-import type { Role, User } from '@src/databases/auth/types';
+import type { Role } from '@src/databases/auth/types';
 import { auth } from '@src/databases/db';
 import {
 	cacheService,
@@ -36,285 +24,143 @@ import {
 } from '@src/databases/CacheService';
 import { logger } from '@utils/logger.svelte';
 
-// --- IN-MEMORY CACHES ---
+// --- SIMPLE IN-MEMORY CACHE ---
 
-/**
- * Local cache for user count to avoid repeated database queries.
- * Invalidated when users are created or deleted.
- */
 let userCountCache: { count: number; timestamp: number } | null = null;
+const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
 
-/**
- * Local cache for admin data (roles, users, tokens).
- * Key format: "inMemoryAdmin:{tenantId}:{dataType}"
- */
-const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
+// --- UTILITIES ---
 
-/**
- * Tracks pending operations to prevent duplicate concurrent requests.
- * Ensures only one database query runs at a time for the same operation.
- */
-const pendingOperations = new Map<string, Promise<unknown>>();
-
-// --- UTILITY FUNCTIONS ---
-
-/**
- * Deduplicates concurrent expensive operations.
- * If an operation is already in progress, returns the existing promise.
- */
-function deduplicate<T>(key: string, operation: () => Promise<T>): Promise<T> {
-	const existing = pendingOperations.get(key);
-	if (existing) return existing as Promise<T>;
-
-	const promise = operation().finally(() => pendingOperations.delete(key));
-	pendingOperations.set(key, promise);
-	return promise;
-}
-
-/**
- * Checks if a route is public (accessible without authentication).
- */
-function isPublicOrOAuthRoute(pathname: string): boolean {
-	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
+function isPublicRoute(pathname: string): boolean {
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/sendMail', '/api/setup'];
 	return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
-/**
- * Checks if a route is an OAuth callback route.
- */
 function isOAuthRoute(pathname: string): boolean {
 	return pathname.startsWith('/login') && pathname.includes('OAuth');
 }
 
-/**
- * Gets the current user count with multi-layer caching and tenant awareness.
- */
+/** Get cached user count with fallback */
 async function getCachedUserCount(tenantId?: string): Promise<number> {
 	const now = Date.now();
-	const cacheKey = 'userCount';
-
-	// Layer 1: In-memory cache (fastest)
 	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL_MS) {
 		return userCountCache.count;
 	}
 
-	// Layer 2: Distributed cache (e.g., Redis)
 	try {
-		const cached = await cacheService.get<{ count: number; timestamp: number }>(cacheKey, tenantId);
+		const cached = await cacheService.get<{ count: number; timestamp: number }>('userCount', tenantId);
 		if (cached && now - cached.timestamp < USER_COUNT_CACHE_TTL_MS) {
-			userCountCache = cached; // Populate in-memory cache
+			userCountCache = cached;
 			return cached.count;
 		}
-	} catch (err) {
-		logger.warn(`Failed to read user count from distributed cache: ${err instanceof Error ? err.message : String(err)}`);
+	} catch {
+		// ignore cache errors
 	}
 
-	// Layer 3: Database query (with deduplication)
-	return deduplicate(`getUserCount:${tenantId || 'global'}`, async () => {
-		try {
-			if (!auth) {
-				logger.warn('Auth service not available for user count check');
-				return -1;
-			}
-			const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
-			const count = await auth.getUserCount(filter);
-
-			// Cache the result in both layers
-			const dataToCache = { count, timestamp: now };
-			userCountCache = dataToCache;
-
-			await cacheService
-				.set(cacheKey, dataToCache, USER_COUNT_CACHE_TTL_S, tenantId)
-				.catch((err) => logger.warn(`Failed to cache user count: ${err.message}`));
-
-			return count;
-		} catch (err) {
-			logger.error(`Failed to get user count: ${err instanceof Error ? err.message : String(err)}`);
-			return -1; // Return -1 to indicate error (don't treat as "no users")
-		}
-	});
+	try {
+		if (!auth) return -1;
+		const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {};
+		const count = await auth.getUserCount(filter);
+		const cacheData = { count, timestamp: now };
+		userCountCache = cacheData;
+		await cacheService.set('userCount', cacheData, USER_COUNT_CACHE_TTL_S, tenantId);
+		return count;
+	} catch (err) {
+		logger.warn(`User count query failed: ${err instanceof Error ? err.message : String(err)}`);
+		return -1;
+	}
 }
 
-/**
- * Loads admin data (roles, users, tokens) with multi-layer caching.
- */
-async function getAdminDataCached(cacheKey: 'roles' | 'users' | 'tokens', tenantId?: string): Promise<unknown> {
+/** Get cached roles for access checks */
+async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 	const now = Date.now();
-	const distributedCacheKey = `adminData:${cacheKey}`;
-	const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
+	const key = tenantId || 'global';
 
-	// Layer 1: In-memory cache (fastest)
-	const memCached = adminDataCache.get(inMemoryCacheKey);
-	if (memCached && now - memCached.timestamp < USER_PERM_CACHE_TTL_MS) {
-		return memCached.data;
+	const cached = rolesCache.get(key);
+	if (cached && now - cached.timestamp < USER_PERM_CACHE_TTL_MS) {
+		return cached.data;
 	}
-
-	// Layer 2: Distributed cache (e.g., Redis)
-	try {
-		const redisCached = await cacheService.get<{ data: unknown; timestamp: number }>(distributedCacheKey, tenantId);
-		if (redisCached && now - redisCached.timestamp < USER_PERM_CACHE_TTL_MS) {
-			adminDataCache.set(inMemoryCacheKey, redisCached); // Populate in-memory cache
-			return redisCached.data;
-		}
-	} catch (err) {
-		logger.warn(`Failed to read ${cacheKey} from distributed cache: ${err instanceof Error ? err.message : String(err)}`);
-	}
-
-	// Layer 3: Database query
-	let data: unknown = null;
-	const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { filter: { tenantId } } : {};
 
 	try {
 		if (!auth) {
-			logger.warn(`Auth service not available for ${cacheKey} query`);
-			// Fallback to config roles if database is not available
-			if (cacheKey === 'roles') {
-				await initializeRoles();
-				return roles;
-			}
-			return [];
+			await initializeRoles();
+			return roles;
 		}
 
-		if (cacheKey === 'roles') {
-			data = await auth.getAllRoles();
-			// If no roles in database, initialize from config
-			if (!data || (Array.isArray(data) && data.length === 0)) {
-				await initializeRoles();
-				data = roles;
-			}
-		} else if (cacheKey === 'users') {
-			data = await auth.getAllUsers(filter);
-		} else if (cacheKey === 'tokens') {
-			data = await auth.getAllTokens(filter.filter);
-		}
-
-		// Cache the result in both layers
-		if (data) {
-			const cacheData = { data, timestamp: now };
-			adminDataCache.set(inMemoryCacheKey, cacheData);
-
-			await cacheService
-				.set(distributedCacheKey, cacheData, USER_PERM_CACHE_TTL_S, tenantId)
-				.catch((err) => logger.warn(`Failed to cache ${cacheKey}: ${err.message}`));
-		}
-	} catch (err) {
-		logger.error(`Failed to load ${cacheKey} from database: ${err instanceof Error ? err.message : String(err)}`);
-
-		// Fallback to config roles if database fails
-		if (cacheKey === 'roles') {
+		let data = await auth.getAllRoles();
+		if (!data || data.length === 0) {
 			await initializeRoles();
 			data = roles;
 		}
-	}
 
-	return data || [];
+		const cacheData = { data, timestamp: now };
+		rolesCache.set(key, cacheData);
+		await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId);
+		return data;
+	} catch (err) {
+		logger.warn(`Failed to fetch roles: ${err instanceof Error ? err.message : String(err)}`);
+		await initializeRoles();
+		return roles;
+	}
 }
 
-// --- MAIN HOOK ---
+// --- MAIN HANDLE ---
 
 export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const { url, locals } = event;
 	const { user } = locals;
-	const isApi = url.pathname.startsWith('/api/');
-	const isPublic = isPublicOrOAuthRoute(url.pathname);
 
-	// Skip browser/tool requests
-	if (url.pathname.startsWith('/.well-known/') || url.pathname.startsWith('/_')) {
+	const pathname = url.pathname;
+	const isApi = pathname.startsWith('/api/');
+	const isPublic = isPublicRoute(pathname);
+
+	// --- Skip static or internal routes early ---
+	if (pathname.startsWith('/.well-known/') || pathname.startsWith('/_')) {
 		return resolve(event);
 	}
 
-	// --- EARLY EXIT FOR PUBLIC ROUTES ---
-	// Public routes don't need authorization checks or database access
+	// --- Public routes require no auth ---
 	if (isPublic) {
-		// Set defaults for public routes
 		locals.isAdmin = false;
 		locals.hasManageUsersPermission = false;
-		locals.allUsers = [];
-		locals.allTokens = [];
 		locals.isFirstUser = false;
 		return resolve(event);
 	}
 
-	// --- SETUP GUARD ---
-	// Skip all authorization logic during setup mode or when accessing setup route
-	const { isSetupComplete } = await import('@utils/setupCheck');
-	if (!isSetupComplete() || url.pathname.startsWith('/setup')) {
-		return resolve(event);
-	}
-
-	// --- 1. Check First User Status ---
-	// This is important for setup completion detection
+	// --- Check if first user (for setup flow) ---
 	const userCount = await getCachedUserCount(locals.tenantId);
 	locals.isFirstUser = userCount === 0;
 
-	// --- 2. Load Roles (Required for Everyone) ---
-	// Even guests might need to see public role information
-	const rolesData = await getAdminDataCached('roles', locals.tenantId);
-	locals.roles = Array.isArray(rolesData) ? (rolesData as Role[]) : [];
+	// --- Load cached roles ---
+	const rolesData = await getCachedRoles(locals.tenantId);
+	locals.roles = rolesData;
 
-	// --- 3. Handle Authenticated Users ---
+	// --- Handle authenticated users ---
 	if (user) {
-		// Determine admin status and permissions
-		const userRole = locals.roles.find((role) => role._id === user.role);
+		const userRole = rolesData.find((r) => r._id === user.role);
 		const isAdmin = !!userRole?.isAdmin;
 
 		locals.isAdmin = isAdmin;
-		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, locals.roles);
+		locals.hasManageUsersPermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, rolesData);
 
-		// Redirect authenticated users away from public pages
-		if (isPublic && !isOAuthRoute(url.pathname) && !isApi) {
-			logger.trace(`Authenticated user on public route ${url.pathname}. Redirecting to home.`);
-
-			// Try to redirect to first collection
-			try {
-				const { contentManager } = await import('@src/content/ContentManager');
-				const firstCollection = await contentManager.getFirstCollection();
-
-				if (firstCollection?.path) {
-					const userLang = (user as User & { systemLanguage?: string }).systemLanguage || 'en';
-					const collectionPath = firstCollection.path;
-					throw redirect(302, `/${userLang}${collectionPath.startsWith('/') ? collectionPath : '/' + collectionPath}`);
-				}
-			} catch (err) {
-				// If it's a redirect, re-throw it
-				if (err && typeof err === 'object' && 'status' in err) throw err;
-				logger.warn(`Failed to redirect to first collection: ${err instanceof Error ? err.message : String(err)}`);
-			}
-
-			// Fallback redirect
+		// Redirect authenticated users away from public routes
+		if (isPublic && !isOAuthRoute(pathname) && !isApi) {
 			throw redirect(302, '/');
 		}
-
-		// Conditionally load admin data for relevant routes
-		if (
-			(isAdmin || locals.hasManageUsersPermission) &&
-			(isApi || url.pathname.includes('/admin') || url.pathname.includes('/user') || url.pathname.includes('/config'))
-		) {
-			const [allUsers, allTokens] = await Promise.all([getAdminDataCached('users', locals.tenantId), getAdminDataCached('tokens', locals.tenantId)]);
-
-			locals.allUsers = Array.isArray(allUsers) ? (allUsers as User[]) : [];
-			locals.allTokens = Array.isArray(allTokens) ? (allTokens as Array<{ _id: string; [key: string]: unknown }>) : [];
-		} else {
-			locals.allUsers = [];
-			locals.allTokens = [];
-		}
 	} else {
-		// --- 4. Handle Unauthenticated Users (Guests) ---
+		// --- Handle unauthenticated users ---
 		locals.isAdmin = false;
 		locals.hasManageUsersPermission = false;
-		locals.allUsers = [];
-		locals.allTokens = [];
 
-		// Block access to protected routes
+		// Block access to protected pages
 		if (!isPublic && !locals.isFirstUser) {
-			logger.trace(`Unauthenticated access to protected route \x1b[34m${url.pathname}.\x1b[0m Redirecting to \x1b[32m/login\x1b[0m.`);
 			if (isApi) throw error(401, 'Unauthorized');
 			throw redirect(302, '/login');
 		}
 	}
 
-	// --- 5. Allow OAuth Routes to Pass Through ---
-	if (isOAuthRoute(url.pathname)) {
+	// --- Allow OAuth routes to pass through ---
+	if (isOAuthRoute(pathname)) {
 		logger.trace('OAuth route detected, passing through');
 	}
 
@@ -323,35 +169,15 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 // --- CACHE INVALIDATION UTILITIES ---
 
-/**
- * Invalidates admin data cache for a specific data type.
- * Call this when roles, users, or tokens are modified.
- */
-export function invalidateAdminCache(cacheKey?: 'roles' | 'users' | 'tokens', tenantId?: string): void {
-	if (cacheKey) {
-		const inMemoryCacheKey = `inMemoryAdmin:${tenantId || 'global'}:${cacheKey}`;
-		const distributedCacheKey = `adminData:${cacheKey}`;
-
-		adminDataCache.delete(inMemoryCacheKey);
-		cacheService.delete(distributedCacheKey, tenantId).catch((err) => logger.error(`Failed to invalidate ${cacheKey} cache: ${err.message}`));
-
-		logger.debug(`Admin cache invalidated: ${cacheKey} (tenant: ${tenantId || 'global'})`);
-	} else {
-		// Clear all admin caches
-		adminDataCache.clear();
-		['roles', 'users', 'tokens'].forEach((key) => {
-			cacheService.delete(`adminData:${key}`, tenantId).catch((err) => logger.error(`Failed to invalidate ${key} cache: ${err.message}`));
-		});
-		logger.debug('All admin caches cleared');
-	}
-}
-
-/**
- * Invalidates the user count cache.
- * Call this when users are created or deleted.
- */
 export function invalidateUserCountCache(tenantId?: string): void {
 	userCountCache = null;
-	cacheService.delete('userCount', tenantId).catch((err) => logger.error(`Failed to invalidate user count cache: ${err.message}`));
+	cacheService.delete('userCount', tenantId).catch((err) => logger.error(`Failed to invalidate user count: ${err.message}`));
 	logger.debug('User count cache invalidated');
+}
+
+export function invalidateRolesCache(tenantId?: string): void {
+	const key = tenantId || 'global';
+	rolesCache.delete(key);
+	cacheService.delete(`roles:${key}`, tenantId).catch((err) => logger.error(`Failed to invalidate roles cache: ${err.message}`));
+	logger.debug(`Roles cache invalidated (tenant: ${tenantId || 'global'})`);
 }
