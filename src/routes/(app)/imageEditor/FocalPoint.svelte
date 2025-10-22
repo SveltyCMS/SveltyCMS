@@ -1,12 +1,13 @@
 <!-- 
 @file src/routes/(app)/imageEditor/FocalPoint.svelte
 @component
-**This component allows users to set or reset a focal point on the image**
+**This component allows users to set or reset a focal point on the image with rule of thirds grid**
 
 ### Props 
 - `stage`: Konva.Stage - The Konva stage where the image is displayed.
 - `layer`: Konva.Layer - The Konva layer where the image and effects are added.
 - `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `onFocalpoint`: (data: { x: number; y: number }) => void - Callback when focal point changes
 -->
 
 <script lang="ts">
@@ -17,19 +18,19 @@
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
 		onFocalpoint?: (data: { x: number; y: number }) => void;
-		onFocalpointApplied?: () => void;
-		onFocalpointRemoved?: () => void;
 	}
 
-	const { stage, layer, imageNode, onFocalpoint = () => {}, onFocalpointApplied = () => {}, onFocalpointRemoved = () => {} } = $props() as Props;
+	const { stage, layer, imageNode, onFocalpoint = () => {} } = $props() as Props;
 
 	let focalPoint: Konva.Group | null = $state(null);
+	let ruleOfThirdsGrid: Konva.Group | null = $state(null);
 	let focalPointActive = $state(false);
 	let relativeX: number = $state(0);
 	let relativeY: number = $state(0);
 
 	// Initialize focal point and event listeners
 	$effect.root(() => {
+		createRuleOfThirdsGrid();
 		createFocalPoint(); // Create focal point at the center of the image
 		setupEventListeners();
 
@@ -38,9 +39,75 @@
 			if (focalPoint) {
 				focalPoint.destroy();
 			}
+			if (ruleOfThirdsGrid) {
+				ruleOfThirdsGrid.destroy();
+			}
 			stage.off('click');
 		};
 	});
+
+	function createRuleOfThirdsGrid() {
+		// Clean up existing grid
+		if (ruleOfThirdsGrid) {
+			ruleOfThirdsGrid.destroy();
+		}
+
+		const imageGroup = imageNode.getParent() as Konva.Group;
+		if (!imageGroup) return;
+
+		const imageRect = imageNode.getClientRect();
+
+		ruleOfThirdsGrid = new Konva.Group({
+			name: 'focalPointTool',
+			listening: false // Grid should not be interactive
+		});
+
+		// Create vertical lines (at 1/3 and 2/3)
+		for (let i = 1; i <= 2; i++) {
+			const x = imageRect.x + (imageRect.width * i) / 3;
+			const line = new Konva.Line({
+				points: [x, imageRect.y, x, imageRect.y + imageRect.height],
+				stroke: 'rgba(255, 255, 255, 0.5)',
+				strokeWidth: 1,
+				dash: [5, 5],
+				listening: false
+			});
+			ruleOfThirdsGrid.add(line);
+		}
+
+		// Create horizontal lines (at 1/3 and 2/3)
+		for (let i = 1; i <= 2; i++) {
+			const y = imageRect.y + (imageRect.height * i) / 3;
+			const line = new Konva.Line({
+				points: [imageRect.x, y, imageRect.x + imageRect.width, y],
+				stroke: 'rgba(255, 255, 255, 0.5)',
+				strokeWidth: 1,
+				dash: [5, 5],
+				listening: false
+			});
+			ruleOfThirdsGrid.add(line);
+		}
+
+		// Add intersection points at grid intersections
+		for (let i = 1; i <= 2; i++) {
+			for (let j = 1; j <= 2; j++) {
+				const x = imageRect.x + (imageRect.width * i) / 3;
+				const y = imageRect.y + (imageRect.height * j) / 3;
+				const point = new Konva.Circle({
+					x,
+					y,
+					radius: 3,
+					fill: 'rgba(255, 255, 255, 0.6)',
+					listening: false
+				});
+				ruleOfThirdsGrid.add(point);
+			}
+		}
+
+		layer.add(ruleOfThirdsGrid);
+		ruleOfThirdsGrid.moveToBottom(); // Place grid below focal point
+		layer.draw();
+	}
 
 	function createFocalPoint() {
 		// Ensure only one focal point exists by destroying the previous one if it exists
@@ -53,6 +120,7 @@
 		const imageCenterY = stage.height() / 2;
 
 		focalPoint = new Konva.Group({
+			name: 'focalPointTool',
 			x: imageCenterX,
 			y: imageCenterY,
 			draggable: true
@@ -139,17 +207,20 @@
 		layer.draw();
 	}
 
-	function resetFocalPoint() {
+	export function reset() {
 		// Reset focal point to the center of the image
-		createFocalPoint();
+		if (!focalPoint) {
+			createFocalPoint();
+		} else {
+			const imageCenterX = stage.width() / 2;
+			const imageCenterY = stage.height() / 2;
+			focalPoint.position({ x: imageCenterX, y: imageCenterY });
+			updateFocalPoint();
+		}
 		layer.draw();
 	}
 
-	function exitFocalPoint() {
-		onFocalpointApplied();
-	}
-
-	function removeFocalPoint() {
+	export function remove() {
 		// Remove the focal point
 		if (focalPoint) {
 			focalPoint.destroy();
@@ -157,40 +228,30 @@
 			focalPointActive = false;
 			relativeX = 0;
 			relativeY = 0;
-			onFocalpointRemoved();
+			onFocalpoint({ x: 0, y: 0 });
 		}
 		layer.draw();
 	}
+
+	export function apply() {
+		// Return the current focal point data
+		return { x: relativeX, y: relativeY };
+	}
+
+	export function cleanup() {
+		if (focalPoint) {
+			focalPoint.destroy();
+			focalPoint = null;
+		}
+		if (ruleOfThirdsGrid) {
+			ruleOfThirdsGrid.destroy();
+			ruleOfThirdsGrid = null;
+		}
+		stage.off('click');
+	}
+
+	// Expose the current focal point coordinates
+	export { relativeX as focalPointX, relativeY as focalPointY };
 </script>
 
-<!-- Focal Point Controls UI -->
-<div class="wrapper">
-	<div class="flex w-full items-center justify-between">
-		<div class="flex items-center gap-2">
-			<!-- Back button at top of component -->
-			<button onclick={exitFocalPoint} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
-				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
-			</button>
-
-			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Focal Point Settings</h3>
-		</div>
-
-		<!-- Action Buttons -->
-		<div class="mt-4 flex justify-around gap-4">
-			<button onclick={removeFocalPoint} class="variant-filled-error btn" aria-label="Remove focal point"> Remove Focal Point </button>
-			<button onclick={resetFocalPoint} class="variant-filled-primary btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
-		</div>
-	</div>
-
-	<div class="flex flex-col items-center justify-around space-y-2">
-		<p class="text-sm font-medium">Focal Point Position:</p>
-		<div class="flex space-x-4">
-			<p class="text-sm">
-				X: <span class="text-tertiary-500 dark:text-primary-500">{relativeX.toFixed(2)}</span>
-			</p>
-			<p class="text-sm">
-				Y: <span class="text-tertiary-500 dark:text-primary-500">{relativeY.toFixed(2)}</span>
-			</p>
-		</div>
-	</div>
-</div>
+<!-- No UI - this component only handles Konva canvas logic -->

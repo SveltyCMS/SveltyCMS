@@ -98,7 +98,9 @@ function createImageEditorStore() {
 			'.rotationGrid',
 			'.gridLayer',
 			'.blurRegion',
-			'.mosaicOverlay'
+			'.mosaicOverlay',
+			'[name="sticker"]',
+			'[name="stickerTransformer"]'
 		];
 
 		tempSelectors.forEach((selector) => {
@@ -237,6 +239,24 @@ function createImageEditorStore() {
 					}
 				});
 				break;
+
+			case 'sticker':
+				// Clean up sticker-specific elements
+				state.layer.find('[name="sticker"]').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying sticker:', e);
+					}
+				});
+				state.layer.find('[name="stickerTransformer"]').forEach((node) => {
+					try {
+						node.destroy();
+					} catch (e) {
+						console.warn('Error destroying sticker transformer:', e);
+					}
+				});
+				break;
 		}
 
 		// Always clean up transformers
@@ -271,6 +291,8 @@ function createImageEditorStore() {
 
 		// Save current canvas state to history
 		const stateData = state.stage.toJSON();
+		const stateJSON = JSON.parse(stateData);
+		console.log('Taking snapshot, imageGroup position:', stateJSON.children?.[0]?.children?.[0]?.attrs);
 		saveStateHistory(stateData);
 	}
 

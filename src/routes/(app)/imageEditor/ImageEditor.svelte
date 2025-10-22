@@ -25,15 +25,19 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import CropTopToolbar from './CropTopToolbar.svelte';
 	import CropBottomBar from './CropBottomBar.svelte';
 	import Blur from './Blur.svelte';
+	import BlurTopToolbar from './BlurTopToolbar.svelte';
 	import Rotate from './Rotate.svelte';
 	import Zoom from './Zoom.svelte';
 	import FocalPoint from './FocalPoint.svelte';
+	import FocalPointTopToolbar from './FocalPointTopToolbar.svelte';
 	import Watermark from './Watermark.svelte';
 	import Filter from './Filter.svelte';
 	import FineTune from './FineTune.svelte';
 	import FineTuneTopToolbar from './FineTuneTopToolbar.svelte';
 	import TextOverlay from './TextOverlay.svelte';
 	import ShapeOverlay from './ShapeOverlay.svelte';
+	import Sticker from './Sticker.svelte';
+	import StickerTopToolbar from './StickerTopToolbar.svelte';
 
 	// New layout components
 	import EditorSidebar from './EditorSidebar.svelte';
@@ -77,11 +81,50 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	let fineTuneRef: FineTune | null = $state(null);
 	let fineTuneActiveAdjustment = $state('brightness');
 
+	// Blur tool state and reference
+	let blurToolRef: Blur | null = $state(null);
+	let blurStrength = $state(10);
+
+	// Focal point tool state and reference
+	let focalPointToolRef: FocalPoint | null = $state(null);
+	let focalPointX = $state(0);
+	let focalPointY = $state(0);
+	let savedFocalPoint: { x: number; y: number } | null = $state(null); // Store the last applied focal point
+
+	// Sticker tool state and reference
+	let stickerToolRef: Sticker | null = $state(null);
+
+	// Derived state for sticker panel - with safety check
+	let stickerPanelData = $derived.by(() => {
+		try {
+			if (!stickerToolRef || typeof stickerToolRef.getStickers !== 'function') {
+				return { stickers: [], selectedSticker: null };
+			}
+			const stickers = stickerToolRef.getStickers();
+			const selected = stickerToolRef.getSelectedSticker();
+			return {
+				stickers: stickers.map((s) => ({ id: s.id, previewUrl: s.previewUrl })),
+				selectedSticker: selected ? { id: selected.id, previewUrl: selected.previewUrl } : null
+			};
+		} catch (e) {
+			console.warn('Error getting sticker data:', e);
+			return { stickers: [], selectedSticker: null };
+		}
+	});
+
 	// Debug: Watch cropToolRef changes
 	$effect(() => {
 		console.log('cropToolRef changed:', cropToolRef);
 		console.log('activeState:', activeState);
 		console.log('Should show toolbar?', activeState === 'crop' && cropToolRef);
+	});
+
+	// Debug: Watch stickerToolRef changes
+	$effect(() => {
+		console.log('stickerToolRef changed:', stickerToolRef);
+		console.log('activeState:', activeState);
+		console.log('isMobile:', isMobile, 'isTablet:', isTablet);
+		console.log('Should show sticker panel?', activeState === 'sticker' && stickerToolRef);
 	});
 
 	// Get store state reactively - since imageEditorStore.state uses $state, it's already reactive
@@ -384,6 +427,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			// Parse the state data to extract properties
 			const stateJSON = JSON.parse(stateData);
 
+			console.log('Restoring state, imageGroup from saved state:', stateJSON.children?.[0]?.children?.[0]?.attrs);
+
 			// Store current filters before clearing them
 			const currentFilters = imageNode.filters() || [];
 
@@ -392,17 +437,29 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			imageNode.clearCache();
 
 			// Restore image group properties (position, scale, rotation)
-			if (stateJSON.attrs) {
-				imageGroup.x(stateJSON.attrs.x || stage.width() / 2);
-				imageGroup.y(stateJSON.attrs.y || stage.height() / 2);
-				imageGroup.scaleX(stateJSON.attrs.scaleX || 1);
-				imageGroup.scaleY(stateJSON.attrs.scaleY || 1);
-				imageGroup.rotation(stateJSON.attrs.rotation || 0);
+			// The structure is: stage > layer > imageGroup > imageNode
+			// So imageGroup is at stateJSON.children[0].children[0]
+			if (stateJSON.children && stateJSON.children[0] && stateJSON.children[0].children && stateJSON.children[0].children[0]) {
+				const imageGroupState = stateJSON.children[0].children[0];
+				if (imageGroupState.attrs) {
+					imageGroup.x(imageGroupState.attrs.x !== undefined ? imageGroupState.attrs.x : stage.width() / 2);
+					imageGroup.y(imageGroupState.attrs.y !== undefined ? imageGroupState.attrs.y : stage.height() / 2);
+					imageGroup.scaleX(imageGroupState.attrs.scaleX !== undefined ? imageGroupState.attrs.scaleX : 1);
+					imageGroup.scaleY(imageGroupState.attrs.scaleY !== undefined ? imageGroupState.attrs.scaleY : 1);
+					imageGroup.rotation(imageGroupState.attrs.rotation !== undefined ? imageGroupState.attrs.rotation : 0);
+					console.log('Restored imageGroup position:', {
+						x: imageGroup.x(),
+						y: imageGroup.y(),
+						scaleX: imageGroup.scaleX(),
+						scaleY: imageGroup.scaleY()
+					});
+				}
 			}
 
 			// Restore image node properties (crop, dimensions, position)
 			if (stateJSON.children && stateJSON.children[0] && stateJSON.children[0].children && stateJSON.children[0].children[0]) {
-				const imageNodeState = stateJSON.children[0].children[0];
+				const imageGroupState = stateJSON.children[0].children[0];
+				const imageNodeState = imageGroupState.children && imageGroupState.children[0];
 				if (imageNodeState.attrs) {
 					// Apply crop properties
 					if (imageNodeState.attrs.cropX !== undefined) imageNode.cropX(imageNodeState.attrs.cropX);
@@ -487,6 +544,12 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			const formData = new FormData();
 			formData.append('processType', 'save');
 			formData.append('files', editedFile);
+
+			// Add focal point metadata if it exists
+			if (savedFocalPoint) {
+				formData.append('focalPoint', JSON.stringify(savedFocalPoint));
+				console.log('Saving image with focal point:', savedFocalPoint);
+			}
 
 			// Send to media API
 			const saveResponse = await fetch('/api/media/process', {
@@ -589,6 +652,12 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		if (!imageNode || !imageGroup || !layer || !stage) return;
 
 		console.log('handleCrop called with:', cropData);
+		console.log('BEFORE crop - imageGroup position:', {
+			x: imageGroup.x(),
+			y: imageGroup.y(),
+			scaleX: imageGroup.scaleX(),
+			scaleY: imageGroup.scaleY()
+		});
 
 		// Apply crop transformation
 		const { x, y, width, height } = cropData;
@@ -641,6 +710,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		imageGroup.scale({ x: scale * flipX, y: scale * flipY });
 		// Keep rotation as-is
 
+		console.log('AFTER crop - imageGroup position:', {
+			x: imageGroup.x(),
+			y: imageGroup.y(),
+			scaleX: imageGroup.scaleX(),
+			scaleY: imageGroup.scaleY()
+		});
+
 		// Force redraw to apply changes
 		layer.batchDraw();
 		stage.batchDraw();
@@ -650,6 +726,12 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			// Final cleanup to catch any stragglers
 			imageEditorStore.cleanupToolSpecific('crop');
 			imageEditorStore.setActiveState('');
+			console.log('BEFORE applyEdit() - imageGroup position:', {
+				x: imageGroup.x(),
+				y: imageGroup.y(),
+				scaleX: imageGroup.scaleX(),
+				scaleY: imageGroup.scaleY()
+			});
 			applyEdit();
 		}, 50);
 	}
@@ -747,6 +829,45 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							/>
 						{/if}
 
+						<!-- Blur Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'blur' && blurToolRef}
+							<BlurTopToolbar
+								bind:blurStrength
+								onBlurStrengthChange={(value) => {
+									blurStrength = value;
+									blurToolRef?.updateBlurStrength();
+								}}
+								onReset={() => blurToolRef?.reset()}
+								onApply={() => blurToolRef?.apply()}
+							/>
+						{/if}
+
+						<!-- Focal Point Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'focalpoint' && focalPointToolRef}
+							<FocalPointTopToolbar
+								{focalPointX}
+								{focalPointY}
+								onReset={() => focalPointToolRef?.reset()}
+								onRemove={() => {
+									focalPointToolRef?.remove();
+									focalPointX = 0;
+									focalPointY = 0;
+								}}
+								onDone={() => {
+									const focalData = focalPointToolRef?.apply();
+									console.log('Focal point applied:', focalData);
+									// Save the focal point data
+									if (focalData) {
+										savedFocalPoint = focalData;
+									}
+									focalPointToolRef?.cleanup();
+									imageEditorStore.cleanupToolSpecific('focalpoint');
+									imageEditorStore.setActiveState('');
+									applyEdit();
+								}}
+							/>
+						{/if}
+
 						<!-- FineTune Top Toolbar - overlaid on canvas -->
 						{#if activeState === 'finetune' && fineTuneRef}
 							<FineTuneTopToolbar
@@ -777,16 +898,54 @@ and unified tool experiences (crop includes rotation, scale, flip).
 										fineTuneRef.applyFineTunePermanently();
 										// Apply the edit after a short delay to ensure the image is updated
 										setTimeout(() => {
+											const { imageGroup } = imageEditorStore.state;
+											console.log('FineTune onApply - BEFORE applyEdit():', {
+												x: imageGroup?.x(),
+												y: imageGroup?.y(),
+												scaleX: imageGroup?.scaleX(),
+												scaleY: imageGroup?.scaleY()
+											});
 											applyEdit();
+											console.log('FineTune onApply - AFTER applyEdit():', {
+												x: imageGroup?.x(),
+												y: imageGroup?.y(),
+												scaleX: imageGroup?.scaleX(),
+												scaleY: imageGroup?.scaleY()
+											});
 											imageEditorStore.setActiveState('');
+											console.log('FineTune onApply - AFTER setActiveState:', {
+												x: imageGroup?.x(),
+												y: imageGroup?.y(),
+												scaleX: imageGroup?.scaleX(),
+												scaleY: imageGroup?.scaleY()
+											});
 										}, 100);
 									}
 								}}
 								onAdjustmentChange={(adjustment) => (fineTuneActiveAdjustment = adjustment)}
 							/>
 						{/if}
-					</EditorCanvas>
 
+						<!-- Sticker Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'sticker' && stickerToolRef}
+							<StickerTopToolbar
+								stickers={stickerPanelData.stickers}
+								selectedSticker={stickerPanelData.selectedSticker}
+								onAddSticker={() => stickerToolRef?.openFileDialog()}
+								onDeleteSelected={() => stickerToolRef?.deleteSelectedSticker()}
+								onBringToFront={() => stickerToolRef?.bringToFront()}
+								onSendToBack={() => stickerToolRef?.sendToBack()}
+								onReset={() => {
+									stickerToolRef?.deleteAllStickers();
+								}}
+								onDone={() => {
+									imageEditorStore.cleanupToolSpecific('sticker');
+									imageEditorStore.setActiveState('');
+									applyEdit();
+								}}
+							/>
+						{/if}
+					</EditorCanvas>
 					<!-- Crop Bottom Bar - below canvas -->
 					{#if activeState === 'crop'}
 						<CropBottomBar
@@ -838,6 +997,45 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							{cropShape}
 							onCropShapeChange={(shape) => cropToolRef?.setCropShape(shape)}
 							onDone={() => cropToolRef?.apply()}
+						/>
+					{/if}
+
+					<!-- Blur Top Toolbar - overlaid on canvas -->
+					{#if activeState === 'blur' && blurToolRef}
+						<BlurTopToolbar
+							bind:blurStrength
+							onBlurStrengthChange={(value) => {
+								blurStrength = value;
+								blurToolRef?.updateBlurStrength();
+							}}
+							onReset={() => blurToolRef?.reset()}
+							onApply={() => blurToolRef?.apply()}
+						/>
+					{/if}
+
+					<!-- Focal Point Top Toolbar - overlaid on canvas -->
+					{#if activeState === 'focalpoint' && focalPointToolRef}
+						<FocalPointTopToolbar
+							{focalPointX}
+							{focalPointY}
+							onReset={() => focalPointToolRef?.reset()}
+							onRemove={() => {
+								focalPointToolRef?.remove();
+								focalPointX = 0;
+								focalPointY = 0;
+							}}
+							onDone={() => {
+								const focalData = focalPointToolRef?.apply();
+								console.log('Focal point applied:', focalData);
+								// Save the focal point data
+								if (focalData) {
+									savedFocalPoint = focalData;
+								}
+								focalPointToolRef?.cleanup();
+								imageEditorStore.cleanupToolSpecific('focalpoint');
+								imageEditorStore.setActiveState('');
+								applyEdit();
+							}}
 						/>
 					{/if}
 
@@ -932,9 +1130,11 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			{:else if activeState === 'blur'}
 				{#key `blur-${storeState.file?.name || 'unknown'}`}
 					<Blur
+						bind:this={blurToolRef}
 						{stage}
 						{layer}
 						{imageNode}
+						bind:blurStrength
 						onBlurApplied={() => {
 							imageEditorStore.cleanupToolSpecific('blur');
 							imageEditorStore.setActiveState('');
@@ -980,17 +1180,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				/>
 			{:else if activeState === 'focalpoint'}
 				<FocalPoint
+					bind:this={focalPointToolRef}
 					{stage}
 					{layer}
 					{imageNode}
-					onFocalpointApplied={() => {
-						imageEditorStore.cleanupToolSpecific('focalpoint');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onFocalpointRemoved={() => {
-						imageEditorStore.cleanupToolSpecific('focalpoint');
-						imageEditorStore.setActiveState('');
+					onFocalpoint={(data) => {
+						focalPointX = data.x;
+						focalPointY = data.y;
 					}}
 				/>
 			{:else if activeState === 'watermark'}
@@ -1005,6 +1201,10 @@ and unified tool experiences (crop includes rotation, scale, flip).
 						applyEdit();
 					}}
 				/>
+			{:else if activeState === 'sticker'}
+				{#key `sticker-${storeState.file?.name || 'unknown'}`}
+					<Sticker bind:this={stickerToolRef} {stage} {layer} {imageNode} onStickerChange={() => applyEdit()} />
+				{/key}
 			{:else if activeState === 'filter'}
 				<Filter
 					{stage}

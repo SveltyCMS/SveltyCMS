@@ -58,10 +58,9 @@ and proper active state indication.
 		{
 			id: 'sticker',
 			name: 'Sticker',
-			icon: 'mdi:sticker',
-			description: 'Watermarks and overlays',
-			category: 'overlay',
-			actualTool: 'watermark' // Maps to watermark for now
+			icon: 'mdi:sticker-emoji',
+			description: 'Add image stickers and overlays',
+			category: 'overlay'
 		},
 		{
 			id: 'focal',

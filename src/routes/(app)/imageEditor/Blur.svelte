@@ -2,10 +2,22 @@
 @file src/routes/(app)/imageEditor/Blur.svelte
 @component
 **Blur effect component using Konva canvas used for image editing**
+Handles the blur region selection and application.
+UI components are external (BlurTopToolbar).
 
-### Events
-- `blurReset`: Dispatched when blur effect is reset
-- `blurApplied`: Dispatched when blur effect is applied
+### Props
+- `stage`: Konva.Stage - The Konva stage
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added
+- `imageNode`: Konva.Image - The Konva image node representing the original image
+- `blurStrength`: Current blur strength (bindable)
+- `onBlurReset`: Function called when blur is reset
+- `onBlurApplied`: Function called when blur is applied
+
+### Exports
+- `blurStrength`: Current blur strength (bindable)
+- `updateBlurStrength()`: Update blur strength
+- `reset()`: Reset blur effect
+- `apply()`: Apply blur and exit
 -->
 
 <script lang="ts">
@@ -16,44 +28,43 @@
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
+		blurStrength?: number;
 		onBlurReset?: () => void;
 		onBlurApplied?: () => void;
 	}
 
-	const { stage, layer, imageNode, onBlurReset = () => {}, onBlurApplied = () => {} } = $props() as Props;
+	let { stage, layer, imageNode, blurStrength = $bindable(10), onBlurReset = () => {}, onBlurApplied = () => {} } = $props() as Props;
 
-	let mosaicStrength = $state(10);
-	let blurRegion: Konva.Rect;
-	let transformer: Konva.Transformer;
+	let blurRegion: Konva.Rect | null = null;
+	let transformer: Konva.Transformer | null = null;
 	let isSelecting = $state(false);
 	let startPoint = $state<{ x: number; y: number } | null>(null);
-	let mosaicOverlay: Konva.Image;
+	let mosaicOverlay: Konva.Image | null = null;
+	let mounted = false;
 
 	// Initialize stage event listeners
-	$effect.root(() => {
-		stage.on('mousedown touchstart', handleMouseDown);
-		stage.on('mousemove touchmove', handleMouseMove);
-		stage.on('mouseup touchend', handleMouseUp);
-		stage.container().style.cursor = 'crosshair';
+	$effect(() => {
+		if (!mounted && stage && layer && imageNode) {
+			mounted = true;
+			console.log('Blur tool mounted, initializing...');
 
-		// Cleanup function
-		return () => {
-			stage.off('mousedown touchstart', handleMouseDown);
-			stage.off('mousemove touchmove', handleMouseMove);
-			stage.off('mouseup touchend', handleMouseUp);
-			stage.container().style.cursor = 'default';
+			stage.on('mousedown touchstart', handleMouseDown);
+			stage.on('mousemove touchmove', handleMouseMove);
+			stage.on('mouseup touchend', handleMouseUp);
+			stage.container().style.cursor = 'crosshair';
 
-			// Clean up blur elements when component is destroyed
-			if (blurRegion) {
-				blurRegion.destroy();
-			}
-			if (transformer) {
-				transformer.destroy();
-			}
-			if (mosaicOverlay) {
-				mosaicOverlay.destroy();
-			}
-		};
+			// Cleanup function
+			return () => {
+				console.log('Blur tool unmounting, cleaning up...');
+				stage.off('mousedown touchstart', handleMouseDown);
+				stage.off('mousemove touchmove', handleMouseMove);
+				stage.off('mouseup touchend', handleMouseUp);
+				stage.container().style.cursor = 'default';
+
+				// Clean up blur elements when component is destroyed
+				cleanupBlurElements();
+			};
+		}
 	});
 
 	function handleMouseDown() {
@@ -130,6 +141,7 @@
 				strokeWidth: 2,
 				draggable: true,
 				dragBoundFunc: function (pos) {
+					if (!blurRegion) return pos;
 					const center = {
 						x: blurRegion.x() + blurRegion.width() / 2,
 						y: blurRegion.y() + blurRegion.height() / 2
@@ -155,83 +167,227 @@
 		}
 	}
 
+	// Box blur algorithm for smooth blur effect
+	function boxBlur(imageData: ImageData, radius: number): ImageData {
+		const width = imageData.width;
+		const height = imageData.height;
+		const data = imageData.data;
+		const output = new ImageData(width, height);
+		const outData = output.data;
+
+		// Copy alpha channel as-is
+		for (let i = 0; i < data.length; i += 4) {
+			outData[i + 3] = data[i + 3];
+		}
+
+		// Horizontal pass
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				let r = 0,
+					g = 0,
+					b = 0,
+					count = 0;
+
+				for (let kx = -radius; kx <= radius; kx++) {
+					const px = Math.min(width - 1, Math.max(0, x + kx));
+					const idx = (y * width + px) * 4;
+					r += data[idx];
+					g += data[idx + 1];
+					b += data[idx + 2];
+					count++;
+				}
+
+				const idx = (y * width + x) * 4;
+				outData[idx] = r / count;
+				outData[idx + 1] = g / count;
+				outData[idx + 2] = b / count;
+			}
+		}
+
+		// Vertical pass
+		const temp = new Uint8ClampedArray(outData);
+		for (let y = 0; y < height; y++) {
+			for (let x = 0; x < width; x++) {
+				let r = 0,
+					g = 0,
+					b = 0,
+					count = 0;
+
+				for (let ky = -radius; ky <= radius; ky++) {
+					const py = Math.min(height - 1, Math.max(0, y + ky));
+					const idx = (py * width + x) * 4;
+					r += temp[idx];
+					g += temp[idx + 1];
+					b += temp[idx + 2];
+					count++;
+				}
+
+				const idx = (y * width + x) * 4;
+				outData[idx] = r / count;
+				outData[idx + 1] = g / count;
+				outData[idx + 2] = b / count;
+			}
+		}
+
+		return output;
+	}
+
 	function applyMosaic() {
 		if (!blurRegion) return;
 
-		// Take snapshot before applying blur
-		const { takeSnapshot } = imageEditorStore;
-		takeSnapshot();
+		const image = imageNode.image() as HTMLImageElement;
+		if (!image) return;
+
+		// Use native image dimensions for best quality
+		const nativeWidth = image.naturalWidth || image.width;
+		const nativeHeight = image.naturalHeight || image.height;
 
 		const canvas = document.createElement('canvas');
-		canvas.width = stage.width();
-		canvas.height = stage.height();
-		const context = canvas.getContext('2d');
-		const image = imageNode.image();
+		canvas.width = nativeWidth;
+		canvas.height = nativeHeight;
+		const context = canvas.getContext('2d', { willReadFrequently: true });
+		if (!context) return;
 
-		if (context && image) {
-			context.drawImage(image, 0, 0, canvas.width, canvas.height);
+		// Draw original image at native size
+		context.drawImage(image, 0, 0, nativeWidth, nativeHeight);
 
-			const rect = blurRegion.getClientRect({ relativeTo: stage });
+		// Get blur region in stage coordinates
+		const rect = blurRegion.getClientRect();
 
-			context.save();
-			context.beginPath();
-			context.rect(rect.x, rect.y, rect.width, rect.height);
-			context.clip();
+		// Convert to image node local coordinates
+		const transform = imageNode.getAbsoluteTransform().copy().invert();
+		const topLeft = transform.point({ x: rect.x, y: rect.y });
+		const topRight = transform.point({ x: rect.x + rect.width, y: rect.y });
+		const bottomLeft = transform.point({ x: rect.x, y: rect.y + rect.height });
+		const bottomRight = transform.point({ x: rect.x + rect.width, y: rect.y + rect.height });
 
-			const tileSize = Math.max(1, Math.floor(mosaicStrength));
-			for (let y = rect.y; y < rect.y + rect.height; y += tileSize) {
-				for (let x = rect.x; x < rect.x + rect.width; x += tileSize) {
-					const pixelData = context.getImageData(x, y, 1, 1).data;
-					context.fillStyle = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
-					context.fillRect(x, y, tileSize, tileSize);
-				}
+		const minX = Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+		const maxX = Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+		const minY = Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+		const maxY = Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+
+		// Convert from imageNode coordinates to native image coordinates
+		const scaleToNativeX = nativeWidth / imageNode.width();
+		const scaleToNativeY = nativeHeight / imageNode.height();
+
+		const imgX = minX * scaleToNativeX;
+		const imgY = minY * scaleToNativeY;
+		const imgWidth = (maxX - minX) * scaleToNativeX;
+		const imgHeight = (maxY - minY) * scaleToNativeY;
+
+		// Clamp to image bounds with integer values
+		const clampedX = Math.max(0, Math.floor(Math.min(imgX, nativeWidth)));
+		const clampedY = Math.max(0, Math.floor(Math.min(imgY, nativeHeight)));
+		const clampedWidth = Math.max(0, Math.floor(Math.min(imgWidth, nativeWidth - clampedX)));
+		const clampedHeight = Math.max(0, Math.floor(Math.min(imgHeight, nativeHeight - clampedY)));
+
+		if (clampedWidth === 0 || clampedHeight === 0) return;
+
+		console.log('Blur region:', {
+			clampedX,
+			clampedY,
+			clampedWidth,
+			clampedHeight,
+			nativeWidth,
+			nativeHeight
+		});
+
+		const blurRadius = Math.max(1, Math.round(blurStrength / 2));
+		console.log('Applying blur with radius:', blurRadius);
+
+		// Extract a larger region that includes padding for blur radius
+		// This prevents edge artifacts
+		const padding = blurRadius;
+		const extractX = Math.max(0, clampedX - padding);
+		const extractY = Math.max(0, clampedY - padding);
+		const extractWidth = Math.min(nativeWidth - extractX, clampedWidth + padding * 2);
+		const extractHeight = Math.min(nativeHeight - extractY, clampedHeight + padding * 2);
+
+		// Extract the padded region
+		const imageData = context.getImageData(extractX, extractY, extractWidth, extractHeight);
+
+		// Apply box blur to the entire extracted region
+		const blurred = boxBlur(imageData, blurRadius);
+
+		// Calculate the offset within the blurred image where our actual region starts
+		const offsetX = clampedX - extractX;
+		const offsetY = clampedY - extractY;
+
+		// Extract only the part we want (without the padding) from the blurred result
+		const finalBlurred = context.createImageData(clampedWidth, clampedHeight);
+		for (let y = 0; y < clampedHeight; y++) {
+			for (let x = 0; x < clampedWidth; x++) {
+				const srcIdx = ((y + offsetY) * extractWidth + (x + offsetX)) * 4;
+				const dstIdx = (y * clampedWidth + x) * 4;
+				finalBlurred.data[dstIdx] = blurred.data[srcIdx];
+				finalBlurred.data[dstIdx + 1] = blurred.data[srcIdx + 1];
+				finalBlurred.data[dstIdx + 2] = blurred.data[srcIdx + 2];
+				finalBlurred.data[dstIdx + 3] = blurred.data[srcIdx + 3];
 			}
-
-			context.restore();
-
-			if (mosaicOverlay) {
-				mosaicOverlay.destroy();
-			}
-
-			mosaicOverlay = new Konva.Image({
-				image: canvas,
-				x: 0,
-				y: 0,
-				width: stage.width(),
-				height: stage.height()
-			});
-
-			layer.add(mosaicOverlay);
-			mosaicOverlay.moveToBottom();
-			mosaicOverlay.moveUp();
-			layer.batchDraw();
 		}
+
+		// Put only the final blurred region back (exact bounds, no bleeding)
+		context.putImageData(finalBlurred, clampedX, clampedY);
+
+		if (mosaicOverlay) {
+			mosaicOverlay.destroy();
+			mosaicOverlay = null;
+		}
+
+		// Create overlay matching imageNode's display properties
+		mosaicOverlay = new Konva.Image({
+			image: canvas,
+			x: imageNode.x(),
+			y: imageNode.y(),
+			width: imageNode.width(),
+			height: imageNode.height(),
+			rotation: imageNode.rotation(),
+			scaleX: imageNode.scaleX(),
+			scaleY: imageNode.scaleY(),
+			listening: false
+		});
+
+		const parent = imageNode.getParent() || layer;
+		parent.add(mosaicOverlay);
+		mosaicOverlay.zIndex(imageNode.zIndex() + 1);
+		blurRegion?.moveToTop();
+		transformer?.moveToTop();
+		layer.batchDraw();
 	}
 
-	function updateMosaicStrength() {
+	function updateBlurStrength(value?: number) {
+		if (typeof value === 'number') {
+			blurStrength = value;
+		}
 		applyMosaic();
 	}
 
-	function exitBlur() {
-		// Clean up any existing blur elements before exiting
-		cleanupBlurElements();
-		layer.batchDraw();
-		onBlurReset();
-	}
-
-	function resetMosaic() {
+	function reset() {
 		// Clean up blur elements and reset state
 		cleanupBlurElements();
 		layer.batchDraw();
 		onBlurReset();
 	}
 
-	function applyFinalMosaic() {
+	function apply() {
 		// Take snapshot before applying final blur
 		const { takeSnapshot } = imageEditorStore;
 		takeSnapshot();
-		// Apply the mosaic effect permanently
-		applyMosaic();
+
+		// If there's a blur region and overlay, merge it with the image
+		if (mosaicOverlay && blurRegion) {
+			// Update the imageNode with the blurred version
+			const canvas = mosaicOverlay.image() as HTMLCanvasElement;
+			if (canvas) {
+				const img = new Image();
+				img.onload = () => {
+					imageNode.image(img);
+					layer.batchDraw();
+				};
+				img.src = canvas.toDataURL();
+			}
+		}
+
 		onBlurApplied();
 	}
 
@@ -274,7 +430,7 @@
 
 	export function saveState() {
 		// Save current blur state before switching tools
-		console.log('Saving blur tool state', { mosaicStrength });
+		console.log('Saving blur tool state', { blurStrength });
 		// The parent component will handle taking a snapshot
 	}
 
@@ -284,44 +440,7 @@
 		saveState();
 		cleanup();
 	}
+
+	// Export functions for parent component to call
+	export { updateBlurStrength, reset, apply };
 </script>
-
-<div class="wrapper">
-	<div class="align-center mb-2 flex w-full items-center">
-		<div class="flex w-full items-center justify-between">
-			<div class="flex items-center gap-2">
-				<!-- Back button at top of component -->
-				<button onclick={exitBlur} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
-					<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
-				</button>
-
-				<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Blur Settings</h3>
-			</div>
-
-			<div class="flex flex-col space-y-2">
-				<label for="mosaic-strength" class="text-sm font-medium">Blur Strength:</label>
-				<input
-					id="mosaic-strength"
-					type="range"
-					min="1"
-					max="50"
-					bind:value={mosaicStrength}
-					oninput={updateMosaicStrength}
-					class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
-					aria-valuemin="1"
-					aria-valuemax="50"
-					aria-valuenow={mosaicStrength}
-					aria-valuetext={`${mosaicStrength} pixels`}
-				/>
-				<span class="sr-only">Current mosaic strength: {mosaicStrength} pixels</span>
-			</div>
-
-			<div class="flex items-center gap-4">
-				<button onclick={resetMosaic} class="variant-filled-error btn" aria-label="Reset blur effect"> Reset </button>
-				<button onclick={applyFinalMosaic} class="variant-filled-primary btn" aria-label="Apply blur effect"> Apply </button>
-			</div>
-		</div>
-	</div>
-
-	<div class="flex items-center justify-around space-x-4"></div>
-</div>

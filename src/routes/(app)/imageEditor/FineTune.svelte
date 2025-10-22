@@ -313,6 +313,17 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function applyFineTunePermanently() {
 		if (!imageNode || !layer || !stage) return;
 
+		// Get the image group to calculate position and scale
+		const imageGroup = imageNode.getParent();
+		if (!imageGroup) return;
+
+		console.log('applyFineTunePermanently - BEFORE:', {
+			imageGroupPos: { x: imageGroup.x(), y: imageGroup.y() },
+			imageGroupScale: { x: imageGroup.scaleX(), y: imageGroup.scaleY() },
+			imageNodeSize: { width: imageNode.width(), height: imageNode.height() },
+			imageNodePos: { x: imageNode.x(), y: imageNode.y() }
+		});
+
 		// Create a temporary canvas at the original image resolution
 		const tempCanvas = document.createElement('canvas');
 		const tempContext = tempCanvas.getContext('2d');
@@ -321,10 +332,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		// Set canvas size to match the original image dimensions
 		tempCanvas.width = imageNode.width();
 		tempCanvas.height = imageNode.height();
-
-		// Get the image group to calculate position and scale
-		const imageGroup = imageNode.getParent();
-		if (!imageGroup) return;
 
 		// Calculate the position and scale of the image in the stage
 		const stagePos = imageGroup.getAbsolutePosition();
@@ -368,6 +375,12 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 			newImage.crossOrigin = 'anonymous';
 
 			newImage.onload = () => {
+				// Save the current dimensions before updating
+				const currentWidth = imageNode.width();
+				const currentHeight = imageNode.height();
+				const currentX = imageNode.x();
+				const currentY = imageNode.y();
+
 				// Remove all filters from the current image node
 				imageNode.filters([]);
 				imageNode.brightness(0);
@@ -378,6 +391,20 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 
 				// Update the image node with the new filtered image
 				imageNode.image(newImage);
+
+				// IMPORTANT: Restore the dimensions to prevent any size changes
+				imageNode.width(currentWidth);
+				imageNode.height(currentHeight);
+				imageNode.x(currentX);
+				imageNode.y(currentY);
+
+				console.log('applyFineTunePermanently - AFTER image update:', {
+					imageGroupPos: { x: imageGroup.x(), y: imageGroup.y() },
+					imageGroupScale: { x: imageGroup.scaleX(), y: imageGroup.scaleY() },
+					imageNodeSize: { width: imageNode.width(), height: imageNode.height() },
+					imageNodePos: { x: imageNode.x(), y: imageNode.y() },
+					newImageSize: { width: newImage.width, height: newImage.height }
+				});
 
 				// Clear cache and redraw
 				imageNode.clearCache();
