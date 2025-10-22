@@ -1,0 +1,302 @@
+---
+path: 'docs/architecture'
+title: 'Architecture Documentation'
+description: 'Technical documentation of SveltyCMS system architecture, design patterns, and implementation details'
+order: 10
+icon: 'mdi:layers-triple'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'architecture'
+  - 'design'
+  - 'patterns'
+  - 'technical'
+---
+
+# SveltyCMS Architecture Documentation
+
+In-depth technical documentation of system architecture, design patterns, and implementation details.
+
+---
+
+## 🏗️ System Architecture
+
+### [Code Structure & Organization](./code-structure.mdx)
+
+Comprehensive overview of the codebase:
+
+- Directory structure and organization
+- Core components and their responsibilities
+- Key design patterns used
+- State management approaches
+- Routing architecture
+- Testing strategy
+- Performance optimizations
+- Security measures
+
+---
+
+## 💾 Database Layer
+
+### [Database Methods Architecture](./database-methods.mdx)
+
+The database adapter pattern:
+
+- Unified database interface
+- Adapter implementations (MongoDB, MariaDB, PostgreSQL)
+- Database-agnostic application code
+- Query abstraction
+- Connection management
+- Transaction handling
+
+---
+
+## 🔄 State & Data Flow
+
+### [Collection Store DataFlow](./collection-store-dataflow.mdx)
+
+How the collection store manages state:
+
+- Store architecture and design
+- Data flow through the application
+- Reactive updates
+- Cache management
+- Optimistic updates
+- Error handling
+
+---
+
+## 🔐 Security Architecture
+
+### [Security Plugin](./security-plugin.mdx)
+
+Security implementation and best practices:
+
+- Authentication architecture
+- Authorization system (RBAC)
+- Session management
+- CSRF protection
+- Input validation
+- Output sanitization
+
+### [Cryptography Module](./cryptography-module.mdx)
+
+Cryptographic functions and implementations:
+
+- Password hashing (bcrypt)
+- Token generation (JWT)
+- Encryption/decryption
+- Secure random generation
+- Key management
+
+---
+
+## 📊 Logging & Monitoring
+
+### [Logger Levels](./logger-levels.mdx)
+
+Logging system architecture:
+
+- Log levels (debug, info, warn, error)
+- Structured logging
+- Log storage and rotation
+- Performance logging
+- Error tracking
+
+---
+
+## 🎯 Design Principles
+
+### Key Patterns Used in SveltyCMS
+
+1. **Adapter Pattern**
+   - Database abstraction
+   - Multiple backend support
+   - Consistent interface
+
+2. **Repository Pattern**
+   - Data access abstraction
+   - Business logic separation
+   - Testability
+
+3. **Dependency Injection**
+   - Loose coupling
+   - Testability
+   - Flexibility
+
+4. **Event-Driven Architecture**
+   - Decoupled components
+   - Extensibility
+   - Plugin system
+
+5. **Plugin System**
+   - Extensible architecture
+   - Custom functionality
+   - Third-party integrations
+
+---
+
+## 📚 Related Documentation
+
+### For Developers
+
+- **[API Documentation](../api/)** - Complete API reference with examples
+- **[Widget System](../widgets/)** - Widget architecture and development
+- **[Contributing Guide](../../CONTRIBUTING.md)** - How to contribute code
+
+### For Users
+
+- **[User Guides](../guides/)** - How to use SveltyCMS features
+- **[Installation Guide](../installation.mdx)** - Setup and configuration
+- **[Getting Started](../getting-started.mdx)** - Quick start guide
+
+---
+
+## 🔍 Deep Dives
+
+### Database Architecture
+
+**Why Adapter Pattern?**
+
+- **Database Independence**: Application code doesn't depend on specific database
+- **Easy Migration**: Switch databases without changing application code
+- **Testing**: Mock adapters for unit tests
+- **Multiple Databases**: Support multiple databases simultaneously (multi-tenancy)
+
+**Adapter Implementation:**
+
+```typescript
+// All adapters implement this interface
+interface DatabaseAdapter {
+	connect(): Promise<void>;
+	find(collection: string, query: object): Promise<any[]>;
+	create(collection: string, data: object): Promise<any>;
+	// ... more methods
+}
+
+// Usage in application code
+const db = getDB(locals.dbType); // MongoDB, MariaDB, or PostgreSQL
+const posts = await db.find('posts', { status: 'published' });
+```
+
+### State Management
+
+**Multi-Layer Approach:**
+
+1. **Svelte Stores** - Client-side reactive state
+2. **SvelteKit Load** - Server-side data loading
+3. **Cache Layer** - Performance optimization
+4. **Database** - Source of truth
+
+**Data Flow:**
+
+```
+User Action → Store Update → API Call → Database → Cache Update → Store Update → UI Update
+```
+
+### Security Layers
+
+**Defense in Depth:**
+
+1. **Input Validation** - Validate all user input
+2. **Authentication** - Verify user identity
+3. **Authorization** - Check permissions
+4. **Output Encoding** - Prevent XSS
+5. **CSRF Protection** - Validate request origin
+6. **Rate Limiting** - Prevent abuse
+
+---
+
+## 🛠️ Development Guidelines
+
+### When Adding New Features
+
+1. **Follow Patterns**: Use existing design patterns
+2. **Database Agnostic**: Use adapter interface
+3. **Add Tests**: Unit and integration tests
+4. **Document**: Update architecture docs
+5. **Type Safety**: Use TypeScript properly
+
+### Code Organization
+
+```
+New Feature/
+├── routes/api/feature/      # API endpoints
+├── components/feature/      # UI components
+├── stores/feature.ts        # State management
+└── tests/feature/           # Tests
+```
+
+### Testing Requirements
+
+- **Unit Tests**: Individual functions/components
+- **Integration Tests**: API endpoints
+- **E2E Tests**: User workflows
+- **Database Tests**: All adapters
+
+---
+
+## 🚀 Performance Considerations
+
+### Database Optimization
+
+- Indexes on frequently queried fields
+- Connection pooling
+- Query optimization
+- Pagination for large datasets
+
+### Caching Strategy
+
+- In-memory cache for frequently accessed data
+- Cache invalidation on updates
+- TTL-based expiration
+- Cache warming for critical data
+
+### Code Splitting
+
+- Route-based splitting
+- Component lazy loading
+- Dynamic imports for heavy libraries
+
+---
+
+## 📖 Architecture Decision Records (ADRs)
+
+### Why Database Adapter Pattern?
+
+**Decision**: Use adapter pattern for database abstraction  
+**Rationale**: Support multiple databases without code duplication  
+**Consequences**: Slightly more complex setup, but much better maintainability
+
+### Why Svelte 5?
+
+**Decision**: Migrate to Svelte 5 with runes  
+**Rationale**: Better performance, simpler reactivity, modern patterns  
+**Consequences**: Breaking changes from Svelte 4, but improved DX
+
+### Why SvelteKit?
+
+**Decision**: Use SvelteKit as the framework  
+**Rationale**: Full-stack framework, SSR support, file-based routing  
+**Consequences**: Tied to SvelteKit conventions, but excellent DX
+
+---
+
+## 🤝 Contributing to Architecture
+
+When proposing architectural changes:
+
+1. **Open a Discussion**: Discuss on GitHub first
+2. **Create ADR**: Document the decision
+3. **Update Docs**: Keep architecture docs current
+4. **Provide Examples**: Show how to use new patterns
+5. **Migration Guide**: If breaking changes, provide migration path
+
+---
+
+## 📧 Questions?
+
+- 💬 [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- 🐛 [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 📧 Email: dev@sveltycms.com

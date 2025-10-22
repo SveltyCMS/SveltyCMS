@@ -1,0 +1,108 @@
+---
+path: 'docs/guides/media-handling.mdx'
+title: 'Media Gallery and Handling'
+description: 'A comprehensive guide to the SveltyCMS Media Gallery and media handling system.'
+order: 5
+icon: 'mdi:image-multiple'
+author: 'ai-agent'
+created: '2025-10-12'
+updated: '2025-10-12'
+tags:
+  - 'media'
+  - 'gallery'
+  - 'upload'
+  - 'api'
+  - 'guide'
+---
+
+# Media Gallery and Handling
+
+SveltyCMS provides a powerful and flexible system for managing media files. This guide covers the Media Gallery UI, file uploading, media processing, storage, and the underlying API.
+
+---
+
+## Media Gallery UI
+
+The Media Gallery is the central hub for managing all your media files. It provides a user-friendly interface with the following features:
+
+- **Virtual Folders:** Organize your media files into a hierarchical folder structure.
+- **Grid and Table Views:** Choose between a visual grid view or a detailed table view to display your files.
+- **Filtering and Sorting:** Filter files by type (image, document, etc.) and sort them by name, size, or date.
+- **Search:** Quickly find files using the global search bar.
+- **Breadcrumb Navigation:** Easily navigate through your folder hierarchy.
+- **File Actions:** Upload, delete, and manage your media files directly from the UI.
+
+---
+
+## File Uploading
+
+SveltyCMS supports two primary methods for uploading files:
+
+### Local Upload
+
+You can upload files directly from your local machine using the "Add Media" button in the Media Gallery. This will open a modal where you can drag and drop files or browse your computer to select them.
+
+### Remote Upload
+
+The remote upload feature allows you to upload files from a URL. This is useful for importing media from external sources. You can paste a list of URLs, and SveltyCMS will download and save them to your media library.
+
+---
+
+## Media Processing
+
+When a file is uploaded, SveltyCMS performs several processing steps to ensure consistency and efficiency:
+
+- **Hashing:** The content of each file is hashed to generate a unique identifier. This prevents duplicate files from being stored.
+- **Sanitization:** Filenames are sanitized to remove special characters and ensure they are URL-safe.
+- **Image Resizing:** For image files, SveltyCMS automatically creates multiple resized versions (e.g., thumbnail, small, medium, large) to optimize delivery for different use cases. These sizes are configurable in the system settings.
+
+---
+
+## Media Storage
+
+Media files are stored in a structured directory layout within the `mediaFiles` folder (configurable). Here's an overview of the structure:
+
+- **`mediaFiles/`**: The root folder for all media files.
+  - **`images/`**: Contains different sizes of uploaded images.
+    - **`original/`**: The original, full-resolution images.
+    - **`thumbnail/`**: Small thumbnails for previews.
+    - **`sm/`**, **`md/`**, **`lg/`**: Different resized versions of the images.
+  - **`documents/`**: For document files like PDFs, DOCX, etc.
+  - **`audio/`**: For audio files.
+  - **`videos/`**: For video files.
+  - **`.trash/`**: When a file is deleted, it is moved to this directory. This allows for recovery if needed.
+
+---
+
+## Media API
+
+SveltyCMS provides a comprehensive REST API for managing media files programmatically. The API is located at `/api/media`.
+
+For a detailed reference of all API endpoints, please see the [Media API Documentation](/docs/api/media-api.mdx).
+
+Here is a high-level overview of the available endpoints:
+
+- **`GET /api/media`**: Lists media files with pagination and filtering.
+- **`POST /api/media/process`**: A versatile endpoint for processing files. It can be used to:
+  - `save`: Upload and save new files.
+    - This is a `multipart/form-data` endpoint that accepts `files` and a `processType` of `save`.
+  - `delete`: Delete a media file.
+  - `metadata`: Extract metadata from a file without saving it.
+- **`POST /api/media/remote`**: Saves a media file from a remote URL.
+- **`POST /api/media/trash`**: Moves a media file to the trash.
+- **`GET /api/media/exists`**: Checks if a media file exists.
+- **`GET /api/media/get`**: Retrieves a media file.
+- **`DELETE /api/media/delete`**: Permanently deletes a media file.
+
+---
+
+## Media Service
+
+The `MediaService` class (`src/services/MediaService.ts`) is the core of the media handling system. It encapsulates all the business logic for media operations, including:
+
+- Uploading files to storage.
+- Creating and updating media records in the database.
+- Deleting media files and moving them to the trash.
+- Managing media permissions and access control.
+
+The service uses a database-agnostic adapter (`dbInterface`) to interact with the database, making it compatible with different database backends.

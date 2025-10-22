@@ -1,0 +1,1133 @@
+---
+path: 'docs/dev-guide/database-methods-architecture.mdx'
+title: 'Database Methods Architecture'
+description: 'Complete reference for MongoDB method modules including authentication, collections, CRUD operations, content management, media, themes, widgets, and system settings.'
+order: 6
+icon: 'mdi:database-cog'
+author: 'admin'
+created: '2025-10-03'
+updated: '2025-10-03'
+tags:
+  - 'database'
+  - 'mongodb'
+  - 'architecture'
+  - 'methods'
+  - 'crud'
+---
+
+# Database Methods Architecture
+
+## Overview
+
+The SveltyCMS database layer uses a modular, database-agnostic architecture with clean separation of concerns across specialized method modules. This design enables easy testing, maintenance, and potential migration to different database systems.
+
+**Core Principle:** Database-agnostic interface with adapter pattern
+
+```
+Frontend/API → db.ts → dbInterface → Adapter (MongoDB/SQL) → Methods → Database
+```
+
+**Method Modules Location:** `src/databases/mongodb/methods/`
+
+---
+
+## Architecture Principles
+
+### 1. Database-Agnostic Design
+
+- **Frontend/API** - Never talks directly to MongoDB or SQL
+- **db.ts** - Agnostic entry point, routes to correct adapter
+- **dbInterface** - Abstract interface for database operations
+- **Adapter** - Implements dbInterface for specific database (MongoDB, PostgreSQL, etc.)
+- **Methods** - Modular, reusable logic organized by responsibility
+
+### 2. Separation of Concerns
+
+Each method module has a single, well-defined responsibility:
+
+| Module                         | Responsibility                      |
+| ------------------------------ | ----------------------------------- |
+| **authMethods**                | Authentication model registration   |
+| **collectionMethods**          | Dynamic schema/model management     |
+| **crudMethods**                | Generic CRUD operations             |
+| **contentMethods**             | CMS-specific content workflows      |
+| **mediaMethods**               | Media file operations               |
+| **themeMethods**               | Theme installation and activation   |
+| **widgetMethods**              | Widget registration and management  |
+| **systemMethods**              | System preferences and settings     |
+| **systemVirtualFolderMethods** | Virtual folder hierarchy            |
+| **mongoDBUtils**               | Shared utilities and error handling |
+
+### 3. Dependency Injection
+
+All method classes use constructor injection for:
+
+- **Testability** - Easy to mock dependencies
+- **Flexibility** - Swap implementations without changing code
+- **Type Safety** - TypeScript enforces correct dependencies
+
+---
+
+## Method Modules Reference
+
+### 1. MongoAuthModelRegistrar (`authMethods.ts`)
+
+**Purpose:** Idempotent registration of authentication models with Mongoose
+
+**Responsibility:**
+
+- Register User, Session, and Token models
+- Prevent duplicate model registration
+- Handle circular dependency issues with dynamic imports
+
+**Class:**
+
+```typescript
+export class MongoAuthModelRegistrar {
+	constructor(mongooseInstance: typeof Mongoose);
+	async setupAuthModels(): Promise<void>;
+}
+```
+
+**Methods:**
+
+#### setupAuthModels()
+
+Dynamically imports and registers authentication models (User, Token, Session).
+
+**Signature:**
+
+```typescript
+async setupAuthModels(): Promise<void>
+```
+
+**Example:**
+
+```typescript
+const registrar = new MongoAuthModelRegistrar(mongoose);
+await registrar.setupAuthModels();
+
+// Models now available:
+// - auth_users
+// - auth_sessions
+// - auth_tokens
+```
+
+**Features:**
+
+- ✅ Idempotent (safe to call multiple times)
+- ✅ Dynamic imports (avoids circular dependencies)
+- ✅ Error handling with DatabaseError
+
+**Internal Methods:**
+
+- `_registerModel(name: string, schema: Mongoose.Schema)` - Private helper for model registration
+
+---
+
+### 2. MongoCollectionMethods (`collectionMethods.ts`)
+
+**Purpose:** Dynamic model/schema creation, registration, and management
+
+**Responsibility:**
+
+- Create Mongoose models from collection schemas
+- Maintain model registry/map
+- Validate schemas and field mappings
+- Check model existence
+
+**What it does NOT handle:**
+
+- CRUD operations (use `crudMethods.ts`)
+- Content workflows (use `contentMethods.ts`)
+
+**Class:**
+
+```typescript
+export class MongoCollectionMethods {
+	constructor(mongoose: typeof Mongoose);
+
+	async getModel(id: string): Promise<CollectionModel>;
+	async createModel(schema: Schema): Promise<void>;
+	async updateModel(schema: Schema): Promise<void>;
+	async deleteModel(id: string): Promise<void>;
+	async collectionExists(collectionName: string): Promise<boolean>;
+	getMongooseModel(id: string): Model<unknown> | null;
+	getRegisteredModelIds(): string[];
+}
+```
+
+**Methods:**
+
+#### getModel()
+
+Retrieves a collection model by ID.
+
+```typescript
+async getModel(id: string): Promise<CollectionModel>
+```
+
+**Parameters:**
+
+- `id` - Collection ID
+
+**Returns:** Collection model with schema definition
+
+**Throws:** `DATABASE_ERROR` if model not found
+
+#### createModel()
+
+Creates a new Mongoose model from a collection schema.
+
+```typescript
+async createModel(schema: Schema): Promise<void>
+```
+
+**Parameters:**
+
+- `schema` - Collection schema definition
+
+**Features:**
+
+- ✅ Field type mapping (string → String, number → Number, etc.)
+- ✅ Validation rules
+- ✅ Default values
+- ✅ Timestamps (createdAt, updatedAt)
+
+#### updateModel()
+
+Updates an existing model's schema.
+
+```typescript
+async updateModel(schema: Schema): Promise<void>
+```
+
+**Note:** Recreates model with new schema definition
+
+#### deleteModel()
+
+Deletes a model and optionally drops the collection.
+
+```typescript
+async deleteModel(id: string): Promise<void>
+```
+
+**Warning:** Drops MongoDB collection and all data!
+
+#### collectionExists()
+
+Checks if a collection exists in MongoDB.
+
+```typescript
+async collectionExists(collectionName: string): Promise<boolean>
+```
+
+**Usage Example:**
+
+```typescript
+const collectionMethods = new MongoCollectionMethods(mongoose);
+
+// Create dynamic model
+await collectionMethods.createModel({
+	id: 'blog_posts',
+	name: 'Blog Posts',
+	fields: [
+		{ name: 'title', type: 'string', required: true },
+		{ name: 'content', type: 'text' },
+		{ name: 'publishedAt', type: 'date' }
+	]
+});
+
+// Check if exists
+const exists = await collectionMethods.collectionExists('blog_posts');
+
+// Get model
+const model = collectionMethods.getMongooseModel('blog_posts');
+```
+
+---
+
+### 3. MongoCrudMethods<T> (`crudMethods.ts`)
+
+**Purpose:** Generic CRUD operations for any collection/model
+
+**Responsibility:**
+
+- findOne, findMany, findById, findByIds
+- insert, insertMany
+- update, upsert, upsertMany
+- delete, deleteMany
+- count, exists
+- aggregate (complex queries)
+
+**What it does NOT handle:**
+
+- Schema/model creation (use `collectionMethods.ts`)
+- CMS-specific logic (use `contentMethods.ts`)
+- Business rules or validation (handled by callers)
+
+**Class:**
+
+```typescript
+export class MongoCrudMethods<T extends BaseEntity> {
+	constructor(model: Model<T>);
+
+	async findOne(query: FilterQuery<T>): Promise<T | null>;
+	async findById(id: DatabaseId): Promise<T | null>;
+	async findByIds(ids: DatabaseId[]): Promise<T[]>;
+	async findMany(query: FilterQuery<T>, options?: PaginationOptions): Promise<T[]>;
+
+	async insert(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T>;
+	async insertMany(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<T[]>;
+
+	async update(id: DatabaseId, data: UpdateQuery<T>): Promise<T | null>;
+	async upsert(query: FilterQuery<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T>;
+	async upsertMany(items: Array<{ query: FilterQuery<T>; data: Partial<T> }>): Promise<T[]>;
+
+	async delete(id: DatabaseId): Promise<boolean>;
+	async deleteMany(query: FilterQuery<T>): Promise<{ deletedCount: number }>;
+
+	async count(query: FilterQuery<T>): Promise<number>;
+	async exists(query: FilterQuery<T>): Promise<boolean>;
+	async aggregate<R>(pipeline: PipelineStage[]): Promise<R[]>;
+}
+```
+
+**Key Features:**
+
+- **Generic Type** - Works with any entity type
+- **Lean Queries** - Returns plain JavaScript objects (not Mongoose documents)
+- **Automatic Timestamps** - Adds createdAt/updatedAt
+- **Error Handling** - Wraps MongoDB errors with DatabaseError
+- **Batch Operations** - upsertMany for performance
+
+**Usage Example:**
+
+```typescript
+import { MongoCrudMethods } from './crudMethods';
+
+// Create CRUD repository for blog posts
+const postsRepo = new MongoCrudMethods<BlogPost>(BlogPostModel);
+
+// Find all published posts
+const posts = await postsRepo.findMany({ status: 'published' });
+
+// Insert new post
+const newPost = await postsRepo.insert({
+	title: 'New Post',
+	content: 'Content here...',
+	author: 'user123'
+});
+
+// Update post
+await postsRepo.update(newPost._id, {
+	$set: { title: 'Updated Title' }
+});
+
+// Delete post
+await postsRepo.delete(newPost._id);
+
+// Count posts by author
+const count = await postsRepo.count({ author: 'user123' });
+```
+
+---
+
+### 4. MongoContentMethods (`contentMethods.ts`)
+
+**Purpose:** CMS-specific content workflows (structure, drafts, revisions)
+
+**Responsibility:**
+
+- Content structure (menus, trees, hierarchies)
+- Draft creation and publishing workflows
+- Revision history and tracking
+- Content batch operations
+
+**What it does NOT handle:**
+
+- Generic CRUD (use `crudMethods.ts`)
+- Model creation (use `collectionMethods.ts`)
+
+**Class:**
+
+```typescript
+export class MongoContentMethods {
+	constructor(nodesRepo: MongoCrudMethods<ContentNode>, draftsRepo: MongoCrudMethods<ContentDraft>, revisionsRepo: MongoCrudMethods<ContentRevision>);
+
+	// Content Structure
+	async getStructure(mode: 'flat' | 'nested', filter?: FilterQuery<ContentNode>): Promise<ContentNode[]>;
+	async addNode(node: Omit<ContentNode, '_id'>): Promise<ContentNode>;
+	async updateNode(id: DatabaseId, data: Partial<ContentNode>): Promise<ContentNode | null>;
+	async deleteNode(id: DatabaseId): Promise<boolean>;
+	async moveNode(id: DatabaseId, newParentId: DatabaseId | null): Promise<ContentNode | null>;
+
+	// Drafts
+	async createDraft(data: Omit<ContentDraft, '_id'>): Promise<ContentDraft>;
+	async getDraft(draftId: DatabaseId): Promise<ContentDraft | null>;
+	async updateDraft(id: DatabaseId, data: Partial<ContentDraft>): Promise<ContentDraft | null>;
+	async deleteDraft(id: DatabaseId): Promise<boolean>;
+	async listDrafts(userId?: DatabaseId, options?: PaginationOptions): Promise<PaginatedResult<ContentDraft>>;
+	async publishDraft(draftId: DatabaseId): Promise<ContentNode>;
+
+	// Revisions
+	async createRevision(nodeId: DatabaseId, data: unknown, userId: DatabaseId): Promise<ContentRevision>;
+	async getRevisions(nodeId: DatabaseId, limit?: number): Promise<ContentRevision[]>;
+	async getRevision(revisionId: DatabaseId): Promise<ContentRevision | null>;
+	async restoreRevision(revisionId: DatabaseId): Promise<ContentNode>;
+	async cleanupOldRevisions(nodeId: DatabaseId, keepCount?: number): Promise<void>;
+}
+```
+
+**Key Features:**
+
+- **Caching** - Structure queries cached (180s TTL)
+- **Tree Building** - Converts flat nodes to hierarchical structure
+- **Draft Workflow** - Create → Edit → Publish pipeline
+- **Revision Tracking** - Automatic snapshot on publish
+- **Cleanup** - Old revision management
+
+**Usage Example:**
+
+```typescript
+const contentMethods = new MongoContentMethods(nodesRepo, draftsRepo, revisionsRepo);
+
+// Get content tree structure
+const tree = await contentMethods.getStructure('nested');
+
+// Create draft
+const draft = await contentMethods.createDraft({
+	title: 'New Article',
+	content: 'Draft content...',
+	authorId: userId
+});
+
+// Publish draft (creates revision automatically)
+const published = await contentMethods.publishDraft(draft._id);
+
+// Get revision history
+const revisions = await contentMethods.getRevisions(published._id);
+
+// Restore previous version
+await contentMethods.restoreRevision(revisions[1]._id);
+```
+
+---
+
+### 5. MongoMediaMethods (`mediaMethods.ts`)
+
+**Purpose:** Media file operations and metadata management
+
+**Responsibility:**
+
+- Batch file uploads
+- File deletion and moving
+- Metadata updates
+- Folder-based file retrieval
+- Pagination for media library
+
+**Class:**
+
+```typescript
+export class MongoMediaMethods {
+	constructor(model: Model<MediaItem>);
+
+	async uploadMany(files: Omit<MediaItem, '_id'>[]): Promise<MediaItem[]>;
+	async deleteMany(fileIds: DatabaseId[]): Promise<{ deletedCount: number }>;
+	async updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<MediaItem | null>;
+	async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<{ movedCount: number }>;
+	async getFiles(folderId?: DatabaseId, options?: PaginationOptions): Promise<PaginatedResult<MediaItem>>;
+}
+```
+
+**Methods:**
+
+#### uploadMany()
+
+Batch uploads multiple media files.
+
+```typescript
+async uploadMany(files: Omit<MediaItem, '_id'>[]): Promise<MediaItem[]>
+```
+
+**Features:**
+
+- ✅ Batch processing for performance
+- ✅ Automatic timestamp generation
+- ✅ Returns all uploaded items
+
+#### deleteMany()
+
+Deletes multiple files by ID.
+
+```typescript
+async deleteMany(fileIds: DatabaseId[]): Promise<{ deletedCount: number }>
+```
+
+**Note:** Does not delete physical files, only database records.
+
+#### updateMetadata()
+
+Updates file metadata (title, alt text, tags, etc.).
+
+```typescript
+async updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<MediaItem | null>
+```
+
+#### move()
+
+Moves files to a different folder.
+
+```typescript
+async move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<{ movedCount: number }>
+```
+
+#### getFiles()
+
+Retrieves files with pagination and folder filtering.
+
+```typescript
+async getFiles(folderId?: DatabaseId, options?: PaginationOptions): Promise<PaginatedResult<MediaItem>>
+```
+
+**Returns:**
+
+```typescript
+{
+  data: MediaItem[],
+  total: number,
+  page: number,
+  pageSize: number,
+  totalPages: number
+}
+```
+
+**Usage Example:**
+
+```typescript
+const mediaMethods = new MongoMediaMethods(MediaModel);
+
+// Upload files
+const uploaded = await mediaMethods.uploadMany([
+	{ filename: 'image1.jpg', path: '/uploads/image1.jpg', mimeType: 'image/jpeg', size: 102400 },
+	{ filename: 'image2.jpg', path: '/uploads/image2.jpg', mimeType: 'image/jpeg', size: 98304 }
+]);
+
+// Update metadata
+await mediaMethods.updateMetadata(uploaded[0]._id, {
+	title: 'Hero Image',
+	alt: 'Homepage hero banner',
+	tags: ['homepage', 'banner']
+});
+
+// Get paginated files
+const result = await mediaMethods.getFiles(folderId, { page: 1, pageSize: 20 });
+
+// Delete files
+await mediaMethods.deleteMany([uploaded[1]._id]);
+```
+
+---
+
+### 6. MongoThemeMethods (`themeMethods.ts`)
+
+**Purpose:** Theme installation, activation, and management
+
+**Responsibility:**
+
+- Install/uninstall themes
+- Set active/default themes
+- Update theme configuration
+- Theme state management
+
+**Class:**
+
+```typescript
+export class MongoThemeMethods {
+	constructor(model: Model<Theme>);
+
+	async getActive(): Promise<Theme | null>;
+	async getDefault(): Promise<Theme | null>;
+	async findAll(): Promise<Theme[]>;
+	async setActive(themeId: DatabaseId): Promise<Theme | null>;
+	async setDefault(themeId: DatabaseId): Promise<Theme | null>;
+	async install(themeData: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme>;
+	async uninstall(themeId: DatabaseId): Promise<boolean>;
+	async update(themeId: DatabaseId, themeData: Partial<Theme>): Promise<Theme | null>;
+}
+```
+
+**Key Features:**
+
+- **Unique Flags** - Only one theme can be active/default
+- **Cache Integration** - Active theme cached (300s TTL)
+- **Atomic Operations** - Ensures consistency with transactions
+
+**Methods:**
+
+#### install()
+
+Installs a new theme.
+
+```typescript
+async install(themeData: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<Theme>
+```
+
+#### setActive()
+
+Sets a theme as active (clears previous active theme).
+
+```typescript
+async setActive(themeId: DatabaseId): Promise<Theme | null>
+```
+
+**Process:**
+
+1. Clear `isActive` flag from all themes
+2. Set `isActive = true` on target theme
+3. Invalidate cache
+
+#### uninstall()
+
+Uninstalls a theme (cannot uninstall active theme).
+
+```typescript
+async uninstall(themeId: DatabaseId): Promise<boolean>
+```
+
+**Usage Example:**
+
+```typescript
+const themeMethods = new MongoThemeMethods(ThemeModel);
+
+// Install theme
+const theme = await themeMethods.install({
+	name: 'Dark Mode',
+	version: '1.0.0',
+	config: { primaryColor: '#1a1a1a' }
+});
+
+// Set as active
+await themeMethods.setActive(theme._id);
+
+// Get active theme (cached)
+const active = await themeMethods.getActive();
+
+// Update theme
+await themeMethods.update(theme._id, {
+	config: { primaryColor: '#000000' }
+});
+
+// Uninstall
+await themeMethods.uninstall(theme._id);
+```
+
+---
+
+### 7. MongoWidgetMethods (`widgetMethods.ts`)
+
+**Purpose:** Widget registration, activation, and management
+
+**Responsibility:**
+
+- Register/unregister widgets
+- Activate/deactivate widgets
+- Update widget configuration
+- Query active widgets
+
+**Class:**
+
+```typescript
+export class MongoWidgetMethods {
+	constructor(model: Model<Widget>);
+
+	async register(widgetData: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<Widget>;
+	async findById(widgetId: DatabaseId): Promise<Widget | null>;
+	async activate(widgetId: DatabaseId): Promise<Widget | null>;
+	async deactivate(widgetId: DatabaseId): Promise<Widget | null>;
+	async update(widgetId: DatabaseId, widgetData: Partial<Widget>): Promise<Widget | null>;
+	async delete(widgetId: DatabaseId): Promise<boolean>;
+	async findAll(): Promise<Widget[]>;
+	async findAllActive(): Promise<Widget[]>;
+}
+```
+
+**Key Features:**
+
+- **Cache Integration** - Active widgets cached (600s TTL)
+- **Activation State** - Track enabled/disabled widgets
+- **Upsert Support** - Register or update existing widgets
+
+**Usage Example:**
+
+```typescript
+const widgetMethods = new MongoWidgetMethods(WidgetModel);
+
+// Register widget
+const widget = await widgetMethods.register({
+	name: 'User Stats',
+	type: 'dashboard',
+	config: { displayMode: 'chart' },
+	isActive: false
+});
+
+// Activate widget
+await widgetMethods.activate(widget._id);
+
+// Get all active widgets (cached)
+const activeWidgets = await widgetMethods.findAllActive();
+
+// Update widget config
+await widgetMethods.update(widget._id, {
+	config: { displayMode: 'table' }
+});
+
+// Deactivate and delete
+await widgetMethods.deactivate(widget._id);
+await widgetMethods.delete(widget._id);
+```
+
+---
+
+### 8. MongoSystemMethods (`systemMethods.ts`)
+
+**Purpose:** System preferences and settings management
+
+**Responsibility:**
+
+- User preferences (layouts, widgets)
+- System-wide settings
+- Widget state management
+- Preference CRUD operations
+
+**Class:**
+
+```typescript
+export class MongoSystemMethods {
+	constructor(systemPreferencesModel: Model<SystemPreferencesDocument>, systemSettingModel: Model<SystemSetting>);
+
+	// User Preferences
+	async setUserPreferences(userId: string, layoutId: string, layout: Layout): Promise<void>;
+	async getSystemPreferences(userId: string, layoutId: string): Promise<Layout | null>;
+	async getWidgetState<T>(userId: string, layoutId: string, widgetId: string): Promise<T | null>;
+	async setWidgetState(userId: string, layoutId: string, widgetId: string, state: unknown): Promise<void>;
+	async clearSystemPreferences(userId: string): Promise<void>;
+
+	// Generic Preferences
+	async get<T>(key: string, scope: 'user' | 'system', userId?: DatabaseId): Promise<T | null>;
+	async set<T>(key: string, value: T, scope: 'user' | 'system', userId?: DatabaseId): Promise<void>;
+	async delete(key: string, scope: 'user' | 'system', userId?: DatabaseId): Promise<void>;
+	async clear(scope: 'user' | 'system', userId?: DatabaseId): Promise<void>;
+}
+```
+
+**Key Features:**
+
+- **Scoped Preferences** - User vs system-wide settings
+- **Widget State** - Per-widget, per-layout, per-user state
+- **Atomic Operations** - Upserts with projection for performance
+- **Array Filters** - Update nested widget settings without full document fetch
+
+**Usage Example:**
+
+```typescript
+const systemMethods = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
+
+// Set user layout preferences
+await systemMethods.setUserPreferences('user123', 'dashboard', {
+	preferences: [
+		{ id: 'widget1', x: 0, y: 0, w: 6, h: 4 },
+		{ id: 'widget2', x: 6, y: 0, w: 6, h: 4 }
+	]
+});
+
+// Get widget state
+const widgetState = await systemMethods.getWidgetState('user123', 'dashboard', 'widget1');
+
+// Set system-wide setting
+await systemMethods.set('maintenanceMode', false, 'system');
+
+// Get user-specific setting
+const userTheme = await systemMethods.get('theme', 'user', 'user123');
+
+// Clear all user preferences
+await systemMethods.clearSystemPreferences('user123');
+```
+
+---
+
+### 9. MongoSystemVirtualFolderMethods (`systemVirtualFolderMethods.ts`)
+
+**Purpose:** Virtual folder hierarchy for content organization
+
+**Responsibility:**
+
+- Create/update/delete virtual folders
+- Folder tree navigation
+- Add content to folders
+- Check folder existence
+
+**Class:**
+
+```typescript
+export class MongoSystemVirtualFolderMethods implements IDBAdapter['systemVirtualFolder'] {
+	constructor(model: Model<SystemVirtualFolder>);
+
+	async create(folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>>;
+	async getById(folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>>;
+	async getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>>;
+	async getAll(): Promise<DatabaseResult<SystemVirtualFolder[]>>;
+	async update(folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>>;
+	async addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>;
+	async getContents(folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: any[] }>>;
+	async delete(folderId: DatabaseId): Promise<DatabaseResult<void>>;
+	async exists(path: string): Promise<DatabaseResult<boolean>>;
+}
+```
+
+**Key Features:**
+
+- **Hierarchical Structure** - Parent-child relationships
+- **Path-Based** - Navigate by folder paths
+- **Content Association** - Link content to folders
+- **Database Result Wrapping** - Consistent error handling
+
+**Usage Example:**
+
+```typescript
+const folderMethods = new MongoSystemVirtualFolderMethods(SystemVirtualFolderModel);
+
+// Create root folder
+const rootResult = await folderMethods.create({
+	name: 'Documents',
+	path: '/documents',
+	parentId: null
+});
+
+// Create subfolder
+const subResult = await folderMethods.create({
+	name: 'Reports',
+	path: '/documents/reports',
+	parentId: rootResult.data._id
+});
+
+// Add content to folder
+await folderMethods.addToFolder(contentId, '/documents/reports');
+
+// Get folder contents
+const contents = await folderMethods.getContents('/documents/reports');
+console.log(contents.data.folders); // Subfolders
+console.log(contents.data.files); // Files/content
+
+// Check existence
+const exists = await folderMethods.exists('/documents');
+```
+
+---
+
+### 10. MongoDB Utilities (`mongoDBUtils.ts`)
+
+**Purpose:** Shared utilities for database operations
+
+**Exports:**
+
+#### Error Handling
+
+```typescript
+export function createDatabaseError(error: unknown, code: string, message: string): DatabaseError;
+```
+
+Creates standardized database errors.
+
+#### ID Generation
+
+```typescript
+export function generateId(): string;
+```
+
+Generates MongoDB-compatible ObjectId strings.
+
+#### Caching
+
+```typescript
+export async function withCache<T>(key: string, operation: () => Promise<T>, ttl?: number, category?: CacheCategory): Promise<T>;
+
+export function invalidateCategoryCache(category: CacheCategory): void;
+```
+
+**Cache Categories:**
+
+- `COLLECTION` - Collection/model data
+- `CONTENT` - Content nodes and structure
+- `THEME` - Theme configuration
+- `WIDGET` - Widget data
+- `MEDIA` - Media files
+- `SYSTEM` - System settings
+
+#### Interface
+
+```typescript
+export interface CacheWrapperOptions {
+	ttl?: number;
+	category?: CacheCategory;
+	skipCache?: boolean;
+}
+```
+
+**Usage:**
+
+```typescript
+// Cached database query
+const result = await withCache(
+	'users:active',
+	async () => await UserModel.find({ status: 'active' }),
+	600, // 10 minutes TTL
+	'COLLECTION'
+);
+
+// Invalidate cache category
+invalidateCategoryCache('THEME'); // Clears all theme-related cache
+```
+
+---
+
+## Usage Patterns
+
+### Pattern 1: Repository Pattern
+
+```typescript
+// Create typed repositories for each entity
+const usersRepo = new MongoCrudMethods<User>(UserModel);
+const postsRepo = new MongoCrudMethods<Post>(PostModel);
+
+// Use repositories for type-safe operations
+const user = await usersRepo.findById(userId);
+const posts = await postsRepo.findMany({ authorId: user._id });
+```
+
+### Pattern 2: Composed Methods
+
+```typescript
+// Combine multiple method modules for complex operations
+class BlogService {
+	constructor(
+		private postsRepo: MongoCrudMethods<Post>,
+		private contentMethods: MongoContentMethods,
+		private mediaMethods: MongoMediaMethods
+	) {}
+
+	async createBlogPost(data: BlogPostData) {
+		// Create draft
+		const draft = await this.contentMethods.createDraft(data);
+
+		// Upload media
+		if (data.images) {
+			await this.mediaMethods.uploadMany(data.images);
+		}
+
+		// Publish
+		return await this.contentMethods.publishDraft(draft._id);
+	}
+}
+```
+
+### Pattern 3: Batch Operations
+
+```typescript
+// Efficient batch processing
+const items = await Promise.all([mediaMethods.uploadMany(images), widgetMethods.findAllActive(), themeMethods.getActive()]);
+
+// Batch upserts
+await postsRepo.upsertMany(
+	posts.map((post) => ({
+		query: { slug: post.slug },
+		data: post
+	}))
+);
+```
+
+---
+
+## Performance Considerations
+
+### Caching Strategy
+
+| Category   | Default TTL | Use Case            |
+| ---------- | ----------- | ------------------- |
+| Collection | 600s (10m)  | Schema definitions  |
+| Content    | 180s (3m)   | Content structure   |
+| Theme      | 300s (5m)   | Active theme config |
+| Widget     | 600s (10m)  | Widget registry     |
+| System     | 900s (15m)  | System settings     |
+
+### Query Optimization
+
+**DO:**
+
+- ✅ Use lean() for read-only queries
+- ✅ Add indexes for frequently queried fields
+- ✅ Use projection to fetch only needed fields
+- ✅ Batch operations when possible
+- ✅ Cache frequently accessed data
+
+**DON'T:**
+
+- ❌ Fetch full documents when partial suffices
+- ❌ Run queries in loops (use batch operations)
+- ❌ Skip indexes on large collections
+- ❌ Ignore cache invalidation
+
+### Example: Optimized Query
+
+```typescript
+// ❌ BAD: Fetches full documents in loop
+for (const id of ids) {
+	const doc = await Model.findById(id);
+	process(doc);
+}
+
+// ✅ GOOD: Batch query with projection
+const docs = await Model.find({ _id: { $in: ids } })
+	.select('title status author')
+	.lean();
+docs.forEach(process);
+```
+
+---
+
+## Error Handling
+
+All methods use `createDatabaseError()` for consistent error reporting:
+
+```typescript
+try {
+	const result = await Model.findById(id);
+} catch (error) {
+	throw createDatabaseError(error, 'DOCUMENT_NOT_FOUND', `Document with ID ${id} not found`);
+}
+```
+
+**Error Structure:**
+
+```typescript
+interface DatabaseError extends Error {
+	code: string; // Machine-readable error code
+	message: string; // Human-readable message
+	originalError: any; // Original error from database
+}
+```
+
+**Common Error Codes:**
+
+- `DATABASE_CONNECTION_ERROR` - Connection failed
+- `DOCUMENT_NOT_FOUND` - Document doesn't exist
+- `DUPLICATE_KEY_ERROR` - Unique constraint violation
+- `VALIDATION_ERROR` - Schema validation failed
+- `OPERATION_TIMEOUT` - Query timeout exceeded
+
+---
+
+## Testing
+
+### Unit Testing Example
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { MongoCrudMethods } from './crudMethods';
+
+describe('MongoCrudMethods', () => {
+	it('should find document by ID', async () => {
+		const mockModel = {
+			findById: vi.fn().mockReturnValue({
+				lean: vi.fn().mockResolvedValue({ _id: '123', name: 'Test' })
+			})
+		};
+
+		const repo = new MongoCrudMethods(mockModel as any);
+		const result = await repo.findById('123');
+
+		expect(result).toEqual({ _id: '123', name: 'Test' });
+		expect(mockModel.findById).toHaveBeenCalledWith('123');
+	});
+});
+```
+
+### Integration Testing
+
+```typescript
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+
+describe('MongoContentMethods Integration', () => {
+	let mongoServer: MongoMemoryServer;
+
+	beforeAll(async () => {
+		mongoServer = await MongoMemoryServer.create();
+		await mongoose.connect(mongoServer.getUri());
+	});
+
+	afterAll(async () => {
+		await mongoose.disconnect();
+		await mongoServer.stop();
+	});
+
+	it('should create and publish draft', async () => {
+		const contentMethods = new MongoContentMethods(/* ... */);
+
+		const draft = await contentMethods.createDraft({
+			title: 'Test Post',
+			content: 'Content...'
+		});
+
+		expect(draft._id).toBeDefined();
+
+		const published = await contentMethods.publishDraft(draft._id);
+		expect(published.status).toBe('published');
+	});
+});
+```
+
+---
+
+## Migration Guide
+
+### From Direct MongoDB to Methods
+
+**Before:**
+
+```typescript
+// Direct MongoDB access
+const users = await mongoose.connection.collection('users').find({ status: 'active' }).toArray();
+await mongoose.connection.collection('users').updateOne({ _id: userId }, { $set: { name: 'New Name' } });
+```
+
+**After:**
+
+```typescript
+// Using method modules
+const usersRepo = new MongoCrudMethods<User>(UserModel);
+const users = await usersRepo.findMany({ status: 'active' });
+await usersRepo.update(userId, { $set: { name: 'New Name' } });
+```
+
+**Benefits:**
+
+- ✅ Type safety
+- ✅ Consistent error handling
+- ✅ Built-in caching
+- ✅ Testable
+- ✅ Database-agnostic
+
+---
+
+## Related Documentation
+
+- [Database Interface](/docs/dev-guide/database-interface) - Abstract database interface
+- [MongoDB Adapter](/docs/dev-guide/mongodb-adapter) - MongoDB-specific implementation
+- [Authentication System](/docs/dev-guide/authentication-system) - Uses authMethods
+- [Content Management](/docs/dev-guide/content-management) - Uses contentMethods
+
+---
+
+_Last Updated: October 3, 2025_  
+_Architecture Version: 2.0_

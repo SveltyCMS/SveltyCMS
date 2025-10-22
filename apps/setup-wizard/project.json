@@ -1,0 +1,59 @@
+{
+	"name": "setup-wizard",
+	"$schema": "../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "apps/setup-wizard/src",
+	"projectType": "application",
+	"targets": {
+		"dev": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite dev",
+				"cwd": "apps/setup-wizard"
+			}
+		},
+		"build": {
+			"executor": "nx:run-commands",
+			"outputs": ["{projectRoot}/build"],
+			"options": {
+				"command": "vite build",
+				"cwd": "apps/setup-wizard"
+			}
+		},
+		"preview": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "vite preview",
+				"cwd": "apps/setup-wizard"
+			}
+		},
+		"check": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+				"cwd": "apps/setup-wizard"
+			}
+		},
+		"check:watch": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+				"cwd": "apps/setup-wizard"
+			}
+		},
+		"lint": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "eslint .",
+				"cwd": "apps/setup-wizard"
+			}
+		},
+		"format": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "prettier --write .",
+				"cwd": "apps/setup-wizard"
+			}
+		}
+	},
+	"tags": ["type:app", "scope:setup"]
+}

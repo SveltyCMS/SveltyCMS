@@ -1,0 +1,27 @@
+/**
+ * @file apps/setup-wizard/src/app.css
+ * @description Global styles for the Setup Wizard
+ * Uses Tailwind v4 CSS-first configuration + Skeleton v4
+ */
+
+/* Import Skeleton v4 Svelte styles */
+@import '@skeletonlabs/skeleton-svelte';
+
+/* Tailwind v4 directives */
+@import 'tailwindcss';
+
+/* Custom setup wizard styles */
+.fade-in {
+	animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
