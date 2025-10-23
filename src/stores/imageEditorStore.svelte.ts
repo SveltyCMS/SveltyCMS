@@ -182,24 +182,6 @@ function createImageEditorStore() {
 				});
 				break;
 
-			case 'rotate':
-				// Clean up rotate-specific elements
-				state.layer.find('.rotationGrid').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying rotation grid:', e);
-					}
-				});
-				state.layer.find('.gridLayer').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying grid layer:', e);
-					}
-				});
-				break;
-
 			case 'blur':
 				// Clean up blur-specific elements
 				state.layer.find('.blurRegion').forEach((node) => {

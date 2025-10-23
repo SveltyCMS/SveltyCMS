@@ -26,23 +26,16 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import CropBottomBar from './components/toolbars/CropBottomBar.svelte';
 	import Blur from './components/Blur.svelte';
 	import BlurTopToolbar from './components/toolbars/BlurTopToolbar.svelte';
-	import Rotate from './components/Rotate.svelte';
-	import Zoom from './components/Zoom.svelte';
 	import FocalPoint from './components/FocalPoint.svelte';
 	import FocalPointTopToolbar from './components/toolbars/FocalPointTopToolbar.svelte';
-	import Watermark from './components/Watermark.svelte';
-	import Filter from './components/Filter.svelte';
 	import FineTune from './components/FineTune.svelte';
 	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
-	import TextOverlay from './components/TextOverlay.svelte';
-	import ShapeOverlay from './components/ShapeOverlay.svelte';
 	import Sticker from './components/Sticker.svelte';
 	import StickerTopToolbar from './components/toolbars/StickerTopToolbar.svelte';
 
-	// New layout components
+	// Layout components
 	import EditorSidebar from './components/EditorSidebar.svelte';
 	import EditorCanvas from './components/EditorCanvas.svelte';
-	import EditorToolPanel from './components/EditorToolPanel.svelte';
 	import MobileToolbar from './components/MobileToolbar.svelte';
 
 	// Konva
@@ -1162,22 +1155,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 						imageEditorStore.setActiveState('');
 					}}
 				/>
-			{:else if activeState === 'zoom'}
-				<Zoom
-					{stage}
-					{layer}
-					{imageNode}
-					imageGroup={storeState.imageGroup}
-					onZoomApplied={() => {
-						imageEditorStore.cleanupToolSpecific('zoom');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onZoomCancelled={() => {
-						imageEditorStore.cleanupToolSpecific('zoom');
-						imageEditorStore.setActiveState('');
-					}}
-				/>
 			{:else if activeState === 'focalpoint'}
 				<FocalPoint
 					bind:this={focalPointToolRef}
@@ -1189,61 +1166,10 @@ and unified tool experiences (crop includes rotation, scale, flip).
 						focalPointY = data.y;
 					}}
 				/>
-			{:else if activeState === 'watermark'}
-				<Watermark
-					{stage}
-					{layer}
-					{imageNode}
-					onWatermarkChange={() => applyEdit()}
-					onExitWatermark={() => {
-						imageEditorStore.cleanupToolSpecific('watermark');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-				/>
 			{:else if activeState === 'sticker'}
 				{#key `sticker-${storeState.file?.name || 'unknown'}`}
 					<Sticker bind:this={stickerToolRef} {stage} {layer} {imageNode} onStickerChange={() => applyEdit()} />
 				{/key}
-			{:else if activeState === 'filter'}
-				<Filter
-					{stage}
-					{layer}
-					{imageNode}
-					onFilterApplied={() => {
-						imageEditorStore.cleanupToolSpecific('filter');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onFilterReset={() => {
-						imageEditorStore.cleanupToolSpecific('filter');
-						imageEditorStore.setActiveState('');
-					}}
-					onFilterChange={(filterType, value) => {
-						// Handle filter changes if needed
-						console.log('Filter changed:', filterType, value);
-					}}
-				/>
-			{:else if activeState === 'textoverlay'}
-				<TextOverlay
-					{stage}
-					{layer}
-					onTextAdded={() => applyEdit()}
-					onExitText={() => {
-						imageEditorStore.cleanupToolSpecific('textoverlay');
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'shapeoverlay'}
-				<ShapeOverlay
-					{stage}
-					{layer}
-					onShapeAdded={() => applyEdit()}
-					onExitShape={() => {
-						imageEditorStore.cleanupToolSpecific('shapeoverlay');
-						imageEditorStore.setActiveState('');
-					}}
-				/>
 			{:else if activeState === 'finetune'}
 				{#key `finetune-${storeState.file?.name || 'unknown'}`}
 					<FineTune
