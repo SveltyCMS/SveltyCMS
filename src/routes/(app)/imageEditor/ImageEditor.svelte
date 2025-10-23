@@ -21,29 +21,29 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Import individual tool components
-	import Crop from './Crop.svelte';
-	import CropTopToolbar from './CropTopToolbar.svelte';
-	import CropBottomBar from './CropBottomBar.svelte';
-	import Blur from './Blur.svelte';
-	import BlurTopToolbar from './BlurTopToolbar.svelte';
-	import Rotate from './Rotate.svelte';
-	import Zoom from './Zoom.svelte';
-	import FocalPoint from './FocalPoint.svelte';
-	import FocalPointTopToolbar from './FocalPointTopToolbar.svelte';
-	import Watermark from './Watermark.svelte';
-	import Filter from './Filter.svelte';
-	import FineTune from './FineTune.svelte';
-	import FineTuneTopToolbar from './FineTuneTopToolbar.svelte';
-	import TextOverlay from './TextOverlay.svelte';
-	import ShapeOverlay from './ShapeOverlay.svelte';
-	import Sticker from './Sticker.svelte';
-	import StickerTopToolbar from './StickerTopToolbar.svelte';
+	import Crop from './components/Crop.svelte';
+	import CropTopToolbar from './components/toolbars/CropTopToolbar.svelte';
+	import CropBottomBar from './components/toolbars/CropBottomBar.svelte';
+	import Blur from './components/Blur.svelte';
+	import BlurTopToolbar from './components/toolbars/BlurTopToolbar.svelte';
+	import Rotate from './components/Rotate.svelte';
+	import Zoom from './components/Zoom.svelte';
+	import FocalPoint from './components/FocalPoint.svelte';
+	import FocalPointTopToolbar from './components/toolbars/FocalPointTopToolbar.svelte';
+	import Watermark from './components/Watermark.svelte';
+	import Filter from './components/Filter.svelte';
+	import FineTune from './components/FineTune.svelte';
+	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
+	import TextOverlay from './components/TextOverlay.svelte';
+	import ShapeOverlay from './components/ShapeOverlay.svelte';
+	import Sticker from './components/Sticker.svelte';
+	import StickerTopToolbar from './components/toolbars/StickerTopToolbar.svelte';
 
 	// New layout components
-	import EditorSidebar from './EditorSidebar.svelte';
-	import EditorCanvas from './EditorCanvas.svelte';
-	import EditorToolPanel from './EditorToolPanel.svelte';
-	import MobileToolbar from './MobileToolbar.svelte';
+	import EditorSidebar from './components/EditorSidebar.svelte';
+	import EditorCanvas from './components/EditorCanvas.svelte';
+	import EditorToolPanel from './components/EditorToolPanel.svelte';
+	import MobileToolbar from './components/MobileToolbar.svelte';
 
 	// Konva
 	import Konva from 'konva';
