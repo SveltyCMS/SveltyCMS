@@ -50,7 +50,7 @@ const config = {
 				'default-src': ['self'],
 				'script-src': ['self', 'unsafe-eval'], // unsafe-eval needed for dev HMR
 				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
-				'img-src': ['self', 'data:', 'https://api.iconify.design', 'https://api.unisvg.com', 'https://api.simplesvg.com'],
+				'img-src': ['self', 'data:', 'blob:', 'https://api.iconify.design', 'https://api.unisvg.com', 'https://api.simplesvg.com'],
 				'font-src': ['self', 'data:'],
 				'connect-src': ['self', 'https://api.iconify.design', 'https://raw.githubusercontent.com', 'wss:', 'ws:', 'https://api.simplesvg.com', 'https://api.unisvg.com'],
 				'object-src': ['none'],

@@ -467,7 +467,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					if (imageNodeState.attrs.y !== undefined) imageNode.y(imageNodeState.attrs.y);
 
 					// Apply filters if they exist
-					if (imageNodeState.attrs.filters && imageNodeState.attrs.filters.length > 0) {
+					if (imageNodeState.attrs.filters && Array.isArray(imageNodeState.attrs.filters) && imageNodeState.attrs.filters.length > 0) {
 						// Reapply filters to the image node
 						imageNode.filters(imageNodeState.attrs.filters);
 
@@ -482,7 +482,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			}
 
 			// Cache the image node if it has filters
-			if (imageNode.filters() && imageNode.filters().length > 0) {
+			const filters = imageNode.filters();
+			if (filters && Array.isArray(filters) && filters.length > 0) {
 				imageNode.cache();
 			}
 
