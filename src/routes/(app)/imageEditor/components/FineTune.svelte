@@ -15,7 +15,7 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 
 <script lang="ts">
 	import Konva from 'konva';
-	import FineTuneTopToolbar from './FineTuneTopToolbar.svelte';
+	import FineTuneTopToolbar from './toolbars/FineTuneTopToolbar.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
