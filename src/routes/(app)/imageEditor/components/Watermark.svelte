@@ -142,7 +142,7 @@ UI is in StickerToolPanel.svelte
 				x: stickerX,
 				y: stickerY,
 				draggable: true,
-				name: 'sticker'
+				name: 'watermark'
 			});
 
 			// Create transformer for this sticker
@@ -158,10 +158,8 @@ UI is in StickerToolPanel.svelte
 				anchorStroke: '#4a90e2',
 				borderStroke: '#4a90e2',
 				rotateAnchorOffset: 30,
-				name: 'stickerTransformer'
-			});
-
-			// Add to layer
+				name: 'watermarkTransformer'
+			}); // Add to layer
 			layer.add(konvaImage);
 			layer.add(transformer);
 			layer.draw();

@@ -99,10 +99,9 @@ function createImageEditorStore() {
 			'.gridLayer',
 			'.blurRegion',
 			'.mosaicOverlay',
-			'[name="sticker"]',
-			'[name="stickerTransformer"]'
+			'[name="watermark"]',
+			'[name="watermarkTransformer"]'
 		];
-
 		tempSelectors.forEach((selector) => {
 			state.layer!.find(selector).forEach((node) => {
 				try {
@@ -222,20 +221,20 @@ function createImageEditorStore() {
 				});
 				break;
 
-			case 'sticker':
-				// Clean up sticker-specific elements
-				state.layer.find('[name="sticker"]').forEach((node) => {
+			case 'watermark':
+				// Clean up watermark-specific elements
+				state.layer.find('[name="watermark"]').forEach((node) => {
 					try {
 						node.destroy();
 					} catch (e) {
-						console.warn('Error destroying sticker:', e);
+						console.warn('Error destroying watermark:', e);
 					}
 				});
-				state.layer.find('[name="stickerTransformer"]').forEach((node) => {
+				state.layer.find('[name="watermarkTransformer"]').forEach((node) => {
 					try {
 						node.destroy();
 					} catch (e) {
-						console.warn('Error destroying sticker transformer:', e);
+						console.warn('Error destroying watermark transformer:', e);
 					}
 				});
 				break;

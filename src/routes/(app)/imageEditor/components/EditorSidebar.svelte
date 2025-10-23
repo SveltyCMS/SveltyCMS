@@ -56,10 +56,10 @@ and proper active state indication.
 			comingSoon: true
 		},
 		{
-			id: 'sticker',
-			name: 'Sticker',
-			icon: 'mdi:sticker-emoji',
-			description: 'Add image stickers and overlays',
+			id: 'watermark',
+			name: 'Watermark',
+			icon: 'mdi:watermark',
+			description: 'Add watermark images and overlays',
 			category: 'overlay'
 		},
 		{
