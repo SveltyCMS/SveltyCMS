@@ -17,19 +17,19 @@
  * "expiresInLabel": "7d"
  * }
  */
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks.server';
+import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
 
 // Validation
-import { object, string, number, parse, minLength } from 'valibot';
+import { minLength, number, object, parse, string } from 'valibot';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -76,7 +76,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}
@@ -106,7 +106,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const token = await auth.createToken({
 			user_id: tokenData.user_id,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Conditionally add tenantId
 			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
 			expires: expiresAt,
 			type: 'registration' // Or another appropriate type

@@ -1,0 +1,625 @@
+---
+path: 'docs/api/Media_API.mdx'
+title: 'Media Management API'
+description: 'Complete API reference for uploading, managing, and serving media files in SveltyCMS.'
+order: 5
+icon: 'mdi:image-multiple'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'media'
+  - 'upload'
+  - 'files'
+  - 'images'
+---
+
+# Media Management API
+
+## Overview
+
+The Media API provides comprehensive endpoints for managing media files (images, videos, documents) in SveltyCMS. All operations use a database-agnostic adapter and support multi-tenancy.
+
+**Base Path:** `/api/media`
+
+## Authentication
+
+All media endpoints require authentication:
+
+```http
+Cookie: session=your-session-id
+```
+
+## Endpoints
+
+### 1. List Media Files
+
+Retrieves a paginated list of media files.
+
+#### Request
+
+```http
+GET /api/media
+```
+
+**Query Parameters:**
+
+- `limit` (number, optional) - Max files to return (1-50, default: 5)
+- `folder` (string, optional) - Filter by folder path
+- `type` (string, optional) - Filter by MIME type
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `media:read` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": [
+		{
+			"id": "file123",
+			"name": "image.jpg",
+			"size": 245760,
+			"modified": "2025-10-05T14:30:00Z",
+			"type": "jpeg",
+			"url": "/uploads/image.jpg",
+			"mimeType": "image/jpeg",
+			"folder": "/images"
+		}
+	],
+	"pagination": {
+		"page": 1,
+		"pageSize": 5,
+		"total": 42
+	}
+}
+```
+
+**Error Responses:**
+
+```json
+// 401 Unauthorized
+{
+  "success": false,
+  "message": "Unauthorized"
+}
+
+// 500 Internal Server Error
+{
+  "success": false,
+  "message": "Failed to retrieve media files"
+}
+```
+
+---
+
+### 2. Upload Media File
+
+Uploads a new media file to the system.
+
+#### Request
+
+```http
+POST /api/mediaUpload
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: multipart/form-data
+```
+
+**Body (multipart/form-data):**
+
+- `file` (file) - The file to upload
+- `folder` (string, optional) - Target folder path
+- `alt` (string, optional) - Alt text for images
+- `title` (string, optional) - File title/caption
+
+**Permissions Required:** `media:write` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"file": {
+		"_id": "file123",
+		"filename": "image.jpg",
+		"originalName": "My Photo.jpg",
+		"path": "/uploads/2025/10/image.jpg",
+		"url": "https://cdn.example.com/uploads/2025/10/image.jpg",
+		"size": 245760,
+		"mimeType": "image/jpeg",
+		"folder": "/images",
+		"alt": "A beautiful landscape",
+		"createdAt": "2025-10-05T14:30:00Z",
+		"updatedAt": "2025-10-05T14:30:00Z"
+	},
+	"message": "File uploaded successfully"
+}
+```
+
+**Error Responses:**
+
+```json
+// 400 Bad Request - No file provided
+{
+  "success": false,
+  "message": "No file provided"
+}
+
+// 400 Bad Request - Invalid file type
+{
+  "success": false,
+  "message": "File type not allowed"
+}
+
+// 413 Payload Too Large
+{
+  "success": false,
+  "message": "File size exceeds maximum allowed size"
+}
+
+// 500 Internal Server Error
+{
+  "success": false,
+  "message": "Upload failed"
+}
+```
+
+---
+
+### 3. Get Media File
+
+Retrieves detailed information about a specific media file.
+
+#### Request
+
+```http
+GET /api/media/[fileId]
+```
+
+**Path Parameters:**
+
+- `fileId` (string) - The media file ID
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `media:read` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"_id": "file123",
+		"filename": "image.jpg",
+		"originalName": "My Photo.jpg",
+		"path": "/uploads/2025/10/image.jpg",
+		"url": "https://cdn.example.com/uploads/2025/10/image.jpg",
+		"size": 245760,
+		"mimeType": "image/jpeg",
+		"folder": "/images",
+		"alt": "A beautiful landscape",
+		"title": "Landscape Photo",
+		"width": 1920,
+		"height": 1080,
+		"metadata": {
+			"camera": "Canon EOS",
+			"location": "Mountain View"
+		},
+		"createdAt": "2025-10-05T14:30:00Z",
+		"updatedAt": "2025-10-05T14:30:00Z"
+	}
+}
+```
+
+**Error Responses:**
+
+```json
+// 404 Not Found
+{
+	"success": false,
+	"message": "Media file not found"
+}
+```
+
+---
+
+### 4. Update Media File
+
+Updates media file metadata (not the file itself).
+
+#### Request
+
+```http
+PATCH /api/media/[fileId]
+```
+
+**Path Parameters:**
+
+- `fileId` (string) - The media file ID
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"alt": "Updated alt text",
+	"title": "Updated title",
+	"folder": "/new-folder"
+}
+```
+
+**Permissions Required:** `media:update` or file owner
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "Media file updated successfully"
+}
+```
+
+---
+
+### 5. Delete Media File
+
+Deletes a media file permanently or moves it to trash.
+
+#### Request
+
+```http
+DELETE /api/media/[fileId]
+```
+
+**Path Parameters:**
+
+- `fileId` (string) - The media file ID
+
+**Query Parameters:**
+
+- `permanent` (boolean, optional) - If true, delete permanently; otherwise move to trash
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions Required:** `media:delete` or admin
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "Media file deleted successfully"
+}
+```
+
+**Error Responses:**
+
+```json
+// 403 Forbidden
+{
+  "success": false,
+  "message": "Insufficient permissions"
+}
+
+// 404 Not Found
+{
+  "success": false,
+  "message": "Media file not found"
+}
+```
+
+---
+
+### 6. Process Media File
+
+Processes a media file (resize, crop, optimize, etc.).
+
+#### Request
+
+```http
+POST /api/media/process
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"fileId": "file123",
+	"operation": "resize",
+	"options": {
+		"width": 800,
+		"height": 600,
+		"quality": 85,
+		"format": "webp"
+	}
+}
+```
+
+**Operations:**
+
+- `resize` - Resize image
+- `crop` - Crop image
+- `optimize` - Optimize file size
+- `thumbnail` - Generate thumbnail
+- `convert` - Convert format
+
+**Permissions Required:** `media:write` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"processed": {
+		"_id": "processed-file123",
+		"url": "/uploads/2025/10/image-800x600.webp",
+		"size": 145230,
+		"width": 800,
+		"height": 600
+	},
+	"message": "Media processed successfully"
+}
+```
+
+---
+
+### 7. Check File Existence
+
+Checks if a file with the given name already exists.
+
+#### Request
+
+```http
+POST /api/media/exists
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+	"filename": "image.jpg",
+	"folder": "/images"
+}
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"exists": true,
+	"file": {
+		"_id": "file123",
+		"filename": "image.jpg",
+		"url": "/uploads/image.jpg"
+	}
+}
+```
+
+---
+
+## Supported File Types
+
+### Images
+
+- JPEG/JPG (`.jpg`, `.jpeg`)
+- PNG (`.png`)
+- GIF (`.gif`)
+- WebP (`.webp`)
+- SVG (`.svg`)
+- BMP (`.bmp`)
+
+### Videos
+
+- MP4 (`.mp4`)
+- WebM (`.webm`)
+- MOV (`.mov`)
+- AVI (`.avi`)
+
+### Documents
+
+- PDF (`.pdf`)
+- DOC/DOCX (`.doc`, `.docx`)
+- TXT (`.txt`)
+- MD (`.md`)
+
+### Archives
+
+- ZIP (`.zip`)
+- TAR (`.tar`, `.tar.gz`)
+
+---
+
+## File Size Limits
+
+Default limits (configurable in system settings):
+
+- **Images:** 10 MB
+- **Videos:** 100 MB
+- **Documents:** 25 MB
+- **Archives:** 50 MB
+
+---
+
+## Database-Agnostic Implementation
+
+The Media API uses a database-agnostic adapter:
+
+```typescript
+// File metadata is stored via the adapter interface
+const result = await dbAdapter.media.files.create(fileData);
+const files = await dbAdapter.media.files.getByFolder(folder);
+```
+
+**Storage Options:**
+
+- File system (local)
+- S3-compatible storage
+- Azure Blob Storage
+- Google Cloud Storage
+
+The adapter handles both database records and file storage.
+
+---
+
+## Multi-Tenancy Support
+
+When multi-tenant mode is enabled:
+
+- Files are isolated per tenant
+- Each tenant has separate storage
+- URLs include tenant identifier
+- Tenant quotas can be enforced
+
+**Tenant-Scoped Query:**
+
+```http
+GET /api/media
+# Automatically filtered by tenant ID
+```
+
+---
+
+## Security Considerations
+
+### Access Control
+
+- All uploads require authentication
+- Files can have visibility settings (public/private)
+- Access control per folder/file
+- Rate limiting on uploads
+
+### File Validation
+
+- MIME type validation
+- File signature checking
+- Virus scanning (optional)
+- Size limit enforcement
+
+### Storage Security
+
+- Files stored outside web root
+- Unique filenames to prevent collisions
+- Metadata sanitization
+- CDN/proxy for serving files
+
+---
+
+## Image Processing
+
+Automatic processing for images:
+
+1. **Thumbnail Generation** - Multiple sizes
+2. **Format Optimization** - WebP conversion
+3. **EXIF Stripping** - Privacy protection
+4. **Dimension Limits** - Max width/height
+
+---
+
+## Testing
+
+### Upload File with cURL
+
+```bash
+curl -X POST https://your-domain.com/api/mediaUpload \
+  -H "Cookie: session=your-session-cookie" \
+  -F "file=@/path/to/image.jpg" \
+  -F "folder=/images" \
+  -F "alt=My image"
+```
+
+### JavaScript Example
+
+```javascript
+// Upload file
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+formData.append('folder', '/images');
+formData.append('alt', 'Image description');
+
+const response = await fetch('/api/mediaUpload', {
+	method: 'POST',
+	credentials: 'include',
+	body: formData
+});
+
+const result = await response.json();
+console.log('Uploaded:', result.file.url);
+```
+
+---
+
+## Related Documentation
+
+- [Media Widget](/docs/widgets/core/mediaUpload.mdx)
+- [File Storage Configuration](/docs/admin/file-storage)
+- [CDN Setup](/docs/admin/cdn-setup)
+- [Security Best Practices](/docs/security/best-practices)
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/media/+server.ts` - List media files
+- `src/routes/api/mediaUpload/+server.ts` - Upload endpoint
+- `src/routes/api/media/process/+server.ts` - Process endpoint
+- `src/utils/media/MediaService.ts` - Media service layer
+- `src/databases/dbInterface.ts` - Database adapter interface

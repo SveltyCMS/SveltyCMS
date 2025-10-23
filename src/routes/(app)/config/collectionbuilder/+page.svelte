@@ -28,8 +28,7 @@
 	}
 
 	// Stores
-	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { contentStructure } from '@root/src/stores/collectionStore.svelte';
+	import { setCollectionValue, setMode, setContentStructure, contentStructure } from '@src/stores/collectionStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -43,7 +42,9 @@
 	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 	import { showModal } from '@utils/modalUtils';
-	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
+	import type { ISODateString } from '@root/src/content/types';
+	import type { DndItem } from './NestedContent/types';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -52,6 +53,8 @@
 
 	interface ApiResponse {
 		error?: string;
+		success?: boolean;
+		contentStructure?: ContentNode[];
 		[key: string]: any; // Allows for success, contentStructure, message
 	}
 
@@ -73,13 +76,13 @@
 
 	/**
 	 * Opens the modal for adding or editing a category.
-	 * @param existingCategory Optional ContentNode if editing an existing category.
+	 * @param existingCategory Optional Partial<DndItem> if editing an existing category.
 	 */
-	function modalAddCategory(existingCategory?: ContentNode): void {
+	function modalAddCategory(existingCategory?: Partial<DndItem>): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
-				existingCategory
+				existingCategory: existingCategory as ContentNode | undefined
 			}
 		};
 
@@ -92,8 +95,8 @@
 				if (!response || typeof response === 'boolean') return;
 
 				try {
-					if (existingCategory) {
-						updateExistingCategory(existingCategory, response);
+					if (existingCategory && existingCategory._id) {
+						updateExistingCategory(existingCategory as ContentNode, response);
 					} else {
 						addNewCategory(response);
 					}
@@ -213,8 +216,10 @@
 				nodesToSave = {};
 				// Re-sync `currentConfig` with the *actual* structure returned by the server
 				// This is crucial for consistency, especially after complex reorders.
-				contentStructure.set(result.contentStructure);
-				currentConfig = result.contentStructure;
+				if (result.contentStructure) {
+					setContentStructure(result.contentStructure);
+					currentConfig = result.contentStructure;
+				}
 				console.debug('API save successful. New contentStructure:', result.contentStructure);
 			} else {
 				// Revert currentConfig to the last known good state if save fails
@@ -232,8 +237,8 @@
 
 	// Navigates to the new collection creation page.
 	function handleAddCollectionClick(): void {
-		mode.set('create');
-		collectionValue.set({
+		setMode('create');
+		setCollectionValue({
 			name: 'new',
 			icon: '',
 			description: '',
@@ -269,7 +274,7 @@
 		disabled={isLoading}
 	>
 		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
-		{m.collection_addcollection()}
+		{m.collection_add()}
 	</button>
 
 	<!-- Save Button -->
@@ -292,7 +297,7 @@
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
 		<p class="mb-4 text-center dark:text-primary-500">
-			{m.collection_text_description()}
+			{m.collection_description()}
 		</p>
 
 		<Board contentNodes={currentConfig ?? []} onNodeUpdate={handleNodeUpdate} onEditCategory={modalAddCategory} />

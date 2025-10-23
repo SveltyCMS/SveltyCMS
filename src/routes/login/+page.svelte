@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file Authentication Form Component for SveltyCMS
 @component
 **This component handles both SignIn and SignUp functionality for the SveltyCMS**
@@ -13,21 +13,17 @@ Features:
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { PageData } from './$types';
-
 	// Components
+	import Seasons from '@components/system/icons/Seasons.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
-	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import Seasons from '@components/system/icons/Seasons.svelte';
-
+	import VersionCheck from '@components/VersionCheck.svelte';
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { setSystemLanguage } from '@stores/store.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -36,18 +32,17 @@ Features:
 
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
-	const firstCollection = $state(data.firstCollection);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
 
-	// Set Initial active state based on conditions (will be updated by effect)
+	// Set Initial active state based on conditions
 	let active = $state<undefined | 0 | 1>(
 		publicEnv.DEMO || publicEnv.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
-				: 1 // Otherwise, show SignUp
+				: undefined // Don't show SignUp - admin creation should happen through setup
 	);
 
 	// Update active state when URL parameters are detected
@@ -94,8 +89,8 @@ Features:
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived(
-		Array.isArray(publicEnv.LOCALES)
-			? [...publicEnv.LOCALES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		Array.isArray(getPublicSetting('LOCALES'))
+			? [...getPublicSetting('LOCALES')].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 			: ['en']
 	);
 
@@ -109,18 +104,17 @@ Features:
 
 	// Ensure a valid language is always used
 	const currentLanguage = $derived(
-		systemLanguage.value && Array.isArray(publicEnv.LOCALES) && publicEnv.LOCALES.includes(systemLanguage.value) ? systemLanguage.value : 'en'
+		systemLanguage.value && Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').includes(systemLanguage.value)
+			? systemLanguage.value
+			: 'en'
 	);
-
-	// Package version
-	// @ts-expect-error reading from vite.config.js
-	const pkg = __VERSION__;
 
 	// Language selection
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			setSystemLanguage(lang as (typeof systemLanguage)['value']);
+			// Set cookie via store (bridge to ParaglideJS)
+			systemLanguage.set(lang as (typeof systemLanguage)['value']);
 			isDropdownOpen = false;
 			searchQuery = '';
 		}, 100); // Reduced delay for faster feedback
@@ -166,7 +160,7 @@ Features:
 	// Set up the interval to update the countdown every second
 	$effect(() => {
 		let interval: ReturnType<typeof setInterval> | undefined;
-		if (publicEnv.DEMO) {
+		if (getPublicSetting('DEMO')) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
 			return () => {
@@ -180,7 +174,7 @@ Features:
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = publicEnv.DEMO ? '#242728' : publicEnv.SEASONS ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = getPublicSetting('DEMO') ? '#242728' : getPublicSetting('SEASONS') ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -226,13 +220,13 @@ Features:
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
+		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
+		if (active === undefined && !getPublicSetting('DEMO') && !getPublicSetting('SEASONS')) {
 			background = '#242728';
 		}
 	}
@@ -296,7 +290,7 @@ Features:
 	/>
 
 	{#if active == undefined}
-		{#if publicEnv.DEMO}
+		{#if getPublicSetting('DEMO')}
 			<!-- DEMO MODE -->
 			<div
 				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
@@ -330,7 +324,7 @@ Features:
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			{#if Array.isArray(publicEnv.LOCALES) && publicEnv.LOCALES.length > 5}
+			{#if Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').length > 5}
 				<div class="relative">
 					<!-- Current Language Display -->
 					<button
@@ -398,32 +392,10 @@ Features:
 				</select>
 			{/if}
 		</div>
-
 		<!-- CMS Version -->
-		{#if !isDropdownOpen}
-			<!-- Collection Preview -->
-			{#if firstCollection && (active === 0 || active === 1)}
-				<div
-					class="absolute bottom-16 left-1/2 z-0 flex min-w-[200px] max-w-[300px] -translate-x-1/2 transform flex-col items-center gap-2 rounded-lg bg-gradient-to-r from-surface-50/10 to-[#242728]/10 p-3 text-center transition-opacity duration-300"
-					class:opacity-50={isTransitioning}
-				>
-					<div class="text-xs text-gray-300">After login, you'll go to:</div>
-					<div class="text-sm font-medium text-white">{firstCollection.name}</div>
-				</div>
-			{/if}
-
-			<a
-				href="https://github.com/SveltyCMS/SveltyCMS"
-				target="_blank"
-				rel="noopener"
-				class="absolute bottom-5 left-1/2 right-1/3 z-0 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20 transition-opacity duration-300"
-				class:opacity-50={isTransitioning}
-				tabindex={isTransitioning ? -1 : 0}
-			>
-				<p class="text-[#242728]">Ver.</p>
-				<p class="text-white">{pkg}</p>
-			</a>
-		{/if}
+		<div class="absolute bottom-5 left-1/2 -translate-x-1/2">
+			<VersionCheck transparent={true} />
+		</div>
 	{/if}
 </div>
 

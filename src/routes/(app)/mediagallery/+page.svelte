@@ -1,79 +1,56 @@
-<!-- 
-@file src/routes/(app)/mediagallery/+page.svelte 
-@component 
-**This page is used to display the media gallery page**
+<!--
+@file src/routes/(app)/mediagallery/+page.svelte
+@component
+**Media Gallery Page**
 
-This page displays a collection of media files, such as images, documents, audio, and video.
-It p			if (result.success) {
-				// Refetch all folders
-				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
-				// Update current view
-				const parent = currentSystemVirtualFolder?._id ?? null;
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
-				
-				// Dispatch event to notify Collections component
-				const event = new CustomEvent('folderCreated', {
-					detail: { 
-						folder: result.folder,
-						parentId: parentId
-					}
-				});
-				document.dispatchEvent(event);
-				
-				showToast('Folder created successfully!', 'success');
-			} else {er-friendly interface for searching, filtering, and navigating through media files.
+Displays a collection of media files (images, documents, audio, video) with:
+- Virtual folder navigation and breadcrumb trails
+- Search and filter by media type
+- Grid and table view modes with size options
+- Upload and folder management capabilities
 
 ### Props:
-- `mediaType` {MediaTypeEnum} - The type of media files to display.
-- `media` {MediaBase[]} - An array of media files to be displayed.
-
-### Events:
-- `mediaDeleted` - Emitted when a media file is deleted.	
+- `data.user` - Current user information
+- `data.media` - Array of media files to display
+- `data.systemVirtualFolders` - Virtual folder structure
 
 ### Features:
-- Displays a collection of media files based on the specified media type.
-- Provides a user-friendly interface for searching, filtering, and navigating through media files.
-- Emits the `mediaDeleted` event when a media file is deleted.
+- Client-side search and filtering
+- Responsive grid/table layouts
+- Virtual folder CRUD operations
+- Media file deletion
 -->
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
-
 	// Stores
-	import { mode } from '@src/stores/collectionStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
-
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Utils & Media
-	import { config, toFormData } from '@utils/utils';
-	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
-	import { publicEnv } from '@root/config/public';
-
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
 	// Components
-	import PageTitle from '@components/PageTitle.svelte';
 	import Breadcrumb from '@components/Breadcrumb.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
-
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
-	const modalStore = getModalStore();
-
-	// Loading state
-	let isLoading = $state(false);
-
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
+	// Initialize modal store
+	const modalStore = getModalStore();
+
 	// Props using runes
-	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
+	const { data = { user: undefined, media: [], systemVirtualFolders: [], currentFolder: null } } = $props<{
 		data?: {
 			user: { _id: string; email: string; role: string } | undefined;
 			media: MediaBase[];
 			systemVirtualFolders: SystemVirtualFolder[];
-			currentFolder: SystemVirtualFolder | null; // Add currentFolder from load data
+			currentFolder: SystemVirtualFolder | null;
 		};
 	}>();
 
@@ -89,6 +66,7 @@ It p			if (result.success) {
 	let view = $state<'grid' | 'table'>('grid');
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 	let tableSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
+	let isLoading = $state(false);
 
 	type MediaTypeOption = {
 		value: 'All' | MediaTypeEnum;
@@ -108,22 +86,14 @@ It p			if (result.success) {
 	// Computed value for filtered files based on search and type
 	let filteredFiles = $derived(
 		files.filter((file) => {
-			if (file.type === MediaTypeEnum.Image) {
-				return (
-					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
-					(selectedMediaType === 'All' || file.type === selectedMediaType)
-				);
-			} else {
-				return (
-					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
-					(selectedMediaType === 'All' || file.type === selectedMediaType)
-				);
-			}
+			const matchesSearch = (file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase());
+			const matchesType = selectedMediaType === 'All' || file.type === selectedMediaType;
+			return matchesSearch && matchesType;
 		})
 	);
 
 	// Computed folders for breadcrumb - create a mapping of breadcrumb paths to folder IDs
-	let breadcrumbFolders = $derived(() => {
+	let breadcrumbFolders = $derived.by(() => {
 		if (!currentSystemVirtualFolder) return [];
 
 		const folders: { _id: string; name: string; path: string[] }[] = [];
@@ -145,7 +115,11 @@ It p			if (result.success) {
 	});
 
 	// Handle user preferences
-	function storeUserPreference(view: 'grid' | 'table', gridSize: 'tiny' | 'small' | 'medium' | 'large', tableSize: 'tiny' | 'small' | 'medium' | 'large') {
+	function storeUserPreference(
+		view: 'grid' | 'table',
+		gridSize: 'tiny' | 'small' | 'medium' | 'large',
+		tableSize: 'tiny' | 'small' | 'medium' | 'large'
+	) {
 		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
 	}
 
@@ -153,22 +127,24 @@ It p			if (result.success) {
 		return localStorage.getItem('GalleryUserPreference');
 	}
 
-	// Mobile navigation helper
+	// Mobile navigation helper - hides sidebar on mobile before navigation
 	function handleMobileNavigation(path: string) {
-		// Hide sidebar on mobile before navigation
 		if (typeof window !== 'undefined' && window.innerWidth < 768) {
-			console.log('Mobile detected, hiding sidebar before navigation to:', path);
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 		goto(path);
 	}
 
+	// Computed safe table size (MediaTable doesn't support 'tiny')
+	let safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
+
 	// Initialize component with runes
 	$effect(() => {
-		mode.set('media');
+		// Note: Mode is now managed by Collections component based on route
 
 		if (data && data.systemVirtualFolders) {
-			systemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
+			// Process initial folder data from server
+			allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
@@ -178,10 +154,6 @@ It p			if (result.success) {
 		fetchUpdatedSystemVirtualFolders()
 			.then((all) => {
 				allSystemVirtualFolders = all;
-				// If we are at the root, update `folders` to be the top-level folders from the full list.
-				if (!currentSystemVirtualFolder) {
-					systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
-				}
 			})
 			.catch((error) => {
 				console.error('Failed to load virtual folders in effect:', error);
@@ -191,9 +163,6 @@ It p			if (result.success) {
 						...folder,
 						path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 					}));
-					if (!currentSystemVirtualFolder) {
-						systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
-					}
 				}
 			});
 
@@ -212,13 +181,8 @@ It p			if (result.success) {
 
 		// Listen for folder selection events from the Collections sidebar
 		const handleSystemVirtualFolderSelected = (event: CustomEvent) => {
-			console.log('System virtual folder selected event received:', event.detail);
 			const { folderId } = event.detail;
-			if (folderId && folderId !== 'root') {
-				openSystemVirtualFolder(folderId);
-			} else {
-				openSystemVirtualFolder(null); // Navigate to root
-			}
+			openSystemVirtualFolder(folderId && folderId !== 'root' ? folderId : null);
 		};
 
 		document.addEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
@@ -251,42 +215,34 @@ It p			if (result.success) {
 		breadcrumb = buildBreadcrumb(currentSystemVirtualFolder);
 	}
 
-	// Create a new folder with memoization
+	// Create a new virtual folder with validation
 	async function createSystemVirtualFolder(folderName: string) {
-		console.log('createSystemVirtualFolder called with:', folderName);
-
 		// Validate folder name
-		if (!folderName.trim()) {
+		const trimmedName = folderName.trim();
+		if (!trimmedName) {
 			showToast('Folder name cannot be empty', 'error');
 			return;
 		}
 
-		// Check for invalid characters
-		if (/[\\/:"*?<>|]/.test(folderName)) {
+		if (/[\\/:"*?<>|]/.test(trimmedName)) {
 			showToast('Folder name contains invalid characters (\\ / : * ? " < > |)', 'error');
 			return;
 		}
 
-		// Check length
-		if (folderName.length > 50) {
+		if (trimmedName.length > 50) {
 			showToast('Folder name must be 50 characters or less', 'error');
 			return;
 		}
 
 		isLoading = true;
 		globalLoadingStore.startLoading(loadingOperations.dataFetch);
+
 		try {
 			const parentId = currentSystemVirtualFolder?._id ?? null;
-			const requestBody = {
-				name: folderName.trim(),
-				parentId: parentId
-			};
-			console.log('Sending request with body:', requestBody);
-
 			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(requestBody)
+				body: JSON.stringify({ name: trimmedName, parentId })
 			});
 
 			if (!response.ok) {
@@ -297,21 +253,16 @@ It p			if (result.success) {
 			const result = await response.json();
 
 			if (result.success) {
-				// Refetch all folders
+				// Refetch all folders and update current view
 				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
-				// Update current view
-				const parent = currentSystemVirtualFolder?._id ?? null;
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
+				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parentId);
 
-				// Dispatch event to notify Collections component
-				const event = new CustomEvent('folderCreated', {
-					detail: {
-						folder: result.folder,
-						parentId: parent
-					}
-				});
-				document.dispatchEvent(event);
-				console.log('Folder created event dispatched:', event.detail);
+				// Notify Collections component
+				document.dispatchEvent(
+					new CustomEvent('folderCreated', {
+						detail: { folder: result.folder, parentId }
+					})
+				);
 
 				showToast('Folder created successfully', 'success');
 			} else {
@@ -319,14 +270,12 @@ It p			if (result.success) {
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
-			let errorMessage = 'Failed to create folder';
-			if (error instanceof Error) {
-				if (error.message.includes('duplicate')) {
-					errorMessage = error.message;
-				} else if (error.message.includes('invalid')) {
-					errorMessage = 'Invalid folder name';
-				}
-			}
+			const errorMessage =
+				error instanceof Error && error.message.includes('duplicate')
+					? error.message
+					: error instanceof Error && error.message.includes('invalid')
+						? 'Invalid folder name'
+						: 'Failed to create folder';
 			showToast(errorMessage, 'error');
 		} finally {
 			isLoading = false;
@@ -374,7 +323,7 @@ It p			if (result.success) {
 
 			if (data.success) {
 				files = Array.isArray(data.data.contents?.files) ? data.data.contents.files : [];
-				systemVirtualFolders = Array.isArray(data.data.contents?.folders) ? data.data.contents.folders : [];
+				// Folders are handled by allSystemVirtualFolders
 			} else {
 				throw new Error(data.error || 'Unknown error');
 			}
@@ -390,7 +339,6 @@ It p			if (result.success) {
 			}
 			showToast(errorMessage, 'error');
 			files = [];
-			systemVirtualFolders = [];
 		} finally {
 			isLoading = false;
 			globalLoadingStore.stopLoading(loadingOperations.dataFetch);
@@ -431,38 +379,36 @@ It p			if (result.success) {
 
 	// Open add virtual folder modal
 	function openAddFolderModal() {
-		// Default to MEDIA_FOLDER, which should represent the root directory
-		let currentFolderPath = publicEnv.MEDIA_FOLDER;
-
-		// Check if the currentFolder is set (i.e., the user is in a subfolder)
-		if (currentSystemVirtualFolder) {
-			currentFolderPath = Array.isArray(currentSystemVirtualFolder.path)
+		const currentFolderPath = currentSystemVirtualFolder
+			? Array.isArray(currentSystemVirtualFolder.path)
 				? currentSystemVirtualFolder.path.join('/')
-				: currentSystemVirtualFolder.path;
-		}
+				: currentSystemVirtualFolder.path
+			: publicEnv.MEDIA_FOLDER || 'mediaFiles';
 
 		const modal: ModalSettings = {
 			type: 'prompt',
 			title: 'Add Folder',
-			// Apply inline style or use a CSS class to make the current folder path display in a different color
-			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`, // Display the current folder path in a different color
+			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`,
 			response: (r: string) => {
-				if (r) createSystemVirtualFolder(r); // Pass the new folder name to createFolder function
+				if (r) createSystemVirtualFolder(r);
 			}
 		};
 
-		modalStore.trigger(modal); // Trigger the modal to open
+		modalStore.trigger(modal);
 	}
 
 	// Handle delete image
 	async function handleDeleteImage(file: MediaBase) {
 		try {
-			const q = toFormData({ method: 'POST', image: file._id ?? '' });
-			const response = await axios.post('?/api/mediaHandler/', q, {
-				...config,
-				withCredentials: true // This ensures cookies are sent with the request
+			const response = await fetch('?/deleteMedia', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ image: file })
 			});
-			const result = response.data;
+
+			const result = await response.json();
 			if (result?.success) {
 				showToast('Media deleted successfully.', 'success');
 				await fetchMediaFiles();
@@ -474,11 +420,6 @@ It p			if (result.success) {
 			showToast('Error deleting media', 'error');
 		}
 	}
-
-	$effect(() => {
-		// Log when the media data from the server changes
-		console.log('Media files updated:', data.media);
-	});
 </script>
 
 <!-- Page Title and Actions -->
@@ -604,8 +545,7 @@ It p			if (result.success) {
 								aria-label="Tiny"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}
-								></iconify-icon>
+								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Tiny</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
@@ -924,6 +864,6 @@ It p			if (result.success) {
 			}}
 		/>
 	{:else}
-		<MediaTable {filteredFiles} {tableSize} ondeleteImage={handleDeleteImage} />
+		<MediaTable {filteredFiles} tableSize={safeTableSize} ondeleteImage={handleDeleteImage} />
 	{/if}
 </div>

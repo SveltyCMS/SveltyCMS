@@ -22,14 +22,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 		onDone: () => void;
 	}
 
-	const {
-		onRotateLeft,
-		onFlipHorizontal,
-		cropShape = $bindable(),
-		onCropShapeChange,
-		onAspectRatio,
-		onDone
-	} = $props() as Props;
+	const { onRotateLeft, onFlipHorizontal, cropShape = $bindable(), onCropShapeChange, onAspectRatio, onDone } = $props() as Props;
 
 	// Common aspect ratios
 	const aspectRatios = [
@@ -50,21 +43,11 @@ Displays quick action buttons for crop operations without blocking the canvas.
 <div class="crop-top-toolbar">
 	<!-- Quick action buttons -->
 	<div class="quick-actions">
-		<button
-			onclick={onRotateLeft}
-			class="action-btn-icon"
-			title="Rotate left 90°"
-			aria-label="Rotate left 90°"
-		>
+		<button onclick={onRotateLeft} class="action-btn-icon" title="Rotate left 90°" aria-label="Rotate left 90°">
 			<iconify-icon icon="mdi:rotate-left" width="22"></iconify-icon>
 		</button>
 
-		<button
-			onclick={onFlipHorizontal}
-			class="action-btn-icon"
-			title="Flip horizontal"
-			aria-label="Flip horizontal"
-		>
+		<button onclick={onFlipHorizontal} class="action-btn-icon" title="Flip horizontal" aria-label="Flip horizontal">
 			<iconify-icon icon="mdi:flip-horizontal" width="22"></iconify-icon>
 		</button>
 
@@ -72,12 +55,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 		<div class="action-btn-group">
 			<iconify-icon icon="mdi:crop" width="18"></iconify-icon>
-			<select
-				value={cropShape}
-				onchange={handleShapeChange}
-				class="shape-select"
-				title="Crop shape"
-			>
+			<select value={cropShape} onchange={handleShapeChange} class="shape-select" title="Crop shape">
 				<option value="rectangle">Rectangle</option>
 				<option value="square">Square</option>
 				<option value="circular">Circular</option>
@@ -101,10 +79,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 	</div>
 
 	<!-- Done button -->
-	<button
-		onclick={onDone}
-		class="done-btn"
-	>
+	<button onclick={onDone} class="done-btn">
 		<iconify-icon icon="mdi:check" width="18"></iconify-icon>
 		Done
 	</button>
@@ -112,9 +87,9 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 <style>
 	.crop-top-toolbar {
-		@apply absolute top-0 left-0 right-0 z-40;
+		@apply absolute left-0 right-0 top-0 z-40;
 		@apply flex items-center justify-center;
-		@apply px-4 py-3 gap-4;
+		@apply gap-4 px-4 py-3;
 		background: rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(8px);
 	}
@@ -125,7 +100,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 	.action-btn-icon {
 		@apply flex items-center justify-center;
-		@apply w-10 h-10 rounded-lg;
+		@apply h-10 w-10 rounded-lg;
 		@apply transition-all duration-200;
 		background-color: rgba(255, 255, 255, 0.1);
 		color: rgb(var(--color-surface-50) / 1);
@@ -148,7 +123,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 	.action-btn-group {
 		@apply flex items-center gap-2;
-		@apply px-3 py-2 rounded-lg;
+		@apply rounded-lg px-3 py-2;
 		@apply text-sm font-medium;
 		background-color: rgba(255, 255, 255, 0.1);
 		color: rgb(var(--color-surface-50) / 1);
@@ -157,13 +132,13 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 	.aspect-ratio-group {
 		@apply flex items-center gap-1;
-		@apply px-2 py-1 rounded-lg;
+		@apply rounded-lg px-2 py-1;
 		background-color: rgba(255, 255, 255, 0.1);
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
 	.aspect-btn {
-		@apply px-2.5 py-1 rounded text-xs font-medium;
+		@apply rounded px-2.5 py-1 text-xs font-medium;
 		@apply transition-all duration-200;
 		background-color: rgba(255, 255, 255, 0.1);
 		color: rgb(var(--color-surface-50) / 1);
@@ -178,7 +153,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 	}
 
 	.shape-select {
-		@apply px-2 py-1 rounded text-sm;
+		@apply rounded px-2 py-1 text-sm;
 		@apply border-0 outline-none;
 		background-color: rgba(0, 0, 0, 0.3);
 		color: white;
@@ -190,7 +165,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 	.done-btn {
 		@apply flex items-center gap-2;
-		@apply px-4 py-2 rounded-lg;
+		@apply rounded-lg px-4 py-2;
 		@apply text-sm font-semibold;
 		@apply transition-all duration-200;
 		background-color: rgb(250, 204, 21);

@@ -50,38 +50,17 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	<div class="slider-container">
 		{#if activeMode === 'rotation'}
 			<div class="slider-wrapper">
-				<input
-					type="range"
-					min="-180"
-					max="180"
-					step="1"
-					value={rotationAngle}
-					oninput={handleRotationInput}
-					class="rotation-slider"
-				/>
+				<input type="range" min="-180" max="180" step="1" value={rotationAngle} oninput={handleRotationInput} class="rotation-slider" />
 				<div class="angle-display">{rotationAngle}°</div>
 				<div class="slider-dots">
 					{#each [-180, -135, -90, -45, 0, 45, 90, 135, 180] as angle}
-						<button
-							class="dot"
-							class:active={Math.abs(rotationAngle - angle) < 5}
-							onclick={() => onRotationChange(angle)}
-							title="{angle}°"
-						></button>
+						<button class="dot" class:active={Math.abs(rotationAngle - angle) < 5} onclick={() => onRotationChange(angle)} title="{angle}°"></button>
 					{/each}
 				</div>
 			</div>
 		{:else if activeMode === 'scale'}
 			<div class="slider-wrapper">
-				<input
-					type="range"
-					min="10"
-					max="200"
-					step="5"
-					value={scaleValue}
-					oninput={handleScaleInput}
-					class="scale-slider"
-				/>
+				<input type="range" min="10" max="200" step="5" value={scaleValue} oninput={handleScaleInput} class="scale-slider" />
 				<div class="angle-display">{scaleValue}%</div>
 			</div>
 		{/if}
@@ -89,27 +68,15 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 	<!-- Mode tabs -->
 	<div class="mode-tabs">
-		<button
-			class="mode-tab"
-			class:active={activeMode === 'rotation'}
-			onclick={() => onModeChange('rotation')}
-		>
-			Rotation
-		</button>
-		<button
-			class="mode-tab"
-			class:active={activeMode === 'scale'}
-			onclick={() => onModeChange('scale')}
-		>
-			Scale
-		</button>
+		<button class="mode-tab" class:active={activeMode === 'rotation'} onclick={() => onModeChange('rotation')}> Rotation </button>
+		<button class="mode-tab" class:active={activeMode === 'scale'} onclick={() => onModeChange('scale')}> Scale </button>
 	</div>
 </div>
 
 <style>
 	.crop-bottom-bar {
 		@apply flex flex-col items-center gap-3;
-		@apply py-4 px-4;
+		@apply px-4 py-4;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-top: 1px solid rgb(var(--color-surface-200) / 1);
 	}
@@ -129,9 +96,10 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 	.rotation-slider,
 	.scale-slider {
-		@apply w-full h-1 rounded-full;
-		@apply appearance-none cursor-pointer;
-		background: linear-gradient(to right,
+		@apply h-1 w-full rounded-full;
+		@apply cursor-pointer appearance-none;
+		background: linear-gradient(
+			to right,
 			rgb(var(--color-surface-300) / 1) 0%,
 			rgb(var(--color-primary-500) / 1) 50%,
 			rgb(var(--color-surface-300) / 1) 100%
@@ -140,7 +108,8 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 	:global(.dark) .rotation-slider,
 	:global(.dark) .scale-slider {
-		background: linear-gradient(to right,
+		background: linear-gradient(
+			to right,
 			rgb(var(--color-surface-600) / 1) 0%,
 			rgb(var(--color-primary-500) / 1) 50%,
 			rgb(var(--color-surface-600) / 1) 100%
@@ -148,7 +117,8 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	}
 
 	.scale-slider {
-		background: linear-gradient(to right,
+		background: linear-gradient(
+			to right,
 			rgb(var(--color-surface-300) / 1) 0%,
 			rgb(var(--color-primary-500) / 1) 45%,
 			rgb(var(--color-surface-300) / 1) 100%
@@ -156,7 +126,8 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	}
 
 	:global(.dark) .scale-slider {
-		background: linear-gradient(to right,
+		background: linear-gradient(
+			to right,
 			rgb(var(--color-surface-600) / 1) 0%,
 			rgb(var(--color-primary-500) / 1) 45%,
 			rgb(var(--color-surface-600) / 1) 100%
@@ -165,7 +136,7 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 	.rotation-slider::-webkit-slider-thumb,
 	.scale-slider::-webkit-slider-thumb {
-		@apply appearance-none w-4 h-4 rounded-full;
+		@apply h-4 w-4 appearance-none rounded-full;
 		@apply cursor-pointer;
 		background-color: white;
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -173,27 +144,27 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 	.rotation-slider::-moz-range-thumb,
 	.scale-slider::-moz-range-thumb {
-		@apply w-4 h-4 rounded-full border-0;
+		@apply h-4 w-4 rounded-full border-0;
 		@apply cursor-pointer;
 		background-color: white;
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 	}
 
 	.angle-display {
-		@apply absolute -top-8 left-1/2 transform -translate-x-1/2;
+		@apply absolute -top-8 left-1/2 -translate-x-1/2 transform;
 		@apply text-sm font-semibold;
-		@apply px-2 py-1 rounded;
+		@apply rounded px-2 py-1;
 		background-color: rgba(0, 0, 0, 0.7);
 		color: white;
 	}
 
 	.slider-dots {
-		@apply flex justify-between w-full mt-1;
+		@apply mt-1 flex w-full justify-between;
 		@apply px-1;
 	}
 
 	.dot {
-		@apply w-1.5 h-1.5 rounded-full;
+		@apply h-1.5 w-1.5 rounded-full;
 		@apply transition-all duration-200;
 		background-color: rgb(var(--color-surface-400) / 1);
 	}
@@ -203,7 +174,7 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	}
 
 	.dot.active {
-		@apply w-2 h-2;
+		@apply h-2 w-2;
 		background-color: rgb(var(--color-primary-500) / 1);
 	}
 
@@ -217,7 +188,7 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	}
 
 	.mode-tab {
-		@apply px-4 py-2 rounded-full;
+		@apply rounded-full px-4 py-2;
 		@apply text-sm font-medium;
 		@apply transition-all duration-200;
 		background-color: rgb(var(--color-surface-200) / 1);

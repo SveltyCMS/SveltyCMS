@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/updatedPassword.svelte
 @component
 **updatedPassword Email component to confirm password change**
@@ -6,17 +6,13 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
-
-	// Components
-	import SiteName from '@components/SiteName.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
-
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr, Custom, Heading } from 'svelte-email-tailwind';
+	import { Body, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 
 	interface Props {
 		username?: string;
@@ -24,7 +20,7 @@
 		languageTag?: string;
 	}
 
-	let { username = '', tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
+	let { username = '', languageTag = systemLanguage.value }: Props = $props();
 </script>
 
 <Html lang={languageTag}>
@@ -62,7 +58,7 @@
 				</Text>
 
 				<Text style={{ fontSize: '16px' }}>
-					You have successfully changed your password for <strong>{publicEnv.SITE_NAME}</strong>.
+					You have successfully changed your password for <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong>.
 				</Text>
 
 				<!-- Security Notice -->
@@ -83,7 +79,7 @@
 				<Section>
 					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
 						<Link href="https://SveltyCMS.com">
-							Your <SiteName /> team
+							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
 						</Link>
 					</Text>
 				</Section>

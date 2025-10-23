@@ -20,7 +20,7 @@
  * - Provides the foundation for querying media data through the GraphQL API
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 // System Logs
@@ -29,7 +29,7 @@ import { logger } from '@utils/logger.svelte';
 // Permissions
 
 // Types
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 
 // Registers media schemas dynamically.
 export function mediaTypeDefs() {
@@ -92,6 +92,10 @@ type MediaResolverParent = unknown;
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 
 export function mediaResolvers(dbAdapter: DatabaseAdapter) {
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		throw new Error('Database adapter is not initialized');
+	}
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Check media permissions
 		if (!context.user) {
@@ -101,12 +105,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 
 		// Authentication is handled by hooks.server.ts - user presence confirms access
 
-		if (!dbAdapter) {
-			logger.error('Database adapter is not initialized');
-			throw Error('Database adapter is not initialized');
-		}
-
-		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
 			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
 			throw new Error('Internal Server Error: Tenant context is missing.');
 		}
@@ -116,7 +115,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
 			const query: { tenantId?: string } = {};
-			if (privateEnv.MULTI_TENANT) {
+			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 

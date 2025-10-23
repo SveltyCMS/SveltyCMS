@@ -13,35 +13,33 @@
  * - Proper typing for user data
  */
 
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
-
 import { dev } from '$app/environment';
-import { redirect, fail, type Actions, type Cookies } from '@sveltejs/kit';
+import { fail, redirect, type Actions, type Cookies } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks.server';
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Superforms
-import { superValidate } from 'sveltekit-superforms/server';
+import { forgotFormSchema, loginFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { message } from 'sveltekit-superforms/server';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { message, superValidate } from 'sveltekit-superforms/server';
 
 // Auth
+import { generateGoogleAuthUrl, googleAuth } from '@src/databases/auth/googleAuth';
+import type { User } from '@src/databases/auth/types';
 import { auth, dbInitPromise } from '@src/databases/db';
-import { generateGoogleAuthUrl, googleAuth } from '@src/auth/googleAuth';
 import { google } from 'googleapis';
-import type { User } from '@src/auth/types';
 
 // Stores
-import { get } from 'svelte/store';
-import { systemLanguage } from '@stores/store.svelte';
 import type { Locale } from '@src/paraglide/runtime';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { systemLanguage } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';
@@ -52,14 +50,13 @@ import { logger } from '@utils/logger.svelte';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
-import { getFirstCollectionInfo, fetchAndCacheCollectionData } from '@utils/collections-prefetch';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY,
+		secret: getPrivateSettingSync('JWT_SECRET_KEY'),
 		rate: [50, 'm'], // 50 requests per minute per cookie
 		preflight: true
 	}
@@ -79,85 +76,55 @@ function calculatePasswordStrength(password: string): number {
 }
 
 // Helper function to wait for auth service to be ready
-async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
+async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 	const startTime = Date.now();
+	logger.debug(`Waiting for auth service to be ready (timeout: \x1b[32m${maxWaitMs}ms\x1b[0m)...`);
+
 	while (Date.now() - startTime < maxWaitMs) {
-		if (auth && typeof auth.validateSession === 'function') {
-			return true;
+		try {
+			// Check if database initialization is complete
+			if (dbInitPromise) {
+				// Check if the promise is still pending
+				const dbStatus = await Promise.race([dbInitPromise.then(() => 'ready'), new Promise((resolve) => setTimeout(() => resolve('timeout'), 100))]);
+
+				if (dbStatus === 'timeout') {
+					// Database initialization is still in progress
+					logger.debug('Database initialization still in progress...');
+				}
+			}
+
+			// Check if auth service is ready
+			if (auth && typeof auth.validateSession === 'function') {
+				logger.debug(`Auth service ready after \x1b[32m${Date.now() - startTime}ms\x1b[0m`);
+				return true;
+			}
+
+			// Log progress every 5 seconds
+			const elapsed = Date.now() - startTime;
+			if (elapsed % 5000 < 100) {
+				logger.debug(
+					`Auth service not ready yet, elapsed: \x1b[32m${elapsed}ms\x1b[0m, auth: \x1b[34m${!!auth}\x1b[0m, validateSession: ${auth && typeof auth.validateSession === 'function'}`
+				);
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
+		} catch (error) {
+			logger.error(`Error while waiting for auth service: ${error instanceof Error ? error.message : String(error)}`);
+			// Continue waiting even if there's an error
 		}
-		await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
 	}
+
+	logger.error(`Auth service not ready after \x1b[32m${maxWaitMs}ms\x1b[0m timeout`);
 	return false;
 }
 
-// --- START: Updated Language-Aware Redirect Functions ---
-
-// Cache redirect paths per language for performance optimization
-const cachedFirstCollectionPaths = new Map<Locale, { path: string; expiry: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-
-/**
- * Constructs a redirect URL to the first available collection, prefixed with the given language.
- * @param language The validated user language (e.g., 'en', 'de').
- */
-async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
-	try {
-		await dbInitPromise;
-		logger.debug(`Fetching first collection path for language: ${language}`);
-
-		const firstCollection = contentManager.getFirstCollection();
-		if (firstCollection?.path) {
-			const redirectUrl = `/${language}${firstCollection.path}`;
-			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
-			return redirectUrl;
-		}
-
-		logger.warn('No collections found via getFirstCollection(), falling back to structure scan.');
-		return '/'; // Fallback if no collections are configured
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return '/'; // Fallback on error
-	}
-}
-
-/**
- * A cached version of fetchAndRedirectToFirstCollection to avoid redundant lookups.
- * The cache is language-aware.
- * @param language The validated user language.
- */
-async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promise<string> {
-	const now = Date.now();
-	const cachedEntry = cachedFirstCollectionPaths.get(language);
-
-	// Return cached result if still valid
-	if (cachedEntry && now < cachedEntry.expiry) {
-		logger.debug(`Returning cached path for language '${language}': ${cachedEntry.path}`);
-		return cachedEntry.path;
-	}
-
-	// Fetch fresh data
-	const result = await fetchAndRedirectToFirstCollection(language);
-
-	// Cache the result if it's not the fallback path
-	if (result !== '/') {
-		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
-		logger.debug(`Cached new path for language '${language}': ${result}`);
-	}
-
-	return result;
-}
-// --- END: Updated Language-Aware Redirect Functions ---
+import { getCachedFirstCollectionPath } from '@stores/collectionStore.svelte';
 
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
 	// If Google OAuth is not enabled, never show it
-	if (!privateEnv.USE_GOOGLE_OAUTH) {
+	if (!publicEnv.USE_GOOGLE_OAUTH) {
 		return false;
-	}
-
-	// Always show OAuth for the first user (no invitation needed)
-	if (isFirstUser) {
-		return true;
 	}
 
 	// If there's an invite token, show OAuth (invited user can choose OAuth)
@@ -201,7 +168,6 @@ const wrappedLoginSchema = valibot(loginFormSchema);
 const wrappedForgotSchema = valibot(forgotFormSchema);
 const wrappedResetSchema = valibot(resetFormSchema);
 const wrappedSignUpSchema = valibot(signUpFormSchema);
-const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	// --- START: Language Validation Logic ---
@@ -212,13 +178,52 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 	// --- END: Language Validation Logic ---
 
 	try {
+		// Check system state first - don't wait if system is FAILED
+		const { getSystemState } = await import('@src/stores/system');
+		const systemState = getSystemState();
+
+		if (systemState.overallState === 'FAILED') {
+			logger.error('System is in FAILED state, cannot proceed with login');
+			return {
+				firstUserExists: true,
+				showOAuth: false,
+				hasExistingOAuthUsers: false,
+				loginForm: await superValidate(wrappedLoginSchema),
+				forgotForm: await superValidate(wrappedForgotSchema),
+				resetForm: await superValidate(wrappedResetSchema),
+				signUpForm: await superValidate(wrappedSignUpSchema),
+				authNotReady: true,
+				authNotReadyMessage: 'System initialization failed. Please check the database connection and configuration.'
+			};
+		}
+
 		// Ensure initialization is complete
 		await dbInitPromise;
 
 		// Wait for auth service to be ready instead of throwing error immediately
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
-			logger.warn('Authentication system is not ready yet, returning fallback data');
+			logger.warn('Authentication system is not ready yet, checking if database is empty');
+
+			// Check if this is a "database empty" scenario
+			const { isSetupCompleteAsync } = await import('@utils/setupCheck');
+			const setupComplete = await isSetupCompleteAsync();
+
+			if (!setupComplete) {
+				logger.error('Database is empty but config exists. This typically means the database was manually dropped.');
+				return {
+					firstUserExists: true,
+					showOAuth: false,
+					hasExistingOAuthUsers: false,
+					loginForm: await superValidate(wrappedLoginSchema),
+					forgotForm: await superValidate(wrappedForgotSchema),
+					resetForm: await superValidate(wrappedResetSchema),
+					signUpForm: await superValidate(wrappedSignUpSchema),
+					authNotReady: true,
+					authNotReadyMessage: 'Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.'
+				};
+			}
+
 			// Return fallback data instead of throwing error
 			return {
 				firstUserExists: true,
@@ -228,7 +233,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				forgotForm: await superValidate(wrappedForgotSchema),
 				resetForm: await superValidate(wrappedResetSchema),
 				signUpForm: await superValidate(wrappedSignUpSchema),
-				authNotReady: true
+				authNotReady: true,
+				authNotReadyMessage: 'System is still initializing. Please wait a moment and try again.'
 			};
 		}
 
@@ -313,11 +319,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			`In load: firstUserExists determined as: \x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: \x1b[34m${locals.isFirstUser}\x1b[0m)`
 		);
 
+		// Note: If no users exist, handleSetup hook will redirect to /setup before this code runs
+
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
-		if (privateEnv.USE_GOOGLE_OAUTH && code) {
+		if (publicEnv.USE_GOOGLE_OAUTH && code) {
 			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
@@ -332,6 +340,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const { data: googleUser } = await oauth2.userinfo.get();
 				logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
+				// Invite token comes back via OAuth state param
+				const stateParam = url.searchParams.get('state');
+				const inviteToken = stateParam ? decodeURIComponent(stateParam) : null;
+
 				const getUser = async (): Promise<[User | null, boolean]> => {
 					const email = googleUser.email;
 					if (!email) throw Error('Google did not return an email address.');
@@ -339,101 +351,72 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const existingUser = await auth.checkUser({ email });
 					if (existingUser) return [existingUser, false];
 
-					const isFirst = locals.isFirstUser === true;
-					logger.info(`OAuth: isFirstUser check: ${isFirst}`);
-
-					if (isFirst) {
-						const adminRole = roles.find((role) => role.isAdmin === true);
-						if (!adminRole) throw Error('Admin role not found in roles configuration');
-
-						const user = await auth.createUser({
-							email,
-							username: googleUser.name || email.split('@')[0],
-							role: adminRole._id,
-							permissions: adminRole.permissions,
-							blocked: false,
-							isRegistered: true,
-							lastAuthMethod: 'google'
-						});
-						logger.info(`OAuth: First user created: ${user?.username}`);
-
-						// Send Welcome email using fetch to /api/sendMail
-						const emailProps = {
-							username: googleUser.name || user?.username || '',
-							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-						};
-						try {
-							const mailResponse = await fetch('/api/sendMail', {
-								// Use SvelteKit's fetch
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									recipientEmail: email,
-									subject: `Welcome to ${emailProps.sitename}`,
-									templateName: 'welcomeUser',
-									props: emailProps,
-									languageTag: userLanguage // Pass languageTag if your API uses it
-								})
-							});
-							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
-									email,
-									responseText: await mailResponse.text()
-								});
-							} else {
-								logger.info(`OAuth: Welcome email request sent via API`, { email });
-							}
-						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail`, { email, error: emailError });
-						}
-						return [user, false];
-					} else {
-						// For non-first users, check if we should allow registration
-						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
-						if (!defaultRole) throw new Error('Default user role not found.');
-
-						const newUser = await auth.createUser({
-							email,
-							username: googleUser.name || email.split('@')[0],
-							role: defaultRole._id,
-							permissions: defaultRole.permissions,
-							isRegistered: true,
-							lastAuthMethod: 'google'
-						});
-						logger.info(`OAuth: New non-first user created: ${newUser?.username}`);
-						const emailProps = {
-							username: googleUser.name || newUser?.username || '',
-							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-						};
-						try {
-							const mailResponse = await fetch('/api/sendMail', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									recipientEmail: email,
-									subject: `Welcome to ${emailProps.sitename}`,
-									templateName: 'welcomeUser',
-									props: emailProps,
-									languageTag: userLanguage
-								})
-							});
-							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
-									email,
-									responseText: await mailResponse.text()
-								});
-							} else {
-								logger.info(`OAuth: Welcome email request sent to new user via API`, { email });
-							}
-						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail for new user`, { email, error: emailError });
-						}
-						return [newUser, false];
+					// For non-first users (or any users), allow only invite-based registration
+					if (!inviteToken) {
+						logger.warn('OAuth registration attempt without invite token in state');
+						return [null, false];
 					}
+
+					const tokenData = await auth.validateRegistrationToken(inviteToken);
+					if (!tokenData.isValid || !tokenData.details) {
+						logger.warn('Invalid/expired invite token used in OAuth registration');
+						return [null, false];
+					}
+
+					// Ensure email matches invitation
+					if (tokenData.details.email.toLowerCase() !== email.toLowerCase()) {
+						logger.warn('Invite token email mismatch in OAuth registration', {
+							tokenEmail: tokenData.details.email,
+							googleEmail: email
+						});
+						return [null, false];
+					}
+
+					const roleId = tokenData.details.role || (roles.find((r) => r.isDefault)?._id ?? 'user');
+
+					const newUser = await auth.createUser({
+						email,
+						username: googleUser.name || email.split('@')[0],
+						role: roleId,
+						permissions: roles.find((r) => r._id === roleId)?.permissions,
+						isRegistered: true,
+						lastAuthMethod: 'google'
+					});
+
+					// Consume the invitation token after successful registration
+					await auth.consumeRegistrationToken(inviteToken);
+
+					logger.info(`OAuth: Invited user created: ${newUser?.username}`);
+					const emailProps = {
+						username: googleUser.name || newUser?.username || '',
+						email: email,
+						hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
+						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					};
+					try {
+						const mailResponse = await fetch('/api/sendMail', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								recipientEmail: email,
+								subject: `Welcome to ${emailProps.sitename}`,
+								templateName: 'welcomeUser',
+								props: emailProps,
+								languageTag: userLanguage
+							})
+						});
+						if (!mailResponse.ok) {
+							logger.error(`OAuth: Failed to send welcome email to invited user via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
+								email,
+								responseText: await mailResponse.text()
+							});
+						} else {
+							logger.info(`OAuth: Welcome email request sent to invited user via API`, { email });
+						}
+					} catch (emailError) {
+						logger.error(`OAuth: Error fetching /api/sendMail for invited user`, { email, error: emailError });
+					}
+					return [newUser, false];
 				};
 
 				const [user] = await getUser();
@@ -444,6 +427,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 					throw redirect(303, redirectPath);
 				}
+
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
 				// Check if OAuth should be shown for error case
 				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
@@ -491,10 +475,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if OAuth should be shown
 		const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 
-		// ENHANCEMENT: Pre-emptively get the info for the first collection.
-		// This tells us where the user will likely go after logging in and can be shown in the UI.
-		const firstCollection = await getFirstCollectionInfo(userLanguage);
-
 		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
 		try {
@@ -514,11 +494,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			firstUserExists,
 			showOAuth,
 			hasExistingOAuthUsers,
-			firstCollection, // Pass collection info to the client
 			loginForm,
 			forgotForm,
 			resetForm,
-			signUpForm
+			signUpForm,
+			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
 		};
 	} catch (initialError) {
 		const err = initialError as Error;
@@ -535,7 +515,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			forgotForm: await superValidate(wrappedForgotSchema),
 			resetForm: await superValidate(wrappedResetSchema),
 			signUpForm: await superValidate(wrappedSignUpSchema),
-			error: 'The login system encountered an unexpected error. Please try again later.'
+			error: 'The login system encountered an unexpected error. Please try again later.',
+			pkgVersion: publicEnv.PKG_VERSION || '0.0.0'
 		};
 	}
 };
@@ -545,27 +526,43 @@ export const actions: Actions = {
 	signUp: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
 		// --- END: Language Validation Logic ---
+
+		// Note: First-user registration is handled by /setup (enforced by handleSetup hook)
+		// This action only handles invited user registration
 
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
 		// Ensure database initialization is complete
-		await dbInitPromise;
-
-		// Wait for auth service to be ready
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for signUp action');
-			return fail(503, {
-				form: await superValidate(event, wrappedSignUpSchema),
-				message: 'Authentication system is not ready. Please try again in a moment.'
-			});
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for signUp');
+		} catch (error) {
+			logger.error('Database initialization failed for signUp:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
+
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for signUp action - auth is null/undefined');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for signUp action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for signUp action');
 
 		const signUpForm = await superValidate(event, wrappedSignUpSchema);
 		if (!signUpForm.valid) {
@@ -575,89 +572,8 @@ export const actions: Actions = {
 
 		const { email, username, password, token } = signUpForm.data;
 
-		// Check if this is the first user (admin setup)
-		let isFirst = event.locals.isFirstUser === true;
-		if (event.locals.isFirstUser === undefined) {
-			try {
-				isFirst = (await auth.getUserCount()) === 0;
-			} catch (err) {
-				logger.error('Error fetching user count in signUp:', err);
-				return fail(500, { form: signUpForm, message: 'An error occurred.' });
-			}
-		}
-
-		// Handle first user (admin) registration - no token required
-		if (isFirst) {
-			logger.info(`Attempting to register first user (admin): ${username}`);
-			try {
-				const resp = await FirstUsersignUp(username, email, password, event.cookies);
-
-				if (resp.status && resp.user) {
-					logger.debug(`Sign Up successful for ${resp.user.username}.`);
-
-					// Invalidate user count cache so the system knows a user now exists
-					invalidateUserCountCache();
-
-					const emailProps = {
-						username: resp.user.username,
-						email: resp.user.email,
-						hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-					};
-
-					try {
-						const mailResponse = await event.fetch('/api/sendMail', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								recipientEmail: resp.user.email,
-								subject: `Welcome to ${emailProps.sitename}`,
-								templateName: 'welcomeUser',
-								props: emailProps,
-								languageTag: userLanguage
-							})
-						});
-						if (!mailResponse.ok) {
-							logger.error(
-								`Failed to send welcome email via API to ${resp.user.email} after signup. Status: \x1b[34m${mailResponse.status}\x1b[0m`,
-								await mailResponse.text()
-							);
-						} else {
-							logger.info(`Welcome email request sent via API to ${resp.user.email} after signup.`);
-						}
-					} catch (emailError) {
-						logger.error(`Error fetching /api/sendMail for ${resp.user.email} after signup:`, emailError);
-					}
-
-					message(signUpForm, resp.message || 'Admin user created successfully!');
-
-					// ENHANCEMENT: Trigger the data prefetch immediately after successful signup.
-					// This is a non-blocking call to warm up the cache for the next page load.
-					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-						logger.debug('Data caching failed during first user signup:', err);
-					});
-
-					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
-					throw redirect(303, redirectPath);
-				} else {
-					logger.warn(`Admin sign-up failed: ${resp.message || 'Unknown reason'}`);
-					return message(signUpForm, resp.message || 'Admin sign-up failed. Please check your details.', { status: 400 });
-				}
-			} catch (e) {
-				// Check if this is a redirect (which is expected and successful)
-				if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
-					// Re-throw the redirect - this is the expected flow
-					throw e;
-				}
-
-				const err = e as Error;
-				logger.error('Unexpected error in admin signUp:', { message: err.message, stack: err.stack });
-				return message(signUpForm, 'An unexpected server error occurred.', { status: 500 });
-			}
-		}
-
-		// For non-first users: The sign-up action now ONLY works for invited users.
-		// Security: This action MUST have a valid token to proceed.
+		// Security: This action ONLY works for invited users with valid tokens.
+		// First-user registration must go through /setup (enforced by hooks and load function).
 		if (!token) {
 			return message(signUpForm, 'A valid invitation is required to create an account.', { status: 403 });
 		}
@@ -680,40 +596,55 @@ export const actions: Actions = {
 		}
 
 		try {
-			// All checks passed! Create the user.
-			const newUser = await auth.createUser({
-				email,
-				username,
-				password,
-				role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
-				isRegistered: true
+			// Use optimized createUserAndSession for single database transaction
+			const sessionExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+			const userAndSessionResult = await auth.createUserAndSession(
+				{
+					email,
+					username,
+					password,
+					role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
+					isRegistered: true,
+					lastAuthMethod: 'password',
+					lastLogin: new Date()
+				},
+				{
+					expires: sessionExpires,
+					...(getPrivateSettingSync('MULTI_TENANT') && tokenData.details.tenantId && { tenantId: tokenData.details.tenantId })
+				}
+			);
+
+			if (!userAndSessionResult.success || !userAndSessionResult.data) {
+				throw new Error(userAndSessionResult.message || 'Failed to create user and session');
+			}
+
+			const { user: newUser, session: newSession } = userAndSessionResult.data;
+
+			logger.info('User and session created successfully via token registration', {
+				userId: newUser._id,
+				sessionId: newSession._id,
+				email
 			});
 
 			// Invalidate user count cache so the system knows a new user now exists
 			invalidateUserCountCache();
 
-			// Invalidate the token immediately after use
+			// Consume the invitation token immediately after use
 			await auth.consumeRegistrationToken(token);
 
-			// Log the new user in by creating a session
-			const session = await auth.createSession({ user_id: newUser._id });
-			const sessionCookie = auth.createSessionCookie(session._id);
-			event.cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
-
-			// Send welcome email
-			const emailProps = {
-				username: newUser.username,
-				email: newUser.email,
-				hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-				sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-			};
-
+			// Send welcome email (best-effort; do not fail signup on email issues)
 			try {
+				const emailProps = {
+					username: username || email,
+					email,
+					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
+					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+				};
 				const mailResponse = await event.fetch('/api/sendMail', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({
-						recipientEmail: newUser.email,
+						recipientEmail: email,
 						subject: `Welcome to ${emailProps.sitename}`,
 						templateName: 'welcomeUser',
 						props: emailProps,
@@ -721,69 +652,42 @@ export const actions: Actions = {
 					})
 				});
 				if (!mailResponse.ok) {
-					logger.error(
-						`Failed to send welcome email via API to ${newUser.email} after invite signup. Status: \x1b[34m${mailResponse.status}\x1b[0m`,
-						await mailResponse.text()
-					);
+					logger.error(`Failed to send welcome email via API. Status: ${mailResponse.status}`, {
+						email,
+						responseText: await mailResponse.text()
+					});
 				} else {
-					logger.info(`Welcome email sent to ${newUser.email} after invite signup.`);
+					logger.info(`Welcome email request sent via API`, { email });
 				}
 			} catch (emailError) {
-				logger.error(`Error sending welcome email for ${newUser.email}:`, emailError);
+				logger.error(`Error invoking /api/sendMail for invited user`, { email, error: emailError });
 			}
 
-			logger.info(`Invited user ${username} registered successfully and logged in.`);
+			// Set session cookie using the already-created session
+			event.cookies.set(auth.sessionCookieName, newSession._id, {
+				path: '/',
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: publicEnv.NODE_ENV === 'production',
+				maxAge: 60 * 60 * 24 * 7 // 7 days to match session expiry
+			});
 
-			// Fetch and cache first collection data for instant loading (fire and forget)
-			import('@utils/collections-prefetch')
-				.then(({ fetchAndCacheCollectionData }) => {
-					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-						logger.debug('Data caching failed during invited user signup:', err);
-					});
-				})
-				.catch(() => {
-					// Silently fail if module can't be loaded
-				});
-
-			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+			// Redirect to first collection
+			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
 			throw redirect(303, redirectPath);
-		} catch (e) {
-			// Check if this is a redirect (which is expected and successful)
-			if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
-				// Re-throw the redirect - this is the expected flow
-				throw e;
-			}
-
-			const err = e as Error;
-			logger.error('Error during invite signup:', err);
-			return message(signUpForm, err.message, { status: 500 });
+		} catch (error) {
+			const err = error as Error;
+			logger.error('Error during invited user signup', { email, message: err.message, stack: err.stack });
+			return message(signUpForm, 'Failed to create account. Please try again later.', { status: 500 });
 		}
-	},
-
-	OAuth: async (event) => {
-		const form = await superValidate(event.request, wrappedSignUpOAuthSchema);
-		if (!form.valid) {
-			logger.debug(`Sign-up OAuth form invalid: ${form.message}`);
-			return fail(400, { form });
-		}
-		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
-		if (await limiter.isLimited(event)) {
-			return fail(429, { form, message: 'Too many requests.' });
-		}
-		const authUrl = await generateGoogleAuthUrl(null, 'consent');
-		throw redirect(303, authUrl);
 	},
 
 	signInOAuth: async (event) => {
-		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		// Rate-limit and kickoff OAuth with optional invite_token in state
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-
-		// The OAuth sign-in action is now also "smart"
 		const inviteToken = event.url.searchParams.get('invite_token');
-		// If an invite token is present in the URL, pass it in the 'state' to the OAuth provider.
-		// This securely links the OAuth attempt back to our specific invitation.
 		const authUrl = await generateGoogleAuthUrl(inviteToken, undefined);
 		throw redirect(303, authUrl);
 	},
@@ -791,9 +695,9 @@ export const actions: Actions = {
 	signIn: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
-		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
+		logger.debug(`Validated user language for sign-in: \x1b[34m${userLanguage}\x1b[0m`);
 		// --- END: Language Validation Logic ---
 
 		const startTime = performance.now();
@@ -802,15 +706,49 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		// Run initialization and form validation in parallel
-		const [, signInForm] = await Promise.all([dbInitPromise, superValidate(event, wrappedLoginSchema)]);
-
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for signIn action');
-			return fail(503, { form: signInForm, message: 'Authentication system is not ready.' });
+		// Wait for database initialization first
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed');
+		} catch (error) {
+			logger.error('Database initialization failed:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
 
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for signIn action - auth is null/undefined');
+			logger.debug('System state:', {
+				dbInitPromise: !!dbInitPromise,
+				dbInitPromiseState: dbInitPromise ? 'pending' : 'resolved',
+				auth: null,
+				authType: typeof auth
+			});
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for signIn action - missing methods: ${missingMethods.join(', ')}`);
+			logger.debug('Auth service state:', {
+				authType: typeof auth,
+				authKeys: Object.keys(auth),
+				hasValidateSession: typeof auth.validateSession === 'function',
+				hasCreateUser: typeof auth.createUser === 'function',
+				hasGetUserByEmail: typeof auth.getUserByEmail === 'function',
+				hasCreateSession: typeof auth.createSession === 'function',
+				availableMethods: Object.keys(auth).filter((key) => typeof auth[key] === 'function')
+			});
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for signIn action');
+
+		// Validate form
+		const signInForm = await superValidate(event, wrappedLoginSchema);
 		if (!signInForm.valid) return fail(400, { form: signInForm });
 
 		const email = signInForm.data.email.toLowerCase();
@@ -824,7 +762,7 @@ export const actions: Actions = {
 			// Run authentication and collection path retrieval in parallel for faster response
 			const [authResult, collectionPath] = await Promise.all([
 				signInUser(email, password, isToken, event.cookies),
-				fetchAndRedirectToFirstCollectionCached(userLanguage) // Use cached version
+				getCachedFirstCollectionPath(userLanguage) // Use cached version from store
 			]);
 
 			resp = authResult;
@@ -841,15 +779,18 @@ export const actions: Actions = {
 				});
 			} else if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
-				redirectPath = collectionPath;
-
-				// Trigger the data prefetch immediately after successful login.
-				fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-					logger.debug('Data caching failed during sign-in:', err);
-				});
+				// If no collection, redirect based on permission
+				if (!collectionPath) {
+					// Import hasPermissionWithRoles dynamically to avoid circular deps
+					const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+					const isAdmin = hasPermissionWithRoles(resp.user, 'config:collectionbuilder', roles);
+					redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+				} else {
+					redirectPath = collectionPath;
+				}
 
 				const endTime = performance.now();
-				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
+				logger.debug(`SignIn completed in \x1b[32m${(endTime - startTime).toFixed(2)}ms\x1b[0m`);
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
 				logger.warn(`Sign-in failed`, { email, errorMessage });
@@ -878,13 +819,31 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		await dbInitPromise;
+		// Ensure database initialization is complete
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for verify2FA');
+		} catch (error) {
+			logger.error('Database initialization failed for verify2FA:', error);
+			return fail(503, { message: 'Database system is not ready.' });
+		}
 
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for verify2FA action');
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for verify2FA action - auth is null/undefined');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for verify2FA action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for verify2FA action');
 
 		try {
 			const formData = await event.request.formData();
@@ -896,7 +855,7 @@ export const actions: Actions = {
 			}
 
 			// Import 2FA service
-			const { getDefaultTwoFactorAuthService } = await import('@auth/twoFactorAuth');
+			const { getDefaultTwoFactorAuthService } = await import('@src/databases/auth/twoFactorAuth');
 			const twoFactorService = getDefaultTwoFactorAuthService(auth);
 
 			// Verify 2FA code
@@ -924,18 +883,19 @@ export const actions: Actions = {
 			});
 
 			updatePromise.catch((err) => {
-				logger.error(`Failed to update user attributes after 2FA login for ${userId}:`, err);
+				logger.error(`Failed to update user attributes after 2FA login for \x1b[32m${userId}\x1b[0m:`, err);
 			});
 
-			logger.info(`User logged in successfully with 2FA: ${user.username} (${userId})`);
+			logger.info(`User logged in successfully with 2FA: \x1b[34m${user.username}\x1b[0m (\x1b[32m${userId}\x1b[0m)`);
 
 			// Get redirect path
-			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
-
-			// Trigger data prefetch
-			fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-				logger.debug('Data caching failed during 2FA sign-in:', err);
-			});
+			const loggedInUser = await auth.getUserById(userId);
+			let redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+			if (!redirectPath) {
+				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionWithRoles(loggedInUser, 'config:collectionbuilder', roles);
+				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+			}
 
 			throw redirect(303, redirectPath);
 		} catch (e) {
@@ -951,19 +911,38 @@ export const actions: Actions = {
 	forgotPW: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-		await dbInitPromise;
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for forgotPW action');
-			return fail(503, { form: await superValidate(event, wrappedForgotSchema), message: 'Authentication system not ready.' });
+		// Ensure database initialization is complete
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for forgotPW');
+		} catch (error) {
+			logger.error('Database initialization failed for forgotPW:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
+
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for forgotPW action - auth is null/undefined');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for forgotPW action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for forgotPW action');
 
 		const pwforgottenForm = await superValidate(event, wrappedForgotSchema);
 		if (!pwforgottenForm.valid) return fail(400, { form: pwforgottenForm });
@@ -1027,19 +1006,38 @@ export const actions: Actions = {
 	resetPW: async (event) => {
 		// --- START: Language Validation Logic ---
 		const langFromStore = get(systemLanguage) as Locale | null;
-		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
-		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 		// --- END: Language Validation Logic ---
 
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-		await dbInitPromise;
-		const authReady = await waitForAuthService();
-		if (!authReady || !auth) {
-			logger.error('Authentication system is not ready for resetPW action');
-			return fail(503, { form: await superValidate(event, wrappedResetSchema), message: 'Authentication system not ready.' });
+		// Ensure database initialization is complete
+		try {
+			await dbInitPromise;
+			logger.debug('Database initialization completed for resetPW');
+		} catch (error) {
+			logger.error('Database initialization failed for resetPW:', error);
+			return fail(503, { message: 'Database system is not ready.' });
 		}
+
+		// Check if auth service is ready
+		if (!auth) {
+			logger.error('Authentication system is not ready for resetPW action - auth is null/undefined');
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		// Check if auth service has essential methods
+		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
+		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
+
+		if (missingMethods.length > 0) {
+			logger.error(`Authentication system is not ready for resetPW action - missing methods: ${missingMethods.join(', ')}`);
+			return fail(503, { message: 'Authentication system is not ready.' });
+		}
+
+		logger.debug('Auth service is ready for resetPW action');
 
 		const pwresetForm = await superValidate(event, wrappedResetSchema);
 		if (!pwresetForm.valid) return fail(400, { form: pwresetForm });
@@ -1115,12 +1113,18 @@ export const actions: Actions = {
 		try {
 			logger.info(`Collection lookup triggered for language: \x1b[34m${userLanguage}}\x1b[0m`);
 
-			// Import and call lookup function (no data fetching, just collection info)
-			const { getFirstCollectionInfo } = await import('@utils/collections-prefetch');
-			const collectionInfo = await getFirstCollectionInfo(userLanguage);
+			// Get first collection from ContentManager (cached lookup)
+			const firstCollectionSchema = await contentManager.getFirstCollection();
+			const collectionInfo = firstCollectionSchema
+				? {
+						collectionId: firstCollectionSchema._id,
+						name: firstCollectionSchema.name,
+						path: firstCollectionSchema.path
+					}
+				: null;
 
 			if (collectionInfo) {
-				logger.info(`Collection lookup completed successfully: \x1b[34m${collectionInfo.name}}\x1b[0m`);
+				logger.info(`Collection lookup completed successfully: \x1b[34m${collectionInfo.name}\x1b[0m`);
 				return { success: true, collection: collectionInfo };
 			} else {
 				logger.debug('No collection found');
@@ -1133,7 +1137,7 @@ export const actions: Actions = {
 	}
 };
 
-// Helper functions (createSessionAndSetCookie, signInUser, FirstUsersignUp, finishRegistration, forgotPWCheck, resetPWCheck)
+// Helper functions (createSessionAndSetCookie, signInUser, finishRegistration, forgotPWCheck, resetPWCheck)
 // remain largely the same as your provided code, with minor logging/error handling adjustments.
 // Ensure they are robust and correctly interact with your `auth` service.
 
@@ -1223,63 +1227,12 @@ async function signInUser(
 			logger.error(`Failed to update user attributes for ${user._id}:`, err);
 		});
 
-		logger.info(`User logged in successfully: ${user.username} (${user._id})`);
+		logger.info(`User logged in successfully: \x1b[34m${user.username}\x1b[0m (\x1b[32m${user._id}\x1b[0m)`);
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Error in signInUser`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during sign-in.' };
-	}
-}
-
-async function FirstUsersignUp(
-	username: string,
-	email: string,
-	password: string,
-	cookies: Cookies
-): Promise<{ status: boolean; message?: string; user?: User }> {
-	logger.debug(`FirstUsersignUp called`, { email });
-	if (!auth) {
-		logger.error('Auth system not initialized for FirstUsersignUp');
-		return { status: false, message: 'Authentication system unavailable.' };
-	}
-	try {
-		if (typeof auth.getUserCount === 'function') {
-			const userCount = await auth.getUserCount();
-			if (userCount > 0) {
-				logger.warn('Attempted FirstUsersignUp when users already exist.');
-				return { status: false, message: 'An admin user already exists.' };
-			}
-		}
-		const adminRole = roles.find((role) => role.isAdmin === true);
-		if (!adminRole) {
-			logger.error('Admin role not found in roles configuration for FirstUsersignUp');
-			return { status: false, message: 'Server configuration error: Admin role not found.' };
-		}
-		if (calculatePasswordStrength(password) < 1) {
-			return { status: false, message: 'Password is too weak.' };
-		}
-		const user = await auth.createUser({
-			email,
-			username,
-			password,
-			role: adminRole._id,
-			permissions: adminRole.permissions,
-			lastAuthMethod: 'password',
-			isRegistered: true,
-			failedAttempts: 0
-		});
-		if (!user || !user._id) {
-			logger.error('First user creation failed: No user object returned or missing _id.');
-			return { status: false, message: 'Failed to create admin user.' };
-		}
-		await createSessionAndSetCookie(user._id, cookies);
-		logger.info(`First admin user ${username} created and session started.`);
-		return { status: true, message: 'Admin user created successfully.', user };
-	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error in FirstUsersignUp`, { email, message: err.message, stack: err.stack });
-		return { status: false, message: 'An internal error occurred creating the admin user.' };
 	}
 }
 

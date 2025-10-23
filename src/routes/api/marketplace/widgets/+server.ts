@@ -6,7 +6,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.svelte';
-import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 // Mock marketplace widgets - replace with actual marketplace API integration
@@ -167,7 +167,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			return order === 'desc' ? -comparison : comparison;
 		});
 
-		logger.debug(`Retrieved ${widgets.length} marketplace widgets (filtered: category=${category}, search=${search})`);
+		logger.trace(`Retrieved ${widgets.length} marketplace widgets (filtered: category=${category}, search=${search})`);
 
 		return json({
 			widgets,

@@ -5,8 +5,9 @@
 
 <script lang="ts">
 	import { themeStore, updateTheme } from '@root/src/stores/themeStore.svelte';
+	import type { DatabaseId } from '@src/content/types';
 	import type { Theme } from '@src/databases/dbInterface';
-
+	import { dateToISODateString } from '@utils/dateUtils';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -27,36 +28,43 @@
 		const customThemesFiles = import.meta.glob('../themes/custom/*/theme.css', { eager: true });
 
 		// Convert the imported files to Theme objects
-		customThemes = Object.entries(customThemesFiles).map(([key, value], index) => ({
-			_id: `custom-theme-${index}`,
-			name: key.split('/')[3],
-			path: value as string,
-			isDefault: false,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		}));
+		customThemes = Object.entries(customThemesFiles).map(([key, value], index) => {
+			const nowIso = dateToISODateString(new Date());
+			return {
+				_id: `custom-theme-${index}` as unknown as DatabaseId,
+				name: key.split('/')[3],
+				path: value as string,
+				isDefault: false,
+				isActive: false,
+				config: { tailwindConfigPath: '', assetsPath: '' },
+				createdAt: nowIso,
+				updatedAt: nowIso
+			} as Theme;
+		});
 	}
 
 	// Combine default theme with dynamically loaded custom themes
 	let themes = $derived([
 		{
-			_id: 'default-theme',
+			_id: 'default-theme' as unknown as DatabaseId,
 			name: 'SveltyCMSTheme',
 			path: '/path/to/default/theme.css',
 			isDefault: true,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		},
+			isActive: true,
+			config: { tailwindConfigPath: '', assetsPath: '' },
+			createdAt: dateToISODateString(new Date()),
+			updatedAt: dateToISODateString(new Date())
+		} as Theme,
 		...customThemes
 	]);
 
 	// Effects for theme changes
 	$effect.root(() => {
-		if (selectedTheme) updateTheme(selectedTheme);
+		if (selectedTheme) updateTheme(selectedTheme.name);
 	});
 
 	$effect.root(() => {
-		if (livePreviewTheme) updateTheme(livePreviewTheme);
+		if (livePreviewTheme) updateTheme(livePreviewTheme.name);
 	});
 
 	// Initialize selectedTheme with current theme
@@ -77,7 +85,7 @@
 
 	function resetPreview() {
 		livePreviewTheme = null;
-		if (selectedTheme) updateTheme(selectedTheme);
+		if (selectedTheme) updateTheme(selectedTheme.name);
 	}
 
 	function handleThemeChange() {
@@ -124,10 +132,10 @@
 		href="https://www.sveltyCMS.com"
 		target="_blank"
 		rel="noopener noreferrer"
-		aria-label={m.config_Martketplace()}
+		aria-label={m.marketplace()}
 		class="variant-ghost-primary btn w-full gap-2 py-6"
 	>
 		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
-		<p class="uppercase">{m.config_Martketplace()}</p>
+		<p class="uppercase">{m.marketplace()}</p>
 	</a>
 {/if}

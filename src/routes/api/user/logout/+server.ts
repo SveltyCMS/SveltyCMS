@@ -18,7 +18,7 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 // Auth
-import { SESSION_COOKIE_NAME } from '@src/auth/constants';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 // System Logger

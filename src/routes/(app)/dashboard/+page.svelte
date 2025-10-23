@@ -18,12 +18,14 @@
 - Accessible widget addition, removal, and layout switching
 -->
 <script lang="ts">
+	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
+	import { modeCurrent } from '@skeletonlabs/skeleton';
+	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
+	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
-	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import type { DashboardWidgetConfig, DropIndicator, WidgetSize, WidgetComponent, WidgetMeta } from '@config/types';
+	import type { PageData } from './$types';
 
 	const { data }: { data: PageData } = $props();
 
@@ -32,12 +34,12 @@
 	const HEADER_HEIGHT = 48; // Approx height of widget header
 
 	let mainContainerEl: HTMLElement | null = $state(null);
-	let searchInput: HTMLInputElement | null = $state(null);
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
-	let loadError = $state<string | null>(null);
 	let registryLoaded = $state(false);
 	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
+
+	let showImportExport = $state(false);
 
 	let dragState: {
 		item: DashboardWidgetConfig | null;
@@ -78,25 +80,6 @@
 	);
 	const filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
 	const currentTheme: 'dark' | 'light' = $derived($modeCurrent ? 'dark' : 'light');
-
-	// Helper function to calculate grid position from mouse coordinates
-	function getGridPositionFromCoords(x: number, y: number, gridContainer: HTMLElement) {
-		const rect = gridContainer.getBoundingClientRect();
-		const relativeX = x - rect.left;
-		const relativeY = y - rect.top;
-
-		const gap = 16; // 1rem gap
-		const cellWidth = (rect.width - gap * (MAX_COLUMNS - 1)) / MAX_COLUMNS;
-		const cellHeight = 180 + gap; // grid-auto-rows: 180px + gap
-
-		const col = Math.floor(relativeX / (cellWidth + gap));
-		const row = Math.floor(relativeY / cellHeight);
-
-		return {
-			col: Math.max(0, Math.min(MAX_COLUMNS - 1, col)),
-			row: Math.max(0, row)
-		};
-	}
 
 	// Helper function to find insertion position based on coordinates
 	function findInsertionPosition(x: number, y: number): number {
@@ -154,16 +137,6 @@
 		return insertIndex;
 	}
 
-	async function saveLayout() {
-		try {
-			if (!data.pageData?.user) return;
-			await systemPreferences.setPreference(data.pageData.user.id, currentPreferences);
-		} catch (err) {
-			console.error('Failed to save layout:', err);
-			loadError = 'Failed to save layout.';
-		}
-	}
-
 	// Ensure all widgets have proper order values
 	function ensureWidgetOrder() {
 		if (!data.pageData?.user) return;
@@ -197,13 +170,11 @@
 	function addNewWidget(componentName: string) {
 		if (!data.pageData?.user) {
 			console.error('SveltyCMS: Cannot add widget, user data is not available.');
-			loadError = 'Cannot add widget: User data is not available. Please try refreshing the page.';
 			return;
 		}
 		const componentInfo = widgetComponentRegistry[componentName];
 		if (!componentInfo) {
 			console.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
-			loadError = `Cannot add widget: Component "${componentName}" not found.`;
 			return;
 		}
 
@@ -311,6 +282,8 @@
 			const currentIndex = currentPreferences.findIndex((p) => p.id === dragState.item?.id);
 			if (currentIndex !== -1 && insertionIndex !== currentIndex && insertionIndex !== currentIndex + 1) {
 				dropIndicator = {
+					show: true,
+					position: insertionIndex,
 					targetIndex: insertionIndex > currentIndex ? insertionIndex - 1 : insertionIndex
 				};
 			} else {
@@ -338,9 +311,9 @@
 		}
 
 		// Handle repositioning based on drop indicator
-		if (dropIndicator && dragState.item) {
+		if (dropIndicator && dragState.item && dropIndicator.targetIndex !== undefined) {
 			console.log('Performing drop with targetIndex:', dropIndicator.targetIndex);
-			performDrop(dragState.item, dropIndicator);
+			performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
 		}
 
 		dragState = { item: null, element: null, offset: { x: 0, y: 0 }, isActive: false };
@@ -390,7 +363,7 @@
 						role="menu"
 					>
 						<div class="p-2">
-							<input bind:this={searchInput} type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
+							<input type="text" class="input w-full" placeholder="Search widgets..." bind:value={searchQuery} />
 						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
 							{#each filteredWidgets as widgetName (widgetName)}
@@ -450,6 +423,7 @@
 								<SvelteComponent
 									{...item}
 									theme={currentTheme}
+									currentUser={data.pageData?.user}
 									onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
 									onCloseRequest={() => removeWidget(item.id)}
 								/>
@@ -487,6 +461,34 @@
 		</section>
 	</div>
 </main>
+
+<!-- Import/Export Modal -->
+{#if showImportExport}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
+			<div class="flex items-center justify-between border-b p-6">
+				<h3 class="text-xl font-semibold">Data Import & Export</h3>
+				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm" aria-label="Close import/export modal">
+					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
+				</button>
+			</div>
+
+			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
+				<ImportExportManager />
+			</div>
+
+			<div class="flex items-center justify-between border-t bg-surface-100 p-6 dark:bg-surface-700">
+				<div class="text-sm text-gray-600 dark:text-gray-400">
+					<iconify-icon icon="mdi:shield-check" class="mr-1 inline h-4 w-4"></iconify-icon>
+					Your data is securely managed and never leaves your server
+				</div>
+				<div class="flex space-x-2">
+					<button onclick={() => (showImportExport = false)} class="variant-filled-primary btn"> Done </button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style lang="postcss">
 	.responsive-dashboard-grid {

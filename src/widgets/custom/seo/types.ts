@@ -1,75 +1,40 @@
 /**
-@file src/widgets/seo/types.ts
-@description - Seo widget types
-*/
-
-import { publicEnv } from '@root/config/public';
-
-// Components
-import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@root/src/auth';
-
-/**
- * Defines SEO widget Parameters
+ * @file src/widgets/custom/seo/types.ts
+ * @description Type definitions for the SEO widget.
+ *
+ * @features
+ * - **Strongly Typed**: Defines a comprehensive `SeoData` structure and configuration options.
+ * - **Configurable Features**: Allows enabling/disabling features like AI suggestions or social previews.
  */
-export type Params = {
-	// default required parameters
-	label: string;
-	display?: DISPLAY;
-	db_fieldName?: string;
-	widget?: unknown;
-	required?: boolean;
-	translated?: boolean;
-	icon?: string;
-	helper?: string;
-	width?: number;
 
-	// Permissions
-	permissions?: Permission[];
+// A list of all available features that can be configured.
+export type SeoFeature = 'social' | 'schema' | 'advanced' | 'ai';
 
-	// Widget Specific parameters
-	color?: string;
-};
+// Defines the properties unique to the SEO widget, configured in the collection builder
+export interface SeoProps {
+	/**
+	 * An array of advanced features to enable.
+	 * @default ['social', 'schema', 'advanced']
+	 */
+	features?: SeoFeature[];
+}
 
-/**
- * Defines SEO GuiSchema
- */
-export const GuiSchema = {
-	label: { widget: Input, required: true },
-	display: { widget: Input, required: true },
-	db_fieldName: { widget: Input, required: true },
-	required: { widget: Toggles, required: false },
-	translated: { widget: Toggles, required: false },
-	icon: { widget: IconifyPicker, required: false },
-	helper: { widget: Input, required: false },
-	width: { widget: Input, required: false },
-
-	// Permissions
-	permissions: { widget: PermissionsSetting, required: false },
-
-	// Widget Specific parameters
-	color: { widget: Input, required: false }
-};
-
-/**
- * Define SEO GraphqlSchema function
- */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
-	// Use the sanitized field name as the type ID
-	const typeID = label;
-
-	// Return an object containing the type name and the GraphQL schema
-	return {
-		typeID: typeID,
-		graphql: /* GraphQL */ `
-        type ${typeID} {
-			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
-		}
-        `
-	};
-};
+// Defines the complete data structure for a stored SEO entry
+export interface SeoData {
+	title: string;
+	description: string;
+	focusKeyword: string;
+	// Advanced
+	robotsMeta: string; // e.g., 'index, follow'
+	canonicalUrl: string;
+	// Social
+	ogTitle: string;
+	ogDescription: string;
+	ogImage: string; // Should be a media ID
+	twitterCard: 'summary' | 'summary_large_image';
+	twitterTitle: string;
+	twitterDescription: string;
+	twitterImage: string; // Should be a media ID
+	// Schema
+	schemaMarkup: string; // Stored as a JSON string
+}

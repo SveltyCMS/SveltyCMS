@@ -1,209 +1,212 @@
 /**
  * @file src/stores/themeStore.svelte.ts
- * @description Theme management
- *
- * Features:
- * - Reactive theme state management with auto-refresh
- * - Asynchronous theme initialization from server
- * - Theme updating with server synchronization
- * - Error handling for API calls
- * - TypeScript support with custom Theme type
+ * @description Centralized, rune-based theme management store.
+ * Now uses 'theme' cookie with 'dark' | 'light' values.
  */
-
-import { store } from '@utils/reactivity.svelte';
+import { browser } from '$app/environment';
 import type { Theme } from '@src/databases/dbInterface';
+import { nowISODateString } from '@src/utils/dateUtils';
+import type { ISODateString } from '@src/content/types';
+import { setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
 
-// Types
+// --- State Shape ---
 interface ThemeState {
 	currentTheme: Theme | null;
 	isLoading: boolean;
 	error: string | null;
-	lastUpdateAttempt: Date | null;
+	lastUpdateAttempt: ISODateString | null;
+	darkMode: boolean; // Internal state remains boolean
+	autoRefreshEnabled: boolean;
 }
 
-// Create base stores
-function createThemeStores() {
-	let refreshInterval: NodeJS.Timeout | null = null;
+// --- Core State ---
+const state = $state<ThemeState>({
+	currentTheme: null,
+	isLoading: false,
+	error: null,
+	lastUpdateAttempt: null,
+	darkMode: false, // Will be set by initializeDarkMode
+	autoRefreshEnabled: false
+});
 
-	// Initial state
-	const initialState: ThemeState = {
-		currentTheme: null,
-		isLoading: false,
-		error: null,
-		lastUpdateAttempt: null
+// --- Derived State ---
+const currentTheme = $derived(state.currentTheme);
+const hasTheme = $derived(!!state.currentTheme);
+const themeName = $derived(state.currentTheme?.name ?? 'default');
+const isLoading = $derived(state.isLoading);
+const error = $derived(state.error);
+const isDarkMode = $derived(state.darkMode); // The reactive boolean
+const autoRefreshEnabled = $derived(state.autoRefreshEnabled);
+
+// --- Exported Store Object ---
+export const themeStore = {
+	get currentTheme() {
+		return currentTheme;
+	},
+	get hasTheme() {
+		return hasTheme;
+	},
+	get themeName() {
+		return themeName;
+	},
+	get isLoading() {
+		return isLoading;
+	},
+	get error() {
+		return error;
+	},
+	get isDarkMode() {
+		return isDarkMode;
+	},
+	get autoRefreshEnabled() {
+		return autoRefreshEnabled;
+	}
+};
+
+// --- Actions ---
+
+let systemThemeListener: ((this: MediaQueryList, ev: MediaQueryListEvent) => any) | null = null;
+const THEME_COOKIE_KEY = 'theme';
+
+/**
+ * Initializes the dark mode state *from the DOM* and syncs Skeleton.
+ * The DOM state is set pre-render by the script in app.html.
+ * This MUST be called from a component's onMount lifecycle hook.
+ */
+export function initializeDarkMode() {
+	if (!browser) return;
+
+	// 1. Read the state from the DOM (set by app.html script)
+	const isDark = document.documentElement.classList.contains('dark');
+
+	// 2. Sync Svelte store state
+	state.darkMode = isDark;
+
+	// 3. Sync Skeleton Labs
+	setModeCurrent(isDark);
+	setModeUserPrefers(isDark);
+
+	// 4. Listen for system preference changes
+	const mq = window.matchMedia('(prefers-color-scheme: dark)');
+	if (systemThemeListener) {
+		mq.removeEventListener('change', systemThemeListener);
+	}
+
+	systemThemeListener = (e: MediaQueryListEvent) => {
+		// Only act if there is NO explicit user cookie
+		const cookieExists = document.cookie
+			.split('; ')
+			.some((row) => row.startsWith(THEME_COOKIE_KEY + '='));
+
+		if (!cookieExists) {
+			_setDarkMode(e.matches, false); // false = don't set cookie
+		}
 	};
-
-	// Base store
-	const state = store<ThemeState>(initialState);
-
-	// Subscribe to theme changess
-	const theme = store(state().currentTheme);
-	const hasTheme = store(!!state().currentTheme);
-	const themeName = store(state().currentTheme?.name ?? 'default');
-	const isDefault = store(state().currentTheme?.isDefault ?? false);
-	const isLoading = store(state().isLoading);
-	const error = store(state().error);
-
-	// Initialize theme from database
-	async function initialize() {
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
-
-		try {
-			const theme = await dbAdapter?.getDefaultTheme();
-			state.update((s) => ({
-				...s,
-				currentTheme: theme ?? null,
-				isLoading: false,
-				lastUpdateAttempt: new Date()
-			}));
-
-			return theme;
-		} catch (err) {
-			state.update((s) => ({
-				...s,
-				error: err instanceof Error ? err.message : 'Failed to initialize theme',
-				isLoading: false
-			}));
-			throw err;
-		}
-	}
-
-	// Update theme
-	async function updateTheme(newTheme: Theme | string) {
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
-
-		try {
-			// If a string is passed, create a basic theme object
-			const themeToUpdate =
-				typeof newTheme === 'string'
-					? {
-							name: newTheme,
-							_id: '',
-							path: '',
-							isDefault: false,
-							createdAt: new Date(),
-							updatedAt: new Date()
-						}
-					: newTheme;
-
-			// Update the theme in the database
-			await dbAdapter?.setDefaultTheme(themeToUpdate.name);
-
-			// Update the local state
-			state.update((s) => ({
-				...s,
-				currentTheme: themeToUpdate,
-				isLoading: false,
-				lastUpdateAttempt: new Date()
-			}));
-
-			// Update the document class for immediate visual feedback
-			if (typeof window !== 'undefined') {
-				document.documentElement.classList.toggle('dark', themeToUpdate.name === 'dark');
-			}
-
-			return themeToUpdate;
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to update theme';
-			state.update((s) => ({
-				...s,
-				error: errorMessage,
-				isLoading: false
-			}));
-			throw new Error(`Failed to update theme: ${errorMessage}`);
-		}
-	}
-
-	// Clear error state
-	function clearError() {
-		state.update((s) => ({ ...s, error: null }));
-	}
-
-	// Auto-refresh theme periodically
-	function startAutoRefresh(interval = 30 * 60 * 1000) {
-		if (refreshInterval) stopAutoRefresh();
-
-		refreshInterval = setInterval(() => {
-			const currentState = state();
-			if (currentState.lastUpdateAttempt && Date.now() - currentState.lastUpdateAttempt.getTime() > interval) {
-				initialize().catch(console.error);
-			}
-		}, interval);
-	}
-
-	// Stop auto-refresh
-	function stopAutoRefresh() {
-		if (refreshInterval) {
-			clearInterval(refreshInterval);
-			refreshInterval = null;
-		}
-	}
-
-	return {
-		state,
-		theme,
-		hasTheme,
-		themeName,
-		isDefault,
-		isLoading,
-		error,
-		initialize,
-		updateTheme,
-		clearError,
-		startAutoRefresh,
-		stopAutoRefresh
-	};
+	mq.addEventListener('change', systemThemeListener);
 }
 
-// Create stores
-const stores = createThemeStores();
+/**
+ * Internal helper to set dark mode state, update DOM, and sync Skeleton.
+ * @param isDark The new dark mode state
+ * @param setCookie Whether to write the cookie (user's explicit choice)
+ */
+function _setDarkMode(isDark: boolean, setCookie: boolean) {
+	if (!browser) return;
 
-// Enhanced themeStore type to include currentTheme
-interface EnhancedThemeStore {
-	subscribe: (f: (value: ThemeState) => void) => () => void;
-	initialize: () => Promise<Theme | null | undefined>;
-	updateTheme: (newTheme: Theme | string) => Promise<Theme>;
-	currentTheme: Theme | null;
+	// 1. Update internal state
+	state.darkMode = isDark;
+
+	// 2. Update DOM
+	if (isDark) {
+		document.documentElement.classList.add('dark');
+	} else {
+		document.documentElement.classList.remove('dark');
+	}
+
+	// 3. Sync with Skeleton Labs
+	setModeUserPrefers(isDark);
+	setModeCurrent(isDark);
+
+	// 4. Save user's explicit preference (if requested)
+	if (setCookie) {
+		const themeValue = isDark ? 'dark' : 'light';
+		const isLocalhost =
+			window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+		const cookieOptions = isLocalhost
+			? `path=/; max-age=31536000; SameSite=Lax`
+			: `path=/; max-age=31536000; SameSite=Lax; Secure`;
+		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; ${cookieOptions}`;
+	}
 }
 
-// Export the theme store and other values
-export const theme = {
-	subscribe: () => stores.theme
-};
+/**
+ * Toggles dark mode or sets it to a specific state.
+ * This action *always* sets a cookie, as it represents an
+ * explicit user choice.
+ */
+export function toggleDarkMode(force?: boolean) {
+	if (!browser) return;
 
-export const themeStore: EnhancedThemeStore = {
-	subscribe: stores.state.subscribe,
-	initialize: stores.initialize,
-	updateTheme: stores.updateTheme,
-	currentTheme: stores.state().currentTheme
-};
+	const nextIsDark = force !== undefined ? force : !state.darkMode;
 
-export const hasTheme = {
-	subscribe: () => stores.hasTheme
-};
+	// Call the internal function, explicitly setting the cookie
+	_setDarkMode(nextIsDark, true);
+}
 
-export const themeName = {
-	subscribe: () => stores.themeName
-};
+// ... (Rest of your themeStore.svelte.ts file) ...
+export async function initializeThemeStore() {
+	state.isLoading = true;
+	state.error = null;
+	try {
+		const response = await fetch('/api/theme/default');
+		if (!response.ok) {
+			throw new Error(`Failed to fetch theme: ${response.statusText}`);
+		}
+		const themeData: Theme = await response.json();
+		state.currentTheme = themeData ?? null;
+		state.lastUpdateAttempt = nowISODateString();
+		return themeData;
+	} catch (err) {
+		state.error = err instanceof Error ? err.message : 'Failed to initialize theme';
+		throw err;
+	} finally {
+		state.isLoading = false;
+	}
+}
 
-export const isDefault = {
-	subscribe: () => stores.isDefault
-};
+export async function updateTheme(newThemeName: string) {
+	state.isLoading = true;
+	state.error = null;
+	try {
+		const response = await fetch('/api/theme/update-theme', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ themeName: newThemeName })
+		});
+		if (!response.ok) throw new Error(`Failed to update theme: ${response.statusText}`);
 
-export const isLoading = {
-	subscribe: () => stores.isLoading
-};
+		const updatedTheme: Theme = await response.json();
+		state.currentTheme = updatedTheme;
+		state.lastUpdateAttempt = nowISODateString();
+		return updated.Theme;
+	} catch (err) {
+		const errorMessage = err instanceof Error ? err.message : 'Failed to update theme';
+		state.error = errorMessage;
+		throw new Error(errorMessage);
+	} finally {
+		state.isLoading = false;
+	}
+}
 
-export const error = {
-	subscribe: () => stores.error
-};
+export function clearError() {
+	state.error = null;
+}
 
-// Export functions
-export const initializeThemeStore = stores.initialize;
-export const updateTheme = stores.updateTheme;
-export const clearError = stores.clearError;
+// --- 6. Auto-Refresh Management ---
+export function startAutoRefresh() {
+	state.autoRefreshEnabled = true;
+}
 
-// Cleanup
-if (typeof window !== 'undefined') {
-	window.addEventListener('unload', stores.stopAutoRefresh);
+export function stopAutoRefresh() {
+	state.autoRefreshEnabled = false;
 }

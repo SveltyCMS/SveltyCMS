@@ -1,5 +1,5 @@
 <!-- 
-@file src/routes/(app)/imageEditor/FocalPoint.svelte
+@file src/routes/(app)/imageEditor/components/FocalPoint.svelte
 @component
 **This component allows users to set or reset a focal point on the image with rule of thirds grid**
 

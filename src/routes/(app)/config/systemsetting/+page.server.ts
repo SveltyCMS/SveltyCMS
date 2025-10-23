@@ -16,7 +16,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logs
@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Log successful session validation
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for system settings
 		// First check if user is admin (explicit check)
@@ -53,13 +53,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
-		// Return user data
+		// Return user data with isAdmin flag for settings filtering
 		const { _id, ...rest } = user;
 		return {
 			user: {
 				_id: _id.toString(),
 				...rest
-			}
+			},
+			isAdmin: isAdmin
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

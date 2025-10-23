@@ -22,7 +22,7 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Config
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
@@ -31,7 +31,6 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Media storage
-import { publicEnv } from '@root/config/public';
 import { cacheService } from '@src/databases/CacheService';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
@@ -45,7 +44,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const isEditingSelf = targetUserId === locals.user._id;
 
 		// In multi-tenant mode, ensure target user is in same tenant when editing others
-		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !isEditingSelf) {
 			const tenantId = locals.tenantId;
 			const targetUser = await auth.getUserById(targetUserId, tenantId);
 			if (!targetUser || targetUser.tenantId !== tenantId) {
@@ -109,7 +108,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl }, locals.tenantId);
 
 		// Normalize URL for client consumption to route through /files
-		const mediaFolder = publicEnv?.MEDIA_FOLDER || 'mediaFiles';
+		const mediaFolder = getPrivateSettingSync('MEDIA_FOLDER') || 'mediaFiles';
 		const normalizedAvatarUrl = avatarUrl.replace(/^https?:\/\/[^/]+/i, '').replace(new RegExp(`^\\/?(?:${mediaFolder}|mediaFiles)\\/`), '/files/');
 
 		// Invalidate any cached session data to reflect the change immediately.

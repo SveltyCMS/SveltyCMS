@@ -11,8 +11,8 @@
  * - TypeScript support with aligned WidgetPreference type
  */
 
+import type { DashboardWidgetConfig, SystemPreferences } from '@src/content/types';
 import { writable } from 'svelte/store';
-import type { DashboardWidgetConfig, SystemPreferences } from '@config/dashboard.types';
 
 // Initial state
 const initialState: SystemPreferences = {
@@ -30,7 +30,14 @@ function createSystemPreferencesStore() {
 		try {
 			const response = await fetch(`/api/systemPreferences?userId=${userId}`);
 			if (!response.ok) {
-				throw new Error(`Failed to fetch preferences: ${response.statusText}`);
+				console.error(`Failed to fetch preferences: ${response.statusText}`);
+				return [];
+			}
+			// Check if response is JSON
+			const contentType = response.headers.get('content-type');
+			if (!contentType || !contentType.includes('application/json')) {
+				console.error('Server returned non-JSON response');
+				return [];
 			}
 			const data = await response.json();
 			return data.preferences || [];

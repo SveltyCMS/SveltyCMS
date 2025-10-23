@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/Collections.svelte
 @component
 **Enhanced Collections component with improved performance, accessibility, and UX.**
@@ -18,43 +18,10 @@ Features:
 - Media gallery with folder management.
 - Keyboard navigation support.
 - Loading states and error handling.
-- Drag & drop support for media files.
 -->
 
-<script lang="ts">
-	import { goto } from '$app/navigation';
-
-	// Types
-	import type { Schema } from '@src/content/types';
-	// Update ContentNode type to include the path property
-	import type { ContentNode } from '@src/databases/dbInterface';
-
-	// Stores
-	import { get } from 'svelte/store';
-	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
-	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-
-	import { constructNestedStructure } from '../content/utils';
-
-	// Components
-	import TreeView from '@components/system/TreeView.svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Extend ContentNode to ensure path property is available
-	interface ExtendedContentNode extends ContentNode {
-		path?: string;
-		children?: ExtendedContentNode[];
-		lastModified?: Date;
-		fileCount?: number;
-		status?: 'draft' | 'publish' | 'archive';
-	}
-
-	// Tree node interface with additional properties
-	interface CollectionTreeNode {
+<script lang="ts" module>
+	export interface CollectionTreeNode {
 		id: string;
 		name: string;
 		isExpanded: boolean;
@@ -63,9 +30,11 @@ Features:
 		icon?: string;
 		badge?: {
 			count?: number;
-			status?: 'draft' | 'publish' | 'archive';
+			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
 			color?: string;
 			visible?: boolean;
+			icon?: string; // Warning icon for inactive widgets
+			title?: string; // Tooltip text
 		};
 		nodeType?: 'category' | 'collection' | 'virtual';
 		path?: string;
@@ -74,18 +43,68 @@ Features:
 		hasError?: boolean;
 		depth?: number;
 		order?: number; // Add order property for sorting
+		parentId?: string;
 	}
+</script>
+
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+
+	// Types
+	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
+	import { StatusTypes } from '@src/content/types';
+	// Stores
+	import { collection, contentStructure, mode, setCollection, setMode } from '@src/stores/collectionStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
+	import { get } from 'svelte/store';
+	import { untrack } from 'svelte';
+
+	// Utils
+	import { debounce } from '@utils/utils';
+	import { validateSchemaWidgets } from '@utils/widgetValidation';
+	import { activeWidgets } from '@stores/widgetStore.svelte';
+
+	// Components
+	import TreeView from '@components/system/TreeView.svelte';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// Extend ContentNode to ensure path property is available
+	interface ExtendedContentNode extends Omit<ContentNode, 'children' | 'order'> {
+		// All ContentNode properties (_id, name, nodeType, translations, etc.) are inherited
+		path?: string;
+		children?: ExtendedContentNode[]; // Recursive reference with ExtendedContentNode
+		lastModified?: Date;
+		fileCount?: number;
+		status?: StatusType;
+		fields?: FieldInstance[]; // Add fields property for collection nodes (array of FieldInstance)
+		order?: number; // Override to make order optional for client-side operations
+	}
+
+	// ✅ ADD PROPS DEFINITION
+	// Fix: Add explicit type for systemVirtualFolders prop
+	const { systemVirtualFolders = [] } = $props<{ systemVirtualFolders: CollectionTreeNode[] }>();
 
 	// State management
 	let search = $state('');
-	let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let debouncedSearch = $state('');
-	let isLoading = $state(false);
+	let isLoading = $state(false); // isLoading is now simpler
 	let error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
-	let systemVirtualFolderNodes: CollectionTreeNode[] = $state([]);
+	let systemVirtualFolderNodes = $state<CollectionTreeNode[]>([]);
 	let selectedSystemVirtualFolder = $state<string | null>(null);
-	let hasLoadedSystemVirtualFolders = $state(false);
+
+	// Use enhanced global debounce for search
+	const debouncedSearchUpdate = debounce.create(
+		((searchValue: string) => {
+			debouncedSearch = searchValue.toLowerCase().trim();
+		}) as (...args: unknown[]) => unknown,
+		150
+	);
 
 	// Derived states with memoization
 	let lastContentStructure: any = null;
@@ -93,9 +112,10 @@ Features:
 
 	let nestedStructure = $derived.by(() => {
 		// Only recalculate if content structure actually changed
-		if (contentStructure.value !== lastContentStructure) {
-			lastContentStructure = contentStructure.value;
-			cachedNestedStructure = constructNestedStructure(contentStructure.value);
+		if (contentStructure !== lastContentStructure) {
+			lastContentStructure = contentStructure;
+			// contentStructure is ALREADY nested from getNavigationStructure()
+			cachedNestedStructure = contentStructure.value || [];
 		}
 		return cachedNestedStructure;
 	});
@@ -103,22 +123,22 @@ Features:
 	let isMediaMode = $derived(mode.value === 'media');
 	let isFullSidebar = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
 
-	// Optimized debounced search effect
+	// Optimized debounced search effect with Svelte 5 reactive patterns
 	$effect(() => {
-		if (searchDebounceTimer) {
-			clearTimeout(searchDebounceTimer);
+		// React to search changes and debounce the update
+		debouncedSearchUpdate(search);
+	});
+
+	// Initialize mode based on current route on component mount
+	$effect(() => {
+		const pathname = page.url.pathname;
+		console.log('[Collections] Initialization effect - pathname:', pathname);
+
+		// Only set mode if we're not on a mediagallery route
+		if (!pathname.includes('/mediagallery') && mode.value === 'media') {
+			console.log('[Collections] Initializing mode to view for non-mediagallery route');
+			setMode('view');
 		}
-
-		// Use shorter debounce for better responsiveness
-		searchDebounceTimer = setTimeout(() => {
-			debouncedSearch = search.toLowerCase().trim();
-		}, 150);
-
-		return () => {
-			if (searchDebounceTimer) {
-				clearTimeout(searchDebounceTimer);
-			}
-		};
 	});
 
 	// Collection counting with persistent caching
@@ -154,187 +174,109 @@ Features:
 	}
 
 	// Optimized node mapping with memoization
-	let cachedCollectionNodes: CollectionTreeNode[] = [];
-	let lastStructureVersion = '';
+	let collectionStructureNodes = $state<CollectionTreeNode[]>([]);
 
-	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
-		// Create a version hash to detect real changes
-		const currentVersion = JSON.stringify({
-			structure: nestedStructure.map((n) => ({ id: n._id, name: n.name, nodeType: n.nodeType })),
-			language: contentLanguage.value,
-			selectedCollection: collection.value?._id,
-			expandedNodes: Array.from(expandedNodes).sort()
+	// Effect to update collectionStructureNodes when dependencies change
+	$effect(() => {
+		// Track only the inputs we care about
+		const structure = nestedStructure;
+		const lang = contentLanguage.value;
+		const expanded = expandedNodes;
+
+		// Debug logging for collections data
+		console.log('[Collections] Data loading debug:', {
+			mode: mode.value,
+			isMediaMode: mode.value === 'media',
+			structureLength: structure?.length || 0,
+			contentStructureValue: contentStructure.value?.length || 0,
+			structure: structure
 		});
 
-		// Return cached version if nothing meaningful changed
-		if (currentVersion === lastStructureVersion && cachedCollectionNodes.length > 0) {
-			return cachedCollectionNodes;
-		}
+		// Use untrack to read the selected collection ID without creating reactivity dependency
+		const selectedId = untrack(() => collection.value?._id);
 
-		// Clear count cache only when structure actually changes
-		if (currentVersion !== lastStructureVersion) {
-			clearCountCache();
-			lastStructureVersion = currentVersion;
-		}
+		// Use untrack to prevent reading collectionStructureNodes from triggering this effect
+		untrack(() => {
+			function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
+				const isCategory = node.nodeType === 'category';
+				// Get translation for current language or fallback to default name
+				const translation = node.translations?.find((trans: Translation) => trans.languageTag === lang);
+				const label = translation?.translationName || node.name;
 
-		function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-			const isCategory = node.nodeType === 'category';
-			// Get translation for current language or fallback to default name
-			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
-			const label = translation?.translationName || node.name;
+				const nodeId = node._id;
+				const isExpanded = expanded.has(nodeId) || selectedId === nodeId;
 
-			const nodeId = node._id;
-			const isExpanded = expandedNodes.has(nodeId) || collection.value?._id === nodeId;
+				// Check for inactive widgets if this is a collection
+				let hasInactiveWidgets = false;
+				if (!isCategory && node.fields) {
+					const activeWidgetList = get(activeWidgets);
+					const validation = validateSchemaWidgets({ ...node, fields: node.fields } as Schema, activeWidgetList);
+					hasInactiveWidgets = !validation.valid;
+				}
 
-			let children: CollectionTreeNode[] | undefined;
-			if (isCategory && node.children) {
-				children = node.children.map((child) => mapNode(child, depth + 1));
+				let children: CollectionTreeNode[] | undefined;
+				if (isCategory && node.children) {
+					// Sort children by order before mapping
+					const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
+					children = sortedChildren.map((child) => mapNode(child, depth + 1));
+				}
+
+				// Add badge only for categories to reduce overhead
+				const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
+				const badge = isCategory
+					? {
+							count: countAllCollections(node),
+							visible: true,
+							status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
+								? (node.status as (typeof allowedStatus)[number])
+								: undefined,
+							color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
+						}
+					: hasInactiveWidgets
+						? {
+								visible: true,
+								color: 'bg-warning-500',
+								icon: 'mdi:alert-circle',
+								title: 'This collection uses inactive widgets'
+							}
+						: undefined;
+
+				return {
+					...node,
+					name: label,
+					id: nodeId,
+					isExpanded,
+					onClick: () => handleCollectionSelect(node),
+					children,
+					badge,
+					depth,
+					order: node.order || 0, // Preserve order property
+					lastModified: node.lastModified
+				};
 			}
 
-			// Add badge only for categories to reduce overhead
-			const badge = isCategory
-				? {
-						count: countAllCollections(node),
-						visible: true,
-						status: node.status,
-						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
-					}
-				: undefined;
+			// Clear count cache when structure changes
+			clearCountCache();
 
-			return {
-				...node,
-				name: label,
-				id: nodeId,
-				isExpanded,
-				onClick: () => handleCollectionSelect(node),
-				children,
-				badge,
-				depth,
-				lastModified: node.lastModified
-			};
-		}
-
-		// Cache the result
-		cachedCollectionNodes = nestedStructure.map((node) => mapNode(node));
-		return cachedCollectionNodes;
+			// Sort root nodes by order before mapping
+			const sortedRootNodes = [...structure].sort((a, b) => (a.order || 0) - (b.order || 0));
+			// Update the state
+			collectionStructureNodes = sortedRootNodes.map((node) => mapNode(node));
+		});
 	});
 
 	// Get status color for badges
-	function getStatusColor(status?: string): string {
+	function getStatusColor(status?: StatusType): string {
 		switch (status) {
-			case 'publish':
+			case StatusTypes.publish:
 				return 'bg-success-500';
-			case 'draft':
+			case StatusTypes.draft:
 				return 'bg-warning-500';
-			case 'archive':
+			case StatusTypes.archive:
 				return 'bg-surface-500';
 			default:
 				return 'bg-primary-500';
 		}
-	}
-
-	// Virtual folder loading with better error handling
-	async function loadSystemVirtualFolders() {
-		isLoading = true;
-		error = null;
-		hasLoadedSystemVirtualFolders = true; // Prevent re-loading
-
-		const createRootNode = (): CollectionTreeNode => ({
-			id: 'root',
-			name: 'Media Root',
-			path: 'mediaFiles',
-			isExpanded: true,
-			onClick: () => handleSystemVirtualFolderSelect('root'),
-			icon: 'bi:house-door',
-			badge: { visible: false },
-			nodeType: 'virtual',
-			depth: 0
-		});
-
-		try {
-			// Force cache bypass by adding a timestamp parameter
-			const response = await fetch(`/api/systemVirtualFolder?t=${Date.now()}`);
-
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
-
-			const data = await response.json();
-			const rootNode = createRootNode();
-
-			if (data.success && data.data?.length > 0) {
-				const allFolders: any[] = data.data;
-				const folderMap = new Map<string, CollectionTreeNode>();
-
-				// Create nodes for each folder
-				allFolders.forEach((folder) => {
-					folderMap.set(folder._id, {
-						id: folder._id,
-						name: folder.name,
-						path: folder.path,
-						isExpanded: expandedNodes.has(folder._id),
-						onClick: () => handleSystemVirtualFolderSelect(folder._id),
-						icon: 'bi:folder',
-						badge: {
-							visible: false,
-							count: folder.fileCount || 0
-						},
-						nodeType: 'virtual',
-						depth: 0, // Will be set later
-						lastModified: folder.lastModified ? new Date(folder.lastModified) : undefined,
-						children: [],
-						order: folder.order || 0 // Add order for sorting
-					});
-				});
-
-				const tree: CollectionTreeNode[] = [];
-				// Link children to parents
-				allFolders.forEach((folder) => {
-					const node = folderMap.get(folder._id)!;
-					if (folder.parentId && folderMap.has(folder.parentId)) {
-						const parent = folderMap.get(folder.parentId)!;
-						if (!parent.children) parent.children = [];
-						parent.children.push(node);
-					} else {
-						tree.push(node);
-					}
-				});
-
-				// Set depth and handle empty children
-				const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
-					// Sort nodes by order first
-					nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-					nodes.forEach((node) => {
-						node.depth = depth;
-						if (node.children && node.children.length > 0) {
-							setDepth(node.children, depth + 1);
-						} else {
-							node.children = undefined;
-						}
-					});
-				};
-				setDepth(tree, 1);
-
-				rootNode.children = tree;
-			}
-
-			systemVirtualFolderNodes = [rootNode];
-			console.log('Virtual folders loaded successfully:', systemVirtualFolderNodes);
-		} catch (err) {
-			console.error('Failed to load virtual folders:', err);
-			error = err instanceof Error ? err.message : 'Failed to load virtual folders';
-			systemVirtualFolderNodes = [createRootNode()];
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	// Function to refresh virtual folders (public method)
-	function refreshSystemVirtualFolders() {
-		console.log('Refreshing virtual folders...');
-		hasLoadedSystemVirtualFolders = false; // Reset the flag to allow reloading
-		loadSystemVirtualFolders();
 	}
 
 	// Virtual folder selection with state management
@@ -362,7 +304,10 @@ Features:
 			clearTimeout(navigationTimeout);
 		}
 
-		if ('nodeType' in selectedCollection) {
+		// Type guard for ExtendedContentNode
+		const isExtendedContentNode = (node: any): node is ExtendedContentNode => node && typeof node === 'object' && '_id' in node && 'nodeType' in node;
+
+		if (isExtendedContentNode(selectedCollection)) {
 			if (selectedCollection.nodeType === 'collection') {
 				// Check if this collection is already selected to avoid unnecessary navigation
 				const currentCollectionId = collection.value?._id;
@@ -374,8 +319,8 @@ Features:
 				}
 
 				// Immediately update UI state for responsiveness
-				mode.set('view');
-				collection.set(null);
+				setMode('view');
+				setCollection(null);
 				shouldShowNextButton.set(true);
 
 				// Clear EntryList cache to prevent stale data
@@ -391,6 +336,9 @@ Features:
 			} else if (selectedCollection.nodeType === 'category') {
 				toggleNodeExpansion(selectedCollection._id);
 			}
+		} else {
+			// Handle Schema type if needed (fallback)
+			// Example: if (selectedCollection && 'name' in selectedCollection) { ... }
 		}
 	}
 
@@ -398,16 +346,6 @@ Features:
 	function clearSearch() {
 		search = '';
 		debouncedSearch = '';
-		if (searchDebounceTimer) {
-			clearTimeout(searchDebounceTimer);
-		}
-	}
-
-	// Keyboard navigation support
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			clearSearch();
-		}
 	}
 
 	// Toggle node expansion
@@ -566,7 +504,7 @@ Features:
 			if (response.ok) {
 				console.log('Drag drop reorder successful');
 				// Refresh the folder list to show the new structure
-				refreshSystemVirtualFolders();
+				// refreshSystemVirtualFolders();
 			} else {
 				const errorData = await response.json();
 				console.error('Failed to reorder folders via drag & drop:', errorData);
@@ -579,8 +517,70 @@ Features:
 
 	// Effects
 	$effect(() => {
-		if (mode.value === 'media' && !hasLoadedSystemVirtualFolders) {
-			loadSystemVirtualFolders();
+		if (mode.value === 'media') {
+			// Data now comes directly from the prop, no fetching needed.
+			// We just need to build the tree structure from the prop data.
+			const createRootNode = (): CollectionTreeNode => ({
+				id: 'root',
+				name: 'Media Root',
+				path: 'mediaFiles',
+				isExpanded: true,
+				onClick: () => handleSystemVirtualFolderSelect('root'),
+				icon: 'bi:house-door',
+				badge: { visible: false },
+				nodeType: 'virtual',
+				depth: 0
+			});
+
+			const rootNode = createRootNode();
+
+			// The prop `systemVirtualFolders` should already be the flat array of all folders
+			if (systemVirtualFolders && systemVirtualFolders.length > 0) {
+				const folderMap = new Map<string, CollectionTreeNode>();
+
+				// Create nodes and map them
+				systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
+					folderMap.set(folder.id, {
+						...folder, // Spread existing properties from the prop
+						isExpanded: expandedNodes.has(folder.id),
+						onClick: () => handleSystemVirtualFolderSelect(folder.id),
+						children: [], // Initialize children array
+						depth: 0 // Will be set later
+					});
+				});
+
+				const tree: CollectionTreeNode[] = [];
+				// Link children to parents
+				systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
+					const node = folderMap.get(folder.id)!;
+					if (folder.parentId && folderMap.has(folder.parentId)) {
+						const parent = folderMap.get(folder.parentId)!;
+						parent.children!.push(node);
+					} else {
+						tree.push(node);
+					}
+				});
+
+				// Set depth and sort children
+				const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
+					nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+					nodes.forEach((node) => {
+						node.depth = depth;
+						if (node.children && node.children.length > 0) {
+							setDepth(node.children, depth + 1);
+						} else {
+							node.children = undefined;
+						}
+					});
+				};
+				setDepth(tree, 1);
+
+				rootNode.children = tree;
+			}
+
+			systemVirtualFolderNodes = [rootNode];
+
+			// Ensure sidebar is in the correct state
 			if (!isFullSidebar) {
 				handleUILayoutToggle();
 			}
@@ -593,7 +593,7 @@ Features:
 			console.log('Folder created event received:', event.detail);
 			if (isMediaMode) {
 				console.log('Media mode active, refreshing system virtual folders...');
-				refreshSystemVirtualFolders();
+				// refreshSystemVirtualFolders();
 			}
 		};
 
@@ -605,12 +605,26 @@ Features:
 		};
 	});
 
-	// Cleanup on unmount
+	// Effect to handle mode synchronization with route
+	$effect(() => {
+		const pathname = page.url.pathname;
+		console.log('[Collections] Route effect triggered - pathname:', pathname, 'current mode:', mode.value);
+
+		// Directly set mode based on current route
+		if (pathname.includes('/mediagallery')) {
+			if (mode.value !== 'media') {
+				console.log('[Collections] Setting mode to media for mediagallery route');
+				setMode('media');
+			}
+		} else {
+			if (mode.value === 'media') {
+				console.log('[Collections] Resetting mode to view for non-mediagallery route, pathname:', pathname);
+				setMode('view');
+			}
+		}
+	}); // Cleanup on unmount
 	$effect(() => {
 		return () => {
-			if (searchDebounceTimer) {
-				clearTimeout(searchDebounceTimer);
-			}
 			if (navigationTimeout) {
 				clearTimeout(navigationTimeout);
 			}
@@ -618,12 +632,10 @@ Features:
 	});
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
 <div class="collections-container mt-2" role="navigation" aria-label="Collections navigation">
-	{#if !isMediaMode}
+	{#if !isMediaMode || true}
 		<!-- Search Input -->
-		<div class="{isFullSidebar ? 'mb-2 w-full' : 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]">
+		<div class="{isFullSidebar ? 'mb-2 w-full' : 'mb-1 max-w-[135px]'} input-group input-group-divider grid grid-cols-[1fr_auto]">
 			<div class="relative">
 				<input
 					type="text"
@@ -666,6 +678,14 @@ Features:
 				<button class="variant-filled-error btn btn-sm mt-2" onclick={() => window.location.reload()}> Retry </button>
 			</div>
 		{:else if collectionStructureNodes.length > 0}
+			<!-- Collections Header in Media Mode -->
+			{#if isMediaMode && isFullSidebar}
+				<div class="mb-2 flex items-center border-b border-surface-300 pb-2">
+					<iconify-icon icon="bi:collection" width="20" class="mr-2 text-error-500"></iconify-icon>
+					<h3 class="text-sm font-medium text-surface-700 dark:text-surface-300">Collections</h3>
+				</div>
+			{/if}
+
 			<TreeView
 				k={0}
 				nodes={collectionStructureNodes}
@@ -673,7 +693,7 @@ Features:
 				compact={!isFullSidebar}
 				search={debouncedSearch}
 				iconColorClass="text-error-500"
-				showBadges={isFullSidebar}
+				showBadges={true}
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-surface-500">
@@ -688,7 +708,7 @@ Features:
 				? '3'
 				: '1'} group transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
-				mode.set('media');
+				setMode('media');
 				goto('/mediagallery');
 				if (get(screenSize) === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
@@ -706,7 +726,6 @@ Features:
 			{/if}
 		</button>
 	{/if}
-
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
@@ -714,11 +733,10 @@ Features:
 				? '3'
 				: '1'} group transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
-				collection.set(null);
-				mode.set('view');
+				setCollection(null);
+				setMode('view');
 				selectedSystemVirtualFolder = null;
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
-				hasLoadedSystemVirtualFolders = false; // Reset loading flag
 
 				if (get(screenSize) === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
@@ -738,6 +756,12 @@ Features:
 		</button>
 
 		<!-- Enhanced Virtual Folders Display -->
+		{#if isFullSidebar}
+			<div class="mb-2 mt-4 flex items-center border-b border-surface-300 pb-2">
+				<iconify-icon icon="bi:folder" width="20" class="mr-2 text-primary-500"></iconify-icon>
+				<h3 class="text-sm font-medium text-surface-700 dark:text-surface-300">Media Folders</h3>
+			</div>
+		{/if}
 		{#if isLoading}
 			<div class="p-4 text-center">
 				<div class="flex items-center justify-center space-x-2">
@@ -751,7 +775,6 @@ Features:
 			<div class="p-4 text-center text-error-500">
 				<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
 				<p class="mt-1 text-sm">{error}</p>
-				<button class="variant-filled-error btn btn-sm mt-2" onclick={loadSystemVirtualFolders}> Retry </button>
 			</div>
 		{:else if systemVirtualFolderNodes.length > 0}
 			<TreeView

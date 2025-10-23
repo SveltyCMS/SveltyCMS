@@ -16,14 +16,17 @@
  * - Proper error handling and logging
  */
 
-import { dbAdapter } from '@src/databases/db';
+import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const GET = async ({ locals, url }) => {
+	// Wait for database initialization
+	await dbInitPromise;
+
 	const { user, tenantId } = locals;
 
 	// Authentication is handled by hooks.server.ts
@@ -34,7 +37,7 @@ export const GET = async ({ locals, url }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	} // Try to get userId from query param, otherwise use locals.user
 
@@ -56,20 +59,43 @@ export const GET = async ({ locals, url }) => {
 	try {
 		// Use "default" as the default layout ID
 		const layoutId = url.searchParams.get('layoutId') || 'default';
+
+		if (!dbAdapter?.systemPreferences?.getSystemPreferences) {
+			logger.error('System preferences adapter not available', { tenantId, userId });
+			return json({ preferences: [] }, { status: 200 }); // Return empty preferences instead of error
+		}
+
 		// Get the layout from the database
-		const layout = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
+		const layoutResult = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
+
+		if (!layoutResult.success) {
+			logger.error('Failed to load system preferences:', {
+				error: layoutResult.message,
+				tenantId,
+				userId
+			});
+			return json({ preferences: [] }, { status: 200 }); // Return empty preferences instead of error
+		}
 
 		const response = {
-			preferences: layout?.preferences || []
+			preferences: layoutResult.data?.preferences || []
 		};
 		return json(response);
 	} catch (e) {
-		logger.error('Failed to load system preferences:', { error: e, tenantId });
-		return json({ error: 'Failed to load preferences' }, { status: 500 });
+		logger.error('Failed to load system preferences:', {
+			error: e instanceof Error ? e.message : String(e),
+			tenantId,
+			userId,
+			stack: e instanceof Error ? e.stack : undefined
+		});
+		// Return empty preferences instead of error to prevent UI breaking
+		return json({ preferences: [] }, { status: 200 });
 	}
 };
-
 export const POST = async ({ request, locals }) => {
+	// Wait for database initialization
+	await dbInitPromise;
+
 	const { user, tenantId } = locals;
 	const data = await request.json(); // Try to get userId from request body, otherwise use locals.user
 
@@ -79,7 +105,7 @@ export const POST = async ({ request, locals }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	} // Handle widget state persistence
 
@@ -96,6 +122,11 @@ export const POST = async ({ request, locals }) => {
 
 	const { preferences, layoutId = 'default' } = data;
 	try {
+		if (!dbAdapter?.systemPreferences?.setUserPreferences) {
+			logger.error('System preferences adapter not available for saving', { tenantId, userId });
+			return json({ error: 'System preferences not available' }, { status: 503 });
+		}
+
 		// Create a layout object as expected by the database
 		const layout = {
 			id: layoutId,
@@ -106,7 +137,12 @@ export const POST = async ({ request, locals }) => {
 		await dbAdapter.systemPreferences.setUserPreferences(userId, layoutId, layout);
 		return json({ success: true });
 	} catch (e) {
-		logger.error('Failed to save system preferences:', { error: e, tenantId });
+		logger.error('Failed to save system preferences:', {
+			error: e instanceof Error ? e.message : String(e),
+			tenantId,
+			userId,
+			stack: e instanceof Error ? e.stack : undefined
+		});
 		return json({ error: 'Failed to save preferences' }, { status: 500 });
 	}
 };

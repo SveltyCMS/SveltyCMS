@@ -23,29 +23,17 @@
 	import { StatusTypes } from '@src/content/types';
 
 	// Config
-	import { publicEnv } from '@root/config/public';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
-	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
-	import { storeListboxValue } from '@stores/store.svelte';
 	import { page } from '$app/state';
-
+	import { storeListboxValue } from '@stores/store.svelte';
 	// Components
-	import ScheduleModal from './ScheduleModal.svelte';
-	import { showStatusChangeConfirm, showScheduleModal, showCloneModal } from '@utils/modalUtils';
-
+	import { showCloneModal, showScheduleModal, showStatusChangeConfirm } from '@utils/modalUtils';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-
-	// Initialize the modal store at the top level.
-	const modalStore = getModalStore();
-
 	// Access user data from page context
-	const user = $derived(page.data?.user);
 	const isAdmin = $derived(page.data?.isAdmin === true);
 
 	type ActionType = 'create' | 'archive' | keyof typeof StatusTypes;
@@ -55,27 +43,25 @@
 		isCollectionEmpty = false,
 		hasSelections = false,
 		selectedCount = 0,
-		selectedStatuses = [],
 		showDeleted = $bindable(false),
 		create = () => {},
 		publish = () => {},
 		unpublish = () => {},
-		schedule = (date: string, action: string) => {},
+		schedule = (_: string) => {},
 		clone = () => {},
-		delete: deleteAction = (isPermanent?: boolean) => {},
+		delete: deleteAction = () => {},
 		test = () => {}
 	} = $props<{
 		isCollectionEmpty?: boolean;
 		hasSelections?: boolean;
 		selectedCount?: number;
-		selectedStatuses?: string[];
 		showDeleted?: boolean;
 		create: () => void;
 		publish: () => void;
 		unpublish: () => void;
-		schedule: (date: string, action: string) => void;
+		schedule: (date: string) => void;
 		clone: () => void;
-		delete: (isPermanent?: boolean) => void;
+		delete: () => void;
 		test: () => void;
 	}>();
 
@@ -112,18 +98,18 @@
 			case StatusTypes.schedule:
 				openScheduleModal(); // Open the modal, which will call onSchedule.
 				break;
-			case 'clone':
+			case StatusTypes.clone:
 				openCloneModal(); // Open colorful confirmation modal
 				break;
-			case 'archive':
+			case StatusTypes.archive:
 				// Call parent's delete function with archive mode
 				deleteAction(false); // false = archive
 				break;
-			case 'delete':
+			case StatusTypes.delete:
 				// Call parent's delete function with permanent delete mode
 				deleteAction(true); // true = permanent delete
 				break;
-			case 'test':
+			case StatusTypes.test:
 				test(); // Emit the 'test' event.
 				break;
 		}

@@ -12,7 +12,7 @@
  * Utilizes Redis caching for performance, now tenant-aware.
  */
 import { browser } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 import type { ContentNodeOperation } from '@root/src/content/types';
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant ID is required for this operation.');
 		}
 
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		switch (action) {
 			case 'getStructure': {
 				// Return full structure with metadata
-				const { contentStructure: contentNodes } = await contentManager.getCollectionData(tenantId);
+				const contentNodes = await contentManager.getContentStructure(tenantId);
 
 				response = {
 					contentStructure: contentNodes
@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 			case 'getContentStructure': {
 				// Return content nodes from database
-				const { contentStructure } = await contentManager.getCollectionData(tenantId);
+				const contentStructure = await contentManager.getContentStructure(tenantId);
 				logger.info('Returning content structure from database', { tenantId });
 				response = {
 					success: true,
@@ -109,7 +109,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant ID is required for this operation.');
 		}
 
@@ -154,6 +154,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					message: 'Collections recompiled successfully'
 				});
 			}
+			case 'refreshCollections': {
+				// Refresh collections from compiled files without recompiling
+				if (!browser) {
+					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
+					await cacheService.clearByPattern(cachePattern);
+					logger.debug('Cleared content-structure caches for refresh.', { tenantId });
+				}
+
+				await contentManager.updateCollections(true, tenantId);
+				const contentStructure = await contentManager.getContentStructure(tenantId);
+
+				logger.info('Collections refreshed from compiled files', { tenantId, collectionsFound: contentStructure?.length || 0 });
+				return json({
+					success: true,
+					contentNodes: contentStructure,
+					message: 'Collections refreshed successfully'
+				});
+			}
 			default:
 				throw error(400, 'Invalid action');
 		}
@@ -173,7 +191,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant ID is required for this operation.');
 		}
 

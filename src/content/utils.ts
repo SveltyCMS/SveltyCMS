@@ -3,54 +3,45 @@
  * @description Helper functions for Content
  *
  * Structure:
- *   - constructNestedStructure: Converts a flat list of content nodes into a nested structure
- *   - constructContentPaths: Converts a nested structure into a flat list of content nodes
- *   - generateCategoryNodesFromPaths: Extracts category nodes from a flat list of content nodes
+ * - constructNestedStructure: Converts a flat list of content nodes into a nested structure
+ * - constructContentPaths: Converts a nested structure into a flat list of content nodes
+ * - generateCategoryNodesFromPaths: Extracts category nodes from a flat list of content nodes
  *
  * Module Processing:
- *   - processModule: Extracts schema from module content
+ * - processModule: Extracts schema from module content
  *
  * Widget Utilities:
- *   - ensureWidgetsInitialized: Initializes widgets
- *   - resolveWidgetPlaceholder: Resolves a widget placeholder
- *   - resolveWidget (imported via widgetProxy): Resolves a widget
+ * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
-
-import type { ContentNode, NestedContentNode } from '../databases/dbInterface';
-
-import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from '@src/widgets';
-import type { MinimalContentNode, Schema } from './types';
-
-// System Logger
+import { widgetRegistryService } from '@src/services/WidgetRegistryService';
 import { logger } from '../utils/logger.svelte';
+import type { ContentNode, MinimalContentNode, Schema } from './types';
 
-export function constructNestedStructure(contentStructure: ContentNode[]): NestedContentNode[] {
-	const nodeMap = new Map<string, NestedContentNode>();
-	const byParent: Record<string, NestedContentNode[]> = [];
+// An extended version of ContentNode for UI purposes that includes children.
+export interface ExtendedContentNode extends ContentNode {
+	path?: string;
+	children?: ExtendedContentNode[];
+}
+
+export function constructNestedStructure(contentStructure: ContentNode[]): ExtendedContentNode[] {
+	const nodeMap = new Map<string, ExtendedContentNode>();
+	const byParent: Record<string, ExtendedContentNode[]> = {};
 	const ROOT_KEY = '__root__';
 
-	// Step 1: Convert to NestedContentNode and group by parentId
+	// Step 1: Convert to ExtendedContentNode and group by parentId
 	for (const node of contentStructure) {
-		const nested: NestedContentNode = {
-			...node,
-			path: '', // to be filled in later
-			children: []
-		};
-
+		const nested: ExtendedContentNode = { ...node, path: '', children: [] };
 		nodeMap.set(node._id, nested);
-
 		const parentKey = node.parentId ?? ROOT_KEY;
 		if (!byParent[parentKey]) byParent[parentKey] = [];
 		byParent[parentKey].push(nested);
 	}
 
-	const result: NestedContentNode[] = [];
-
+	const result: ExtendedContentNode[] = [];
 	const rootNodes = byParent[ROOT_KEY] ?? [];
 
-	// Step 2: DFS using stack
-	const stack: { node: NestedContentNode; parentPath: string }[] = [];
-
+	// Step 2: DFS using a stack to build the tree
+	const stack: { node: ExtendedContentNode; parentPath: string }[] = [];
 	for (const root of rootNodes) {
 		root.path = `/${root.name}`;
 		result.push(root);
@@ -60,15 +51,13 @@ export function constructNestedStructure(contentStructure: ContentNode[]): Neste
 	while (stack.length > 0) {
 		const { node } = stack.pop()!;
 		const children = byParent[node._id] ?? [];
-
 		for (let i = children.length - 1; i >= 0; i--) {
 			const child = children[i];
 			child.path = `${node.path}/${child.name}`;
-			node.children.push(child);
-			stack.push({ node: child, parentPath: node.path });
+			node.children!.push(child);
+			stack.push({ node: child, parentPath: node.path ?? '' });
 		}
 	}
-
 	return result;
 }
 
@@ -76,18 +65,14 @@ export function generateCategoryNodesFromPaths(files: Schema[]): Map<string, Min
 	const folders = new Map<string, MinimalContentNode>();
 
 	for (const file of files) {
-		const parts = file.path!.split('/').filter(Boolean); // break path into parts
+		if (!file.path) continue;
+		const parts = file.path.split('/').filter(Boolean);
 		let path = '';
 		for (let i = 0; i < parts.length - 1; i++) {
 			const name = parts[i];
 			path = `${path}/${name}`;
-
 			if (!folders.has(path)) {
-				folders.set(path, {
-					name,
-					path: path,
-					nodeType: 'category'
-				});
+				folders.set(path, { name, path, nodeType: 'category' });
 			}
 		}
 	}
@@ -95,22 +80,17 @@ export function generateCategoryNodesFromPaths(files: Schema[]): Map<string, Min
 	return folders;
 }
 
-// Depth first traversal to generate paths for each node
-//
 export function constructContentPaths(contentStructure: ContentNode[]): Record<string, ContentNode> {
 	const byParent: Record<string, ContentNode[]> = {};
 	const result: Record<string, ContentNode> = {};
 
-	// Group by parentId
 	for (const node of contentStructure) {
 		const parentKey = node.parentId ?? '__root__';
 		if (!byParent[parentKey]) byParent[parentKey] = [];
 		byParent[parentKey].push(node);
 	}
 
-	const stack: { node: ContentNode; parentPath?: string; path: string }[] = [];
-
-	// Start with root nodes (parentId == undefined)
+	const stack: { node: ContentNode; path: string }[] = [];
 	const rootNodes = byParent['__root__'] ?? [];
 	for (const root of rootNodes) {
 		stack.push({ node: root, path: `/${root.name}` });
@@ -118,109 +98,102 @@ export function constructContentPaths(contentStructure: ContentNode[]): Record<s
 
 	while (stack.length > 0) {
 		const { node, path } = stack.pop()!;
-		const updatedNode = { ...node };
+		result[path] = { ...node };
 
-		result[path] = updatedNode;
-
-		const children = byParent[node._id ?? ''] ?? [];
+		const children = byParent[node._id] ?? [];
 		for (let i = children.length - 1; i >= 0; i--) {
 			const child = children[i];
-			stack.push({
-				node: child,
-				path: `${path}/${child.name}`
-			});
+			stack.push({ node: child, path: `${path}/${child.name}` });
 		}
 	}
 
 	return result;
 }
 
-//import { ensureWidgetsInitialized } from "@src/widgets";
-
-async function processModule(content: string): Promise<{ schema?: Schema } | null> {
+export async function processModule(content: string): Promise<{ schema?: Schema } | null> {
 	try {
-		// Ensure widgets are initialized before processing module
-		await ensureWidgetsInitialized();
+		const exportMatch = content.match(/export\s+const\s+schema\s*=\s*/);
+		if (!exportMatch) {
+			logger.warn('No schema export found in module');
+			return null;
+		}
 
-		// Extract UUID from file content
-		const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{32})/i);
-		const uuid = uuidMatch ? uuidMatch[1] : null;
+		const startIdx = exportMatch.index! + exportMatch[0].length;
+		let braceCount = 0;
+		let inString = false;
+		let stringChar = '';
+		let endIdx = startIdx;
 
-		// Remove any import/export statements and extract the schema object
-		const cleanedContent = content
-			.replace(/import\s+.*?;/g, '') // remove import statements
-			.replace(/export\s+default\s+/, '') // remove export default
-			.replace(/export\s+const\s+/, 'const ') // handle export const
-			.trim();
+		for (let i = startIdx; i < content.length; i++) {
+			const char = content[i];
+			const prevChar = i > 0 ? content[i - 1] : '';
 
-		// Replace the global widgets before evaluating the schema
-		const modifiedContent = cleanedContent.replace(/globalThis\.widgets\.(\w+)\((.*?)\)/g, (match, widgetName, widgetConfig) => {
-			return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
-		});
+			if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
+				if (!inString) {
+					inString = true;
+					stringChar = char;
+				} else if (char === stringChar) {
+					inString = false;
+					stringChar = '';
+				}
+			}
 
-		// Create a safe evaluation context
+			if (!inString) {
+				if (char === '{') braceCount++;
+				if (char === '}') braceCount--;
+
+				if (braceCount === 0 && char === '}') {
+					endIdx = i + 1;
+					break;
+				}
+			}
+		}
+
+		const schemaContent = content.substring(startIdx, endIdx);
+		if (!schemaContent || schemaContent.trim() === '') {
+			logger.warn('Could not extract schema content');
+			return null;
+		}
+
+		await widgetRegistryService.initialize();
+		const widgetsMap = widgetRegistryService.getAllWidgets();
+
+		if (widgetsMap.size === 0) {
+			logger.warn('WidgetRegistryService not initialized yet. Cannot process module.');
+			return null;
+		}
+
+		const widgetsObject = Object.fromEntries(widgetsMap.entries());
+
 		const moduleContent = `
-				const module = {};
-				const exports = {};
-	      const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
-				(async function(module, exports) {
-					${modifiedContent}
-					return module.exports || exports;
-				})(module, exports);
-			`;
+			return (function() {
+				const widgets = globalThis.widgets;
+				const schema = ${schemaContent};
+				return schema;
+			})();
+		`;
 
-		// Create and execute the function with widgets as context
-		const moduleFunc = new Function('widgets', moduleContent);
-		const result = await moduleFunc(widgetProxy);
-
-		// If result is an object with fields, it's likely our schema
-		if (result && typeof result === 'object') {
-			return { schema: { ...result, _id: uuid } };
+		if (typeof globalThis !== 'undefined') {
+			(globalThis as { widgets?: Record<string, unknown> }).widgets = widgetsObject;
 		}
 
-		// If we got here, try to find a schema object in the content
-		const schemaMatch = cleanedContent.match(/(?:const|let|var)\s+(\w+)\s*=\s*({[\s\S]*?});/);
-		if (schemaMatch && schemaMatch[2]) {
-			try {
-				// Evaluate just the schema object
-				const schemaFunc = new Function(`return ${schemaMatch[2]}`);
-				const schema = schemaFunc();
-				return { schema: { ...schema, _id: uuid } };
-			} catch (error) {
-				logger.warn('Failed to evaluate schema object:', error);
-			}
+		const moduleFunc = new Function(moduleContent);
+		const result = moduleFunc();
+
+		if (typeof globalThis !== 'undefined') {
+			delete (globalThis as { widgets?: Record<string, unknown> }).widgets;
 		}
 
-		// Try to match export const/let/var schema
-		const schemaExportMatch = cleanedContent.match(/(?:export\s+(?:const|let|var)\s+)?(\w+)\s*=\s*({[\s\S]*?});/);
-		if (schemaExportMatch && schemaExportMatch[2]) {
-			try {
-				const schemaFunc = new Function(`return ${schemaExportMatch[2]}`);
-				const schema = schemaFunc();
-				return { schema: { ...schema, _id: uuid } };
-			} catch (error) {
-				logger.warn('Failed to evaluate schema object:', error);
-			}
+		if (result && typeof result === 'object' && 'fields' in result && '_id' in result) {
+			logger.debug(`Processed collection: \x1b[33m${result._id}\x1b[0m`);
+			return { schema: result as Schema };
 		}
 
-		// Try to match export default schema
-		const schemaDefaultExportMatch = cleanedContent.match(/export\s+default\s+({[\s\S]*?});/);
-		if (schemaDefaultExportMatch && schemaDefaultExportMatch[1]) {
-			try {
-				const schemaFunc = new Function(`return ${schemaDefaultExportMatch[1]}`);
-				const schema = schemaFunc();
-				return { schema: { ...schema, _id: uuid } };
-			} catch (error) {
-				logger.warn('Failed to evaluate schema object:', error);
-			}
-		}
-
+		logger.warn(`Module processed but no fields or _id found. Result type: ${typeof result}`);
 		return null;
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Failed to process module:', { error: errorMessage });
+		logger.error('Failed to process module:', { error: errorMessage, stack: err instanceof Error ? err.stack : undefined });
 		return null;
 	}
 }
-
-export { processModule };

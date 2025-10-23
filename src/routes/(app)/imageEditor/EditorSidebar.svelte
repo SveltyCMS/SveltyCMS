@@ -1,5 +1,5 @@
 <!--
-@file: /src/routes/(app)/imageEditor/EditorSidebar.svelte
+@file: src/routes/(app)/imageEditor/components/EditorSidebar.svelte
 @component
 **Left sidebar with Pintura-inspired vertical tool layout**
 Provides easy access to all editing tools with clean, minimal design

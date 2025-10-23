@@ -14,7 +14,7 @@
 
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Permissions
 
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	}
 

@@ -1,6 +1,7 @@
 /**
  * @file src/routes/api/collections/modifyRequest.ts
- * @description Utility function for modifying request data based on field widgets.
+ * @description Utility function for modifyin							const entryDuration = performance.now() - entryStart;
+							logger.trace(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);request data based on field widgets.
  *
  * This module provides functionality to:
  * - Process each field in a collection schema
@@ -19,13 +20,13 @@
  * before final processing or database operations.
  */
 
-import widgets from '@widgets';
 import { getFieldName } from '@utils/utils';
+import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Types
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
+import type { FieldInstance } from '@src/content/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
-import type { Field } from '@src/content/types';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -44,7 +45,7 @@ interface EntryData {
 // Define the parameters for the function
 interface ModifyRequestParams {
 	data: EntryData[];
-	fields: Field[];
+	fields: FieldInstance[];
 	collection: CollectionModel;
 	user: User;
 	type: string;
@@ -56,8 +57,8 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 	const start = performance.now();
 	try {
 		// User access is already validated by hooks
-		logger.debug(
-			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m, tenant: \x1b[34m${tenantId}\x1b[0m`
+		logger.trace(
+			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${(collection as unknown as { id?: string }).id ?? 'unknown'}\x1b[0m, tenant: \x1b[34m${tenantId}\x1b[0m`
 		);
 
 		for (const field of fields) {
@@ -65,9 +66,11 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
-			logger.debug(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
+			logger.trace(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 
-			if (widget && 'modifyRequest' in widget) {
+			// Resolve potential modifyRequest handler in a type-safe way
+			const modifyFn = (widget as unknown as { modifyRequest?: unknown })?.modifyRequest;
+			if (modifyFn !== undefined && modifyFn !== null && typeof modifyFn === 'function') {
 				data = await Promise.all(
 					data.map(async (entry: EntryData, index: number) => {
 						const entryStart = performance.now();
@@ -82,16 +85,17 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 								}
 							};
 
-							logger.debug(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
-
+							logger.trace(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
 							try {
-								await widget.modifyRequest({
-									collection,
-									field,
-									data: dataAccessor,
-									user,
-									type,
-									tenantId, // Pass tenantId to the widget
+								// Call widget.modifyRequest with structural casts to avoid `any` while remaining permissive
+								const modify = modifyFn as (args: Record<string, unknown>) => Promise<unknown> | unknown;
+								await modify({
+									collection: collection as unknown as Record<string, unknown>,
+									field: field as unknown as Record<string, unknown>,
+									data: dataAccessor as unknown as Record<string, unknown>,
+									user: user as unknown as Record<string, unknown>,
+									type: type as unknown as string,
+									tenantId: tenantId as unknown as string | undefined,
 									id: entryCopy._id,
 									meta_data: entryCopy.meta_data
 								});
@@ -117,7 +121,7 @@ export async function modifyRequest({ data, fields, collection, user, type, tena
 				);
 
 				const fieldDuration = performance.now() - fieldStart;
-				logger.debug(`Field \x1b[34m${fieldName}\x1b[0m processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
+				logger.trace(`Field \x1b[34m${fieldName}\x1b[0m processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
 			} else {
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}

@@ -42,32 +42,20 @@ for the image editor canvas with responsive behavior.
 		<div class="empty-state">
 			<div class="empty-state-content">
 				<div class="empty-icon">
-					<iconify-icon
-						icon="mdi:image-plus"
-						width="48"
-						class="text-surface-400 dark:text-surface-500"
-					></iconify-icon>
+					<iconify-icon icon="mdi:image-plus" width="48" class="text-surface-400 dark:text-surface-500"></iconify-icon>
 				</div>
 				<div class="empty-text">
-					<h3 class="text-lg font-medium text-surface-700 dark:text-surface-300">
-						No Image Selected
-					</h3>
-					<p class="text-sm text-surface-500 dark:text-surface-400">
-						Upload an image to start editing
-					</p>
+					<h3 class="text-lg font-medium text-surface-700 dark:text-surface-300">No Image Selected</h3>
+					<p class="text-sm text-surface-500 dark:text-surface-400">Upload an image to start editing</p>
 				</div>
 				<div class="empty-hints">
 					<div class="hint-item">
 						<iconify-icon icon="mdi:gesture-tap" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-400">
-							Drag & drop supported
-						</span>
+						<span class="text-xs text-surface-500 dark:text-surface-400"> Drag & drop supported </span>
 					</div>
 					<div class="hint-item">
 						<iconify-icon icon="mdi:file-image" width="16" class="text-surface-400"></iconify-icon>
-						<span class="text-xs text-surface-500 dark:text-surface-400">
-							PNG, JPG, WebP, GIF
-						</span>
+						<span class="text-xs text-surface-500 dark:text-surface-400"> PNG, JPG, WebP, GIF </span>
 					</div>
 				</div>
 			</div>
@@ -81,11 +69,7 @@ for the image editor canvas with responsive behavior.
 	{#if hasImage && !mounted}
 		<div class="loading-overlay">
 			<div class="loading-spinner">
-				<iconify-icon
-					icon="mdi:loading"
-					width="32"
-					class="animate-spin text-primary-500"
-				></iconify-icon>
+				<iconify-icon icon="mdi:loading" width="32" class="animate-spin text-primary-500"></iconify-icon>
 			</div>
 			<span class="text-sm text-surface-600 dark:text-surface-300">Loading image...</span>
 		</div>
@@ -94,9 +78,9 @@ for the image editor canvas with responsive behavior.
 
 <style>
 	.editor-canvas-wrapper {
-		@apply flex-1 relative;
+		@apply relative flex-1;
 		@apply border border-surface-200;
-		@apply rounded-lg overflow-hidden;
+		@apply overflow-hidden rounded-lg;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 400px;
@@ -108,49 +92,45 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.canvas-container {
-		@apply w-full h-full;
+		@apply h-full w-full;
 		background-color: rgb(var(--color-surface-100) / 1);
 		/* Checkered pattern for transparency visualization */
 		background-image:
-			linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%),
-			linear-gradient(-45deg, rgba(0,0,0,0.05) 25%, transparent 25%),
-			linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.05) 75%),
-			linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.05) 75%);
+			linear-gradient(45deg, rgba(0, 0, 0, 0.05) 25%, transparent 25%), linear-gradient(-45deg, rgba(0, 0, 0, 0.05) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.05) 75%), linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.05) 75%);
 		background-size: 20px 20px;
-		background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+		background-position:
+			0 0,
+			0 10px,
+			10px -10px,
+			-10px 0px;
 	}
 
 	:global(.dark) .canvas-container {
 		background-color: rgb(var(--color-surface-800) / 1);
 		background-image:
-			linear-gradient(45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
-			linear-gradient(-45deg, rgba(255,255,255,0.03) 25%, transparent 25%),
-			linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.03) 75%),
-			linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.03) 75%);
+			linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%), linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+			linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%), linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%);
 	}
 
 	.empty-state {
 		@apply absolute inset-0 flex items-center justify-center;
 		@apply pointer-events-none z-10;
-		background: linear-gradient(to bottom right,
-			rgb(var(--color-surface-50) / 0.95),
-			rgb(var(--color-surface-100) / 0.95));
+		background: linear-gradient(to bottom right, rgb(var(--color-surface-50) / 0.95), rgb(var(--color-surface-100) / 0.95));
 	}
 
 	:global(.dark) .empty-state {
-		background: linear-gradient(to bottom right,
-			rgb(var(--color-surface-900) / 1),
-			rgb(var(--color-surface-800) / 1));
+		background: linear-gradient(to bottom right, rgb(var(--color-surface-900) / 1), rgb(var(--color-surface-800) / 1));
 	}
 
 	.empty-state-content {
-		@apply flex flex-col items-center gap-6 text-center p-8;
+		@apply flex flex-col items-center gap-6 p-8 text-center;
 		@apply max-w-md;
 	}
 
 	.empty-icon {
-		@apply flex items-center justify-center w-20 h-20;
-		@apply bg-surface-200 dark:bg-surface-700 rounded-full;
+		@apply flex h-20 w-20 items-center justify-center;
+		@apply rounded-full bg-surface-200 dark:bg-surface-700;
 		@apply ring-4 ring-surface-300 dark:ring-surface-600;
 	}
 
@@ -163,23 +143,23 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.hint-item {
-		@apply flex items-center gap-2 justify-center;
+		@apply flex items-center justify-center gap-2;
 	}
 
 	.loading-overlay {
 		@apply absolute inset-0 flex flex-col items-center justify-center gap-3;
-		@apply bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-sm;
+		@apply bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80;
 	}
 
 	.loading-spinner {
-		@apply flex items-center justify-center w-12 h-12;
-		@apply bg-white dark:bg-surface-800 rounded-full shadow-lg;
+		@apply flex h-12 w-12 items-center justify-center;
+		@apply rounded-full bg-white shadow-lg dark:bg-surface-800;
 	}
 
 	/* Responsive adjustments */
 	@media (max-width: 768px) {
 		.editor-canvas-wrapper {
-			@apply rounded-none border-0 border-t border-b;
+			@apply rounded-none border-0 border-b border-t;
 			min-height: 50vh;
 		}
 
@@ -188,7 +168,7 @@ for the image editor canvas with responsive behavior.
 		}
 
 		.empty-icon {
-			@apply w-16 h-16;
+			@apply h-16 w-16;
 		}
 
 		.empty-text h3 {

@@ -13,7 +13,7 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
 
@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			logger.error(`${endpoint} - Tenant ID is missing in a multi-tenant setup.`);
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
@@ -69,13 +69,16 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		}
 
 		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		const collectionName = `collection_${schema._id}`;
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 		const result = await dbAdapter.crud.findOne(collectionName, query);
-
 		if (!result.success) {
 			logger.error(`${endpoint} - Database findOne failed`, {
 				collection: schema._id,
@@ -161,7 +164,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
 
@@ -201,10 +204,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		const collectionName = `collection_${schema._id}`;
 		// First verify the entry exists and belongs to the current tenant
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 
@@ -251,7 +258,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Could not identify the tenant for this request.');
 		}
 
@@ -261,11 +268,15 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		}
 
 		const dbAdapter = locals.dbAdapter;
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
 		const normalizedCollectionId = normalizeCollectionName(schema._id);
 
 		// First verify the entry exists and belongs to the current tenant
 		const query: { _id: string; tenantId?: string } = { _id: params.entryId };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		}
 

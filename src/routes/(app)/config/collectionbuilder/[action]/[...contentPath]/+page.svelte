@@ -14,7 +14,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { mode, collection } from '@src/stores/collectionStore.svelte';
+	import { collection, setCollection } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -29,7 +29,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 
-	import { initializeWidgets } from '@src/widgets';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Create local tabSet variable for binding
 	let localTabSet = $state(tabSet.value);
@@ -44,8 +44,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		localTabSet = tabSet.value;
 	});
 
-	import type { User } from '@src/auth/types';
-	import type { Schema } from '@src/content/types';
+	import type { User } from '@src/databases/auth/types';
+	import type { FieldInstance, Schema } from '@src/content/types';
 
 	const modalStore = getModalStore();
 
@@ -55,7 +55,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	interface Props {
 		data: {
-			collection: Schema & { module: string | undefined };
+			collection?: Schema;
 			contentLanguage: string;
 			user: User;
 		};
@@ -63,43 +63,38 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	const { data }: Props = $props();
 
-	$effect(() => {
-		// Correctly using $effect here
-		if (data.collection?.name && (!collection.value || data.collection.path !== collection.value.path)) {
+	let originalName = $state('');
+	onMount(() => {
+		if (action === 'edit') {
 			loadCollection();
+		} else {
+			setCollection(null);
+			originalName = '';
 		}
 	});
 
-	async function loadCollection() {
-		if (action == 'edit') collection.set(data.collection);
-		else {
-			// Set to null for new collections as _id is required in Schema
-			collection.set(null);
-			/* Potential alternative if you need a placeholder object:
-			collection.set({
-				_id: '', // Use an empty string or generate a temporary client-side ID if needed later
-				name: '',
-				icon: '',
-				description: '',
-				status: 'unpublished',
-				slug: '',
-				fields: []
-			});
-			*/
+	function loadCollection() {
+		if (data.collection) {
+			setCollection(data.collection);
+			originalName = String(data.collection.name || '');
+		} else {
+			console.error('Collection data not found for editing.');
+			// Optionally, redirect or show a proper error message
 		}
 	}
 
 	// Default widget data (tab1)
-	let name = $derived(mode.value == 'edit' ? (collection.value ? collection.value.name : collectionPath) : collectionPath);
+	// Unwrap the `collection` store value for TS and template usage
+	let collectionValue = $derived(collection.value);
 
 	// Page title
 	let pageTitle = $state('');
 	let highlightedPart = $state('');
 
-	// Effect to update page title based on mode and collection name
+	// Effect to update page title based on action and collection name
 	$effect.root(() => {
-		// Set the base page title according to the mode
-		if (mode.value === 'edit') {
+		// Set the base page title according to the action
+		if (action === 'edit') {
 			pageTitle = `Edit ${collectionPath} Collection`;
 		} else if (collectionPath) {
 			pageTitle = `Create ${collectionPath} Collection`;
@@ -119,7 +114,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	function handlePageTitleUpdate(title: string) {
 		highlightedPart = title;
 		collectionPath = title;
-		if (mode.value === 'edit') {
+		if (action === 'edit') {
 			pageTitle = `Edit ${highlightedPart} Collection`;
 		} else {
 			pageTitle = `Create ${highlightedPart} Collection`;
@@ -131,7 +126,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		console.log(collection.value, name, page.params);
+		const currentCollection = collection.value;
+		const currentName = String(currentCollection?.name || '');
+
+		console.log(currentCollection, currentName, page.params);
 
 		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
@@ -141,25 +139,25 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		// Prepare form data
 		const data =
-			mode.value == 'edit'
+			action == 'edit'
 				? obj2formData({
-						originalName: collection.value?.name,
-						name: name,
-						icon: collection.value?.icon,
-						status: collection.value?.status,
-						slug: collection.value?.slug,
-						description: collection.value?.description,
-						permissions: collection.value?.permissions,
-						fields: collection.value?.fields
+						originalName: originalName,
+						name: currentName,
+						icon: currentCollection?.icon,
+						status: currentCollection?.status,
+						slug: currentCollection?.slug,
+						description: currentCollection?.description,
+						permissions: currentCollection?.permissions,
+						fields: currentCollection?.fields
 					})
 				: obj2formData({
-						name: name,
-						icon: collection.value?.icon,
-						status: collection.value?.status,
-						slug: collection.value?.slug,
-						description: collection.value?.description,
-						permissions: collection.value?.permissions,
-						fields: collection.value?.fields
+						name: currentName,
+						icon: currentCollection?.icon,
+						status: currentCollection?.status,
+						slug: currentCollection?.slug,
+						description: currentCollection?.description,
+						permissions: currentCollection?.permissions,
+						fields: currentCollection?.fields
 					});
 
 		// Send the form data to the server
@@ -171,11 +169,16 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		if (resp.data.status === 200) {
 			showToast("Collection Saved. You're all set to build your content.", 'success');
+			if (originalName && originalName !== currentName && currentName) {
+				const newPath = page.url.pathname.replace(originalName, currentName);
+				goto(newPath);
+			}
 		}
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', collection.value?.name);
+		const currentCollection = collection.value;
+		console.log('Delete collection:', currentCollection?.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -184,7 +187,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collection.value?.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: String(currentCollection?.name || '') }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}
@@ -206,7 +209,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	onMount(() => {
 		// Set the initial tab
-		initializeWidgets();
+		widgetStoreActions.initializeWidgets();
 		tabSet.set(0);
 	});
 </script>
@@ -222,7 +225,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 </div>
 
 <div class="wrapper">
-	{#if mode.value == 'edit'}
+	{#if action == 'edit'}
 		<div class="flex justify-center gap-3">
 			<button
 				type="button"
@@ -269,9 +272,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		<!-- Tab Panels -->
 		{#if tabSet.value === 0}
-			<CollectionForm data={collection.value} {handlePageTitleUpdate} />
+			<CollectionForm data={collectionValue} {handlePageTitleUpdate} />
 		{:else if tabSet.value === 1}
-			<CollectionWidget fields={collection.value?.fields} {handleCollectionSave} />
+			<CollectionWidget fields={collectionValue?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

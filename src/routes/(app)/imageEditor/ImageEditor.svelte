@@ -1,5 +1,5 @@
 <!--
-@file: /src/routes/(app)/imageEditor/ImageEditor.svelte
+@file: src/routes/(app)/imageEditor/ImageEditor.svelte
 @component
 **Main reusable Image Editor component with Pintura-inspired UX**
 A comprehensive image editing interface with left sidebar tools, responsive design,

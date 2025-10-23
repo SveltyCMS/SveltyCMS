@@ -1,74 +1,25 @@
 /**
-@file src/widgets/core/checkbox/types.ts
-@description - checkbox widget types
-*/
-
-// Components
-import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@root/src/auth';
+ * @file src/widgets/core/checkbox/types.ts
+ * @description Type definitions for the Checkbox widget.
+ */
 
 /**
- * Defines Checkbox widget Parameters
+ * Defines the properties unique to the Checkbox widget.
  */
-export type Params = {
-	// default required parameters
-	label: string;
-	display?: DISPLAY;
-	db_fieldName?: string;
-	widget?: unknown;
-	required?: boolean;
-	translated?: boolean;
-	icon?: string;
-	helper?: string;
-	width?: number;
+export interface CheckboxProps {
+	/**
+	 * Sets the color of the checkbox.
+	 * @default 'primary'
+	 */
+	color?: 'primary' | 'secondary' | 'accent';
+	/**
+	 * Sets the size of the checkbox.
+	 * @default 'md'
+	 */
+	size?: 'sm' | 'md' | 'lg';
 
-	// Permissions
-	permissions?: Permission[];
-
-	// Widget Specific parameters
-	color?: string;
-	size?: number;
-};
-
-/**
- * Defines Checkbox GuiSchema
- */
-export const GuiSchema = {
-	label: { widget: Input, required: true },
-	display: { widget: Input, required: true },
-	db_fieldName: { widget: Input, required: true },
-	required: { widget: Toggles, required: false },
-	translated: { widget: Toggles, required: false },
-	icon: { widget: IconifyPicker, required: false },
-	width: { widget: Input, required: false },
-
-	// Permissions
-	permissions: { widget: PermissionsSetting, required: false },
-
-	// Widget Specific parameters
-	color: { widget: Input, required: false },
-	size: { widget: Input, required: false }
-};
-
-/**
- * Define Checkbox GraphqlSchema function
- */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
-	// Use the sanitized field name as the type ID
-	const typeID = label;
-
-	// Return an object containing the type name and the GraphQL schema
-	return {
-		typeID: typeID,
-		graphql: /* GraphQL */ `
-		type ${typeID} {
-			en: String
-		}
-        `
-	};
-};
+	/**
+	 * Allow additional widget properties
+	 */
+	[key: string]: unknown;
+}

@@ -1,0 +1,773 @@
+---
+path: 'docs/api/GraphQL_API.mdx'
+title: 'GraphQL API'
+description: 'Complete GraphQL API reference for querying and mutating data in SveltyCMS.'
+order: 11
+icon: 'mdi:graphql'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'graphql'
+  - 'query'
+  - 'mutation'
+---
+
+# GraphQL API
+
+## Overview
+
+The GraphQL API provides a flexible query language for accessing and manipulating data in SveltyCMS. It supports collections, users, media, and custom queries with permission-based access control.
+
+**Endpoint:** `/api/graphql`
+
+## Authentication
+
+GraphQL endpoint requires authentication:
+
+```http
+Cookie: session=your-session-id
+```
+
+**Permissions:** Query-specific (checked per operation)
+
+---
+
+## GraphQL Playground
+
+Access the interactive GraphQL playground:
+
+```
+https://your-domain.com/api/graphql
+```
+
+The playground provides:
+
+- Schema explorer
+- Auto-completion
+- Query validation
+- Documentation browser
+
+---
+
+## Schema Overview
+
+### Base Types
+
+```graphql
+type Query {
+	# Collection queries
+	posts(filter: JSON, limit: Int, skip: Int): [Post]
+	post(id: ID!): Post
+
+	# User queries
+	users(filter: JSON, limit: Int): [User]
+	user(id: ID!): User
+	me: User
+
+	# Media queries
+	media(filter: JSON, limit: Int): [Media]
+	mediaFile(id: ID!): Media
+}
+
+type Mutation {
+	# Collection mutations
+	createPost(input: PostInput!): Post
+	updatePost(id: ID!, input: PostInput!): Post
+	deletePost(id: ID!): Boolean
+
+	# User mutations
+	createUser(input: UserInput!): User
+	updateUser(id: ID!, input: UserInput!): User
+	deleteUser(id: ID!): Boolean
+
+	# Media mutations
+	deleteMedia(id: ID!): Boolean
+}
+```
+
+---
+
+## Collection Queries
+
+### Query All Entries
+
+```graphql
+query GetPosts {
+	posts(limit: 10, filter: { status: "published" }) {
+		_id
+		title
+		content
+		author {
+			_id
+			username
+			email
+		}
+		createdAt
+		updatedAt
+	}
+}
+```
+
+**Response:**
+
+```json
+{
+	"data": {
+		"posts": [
+			{
+				"_id": "post123",
+				"title": "Hello World",
+				"content": "Post content...",
+				"author": {
+					"_id": "user123",
+					"username": "john_doe",
+					"email": "john@example.com"
+				},
+				"createdAt": "2025-10-05T14:30:00Z",
+				"updatedAt": "2025-10-05T14:30:00Z"
+			}
+		]
+	}
+}
+```
+
+### Query Single Entry
+
+```graphql
+query GetPost($id: ID!) {
+	post(id: $id) {
+		_id
+		title
+		content
+		status
+		author {
+			username
+		}
+	}
+}
+```
+
+**Variables:**
+
+```json
+{
+	"id": "post123"
+}
+```
+
+### Filter & Pagination
+
+```graphql
+query FilteredPosts {
+	posts(filter: { status: "published", author: "user123" }, limit: 20, skip: 0) {
+		_id
+		title
+		createdAt
+	}
+}
+```
+
+---
+
+## User Queries
+
+### Get Current User
+
+```graphql
+query Me {
+	me {
+		_id
+		username
+		email
+		role
+		permissions
+		createdAt
+	}
+}
+```
+
+### Query Users
+
+```graphql
+query GetUsers {
+	users(filter: { role: "editor" }, limit: 10) {
+		_id
+		username
+		email
+		role
+		blocked
+	}
+}
+```
+
+### Single User
+
+```graphql
+query GetUser($id: ID!) {
+	user(id: $id) {
+		_id
+		username
+		email
+		role
+		createdAt
+		lastLogin
+	}
+}
+```
+
+---
+
+## Media Queries
+
+### List Media
+
+```graphql
+query GetMedia {
+	media(limit: 20) {
+		_id
+		filename
+		url
+		mimeType
+		size
+		uploadedBy {
+			username
+		}
+		uploadedAt
+	}
+}
+```
+
+### Single Media File
+
+```graphql
+query GetMediaFile($id: ID!) {
+	mediaFile(id: $id) {
+		_id
+		filename
+		url
+		mimeType
+		size
+		width
+		height
+		metadata
+	}
+}
+```
+
+---
+
+## Mutations
+
+### Create Entry
+
+```graphql
+mutation CreatePost($input: PostInput!) {
+	createPost(input: $input) {
+		_id
+		title
+		content
+		status
+		createdAt
+	}
+}
+```
+
+**Variables:**
+
+```json
+{
+	"input": {
+		"title": "New Post",
+		"content": "Post content here...",
+		"status": "draft",
+		"author": "user123"
+	}
+}
+```
+
+### Update Entry
+
+```graphql
+mutation UpdatePost($id: ID!, $input: PostInput!) {
+	updatePost(id: $id, input: $input) {
+		_id
+		title
+		updatedAt
+	}
+}
+```
+
+**Variables:**
+
+```json
+{
+	"id": "post123",
+	"input": {
+		"title": "Updated Title",
+		"status": "published"
+	}
+}
+```
+
+### Delete Entry
+
+```graphql
+mutation DeletePost($id: ID!) {
+	deletePost(id: $id)
+}
+```
+
+---
+
+## Dynamic Collection Types
+
+SveltyCMS automatically generates GraphQL types for each collection:
+
+### Collection: Posts
+
+```graphql
+type Post {
+	_id: ID!
+	title: String!
+	content: String
+	excerpt: String
+	status: String
+	author: User
+	createdAt: DateTime
+	updatedAt: DateTime
+}
+
+input PostInput {
+	title: String!
+	content: String
+	excerpt: String
+	status: String
+	author: ID
+}
+```
+
+### Collection: Pages
+
+```graphql
+type Page {
+	_id: ID!
+	title: String!
+	slug: String!
+	content: String
+	template: String
+	createdAt: DateTime
+}
+
+input PageInput {
+	title: String!
+	slug: String!
+	content: String
+	template: String
+}
+```
+
+---
+
+## Permission-Based Access
+
+GraphQL queries respect user permissions:
+
+```typescript
+// Admin users
+query {
+  posts { _id title status } // ✅ All posts
+}
+
+// Editor users
+query {
+  posts { _id title status } // ✅ Published + own drafts
+}
+
+// Viewer users
+query {
+  posts { _id title } // ✅ Published only
+}
+```
+
+**Unauthorized Query:**
+
+```json
+{
+	"errors": [
+		{
+			"message": "Unauthorized: Insufficient permissions",
+			"extensions": {
+				"code": "FORBIDDEN"
+			}
+		}
+	]
+}
+```
+
+---
+
+## Caching
+
+GraphQL queries are cached for performance:
+
+```typescript
+// Cached queries (5 minutes)
+query GetPosts {
+  posts { _id title }
+}
+
+// Cache bypassed for authenticated requests with mutations
+mutation CreatePost {
+  createPost(input: {...}) { _id }
+}
+```
+
+**Cache Keys:**
+
+- Query hash + user ID
+- Collection name + filters
+- Tenant ID (multi-tenant mode)
+
+**Cache Invalidation:**
+
+- On mutations (create, update, delete)
+- Manual cache clear
+- TTL expiration (5 minutes default)
+
+---
+
+## Database-Agnostic Implementation
+
+GraphQL resolvers use database adapters:
+
+```typescript
+// Collections resolver
+const posts = await dbAdapter.crud.findMany('posts', filter, {
+	limit,
+	skip,
+	sort: { createdAt: -1 }
+});
+
+// User resolver
+const user = await dbAdapter.auth.user.findOne({ _id: userId });
+
+// Media resolver
+const media = await dbAdapter.media.files.getByFolder(folder);
+```
+
+**No direct database queries** - all through adapter interface.
+
+---
+
+## Multi-Tenancy Support
+
+When multi-tenant mode is enabled:
+
+- Queries automatically scoped to tenant
+- Users can only access own tenant data
+- Cross-tenant queries blocked
+
+**Tenant Filtering:**
+
+```typescript
+const baseFilter = MULTI_TENANT ? { tenantId } : {};
+const results = await dbAdapter.crud.findMany(collection, { ...filter, ...baseFilter });
+```
+
+---
+
+## Error Handling
+
+GraphQL errors follow standard format:
+
+```json
+{
+	"errors": [
+		{
+			"message": "Post not found",
+			"locations": [{ "line": 2, "column": 3 }],
+			"path": ["post"],
+			"extensions": {
+				"code": "NOT_FOUND",
+				"id": "post123"
+			}
+		}
+	],
+	"data": {
+		"post": null
+	}
+}
+```
+
+**Error Codes:**
+
+- `UNAUTHENTICATED` - Not logged in
+- `FORBIDDEN` - Insufficient permissions
+- `NOT_FOUND` - Resource doesn't exist
+- `BAD_USER_INPUT` - Invalid input data
+- `INTERNAL_SERVER_ERROR` - Server error
+
+---
+
+## Advanced Queries
+
+### Nested Relations
+
+```graphql
+query PostWithAuthorAndComments {
+	post(id: "post123") {
+		title
+		author {
+			username
+			email
+		}
+		comments {
+			_id
+			content
+			author {
+				username
+			}
+		}
+	}
+}
+```
+
+### Aggregations
+
+```graphql
+query PostStats {
+	postsCount: posts(filter: { status: "published" }) {
+		_id
+	}
+}
+```
+
+### Aliases
+
+```graphql
+query MultipleQueries {
+	published: posts(filter: { status: "published" }) {
+		_id
+		title
+	}
+	drafts: posts(filter: { status: "draft" }) {
+		_id
+		title
+	}
+}
+```
+
+---
+
+## Client Integration
+
+### JavaScript/Fetch
+
+```javascript
+async function queryGraphQL(query, variables = {}) {
+	const response = await fetch('/api/graphql', {
+		method: 'POST',
+		credentials: 'include',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({ query, variables })
+	});
+
+	const { data, errors } = await response.json();
+
+	if (errors) {
+		throw new Error(errors[0].message);
+	}
+
+	return data;
+}
+
+// Usage
+const data = await queryGraphQL(`
+  query GetPosts {
+    posts(limit: 10) {
+      _id
+      title
+    }
+  }
+`);
+```
+
+### Apollo Client
+
+```javascript
+import { ApolloClient, InMemoryCache, gql } from '@apollo/client';
+
+const client = new ApolloClient({
+	uri: '/api/graphql',
+	cache: new InMemoryCache(),
+	credentials: 'include'
+});
+
+const { data } = await client.query({
+	query: gql`
+		query GetPosts {
+			posts {
+				_id
+				title
+			}
+		}
+	`
+});
+```
+
+### urql
+
+```javascript
+import { createClient } from 'urql';
+
+const client = createClient({
+	url: '/api/graphql',
+	fetchOptions: {
+		credentials: 'include'
+	}
+});
+
+const result = await client
+	.query(
+		`
+  query GetPosts {
+    posts {
+      _id
+      title
+    }
+  }
+`
+	)
+	.toPromise();
+```
+
+---
+
+## Performance Optimization
+
+### Field Selection
+
+Only request fields you need:
+
+```graphql
+# ❌ Requesting all fields
+query {
+  posts {
+    _id
+    title
+    content
+    excerpt
+    author { ... }
+    createdAt
+    updatedAt
+  }
+}
+
+# ✅ Request only needed fields
+query {
+  posts {
+    _id
+    title
+  }
+}
+```
+
+### Pagination
+
+Use pagination for large datasets:
+
+```graphql
+query PaginatedPosts($limit: Int!, $skip: Int!) {
+	posts(limit: $limit, skip: $skip) {
+		_id
+		title
+	}
+}
+```
+
+### Batching
+
+Batch multiple queries:
+
+```graphql
+query BatchQuery {
+	posts {
+		_id
+		title
+	}
+	users {
+		_id
+		username
+	}
+	media {
+		_id
+		filename
+	}
+}
+```
+
+---
+
+## Security Best Practices
+
+### Input Validation
+
+All inputs are validated:
+
+```graphql
+mutation CreatePost($input: PostInput!) {
+	createPost(input: $input) {
+		_id
+	}
+}
+```
+
+### Query Depth Limiting
+
+Prevents deeply nested queries:
+
+```graphql
+# ❌ Too deep (blocked)
+query {
+  post {
+    author {
+      posts {
+        author {
+          posts { ... }
+        }
+      }
+    }
+  }
+}
+```
+
+### Rate Limiting
+
+GraphQL endpoint is rate limited:
+
+- 60 queries/minute per user
+- 100 mutations/hour per user
+
+---
+
+## Related Documentation
+
+- [Collection API](/docs/api/Collection_API.mdx)
+- [User Management API](/docs/api/User_Management_API.mdx)
+- [Media API](/docs/api/Media_API.mdx)
+- [GraphQL Best Practices](/docs/dev-guide/graphql-best-practices)
+
+---
+
+## Implementation Details
+
+For implementation details, see:
+
+- `src/routes/api/graphql/+server.ts` - Main GraphQL endpoint
+- `src/routes/api/graphql/resolvers/collections.ts` - Collection resolvers
+- `src/routes/api/graphql/resolvers/users.ts` - User resolvers
+- `src/routes/api/graphql/resolvers/media.ts` - Media resolvers

@@ -12,7 +12,7 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -30,6 +30,10 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		throw error(401, 'Unauthorized');
 	}
 
+	if (!dbAdapter) {
+		throw error(503, 'Service Unavailable: Database service is not properly initialized');
+	}
+
 	const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 	if (!schema) {
 		throw error(404, 'Collection not found');
@@ -38,7 +42,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	try {
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		// Verify the entry itself belongs to the current tenant before fetching its revisions.
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			const collectionName = `collection_${schema._id}`;
 			const entryResult = await dbAdapter.crud.findMany(collectionName, { _id: params.entryId, tenantId });
 			if (!entryResult.success || !entryResult.data || entryResult.data.length === 0) {

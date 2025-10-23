@@ -1,141 +1,155 @@
 <!--
 @component WidgetDashboard
-**Widget Management Dashboard Component for managing content widgets and marketplace integrations**
+**Widget Management Dashboard with 3-Pillar Architecture Support**
 
 Features:
-- Manage core widgets (always enabled)
-- Install/uninstall custom widgets from marketplace
-- Activate/deactivate installed widgets
-- View widget dependencies and requirements
-- Bulk operations for widget management
-- Collection validation against active widgets
-- Multi-tenant widget configuration
+- Full 3-pillar architecture visibility
+- Enhanced widget metadata display
+- Better filtering and search
+- Improved UX with widget cards
+- Multi-tenant support
+- Integrated marketplace tab
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import {
-		widgetStoreActions,
-		activeWidgets,
-		coreWidgets,
-		customWidgets,
-		widgetFunctions,
-		isLoading,
-		isWidgetCore,
-		canDisableWidget,
-		getWidgetDependencies
-	} from '@stores/widgetStore.svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import WidgetCard from './WidgetCard.svelte';
+	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 	// Props
 	let { data }: { data: any } = $props();
 
-	let validationResult = $state<{ valid: number; invalid: number; warnings: string[] } | null>(null);
-	let requiredWidgets = $state<string[]>([]);
-	let installedWidgets = $state<string[]>([]);
+	// State
+	let widgets = $state<any[]>([]);
+	let isLoading = $state(true);
 	let searchQuery = $state('');
-	let activeFilter = $state<'all' | 'core' | 'active' | 'installed' | 'issues'>('all');
+	let activeFilter = $state<'all' | 'core' | 'custom' | 'active' | 'inactive'>('all');
+	let activeTab = $state<'installed' | 'marketplace'>('installed');
+	let error = $state<string | null>(null);
 
 	// Get tenant info from page data or user session
 	const tenantId = $derived(data?.user?.tenantId || data?.tenantId || 'default-tenant');
 
-	// User permissions - check if user has admin role or widget management permissions
+	// User permissions
 	const userRole = $derived(data?.user?.role || 'user');
 	const userPermissions = $derived(data?.user?.permissions || []);
 	const canManageWidgets = $derived(
 		userRole === 'admin' || userRole === 'super-admin' || userPermissions.includes('manage_widgets') || userPermissions.includes('widget_management')
 	);
 
-	// Reactive variables using runes - properly access store values
-	const coreWidgetsList = $derived($coreWidgets || []);
-	const customWidgetsList = $derived($customWidgets || []);
-	const activeWidgetsList = $derived($activeWidgets || []);
-	const widgetFunctionsList = $derived($widgetFunctions || {});
-	const loading = $derived($isLoading);
+	// Computed stats
+	const stats = $derived({
+		total: widgets.length,
+		core: widgets.filter((w) => w.isCore).length,
+		custom: widgets.filter((w) => !w.isCore).length,
+		active: widgets.filter((w) => w.isActive).length,
+		inactive: widgets.filter((w) => !w.isActive).length,
+		withInput: widgets.filter((w) => w.pillar?.input?.exists).length,
+		withDisplay: widgets.filter((w) => w.pillar?.display?.exists).length
+	});
 
-	// Filtered widgets based on search query and active filter
-	const filteredCoreWidgets = $derived(
-		coreWidgetsList.filter((widget) => {
-			const matchesSearch = widget.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesFilter = activeFilter === 'all' || activeFilter === 'core';
-			return matchesSearch && matchesFilter;
-		})
-	);
-	const filteredCustomWidgets = $derived(
-		customWidgetsList.filter((widget) => {
-			const matchesSearch = widget.toLowerCase().includes(searchQuery.toLowerCase());
-			const isActive = activeWidgetsList.includes(widget);
-			const isInstalled = installedWidgets.includes(widget);
+	// Tooltip settings for metric cards
+	const totalTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'totalTooltip',
+		placement: 'top'
+	};
+	const activeTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'activeTooltip',
+		placement: 'top'
+	};
+	const coreTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'coreTooltip',
+		placement: 'top'
+	};
+	const customTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'customTooltip',
+		placement: 'top'
+	};
 
+	// Filtered widgets
+	const filteredWidgets = $derived(
+		widgets.filter((widget) => {
+			// Search filter
+			const matchesSearch =
+				searchQuery === '' ||
+				widget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				widget.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+			// Category filter
 			let matchesFilter = false;
 			switch (activeFilter) {
 				case 'all':
 					matchesFilter = true;
 					break;
+				case 'core':
+					matchesFilter = widget.isCore;
+					break;
+				case 'custom':
+					matchesFilter = !widget.isCore;
+					break;
 				case 'active':
-					matchesFilter = isActive;
+					matchesFilter = widget.isActive;
 					break;
-				case 'installed':
-					matchesFilter = isInstalled || isActive;
+				case 'inactive':
+					matchesFilter = !widget.isActive;
 					break;
-				case 'issues':
-					matchesFilter = validationResult?.warnings.some((w) => w.includes(widget)) || false;
-					break;
-				default:
-					matchesFilter = false;
 			}
+
 			return matchesSearch && matchesFilter;
 		})
 	);
 
-	onMount(async () => {
-		try {
-			// Initialize widgets from the store
-			await widgetStoreActions.initializeWidgets(tenantId);
+	onMount(() => {
+		loadWidgets();
 
-			// Load active widgets and other data
-			await loadActiveWidgets();
-			await loadAnalysisData();
-			await loadInstalledWidgets();
-		} catch (error) {
-			console.error('Failed to initialize widget dashboard:', error);
-		}
+		// Keyboard shortcuts
+		const handleKeyboard = (e: KeyboardEvent) => {
+			// Ctrl/Cmd + F: Focus search
+			if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+				e.preventDefault();
+				document.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
+			}
+			// Escape: Clear search
+			if (e.key === 'Escape' && searchQuery) {
+				searchQuery = '';
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyboard);
+
+		return () => {
+			window.removeEventListener('keydown', handleKeyboard);
+		};
 	});
 
-	async function loadActiveWidgets() {
+	async function loadWidgets() {
+		isLoading = true;
+		error = null;
+
 		try {
-			const response = await fetch('/api/widgets/active');
-			if (response.ok) {
-				const data = await response.json();
-				// The activeWidgets store will be updated through the widget store actions
-				console.info('Active widgets loaded:', data.widgets);
+			const response = await fetch(`/api/widgets/list?tenantId=${tenantId}`);
+
+			if (!response.ok) {
+				throw new Error(`Failed to load widgets: ${response.statusText}`);
 			}
-		} catch (error) {
-			console.error('Failed to load active widgets:', error);
-		}
-	}
 
-	async function loadAnalysisData() {
-		try {
-			// Get widgets required by collections
-			requiredWidgets = await widgetStoreActions.getRequiredWidgetsByCollections(tenantId);
+			const result = await response.json();
+			widgets = result.widgets || [];
 
-			// Validate collections against current widget state
-			validationResult = await widgetStoreActions.validateCollectionsAgainstWidgets(tenantId);
-		} catch (error) {
-			console.error('Failed to load analysis data:', error);
-		}
-	}
-
-	async function loadInstalledWidgets() {
-		try {
-			const response = await fetch(`/api/widgets/installed?tenantId=${tenantId}`);
-			if (response.ok) {
-				installedWidgets = await response.json();
-			}
-		} catch (error) {
-			console.error('Failed to load installed widgets:', error);
+			console.info('Loaded widgets:', {
+				total: widgets.length,
+				core: widgets.filter((w) => w.isCore).length,
+				custom: widgets.filter((w) => !w.isCore).length
+			});
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load widgets';
+			console.error('Error loading widgets:', err);
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -146,31 +160,37 @@ Features:
 		}
 
 		try {
-			const isActive = activeWidgetsList.includes(widgetName);
-			const newStatus = isActive ? 'inactive' : 'active';
+			const widget = widgets.find((w) => w.name === widgetName);
+			if (!widget) return;
 
-			await widgetStoreActions.updateWidgetStatus(widgetName, newStatus, tenantId);
+			const newStatus = !widget.isActive;
 
-			// Reload analysis data after status change
-			await loadAnalysisData();
-		} catch (error) {
-			console.error(`Failed to toggle widget ${widgetName}:`, error);
-			alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
-		}
-	}
+			const response = await fetch('/api/widgets/status', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Tenant-ID': tenantId
+				},
+				body: JSON.stringify({
+					widgetName,
+					isActive: newStatus
+				})
+			});
 
-	async function bulkActivateRequired() {
-		if (!canManageWidgets) {
-			alert('You do not have permission to manage widgets. Contact your administrator.');
-			return;
-		}
+			if (!response.ok) {
+				throw new Error(`Failed to update widget status: ${response.statusText}`);
+			}
 
-		try {
-			await widgetStoreActions.bulkActivateWidgets(requiredWidgets, tenantId);
-			await loadAnalysisData();
-		} catch (error) {
-			console.error('Failed to bulk activate required widgets:', error);
-			alert(`Error: ${error instanceof Error ? error.message : String(error)}`);
+			// Force refresh: Clear cache and reload widget store + widget list
+			// This ensures the UI is perfectly in sync with database
+			await widgetStoreActions.initializeWidgets(tenantId);
+			await loadWidgets();
+
+			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to update widget status';
+			console.error('Error toggling widget:', err);
+			alert(`Error: ${message}`);
 		}
 	}
 
@@ -180,52 +200,51 @@ Features:
 			return;
 		}
 
-		// Check if widget is currently active
-		if (activeWidgetsList.includes(widgetName)) {
-			alert('Cannot uninstall an active widget. Please deactivate it first.');
+		if (!confirm(`Are you sure you want to uninstall the widget "${widgetName}"?`)) {
 			return;
 		}
 
 		try {
-			const response = await fetch('/api/widgets/uninstall', {
+			const response = await fetch(`/api/widgets/uninstall`, {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-Tenant-ID': tenantId
 				},
-				body: JSON.stringify({ widgetName, tenantId })
+				body: JSON.stringify({ widgetName })
 			});
 
-			if (response.ok) {
-				await loadInstalledWidgets();
-				await widgetStoreActions.initializeWidgets(tenantId);
-				await loadAnalysisData();
-			} else {
-				const error = await response.text();
-				throw new Error(error);
+			if (!response.ok) {
+				throw new Error(`Failed to uninstall widget: ${response.statusText}`);
 			}
-		} catch (error) {
-			console.error(`Failed to uninstall widget ${widgetName}:`, error);
-			alert(`Error uninstalling widget: ${error instanceof Error ? error.message : String(error)}`);
-		}
-	}
 
-	function getWidgetIcon(widgetName: string): string {
-		// Get the widget function for this widget name
-		const widgetFunction = widgetFunctionsList[widgetName];
-		if (widgetFunction?.Icon) {
-			return widgetFunction.Icon;
+			// Reload widgets after uninstallation
+			await loadWidgets();
+			console.info(`Widget ${widgetName} uninstalled`);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to uninstall widget';
+			console.error('Error uninstalling widget:', err);
+			alert(`Error: ${message}`);
 		}
-
-		// Fallback to default icons based on widget type
-		return isWidgetCore(widgetName) ? 'mdi:puzzle' : 'mdi:puzzle-plus';
 	}
 </script>
 
-<div class="container mx-auto h-full max-h-screen space-y-6 overflow-y-auto p-4">
-	{#if loading}
+<div class="wrapper h-full max-h-screen space-y-6 overflow-y-auto p-4 pb-16">
+	{#if isLoading}
 		<div class="flex items-center justify-center p-8">
 			<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-			<span class="ml-3 text-lg">{m.loading_widgets()}</span>
+			<span class="ml-3 text-lg">Loading widgets...</span>
+		</div>
+	{:else if error}
+		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
+			<div class="flex items-start gap-3">
+				<iconify-icon icon="mdi:alert-circle" class="mt-1 text-xl text-red-600"></iconify-icon>
+				<div>
+					<h3 class="font-semibold text-red-800 dark:text-red-300">Error Loading Widgets</h3>
+					<p class="text-red-700 dark:text-red-400">{error}</p>
+					<button onclick={() => loadWidgets()} class="mt-2 rounded-lg bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"> Retry </button>
+				</div>
+			</div>
 		</div>
 	{:else}
 		<!-- Permission Notice -->
@@ -238,300 +257,255 @@ Features:
 						<p class="text-amber-700 dark:text-amber-400">
 							You have read-only access to widget management. Contact your administrator to request widget management permissions.
 						</p>
-						<p class="mt-1 text-sm text-amber-600 dark:text-amber-500">
-							Required role: <strong>admin</strong> or permission: <strong>manage_widgets</strong>
-						</p>
 					</div>
 				</div>
 			</div>
 		{/if}
 
-		<!-- Summary Cards -->
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+		<!-- Tab Navigation -->
+		<div class="flex gap-2 border-b border-gray-200 dark:border-gray-700">
 			<button
-				onclick={() => {
-					activeFilter = 'core';
-				}}
-				class="rounded bg-blue-50 p-4 text-left transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 {activeFilter ===
-				'core'
-					? 'ring-2 ring-blue-500'
-					: ''}"
+				onclick={() => (activeTab = 'installed')}
+				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'installed'
+					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
 			>
-				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:shield-check" class="text-2xl text-blue-600"></iconify-icon>
-					<div>
-						<h3 class="font-semibold text-blue-800 dark:text-blue-300">{m.core_widgets()}</h3>
-						<p class="text-2xl font-bold text-blue-600">{coreWidgetsList.length}</p>
-						<p class="text-sm text-blue-600">{m.always_enabled()}</p>
-					</div>
-				</div>
-			</button>
-
-			<button
-				onclick={() => {
-					activeFilter = 'active';
-				}}
-				class="rounded bg-green-50 p-4 text-left transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 {activeFilter ===
-				'active'
-					? 'ring-2 ring-green-500'
-					: ''}"
-			>
-				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:check-circle" class="text-2xl text-green-600"></iconify-icon>
-					<div>
-						<h3 class="font-semibold text-green-800 dark:text-green-300">{m.active_custom()}</h3>
-						<p class="text-2xl font-bold text-green-600">
-							{activeWidgetsList.filter((w) => !isWidgetCore(w)).length}
-						</p>
-						<p class="text-sm text-green-600">{m.currently_enabled()}</p>
-					</div>
-				</div>
-			</button>
-
-			<button
-				onclick={() => {
-					activeFilter = 'installed';
-				}}
-				class="rounded bg-yellow-50 p-4 text-left transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30 {activeFilter ===
-				'installed'
-					? 'ring-2 ring-yellow-500'
-					: ''}"
-			>
-				<div class="flex items-center gap-3">
-					<iconify-icon icon="mdi:download" class="text-2xl text-yellow-600"></iconify-icon>
-					<div>
-						<h3 class="font-semibold text-yellow-800 dark:text-yellow-300">{m.installed()}</h3>
-						<p class="text-2xl font-bold text-yellow-600">{customWidgetsList.length}</p>
-						<p class="text-sm text-yellow-600">{m.custom_widgets()}</p>
-					</div>
-				</div>
-			</button>
-
-			{#if validationResult}
-				<button
-					onclick={() => {
-						activeFilter = 'issues';
-					}}
-					class="rounded bg-red-50 p-4 text-left transition-all hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 {activeFilter ===
-					'issues'
-						? 'ring-2 ring-red-500'
-						: ''}"
-				>
-					<div class="flex items-center gap-3">
-						<iconify-icon icon="mdi:alert-circle" class="text-2xl text-red-600"></iconify-icon>
-						<div>
-							<h3 class="font-semibold text-red-800 dark:text-red-300">{m.issues()}</h3>
-							<p class="text-2xl font-bold text-red-600">{validationResult.invalid}</p>
-							<p class="text-sm text-red-600">{m.collections_with_issues()}</p>
-						</div>
-					</div>
-				</button>
-			{/if}
-		</div>
-
-		<!-- Active Filter Indicator -->
-		{#if activeFilter !== 'all'}
-			<div class="flex items-center justify-between rounded bg-blue-50 p-3 dark:bg-blue-900/20">
 				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:filter" class="text-blue-600"></iconify-icon>
-					<span class="text-sm font-medium text-blue-800 dark:text-blue-300">
-						Filtering by: {activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)} Widgets
+					<iconify-icon icon="mdi:puzzle" class="text-xl"></iconify-icon>
+					<span>Installed Widgets</span>
+				</div>
+			</button>
+			<button
+				onclick={() => (activeTab = 'marketplace')}
+				class="border-b-2 px-6 py-3 font-medium transition-colors {activeTab === 'marketplace'
+					? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+					: 'border-transparent text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}"
+			>
+				<div class="flex items-center gap-2">
+					<iconify-icon icon="mdi:store" class="text-xl"></iconify-icon>
+					<span>Marketplace</span>
+					<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+						Coming Soon
 					</span>
 				</div>
-				<button
-					onclick={() => {
-						activeFilter = 'all';
-					}}
-					class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-				>
-					Show All
-				</button>
-			</div>
-		{/if}
+			</button>
+		</div>
 
-		<!-- Required Widgets Alert -->
-		{#if requiredWidgets.length > 0}
-			<div class="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:bg-orange-900/20">
-				<div class="flex items-start gap-3">
-					<iconify-icon icon="mdi:alert" class="mt-1 text-xl text-orange-600"></iconify-icon>
-					<div class="flex-1">
-						<h3 class="font-semibold text-orange-800 dark:text-orange-300">{m.required_widgets()}</h3>
-						<p class="mb-3 text-orange-700 dark:text-orange-400">
-							{m.widgets_required_by_collections()}: {requiredWidgets.join(', ')}
-						</p>
-						{#if canManageWidgets}
-							<button onclick={bulkActivateRequired} class="rounded bg-orange-600 px-4 py-2 text-white hover:bg-orange-700">
-								{m.activate_all_required()}
+		{#if activeTab === 'installed'}
+			<!-- Summary Cards with Colored Backgrounds and Tooltips -->
+			<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+				<!-- Total Widgets -->
+				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+					<button
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
+						use:popup={totalTooltip}
+						aria-label="Information about total widgets"
+					>
+						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
+					</button>
+					<div class="flex items-center gap-3">
+						<iconify-icon icon="mdi:widgets" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
+						<div>
+							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Total</h3>
+							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.total}</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Active Widgets -->
+				<div class="relative rounded-lg bg-green-50 p-4 shadow-sm transition-all hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30">
+					<button
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-primary-500"
+						use:popup={activeTooltip}
+						aria-label="Information about active widgets"
+					>
+						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
+					</button>
+					<div class="flex items-center gap-3">
+						<iconify-icon icon="mdi:check-circle" class="text-2xl text-primary-500"></iconify-icon>
+						<div>
+							<h3 class="font-semibold text-primary-500">Active</h3>
+							<p class="text-2xl font-bold text-primary-500">{stats.active}</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Core Widgets -->
+				<div class="relative rounded-lg bg-blue-50 p-4 shadow-sm transition-all hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30">
+					<button
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-blue-600 dark:text-blue-400"
+						use:popup={coreTooltip}
+						aria-label="Information about core widgets"
+					>
+						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
+					</button>
+					<div class="flex items-center gap-3">
+						<iconify-icon icon="mdi:puzzle" class="text-2xl text-blue-600 dark:text-blue-400"></iconify-icon>
+						<div>
+							<h3 class="font-semibold text-blue-800 dark:text-blue-300">Core</h3>
+							<p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.core}</p>
+						</div>
+					</div>
+				</div>
+
+				<!-- Custom Widgets -->
+				<div
+					class="relative rounded-lg bg-yellow-50 p-4 shadow-sm transition-all hover:bg-yellow-100 dark:bg-yellow-900/20 dark:hover:bg-yellow-900/30"
+				>
+					<button
+						class="btn-icon btn-icon-sm absolute right-2 top-2 text-yellow-600 dark:text-yellow-400"
+						use:popup={customTooltip}
+						aria-label="Information about custom widgets"
+					>
+						<iconify-icon icon="mdi:information-outline" class="text-lg"></iconify-icon>
+					</button>
+					<div class="flex items-center gap-3">
+						<iconify-icon icon="mdi:puzzle-plus" class="text-2xl text-yellow-600 dark:text-yellow-400"></iconify-icon>
+						<div>
+							<h3 class="font-semibold text-yellow-800 dark:text-yellow-300">Custom</h3>
+							<p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.custom}</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Filters and Search -->
+			<div class="card variant-filled-surface mt-6 space-y-4 p-4">
+				<!-- Search and Sync Button Row -->
+				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+					<!-- Search -->
+					<div class="relative flex-1">
+						<iconify-icon icon="mdi:magnify" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></iconify-icon>
+						<input type="text" bind:value={searchQuery} placeholder="Search widgets... (Ctrl+F)" class="input py-2 pl-10 pr-10 dark:text-white" />
+						{#if searchQuery}
+							<button
+								onclick={() => (searchQuery = '')}
+								class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+								aria-label="Clear search"
+								title="Clear search (Esc)"
+							>
+								<iconify-icon icon="mdi:close-circle" class="text-lg"></iconify-icon>
 							</button>
-						{:else}
-							<span class="rounded bg-gray-300 px-4 py-2 text-gray-600" title="No permission to manage widgets">
-								{m.activate_all_required()}
-							</span>
 						{/if}
 					</div>
 				</div>
-			</div>
-		{/if}
 
-		<!-- Validation Warnings -->
-		{#if validationResult && validationResult.warnings.length > 0}
-			<div class="rounded border border-red-200 bg-red-50 p-4 dark:bg-red-900/20">
-				<div class="flex items-start gap-3">
-					<iconify-icon icon="mdi:alert-circle-outline" class="mt-1 text-xl text-red-600"></iconify-icon>
-					<div>
-						<h3 class="font-semibold text-red-800 dark:text-red-300">{m.validation_warnings()}</h3>
-						<ul class="mt-2 list-inside list-disc text-red-700 dark:text-red-400">
-							{#each validationResult.warnings as warning}
-								<li>{warning}</li>
-							{/each}
-						</ul>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Widget Management Content -->
-		<div class="py-4">
-			<!-- Search Bar -->
-			<div class="mb-4 flex items-center justify-between">
-				<h3 class="text-lg font-semibold">{m.widget_management()}</h3>
-				<div class="relative">
-					<input type="text" bind:value={searchQuery} placeholder="Search widgets..." class="input" />
-					<iconify-icon icon="mdi:magnify" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></iconify-icon>
-					{#if searchQuery}
+				<!-- Badges Counts -->
+				<div class="flex flex-wrap gap-2">
+					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter}
 						<button
-							onclick={() => (searchQuery = '')}
-							class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-							aria-label="Clear search"
+							onclick={() => (activeFilter = filter.value)}
+							class="btn {activeFilter === filter.value ? 'variant-filled-tertiary text-white' : 'variant-ghost-secondary '}"
+							aria-label="{filter.label} widgets ({filter.count})"
 						>
-							<iconify-icon icon="mdi:close"></iconify-icon>
+							<iconify-icon icon={filter.icon} class="text-lg"></iconify-icon>
+							<span>{filter.label}</span>
+							<span
+								class="rounded-full px-2 py-0.5 text-xs font-semibold {activeFilter === filter.value
+									? 'bg-blue-500 text-white'
+									: 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300'}"
+							>
+								{filter.count}
+							</span>
 						</button>
-					{/if}
+					{/each}
 				</div>
 			</div>
-
-			<!-- Installed/Active Widgets View -->
-			<div class="space-y-6">
-				<!-- Custom Widgets Grid -->
-				{#if filteredCustomWidgets.length === 0}
-					<div class="rounded-lg border-2 border-dashed border-gray-200 p-8 text-center">
-						<iconify-icon icon="mdi:widgets-outline" class="mx-auto mb-4 text-4xl text-gray-400"></iconify-icon>
-						{#if searchQuery}
-							<p class="text-gray-600">No widgets found matching "<strong>{searchQuery}</strong>"</p>
-							<button onclick={() => (searchQuery = '')} class="mt-2 text-blue-600 hover:text-blue-700">Clear search</button>
-						{:else}
-							<p class="text-gray-600">No custom widgets installed</p>
+			<!-- Widgets Grid - 2 Column Layout for Desktop -->
+			<!-- Widgets Grid - 2 Column Layout for Desktop -->
+			<div class="mb-12 grid grid-cols-1 gap-4 lg:grid-cols-2">
+				{#if filteredWidgets.length === 0}
+					<div
+						class="col-span-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800"
+					>
+						<iconify-icon icon="mdi:package-variant-closed" class="mx-auto text-6xl text-gray-400"></iconify-icon>
+						<h3 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">No Widgets Found</h3>
+						<p class="mt-2 text-gray-600 dark:text-gray-400">
+							{#if searchQuery}
+								No widgets match your search "<strong>{searchQuery}</strong>"
+							{:else if activeFilter !== 'all'}
+								No {activeFilter} widgets available
+							{:else}
+								No widgets match your criteria
+							{/if}
+						</p>
+						{#if searchQuery || activeFilter !== 'all'}
+							<button
+								onclick={() => {
+									searchQuery = '';
+									activeFilter = 'all';
+								}}
+								class="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+								aria-label="Clear all filters and search"
+							>
+								<iconify-icon icon="mdi:filter-remove" class="text-lg"></iconify-icon>
+								Clear All Filters
+							</button>
 						{/if}
 					</div>
 				{:else}
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						{#each filteredCustomWidgets as widgetName}
-							{@const dependencies = getWidgetDependencies(widgetName)}
-							{@const canDisable = canDisableWidget(widgetName)}
-							{@const isActive = activeWidgetsList.includes(widgetName)}
-
-							<div
-								class="rounded-lg border p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 {isActive
-									? 'border-green-200 bg-green-50 dark:bg-green-900/20'
-									: 'border-gray-200 bg-white dark:bg-gray-800'}"
-							>
-								<!-- Widget Header -->
-								<div class="flex items-start justify-between">
-									<div class="flex-1">
-										<div class="flex items-center gap-3">
-											<iconify-icon icon={getWidgetIcon(widgetName)} class="text-lg {isActive ? 'text-green-600' : 'text-yellow-600'}"></iconify-icon>
-											<span class="font-medium">{widgetName}</span>
-											<span
-												class="rounded px-2 py-1 text-xs font-medium {isActive ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}"
-											>
-												{isActive ? 'ACTIVE' : 'INSTALLED'}
-											</span>
-										</div>
-										{#if dependencies.length > 0}
-											<div class="mt-2 text-sm text-gray-600">
-												{m.depends_on()}: {dependencies.join(', ')}
-											</div>
-										{/if}
-										{#if !canDisable && isActive}
-											<div class="mt-2 text-sm text-orange-600">
-												{m.cannot_disable_dependency()}
-											</div>
-										{/if}
-									</div>
-								</div>
-
-								<!-- Widget Actions -->
-								<div class="mt-4 flex flex-wrap items-center gap-2">
-									{#if isActive}
-										{#if canDisable && canManageWidgets}
-											<button
-												onclick={() => toggleWidget(widgetName)}
-												class="rounded bg-yellow-100 px-3 py-1 text-sm text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-200"
-											>
-												{m.deactivate()}
-											</button>
-										{:else if !canManageWidgets}
-											<span class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-500" title="No permission to manage widgets">
-												{m.deactivate()}
-											</span>
-										{/if}
-									{:else if canManageWidgets}
-										<button
-											onclick={() => toggleWidget(widgetName)}
-											class="rounded bg-green-100 px-3 py-1 text-sm text-green-700 hover:bg-green-200 dark:bg-green-800 dark:text-green-200"
-										>
-											{m.activate()}
-										</button>
-									{:else}
-										<span class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-500" title="No permission to manage widgets">
-											{m.activate()}
-										</span>
-									{/if}
-
-									{#if canManageWidgets}
-										<button
-											onclick={() => uninstallWidget(widgetName)}
-											class="rounded bg-red-100 px-3 py-1 text-sm text-red-700 hover:bg-red-200 dark:bg-red-800 dark:text-red-200 {isActive
-												? 'cursor-not-allowed opacity-50'
-												: ''}"
-											disabled={isActive}
-											title={isActive ? 'Deactivate widget first before uninstalling' : 'Uninstall widget'}
-										>
-											{m.uninstall()}
-										</button>
-									{:else}
-										<span class="rounded bg-gray-100 px-3 py-1 text-sm text-gray-500" title="No permission to manage widgets">
-											{m.uninstall()}
-										</span>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
+					{#each filteredWidgets as widget (widget.name)}
+						<WidgetCard {widget} onToggle={toggleWidget} onUninstall={uninstallWidget} canManage={canManageWidgets} />
+					{/each}
 				{/if}
-
-				<!-- Core Widgets Info Section (Collapsible) -->
-				<div class="mt-6">
-					<details class="group">
-						<summary class="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-50 p-3 font-medium hover:bg-blue-100 dark:bg-blue-900/20">
-							<iconify-icon icon="mdi:shield-check" class="text-blue-600"></iconify-icon>
-							{m.core_widgets()} ({coreWidgetsList.length})
-							<iconify-icon icon="mdi:chevron-down" class="ml-auto transition-transform group-open:rotate-180"></iconify-icon>
-						</summary>
-						<div class="mt-3 grid grid-cols-2 gap-2 md:grid-cols-2">
-							{#each filteredCoreWidgets as widgetName}
-								<div class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-gray-700">
-									<div class="flex items-center gap-3">
-										<iconify-icon icon={getWidgetIcon(widgetName)} class="text-lg text-blue-600"></iconify-icon>
-										<span class="font-medium">{widgetName}</span>
-									</div>
-									<span class="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-600"> CORE </span>
-								</div>
-							{/each}
+			</div>
+		{:else}
+			<!-- Marketplace Tab -->
+			<div class="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+				<div class="mx-auto max-w-md">
+					<iconify-icon icon="mdi:store" class="mx-auto text-6xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">Marketplace Coming Soon</h3>
+					<p class="mt-2 text-gray-600 dark:text-gray-400">
+						The Widget Marketplace will allow you to discover, install, and manage premium and community widgets to extend your SveltyCMS
+						functionality.
+					</p>
+					<div class="mt-6 space-y-2 text-left">
+						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>Browse hundreds of widgets across multiple categories</span>
 						</div>
-					</details>
+						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>One-click installation and automatic updates</span>
+						</div>
+						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>Community ratings and reviews</span>
+						</div>
+						<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+							<iconify-icon icon="mdi:check-circle" class="mt-0.5 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<span>Support for both free and premium widgets</span>
+						</div>
+					</div>
+					<button
+						disabled
+						class="mt-6 cursor-not-allowed rounded-lg bg-gray-300 px-6 py-3 font-medium text-gray-500 dark:bg-gray-700 dark:text-gray-500"
+					>
+						Coming in Future Update
+					</button>
 				</div>
 			</div>
-		</div>
+		{/if}
 	{/if}
+</div>
+
+<!-- Tooltip Popups for Metric Cards - Uniform Dark/Light Theme -->
+<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="totalTooltip">
+	<p class="text-sm">All registered widgets in the system (core + custom)</p>
+	<div class="variant-filled arrow"></div>
+</div>
+
+<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="activeTooltip">
+	<p class="text-sm">Widgets currently enabled and available for use in collections</p>
+	<div class="variant-filled arrow"></div>
+</div>
+
+<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="coreTooltip">
+	<p class="text-sm">Essential system widgets that are always active and cannot be disabled</p>
+	<div class="variant-filled arrow"></div>
+</div>
+
+<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="customTooltip">
+	<p class="text-sm">Optional widgets that can be toggled on/off as needed</p>
+	<div class="variant-filled arrow"></div>
 </div>

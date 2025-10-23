@@ -12,6 +12,7 @@
  */
 
 import type { PageServerLoad } from './$types';
+import { redirect } from '@sveltejs/kit'; // <-- FIXED: Added missing import
 
 // System Logges
 import { logger } from '@utils/logger.svelte';
@@ -27,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	// Log successful authentication
-	logger.debug(`User authenticated successfully: ${user._id}`);
+	logger.debug(`User authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
 
 	// Return user data
 	return {

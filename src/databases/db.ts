@@ -8,8 +8,6 @@
  * - Establishing database connections with a retry mechanism
  * - Managing initialization of authentication models, media models, and collection models
  * - Setting up default roles and permissions
- * - Configuring Google OAuth2 client if credentials are provided
- *
  * Multi-Tenancy Note:
  * This file handles the one-time global startup of the server. Tenant-specific
  * data scoping is handled by the API endpoints and server hooks that use the
@@ -17,43 +15,215 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
 
-// MongoDB
-import { connectToMongoDB } from './mongodb/dbconnect';
+// Handle private config that might not exist during setup
+let privateEnv: any = null; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// Function to load private config when needed
+async function loadPrivateConfig(forceReload = false) {
+	if (privateEnv && !forceReload) return privateEnv;
+
+	try {
+		logger.debug('Loading \x1b[34m/config/private.ts\x1b[0m configuration...');
+		const module = await import('@root/config/private');
+		privateEnv = module.privateEnv;
+		logger.debug('Private config loaded successfully', {
+			hasConfig: !!privateEnv,
+			dbType: privateEnv?.DB_TYPE,
+			dbHost: privateEnv?.DB_HOST ? '***' : 'missing'
+		});
+		return privateEnv;
+	} catch (error) {
+		// Private config doesn't exist during setup - this is expected
+		logger.trace('Private config not found during setup - this is expected during initial setup', {
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return null;
+	}
+}
+
+// Function to clear private config cache (used after setup completion)
+export function clearPrivateConfigCache(keepPrivateEnv = false) {
+	logger.debug('Clearing private config cache and initialization promises', {
+		keepPrivateEnv,
+		hadPrivateEnv: !!privateEnv
+	});
+	if (!keepPrivateEnv) {
+		privateEnv = null;
+	}
+	adaptersLoaded = false;
+	_dbInitPromise = null;
+	initializationPromise = null;
+	logger.debug('Private config cache and initialization promises cleared', {
+		privateEnvCleared: !keepPrivateEnv
+	});
+}
 
 // Auth
-import { Auth } from '@root/src/auth';
-import { getDefaultSessionStore } from '@src/auth/sessionStore';
+import { Auth } from '@src/databases/auth';
+import { getDefaultSessionStore } from '@src/databases/auth/sessionManager';
 
 // Adapters Interfaces
-import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { DatabaseAdapter } from './dbInterface';
 
-// MongoDB Adapters
-import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-
-// Content Manager
-import { getAllPermissions } from '@src/auth/permissions';
-import { contentManager } from '@src/content/ContentManager';
+// Settings loader
+import { privateConfigSchema, publicConfigSchema } from '@src/databases/schemas';
+import { invalidateSettingsCache, setSettingsCache } from '@src/services/settingsService';
+import { safeParse } from 'valibot';
 
 // Theme
-import { DEFAULT_THEME } from '@src/databases/themeManager';
+import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// System State Management
+import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';
+
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
-export let authAdapter: authDBInterface | null = null; // Authentication adapter
+
 export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
+
+// Create a proper Promise for lazy initialization
+let _dbInitPromise: Promise<void> | null = null;
+export function getDbInitPromise(forceInit = false): Promise<void> {
+	if (!_dbInitPromise || forceInit) {
+		_dbInitPromise = initializeOnRequest(forceInit);
+	}
+	return _dbInitPromise;
+}
+// Export a real Promise that will be initialized on first access
+export const dbInitPromise = getDbInitPromise();
 let adaptersLoaded = false; // Internal flag
+
+/**
+ * Loads all settings from the database and populates the in-memory cache.
+ * This function should only be called from a server-side context.
+ */
+// Extract setting keys directly from schemas (single source of truth)
+// These are cached to avoid rebuilding arrays on every call
+
+// Infrastructure keys that come from config file, not database
+const INFRASTRUCTURE_KEYS = new Set([
+	'DB_TYPE',
+	'DB_HOST',
+	'DB_PORT',
+	'DB_NAME',
+	'DB_USER',
+	'DB_PASSWORD',
+	'DB_RETRY_ATTEMPTS',
+	'DB_RETRY_DELAY',
+	'DB_POOL_SIZE',
+	'JWT_SECRET_KEY',
+	'ENCRYPTION_KEY',
+	'MULTI_TENANT'
+]);
+
+const KNOWN_PUBLIC_KEYS = Object.keys(publicConfigSchema.entries);
+const KNOWN_PRIVATE_KEYS = Object.keys(privateConfigSchema.entries).filter((key) => !INFRASTRUCTURE_KEYS.has(key));
+
+export async function loadSettingsFromDB() {
+	try {
+		// logger.debug('Loading settings from database...');
+
+		// Check if database adapter is available
+		if (!dbAdapter || !dbAdapter.systemPreferences) {
+			logger.warn('Database adapter not available during settings load. Using empty cache.');
+			await invalidateSettingsCache();
+			return;
+		}
+
+		// 🚀 OPTIMIZATION: Load both public and private settings in parallel (not sequential)
+		const [settingsResult, privateDynResult] = await Promise.all([
+			dbAdapter.systemPreferences.getMany(KNOWN_PUBLIC_KEYS, 'system'),
+			dbAdapter.systemPreferences.getMany(KNOWN_PRIVATE_KEYS, 'system')
+		]);
+
+		if (!settingsResult.success) {
+			logger.error('Failed to load settings from database:', settingsResult.error);
+			logger.error('Settings keys attempted:', KNOWN_PUBLIC_KEYS);
+			logger.error('Database adapter status:', {
+				hasAdapter: !!dbAdapter,
+				hasSystemPrefs: !!dbAdapter?.systemPreferences,
+				hasGetMany: !!dbAdapter?.systemPreferences?.getMany
+			});
+			throw new Error(`Could not load settings from DB: ${settingsResult.error?.message || 'Unknown error'}`);
+		}
+
+		const settings = settingsResult.data || {};
+		const privateDynamic = privateDynResult.success ? privateDynResult.data || {} : {};
+
+		// If no settings exist (initial setup), use empty objects and skip validation
+		if (Object.keys(settings).length === 0) {
+			logger.info('No settings found in database (initial setup). Using empty cache.');
+			// During initial setup, bypass validation by calling invalidateSettingsCache
+			// which sets empty cache without validation
+			await invalidateSettingsCache();
+			return;
+		}
+
+		// All system settings are public in the current implementation
+		const publicSettings: Record<string, unknown> = settings;
+		const databasePrivateSettings: Record<string, unknown> = {};
+
+		// Import private config file settings (infrastructure settings)
+		const { privateEnv } = await import('@root/config/private');
+
+		// Merge private config file settings with database private settings
+		// Private config contains infrastructure settings (DB_*, JWT_*, ENCRYPTION_*)
+		// Database contains application private settings (SMTP_*, GOOGLE_*, etc.)
+		const privateSettings = {
+			...privateEnv, // Infrastructure settings from config file
+			...databasePrivateSettings // Application settings from database
+		};
+
+		// Validate and parse the settings against the schemas
+		const parsedPublic = safeParse(publicConfigSchema, publicSettings);
+		const parsedPrivate = safeParse(privateConfigSchema, privateSettings);
+
+		// If validation fails, it might be during setup with incomplete settings
+		// In this case, just use empty cache to allow setup to continue
+		if (!parsedPublic.success || !parsedPrivate.success) {
+			logger.debug('Settings validation failed during startup - likely first run or setup mode');
+			if (!parsedPublic.success) {
+				logger.debug('Public settings validation issues:', parsedPublic.issues);
+			}
+			if (!parsedPrivate.success) {
+				logger.debug('Private settings validation issues:', parsedPrivate.issues);
+			}
+
+			// Clear invalid settings from database (silent cleanup)
+			try {
+				logger.debug('Clearing invalid settings from database...');
+				if (dbAdapter && dbAdapter.systemPreferences && typeof dbAdapter.systemPreferences.deleteMany === 'function') {
+					await dbAdapter.systemPreferences.deleteMany([]);
+					logger.debug('Invalid settings cleared successfully');
+				}
+			} catch (clearError) {
+				logger.debug('Failed to clear invalid settings:', clearError);
+			}
+
+			await invalidateSettingsCache();
+			logger.info('Settings validation failed - system will run with defaults until settings are configured');
+			return; // Return without throwing - allow system to continue in setup mode
+		}
+
+		// Populate the cache with validated settings, merging dynamic private flags into unified cache
+		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as Record<string, unknown>;
+		await setSettingsCache(mergedPrivate as typeof privateEnv, parsedPublic.output);
+
+		logger.info('✅ System settings loaded and cached from database.');
+	} catch (error) {
+		logger.error('Failed to load settings from database:', error);
+		// Don't throw - invalidate cache and continue with defaults
+		await invalidateSettingsCache();
+		logger.warn('Settings load failed - system will continue with default configuration');
+	}
+}
 
 // Load database and authentication adapters
 async function loadAdapters() {
@@ -61,65 +231,41 @@ async function loadAdapters() {
 		logger.debug('Adapters already loaded, skipping');
 		return;
 	}
-	logger.debug(`🔌 Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+
+	// Use privateEnv if already set (from initializeWithConfig), otherwise load from Vite
+	logger.debug('Loading adapters - checking privateEnv', {
+		hasPrivateEnv: !!privateEnv,
+		dbType: privateEnv?.DB_TYPE
+	});
+
+	const config = privateEnv || (await loadPrivateConfig(false));
+
+	// If private config doesn't exist yet (during setup), we can't load adapters
+	if (!config || !config.DB_TYPE) {
+		logger.debug('Private config not available yet - skipping adapter loading during setup');
+		return;
+	}
+
+	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
 
 	try {
-		switch (privateEnv.DB_TYPE) {
-			case 'mongodb': {
+		switch (config.DB_TYPE) {
+			case 'mongodb':
+			case 'mongodb+srv': {
 				logger.debug('Importing MongoDB adapter...');
-				const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
-				dbAdapter = new MongoDBAdapter();
+				const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
+				if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
+					throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
+				}
+				const { MongoDBAdapter } = mongoAdapterModule;
+				dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
+
 				logger.debug('MongoDB adapter created');
-
-				logger.debug('Creating auth adapters...');
-				const userAdapter = new UserAdapter();
-				const sessionAdapter = new SessionAdapter();
-				const tokenAdapter = new TokenAdapter();
-
-				authAdapter = {
-					// User Management Methods
-					createUser: userAdapter.createUser.bind(userAdapter),
-					updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
-					deleteUser: userAdapter.deleteUser.bind(userAdapter),
-					getUserById: userAdapter.getUserById.bind(userAdapter),
-					getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
-					getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-					getUserCount: userAdapter.getUserCount.bind(userAdapter), // Session Management Methods
-
-					createSession: sessionAdapter.createSession.bind(sessionAdapter),
-					updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
-					deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
-					deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
-					validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
-					invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
-					getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
-					getAllActiveSessions: sessionAdapter.getAllActiveSessions.bind(sessionAdapter),
-					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
-					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter), // Add rotateToken binding
-					cleanupRotatedSessions: sessionAdapter.cleanupRotatedSessions.bind(sessionAdapter), // Add cleanup binding
-					// Token Management Methods
-
-					createToken: tokenAdapter.createToken.bind(tokenAdapter),
-					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
-					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-					getTokenByValue: tokenAdapter.getTokenByValue.bind(tokenAdapter),
-					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
-					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
-					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
-					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter), // Permission Management Methods (Imported)
-
-					getAllPermissions
-				};
-				logger.debug('Auth adapters created and bound');
 				break;
 			}
-			case 'mariadb':
-			case 'postgresql': // Implement SQL adapters loading here
-				logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 			default:
-				logger.error(`Unknown DB_TYPE: ${privateEnv.DB_TYPE}`);
-				throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+				logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
+				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
 		}
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');
@@ -136,24 +282,30 @@ async function loadAdapters() {
 async function initializeDefaultTheme(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
 	try {
-		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
-		const themes = await dbAdapter.themes.getAllThemes(); // Ensure themes is an array before accessing its length
-		if (!Array.isArray(themes)) {
-			logger.warn('No themes returned from database or an error occurred. Assuming no themes exist.');
-			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
-			return;
-		}
-		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes in the database`);
+		// 🚀 OPTIMIZATION: Check if theme exists before writing (avoid unnecessary DB operation)
+		const existingThemes = await dbAdapter.themes.getAllThemes();
+		const themeExists = existingThemes.some((t) => t.name === DEFAULT_THEME.name && t.isDefault);
 
-		if (themes.length === 0) {
+		if (!themeExists) {
 			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
-			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
-		} else {
-			logger.info('Themes already exist in the database. Skipping default theme initialization.');
+			logger.debug('Default SveltyCMS theme initialized');
 		}
+		// Skip logging if theme already exists (save 1-2ms)
 	} catch (err) {
-		const message = `Error initializing default theme: ${err instanceof Error ? err.message : String(err)}`;
+		// Log but don't fail - theme initialization is not critical for system startup
+		logger.warn(`Theme initialization issue: ${err instanceof Error ? err.message : String(err)}`);
+	}
+}
+
+// Initialize ThemeManager
+async function initializeThemeManager(): Promise<void> {
+	if (!dbAdapter) throw new Error('Cannot initialize ThemeManager: dbAdapter is not available.');
+	try {
+		logger.debug('Initializing \x1b[34mThemeManager\x1b[0m...');
+		const themeManager = ThemeManager.getInstance();
+		await themeManager.initialize(dbAdapter);
+	} catch (err) {
+		const message = `Error initializing ThemeManager: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		throw new Error(message);
 	}
@@ -161,79 +313,110 @@ async function initializeDefaultTheme(): Promise<void> {
 
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
-	const mediaFolderPath = publicEnv.MEDIA_FOLDER;
+	// During setup, MEDIA_FOLDER might not be loaded yet, so use fallback
+	const { getPublicSetting } = await import('@src/services/settingsService');
+	const mediaFolderPath = (await getPublicSetting('MEDIA_FOLDER')) || './mediaFolder';
 	if (building) return;
 	const fs = await import('node:fs/promises');
 	try {
-		logger.debug(`Checking media folder: ${mediaFolderPath}`); // Check if the media folder exists
-		await fs.access(mediaFolderPath);
-		logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
+		// 🚀 OPTIMIZATION: Fast stat() check, skip debug logging overhead
+		await fs.stat(mediaFolderPath);
+		// Folder exists, skip logging for speed
 	} catch {
 		// If the folder does not exist, create it
-		logger.info(`Media folder not found. Creating new folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
+		logger.info(`Creating media folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
 		await fs.mkdir(mediaFolderPath, { recursive: true });
-		logger.info(`Media folder created successfully: \x1b[34m${mediaFolderPath}\x1b[0m`);
 	}
 }
 
-// Initialize virtual folders
-async function initializeVirtualFolders(): Promise<void> {
+// Initialize virtual folders with retry logic
+async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
 	if (!dbAdapter.systemVirtualFolder) {
 		logger.warn('systemVirtualFolder adapter not available, skipping initialization.');
 		return;
 	}
-	try {
-		logger.debug('Initializing virtual folders...');
-		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
 
-		if (!systemVirtualFoldersResult.success) {
-			const errorMessage =
-				systemVirtualFoldersResult.error instanceof Error ? systemVirtualFoldersResult.error.message : String(systemVirtualFoldersResult.error);
-			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
-		}
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			logger.debug(`Initializing virtual folders (attempt ${attempt}/${maxRetries})...`);
 
-		const systemVirtualFolders = systemVirtualFoldersResult.data;
-
-		if (systemVirtualFolders.length === 0) {
-			logger.info('No virtual folders found. Creating default root folder...'); // Create a default root folder
-			const rootFolderData = {
-				name: publicEnv.MEDIA_FOLDER,
-				path: publicEnv.MEDIA_FOLDER, // parentId is undefined for root folders
-				order: 0
-			};
-			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
-
-			if (!creationResult.success) {
-				const errorMessage = creationResult.error instanceof Error ? creationResult.error.message : String(creationResult.error);
-				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
+			// Verify the connection is still active before querying
+			if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
+				throw new Error('Database connection lost - reconnection required');
 			}
 
-			const rootFolder = creationResult.data; // Log only the essential information
+			const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
 
-			logger.info('Default root virtual folder created:', {
-				name: rootFolder.name,
-				path: rootFolder.path,
-				id: rootFolder._id?.toString() || 'No ID'
-			});
-		} else {
-			logger.debug(`Found \x1b[34m${systemVirtualFolders.length}\x1b[0m virtual folders`);
+			if (!systemVirtualFoldersResult.success) {
+				const error = systemVirtualFoldersResult.error;
+				let errorMessage = 'Unknown error';
+
+				if (error instanceof Error) {
+					errorMessage = error.message;
+				} else if (error && typeof error === 'object' && 'message' in error) {
+					errorMessage = String((error as { message: unknown }).message);
+				} else if (error) {
+					errorMessage = String(error);
+				}
+
+				throw new Error(`Failed to get virtual folders: ${errorMessage}`);
+			}
+
+			const systemVirtualFolders = systemVirtualFoldersResult.data;
+
+			if (systemVirtualFolders.length === 0) {
+				// 🚀 OPTIMIZATION: Streamlined folder creation, minimal logging
+				const { getPublicSetting } = await import('@src/services/settingsService');
+				const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
+				const creationResult = await dbAdapter.systemVirtualFolder.create({
+					name: defaultMediaFolder,
+					path: defaultMediaFolder,
+					order: 0,
+					type: 'folder' as const
+				});
+
+				if (!creationResult.success) {
+					const error = creationResult.error;
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
+				}
+				logger.debug(`Created root virtual folder: ${defaultMediaFolder}`);
+			}
+			// Success - exit fast
+			logger.debug(`✅ Virtual folders initialized successfully on attempt ${attempt}`);
+			return;
+		} catch (err) {
+			lastError = err;
+			const errorMsg = err instanceof Error ? err.message : String(err);
+
+			if (attempt < maxRetries) {
+				logger.warn(`Virtual folder initialization failed (attempt ${attempt}/${maxRetries}): ${errorMsg}`);
+				logger.warn(`Retrying in ${retryDelay}ms...`);
+				await new Promise((resolve) => setTimeout(resolve, retryDelay));
+				// Exponential backoff
+				retryDelay *= 2;
+			} else {
+				logger.error(`Virtual folder initialization failed after ${maxRetries} attempts: ${errorMsg}`);
+			}
 		}
-	} catch (err) {
-		const message = `Error initializing virtual folders: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw new Error(message);
 	}
+
+	// All retries exhausted
+	const message = `Error initializing virtual folders after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`;
+	logger.error(message);
+	throw new Error(message);
 }
 
-// Initialize adapters
+// Initialize adapters (instant validation only)
 async function initializeRevisions(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.'); // Add any revision-specific setup if needed in the future
-	logger.debug('Revisions initialized.');
+	if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
+	// 🚀 OPTIMIZATION: Instant no-op validation (revisions are lazy-loaded on first use)
 }
 
 // Core Initialization Logic
-async function initializeSystem(): Promise<void> {
+async function initializeSystem(forceReload = false, skipSetupCheck = false): Promise<void> {
 	// Prevent re-initialization
 	if (isInitialized) {
 		logger.debug('System already initialized. Skipping.');
@@ -243,157 +426,422 @@ async function initializeSystem(): Promise<void> {
 	const systemStartTime = performance.now();
 	logger.info('Starting SvelteCMS System Initialization...');
 
+	// Set system state to INITIALIZING
+	setSystemState('INITIALIZING', 'Starting system initialization');
+
 	try {
-		// 1. Connect to Database & Load Adapters (Concurrently)
-		const step1StartTime = performance.now();
+		// Step 1: Check for setup mode (skip if called from initializeWithConfig)
+		let privateConfig;
+		if (skipSetupCheck) {
+			// When called from initializeWithConfig, privateEnv is already set - don't reload
+			logger.debug('Skipping private config load - using pre-set configuration');
+			privateConfig = privateEnv;
+		} else {
+			// Normal initialization flow - load from Vite
+			privateConfig = await loadPrivateConfig(forceReload);
+			if (!privateConfig || !privateConfig.DB_TYPE) {
+				logger.info('Private config not available – running in setup mode (skipping full initialization).');
+				setSystemState('IDLE', 'Running in setup mode');
+				return;
+			}
+		}
+
+		// Step 2: Load Adapters & Connect to DB
+		updateServiceHealth('database', 'initializing', 'Loading database adapter...');
+		await loadAdapters();
+		if (!dbAdapter) {
+			updateServiceHealth('database', 'unhealthy', 'Database adapter failed to load');
+			throw new Error('Database adapter failed to load.');
+		}
+
+		let connectionString: string;
+		if (privateConfig.DB_TYPE === 'mongodb') {
+			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
+			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
+			connectionString = `mongodb://${authPart}${privateConfig.DB_HOST}:${privateConfig.DB_PORT}/${privateConfig.DB_NAME}${hasAuth ? '?authSource=admin' : ''}`;
+			logger.debug(`Connecting to MongoDB...`);
+		} else if (privateConfig.DB_TYPE === 'mongodb+srv') {
+			// MongoDB Atlas connection string
+			const hasAuth = privateConfig.DB_USER && privateConfig.DB_PASSWORD;
+			const authPart = hasAuth ? `${encodeURIComponent(privateConfig.DB_USER!)}:${encodeURIComponent(privateConfig.DB_PASSWORD!)}@` : '';
+			connectionString = `mongodb+srv://${authPart}${privateConfig.DB_HOST}/${privateConfig.DB_NAME}?retryWrites=true&w=majority`;
+			logger.debug(`Connecting to MongoDB Atlas (SRV)...`);
+		} else {
+			connectionString = '';
+		}
+
+		// Run connection + model setup in parallel (overlapping I/O)
+		const step2And3StartTime = performance.now();
+		const [connectionResult] = await Promise.all([
+			dbAdapter.connect(connectionString),
+			// Step 3: Setup Core Database Models (runs in parallel with connection)
+			// Models can be set up while connection is establishing
+			(async () => {
+				// Small delay to ensure connection is in progress before model setup
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				return Promise.all([dbAdapter.media?.setupMediaModels(), dbAdapter.widgets?.setupWidgetModels(), dbAdapter.themes?.setupThemeModels()]);
+			})()
+		]);
+
+		if (!connectionResult.success) {
+			updateServiceHealth(
+				'database',
+				'unhealthy',
+				`Connection failed: ${connectionResult.error?.message || 'Unknown error'}`,
+				connectionResult.error?.message
+			);
+			throw new Error(`Database connection failed: ${connectionResult.error?.message || 'Unknown error'}`);
+		}
+		isConnected = true;
+		updateServiceHealth('database', 'healthy', 'Database connected successfully');
+
+		const step2And3Time = performance.now() - step2And3StartTime;
+		logger.info(`\x1b[32mSteps 1-2:\x1b[0m DB connected & adapters loaded in \x1b[32m${step2And3Time.toFixed(2)}ms\x1b[0m`);
+		logger.info(`\x1b[32mStep 3:\x1b[0m Database models setup in \x1b[32m${step2And3Time.toFixed(2)}ms\x1b[0m (⚡ parallelized with connection)`);
+
+		// Step 4: Lazy-initialize Server-Side Services (will initialize on first use)
+		// WidgetRegistryService and ContentManager are now lazy-loaded for faster startup
+		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
+		logger.info('\x1b[32mStep 4:\x1b[0m Server services (Widgets & Content) will lazy-initialize on first use');
+
+		// Step 5: Initialize Critical Components (optimized for speed)
+		const step5StartTime = performance.now();
+
+		// Auth (fast, required immediately)
+		updateServiceHealth('auth', 'initializing', 'Initializing authentication service...');
+		if (!dbAdapter) throw new Error('Database adapter not initialized');
+		auth = new Auth(dbAdapter, getDefaultSessionStore());
+		if (!auth) {
+			updateServiceHealth('auth', 'unhealthy', 'Auth initialization failed');
+			throw new Error('Auth initialization failed');
+		}
+		updateServiceHealth('auth', 'healthy', 'Authentication service ready');
+		logger.debug(`✓ Authentication initialized in \x1b[32m${(performance.now() - step5StartTime).toFixed(2)}ms\x1b[0m`);
+
+		// Settings (required for app configuration)
+		await loadSettingsFromDB();
+		logger.debug(`✓ Settings loaded from DB in \x1b[32m${(performance.now() - step5StartTime).toFixed(2)}ms\x1b[0m`);
+
+		// Run slow I/O operations in parallel
+		const parallelStartTime = performance.now();
+		updateServiceHealth('cache', 'initializing', 'Initializing media, revisions, and themes...');
+		updateServiceHealth('themeManager', 'initializing', 'Initializing theme manager...');
 
 		await Promise.all([
-			connectToMongoDB().catch((err) => {
-				logger.error(`MongoDB connection failed: ${err.message}`);
-				throw err;
-			}),
-			loadAdapters().catch((err) => {
-				logger.error(`Adapter loading failed: ${err.message}`);
-				throw err;
-			})
+			(async () => {
+				const t = performance.now();
+				await initializeMediaFolder();
+				logger.debug(`  - Media folder: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+			})(),
+			(async () => {
+				const t = performance.now();
+				await initializeRevisions();
+				logger.debug(`  - Revisions: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+			})(),
+			(async () => {
+				const t = performance.now();
+				await initializeVirtualFolders();
+				logger.debug(`  - Virtual folders: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+			})(),
+			(async () => {
+				const t = performance.now();
+				await initializeDefaultTheme().then(() => initializeThemeManager());
+				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
+				logger.debug(`  - Themes: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+			})()
 		]);
-		isConnected = true; // Mark connected after DB connection succeeds
-		const step1Time = performance.now() - step1StartTime;
-		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`); // Check if adapters loaded correctly (loadAdapters throws on critical failure)
+		updateServiceHealth('cache', 'healthy', 'Media, revisions, and virtual folders initialized');
+		logger.debug(`✓ Parallel I/O operations completed in \x1b[32m${(performance.now() - parallelStartTime).toFixed(2)}ms\x1b[0m`);
 
-		if (!dbAdapter || !authAdapter) {
-			throw new Error('Database or Authentication adapter failed to load.');
-		} // 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
-
-		const step2StartTime = performance.now();
-
-		try {
-			await Promise.all([
-				dbAdapter.auth.setupAuthModels().then(() => logger.debug('\x1b[34mAuth models\x1b[0m setup complete')),
-				dbAdapter.media.setupMediaModels().then(() => logger.debug('\x1b[34mMedia models\x1b[0m setup complete')),
-				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('\x1b[34mWidget models\x1b[0m setup complete'))
-			]);
-
-			const step2Time = performance.now() - step2StartTime;
-			logger.debug(`\x1b[32mStep 2 completed:\x1b[0m Database models setup in \x1b[32m${step2Time.toFixed(2)}ms\x1b[0m`);
-		} catch (modelSetupErr) {
-			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
-			throw modelSetupErr;
-		} // 3. Initialize remaining components in parallel
-
-		const step3StartTime = performance.now();
-
-		try {
-			await Promise.all([initializeMediaFolder(), initializeDefaultTheme(), initializeRevisions(), initializeVirtualFolders()]);
-
-			const step3Time = performance.now() - step3StartTime;
-			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
-		} catch (componentErr) {
-			logger.error(`Component initialization failed: ${componentErr.message}`);
-			throw componentErr;
-		} // 4. Initialize ContentManager (loads collection schemas into memory)
-
-		const step4StartTime = performance.now();
-
-		try {
-			await contentManager.initialize();
-			const step4Time = performance.now() - step4StartTime;
-			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
-		} catch (contentErr) {
-			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
-			throw contentErr;
-		} // 5. Verify Collection-Specific Database Models (models are now created within ContentManager)
-
-		const step5StartTime = performance.now();
-		try {
-			const { collectionMap } = await contentManager.getCollectionData();
-			if (!dbAdapter) throw new Error('dbAdapter not available for model verification.'); // Since ContentManager now handles model creation, this step is purely for verification.
-			// We can simply log that this step is complete, as the critical logic is in ContentManager.
-			// If ContentManager failed, initialization would have already stopped.
-
-			const schemas = Array.from(collectionMap.values());
-			logger.debug(`ContentManager reports \x1b[34m${schemas.length}\x1b[0m collections loaded. Verification complete.`);
-
-			const step5Time = performance.now() - step5StartTime;
-			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection models verified in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
-		} catch (modelErr) {
-			const message = `Error verifying collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
-			logger.error(message);
-			throw new Error(message);
-		} // 6. Initialize Authentication (after DB/Auth adapters and models are ready)
-
-		const step6StartTime = performance.now();
-
-		if (!authAdapter) {
-			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
-		}
-
-		try {
-			// Initialize authentication
-			auth = new Auth(authAdapter, getDefaultSessionStore());
-			if (!auth) {
-				throw new Error('Auth initialization failed - constructor returned null/undefined');
-			} // Verify auth methods are available
-
-			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
-			logger.debug(
-				`Auth instance created with \x1b[34m${authMethods.length}\x1b[0m methods:`,
-				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
-			); // Test auth functionality
-
-			if (typeof auth.validateSession !== 'function') {
-				throw new Error('Auth instance missing validateSession method');
-			}
-
-			const step6Time = performance.now() - step6StartTime;
-			logger.debug(`\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified in \x1b[32m${step6Time.toFixed(2)}ms\x1b[0m`);
-		} catch (authErr) {
-			logger.error(`Auth initialization failed: ${authErr.message}`);
-			throw authErr;
-		}
-
+		const step5Time = performance.now() - step5StartTime;
+		logger.info(`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
 		isInitialized = true;
-		isConnected = true;
 
+		// System is now READY - state will be derived automatically from service health
 		const totalTime = performance.now() - systemStartTime;
-		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m! All systems ready.`);
+		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m!`);
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		logger.error('Stack trace:', err instanceof Error ? err.stack : 'No stack trace available');
-
+		logger.error(message, err);
 		isInitialized = false; // Reset initialization flag on error
 		isConnected = false; // Reset connection flag on error
 		auth = null; // Reset auth on error
-
+		setSystemState('FAILED', message);
 		throw new Error(message);
 	}
 }
 
-// Automatically initialize the system, but only at runtime.
-// We check process.argv to detect if a build-related command is running.
-// Note: 'preview' is NOT a build process - it runs the actual application serving built files
-const isBuildProcess = typeof process !== 'undefined' && process.argv?.some((arg) => ['build', 'check'].includes(arg));
+// --- Status & Reinitialization Helpers ---
 
-if (!building && !isBuildProcess) {
-	if (!initializationPromise) {
-		logger.debug('Creating system initialization promise...');
-		initializationPromise = initializeSystem(); // Handle initialization errors
+/**
+ * Minimal initialization for setup mode - ONLY connects to database
+ * Does NOT initialize any services (auth, themes, content, etc.)
+ * Used by setup wizard to perform database operations
+ */
+export async function initializeForSetup(dbConfig: {
+	type: string;
+	host: string;
+	port: number;
+	name: string;
+	user?: string;
+	password?: string;
+}): Promise<{ success: boolean; error?: string }> {
+	try {
+		logger.info('Initializing minimal database connection for setup mode...');
 
-		initializationPromise.catch((err) => {
-			logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-			logger.error('Clearing initialization promise to allow retry'); // Ensure promise variable is cleared so retries might be possible if the app handles it
-			initializationPromise = null;
-		});
-	} else {
-		logger.debug('Initialization promise already exists');
+		// Load the appropriate adapter
+		if (!adaptersLoaded) {
+			await loadAdapters();
+		}
+
+		if (!dbAdapter) {
+			return { success: false, error: 'Failed to load database adapter' };
+		}
+
+		// Build connection string
+		let connectionString: string;
+		if (dbConfig.type === 'mongodb') {
+			const hasAuth = dbConfig.user && dbConfig.password;
+			const authPart = hasAuth ? `${encodeURIComponent(dbConfig.user!)}:${encodeURIComponent(dbConfig.password!)}@` : '';
+			connectionString = `mongodb://${authPart}${dbConfig.host}:${dbConfig.port}/${dbConfig.name}${hasAuth ? '?authSource=admin' : ''}`;
+		} else {
+			return { success: false, error: `Database type '${dbConfig.type}' not supported yet` };
+		}
+
+		// Connect to database
+		const connectionResult = await dbAdapter.connect(connectionString);
+		if (!connectionResult.success) {
+			return { success: false, error: connectionResult.error?.message || 'Connection failed' };
+		}
+
+		isConnected = true;
+		logger.info('✅ Minimal database connection established for setup');
+		return { success: true };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to initialize database for setup:', message);
+		return { success: false, error: message };
 	}
-} else {
-	logger.debug('Skipping system initialization during build process.');
-	initializationPromise = Promise.resolve();
 }
 
-// --- Full System Ready Promise (including ContentManager) ---
+/**
+ * Initializes the system on the first non-setup request.
+ * This prevents the server from trying to connect to the DB during setup.
+ */
+export function initializeOnRequest(forceInit = false): Promise<void> {
+	const isBuildProcess = typeof process !== 'undefined' && process.argv?.some((arg) => ['build', 'check'].includes(arg));
 
-// Export the initialization promise so other modules can wait for system readiness
-export { initializationPromise as dbInitPromise };
+	if (!building && !isBuildProcess) {
+		if (!initializationPromise || forceInit) {
+			logger.debug('Creating system initialization promise...');
+
+			initializationPromise = (async () => {
+				// Check if private config exists and is valid
+				const privateConfig = await loadPrivateConfig(forceInit);
+				if (!privateConfig || !privateConfig.DB_TYPE || !privateConfig.DB_HOST) {
+					logger.info('Private config not available – skipping initialization (setup mode)');
+					return Promise.resolve();
+				}
+
+				// Private config exists - run full initialization
+				logger.info('Private config found, starting full system initialization');
+				return initializeSystem(forceInit);
+			})();
+
+			initializationPromise.catch((err) => {
+				logger.error(`Initialization failed: ${err instanceof Error ? err.message : String(err)}`);
+				logger.error('Clearing initialization promise to allow retry');
+				initializationPromise = null;
+				_dbInitPromise = null;
+			});
+		}
+	} else if (!initializationPromise) {
+		logger.debug('Skipping system initialization during build process.');
+		initializationPromise = Promise.resolve();
+	}
+	return initializationPromise;
+}
+
+export function getSystemStatus() {
+	return {
+		initialized: isInitialized,
+		connected: isConnected,
+		authReady: !!auth,
+		initializing: !!initializationPromise && !isInitialized
+	};
+}
+
+export function getAuth() {
+	return auth;
+}
+
+export async function reinitializeSystem(force = false, waitForAuth = true): Promise<{ status: string; error?: string }> {
+	if (isInitialized && !force) {
+		return { status: 'already-initialized' };
+	}
+
+	// If force is true, clear any existing initialization promise and reload config
+	if (force) {
+		logger.info('Force reinitialization requested - clearing existing initialization promise and reloading config');
+		initializationPromise = null;
+		isInitialized = false;
+		isConnected = false;
+		auth = null;
+		// Force reload private config
+		await loadPrivateConfig(true);
+		// Reset system state
+		setSystemState('IDLE', 'Preparing for reinitialization');
+	}
+
+	if (initializationPromise) {
+		return { status: 'initialization-in-progress' };
+	}
+
+	try {
+		logger.info(`Manual reinitialization requested${force ? ' (force)' : ''}${!waitForAuth ? ' (skip auth wait)' : ''}`);
+		initializationPromise = initializeSystem(force);
+		await initializationPromise;
+
+		// Optionally wait for auth service to be ready (skip during setup to avoid blocking)
+		if (waitForAuth) {
+			logger.info('Waiting for auth service to become available after reinitialization...');
+			const authReady = await waitForServiceHealthy('auth', 3000); // Reduced from 10s to 3s
+			if (!authReady) {
+				logger.warn('Auth service not ready after timeout, but will continue');
+			}
+		} else {
+			logger.info('Skipping auth readiness wait (setup mode)');
+		}
+
+		return { status: 'initialized' };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		// Clear the failed promise so retries are possible
+		initializationPromise = null;
+		return { status: 'failed', error: message };
+	}
+}
+
+/**
+ * Initialize system by loading private.ts from filesystem (bypasses Vite cache).
+ *
+ * Use this during setup when private.ts was just created on filesystem but hasn't been
+ * loaded by Vite yet due to module caching.
+ *
+ * @returns Promise with initialization status
+ */
+export async function initializeWithFreshConfig(): Promise<{ status: string; error?: string }> {
+	// Clear any existing initialization
+	logger.info('Initializing system with fresh config from filesystem (bypassing Vite cache)...');
+	initializationPromise = null;
+	isInitialized = false;
+	isConnected = false;
+	auth = null;
+	privateEnv = null; // Clear cache to force reload
+	setSystemState('IDLE', 'Preparing for initialization with fresh config');
+
+	try {
+		// Force reload private.ts from filesystem (bypasses Vite's module cache)
+		const freshConfig = await loadPrivateConfig(true);
+
+		if (!freshConfig || !freshConfig.DB_TYPE) {
+			throw new Error('Failed to load private config from filesystem');
+		}
+
+		logger.debug('Fresh config loaded from filesystem', {
+			DB_TYPE: freshConfig.DB_TYPE,
+			DB_HOST: freshConfig.DB_HOST ? '***' : 'missing',
+			hasJWT: !!freshConfig.JWT_SECRET_KEY,
+			hasEncryption: !!freshConfig.ENCRYPTION_KEY
+		});
+
+		// Now call initializeSystem - it will use the freshly loaded config
+		initializationPromise = initializeSystem(false, true); // skipSetupCheck = true
+		await initializationPromise;
+
+		logger.info('✅ System initialized successfully with fresh config');
+		return { status: 'initialized' };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.error('Failed to initialize with fresh config:', message);
+		initializationPromise = null;
+		privateEnv = null; // Clear failed config
+		return { status: 'failed', error: message };
+	}
+}
+
+/**
+ * Get the current database adapter instance
+ * @returns The database adapter or null if not initialized
+ */
+export function getDb(): DatabaseAdapter | null {
+	return dbAdapter;
+}
+
+/**
+ * Initialize a database connection for seeding purposes
+ * @param dbConfig Database configuration
+ */
+export async function initConnection(dbConfig: {
+	type: string;
+	host: string;
+	port: string;
+	name: string;
+	user?: string;
+	password?: string;
+}): Promise<void> {
+	// For seeding, we need to create a temporary adapter instance
+	// This is a simplified version that works with the existing MongoDB setup
+
+	if (!dbConfig || !dbConfig.type) {
+		throw new Error('Database configuration is required');
+	}
+
+	if (dbConfig.type !== 'mongodb') {
+		throw new Error(`Database type '${dbConfig.type}' is not supported for seeding yet`);
+	}
+
+	try {
+		// Import MongoDB adapter
+		const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+
+		// Create a new adapter instance for seeding
+		const tempAdapter = new MongoDBAdapter();
+
+		// Build connection string like the test endpoint does
+		const { buildDatabaseConnectionString } = await import('../routes/api/setup/utils');
+		const connectionString = buildDatabaseConnectionString({
+			type: dbConfig.type as 'mongodb' | 'mongodb+srv',
+			host: dbConfig.host,
+			port: Number(dbConfig.port),
+			name: dbConfig.name,
+			user: dbConfig.user ?? '',
+			password: dbConfig.password ?? ''
+		});
+		const isAtlas = connectionString.startsWith('mongodb+srv://');
+
+		const options = {
+			user: dbConfig.user || undefined,
+			pass: dbConfig.password || undefined,
+			dbName: dbConfig.name,
+			authSource: isAtlas ? undefined : 'admin',
+			retryWrites: true,
+			serverSelectionTimeoutMS: 15000,
+			maxPoolSize: 1 // Use a minimal pool for seeding
+		};
+
+		// Connect using the custom connection string and options
+		const connectResult = await tempAdapter.connect(connectionString, options);
+		if (!connectResult.success) {
+			throw new Error(`Database connection failed: ${connectResult.error?.message || 'Unknown error'}`);
+		}
+
+		// Set this as the global adapter for seeding
+		dbAdapter = tempAdapter as unknown as DatabaseAdapter;
+
+		logger.info('Database connection initialized for seeding');
+	} catch (error) {
+		logger.error('Failed to initialize database connection for seeding:', error);
+		throw error;
+	}
+}

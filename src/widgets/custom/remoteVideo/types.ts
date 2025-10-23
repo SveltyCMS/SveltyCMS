@@ -1,76 +1,46 @@
 /**
-@file src/widgets/custom/remoteVideo/types.ts
-@description - RemoteVideo widget types
-*/
-
-import { publicEnv } from '@root/config/public';
-
-// Components
-import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@root/src/auth';
+ * @file src/widgets/custom/remotevideo/types.ts
+ * @description Type definitions for the RemoteVideo widget.
+ *
+ * @features
+ * - **Strongly Typed Data**: Defines a comprehensive `RemoteVideoData` structure for storage.
+ * - **Platform Restriction**: `allowedPlatforms` property controls which video hosts are permitted.
+ */
 
 /**
- * Defines RemoteVideo widget Parameters
+ * Defines the types of video platforms supported.
  */
-export type Params = {
-	// default required parameters
-	label: string;
-	display?: DISPLAY;
-	db_fieldName?: string;
-	widget?: unknown;
-	required?: boolean;
-	translated?: boolean;
-	icon?: string;
-	helper?: string;
-	width?: number;
+export type VideoPlatform = 'youtube' | 'vimeo' | 'twitch' | 'tiktok' | 'other';
 
-	// Permissions
-	permissions?: Permission[];
-
-	// Widget Specific parameters
+/**
+ * Defines the properties unique to the RemoteVideo widget, configured in the collection builder.
+ */
+export interface RemoteVideoProps {
+	// A placeholder for the URL input field
 	placeholder?: string;
-};
+
+	/**
+	 * An array of allowed video platforms (e.g., ['youtube', 'vimeo']).
+	 * If empty, all supported platforms are allowed.
+	 */
+	allowedPlatforms?: VideoPlatform[];
+}
 
 /**
- * Defines RemoteVideo GuiSchema
+ * Defines the data structure for a stored remote video entry.
+ * This object contains all fetched metadata.
  */
-export const GuiSchema = {
-	label: { widget: Input, required: true },
-	display: { widget: Input, required: true },
-	db_fieldName: { widget: Input, required: true },
-	required: { widget: Toggles, required: false },
-	translated: { widget: Toggles, required: false },
-	icon: { widget: IconifyPicker, required: false },
-	helper: { widget: Input, required: false },
-	width: { widget: Input, required: false },
-
-	// Permissions
-	permissions: { widget: PermissionsSetting, required: false },
-
-	// Widget Specific parameters
-	placeholder: { widget: Input, required: false },
-	readonly: { widget: Toggles, required: false }
-};
-
-/**
- * Define RemoteVideo GraphqlSchema function
- */
-export const GraphqlSchema: GraphqlSchema = ({ label }) => {
-	// Use sanitized field name as GraphQL type ID
-	const typeID = label;
-
-	// Return an object containing the type name and the GraphQL schema
-	return {
-		typeID: typeID,
-		graphql: /* GraphQL */ `
-        type ${typeID} {
-			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
-		}
-        `
-	};
-};
+export interface RemoteVideoData {
+	platform: VideoPlatform; // e.g., 'youtube'
+	url: string; // The original URL provided by the user
+	videoId: string; // The extracted video ID (e.g., YouTube's 'dQw4w9WgXcQ')
+	title: string; // Video title
+	description?: string; // Video description (optional)
+	thumbnailUrl: string; // URL to a high-quality thumbnail
+	channelTitle?: string; // Uploader's channel name
+	duration?: string; // Video duration (e.g., 'PT3M20S' for ISO 8601, or '3:20')
+	width?: number; // Thumbnail/embed width
+	height?: number; // Thumbnail/embed height
+	publishedAt?: string; // ISO 8601 date string
+	// Add other metadata as needed
+}

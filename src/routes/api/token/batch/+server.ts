@@ -18,22 +18,19 @@
  * }
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
-// Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-// TODO: Remove once blockTokens/unblockTokens are added to database-agnostic interface
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // Validation
-import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
+import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks.server';
+import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -58,39 +55,42 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}
-			const tokenAdapter = new TokenAdapter();
-			const tokensToVerify = await tokenAdapter.getAllTokens({ token: { $in: tokenIds }, tenantId });
-			if (tokensToVerify.length !== tokenIds.length) {
-				logger.warn(`Attempt to act on tokens outside of tenant`, {
-					userId: user?._id,
-					tenantId,
-					requestedTokenIds: tokenIds
-				});
-				throw error(403, 'Forbidden: One or more tokens do not belong to your tenant or do not exist.');
+			// Use auth.getAllTokens if available to verify ownership
+			try {
+				const filter = { tenantId } as { tenantId?: string };
+				const { tokens } = await auth.getAllTokens(filter);
+				const tokenSet = new Set(tokens.map((t) => t.token));
+				const allOwned = tokenIds.every((id) => tokenSet.has(id));
+				if (!allOwned) {
+					logger.warn('Attempt to act on tokens outside of tenant', { userId: user?._id, tenantId, requestedTokenIds: tokenIds });
+					throw error(403, 'Forbidden: One or more tokens do not belong to your tenant or do not exist.');
+				}
+			} catch (verifyErr) {
+				logger.error('Failed to verify tenant token ownership', { error: verifyErr });
+				throw error(500, 'Failed to verify token ownership');
 			}
 		}
 
 		let successMessage = '';
-		const tokenAdapter = new TokenAdapter(); // Re-use the adapter instance
 
+		// Directly invoke database-agnostic methods (now bound in auth adapter)
 		switch (action) {
 			case 'delete': {
-				// The adapter method needs to be tenant-aware internally
-				await tokenAdapter.deleteTokens(tokenIds);
+				await auth.deleteTokens(tokenIds, tenantId);
 				successMessage = 'Tokens deleted successfully.';
 				break;
 			}
 			case 'block': {
-				await tokenAdapter.blockTokens(tokenIds);
+				await auth.blockTokens(tokenIds, tenantId);
 				successMessage = 'Tokens blocked successfully.';
 				break;
 			}
 			case 'unblock': {
-				await tokenAdapter.unblockTokens(tokenIds);
+				await auth.unblockTokens(tokenIds, tenantId);
 				successMessage = 'Tokens unblocked successfully.';
 				break;
 			}

@@ -1,0 +1,741 @@
+---
+path: 'docs/user-guide/system-settings.mdx'
+title: 'System Settings - User Guide'
+description: 'Managing CMS configuration through the System Settings GUI interface - 13 groups controlling cache, security, email, and more.'
+order: 10
+icon: 'mdi:cog'
+author: 'admin'
+created: '2025-10-03'
+updated: '2025-10-03'
+tags:
+  - 'settings'
+  - 'configuration'
+  - 'admin'
+  - 'gui'
+  - 'cache'
+---
+
+# System Settings - User Guide
+
+## Overview
+
+The System Settings page provides a user-friendly interface for managing all dynamic CMS settings. Settings are stored in the database and take effect immediately without requiring a server restart. Settings are organized into logical categories with clear explanations and real-time updates.
+
+**Access:** Navigate to **Config → System Settings** (`/config/systemsetting`)
+
+**Required Permission:** Administrator access
+
+---
+
+## Interface Layout
+
+### Warning Banners
+
+Two informational banners appear at the top:
+
+#### Administrator Warning (Yellow)
+
+- Reminds you that these are critical system settings
+- Changes may require server restart
+- Review changes carefully before saving
+
+#### Dynamic Configuration Info (Blue)
+
+- Explains that settings are loaded dynamically from the database
+- Most changes take effect immediately without restart
+- Settings are organized by category
+
+### Tabbed Navigation
+
+Settings are organized into 13 categories:
+
+| Tab                     | Icon | Description                                   | Status    |
+| ----------------------- | ---- | --------------------------------------------- | --------- |
+| **General Settings**    | ⚙️   | Site identity, localization, maintenance mode | ✅ Active |
+| **Email / SMTP**        | 📧   | SMTP server, authentication, templates        | ✅ Active |
+| **Security**            | 🔒   | JWT, session, 2FA, CORS, CSP                  | ✅ Active |
+| **Storage**             | 💾   | File uploads, sizes, types, quotas            | ✅ Active |
+| **Cache & Performance** | ⚡   | Cache TTLs and optimization                   | ✅ Active |
+| **Database**            | 🗄️   | Connection pool, timeouts, indexes            | ✅ Active |
+| **API**                 | 🔌   | Rate limits, versioning, authentication       | ✅ Active |
+| **OAuth**               | 🔑   | Google, GitHub, Facebook OAuth                | ✅ Active |
+| **Media**               | 🖼️   | Image optimization, CDN, thumbnails           | ✅ Active |
+| **Search**              | 🔍   | Search provider, indexing, filters            | ✅ Active |
+| **Analytics**           | 📊   | Tracking codes, privacy, reports              | ✅ Active |
+| **Notifications**       | 🔔   | Email, SMS, push notifications                | ✅ Active |
+| **Advanced**            | 🛠️   | Debug mode, logging, diagnostics              | ✅ Active |
+
+---
+
+## Cache & Performance Settings
+
+### Overview
+
+The Cache & Performance tab allows you to configure cache Time-To-Live (TTL) values for different data categories. This directly affects how long data is cached before being refreshed.
+
+### Current Active TTLs
+
+The top section displays configured TTLs in an easy-to-read grid:
+
+```
+┌─────────┬──────────┬───────┐
+│ schema  │ widget   │ theme │
+│ 10m     │ 10m      │ 5m    │
+└─────────┴──────────┴───────┘
+```
+
+### Cache Categories
+
+#### 1. Schema Cache (Default: 600 seconds / 10 minutes)
+
+**What it is:**
+
+- Collection schemas and field definitions
+- Database structure metadata
+- Widget field configurations
+
+**When to adjust:**
+
+- ⬆️ **Increase (900-1800s)** if schemas rarely change in production
+- ⬇️ **Decrease (300-600s)** during active schema development
+- ⬇️ **Decrease (180-300s)** if using dynamic schema generation
+
+**Impact:**
+
+- Higher TTL = Faster schema access, less database queries
+- Lower TTL = More frequent schema updates, higher database load
+
+#### 2. Widget Cache (Default: 600 seconds / 10 minutes)
+
+**What it is:**
+
+- Widget configurations and settings
+- Dashboard widget data
+- Widget layout information
+
+**When to adjust:**
+
+- ⬆️ **Increase (900-1800s)** if widgets are configured once and rarely change
+- ⬇️ **Decrease (300-600s)** during widget development or testing
+- ⬇️ **Decrease (180-300s)** for frequently updated dynamic widgets
+
+**Impact:**
+
+- Higher TTL = Faster widget loading
+- Lower TTL = More responsive to widget configuration changes
+
+#### 3. Theme Cache (Default: 300 seconds / 5 minutes)
+
+**What it is:**
+
+- Theme configurations
+- CSS and styling assets
+- Theme metadata
+
+**When to adjust:**
+
+- ⬆️ **Increase (600-900s)** in stable production environments
+- ⬇️ **Decrease (60-180s)** during theme development or customization
+- ⬇️ **Decrease (30-60s)** when testing theme changes
+
+**Impact:**
+
+- Higher TTL = Faster page rendering
+- Lower TTL = Quicker theme update reflection
+
+#### 4. Content Cache (Default: 180 seconds / 3 minutes)
+
+**What it is:**
+
+- Content entries (posts, pages, etc.)
+- Content metadata
+- Published content data
+
+**When to adjust:**
+
+- ⬆️ **Increase (300-600s)** for mostly static content sites
+- ⬇️ **Decrease (60-120s)** for frequently updated content
+- ⬇️ **Decrease (30-60s)** for real-time or live content
+
+**Impact:**
+
+- Higher TTL = Less database load, faster content delivery
+- Lower TTL = More up-to-date content, higher database queries
+
+#### 5. Media Cache (Default: 300 seconds / 5 minutes)
+
+**What it is:**
+
+- Media file metadata
+- Image dimensions and properties
+- Media library information
+
+**When to adjust:**
+
+- ⬆️ **Increase (600-1200s)** as media metadata rarely changes
+- ⬇️ **Decrease (120-300s)** during bulk media uploads
+- ⬇️ **Decrease (60-120s)** when frequently updating media properties
+
+**Impact:**
+
+- Higher TTL = Faster media library browsing
+- Lower TTL = More current media metadata
+
+#### 6. API Cache (Default: 900 seconds / 15 minutes)
+
+**What it is:**
+
+- API endpoint responses
+- External API data
+- Cached API calls
+
+#### 7. Static Cache (Default: 3600 seconds / 1 hour)
+
+**What it is:**
+
+- Static assets (CSS, JS, fonts)
+- Compiled templates
+- Build artifacts
+
+#### 8. Collection Cache (Default: 600 seconds / 10 minutes)
+
+**What it is:**
+
+- Collection data structures
+- Field mappings
+- Collection metadata
+
+### Using the Cache Interface
+
+#### Editing TTL Values
+
+1. **Input Fields:** Each category has a number input field
+2. **Units:** Values are in seconds (1-86400)
+3. **Duration Display:** Shows formatted time (e.g., "5m", "10m", "3h 30m")
+4. **Validation:** Prevents invalid values (must be 1-86400)
+
+#### Saving Changes
+
+1. Modify one or more TTL values
+2. Click **"Save Changes"** button
+3. Success message appears
+4. New values take effect for future cache entries
+5. Existing cached items expire based on their original TTL
+
+#### Reset to Defaults
+
+Click **"Reset to Defaults"** to restore all TTL values to recommended defaults:
+
+- Schema: 600s (10 minutes)
+- Widget: 600s (10 minutes)
+- Theme: 300s (5 minutes)
+- Content: 180s (3 minutes)
+- Media: 300s (5 minutes)
+- API: 900s (15 minutes)
+- Static: 3600s (1 hour)
+- Collection: 600s (10 minutes)
+
+### Recommended Settings by Environment
+
+#### Development
+
+```
+Schema:  300s  (5 min)  - Frequent schema changes
+Widget:  300s  (5 min)  - Testing widget configs
+Theme:   180s  (3 min)  - Active theme development
+Content: 60s   (1 min)  - Testing content updates
+Media:   180s  (3 min)  - Adding/editing media
+API:     300s  (5 min)  - Testing integrations
+Static:  60s   (1 min)  - Rapid asset changes
+Collection: 300s (5 min) - Schema testing
+```
+
+#### Staging
+
+```
+Schema:  600s  (10 min) - Pre-production testing
+Widget:  600s  (10 min) - Widget testing
+Theme:   300s  (5 min)  - Theme refinement
+Content: 180s  (3 min)  - Content preview
+Media:   300s  (5 min)  - Media testing
+API:     600s  (10 min) - Integration testing
+Static:  600s  (10 min) - Asset validation
+Collection: 600s (10 min) - Data testing
+```
+
+#### Production (Stable Content)
+
+```
+Schema:  1800s (30 min) - Schemas rarely change
+Widget:  1800s (30 min) - Stable widgets
+Theme:   900s  (15 min) - Established theme
+Content: 300s  (5 min)  - Regular updates
+Media:   600s  (10 min) - Stable media
+API:     1800s (30 min) - Stable integrations
+Static:  3600s (1 hour) - Static assets
+Collection: 1800s (30 min) - Stable collections
+```
+
+#### Production (Dynamic Content)
+
+```
+Schema:  900s  (15 min) - Moderate schema changes
+Widget:  900s  (15 min) - Some widget updates
+Theme:   600s  (10 min) - Occasional theme tweaks
+Content: 60s   (1 min)  - Frequent updates
+Media:   300s  (5 min)  - Active media management
+API:     900s  (15 min) - Dynamic data
+Static:  1800s (30 min) - Occasional changes
+Collection: 900s (15 min) - Regular updates
+```
+
+#### Production (High Traffic)
+
+```
+Schema:  3600s (1 hour) - Maximum caching
+Widget:  3600s (1 hour) - Reduce DB load
+Theme:   1800s (30 min) - Longer cache
+Content: 600s  (10 min) - Balance freshness/performance
+Media:   1200s (20 min) - Reduce queries
+API:     3600s (1 hour) - Minimize external calls
+Static:  7200s (2 hours) - Long-lived assets
+Collection: 3600s (1 hour) - Maximum performance
+```
+
+### Performance Monitoring
+
+After changing TTL settings, monitor:
+
+1. **Cache Hit Rate** - Should be > 80% for most categories
+2. **Database Load** - Should decrease with higher TTLs
+3. **Response Times** - Should improve with optimized TTLs
+4. **Content Freshness** - Ensure content updates appear timely
+
+---
+
+## Other Settings Tabs
+
+### General Settings
+
+- Site name and description
+- Default language
+- Timezone configuration
+- Date/time formats
+- Maintenance mode
+
+### Email / SMTP
+
+- SMTP server settings (host, port, security)
+- Authentication credentials
+- Sender name and email
+- Email templates
+- Bounce handling
+
+### Security
+
+- JWT token configuration
+- Session management
+- 2FA/TOTP settings
+- CORS policies
+- CSP headers
+- Rate limiting
+
+### Storage
+
+- Maximum file sizes
+- Allowed file types
+- Storage paths
+- Disk quotas
+- Cleanup policies
+
+### Database
+
+- Connection pool size
+- Query timeout
+- Index configuration
+- Backup schedules
+
+### API
+
+- Rate limits
+- API versioning
+- CORS for APIs
+- Authentication methods
+- Response formats
+
+### OAuth
+
+- Google OAuth configuration
+- GitHub OAuth configuration
+- Facebook OAuth configuration
+- Custom OAuth providers
+- Callback URLs
+- Scopes
+
+### Media
+
+- Image optimization
+- Thumbnail generation
+- CDN configuration
+- Media library settings
+- Format conversion
+
+### Search
+
+- Search provider
+- Indexing rules
+- Field weights
+- Search filters
+
+### Analytics
+
+- Analytics tracking codes
+- Privacy settings
+- Report generation
+- Data retention
+
+### Notifications
+
+- Email notifications
+- SMS configuration
+- Push notifications
+- Notification templates
+
+### Advanced
+
+- Debug mode
+- Logging levels
+- Maintenance mode
+- System diagnostics
+
+---
+
+## Using System Settings
+
+### Viewing Settings
+
+1. Navigate to `/config/systemsetting`
+2. Click on any tab to view that group's settings
+3. Current values are displayed with descriptions
+
+### Editing Settings
+
+1. Select the settings group tab
+2. Modify values in the input fields
+3. Click **"Save Changes"** button
+4. Success message confirms update
+5. Changes take effect immediately
+
+### Resetting to Defaults
+
+1. Navigate to desired settings group
+2. Click **"Reset to Defaults"** button (available on Cache tab)
+3. Confirm the action
+4. All settings in that group revert to defaults
+
+---
+
+## Quick Actions Panel
+
+Located at the bottom of the page, provides quick access to common tasks:
+
+### 1. Reload Page
+
+**What it does:** Refreshes the current page
+
+**When to use:** After making configuration changes to see updates
+
+**Shortcut:** `Ctrl+R` or `Cmd+R`
+
+### 2. Clear Cache
+
+**What it does:** Removes all cached entries from memory and Redis
+
+**When to use:**
+
+- After changing TTL configuration
+- When testing cache behavior
+- If cached data seems stale
+- During troubleshooting
+
+**Warning:** This will temporarily slow down the system until cache rebuilds
+
+### 3. Export Config
+
+**What it does:** Exports current configuration to a JSON file
+
+**When to use:**
+
+- Backing up configuration
+- Migrating settings to another environment
+- Documentation purposes
+
+### 4. Documentation
+
+**What it does:** Opens comprehensive help documentation
+
+**When to use:** When you need detailed information about settings
+
+---
+
+## Import/Export Configuration
+
+System Settings includes import/export functionality for configuration management.
+
+### Exporting Configuration
+
+**Steps:**
+
+1. Click **"Export Config"** button
+2. Select export options:
+   - ✅ Include Settings (recommended)
+   - ☐ Include Collections (optional)
+   - ☐ Include Sensitive Data (optional)
+3. **If exporting sensitive data**, enter a strong password
+4. Click **"Export Now"**
+5. Save the downloaded JSON file
+
+**Export File Contains:**
+
+- All system settings
+- Metadata (timestamp, version, environment)
+- Encrypted sensitive data (if password provided)
+
+**Security Note:** Sensitive fields (passwords, secrets, API keys) are automatically filtered unless you explicitly check "Include Sensitive Data" and provide an encryption password.
+
+### Importing Configuration
+
+**Steps:**
+
+1. Click **"Import Config"** button
+2. Select configuration JSON file
+3. **If file contains encrypted data**, enter the decryption password
+4. Choose conflict resolution strategy:
+   - **Skip** - Keep existing values, import only new settings
+   - **Overwrite** - Replace all existing values with imported ones
+   - **Merge** - Intelligently combine values
+5. **Enable "Dry Run"** (recommended first time)
+6. Click **"Validate Import"** to check for conflicts
+7. Review results and conflicts
+8. Disable dry-run and click **"Import Now"** to apply
+
+**Conflict Resolution:**
+
+- **Skip**: Keeps your current values when conflicts exist
+- **Overwrite**: Replaces your values with imported ones
+- **Merge**: Combines both intelligently (best for objects)
+
+**Security Note:** Always run dry-run validation first to preview changes before applying them to your system.
+
+### Use Cases
+
+**Backup Configuration:**
+
+- Export all settings before major changes
+- Store export files in secure version control
+- Restore from backup if needed
+
+**Staging to Production:**
+
+- Develop configuration on staging environment
+- Export configuration file
+- Import on production with validation
+
+**Team Collaboration:**
+
+- Share configuration files via git
+- Team members import shared configs
+- Maintain consistent settings across environments
+
+**For Advanced Usage:** See [Import/Export System](/docs/dev-guide/import-export-system) for API documentation, encryption details, and automation workflows.
+
+---
+
+## System Status Indicator
+
+At the bottom of the page, a status bar shows:
+
+```
+🟢 System Operational
+Settings: Loaded | Environment: Dynamic | Auto-save: Enabled
+```
+
+**Indicators:**
+
+- 🟢 Green = System running normally
+- 🟡 Yellow = System degraded
+- 🔴 Red = System error
+
+---
+
+## Best Practices
+
+### TTL Configuration Strategy
+
+1. **Start with defaults** - Run with default values for 1-2 weeks
+2. **Monitor metrics** - Check cache hit rates in the Dashboard
+3. **Adjust based on data** - Use analytics to guide TTL changes
+4. **Test incrementally** - Change one value at a time
+5. **Document changes** - Keep notes on what works
+
+### Security Settings
+
+- ✅ Enable 2FA for administrators
+- ✅ Configure strong JWT secrets
+- ✅ Set appropriate session timeouts
+- ✅ Enable CORS only for trusted origins
+- ✅ Configure CSP headers restrictively
+
+### Email Configuration
+
+- ✅ Test SMTP settings before production
+- ✅ Use dedicated email service (SendGrid, Mailgun)
+- ✅ Configure SPF, DKIM, DMARC records
+- ✅ Monitor bounce rates
+- ✅ Use different sender addresses per environment
+
+### Import/Export
+
+- ✅ **Always run dry-run first**
+- ✅ Export before major changes
+- ✅ Use strong passwords for sensitive data
+- ✅ Store passwords in password manager
+- ✅ **Never commit passwords to git**
+- ✅ Version control config files
+- ✅ Test imports on staging first
+
+---
+
+## Keyboard Shortcuts
+
+- `Tab` - Navigate between input fields
+- `Enter` - Submit form (save changes)
+- `Ctrl+R` / `Cmd+R` - Reload page
+- `Esc` - Clear focus from input
+
+---
+
+## Quick TTL Reference
+
+| Duration   | Seconds |
+| ---------- | ------- |
+| 30 seconds | 30      |
+| 1 minute   | 60      |
+| 5 minutes  | 300     |
+| 10 minutes | 600     |
+| 15 minutes | 900     |
+| 30 minutes | 1800    |
+| 1 hour     | 3600    |
+| 2 hours    | 7200    |
+| 6 hours    | 21600   |
+| 12 hours   | 43200   |
+| 24 hours   | 86400   |
+
+---
+
+## Troubleshooting
+
+### Changes Not Taking Effect
+
+**Solutions:**
+
+1. Click "Clear Cache" in Quick Actions
+2. Wait for cache TTL to expire
+3. Reload the page (Ctrl+Shift+R)
+4. Check server logs for errors
+5. Check browser console for JavaScript errors
+
+#### Problem: Content seems stale
+
+**Solutions:**
+
+1. Reduce Content TTL value
+2. Clear cache manually
+3. Check if cache invalidation is working
+4. Verify database settings are correct
+
+#### Problem: High database load
+
+**Solutions:**
+
+1. Increase TTL values gradually
+2. Enable Redis caching if available
+3. Check cache hit rates in monitoring
+4. Consider cache warming strategies
+
+#### Problem: Low cache hit rate
+
+**Solutions:**
+
+1. Increase TTL values
+2. Implement cache warming
+3. Check cache key patterns
+4. Review cache invalidation logic
+
+### Settings Issues
+
+### Cannot Save Settings
+
+**Solutions:**
+
+1. Verify you have administrator permission
+2. Check network connection
+3. Review browser console for errors
+4. Check server logs for validation errors
+5. Verify field values meet validation requirements
+
+### Import/Export Issues
+
+### Import Failed
+
+**Solutions:**
+
+1. Ensure file is valid JSON
+2. Verify you're using correct password (if encrypted)
+3. Run dry-run validation first
+4. Check server logs for detailed errors
+5. Verify CMS versions are compatible
+
+### Wrong Password Error
+
+**Solutions:**
+
+1. Check password manager for saved password
+2. Verify you're using the export password
+3. Contact person who created the export
+4. If lost, manually reconfigure sensitive fields
+
+---
+
+## Mobile Usage
+
+The interface is fully responsive:
+
+- Tabs scroll horizontally on mobile
+- Input fields stack vertically
+- Quick actions adapt to screen size
+- All features work on touch devices
+
+---
+
+## Security Notes
+
+- Only administrators can access system settings
+- All changes are logged with user information
+- Invalid values are rejected by validation
+- Sensitive data is encrypted when exported with password
+- Database credentials are never exposed in UI
+- All API calls use authentication tokens
+
+---
+
+## Related Documentation
+
+- [Import/Export System (Dev Guide)](/docs/dev-guide/import-export-system) - API usage, workflows, encryption
+- [Cache System](/docs/architecture/cache-system) - Detailed cache configuration
+- [API Reference](/docs/dev-guide/api) - API endpoints
+- [Authentication](/docs/dev-guide/authentication) - User authentication
+
+---
+
+_Last Updated: October 3, 2025_

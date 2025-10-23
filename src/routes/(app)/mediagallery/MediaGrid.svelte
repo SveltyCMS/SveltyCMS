@@ -25,7 +25,7 @@ Key features:
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
 
 	// Events
 	import { createEventDispatcher } from 'svelte';
@@ -41,13 +41,6 @@ Key features:
 
 	// Initialize the showInfo array with false values
 	let showInfo = $state(Array.from({ length: filteredFiles.length }, () => false));
-
-	// Popup Tooltips
-	const FileTooltip: PopupSettings = {
-		event: 'click',
-		target: 'FileInfo',
-		placement: 'right'
-	};
 
 	function handleDelete(file: MediaImage) {
 		ondeleteImage(file);
@@ -138,7 +131,7 @@ Key features:
 								{/each}
 							</tbody>
 						</table>
-						<div class="bg-surface-100-800-token arrow" />
+						<div class="bg-surface-100-800-token arrow"></div>
 					</div>
 
 					<button aria-label="Edit" class="btn-icon">

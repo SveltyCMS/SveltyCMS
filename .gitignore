@@ -11,9 +11,11 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # secrets
+.env
+.env.*
 /config/private.ts
-/config/public.ts
 /data.json
+.bundle-history.json
 
 # Backup folder under config
 /config/backup/

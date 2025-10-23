@@ -90,14 +90,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 	// Complete setup and close modal
 	function completeSetup() {
-		if (parent.onClose) parent.onClose();
-		modalStore.close(true); // Return true to indicate successful setup
+		if (parent.onClose) parent.onClose(true);
+		modalStore.close();
 	}
 
 	// Cancel setup
 	function cancelSetup() {
-		if (parent.onClose) parent.onClose();
-		modalStore.close(false);
+		if (parent.onClose) parent.onClose(false);
+		modalStore.close();
 	}
 
 	// Handle input for verification code (only allow 6 digits)
@@ -116,7 +116,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	}
 </script>
 
-<div class="modal-content max-w-2xl">
+<div class="max-w-2xl p-6">
 	{#if currentStep === 'setup'}
 		<!-- Step 1: Show QR Code -->
 		<div class="mb-6 text-center">
@@ -187,7 +187,8 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						class="input text-center font-mono text-2xl tracking-widest"
 						maxlength="6"
 						autocomplete="off"
-						class:input-error={error}
+						class:border-error-500={error}
+						class:focus\:border-error-500={error}
 					/>
 				</div>
 
@@ -232,9 +233,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		<!-- Backup Codes -->
 		{#if showBackupCodes && backupCodes.length > 0}
 			<div class="mb-6">
-				<div class="alert variant-ghost-warning">
+				<div class="variant-ghost-warning flex gap-3 rounded-lg border p-4">
 					<iconify-icon icon="mdi:key-variant" width="24"></iconify-icon>
-					<div class="alert-message">
+					<div class="flex-1">
 						<h5 class="h5 mb-2">{m.twofa_backup_codes_title()}</h5>
 						<p class="mb-3 text-sm">{m.twofa_backup_codes_save_description()}</p>
 
@@ -278,21 +279,3 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		</button>
 	</div>
 </div>
-
-<style>
-	.modal-content {
-		@apply p-6;
-	}
-
-	.alert {
-		@apply flex gap-3 rounded-lg border p-4;
-	}
-
-	.alert-message {
-		@apply flex-1;
-	}
-
-	.input-error {
-		@apply border-error-500 focus:border-error-500;
-	}
-</style>

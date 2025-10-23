@@ -11,14 +11,13 @@
  * - **Multi-Tenant Safe:** All data lookups are scoped to the current tenant.
  */
 
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json } from '@sveltejs/kit';
 import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
 
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
-import { StatusTypes } from '@src/content/types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -40,7 +39,6 @@ const ContentItemSchema = v.object({
 });
 
 // --- API Handler ---
-
 export const GET: RequestHandler = async ({ locals, url }) => {
 	const { user, tenantId } = locals;
 	try {
@@ -50,7 +48,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -62,11 +60,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		// 2. Get all collection schemas the user can read (scoped to the tenant)
 		let allCollections;
 		try {
-			const collectionData = await contentManager.getCollectionData(tenantId);
-			allCollections = collectionData.collections;
+			allCollections = await contentManager.getCollections();
 		} catch (err) {
-			logger.error('Failed to get collection data:', err);
-			throw error(500, 'Could not access collection data');
+			logger.error('Failed to get collections:', err);
+			throw error(500, 'Could not access collections');
 		}
 
 		if (!allCollections || Object.keys(allCollections).length === 0) {
@@ -86,7 +83,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const queryPromises = collectionsEntries.map(async ([collectionId, collection]) => {
 			try {
 				const collectionName = `collection_${collection._id}`;
-				const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+				const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
 				// Use database-agnostic CRUD methods for reliable querying
 				const result = await dbAdapter.crud.findMany(collectionName, filter, {
@@ -165,7 +162,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				collection: entry.collectionName,
 				createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
 				createdBy: username,
-				status: entry.status || entry.state || StatusTypes.publish
+				status: entry.status || entry.state || 'publish'
 			};
 		});
 

@@ -86,16 +86,6 @@ Provides a clean interface for tool parameters and quick actions.
 			title: 'Shapes',
 			description: 'Add geometric shapes and arrows',
 			tips: ['Select shape type from toolbar', 'Click and drag to create shape', 'Adjust fill and stroke colors', 'Resize using corner handles']
-		},
-		finetune: {
-			title: 'Fine-Tune',
-			description: 'Adjust brightness, contrast, saturation and more',
-			tips: [
-				'Use presets for quick enhancements',
-				'Adjust individual sliders for precise control',
-				'Hold the compare button to see original',
-				'Combine multiple adjustments for best results'
-			]
 		}
 	};
 

@@ -17,7 +17,7 @@
  * - Allows querying of user data through the GraphQL API
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -25,7 +25,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Types
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 
 // GraphQL types
 type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];
@@ -97,18 +97,17 @@ interface GraphQLContext {
 
 // Resolvers with pagination support
 export function userResolvers(dbAdapter: DatabaseAdapter) {
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		throw new Error('Database adapter is not initialized');
+	}
 	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
 		// Authentication is handled by hooks.server.ts
 		if (!context.user) {
 			throw new Error('Authentication required');
 		}
 
-		if (!dbAdapter) {
-			logger.error('Database adapter is not initialized');
-			throw Error('Database adapter is not initialized');
-		}
-
-		if (privateEnv.MULTI_TENANT && !context.tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !context.tenantId) {
 			logger.error('GraphQL: Tenant ID is missing from context in a multi-tenant setup.');
 			throw new Error('Internal Server Error: Tenant context is missing.');
 		}
@@ -118,7 +117,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 		try {
 			// --- MULTI-TENANCY: Scope the query by tenantId ---
 			const query: { tenantId?: string } = {};
-			if (privateEnv.MULTI_TENANT) {
+			if (getPrivateSettingSync('MULTI_TENANT')) {
 				query.tenantId = context.tenantId;
 			}
 

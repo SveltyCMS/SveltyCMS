@@ -1,7 +1,6 @@
-<!-- 
+<!--
 @file src/components/PermissionsSetting.svelte
 @component
-**Enhanced Permissions Setting Component for managing widget field permissions**
 
 @example
 <PermissionsSetting />
@@ -17,10 +16,10 @@ Features:
 -->
 
 <script lang="ts">
-	import type { Role } from '@src/auth/types';
-	import { PermissionAction } from '@src/auth/types';
-
-	// Skeleton
+	import type { Role } from '@src/databases/auth/types';
+	import { PermissionAction } from '@src/databases/auth/types';
+	// SECURITY: Never import privateEnv in .svelte files - it exposes secrets to client!
+	// Use page.data from +page.server.ts instead
 	import { showToast } from '@utils/toast';
 
 	interface Props {
@@ -71,7 +70,7 @@ Features:
 		}
 
 		// Don't allow modifying admin permissions
-		const role = roles.find((r) => r._id === roleId);
+		const role = roles.find((r: Role) => r._id === roleId);
 		if (role?.isAdmin) {
 			showToast('Cannot modify permissions for admin role', 'warning');
 			return;
@@ -105,6 +104,7 @@ Features:
 	const actionIcons: Record<PermissionAction, string> = {
 		[PermissionAction.CREATE]: 'bi:plus-circle-fill',
 		[PermissionAction.READ]: 'bi:eye-fill',
+		[PermissionAction.WRITE]: 'bi:pencil-square',
 		[PermissionAction.UPDATE]: 'bi:pencil-fill',
 		[PermissionAction.DELETE]: 'bi:trash-fill',
 		[PermissionAction.MANAGE]: 'bi:gear-fill',
@@ -177,9 +177,3 @@ Features:
 		{/if}
 	</div>
 {/if}
-
-<style lang="postcss">
-	.badge {
-		@apply rounded px-2 py-1 text-xs;
-	}
-</style>

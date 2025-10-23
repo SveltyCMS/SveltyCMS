@@ -15,7 +15,6 @@ Displays real-time system metrics integrated with the dashboard grid system
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import type { Snippet } from 'svelte';
 
 	interface HealthMetrics {
 		requests: { total: number; errors: number };
@@ -36,7 +35,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 		icon = 'mdi:chart-line',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
+		onSizeChange = () => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
@@ -66,39 +65,6 @@ Displays real-time system metrics integrated with the dashboard grid system
 		if (mb < 1024) return `${mb}MB`;
 		return `${(mb / 1024).toFixed(1)}GB`;
 	}
-
-	// Widget content snippet (unused but kept for reference)
-	const widgetContent: Snippet<[{ data: HealthMetrics | null }]> = (data) => {
-		const metrics = data.data;
-
-		if (!metrics) {
-			return `<div class="flex h-full items-center justify-center text-surface-500">
-				<div class="text-center">
-					<iconify-icon icon="mdi:chart-line" width="48" class="mb-2 opacity-50"></iconify-icon>
-					<p>Loading metrics...</p>
-				</div>
-			</div>`;
-		}
-
-		const errorRate = metrics.requests.total > 0 ? (metrics.requests.errors / metrics.requests.total) * 100 : 0;
-
-		const authSuccessRate =
-			metrics.auth.validations > 0 ? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100 : 100;
-
-		const cacheHitRate = metrics.cache.hits + metrics.cache.misses > 0 ? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100 : 0;
-
-		return `<div class="flex h-full flex-col space-y-3 text-sm">
-			<!-- Performance Overview -->
-			<div class="grid grid-cols-2 gap-3">
-				<div class="rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-medium text-surface-600 dark:text-surface-300">Error Rate</span>
-						<span class="text-lg font-bold ${getPerformanceColor(errorRate)}">${errorRate.toFixed(2)}%</span>
-					</div>
-				</div>
-			</div>
-		</div>`;
-	};
 </script>
 
 <BaseWidget
@@ -128,7 +94,6 @@ Displays real-time system metrics integrated with the dashboard grid system
 				metrics.auth.validations > 0 ? ((metrics.auth.validations - metrics.auth.failures) / metrics.auth.validations) * 100 : 100}
 			{@const cacheHitRate =
 				metrics.cache.hits + metrics.cache.misses > 0 ? (metrics.cache.hits / (metrics.cache.hits + metrics.cache.misses)) * 100 : 0}
-			{@const uptime = Math.floor((Date.now() - metrics.lastReset) / 1000)}
 
 			<div class="flex h-full flex-col space-y-3 text-sm">
 				<!-- Performance Overview -->

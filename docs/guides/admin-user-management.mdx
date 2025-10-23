@@ -1,0 +1,617 @@
+---
+path: 'docs/guides/admin-user-management.mdx'
+title: 'Admin User Management'
+description: 'Complete administrator guide for managing users, invitation tokens, and access control in SveltyCMS'
+icon: 'mdi:account-cog'
+published: true
+order: 4
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'admin'
+  - 'user-management'
+  - 'tokens'
+  - 'permissions'
+  - 'access-control'
+---
+
+# Admin User Management
+
+## Overview
+
+The Admin Area provides comprehensive tools for managing users, invitation tokens, roles, and access control. This interface is only visible to users with administrator privileges and appears automatically on the User Management page (`/user`).
+
+## Accessing the Admin Area
+
+**Location**: Navigate to `/user` (User Management page)
+
+**Requirements**:
+
+- User must have `admin` role OR
+- User must have `manage_users` permission
+
+**Visibility**: The Admin Area appears below the user profile section. Non-admin users will not see any indication that these features exist.
+
+## Admin Area Components
+
+### Three Main Sections
+
+1. **Email Tokens**: Create new invitation tokens for user registration
+2. **User Management**: View, edit, and manage all registered users
+3. **Token Management**: View and manage all invitation tokens (active, used, expired)
+
+## User Management
+
+### Viewing Users
+
+The user list provides a comprehensive view of all registered users in the system.
+
+#### Table Columns
+
+**Core Information**:
+
+- **Blocked Status**: ✓ (blocked) or ✗ (active) indicator
+- **Avatar**: User profile image
+- **Email**: User's email address (clickable for quick filter)
+- **Username**: Display name (clickable for quick filter)
+- **Role**: Assigned role with color-coded badge
+- **User ID**: Unique identifier
+- **Tenant ID**: Tenant assignment (in multi-tenant mode)
+
+**Activity Information**:
+
+- **Active Sessions**: Number of currently active sessions
+- **Last Access**: Date and time of last login/activity
+- **Created At**: Account creation date
+- **Updated At**: Last profile modification date
+
+#### Table Features
+
+**Search & Filter**:
+
+- **Global Search**: Search across all visible fields
+- **Column Filters**: Filter individual columns by clicking filter icon
+- **Quick Filters**: Click email/username to auto-filter
+- **Show/Hide Columns**: Customize which columns are visible
+- **Expired Token Toggle**: Show or hide expired invitation tokens
+
+**Sorting**:
+
+- Click any column header to sort
+- First click: Ascending order
+- Second click: Descending order
+- Third click: Remove sorting
+
+**Pagination**:
+
+- Configurable rows per page (10, 25, 50, 100)
+- Page navigation controls
+- Total count display
+- Density options (compact, normal, comfortable)
+
+**Bulk Operations**:
+
+- **Select All**: Checkbox to select all users on current page
+- **Multi-Select**: Select individual users via checkboxes
+- **Bulk Actions**: Block/unblock multiple users simultaneously
+
+### User Actions
+
+#### Individual User Management
+
+**Edit User** (Click user row):
+
+- Modify username
+- Change email address
+- Update avatar
+- Assign different role
+- View detailed user information
+
+**Block/Unblock User**:
+
+- Temporarily disable user account
+- Blocks authentication attempts
+- User cannot access system when blocked
+- Can be reversed anytime
+
+**Delete User** (Use with caution):
+
+- Permanently removes user account
+- Cannot be undone
+- Consider blocking instead for temporary access restriction
+- Confirmation dialog required
+
+**View User Details**:
+
+- User ID and tenant assignment
+- Role and permissions
+- Session information
+- Activity timestamps
+- Account status
+
+#### Bulk User Operations
+
+**Available Bulk Actions**:
+
+1. Select multiple users using checkboxes
+2. Choose action from bulk operations menu:
+   - **Block Selected**: Disable multiple accounts
+   - **Unblock Selected**: Re-enable multiple accounts
+   - **Export Data**: Download user information
+3. Confirm action in dialog
+4. System processes all selected users
+
+## Token Management
+
+### Viewing Invitation Tokens
+
+The token management section displays all invitation tokens created in the system.
+
+#### Token Table Columns
+
+**Token Information**:
+
+- **Blocked Status**: Token active/blocked indicator
+- **Email**: Recipient's email address
+- **Role**: Assigned role for new user
+- **Token**: Token string (partially masked for security)
+- **Tenant ID**: Tenant assignment (in multi-tenant mode)
+
+**Timestamps**:
+
+- **Expires**: Token expiration date/time
+- **Created At**: Token creation date
+- **Updated At**: Last modification date
+
+#### Token States
+
+**Active**:
+
+- Token is valid and can be used
+- Not yet expired
+- Not blocked
+- Not consumed
+
+**Used**:
+
+- Token has been used for registration
+- Cannot be reused
+- Historical record maintained
+
+**Expired**:
+
+- Past expiration date
+- Cannot be used for registration
+- Can be viewed for audit purposes
+- Toggle "Show Expired Tokens" to display
+
+**Blocked**:
+
+- Manually disabled by administrator
+- Cannot be used even if not expired
+- Can be unblocked if needed
+
+### Creating Invitation Tokens
+
+#### Step-by-Step Process
+
+1. **Click "Email Token" Button**
+   - Located in the Admin Area
+   - Opens invitation form modal
+
+2. **Fill in User Details**:
+
+   **Email** (required):
+   - Valid email address
+   - User will receive invitation at this address
+   - Email becomes locked during registration
+
+   **Username** (suggested):
+   - Recommended username for new user
+   - User can change during registration
+   - Helpful for pre-populating forms
+
+   **Role** (required):
+   - Select from available roles:
+     - `super-admin`: Full system access
+     - `admin`: Administrative access
+     - `editor`: Content management
+     - `user`: Standard user access
+     - Custom roles if configured
+
+   **Expires** (required):
+   - Token validity period:
+     - `1h`: 1 hour (for immediate registrations)
+     - `1d`: 1 day (short-term)
+     - `7d`: 7 days (recommended)
+     - `30d`: 30 days (standard)
+     - `90d`: 90 days (long-term)
+
+   **Tenant ID** (multi-tenant only):
+   - Assign user to specific tenant
+   - Required in multi-tenant mode
+   - User will have access only to assigned tenant
+
+3. **Send Invitation**:
+   - Click "Send Invitation" button
+   - System generates secure token
+   - Email sent to recipient with registration link
+   - Token appears in Token Management list
+
+#### Invitation Email Contents
+
+The invitation email includes:
+
+- Welcome message
+- Invitation link with embedded token
+- Registration instructions
+- Token expiration information
+- Contact information for support
+
+**Example link format**:
+
+```
+https://yoursite.com/login?invite_token=abc123xyz789...
+```
+
+### Token Actions
+
+**Copy Token**:
+
+- Click copy icon to copy token to clipboard
+- Useful for manual distribution
+- Token can be sent via alternative channels
+
+**Block Token**:
+
+- Prevent token from being used
+- Useful if invitation was sent in error
+- Can be unblocked if needed
+- Blocked tokens remain visible for audit
+
+**Unblock Token**:
+
+- Re-enable previously blocked token
+- Only works if token hasn't expired
+- Allows token to be used again
+
+**Delete Token**:
+
+- Permanently remove token from system
+- Cannot be undone
+- Historical records may be maintained separately
+- Consider blocking instead for audit trail
+
+**Resend Email**:
+
+- Send invitation email again
+- Useful if original email was lost
+- Same token and registration link
+- New expiration date if regenerated
+
+## Table Customization
+
+### Column Visibility
+
+**Show/Hide Columns**:
+
+1. Click column visibility icon (usually gear or columns icon)
+2. Toggle checkboxes for each column
+3. Changes apply immediately
+4. Settings saved in browser localStorage
+
+**Default Visible Columns**:
+
+- User Management: Blocked, Avatar, Email, Username, Role, Active Sessions
+- Token Management: Blocked, Email, Role, Token, Expires
+
+**Additional Columns** (can be shown):
+
+- User ID
+- Tenant ID (in multi-tenant mode)
+- Created At
+- Updated At
+- Last Access
+
+### Table Density
+
+**Three Density Options**:
+
+**Compact**:
+
+- Minimal padding
+- More rows visible
+- Best for large datasets
+
+**Normal** (default):
+
+- Balanced spacing
+- Recommended for most users
+
+**Comfortable**:
+
+- Extra padding
+- Easier to read
+- Best for accessibility
+
+**Setting Density**:
+
+1. Click density icon in table controls
+2. Select preferred density
+3. Setting saved in browser localStorage
+4. Applied to both user and token tables
+
+### Drag-and-Drop Columns
+
+**Reorder Columns**:
+
+1. Click and hold column header
+2. Drag to desired position
+3. Drop to reorder
+4. Order saved in browser localStorage
+
+## Filtering and Search
+
+### Global Search
+
+**Search All Fields**:
+
+- Search box at top of table
+- Searches across all visible columns simultaneously
+- Real-time filtering as you type
+- Case-insensitive matching
+- Clears with "X" button or Escape key
+
+**Search Keyboard Shortcuts**:
+
+- `Ctrl+F` (Windows/Linux) or `Cmd+F` (Mac): Focus search box
+- `Escape`: Clear search and close
+
+### Column-Specific Filters
+
+**Apply Column Filter**:
+
+1. Click filter icon on column header
+2. Enter filter value
+3. Press Enter or click Apply
+4. Multiple column filters can be active simultaneously
+
+**Clear Filters**:
+
+- Click "X" button in filter field
+- Or clear all filters button in table controls
+
+**Filter Types by Column**:
+
+- **Text columns**: Contains/matches filter
+- **Date columns**: Date range or specific date
+- **Boolean columns**: True/False toggle
+- **Role columns**: Select from role list
+
+## Multi-Tenant Support
+
+### Tenant-Specific Management
+
+**In Multi-Tenant Mode**:
+
+- Tenant ID column automatically appears
+- Filter users by tenant
+- Assign users to specific tenants via invitation tokens
+- Each tenant's users are isolated
+
+**Tenant Admin Capabilities**:
+
+- Tenant admins can manage users within their tenant only
+- Super admins can manage users across all tenants
+- Tenant ID shown in user and token lists
+
+**Creating Tenant-Specific Invitations**:
+
+1. Fill in user details as normal
+2. Select **Tenant ID** from dropdown
+3. User will be assigned to selected tenant upon registration
+4. User will have access only to that tenant's data
+
+## Permissions and Access Control
+
+### Required Permissions
+
+**To Access Admin Area**:
+
+- `admin` role, OR
+- `manage_users` permission
+
+**To Create Tokens**:
+
+- `admin` role, OR
+- `config/userManagement` permission with `manage` action
+
+**To Edit Users**:
+
+- `admin` role, OR
+- Appropriate role-based permissions
+
+**To Delete Users**:
+
+- `admin` or `super-admin` role
+- Confirmation required
+- Audit log entry created
+
+### Access Management Integration
+
+For detailed role and permission configuration, see:
+
+- [Access Management](/docs/guides/access-management) - Configure roles and permissions
+- Navigate to `/config/accessManagement` in the application
+
+## Best Practices
+
+### User Management
+
+**Regular Maintenance**:
+
+- Review active sessions periodically
+- Clean up unused accounts
+- Monitor failed login attempts
+- Review blocked users regularly
+
+**Security**:
+
+- Use strong roles with least privilege
+- Block rather than delete when possible (maintains audit trail)
+- Monitor admin account activities
+- Review permission assignments quarterly
+
+**Token Management**:
+
+- Use appropriate expiration periods
+- Block unused tokens before expiration
+- Use 7-day expiration for standard invitations
+- Use 1-hour expiration for sensitive admin roles
+- Delete or block tokens sent to wrong recipients
+
+### Communication
+
+**When Sending Invitations**:
+
+- Include clear instructions in invitation email
+- Specify role and responsibilities
+- Provide support contact information
+- Set appropriate expiration based on recipient's availability
+
+**Follow-Up**:
+
+- Check if invitations were used
+- Resend if needed
+- Block if no longer needed
+- Delete obsolete tokens periodically
+
+## Troubleshooting
+
+### Common Issues
+
+**Admin Area Not Visible**:
+
+- Verify you have admin role or manage_users permission
+- Check with super-admin if permissions are correct
+- Refresh page or clear cache
+- Check browser console for errors
+
+**Cannot Create Tokens**:
+
+- Verify email configuration is working
+- Check database connectivity
+- Ensure roles are properly configured
+- Review server logs for detailed errors
+
+**Tokens Not Working**:
+
+- Check if token has expired
+- Verify token wasn't blocked
+- Ensure token hasn't been used already
+- Check for email spam filters
+
+**Bulk Operations Failing**:
+
+- Try smaller batches
+- Check for permission errors
+- Review which users are failing
+- Check server logs for details
+
+### Debug Information
+
+**Check User Status**:
+
+1. Click user row to view details
+2. Review user ID, tenant ID, and role
+3. Check active sessions
+4. Verify timestamps
+
+**Check Token Status**:
+
+1. View token in Token Management
+2. Check expiration date
+3. Verify not blocked
+4. Confirm not already used
+
+**Server Logs**:
+
+- Check `/logs/app.log` for detailed error messages
+- Look for authentication errors
+- Review permission denials
+- Monitor database errors
+
+## API Integration
+
+### User Management Endpoints
+
+```http
+# Get all users (admin only)
+GET /api/user/list
+
+# Update user
+PUT /api/user/updateUserAttributes
+Content-Type: application/json
+
+{
+  "user_id": "123",
+  "newUserData": {
+    "username": "newname",
+    "role": "editor"
+  }
+}
+
+# Block/Unblock user
+POST /api/user/blockUser
+Content-Type: application/json
+
+{
+  "userId": "123",
+  "blocked": true
+}
+
+# Delete users
+POST /api/user/deleteUsers
+Content-Type: application/json
+
+["userId1", "userId2"]
+```
+
+### Token Management Endpoints
+
+```http
+# Create invitation token
+POST /api/auth/invite
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "role": "user",
+  "expires": "7d",
+  "tenantId": "tenant123"
+}
+
+# List all tokens
+GET /api/auth/tokens
+
+# Block token
+POST /api/auth/token/block
+Content-Type: application/json
+
+{
+  "token": "abc123..."
+}
+```
+
+## Related Documentation
+
+- [User Registration](/docs/guides/user-registration) - User registration process
+- [Access Management](/docs/guides/access-management) - Roles and permissions
+- [User Profile Management](/docs/guides/user-profile) - Profile settings
+- [Two-Factor Authentication](/docs/guides/2fa-setup) - Enhanced security
+- [Multi-Tenant Configuration](/docs/architecture/multi-tenant) - Tenant setup
+
+---
+
+**Last Updated**: October 5, 2025

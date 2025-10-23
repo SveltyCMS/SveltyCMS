@@ -20,6 +20,13 @@
 	let expanded = $state(false);
 	let wrapperRef = $state<HTMLDivElement | null>(null);
 
+	// Effect to call onChange when color changes
+	$effect(() => {
+		if (onChange) {
+			onChange(color);
+		}
+	});
+
 	// Effect to close this component if another one becomes active
 	$effect(() => {
 		if (key !== active) {
@@ -103,13 +110,7 @@
 	</button>
 	{#if expanded}
 		<div id="color-palette-{key}" class="palette" use:setPosition>
-			<ColorPicker
-				bind:hex={color}
-				on:change={(e) => onChange?.(e.detail.hex)}
-				components={ChromeVariant}
-				sliderDirection="horizontal"
-				isDialog={false}
-			/>
+			<ColorPicker bind:hex={color} components={ChromeVariant} sliderDirection="horizontal" isDialog={false} />
 		</div>
 	{/if}
 </div>

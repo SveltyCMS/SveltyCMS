@@ -21,27 +21,23 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { fade } from 'svelte/transition';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
-	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { onDestroy, onMount } from 'svelte';
-	import { publicEnv } from '@root/config/public';
-
+	import { fade } from 'svelte/transition';
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 
 	// Utils
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import { getTextDirection } from '@utils/utils';
-
 	// Stores
-	import { contentStructure } from '@stores/collectionStore.svelte';
+	import { setContentStructure } from '@stores/collectionStore.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -50,10 +46,17 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-
 	// Skeleton
-	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	import { setGlobalModalStore } from '@utils/modalUtils';
+
+	// Import modal components
+	import ScheduleModal from '@components/collectionDisplay/ScheduleModal.svelte';
+
+	// Modal component registry for Skeleton UI
+	const modalComponentRegistry: Record<string, any> = {
+		scheduleModal: ScheduleModal
+	};
 	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
@@ -114,7 +117,7 @@
 		// Defer store updates to the next microtask to avoid UpdatedAtError during reactive batch updates
 		const defer = (fn: () => void) => (typeof queueMicrotask === 'function' ? queueMicrotask(fn) : Promise.resolve().then(fn));
 		if (Array.isArray(data.contentStructure)) {
-			defer(() => contentStructure.set(data.contentStructure));
+			defer(() => setContentStructure(data.contentStructure));
 		}
 	});
 
@@ -130,23 +133,22 @@
 		document.documentElement.lang = lang;
 	});
 
-	// Function to initialize collections using ContentManager
-	async function initializeCollections() {
-		try {
-			//console.log('contentStructure', data.contentStructure);
-			contentStructure.set(data.contentStructure);
-		} catch (error) {
-			console.error('Error loading collections:', error);
-			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
-		}
-	}
-
 	// Theme management
 	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
 		setModeCurrent(prefersDarkMode);
-		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
+
+		// Immediately apply the theme to the DOM
+		if (prefersDarkMode) {
+			document.documentElement.classList.add('dark');
+		} else {
+			document.documentElement.classList.remove('dark');
+		}
+
+		// Set cookie for server-side persistence
+		document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 	}
 
 	// Keyboard shortcuts
@@ -162,12 +164,55 @@
 		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
 
-		// Check for saved theme preference in localStorage
-		const savedTheme = localStorage.getItem('theme');
+		// Check for saved theme preference in cookies
+		const getCookie = (name: string) => {
+			const value = `; ${document.cookie}`;
+			const parts = value.split(`; ${name}=`);
+			if (parts.length === 2) return parts.pop()?.split(';').shift();
+			return null;
+		};
+
+		const savedTheme = getCookie('theme');
+		const savedDarkMode = getCookie('darkMode');
+
 		if (savedTheme) {
 			const newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
+
+			// Immediately apply the theme to the DOM
+			if (newMode) {
+				document.documentElement.classList.remove('dark');
+			} else {
+				document.documentElement.classList.add('dark');
+			}
+		} else if (savedDarkMode) {
+			const newMode = savedDarkMode === 'true';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+
+			// Immediately apply the theme to the DOM
+			if (newMode) {
+				document.documentElement.classList.remove('dark');
+			} else {
+				document.documentElement.classList.add('dark');
+			}
+		} else {
+			// No saved preference found, use device preference
+			const prefersDarkMode = mediaQuery.matches;
+			setModeUserPrefers(prefersDarkMode);
+			setModeCurrent(prefersDarkMode);
+
+			// Immediately apply the theme to the DOM
+			if (prefersDarkMode) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+
+			// Save the device preference as the initial user preference
+			document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+			document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 		}
 
 		if (data.user) {
@@ -181,29 +226,6 @@
 
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
-
-		// Initialize data (deferred to next microtask)
-		queueMicrotask(() => initializeCollections());
-
-		// Fallback: if collections are empty after hydration, fetch from API
-		if (browser) {
-			setTimeout(async () => {
-				try {
-					if (!Array.isArray(contentStructure.value) || contentStructure.value.length === 0) {
-						const res = await fetch('/api/content-structure?action=getContentStructure', { credentials: 'include' });
-						if (res.ok) {
-							const json = await res.json();
-							const nodes = json?.contentNodes || json?.data?.contentStructure || [];
-							if (Array.isArray(nodes)) {
-								contentStructure.set(nodes);
-							}
-						}
-					}
-				} catch (err) {
-					console.warn('Fallback fetch for contentStructure failed:', err);
-				}
-			}, 0);
-		}
 	});
 
 	// Navigation loading handlers
@@ -234,8 +256,10 @@
 	});
 
 	// SEO
-	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
-	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	const siteName = $derived(publicEnv.SITE_NAME || 'SveltyCMS');
+	const SeoDescription = $derived(
+		`${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`
+	);
 </script>
 
 <svelte:head>
@@ -244,11 +268,10 @@
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
-	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />
 
 	<!-- Open Graph -->
-	<meta property="og:title" content={SeoTitle} />
+	<meta property="og:title" content={siteName} />
 	<meta property="og:description" content={SeoDescription} />
 	<meta property="og:type" content="website" />
 	<meta property="og:image" content="/SveltyCMS.png" />
@@ -258,7 +281,7 @@
 
 	<!-- Open Graph : Twitter-->
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={SeoTitle} />
+	<meta name="twitter:title" content={siteName} />
 	<meta name="twitter:description" content={SeoDescription} />
 	<meta name="twitter:image" content="/SveltyCMS.png" />
 	<meta property="twitter:domain" content={page.url.origin} />
@@ -275,7 +298,7 @@
 			<FloatingNav />
 		{/if}
 		<Toast />
-		<Modal />
+		<Modal components={modalComponentRegistry} />
 		{#if $isSearchVisible}
 			<SearchComponent />
 		{/if}

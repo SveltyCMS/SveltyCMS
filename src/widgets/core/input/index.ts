@@ -1,99 +1,122 @@
 /**
-@file src/widgets/core/input/index.ts
-@description - Input index file.
+ * @file src/widgets/core/input/index.ts
+ * @description Input Widget Definition - Text Input
+ *
+ * Implements a professional text input widget using the Three Pillars Architecture.
+ * This widget is specialized for text content and supports full translation capabilities.
+ *
+ * @features
+ * - **Text-Only**: Focused implementation for text content (use specialized widgets for email/phone/number)
+ * - **Dynamic Validation**: Schema is generated based on `required`, `minLength`, `maxLength`, etc.
+ * - **Configurable GUI**: `GuiSchema` allows easy configuration in the Collection Builder.
+ * - **Translatable**: Fully supports multilingual content entry by default.
+ * - **Database Aggregation**: Supports case-insensitive text search and sorting.
+ * - **Character Counting**: Visual feedback for length constraints
+ * - **Prefix/Suffix Support**: Flexible UI composition
  */
-import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-//ParaglideJS
+
+// Import components needed for the GuiSchema
+import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
+
 import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
 
-const WIDGET_NAME = 'Input' as const;
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
 
-/**
- * Defines widget Parameters
- */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: unknown;
-	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
+import {
+	any,
+	maxLength,
+	minLength,
+	object,
+	optional,
+	pipe,
+	string,
+	transform,
+	type BaseIssue,
+	type BaseSchema,
+	type InferInput as ValibotInput
+} from 'valibot';
+import type { InputProps } from './types';
+
+// The validation schema is a function that receives the field config and returns a schema.
+const createValidationSchema = (field: ReturnType<typeof InputWidget>): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
+	// Build a string schema with text-specific rules
+	const stringRules: Array<unknown> = [transform((s: string) => (typeof s === 'string' ? s.trim() : s))];
+
+	if (field.required) stringRules.push(minLength(1, 'This field is required.'));
+	if ((field as InputProps).minLength)
+		stringRules.push(minLength((field as InputProps).minLength as number, `Must be at least ${(field as InputProps).minLength} characters.`));
+	if ((field as InputProps).maxLength)
+		stringRules.push(maxLength((field as InputProps).maxLength as number, `Must be no more than ${(field as InputProps).maxLength} characters.`));
+
+	// Build the base string schema
+	const schema: BaseSchema<unknown, unknown, BaseIssue<unknown>> = pipe(string(), ...(stringRules as unknown as []));
+
+	// Translated fields store an object with language keys -> validate as flexible object
+	if (field.translated) {
+		return object({ _any: any() });
 	}
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions,
-
-		// widget specific
-		placeholder: params.placeholder,
-		count: params.count,
-		minlength: params.minlength,
-		maxlength: params.maxlength,
-		prefix: params.prefix,
-		suffix: params.suffix,
-		readonly: params.readonly,
-		disabled: params.disabled
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
+	// If not required, allow optional empty value
+	return field.required ? schema : optional(schema, '');
 };
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const InputWidget = createWidget<InputProps>({
+	Name: 'Input',
+	Icon: 'mdi:form-textbox',
+	Description: m.widget_text_description(),
+	inputComponentPath: '/src/widgets/core/input/Input.svelte',
+	displayComponentPath: '/src/widgets/core/input/Display.svelte',
 
-// Widget icon and helper text
-widget.Icon = 'icon-park-outline:text';
-widget.Description = m.widget_text_description();
+	validationSchema: createValidationSchema,
 
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Set widget-specific defaults.
+	defaults: {
+		translated: true
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// Define the UI for configuring this widget in the Collection Builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		translated: { widget: Toggles, required: false },
+		icon: { widget: IconifyPicker, required: false },
+		helper: { widget: Input, required: false },
+		width: { widget: Input, required: false },
+		permissions: { widget: PermissionsSetting, required: false },
+		placeholder: { widget: Input, required: false },
+		minLength: { widget: Input, required: false },
+		maxLength: { widget: Input, required: false },
+		prefix: { widget: Input, required: false },
+		suffix: { widget: Input, required: false },
+		count: { widget: Input, required: false }
+	},
+
+	// Aggregations for text search and sorting.
+	aggregations: {
+		filters: async ({ field, filter, contentLanguage }: { field: AggregationField; filter: string; contentLanguage: string }) => [
+			{ $match: { [`${field.db_fieldName}.${contentLanguage}`]: { $regex: filter, $options: 'i' } } }
+		],
+		sorts: async ({ field, sortDirection, contentLanguage }: { field: AggregationField; sortDirection: number; contentLanguage: string }) => ({
+			[`${field.db_fieldName}.${contentLanguage}`]: sortDirection
+		})
+	},
+
+	// GraphQL schema for text input
+	GraphqlSchema: () => ({
+		typeID: 'String', // Use primitive String type
+		graphql: '' // No custom type definition needed for primitives
+	})
+});
+
+export default InputWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof InputWidget>;
+export type InputWidgetData = ValibotInput<ReturnType<typeof createValidationSchema>>;

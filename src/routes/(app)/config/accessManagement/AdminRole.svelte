@@ -21,7 +21,7 @@ It provides functionality to:
 	import { tick } from 'svelte';
 
 	// Types
-	import type { Role } from '@src/auth/types';
+	import type { Role } from '@src/databases/auth/types';
 
 	// Components
 	import Loading from '@components/Loading.svelte';

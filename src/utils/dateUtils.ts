@@ -6,10 +6,11 @@
  * - Type-safe conversion between Date objects and ISODateString
  * - Date validation utilities
  * - Consistent date handling across the application
+ * - Database-agnostic date conversion helpers
  */
 
-import type { ISODateString } from '../databases/dbInterface';
 import { logger } from '@utils/logger.svelte';
+import type { ISODateString } from '../content/types';
 
 // Type guard for ISODateString
 export function isISODateString(value: unknown): value is ISODateString {
@@ -34,6 +35,42 @@ export function stringToISODateString(dateString: string): ISODateString {
 		throw new Error('Invalid date string');
 	}
 	return dateToISODateString(date);
+}
+
+/**
+ * Safe conversion of unknown value to ISODateString
+ * Database-agnostic utility that handles various date representations from any database adapter
+ * (Mongoose Date objects, PostgreSQL timestamps, SQLite strings, etc.)
+ *
+ * @param value - Unknown value from database query (Date object, ISO string, timestamp, etc.)
+ * @returns ISODateString representation
+ *
+ * @example
+ * const doc = await db.collection.findById(id);
+ * const entity = {
+ *   createdAt: toISOString(doc.createdAt),
+ *   updatedAt: toISOString(doc.updatedAt)
+ * };
+ */
+export function toISOString(value: unknown): ISODateString {
+	// Handle Date objects (common from ORMs and document databases)
+	if (value && typeof value === 'object' && 'toISOString' in value) {
+		return (value as Date).toISOString() as ISODateString;
+	}
+	// Handle already converted ISO strings (idempotent operation)
+	if (typeof value === 'string' && isISODateString(value)) {
+		return value;
+	}
+	// Handle timestamps or date strings
+	if (value) {
+		try {
+			return new Date(value as string | number).toISOString() as ISODateString;
+		} catch {
+			logger.warn('Failed to convert value to ISODateString, using current date', { value });
+		}
+	}
+	// Ultimate fallback: current date
+	return new Date().toISOString() as ISODateString;
 }
 
 /**
@@ -63,6 +100,15 @@ export function normalizeDateInput(dateInput: Date | ISODateString | number | st
 // Current date as ISODateString
 export function nowISODateString(): ISODateString {
 	return dateToISODateString(new Date());
+}
+
+/**
+ * Convert ISODateString back to Date object
+ * @param isoDate The ISODateString to convert
+ * @returns A Date object
+ */
+export function isoDateStringToDate(isoDate: ISODateString): Date {
+	return new Date(isoDate);
 }
 
 /**

@@ -295,7 +295,12 @@
 	}
 </script>
 
-<ul role="tree" aria-label={ariaLabel} {dir} class="rtl:space-x-revert custom-scrollbar max-h-[80vh] w-full space-y-1 overflow-y-auto">
+<ul
+	role="tree"
+	aria-label={ariaLabel}
+	{dir}
+	class="rtl:space-x-revert scrollbar-thin scrollbar-thumb-primary-500 max-h-[80vh] w-full space-y-1 overflow-y-auto"
+>
 	{#each filteredNodes as node (node.id)}
 		<li
 			role="treeitem"
@@ -350,7 +355,8 @@
 					<!-- Badge overlay -->
 					{#if showBadges && !node.isExpanded && node.badge?.count && node.badge.count > 0}
 						<div
-							class={`badge absolute right-1  top-0 translate-y-1/2 rounded-full px-2 py-1 text-xs text-white ${node.badge.color || 'bg-tertiary-500/80'} dark:bg-primary-500/50`}
+							class="absolute right-0 top-0 flex h-5 min-w-[1.25rem] items-center justify-center rounded px-1.5 text-xs font-medium text-white {node
+								.badge.color || 'bg-tertiary-500'} dark:bg-primary-500"
 						>
 							{node.badge.count}
 						</div>
@@ -412,27 +418,3 @@
 		</li>
 	{/each}
 </ul>
-
-<style lang="postcss">
-	:global(.focused-label) {
-		@apply text-primary-400;
-	}
-
-	.custom-scrollbar {
-		scrollbar-width: thin;
-		scrollbar-color: theme(colors.surface.400) transparent;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background-color: theme(colors.primary.500);
-		border-radius: 3px;
-	}
-</style>

@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/imageEditor/FocalPointTopToolbar.svelte
+@file src/routes/(app)/imageEditor/components/FocalPointTopToolbar.svelte
 @component
 Top toolbar for focal point tool with controls
 

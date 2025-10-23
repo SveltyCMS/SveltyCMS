@@ -18,13 +18,13 @@
  * Body: JSON object with 'user_id' and 'newUserData' properties.
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
-import { SESSION_COOKIE_NAME } from '@src/auth/constants';
+import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 
@@ -76,7 +76,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 		// --- MULTI-TENANCY SECURITY CHECK ---
 		// If an admin is editing another user, ensure the target user is in the same tenant.
-		if (privateEnv.MULTI_TENANT && !isEditingSelf) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !isEditingSelf) {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}
@@ -135,7 +135,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		}
 
 		// Invalidate admin cache since user data has changed
-		const { invalidateAdminCache } = await import('@src/hooks.server');
+		const { invalidateAdminCache } = await import('@src/hooks/handleAuthorization');
 		invalidateAdminCache('users', tenantId);
 
 		logger.info('User attributes updated successfully', {

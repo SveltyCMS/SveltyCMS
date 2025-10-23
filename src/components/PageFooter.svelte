@@ -11,15 +11,15 @@
 -->
 
 <script lang="ts">
-	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
+	import { collectionValue } from '@src/stores/collectionStore.svelte';
 	import { page } from '$app/state';
 
 	const { user } = page.data;
 
 	// Convert ISO date string to formatted date
 	let dates = $derived({
-		created: collectionValue.value?.createdAt
-			? new Date(collectionValue.value.createdAt).toLocaleDateString('en-US', {
+		created: (collectionValue as any)?.createdAt
+			? new Date((collectionValue as any).createdAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -27,8 +27,8 @@
 					minute: '2-digit'
 				})
 			: '-',
-		updated: collectionValue.value?.updatedAt
-			? new Date(collectionValue.value.updatedAt).toLocaleDateString('en-US', {
+		updated: (collectionValue as any)?.updatedAt
+			? new Date((collectionValue as any).updatedAt as string | number | Date).toLocaleDateString('en-US', {
 					year: 'numeric',
 					month: '2-digit',
 					day: '2-digit',
@@ -36,11 +36,6 @@
 					minute: '2-digit'
 				})
 			: '-'
-	});
-
-	let labels = $derived({
-		created: `Created by ${user?.username || 'Unknown'}:`,
-		updated: `Updated by ${user?.username || 'Unknown'}:`
 	});
 </script>
 

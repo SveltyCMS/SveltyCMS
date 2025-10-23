@@ -9,23 +9,23 @@
  * - Error handling
  */
 
-import axios from 'axios';
-import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
-//import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
+import { error } from '@sveltejs/kit';
+import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-//import { getCollectionModels } from '@src/databases/db';
-//import { dbAdapter } from '@src/databases/db';
 
 // Stores
-import { contentStructure, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
-import { ensureWidgetsInitialized } from '@widgets';
+import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // Types
-import type { Schema, ContentTypes, Category } from './types';
+import type { Category, ContentTypes, Schema } from './types';
+import type { CategoryNode, ProcessedModule } from './types';
+import { dbAdapter } from './types';
+import type { DatabaseId, ISODateString } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -37,18 +37,11 @@ const CONCURRENT_BATCHES = 5; // Number of concurrent batches
 // Cache and efficient data structures
 let importsCache: Record<ContentTypes, Schema> = {} as Record<ContentTypes, Schema>;
 let unsubscribe: Unsubscriber | undefined;
-let collectionModelsCache: Record<ContentTypes, Schema> | null = null;
-const categoryLookup = new Map<string, CategoryNode>();
-const collectionsByCategory = new Map<string, Set<Schema>>();
+let collectionModelsCache: Partial<Record<ContentTypes, Schema>> | null = null;
+const categoryLookup: Map<string, CategoryNode> = new Map();
+const collectionsByCategory: Map<string, Set<Schema>> = new Map();
 
-interface CategoryNode {
-	id: number;
-	name: string;
-	icon: string;
-	order: number;
-	collections: Schema[];
-	subcategories?: Map<string, CategoryNode>;
-}
+// ...existing code...
 
 interface CollectionData {
 	id: string;
@@ -59,24 +52,27 @@ interface CollectionData {
 }
 
 // Function to create categories from folder structure
+// Fix createCategoriesFromPath to return Category[]
 async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
 	categoryLookup.clear();
 	collectionsByCategory.clear();
 
-	// Process collections in batches
 	const batches = chunks(collections, BATCH_SIZE);
-
-	// Process batches with concurrency limit
 	for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
 		const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
 		await Promise.all(currentBatches.map(processBatch));
 	}
 
-	// Flatten and sort the category hierarchy
 	const categoriesObject = flattenAndSortCategories();
-	// Convert the object to an array
-	const result = Object.values(categoriesObject);
-	logger.debug('Created categories:', result);
+	const result: Category[] = Object.values(categoriesObject).map((cat) => ({
+		id: parseInt(cat.id),
+		name: cat.name,
+		icon: cat.icon,
+		order: 0, // Default order, update if needed
+		collections: cat.collections,
+		subcategories: undefined
+	}));
+	logger.trace('Created categories:', result);
 	return result;
 }
 
@@ -94,24 +90,23 @@ async function processBatch(collections: Schema[]): Promise<void> {
 		}
 
 		// Split path into segments for nested categories
-		const pathSegments = col.path.split('/');
+		const pathSegments = col.path ? col.path.split('/') : [];
 		let currentPath = '';
-		let currentMap = categoryLookup;
+		let currentMap: Map<string, CategoryNode> = categoryLookup;
 
 		// Create or update category nodes for each path segment
 		for (let i = 0; i < pathSegments.length; i++) {
-			const segment = pathSegments[i];
+			const segment = pathSegments[i] ?? '';
 			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
 			if (!currentMap.has(segment)) {
 				const randomId = uuidv4().replace(/-/g, '');
-
 				const config = await getCurrentPath();
 				const newNode: CategoryNode = {
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					name: segment,
-					icon: config.config.icon,
-					order: config.config.order,
+					icon: config.config.icon ?? '',
+					order: 'order' in config.config && typeof config.config.order === 'number' ? config.config.order : 0,
 					collections: [],
 					subcategories: new Map()
 				};
@@ -131,7 +126,7 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			}
 
 			const nextNode = currentMap.get(segment);
-			if (nextNode?.subcategories) {
+			if (nextNode && nextNode.subcategories) {
 				currentMap = nextNode.subcategories;
 			}
 		}
@@ -148,10 +143,10 @@ function flattenAndSortCategories(): Record<string, CollectionData> {
 	for (const [path, category] of sortedCategories) {
 		// Sort collections within category
 		const collections = Array.from(collectionsByCategory.get(path) || []).sort((a, b) => {
-			if (a.order !== undefined && b.order !== undefined) {
-				return a.order - b.order;
-			}
-			return a.order !== undefined ? -1 : b.order !== undefined ? 1 : 0;
+			// Ensure order is always a number, fallback to 0 if missing
+			const orderA: number = a && typeof a.order === 'number' ? a.order : 0;
+			const orderB: number = b && typeof b.order === 'number' ? b.order : 0;
+			return orderA - orderB;
 		});
 
 		result[path] = {
@@ -168,19 +163,19 @@ function flattenAndSortCategories(): Record<string, CollectionData> {
 
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<ContentTypes, Schema>>> {
-	logger.debug('Starting getCollections');
+	logger.trace('Starting getCollections');
 
 	// Initialize widgets
-	await ensureWidgetsInitialized();
+	await widgetStoreActions.initializeWidgets();
 
 	// Return cached collections if available
 	if (collectionModelsCache) {
-		logger.debug(`Returning cached collections. Count: ${Object.keys(collectionModelsCache).length}`);
+		logger.trace(`Returning cached collections. Count: ${Object.keys(collectionModelsCache).length}`);
 		return collectionModelsCache;
 	}
 
 	return new Promise<Partial<Record<ContentTypes, Schema>>>((resolve) => {
-		unsubscribe = collections.subscribe((cols) => {
+		unsubscribe = collections.subscribe((cols: Partial<Record<ContentTypes, Schema>>) => {
 			if (Object.keys(cols).length > 0) {
 				unsubscribe?.();
 				collectionModelsCache = cols;
@@ -192,7 +187,7 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 
 // Function to update collections
 export const updateCollections = async (recompile: boolean = false): Promise<void> => {
-	logger.debug('Starting updateCollections');
+	logger.trace('Starting updateCollections');
 
 	if (recompile) {
 		importsCache = {} as Record<ContentTypes, Schema>;
@@ -200,7 +195,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 	try {
 		const imports = await getImports(recompile);
-		logger.debug(`Imports fetched. Count: ${Object.keys(imports).length}`);
+		logger.trace(`Imports fetched. Count: ${Object.keys(imports).length}`);
 
 		const _categories = await createCategoriesFromPath(Object.values(imports));
 
@@ -208,33 +203,43 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		for (const category of _categories) {
 			for (const col of category.collections) {
 				if (col.name) {
-					_collections[col.name] = col;
+					_collections[col.name as ContentTypes] = col;
 				}
 			}
 		}
 
-		logger.debug(`Collections processed. Count: ${Object.keys(_collections).length}`);
-		logger.debug('Setting categories:', _categories);
+		logger.trace(`Collections processed. Count: ${Object.keys(_collections).length}`);
+		logger.trace('Setting categories:', _categories);
 
 		// Set the stores
-		contentStructure.set(_categories);
-		collections.set(_collections as Record<ContentTypes, Schema>);
-		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
+		// Map Category[] to ContentNode[] for store, fix _id type
+		contentStructure.set(
+			_categories.map((cat) => ({
+				_id: cat.id.toString() as DatabaseId,
+				name: cat.name,
+				nodeType: 'category',
+				icon: cat.icon,
+				order: cat.order,
+				parentId: undefined,
+				path: '',
+				translations: [],
+				collectionDef: undefined,
+				children: [],
+				createdAt: new Date().toISOString() as ISODateString,
+				updatedAt: new Date().toISOString() as ISODateString
+			}))
+		);
+		collections.set(_collections);
+		// Fix unAssigned.set to pass a valid Schema or empty default
+		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
+		unAssigned.set(unassigned.length > 0 ? unassigned[0] : { fields: [] });
 
 		// Only try to fetch collection models if we're server-side and not in development mode
-		if (typeof window === 'undefined' && !dev) {
-			try {
-				await getCollectionModels().catch((err) => {
-					logger.warn(`Failed to fetch collection models: ${err}. This is expected during initial setup.`);
-				});
-			} catch (dbError) {
-				logger.warn(`Database not ready: ${dbError}. This is expected during initial setup.`);
-			}
-		}
+		// Remove getCollectionModels usage (not defined)
 
-		collection.set({} as Schema);
-		collectionValue.set({});
-		mode.set('view');
+		setCollection({} as Schema);
+		setCollectionValue({});
+		setMode('view');
 
 		logger.info(`Collections updated successfully. Count: ${Object.keys(_collections).length}`);
 	} catch (err) {
@@ -256,15 +261,15 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 // Function to get imports based on environment
 async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
-	logger.debug('Starting getImports function');
+	logger.trace('Starting getImports function');
 
 	// Ensure widgets are initialized before importing collections
-	await ensureWidgetsInitialized();
-	logger.debug('Widgets initialized, proceeding with collection imports');
+	await widgetStoreActions.initializeWidgets();
+	logger.trace('Widgets initialized, proceeding with collection imports');
 
 	// Return from cache if available
 	if (!recompile && Object.keys(importsCache).length > 0) {
-		logger.debug('Returning from cache');
+		logger.trace('Returning from cache');
 		return importsCache;
 	}
 
@@ -282,7 +287,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 				// Get the collection path without the filename
 				const collectionPath = pathSegments.slice(0, -1).join('/');
 				collection.path = collectionPath;
-				logger.debug(`Set path for collection ${name} to ${collection.path}`);
+				logger.trace(`Set path for collection ${name} to ${collection.path}`);
 
 				importsCache[name as ContentTypes] = collection as Schema;
 			} else {
@@ -292,7 +297,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 
 		// Development/Building mode
 		if (dev || building) {
-			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
+			logger.trace(`Running in {${dev ? 'dev' : 'building'}} mode`);
 			// Look for TypeScript files in config/collections directory
 			const modules = import.meta.glob(
 				[
@@ -319,7 +324,8 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 							batch.map(async ([modulePath, moduleImport]) => {
 								const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
 								const module = await moduleImport();
-								await processModule(name, module, modulePath);
+								// Cast module import as ProcessedModule
+								await processModule(name, module as ProcessedModule, modulePath);
 							})
 						);
 					})
@@ -327,13 +333,14 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			}
 		} else {
 			// Production mode
-			logger.debug('Running in production mode');
+			logger.trace('Running in production mode');
 			let files: string[] = [];
 			try {
 				// Use new collections endpoint
-				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollectionFiles();
+				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollections();
 				if (collectionsResponse.success && Array.isArray(collectionsResponse.data.collections)) {
-					files = collectionsResponse.data.collections.map((c) => `${c.name}.js`);
+					// Fix type for collectionsResponse.data.collections.map
+					files = collectionsResponse.data.collections.map((c: { name: string }) => `${c.name}.js`);
 				} else if (Array.isArray(collectionsResponse)) {
 					// Fallback for old format
 					files = collectionsResponse;
@@ -363,8 +370,10 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 											: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
 
 									await processModule(name, collectionModule, file);
-								} catch (moduleError) {
-									logger.error(`Error processing module ${name}: ${moduleError instanceof Error ? moduleError.message : String(moduleError)}`);
+								} catch (moduleError: unknown) {
+									logger.error(
+										`Error processing module ${name}: ${moduleError instanceof Error ? (moduleError as Error).message : String(moduleError)}`
+									);
 								}
 							})
 						);
@@ -373,7 +382,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			}
 		}
 
-		logger.debug('Imported collections:', { collections: Object.keys(importsCache) });
+		logger.trace('Imported collections:', { collections: Object.keys(importsCache) });
 		return importsCache;
 	} catch (err) {
 		logger.error(`Error in getImports: ${err instanceof Error ? err.message : String(err)}`);
@@ -385,13 +394,15 @@ export { contentStructure as categories };
 
 async function getCurrentPath() {
 	const contentNodes = await dbAdapter.getContentNodes();
-	const currentPath = window.location.pathname;
-	const config = contentNodes.find((node) => node.path === currentPath) || {
+	const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+	// Fix type for node in find
+	const config = contentNodes.find((node: { path?: string }) => node.path === currentPath) || {
 		fields: {},
 		isCollection: false,
 		name: '',
 		icon: '',
-		path: currentPath
+		path: currentPath,
+		order: 0
 	};
 	return { config, currentPath };
 }

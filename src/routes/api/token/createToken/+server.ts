@@ -2,21 +2,6 @@
  * @file: src/routes/api/user/createToken/+server.ts
  * @description: API endpoint for creating user registration tokens and sending invitation emails
  *
- * Thi		// Invalidate the admin cache for tokens so the UI refreshes immediately
-
-		invalidateAdminCache('tokens', tenantId); // Return success response
-
-		return json({
-			success: true,
-			message: emailSkipped 
-				? 'Token created successfully. Email sending skipped (development mode - configure SMTP settings to enable email).'
-				: 'Token created and email sent successfully.',
-			token: { value: token, expires: expires.toISOString() },
-			email_sent: !emailSkipped
-		});provides functionality to:
- * - Create new registration tokens for inviting users, scoped to the current tenant.
- * - Handle token creation requests
- *
  * Features:
  * - **Defense in Depth**: Specific permission checking for token creation.
  * - Input validation using Valibot schemas.
@@ -25,19 +10,19 @@
  * - Error handling and logging.
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth (Database Agnostic)
+// Auth
 import { initializeRoles, roles } from '@root/config/roles';
-import { auth } from '@src/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks.server';
+import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';
@@ -56,7 +41,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		// 2. User has correct role for 'api:token' endpoint
 		// 3. User belongs to correct tenant (if multi-tenant)
 
-		if (!auth) {
+		if (!auth || !dbAdapter) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
@@ -77,7 +62,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		// --- MULTI-TENANCY: Scope checks to the current tenant ---
 		const checkCriteria: { email: string; tenantId?: string } = { email: validatedData.email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			checkCriteria.tenantId = tenantId;
 		} // Quick checks (fail fast)
 
@@ -107,21 +92,31 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		}
 		const expires = new Date(Date.now() + expiresInSeconds * 1000); // Create token with pre-generated user_id for when user actually registers
 
-		const token = await auth.db.createToken({
-			user_id: uuidv4(), // This will be used when the user actually registers
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId to the token
-			email: validatedData.email.toLowerCase(),
-			expires,
-			type: 'user-invite',
-			role: validatedData.role
+		// Create token in database
+		// For invite tokens, we use the database adapter directly since the user doesn't exist yet
+		const user_id = uuidv4();
+		const type = 'invite';
+		const expiryDate = expires;
+
+		// Use dbAdapter directly for invite tokens since the user doesn't exist yet
+		const tokenResult = await dbAdapter.auth.createToken({
+			user_id: user_id,
+			email: validatedData.email.toLowerCase(), // Use the provided email directly
+			expires: expiryDate,
+			type,
+			role: validatedData.role, // Include the selected role
+			tenantId: tenantId || undefined
 		});
 
-		if (!token) {
-			logger.error('Failed to create token for email', { email: validatedData.email, tenantId });
-			throw error(500, 'Internal Server Error: Token creation failed.');
+		if (!tokenResult.success || !tokenResult.data) {
+			logger.error('Failed to create token', { email: validatedData.email, tenantId });
+			throw error(500, 'Failed to create token.');
 		}
 
-		logger.info('Token created successfully', { email: validatedData.email, tenantId }); // Generate invitation link
+		// Get the actual token string from the database result
+		const token = tokenResult.data;
+
+		logger.info('Token created successfully', { email: validatedData.email, role: validatedData.role, tenantId }); // Generate invitation link
 
 		const inviteLink = `${url.origin}/login?invite_token=${token}`; // Send invitation email
 

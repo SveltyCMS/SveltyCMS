@@ -1,40 +1,42 @@
+/** @type {import('semantic-release').Options} */
 const config = {
-	// Specify the release branches
-	branches: ['main'],
-	// Specify the plugins to use
+	// branches: Defines which branches trigger releases.
+	branches: [
+		'main', // Full, stable releases from the main branch.
+		{
+			name: 'next', // Pre-releases from the next branch.
+			prerelease: 'next' // Pre-releases will have a suffix like -next.1
+		}
+	],
 	plugins: [
-		// Analyze commit messages to determine the next release version
+		// Analyzes commit messages to determine the next version number.
 		'@semantic-release/commit-analyzer',
-		// Generate release notes based on commit messages
-		'@semantic-release/release-notes-generator',
-		[
-			// Update the version number in the package.json file and create a release commit
-			'@semantic-release/git',
-			{
-				// Specify the files to include in the release commit
-				assets: ['dist/.js', 'dist/.js.map'],
-				// Specify the format of the release commit message
-				message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}'
-			}
-		],
-		[
-			// Create a release on GitHub
-			'@semantic-release/github',
-			{
-				// Disable success and failure comments on GitHub issues and pull requests
-				successComment: false,
-				failComment: false,
 
-				// Create pre-releases with the 'beta' identifier
-				prerelease: 'false'
-			}
-		],
+		// Generates release notes from the commit messages.
+		'@semantic-release/release-notes-generator',
+
+		// Creates or updates a CHANGELOG.md file.
+		'@semantic-release/changelog',
+
+		// Updates the version in package.json.
+		// We keep publishing to npm disabled as you had it.
 		[
-			// Publish the package to npm
 			'@semantic-release/npm',
 			{
-				// Disable publishing to npm
 				npmPublish: false
+			}
+		],
+
+		// Creates a GitHub release.
+		'@semantic-release/github',
+
+		// Commits the updated package.json and CHANGELOG.md back to your repo.
+		// This MUST run AFTER @semantic-release/github to ensure the release is created first.
+		[
+			'@semantic-release/git',
+			{
+				assets: ['package.json', 'CHANGELOG.md'],
+				message: 'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}'
 			}
 		]
 	]

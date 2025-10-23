@@ -14,7 +14,7 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Databases
 import type { BaseEntity } from '@src/databases/dbInterface';
@@ -51,6 +51,9 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const isAdmin = Boolean(userRole?.isAdmin);
 
 	try {
+		// Ensure ContentManager is initialized before accessing collections
+		await contentManager.initialize(tenantId);
+
 		// Note: tenantId validation is handled by hooks in multi-tenant mode
 		const schema = await contentManager.getCollectionById(params.collectionId, tenantId);
 		if (!schema) {
@@ -65,7 +68,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const page = Number(url.searchParams.get('page') ?? 1);
 		const pageSize = Number(url.searchParams.get('pageSize') ?? 25);
 		const sortField = url.searchParams.get('sortField') || 'createdAt';
-		const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc' | null) || 'desc';
+		const sortDirectionParam = url.searchParams.get('sortDirection');
+		const sortDirection: 'asc' | 'desc' = sortDirectionParam === 'asc' || sortDirectionParam === 'desc' ? sortDirectionParam : 'desc';
 		const filterParam = url.searchParams.get('filter');
 
 		let filter = {};
@@ -108,8 +112,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		}
 
 		// --- MULTI-TENANCY: Scope all filters by tenantId ---
-		logger.debug(`Multi-tenant check: MULTI_TENANT=\x1b[34m${privateEnv.MULTI_TENANT}\x1b[0m, tenantId=\x1b[34m${tenantId}\x1b[0m`);
-		const baseFilter = privateEnv.MULTI_TENANT ? { ...filter, tenantId } : filter;
+		logger.debug(`Multi-tenant check: MULTI_TENANT=\x1b[34m${getPrivateSettingSync('MULTI_TENANT')}\x1b[0m, tenantId=\x1b[34m${tenantId}\x1b[0m`);
+		const baseFilter = getPrivateSettingSync('MULTI_TENANT') ? { ...filter, tenantId } : filter;
 		logger.debug(`Filter applied:`, { baseFilter, originalFilter: filter });
 
 		// Status filtering - non-admin users only see published content
@@ -117,7 +121,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		if (!isAdmin) {
 			finalFilter = { ...baseFilter, status: 'published' };
 		}
-		logger.debug(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
+		logger.trace(`Final filter for query:`, { finalFilter, isAdmin }); // Build the query efficiently using QueryBuilder
 
 		const dbAdapter = locals.dbAdapter;
 		if (!dbAdapter) {
@@ -281,15 +285,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			}
 		});
 
-		logger.debug('Field mapping completed', {
-			originalBody: body,
-			mappedBody: mappedBody,
-			collection: schema._id
+		logger.trace('Field mapping completed', {
+			mappedFieldsCount: Object.keys(mappedBody).length,
+			mappedFields: Object.keys(mappedBody)
 		});
-
 		const entryData = {
 			...mappedBody,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId
 			createdBy: user._id,
 			updatedBy: user._id,
 			status: body.status || schema.status || 'draft' // Respect collection's default status

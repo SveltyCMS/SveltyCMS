@@ -16,7 +16,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logger
@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m}`);
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m}`);
 
 		// Check user permission for widget management
 		const hasWidgetPermission = hasPermissionWithRoles(user, 'config:widgetManagement', roles);

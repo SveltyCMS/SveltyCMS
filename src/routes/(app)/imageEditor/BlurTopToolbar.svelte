@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/imageEditor/BlurTopToolbar.svelte
+@file src/routes/(app)/imageEditor/components/BlurTopToolbar.svelte
 @component
 **Blur tool top toolbar - Pintura-style inline controls**
 Displays blur strength slider and action buttons without blocking the canvas.

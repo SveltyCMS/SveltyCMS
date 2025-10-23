@@ -1,94 +1,92 @@
 /**
-@file src/widgets/core/relation/index.ts
-@description - Relation widget index file.
-*/
-
-import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'Relation' as const;
-
-/**
- * Defines Relation widget Parameters
+ * @file src/widgets/core/relation/index.ts
+ * @description Relation (One-to-One) Widget Definition.
+ *
+ * Implements a one-to-one relationship selector. Stores a single string ID
+ * referencing an entry in another collection.
+ *
+ * @features
+ * - **Relational Data**: Stores a single foreign key (ID).
+ * - **Configurable GUI**: `GuiSchema` provides an intuitive UI for the collection builder.
+ * - **Modal-Based UX**: Designed to work with a selection modal for a clean UX.
+ * - **Advanced Aggregation**: Performs a `$lookup` to filter/sort by the related entry's data.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
-			data = data ? data : {}; // Ensure data is not undefined
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
+// Import components needed for the GuiSchema
+import IconifyPicker from '@components/IconifyPicker.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
+import CollectionPicker from '@components/system/builder/CollectionPicker.svelte';
+import FieldPicker from '@components/system/builder/FieldPicker.svelte';
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
+import type { FieldInstance } from '@src/content/types';
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
 
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
+// Type for aggregation field parameter
+type AggregationField = { db_fieldName: string; collection: string; displayField: string; [key: string]: unknown };
 
-		// permissions
-		permissions: params.permissions,
+import { minLength, optional, pipe, string, type InferInput as ValibotInput } from 'valibot';
+import type { RelationProps } from './types';
 
-		// widget specific
-		relation: params.relation,
-		displayPath: params.displayPath
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
+// The validation schema ensures the value is a string ID.
+const validationSchema = (field: FieldInstance) => {
+	const idSchema = pipe(string(), minLength(1, 'An entry must be selected.'));
+	return field.required ? idSchema : optional(idSchema, '');
 };
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const RelationWidget = createWidget<RelationProps, ReturnType<typeof validationSchema>>({
+	Name: 'Relation',
+	Icon: 'mdi:relation-one-to-one',
+	Description: m.widget_relation_description(),
+	inputComponentPath: '/src/widgets/core/relation/Input.svelte',
+	displayComponentPath: '/src/widgets/core/relation/Display.svelte',
+	validationSchema,
 
-// Widget icon and helper text
-widget.Icon = 'mdi:relation-many-to-many';
-widget.Description = m.widget_relation_description();
+	// Define the UI for configuring this widget in the Collection Builder.
+	GuiSchema: {
+		// Standard fields
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		icon: { widget: IconifyPicker, required: false },
+		helper: { widget: Input, required: false },
+		width: { widget: Input, required: false },
+		permissions: { widget: PermissionsSetting, required: false },
 
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+		// Widget-specific fields
+		collection: {
+			widget: CollectionPicker, // A dropdown to select a collection
+			required: true
+		},
+		displayField: {
+			widget: FieldPicker, // A dropdown to select a field from the chosen collection
+			required: true
+		}
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	defaults: {
+		translated: false
+	},
+	// Aggregation performs a lookup to search by the related entry's displayField.
+	aggregations: {
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+			{ $lookup: { from: field.collection, localField: field.db_fieldName, foreignField: '_id', as: 'related_doc' } },
+			{ $match: { [`related_doc.${field.displayField}`]: { $regex: filter, $options: 'i' } } }
+		]
+	},
+
+	// GraphQL schema for relation (returns ID of related document)
+	GraphqlSchema: () => ({
+		typeID: 'String', // Related document ID
+		graphql: '' // No custom type definition needed
+	})
+});
+
+export default RelationWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof RelationWidget>;
+export type RelationWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

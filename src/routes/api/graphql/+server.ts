@@ -10,7 +10,7 @@
  */
 
 import { building } from '$app/environment';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // GraphQL Yoga
@@ -20,12 +20,16 @@ import { collectionsResolvers, createCleanTypeName, registerCollections } from '
 import { mediaResolvers, mediaTypeDefs } from './resolvers/media';
 import { userResolvers, userTypeDefs } from './resolvers/users';
 
+// Widget Store - ensure widgets are loaded before GraphQL setup
+import { widgetStoreActions, isLoaded } from '@stores/widgetStore.svelte';
+import { get } from 'svelte/store';
+
 // Unified Cache Service
 import { cacheService } from '@src/databases/CacheService';
 
 // Auth / Permission
-import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
-import { PermissionAction, PermissionType } from '@src/auth/types';
+import { hasPermissionWithRoles, registerPermission } from '@src/databases/auth/permissions';
+import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 
 // Roles Configuration
 import { roles } from '@root/config/roles';
@@ -48,7 +52,7 @@ if (!building) {
 }
 
 // Create a cache client adapter compatible with the expected interface in resolvers
-const cacheClient = privateEnv.USE_REDIS
+const cacheClient = getPrivateSettingSync('USE_REDIS')
 	? {
 			get: async (key: string, tenantId?: string) => {
 				try {
@@ -74,6 +78,12 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
 	try {
 		logger.info('Setting up GraphQL schema and resolvers', { tenantId });
 
+		// Ensure widgets are loaded before proceeding
+		if (!get(isLoaded)) {
+			logger.debug('Widgets not loaded yet, initializing...');
+			await widgetStoreActions.initializeWidgets(tenantId);
+		}
+
 		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections(tenantId);
 
 		// Ensure collections is properly formatted
@@ -88,11 +98,11 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
                 page: Int = 1
                 limit: Int = 50
             }
-            
+
             ${collectionsTypeDefs}
             ${userTypeDefs()}
             ${mediaTypeDefs()}
-            
+
             type AccessManagementPermission {
                 contextId: String!
                 name: String!
@@ -100,7 +110,7 @@ async function setupGraphQL(dbAdapter: DatabaseAdapter, tenantId?: string) {
                 contextType: String!
                 description: String
             }
-            
+
             type Query {
                 ${collectionsArray
 									.filter((collection) => collection && collection.name && collection._id)

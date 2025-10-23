@@ -1,14 +1,26 @@
 <!doctype html>
-<html lang="en" dir="ltr" class="dark">
+<html lang="en" dir="ltr">
 	<head>
 		<meta charset="utf-8" />
-
+<script>
+  // Minified, optimized version
+  (() => {
+    const c = document.cookie.match(/theme=(\w+)/)?.[1];
+    const d = 'dark';
+    const h = document.documentElement;
+    
+    try {
+      if (c === d || (!c && matchMedia('(prefers-color-scheme: dark)').matches)) {
+        h.classList.add(d);
+      }
+    } catch {}
+  })();
+</script>
 		<link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg" />
 		<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
-		<script>
-			var global = global || window;
-		</script>
-		<meta name="viewport" content="width=device-width" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 		%sveltekit.head%
 	</head>
 

@@ -12,16 +12,16 @@
  * - Returns user data and content structure for client-side rendering.
  */
 
-import { redirect, error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermissionWithRoles } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -32,16 +32,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection builder
-		logger.debug('Permission check details', {
+		const hasReadPermission = hasPermissionWithRoles(user, 'collections:read', roles);
+		const hasCreatePermission = hasPermissionWithRoles(user, 'collections:create', roles);
+		const hasConfigPermission = hasPermissionWithRoles(user, 'system:config', roles);
+
+		logger.trace('Permission check details', {
 			userId: user._id,
 			userRole: user.role,
-			availableRoles: roles.length,
-			checkingPermission: 'config:collectionbuilder'
+			permissionsChecked: [
+				{ resource: 'collections', action: 'read', hasPermission: hasReadPermission },
+				{ resource: 'collections', action: 'create', hasPermission: hasCreatePermission },
+				{ resource: 'system', action: 'config', hasPermission: hasConfigPermission }
+			]
 		});
-
 		const hasCollectionBuilderPermission = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
 
 		if (!hasCollectionBuilderPermission) {
@@ -56,12 +62,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
-		// Fetch the initial content structure
-		const { contentStructure } = await contentManager.getCollectionData();
+		// Initialize ContentManager before accessing data
+		await contentManager.initialize();
+
+		// Fetch the initial content structure directly from database
+		// CollectionBuilder needs the current database state (not in-memory cache) to:
+		// - See the most recently persisted order and parentId values
+		// - Ensure consistency when saving drag-and-drop changes back to DB
+		// - Work with the actual stored data, not cached/compiled schemas
+		// The database stores lightweight metadata without heavy collectionDef.fields arrays
+		const contentStructure = await contentManager.getContentStructureFromDatabase('nested');
 
 		// Determine admin status properly by checking role
 		const userRole = roles.find((role) => role._id === user.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
+
+		// Serialize ObjectIds to strings for client-side usage
+		// This is crucial because MongoDB ObjectId instances cannot be serialized by SvelteKit
+		const serializedStructure = contentStructure.map((node) => ({
+			...node,
+			_id: node._id.toString(),
+			...(node.parentId ? { parentId: node.parentId.toString() } : {})
+		}));
 
 		// Return user data with proper admin status and the content structure
 		const { _id, ...rest } = user;
@@ -71,7 +93,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				...rest,
 				isAdmin // Add the properly calculated admin status
 			},
-			contentStructure
+			contentStructure: serializedStructure
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

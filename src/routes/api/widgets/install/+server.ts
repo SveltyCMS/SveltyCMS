@@ -6,7 +6,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.svelte';
-import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -49,7 +49,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: 'Widget installed successfully'
 		};
 
-		logger.debug(`Widget ${widgetId} installed successfully for tenant: ${actualTenantId}`);
+		logger.trace(`Widget ${widgetId} installed successfully for tenant: ${actualTenantId}`);
 
 		return json(installResult);
 	} catch (err) {

@@ -1,138 +1,193 @@
 /**
-@file src/widgets/core/megaMenu/types.ts
-@description - megaMenu widget types
-*/
+ * @file src/widgets/core/megamenu/types.ts
+ * @description Type definitions for the MegaMenu widget
+ *
+ * @features
+ * - **Strongly Typed**: Defines a clear structure for menu levels and their fields.
+ * - **Nested Schema**: The `fields` property allows for defining different widgets at each menu depth
+ * - **Permissions**: Role-based access control for menu operations.
+ * - **Aggregations**: Filtering and sorting capabilities for menu data.
+ * - **Advanced Configuration**: Support for complex menu hierarchies.
+ */
 
-// Components
-import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
+import type { Permission } from '@src/databases/auth/types';
+import type { FieldInstance } from '@src/content/types';
 
-// Auth
-import type { Permission } from '@root/src/auth';
+// Defines the properties unique to the MegaMenu widget
+export interface MegaMenuProps {
+	/**
+	 * Defines the fields available at each level of the menu
+	 * Example: `[[TextWidget({label:'Lvl 1'})], [TextWidget({label:'Lvl 2'})]]`
+	 */
+	fields: FieldInstance[][];
 
-import widgets, { type WidgetType } from '../../index';
-type Fields = ReturnType<WidgetType[keyof WidgetType]>[][];
-import { getFieldName } from '@utils/utils';
+	// Maximum depth allowed for menu nesting @default: 5 levels deep
+	maxDepth?: number;
+
+	// Whether to enable drag-and-drop reordering @default: true
+	enableDragDrop?: boolean;
+
+	// Whether to show expand/collapse controls @default: true
+	enableExpandCollapse?: boolean;
+
+	// Custom validation rules for menu structure
+	validationRules?: MenuValidationRules;
+}
+
+// Validation rules for menu structure
+export interface MenuValidationRules {
+	// Minimum number of root level items required
+	minRootItems?: number;
+
+	// Maximum number of root level items allowed
+	maxRootItems?: number;
+
+	// Maximum number of children per parent item
+	maxChildrenPerParent?: number;
+
+	// Whether to require unique titles within the same level
+	requireUniqueTitles?: boolean;
+}
 
 /**
- * Defines MegaMenu widget Parameters
+ * Defines the recursive structure for a single menu item
+ * This is the shape of the data that will be stored
  */
-export type Params = {
-	// default required parameters
-	label: string;
-	display?: DISPLAY;
-	db_fieldName?: string;
-	widget?: Record<string, unknown>;
-	required?: boolean;
-	translated?: boolean;
-	icon?: string;
-	helper?: string;
-	width?: number;
+export interface MenuItem {
+	_id: string; // A unique ID for each item for stable rendering and DND.
+	_fields: Record<string, unknown>; // The actual content data for the item.
+	children: MenuItem[]; // Nested child items.
+	_expanded?: boolean; // UI state for expand/collapse (not persisted).
+}
 
-	// Permissions
+// Extended menu item with additional metadata for advanced operations
+export interface ExtendedMenuItem extends MenuItem {
+	// Parent reference for tree operations
+	parent?: ExtendedMenuItem;
+
+	//Depth level in the hierarchy
+	level: number;
+
+	// Index within parent's children array
+	index: number;
+
+	// Whether this item can be dragged
+	draggable?: boolean;
+
+	// Whether this item can accept drops
+	droppable?: boolean;
+}
+
+// Drag and drop event detail structure
+export interface DragDropEventDetail {
+	// Index of the target position
+	targetIndex: number;
+
+	// The dragged menu item
+	draggedItem: MenuItem;
+
+	// Whether dropping as a child of the target
+	asChild: boolean;
+
+	// Source level for validation
+	sourceLevel: number;
+
+	// Target level for validation
+	targetLevel: number;
+}
+
+// Menu editing context for modal operations
+export interface MenuEditContext {
+	// The menu item being edited
+	item: MenuItem;
+
+	// Current nesting level
+	level: number;
+
+	// Available fields for this level
+	fields: FieldInstance[];
+
+	// Whether this is a new item creation
+	isNew: boolean;
+
+	// Parent item reference
+	parent?: MenuItem;
+
+	// Callback to save changes
+	onSave: (data: Record<string, unknown>) => void;
+
+	// Callback to cancel editing
+	onCancel: () => void;
+}
+
+// Menu operation permissions
+export interface MenuPermissions {
+	// Can create new menu items
+	canCreate: boolean;
+
+	// Can edit existing menu items
+	canEdit: boolean;
+
+	// Can delete menu items
+	canDelete: boolean;
+
+	// Can reorder menu items via drag-and-drop
+	canReorder: boolean;
+
+	// Can expand/collapse menu sections
+	canToggle: boolean;
+}
+
+// Aggregation configuration for menu data
+export interface MenuAggregations {
+	// Filter menu items by criteria
+	filters: {
+		// Filter by title content
+		title?: string;
+
+		// Filter by nesting level
+		level?: number;
+
+		// Filter by parent item ID
+		parentId?: string;
+
+		// Custom filter predicates
+		custom?: (item: MenuItem) => boolean;
+	};
+
+	// Sort menu items
+	sorts: {
+		// Sort field name
+		field: string;
+
+		// Sort direction
+		direction: 'asc' | 'desc';
+
+		// Whether to sort recursively
+		recursive: boolean;
+	};
+}
+
+// Menu widget configuration schema
+export interface MegaMenuConfig {
+	// Widget properties
+	props: MegaMenuProps;
+
+	// Permission settings
 	permissions?: Permission[];
 
-	// Widget Specific parameters
-	fields: Fields; // Make sure this is always an array of arrays
-};
+	// Aggregation settings
+	aggregations?: MenuAggregations;
 
-/**
- * Defines MegaMenu GuiSchema
- */
-export const GuiSchema = {
-	label: { widget: Input, required: true },
-	display: { widget: Input, required: true },
-	db_fieldName: { widget: Input, required: true },
-	required: { widget: Toggles, required: false },
-	translated: { widget: Toggles, required: false },
-	icon: { widget: IconifyPicker, required: false },
-	helper: { widget: Input, required: false },
-	width: { widget: Input, required: false },
+	// Display options
+	display?: {
+		// Whether to show item counts
+		showCounts?: boolean;
 
-	// Permissions
-	permissions: { widget: PermissionsSetting, required: false },
+		// Whether to show hierarchy lines
+		showLines?: boolean;
 
-	// Widget Specific parameters - Use Input for now to avoid circular dependency
-	fields: { widget: Input, required: true }
-};
-
-/**
- * Define MegaMenu GraphqlSchema function
- */
-export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
-	const fields = field.fields;
-	const typeID = label; // Use the clean label passed from collections resolver
-	const types = new Set();
-	let levelCount = 0;
-
-	for (const level of fields) {
-		const children: string[] = [];
-
-		for (const _field of level) {
-			try {
-				const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({
-					field: _field,
-					label: `${label}_${getFieldName(_field)}_Level${levelCount}`, // Use clean label
-					collection
-				});
-				if (fieldSchema) {
-					types.add(fieldSchema.graphql);
-					if (levelCount > 0) {
-						children.push(`${getFieldName(_field)}:${fieldSchema.typeID}`); // Use sanitized field name
-					}
-				} else {
-					console.warn(`No GraphQL schema found for field: ${getFieldName(_field)}`);
-				}
-			} catch (error) {
-				console.error(`Error generating GraphQL schema for field ${getFieldName(_field)}:`, error);
-			}
-		}
-
-		if (levelCount > 0) {
-			if (fields.length - levelCount > 1) {
-				children.push(`children:[${label}_Level${levelCount + 1}]`); // Use clean label
-			}
-			try {
-				types.add(` type ${label}_Level${levelCount} { ${Array.from(children).join('\n')} } `); // Use clean label
-			} catch (error) {
-				console.error(`Error generating GraphQL type for level ${levelCount}:`, error);
-			}
-		}
-		levelCount++;
-	}
-
-	// Return an object containing the type name and the GraphQL schema
-
-	try {
-		const graphql = /* GraphQL */ `
-		${Array.from(types).join('\n')}
-		type ${typeID} {
-		  Header: ${label}_${getFieldName(fields[0][0])}_Level0
-		  children: [${label}_Level1]
-		}
-	  `;
-		return { typeID: typeID, graphql };
-	} catch (error) {
-		console.error('Error generating GraphQL schema:', error);
-		return { typeID: typeID, graphql: '' };
-	}
-};
-
-export type MegaMenuItem = {
-	Header: Record<string, string>;
-	children: MegaMenuItem[];
-	[key: string]: string | number | boolean | MegaMenuItem[] | { [key: string]: string | number | boolean | MegaMenuItem[] };
-};
-
-export interface CustomDragEvent extends Event {
-	detail: {
-		closest_index: number;
-		clone_index: number;
-		dragged_item: MegaMenuItem;
-		isParent: boolean;
-		expanded_list: [boolean];
-		refresh_expanded_list: () => void;
+		// Custom CSS classes
+		classes?: string;
 	};
 }

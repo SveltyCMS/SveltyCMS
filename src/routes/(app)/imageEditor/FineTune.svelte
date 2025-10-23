@@ -1,5 +1,5 @@
 <!--
-@file: /src/routes/(app)/imageEditor/FineTune.svelte
+@file: src/routes/(app)/imageEditor/components/FineTune.svelte
 @component
 **Fine-tuning adjustments for images with Pintura-inspired UX**
 Provides comprehensive image adjustments including brightness, contrast, saturation,

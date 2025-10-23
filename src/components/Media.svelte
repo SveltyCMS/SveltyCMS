@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/Media.svelte
 @component
 **Media component with accessibility updates and button nesting resolved**
@@ -14,7 +14,6 @@
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { debounce } from '@utils/utils';
 	import axios from 'axios';
-	import { publicEnv } from '@root/config/public';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -28,7 +27,7 @@
 	let files = $state<MediaImage[]>([]);
 	let search = $state('');
 	let showInfo = $state<boolean[]>([]);
-	let thumbnailSizes = $state<(keyof typeof publicEnv.IMAGE_SIZES)[]>(['sm', 'md', 'lg']);
+	let thumbnailSizes = $state<string[]>(['sm', 'md', 'lg']); // Use string[] instead of keyof typeof publicEnv.IMAGE_SIZES
 
 	// Create a separate state updater function
 	function updateShowInfo() {
@@ -92,10 +91,10 @@
 					>
 						<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500"></iconify-icon>
 					</span>
-					<p class="mx-auto pr-[30px] text-white">{file.name}</p>
+					<p class="mx-auto pr-[30px] text-white">{file.filename}</p>
 				</div>
 				{#if !showInfo[index]}
-					<img src={file.thumbnails.sm.url} alt={file.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
+					<img src={file.thumbnails.sm.url} alt={file.filename} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
 				{:else}
 					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
 						<tbody class="table-compact">

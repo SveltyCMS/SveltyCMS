@@ -1,10 +1,10 @@
-<!-- 
-@file src/components/TranslationStatus.svelte 
+<!--
+@file src/components/TranslationStatus.svelte
 @component
 **Translation status component for displaying translation progress per language in a progress bar with percentage.**
 
 @example
-<TranslationStatus /> 
+<TranslationStatus />
 
 ### Props:
 - `mode` {object} - The current mode object from the mode store
@@ -18,9 +18,10 @@
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
+
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
@@ -29,7 +30,6 @@
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
@@ -39,12 +39,7 @@
 	let completionTotals = $state({ total: 0, translated: 0 });
 	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
 	let availableLanguages = $derived.by<Locale[]>(() => {
-		if (publicEnv && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)) {
-			return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
-		} else {
-			// console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
-			return [];
-		}
+		return (publicEnv?.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || ['en'];
 	});
 
 	// Track initialization
@@ -98,7 +93,7 @@
 	// Update translation progress when field values change
 	$effect(() => {
 		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue.value;
+		const currentCollectionValue = collectionValue as any;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			updateTranslationProgressFromFields(currentCollection, currentCollectionValue);

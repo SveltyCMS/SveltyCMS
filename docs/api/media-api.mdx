@@ -1,0 +1,133 @@
+---
+path: 'docs/api/media-api.mdx'
+title: 'Media API Reference'
+description: 'A detailed reference for the SveltyCMS Media API endpoints.'
+order: 6
+icon: 'mdi:api'
+author: 'ai-agent'
+created: '2025-10-12'
+updated: '2025-10-12'
+tags:
+  - 'media'
+  - 'api'
+  - 'reference'
+  - 'guide'
+---
+
+# Media API Reference
+
+This document provides a detailed reference for the SveltyCMS Media API. For a higher-level overview of the media handling system, please see the [Media Gallery and Handling Guide](/docs/guides/media-handling.mdx).
+
+---
+
+## List Media Files
+
+Lists media files with pagination and filtering.
+
+- **Endpoint:** `GET /api/media`
+- **Query Parameters:**
+  - `limit` (optional, number, default: 5): The maximum number of files to return.
+- **Response:** An array of media file objects.
+
+````json
+[
+  {
+    "id": "...",
+    "name": "example.png",
+    "size": 12345,
+    "modified": "2025-10-12T10:00:00.000Z",
+    "type": "png",
+    "url": "/mediaFiles/images/original/example-....png",
+    "createdBy": "..."
+  }
+]
+````
+
+---
+
+## Process Media Files
+
+A versatile endpoint for processing files. The action is determined by the `processType` field in the `multipart/form-data` body.
+
+- **Endpoint:** `POST /api/media/process`
+
+### Save Files
+
+Uploads and saves new files.
+
+- **`processType`**: `save`
+- **Body:** `multipart/form-data` with one or more `files`.
+- **Response:** An array of objects, each indicating the success or failure of the upload for a single file.
+
+### Delete File
+
+Deletes a media file.
+
+- **`processType`**: `delete`
+- **Body:** `multipart/form-data` with `mediaId`.
+- **Response:** `{ "success": true }`
+
+### Extract Metadata
+
+Extracts metadata from a file without saving it.
+
+- **`processType`**: `metadata`
+- **Body:** `multipart/form-data` with a single `file`.
+- **Response:** A JSON object containing the file's metadata.
+
+---
+
+## Save Remote Media
+
+Saves a media file from a remote URL.
+
+- **Endpoint:** `POST /api/media/remote`
+- **Body (JSON):**
+  - `fileUrl` (string, required): The URL of the file to save.
+  - `contentTypes` (string, required): The collection type to save the file to (e.g., `media_images`).
+- **Response:** `{ "success": true, "id": "...", "fileInfo": { ... } }`
+
+---
+
+## Move to Trash
+
+Moves a media file to the trash.
+
+- **Endpoint:** `POST /api/media/trash`
+- **Body (JSON):**
+  - `url` (string, required): The URL of the file to move to the trash.
+  - `contentTypes` (string, required): The collection type of the file.
+- **Response:** `{ "success": true }`
+
+---
+
+## Check File Existence
+
+Checks if a media file exists.
+
+- **Endpoint:** `GET /api/media/exists`
+- **Query Parameters:**
+  - `url` (string, required): The URL of the file to check.
+- **Response:** `{ "exists": true }` or `{ "exists": false }`
+
+---
+
+## Get File
+
+Retrieves a media file.
+
+- **Endpoint:** `GET /api/media/get`
+- **Query Parameters:**
+  - `url` (string, required): The URL of the file to retrieve.
+- **Response:** The raw file data with appropriate `Content-Type` and `Content-Disposition` headers.
+
+---
+
+## Delete File (Permanent)
+
+Permanently deletes a media file.
+
+- **Endpoint:** `DELETE /api/media/delete`
+- **Body (JSON):**
+  - `url` (string, required): The URL of the file to delete.
+- **Response:** `{ "success": true }`

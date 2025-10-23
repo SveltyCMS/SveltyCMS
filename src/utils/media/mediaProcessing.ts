@@ -3,7 +3,6 @@
  * @description Handles media processing operations such as metadata extraction and thumbnail generation.
  */
 
-import { publicEnv } from '@root/config/public';
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
 import { Buffer } from 'buffer';
@@ -85,11 +84,10 @@ export async function hashFileContent(buffer: ArrayBuffer): Promise<string> {
 	}
 
 	try {
-		logger.debug('Starting file content hashing', {
-			bufferSize: buffer.byteLength,
-			firstBytes: new Uint8Array(buffer).slice(0, 4).join(',')
+		logger.trace('Starting file content hashing', {
+			fileSize: fileBuffer.length,
+			algorithm: 'SHA-256'
 		});
-
 		const hash = (await sha256(Buffer.from(buffer))).slice(0, 20);
 
 		logger.debug('File content hashed successfully', {
@@ -120,11 +118,11 @@ export function getSanitizedFileName(fileName: string): {
 		throw new Error(message);
 	}
 
-	logger.debug('Sanitizing filename', {
-		originalName: fileName,
-		length: fileName.length
+	logger.trace('Sanitizing filename', {
+		original: baseName,
+		length: baseName.length,
+		extension: ext
 	});
-
 	const lastDotIndex = fileName.lastIndexOf('.');
 	const name = lastDotIndex > -1 ? fileName.slice(0, lastDotIndex) : fileName;
 	const ext = lastDotIndex > -1 ? fileName.slice(lastDotIndex + 1) : '';
@@ -134,13 +132,11 @@ export function getSanitizedFileName(fileName: string): {
 		ext: ext.toLowerCase() // Normalize extension to lowercase
 	};
 
-	logger.debug('Filename sanitized', {
-		original: fileName,
-		sanitizedName: sanitized.fileNameWithoutExt,
-		extension: sanitized.ext,
-		wasChanged: name !== sanitized.fileNameWithoutExt
+	logger.trace('Filename sanitized', {
+		original: originalBaseName,
+		sanitized: sanitized,
+		full: sanitized + ext
 	});
-
 	return sanitized;
 }
 
@@ -183,14 +179,11 @@ export async function saveImage(file: File, destination: string, userId: string,
 	const startTime = performance.now();
 	const fs = await getFs();
 
-	logger.debug('Starting image save process', {
-		fileName: file.name,
-		fileSize: file.size,
-		destination,
-		userId,
-		startTime
+	logger.trace('Starting image save process', {
+		originalName: file.name,
+		originalSize: file.size,
+		mimeType: file.type
 	});
-
 	try {
 		logger.debug('Extracting image metadata');
 		const metadata = await extractMetadata(file);
@@ -225,14 +218,13 @@ export async function saveImage(file: File, destination: string, userId: string,
 		});
 
 		// Create directories if they don't exist
-		logger.debug('Creating directories for image storage');
-		await fs.promises.mkdir(Path.dirname(originalPath), { recursive: true });
-		await fs.promises.mkdir(Path.dirname(thumbnailPath), { recursive: true });
-		logger.debug('Directories created successfully', {
-			directoriesCreated: [Path.dirname(originalPath), Path.dirname(thumbnailPath)]
-		});
-
-		// Save the original image
+		logger.trace('Creating directories for image storage');
+		await fs.mkdir(originalDir, { recursive: true });
+		await fs.mkdir(thumbnailDir, { recursive: true });
+		logger.trace('Directories created successfully', {
+			originalDir,
+			thumbnailDir
+		}); // Save the original image
 		logger.debug('Saving original image file');
 		const originalBuffer = Buffer.from(await file.arrayBuffer());
 		await fs.promises.writeFile(originalPath, originalBuffer);
@@ -277,7 +269,7 @@ export async function saveImage(file: File, destination: string, userId: string,
 					throw error(500, errorMessage);
 				}
 
-				logger.debug(`Processing image size: ${name} (${width}x${height})`);
+				logger.trace(`Processing image size: ${name} (${width}x${height})`);
 				const resizedBlob = await resizeImage(file, width, height);
 				const path = Path.join(destination, 'images', name, newFileName);
 				await fs.promises.mkdir(Path.dirname(path), { recursive: true });

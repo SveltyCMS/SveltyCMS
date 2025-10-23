@@ -1,31 +1,27 @@
-<!-- 
+<!--
 @file src/routes/(app)/+error.svelte
 @component
 **Displays an Error page for the SveltyCMS**
 
-### Props
+### Props:
 - `error`: The error object containing status and message.
 
-### Features: 
-- Dynamic display of error status and message based on the error encountered. 
-- Rotating animation effect for the site name to enhance visual appeal. 
+### Features:
+- Dynamic display of error status and message based on the error encountered.
+- Rotating animation effect for the site name to enhance visual appeal.
 - Clear call-to-action link to return to the homepage.
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
-
 	// Stores
 	import { page } from '$app/state';
 	import type { Load } from '@sveltejs/kit';
-
 	// Components
-	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
-
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	import { contentLanguage } from '@root/src/stores/store.svelte';
+	import * as m from '@src/paraglide/messages';
 
 	const speed = 100;
 	const size = 140;
@@ -33,16 +29,24 @@
 	const repeat = 3;
 	const separator = ' • ';
 
-	const siteName = publicEnv.SITE_NAME;
+	const siteName = page.data?.settings?.SITE_NAME || 'SveltyCMS';
 
 	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
 
 	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
 
+	// Helper function to check if character is part of "CMS"
+	function isCMSChar(index: number): boolean {
+		// Pattern: "SveltyCMS•" = 10 characters (including separator)
+		// Characters at positions 6,7,8 in each repetition are "CMS"
+		const posInPattern = index % 10;
+		return posInPattern >= 6 && posInPattern < 9;
+	}
+
 	// Set the error data and SEO information that will be used by the layout
 	export const load: Load = () => {
 		return {
-			SeoTitle: `Error ${page.status} - ${publicEnv.SITE_NAME}`,
+			SeoTitle: `Error ${page.status} - ${page.data?.settings?.SITE_NAME || 'SveltyCMS'}`,
 			SeoDescription: `An error occurred while trying to access this page. Status: ${page.status}. ${page.error?.message || m.error_pagenotfound()}`
 		};
 	};
@@ -58,17 +62,9 @@
 			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
 				{#each array as char, index}
 					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">
-						{#if char === 'S' && (index + 1) % 10 === 0}
-							<!-- This is the last 'S' in each "SveltyCMS•" -->
-							<span class="text-primary-500"><SiteName {char} /></span>
-						{:else if index % 10 < 6}
-							<!-- This is the main part of each "SveltyCMS•" -->
-							<SiteName {char} />
-						{:else if index % 10 >= 6 && index % 10 < 9}
-							<!-- This is the last part of each "SveltyCMS•" -->
+						{#if isCMSChar(index)}
 							<span class="text-primary-500"><SiteName {char} /></span>
 						{:else}
-							<!-- This is the separator '•' -->
 							<SiteName {char} />
 						{/if}
 					</div>

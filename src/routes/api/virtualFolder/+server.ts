@@ -6,7 +6,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 // import { dbAdapter } from '@src/databases/db';
@@ -29,12 +29,20 @@ export const GET: RequestHandler = async ({ locals }) => {
 			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		const filter = privateEnv.MULTI_TENANT ? { tenantId } : {};
-		const folders = await dbAdapter.findMany('system_virtual_folders', filter);
+		const filter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
+		const result = await dbAdapter.crud.findMany('system_virtual_folders', filter);
+		if (!result.success) {
+			throw error(500, result.error?.message || 'Failed to fetch virtual folders');
+		}
+		const folders = result.data;
 
 		return json({
 			success: true,
@@ -63,7 +71,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (!dbAdapter) {
+			throw error(503, 'Service Unavailable: Database service is not properly initialized');
+		}
+
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -77,12 +89,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const folderData: Partial<SystemVirtualFolder> = {
 			name: name.trim(),
 			parentId: parentId || null,
-			...(privateEnv.MULTI_TENANT && { tenantId }),
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		};
 
-		const newFolder = await dbAdapter.create('system_virtual_folders', folderData);
+		const result = await dbAdapter.crud.insert('system_virtual_folders', folderData);
+		if (!result.success) {
+			throw error(500, result.error?.message || 'Failed to create virtual folder');
+		}
+		const newFolder = result.data;
 
 		return json(
 			{

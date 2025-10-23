@@ -1,5 +1,5 @@
 <!-- 
-@file src/routes/(app)/imageEditor/Blur.svelte
+@file src/routes/(app)/imageEditor/components/Blur.svelte
 @component
 **Blur effect component using Konva canvas used for image editing**
 Handles the blur region selection and application.

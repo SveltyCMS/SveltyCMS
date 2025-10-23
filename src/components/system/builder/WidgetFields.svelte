@@ -9,13 +9,13 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import widgets from '@widgets';
+	import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 	import AddWidget from './AddWidget.svelte';
 
 	import { debounce } from '@utils/utils';
 
 	// Props
-	let { fields = [], onFieldsUpdate = (newFields: any[]) => {} } = $props<{
+	let { fields = [], onFieldsUpdate = () => {} } = $props<{
 		fields: any[];
 		onFieldsUpdate: (newFields: any[]) => void;
 	}>();

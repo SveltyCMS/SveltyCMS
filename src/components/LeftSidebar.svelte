@@ -1,5 +1,5 @@
-<!-- 
-@file src/components/LeftSidebar.svelte 
+<!--
+@file src/components/LeftSidebar.svelte
 
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
@@ -17,35 +17,56 @@
 - Displays translation status
 -->
 
-<script module lang="ts">
-	declare const __VERSION__: string;
-</script>
-
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { publicEnv } from '@root/config/public';
+
 	import axios from 'axios';
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import { getLanguageName } from '@utils/languageUtils';
 	// Stores
-	import { mode } from '@stores/collectionStore.svelte';
-	import { isDesktop, isMobile, screenSize } from '@stores/screenSizeStore.svelte';
-	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
-	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
-	import { get } from 'svelte/store';
+	import { contentStructure, setMode } from '@stores/collectionStore.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
+
 	// Import components and utilities
+	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
+	import type { CollectionTreeNode } from '@components/Collections.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// Skeleton components and utilities
-	import { Avatar, modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import ThemeToggle from '@components/ThemeToggle.svelte';
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+	import type { ContentNode } from '@src/content/types';
 
 	// Define user data and state variables - make it reactive to page data changes
 	const user = $derived(page.data.user);
+
+	const collectionTreeNodes = $derived.by(() => {
+		const mapNodes = (nodes: ContentNode[]): CollectionTreeNode[] => {
+			return nodes.map((node) => {
+				const newNode: CollectionTreeNode = {
+					id: node._id,
+					name: node.name,
+					isExpanded: false, // Default value
+					onClick: () => {
+						if (node.path) {
+							goto(node.path);
+						}
+					},
+					icon: node.icon,
+					children: node.children ? mapNodes(node.children) : undefined
+				};
+				return newNode;
+			});
+		};
+		return mapNodes(contentStructure.value || []);
+	});
 
 	// Tooltip settings
 	const UserTooltip: PopupSettings = {
@@ -58,11 +79,7 @@
 		target: 'Github',
 		placement: 'right'
 	};
-	const SwitchThemeTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SwitchTheme',
-		placement: 'right'
-	};
+
 	const SignOutTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SignOutButton',
@@ -80,7 +97,7 @@
 	};
 
 	// Define language type based on available languages
-	type AvailableLanguage = typeof publicEnv.LOCALES extends string[] ? (typeof publicEnv.LOCALES)[number] : string;
+	type AvailableLanguage = string;
 
 	let _languageTag = $state(getLocale()); // Get the current language tag
 
@@ -89,9 +106,11 @@
 	let isDropdownOpen = $state(false);
 	let dropdownRef = $state<HTMLElement | null>(null);
 
-	// Computed values
+	// Computed values - Use dynamic global settings store for live updates
 	const availableLanguages = $derived(
-		[...(publicEnv.LOCALES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(publicEnv.LOCALES || page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
+			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
+		)
 	);
 
 	const filteredLanguages = $derived(
@@ -117,7 +136,9 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage) {
+		// Set cookie via store (bridge to ParaglideJS)
 		systemLanguage.set(lang as any);
+		// Update local state immediately
 		_languageTag = lang as any;
 		isDropdownOpen = false;
 		searchQuery = '';
@@ -147,37 +168,6 @@
 		}
 	}
 
-	// GitHub version and theme toggle
-	const pkg = __VERSION__ || '';
-	let githubVersion = '';
-
-	axios
-		.get('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest')
-		.then((response) => {
-			githubVersion = response.data.tag_name.slice(1);
-			const [localMajor, localMinor] = pkg.split('.').map(Number);
-			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
-
-			if (githubMinor > localMinor) {
-				$pkgBgColor = 'variant-filled-warning';
-			} else if (githubMajor !== localMajor) {
-				$pkgBgColor = 'variant-filled-error';
-			}
-		})
-		.catch((error) => {
-			console.error('Error von Github Release found:', error);
-			githubVersion = pkg;
-			$pkgBgColor = 'variant-filled-tertiary';
-		});
-
-	const toggleTheme = () => {
-		const currentMode = get(modeCurrent);
-		const newMode = !currentMode;
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
-		localStorage.setItem('theme', newMode ? 'light' : 'dark');
-	};
-
 	// Navigation handlers - simplified and more direct
 	function handleUserClick() {
 		if (page.url.pathname !== '/user') {
@@ -186,7 +176,7 @@
 				console.log('Mobile detected, hiding sidebar before navigation');
 				toggleUIElement('leftSidebar', 'hidden');
 			}
-			mode.set('view');
+			setMode('view');
 			goto('/user');
 		}
 	}
@@ -198,7 +188,7 @@
 				console.log('Mobile detected, hiding sidebar before navigation');
 				toggleUIElement('leftSidebar', 'hidden');
 			}
-			mode.set('view');
+			setMode('view');
 			goto('/config');
 		}
 	}
@@ -216,7 +206,8 @@
 	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
+			<!-- Site name loads dynamically from global settings store -->
+			<span class="text-token relative text-2xl font-bold"><SiteName highlight="CMS" /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
@@ -256,10 +247,10 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections />
+	<Collections systemVirtualFolders={collectionTreeNodes} />
 
 	<!-- Sidebar Left Footer -->
-	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
+	<div class="mb-2 mt-auto">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
 		<div
@@ -318,7 +309,7 @@
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if (publicEnv.LOCALES as string[]).length > 5}
+					{#if availableLanguages.length > 5}
 						<button
 							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'
@@ -384,19 +375,7 @@
 
 			<!-- Light/Dark mode switch -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
-				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
-					{#if !$modeCurrent}
-						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
-					{:else}
-						<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
-					{/if}
-				</button>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SwitchTheme">
-					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-					<div class="variant-filled arrow"></div>
-				</div>
+				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500 hover:text-white" iconSize={22} />
 			</div>
 
 			<!-- Sign Out -->
@@ -435,9 +414,9 @@
 						}
 					}}
 					aria-label="System Configuration"
-					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
+					class="btn-icon hover:bg-surface-500 hover:text-white"
 				>
-					<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
+					<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
@@ -464,15 +443,7 @@
 
 			<!-- CMS Version -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
-				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
-					<span
-						class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if uiStateManager.uiState.value.leftSidebar === 'full'}
-							{m.applayout_version()}
-						{/if}
-						{pkg}
-					</span>
-				</a>
+				<VersionCheck compact={uiStateManager.uiState.value.leftSidebar === 'collapsed'} />
 			</div>
 		</div>
 	</div>

@@ -18,7 +18,7 @@
 
 import { dbAdapter } from '@src/databases/db';
 import { json, error } from '@sveltejs/kit';
-import { hasPermissionByAction } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { logger } from '@utils/logger.svelte';
 import * as v from 'valibot';
 

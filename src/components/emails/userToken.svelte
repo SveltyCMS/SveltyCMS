@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/emails/userToken.svelte
 @component
 **userToken Email component to send user token invite to email**
@@ -6,10 +6,7 @@
 
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { publicEnv } from '@root/config/public';
-
-	// Components
-	import SiteName from '@components/SiteName.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
@@ -18,7 +15,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
 
 	interface Props {
 		email?: string;
@@ -60,7 +57,7 @@
 				<Text>Hello there,</Text>
 
 				<Text>
-					You have been invited to join <strong>{publicEnv.SITE_NAME}</strong> as a
+					You have been invited to join <strong>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong> as a
 					<strong>{role}</strong>. Please click the button below to create your account.
 				</Text>
 			</Section>
@@ -81,13 +78,28 @@
 			</Section>
 
 			<!-- CTA Button -->
-			<Section>
+			<Section style={{ textAlign: 'center' }}>
 				<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
 					{m.usertoken_button()}
 				</Text>
-				<Button href={tokenLink || '#'} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
-					Accept Invitation & Create Account
-				</Button>
+				<center>
+					<Button
+						href={tokenLink || '#'}
+						pX={24}
+						pY={12}
+						style={{
+							backgroundColor: '#22c55e',
+							color: '#fff',
+							borderRadius: '8px',
+							minWidth: '200px',
+							fontWeight: 'bold',
+							fontSize: '18px',
+							display: 'inline-block'
+						}}
+					>
+						Accept Invitation & Create Account
+					</Button>
+				</center>
 			</Section>
 
 			<Section>
@@ -110,7 +122,7 @@
 			<Section>
 				<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
 					<Link href="https://SveltyCMS.com">
-						Your <SiteName /> team
+						Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
 					</Link>
 				</Text>
 			</Section>

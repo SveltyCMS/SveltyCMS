@@ -1,92 +1,93 @@
 /**
-@file src/widgets/seo/index.ts
-@description - seo index file.
-*/
+ * @file src/widgets/custom/seo/index.tconst SeoWidget = createWidget({
+	Name: 'SEO',
+	Icon: 'tabler:seo',
+	Description: m.widget_seo_description(),
+	inputComponentPath: '/src/widgets/custom/seo/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/seo/Display.svelte',
+	validationSchema: SeoValidationSchema,
 
-import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'Seo' as const;
-
-/**
- * Defines Seo widget Parameters
+	// Set widget-specific defaults.
+	defaults: {
+		features: ['social', 'schema', 'advanced', 'ai'],
+		translated: true
+	},tion SEO Widget Definition.
+ *
+ * An SSEO analysis and optimization tool embedded as a widget.
+ *
+ * @features
+ * - **Comprehensive Validation**: Valibot schema validates the entire SEO data object, including length checks.
+ * - **Structured Data**: Stores a single, clean `SeoData` object.
+ * - **Configurable Features**: The `features` prop allows tailoring the UI for different needs.
+ * - **Translatable**: Fully supports multilingual SEO content.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	}
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { literal, maxLength, object, optional, pipe, string, union, url, type InferInput as ValibotInput } from 'valibot';
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
+// Define a robust validation schema for the SeoData object.
+const SeoValidationSchema = object({
+	title: pipe(string(), maxLength(60, 'Title should be under 60 characters.')),
+	description: pipe(string(), maxLength(160, 'Description should be under 160 characters.')),
+	focusKeyword: string(),
+	// Advanced
+	robotsMeta: string(),
+	canonicalUrl: optional(pipe(string(), url('Must be a valid URL.'))),
+	// Social
+	ogTitle: optional(string()),
+	ogDescription: optional(string()),
+	ogImage: optional(string()), // ID of a media file
+	twitterCard: union([literal('summary'), literal('summary_large_image')]),
+	twitterTitle: optional(string()),
+	twitterDescription: optional(string()),
+	twitterImage: optional(string()), // ID of a media file
+	// Schema
+	schemaMarkup: optional(string()) // Can add `json()` validation if needed
+});
 
-		// permissions
-		permissions: params.permissions
+// Create the widget definition using the factory.
+const SeoWidget = createWidget({
+	Name: 'SEO',
+	Icon: 'tabler:seo',
+	Description: m.widget_seo_description(),
+	inputComponentPath: '/src/widgets/custom/seo/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/seo/Display.svelte',
+	validationSchema: SeoValidationSchema,
 
-		// widget specific
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
-};
-
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
-
-// Widget icon and helper text
-widget.Icon = 'tabler:seo';
-widget.Description = m.widget_seo_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Set widget-specific defaults.
+	defaults: {
+		features: ['social', 'schema', 'advanced', 'ai'],
+		translated: true
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// GuiSchema allows configuration in the collection builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		translated: { widget: Toggles, required: false },
+		features: {
+			widget: Input, // A multi-select component would be better here.
+			required: false,
+			helper: 'Comma-separated features (social, schema, advanced, ai).'
+		}
+	},
+
+	// GraphQL schema for SEO (complex object, would need custom type)
+	// For now, return String to serialize as JSON
+	GraphqlSchema: () => ({
+		typeID: 'String', // JSON string representation
+		graphql: '' // No custom type definition needed
+	})
+});
+
+export default SeoWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof SeoWidget>;
+export type SeoWidgetData = ValibotInput<typeof SeoValidationSchema>;

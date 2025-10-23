@@ -1,6 +1,6 @@
-<!-- 
+<!--
 @file src/components/system/icons/SveltyCMS_LogoFull.svelte
-@component 
+@component
 **Dynamic SveltyCMS_LogoFull component**
 -->
 
@@ -77,7 +77,7 @@
 
 			<!-- PUBLIC SITENAME -->
 			<div class="-mt-2 text-3xl font-bold text-black">
-				<SiteName />
+				<SiteName highlight="CMS" />
 			</div>
 			<!-- Slogan -->
 			<div class="-mt-[1px] text-[12px] font-bold text-secondary-500">

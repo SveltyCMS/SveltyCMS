@@ -9,14 +9,25 @@
  * Features:
  * - **Defense in Depth**: Specific permission check to ensure only authorized admins can create users.
  * - **Input Validation**: Uses a Valibot schema to validate and sanitize the incoming user data.
+ * - **Optimized Session Creation**: Optionally creates user and session in single database transaction
  * - Safeguards against creating duplicate users within the same tenant.
  * - Comprehensive logging and secure error responses.
+ *
+ * @example
+ * // Create user only
+ * POST /api/user/createUser
+ * { "email": "user@example.com", "role": "user", "password": "secret" }
+ *
+ * // Create user with session (optimized single transaction)
+ * POST /api/user/createUser
+ * { "email": "user@example.com", "role": "user", "password": "secret", "createSession": "7d" }
+ * // Returns: { ...userData, sessionId: "...", sessionExpires: "..." }
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { RequestHandler } from '@sveltejs/kit';
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
@@ -25,13 +36,28 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
-import { object, string, parse, email, optional, type ValiError } from 'valibot';
+import { email, object, optional, parse, string, type ValiError } from 'valibot';
+
+// Helper function to parse session duration strings
+function parseSessionDuration(duration: string): number {
+	const durationMap: Record<string, number> = {
+		'1h': 60 * 60 * 1000, // 1 hour
+		'1d': 24 * 60 * 60 * 1000, // 1 day
+		'7d': 7 * 24 * 60 * 60 * 1000, // 7 days
+		'30d': 30 * 24 * 60 * 60 * 1000, // 30 days
+		'90d': 90 * 24 * 60 * 60 * 1000 // 90 days
+	};
+
+	return durationMap[duration] || durationMap['7d']; // Default to 7 days
+}
 
 // Define a schema for the incoming user data to ensure type safety and prevent invalid data.
 const createUserSchema = object({
 	email: string([email('Please provide a valid email address.')]),
 	role: string('A role ID must be provided.'),
-	username: optional(string())
+	username: optional(string()),
+	password: string(),
+	createSession: optional(string()) // Optional: '1h', '1d', '7d', '30d', '90d' - session duration
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -50,7 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.debug('Received and validated request to create user', { email: userData.email, byUser: user?._id, tenantId });
 		// Check if a user with this email already exists within the same tenant to prevent duplicates.
 		const userCheckCriteria: { email: string; tenantId?: string } = { email: userData.email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			userCheckCriteria.tenantId = tenantId;
 		}
 		const existingUser = await auth.checkUser(userCheckCriteria);
@@ -59,10 +85,56 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(409, 'A user with this email address already exists in this tenant.'); // 409 Conflict
 		}
 
-		// Create the user using the validated and sanitized data, including the tenantId.
+		// Check if session creation is requested
+		const shouldCreateSession = !!userData.createSession;
+
+		if (shouldCreateSession) {
+			// Use optimized createUserAndSession for single database transaction
+			const sessionDuration = parseSessionDuration(userData.createSession || '7d');
+			const expires = new Date(Date.now() + sessionDuration);
+
+			logger.debug('Creating user with session', {
+				email: userData.email,
+				sessionExpires: expires.toISOString(),
+				tenantId
+			});
+
+			const result = await auth.createUserAndSession(
+				{
+					...userData,
+					...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
+					isRegistered: true,
+					lastAuthMethod: 'password'
+				},
+				{ expires, tenantId }
+			);
+
+			if (!result.success || !result.data) {
+				throw error(500, result.message || 'Failed to create user and session');
+			}
+
+			logger.info('User and session created successfully via direct API call', {
+				newUserId: result.data.user._id,
+				sessionId: result.data.session._id,
+				createdBy: user?._id,
+				tenantId
+			});
+
+			// Return user data with session info
+			return json(
+				{
+					...result.data.user,
+					sessionId: result.data.session._id,
+					sessionExpires: result.data.session.expires
+				},
+				{ status: 201 }
+			);
+		}
+
+		// Create the user without session (original behavior)
 		const newUser = await auth.createUser({
 			...userData,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Conditionally add tenantId
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Conditionally add tenantId
 			isRegistered: true, // Assuming direct creation means they are fully registered.
 			lastAuthMethod: 'password' // Or a default value.
 		});

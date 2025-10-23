@@ -2,7 +2,7 @@
  * Test Private Config for CI
  * Copy this file to config/private.ts in CI before build.
  */
-import { createPrivateConfig } from '../../config/types.ts';
+import { createPrivateConfig } from '../../src/databases/schemas.ts';
 
 export const privateEnv = createPrivateConfig({
 	// --- Database Configuration ---

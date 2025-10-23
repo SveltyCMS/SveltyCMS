@@ -51,7 +51,6 @@ and configurable quality settings for weaker devices.
 	// Performance-based configuration
 	let actualQuality = $state(quality);
 	let pathCount = $state(12); // Reduced from 72
-	let animationDuration = $state(8000); // Reduced from 20000
 	let shouldReduceMotion = $state(false);
 
 	// Single animation progress value
@@ -109,7 +108,6 @@ and configurable quality settings for weaker devices.
 
 		const config = settings[detectedQuality];
 		pathCount = config.paths;
-		animationDuration = config.duration;
 
 		// Update animation with new duration
 		animationProgress.set(0, { duration: config.duration });
