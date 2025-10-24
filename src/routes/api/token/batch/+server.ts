@@ -30,7 +30,7 @@ import { auth } from '@src/databases/db';
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
+import { cacheService } from '@src/databases/CacheService';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -96,7 +96,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 		// Invalidate the tokens cache so changes appear immediately in admin area
-		invalidateAdminCache('tokens', tenantId);
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
 
 		logger.info(`Batch token action '${action}' completed.`, {
 			affectedIds: tokenIds,

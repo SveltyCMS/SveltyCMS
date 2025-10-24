@@ -57,7 +57,7 @@
 		widgetId = undefined,
 		size = { w: 2, h: 3 },
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -65,7 +65,7 @@
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	// Apply defaults for monitoring category
@@ -108,7 +108,7 @@
 	{widgetId}
 	{size}
 	{onSizeChange}
-	{onCloseRequest}
+	onCloseRequest={onRemove}
 	{...defaults}
 >
 	{#snippet children({ data })}

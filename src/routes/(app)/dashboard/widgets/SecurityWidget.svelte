@@ -53,7 +53,7 @@ and automated response visualization for enterprise security operations.
 		autoRefresh = true,
 		refreshInterval = 5000,
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -63,7 +63,7 @@ and automated response visualization for enterprise security operations.
 		autoRefresh?: boolean;
 		refreshInterval?: number;
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	// Security data interfaces
@@ -286,7 +286,7 @@ and automated response visualization for enterprise security operations.
 	});
 </script>
 
-<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest} {isLoading} {error}>
+<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove} {isLoading} {error}>
 	<div class="flex h-full flex-col space-y-4 p-2">
 		<!-- Security Status Header -->
 		<div class="flex items-center justify-between">

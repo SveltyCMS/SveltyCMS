@@ -26,7 +26,7 @@ import { auth } from '@src/databases/db';
 import { any, object, parse, type ValiError } from 'valibot';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
+import { cacheService } from '@src/databases/CacheService';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -117,7 +117,9 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 
 		logger.info('Token updated successfully', { tokenId, updateData: newTokenData, tenantId }); // Invalidate the tokens cache so the UI updates immediately
 
-		invalidateAdminCache('tokens', tenantId);
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
 
 		return json({ success: true, message: 'Token updated successfully.' });
 	} catch (err) {
@@ -190,7 +192,9 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			throw error(404, 'Token not found');
 		} // Invalidate the tokens cache so the deleted token disappears immediately from admin area
 
-		invalidateAdminCache('tokens', tenantId);
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
 
 		logger.info(`Token ${tokenId} deleted successfully`, { executedBy: user?._id, tenantId });
 

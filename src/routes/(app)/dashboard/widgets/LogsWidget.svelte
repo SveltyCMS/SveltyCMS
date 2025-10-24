@@ -47,7 +47,7 @@
 		widgetId = undefined,
 		size = { w: 2, h: 2 },
 		onSizeChange = () => {},
-		onCloseRequest = () => {},
+		onRemove = () => {},
 		endpoint = '/api/dashboard/logs',
 		pollInterval = 15000
 	} = $props<{
@@ -57,7 +57,7 @@
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 		endpoint?: string;
 		pollInterval?: number;
 	}>();
@@ -150,7 +150,7 @@
 	};
 </script>
 
-<BaseWidget {label} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
+<BaseWidget {label} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
 			<div class="flex flex-1 gap-2">

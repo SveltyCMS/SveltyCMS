@@ -134,9 +134,9 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			}
 		}
 
-		// Invalidate admin cache since user data has changed
-		const { invalidateAdminCache } = await import('@src/hooks/handleAuthorization');
-		invalidateAdminCache('users', tenantId);
+		// Invalidate roles cache since user data may have changed
+		const { invalidateRolesCache } = await import('@src/hooks/handleAuthorization');
+		invalidateRolesCache(tenantId);
 
 		logger.info('User attributes updated successfully', {
 			user_id: userIdToUpdate,

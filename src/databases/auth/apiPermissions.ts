@@ -37,6 +37,7 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 
 	// Dashboard & Analytics - Admin and Editor
 	'api:dashboard': ['admin', 'editor'], // Dashboard data
+	'api:security': ['admin'], // Security monitoring and incident management
 	'api:search': ['admin', 'editor'], // Search functionality
 	'api:index': ['admin', 'editor'], // Index/search operations
 

@@ -51,7 +51,7 @@ for comprehensive system monitoring and performance analysis.
 		autoRefresh = true,
 		refreshInterval = 3000,
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -62,7 +62,7 @@ for comprehensive system monitoring and performance analysis.
 		autoRefresh?: boolean;
 		refreshInterval?: number;
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	// Unified metrics interface (matches MetricsService output)
@@ -293,7 +293,7 @@ for comprehensive system monitoring and performance analysis.
 	});
 </script>
 
-<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest} {isLoading} {error}>
+<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove} {isLoading} {error}>
 	<div class="flex h-full flex-col space-y-3 p-2">
 		<!-- Health Status Header -->
 		<div class="flex items-center justify-between">

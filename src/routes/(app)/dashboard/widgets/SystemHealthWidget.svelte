@@ -55,7 +55,7 @@
 		widgetId = undefined,
 		size = { w: 2, h: 2 },
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -63,7 +63,7 @@
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	async function reinitializeSystem() {
@@ -160,7 +160,7 @@
 	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/health" pollInterval={5000} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
+<BaseWidget {label} {theme} endpoint="/api/dashboard/health" pollInterval={5000} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
 	{#snippet children({ data }: { data: HealthData | undefined })}
 		{#if data}
 			<div class="flex h-full flex-col gap-3">

@@ -57,7 +57,7 @@ and compliance reporting for enterprise security operations.
 		size = { w: 3, h: 3 } as WidgetSize,
 		onSizeChange = (_newSize: WidgetSize) => {},
 		resizable = true,
-		onCloseRequest = () => {},
+		onRemove = () => {},
 		showPersonalOnly = false,
 		autoRefresh = true,
 		refreshInterval = 10000,
@@ -69,7 +69,7 @@ and compliance reporting for enterprise security operations.
 		size?: WidgetSize;
 		onSizeChange?: (newSize: WidgetSize) => void;
 		resizable?: boolean;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 		showPersonalOnly?: boolean;
 		autoRefresh?: boolean;
 		refreshInterval?: number;
@@ -219,7 +219,7 @@ and compliance reporting for enterprise security operations.
 	{size}
 	{onSizeChange}
 	{resizable}
-	{onCloseRequest}
+	onCloseRequest={onRemove}
 	showRefreshButton={true}
 	refresh={loadAuditData}
 	{isLoading}

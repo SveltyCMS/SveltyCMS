@@ -38,6 +38,7 @@
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { initializeDarkMode } from '@stores/themeStore.svelte';
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -134,22 +135,27 @@
 		document.documentElement.lang = lang;
 	});
 
-	// Theme management
+	// Theme management - system preference listener
+	// NOTE: This only handles OS-level theme changes, not user toggles
+	// User toggles are handled by themeStore.toggleDarkMode()
 	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
-		const prefersDarkMode = event.matches;
-		setModeUserPrefers(prefersDarkMode);
-		setModeCurrent(prefersDarkMode);
+		// Only update if user hasn't set an explicit preference
+		const userHasPreference = document.cookie.includes('theme=');
 
-		// Immediately apply the theme to the DOM
-		if (prefersDarkMode) {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
+		if (!userHasPreference) {
+			const prefersDarkMode = event.matches;
+			setModeUserPrefers(prefersDarkMode);
+			setModeCurrent(prefersDarkMode);
+
+			// Immediately apply the theme to the DOM
+			if (prefersDarkMode) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+
+			// DO NOT set cookie here - let themeStore handle all cookie operations
 		}
-
-		// Set cookie for server-side persistence
-		document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-		document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
 	}
 
 	// Keyboard shortcuts
@@ -161,60 +167,12 @@
 	}
 
 	onMount(() => {
-		// Theme initialization
+		// Initialize theme from themeStore (reads from cookie and syncs with DOM)
+		initializeDarkMode();
+
+		// Theme system preference listener
 		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
-
-		// Check for saved theme preference in cookies
-		const getCookie = (name: string) => {
-			const value = `; ${document.cookie}`;
-			const parts = value.split(`; ${name}=`);
-			if (parts.length === 2) return parts.pop()?.split(';').shift();
-			return null;
-		};
-
-		const savedTheme = getCookie('theme');
-		const savedDarkMode = getCookie('darkMode');
-
-		if (savedTheme) {
-			const newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-
-			// Immediately apply the theme to the DOM
-			if (newMode) {
-				document.documentElement.classList.remove('dark');
-			} else {
-				document.documentElement.classList.add('dark');
-			}
-		} else if (savedDarkMode) {
-			const newMode = savedDarkMode === 'true';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-
-			// Immediately apply the theme to the DOM
-			if (newMode) {
-				document.documentElement.classList.remove('dark');
-			} else {
-				document.documentElement.classList.add('dark');
-			}
-		} else {
-			// No saved preference found, use device preference
-			const prefersDarkMode = mediaQuery.matches;
-			setModeUserPrefers(prefersDarkMode);
-			setModeCurrent(prefersDarkMode);
-
-			// Immediately apply the theme to the DOM
-			if (prefersDarkMode) {
-				document.documentElement.classList.add('dark');
-			} else {
-				document.documentElement.classList.remove('dark');
-			}
-
-			// Save the device preference as the initial user preference
-			document.cookie = `theme=${prefersDarkMode ? 'dark' : 'light'}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-			document.cookie = `darkMode=${prefersDarkMode}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-		}
 
 		if (data.user) {
 			// Initialize avatar with user's avatar URL from database, fallback to default

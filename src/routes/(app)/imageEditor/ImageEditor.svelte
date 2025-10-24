@@ -533,18 +533,18 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	}
 </script>
 
-<div class="image-editor" class:mobile={isMobile} class:tablet={isTablet}>
+<div class="h-full w-full" class:mobile={isMobile} class:tablet={isTablet}>
 	<!-- Desktop/Tablet Layout -->
 	{#if !isMobile}
-		<div class="editor-layout">
+		<div class="flex h-full">
 			<!-- Left Sidebar -->
 			<EditorSidebar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.file} />
 
 			<!-- Main Canvas Area -->
-			<div class="editor-main">
+			<div class="flex min-w-0 flex-1 flex-col">
 				<!-- Top Controls -->
 				<div class="editor-controls">
-					<div class="controls-left">
+					<div class="flex items-center gap-2">
 						<div class="file-upload">
 							<input id="image-upload" class="sr-only" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
 							<label for="image-upload" class="variant-filled-primary btn">
@@ -556,13 +556,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 					<div class="controls-center">
 						{#if storeState.file}
-							<span class="filename text-sm text-surface-600 dark:text-surface-400">
+							<span class="max-w-48 truncate text-sm text-surface-600 dark:text-surface-400">
 								{storeState.file.name}
 							</span>
 						{/if}
 					</div>
 
-					<div class="controls-right">
+					<div class="flex items-center gap-2">
 						{#if storeState.file}
 							<div class="flex items-center gap-1">
 								<button
@@ -628,24 +628,24 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		</div>
 	{:else}
 		<!-- Mobile Layout -->
-		<div class="editor-mobile">
+		<div class="flex h-full flex-col">
 			<!-- Top Controls (Mobile) -->
 			<div class="mobile-controls">
-				<div class="controls-left">
+				<div class="flex items-center gap-2">
 					{#if onCancel}
-						<button onclick={handleCancel} class="variant-ghost btn-icon">
+						<button onclick={handleCancel} class="variant-ghost btn-icon" aria-label="Cancel">
 							<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 						</button>
 					{/if}
 				</div>
-				<div class="controls-center">
+				<div class="flex flex-1 items-center justify-center">
 					{#if storeState.file}
-						<span class="filename text-sm font-medium">
+						<span class="max-w-48 truncate text-sm font-medium">
 							{storeState.file.name}
 						</span>
 					{/if}
 				</div>
-				<div class="controls-right">
+				<div class="flex items-center gap-2">
 					{#if storeState.file}
 						<button onclick={handleSave} class="variant-filled-primary btn btn-sm"> Save </button>
 					{/if}
@@ -821,19 +821,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 <div class="success-message" role="alert">Image saved successfully!</div>
 
-<style>
-	.image-editor {
-		@apply h-full w-full;
-	}
-
-	.editor-layout {
-		@apply flex h-full;
-	}
-
-	.editor-main {
-		@apply flex min-w-0 flex-1 flex-col;
-	}
-
+<style lang="postcss">
 	.canvas-wrapper,
 	.canvas-wrapper-mobile {
 		@apply relative flex flex-1 flex-col;
@@ -848,19 +836,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	:global(.dark) .editor-controls {
 		background-color: rgb(var(--color-surface-900) / 1);
 		border-color: rgb(var(--color-surface-700) / 1);
-	}
-
-	.controls-left,
-	.controls-right {
-		@apply flex items-center gap-2;
-	}
-
-	.controls-center {
-		@apply flex flex-1 items-center justify-center;
-	}
-
-	.filename {
-		@apply max-w-48 truncate;
 	}
 
 	.editor-mobile {
@@ -894,10 +869,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		opacity: 0;
 		transition: opacity 0.3s ease;
 		z-index: 1000;
-	}
-
-	.success-message.show {
-		opacity: 1;
 	}
 
 	/* Responsive utilities */

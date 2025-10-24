@@ -24,8 +24,7 @@ import { randomBytes } from 'crypto';
 import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
-// Content Manager for redirects
-import { contentManager } from '@root/src/content/ContentManager';
+// Collection utilities
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage } from '@stores/store.svelte';
@@ -408,40 +407,22 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			// Check if there are collection source files in config/collections
-			const fs = await import('fs/promises');
-			const path = await import('path');
-			const collectionsDir = path.resolve(process.cwd(), 'config/collections');
-
-			let hasCollectionSources = false;
-			try {
-				const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
-				hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
-			} catch {
-				// Directory doesn't exist or can't be read, assume no collections
-				hasCollectionSources = false;
-			}
-
-			if (hasCollectionSources) {
-				// Collections exist in source - compile them and redirect to first collection
-				logger.info('Collections found in config/collections, compiling and redirecting to first collection', { correlationId });
-
-				// Force ContentManager to reload and compile collections
-				await contentManager.initialize(undefined, true);
-
+			// Check if collections exist in the database (runtime-created collections)
+			// First try the firstCollection passed from setup wizard (if available)
+			if (firstCollection?.path) {
+				redirectPath = firstCollection.path;
+				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${redirectPath}`, { correlationId });
+			} else {
+				// Fallback: Query database for available collections
 				redirectPath = await getCachedFirstCollectionPath(userLanguage);
 
-				if (!redirectPath) {
-					// Fallback if compilation failed or no collections found
-					logger.warn('Collection compilation completed but no collections available, redirecting to collection builder', { correlationId });
-					redirectPath = '/config/collectionbuilder';
+				if (redirectPath) {
+					logger.info(`Setup complete: Redirecting to collection from database: ${redirectPath}`, { correlationId });
 				} else {
-					logger.info(`Redirecting to compiled collection: ${redirectPath}`, { correlationId });
+					// No collections available - redirect to collection builder
+					logger.info('Setup complete: No collections available, redirecting to collection builder', { correlationId });
+					redirectPath = '/config/collectionbuilder';
 				}
-			} else {
-				// No collections in source - redirect to collection builder
-				logger.info('No collections in config/collections, redirecting to collection builder', { correlationId });
-				redirectPath = '/config/collectionbuilder';
 			}
 		} catch (redirectError) {
 			logger.warn('Failed to determine redirect path, using default', {
