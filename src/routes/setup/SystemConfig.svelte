@@ -347,7 +347,7 @@ Key Features:
 						<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 					</div>
 					<select id="default-system-lang" bind:value={systemSettings.defaultSystemLanguage} class="input w-full rounded">
-						{#each systemSettings.systemLanguages as lang}
+						{#each systemSettings.contentLanguages as lang, index (index)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
@@ -375,7 +375,7 @@ Key Features:
 						<div
 							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
-							{#each systemSettings.systemLanguages as lang}
+							{#each systemSettings.systemLanguages as lang, index (index)}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
 									{displayLang(lang)}
 									{#if systemSettings.systemLanguages.length > 1}
@@ -422,7 +422,7 @@ Key Features:
 										{#if systemAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
-										{#each systemAvailable as sug}
+										{#each systemAvailable as sug, index (index)}
 											<button
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"
@@ -473,7 +473,7 @@ Key Features:
 						aria-invalid={!!validationErrors.defaultContentLanguage}
 						aria-describedby={validationErrors.defaultContentLanguage ? 'default-content-lang-error' : undefined}
 					>
-						{#each systemSettings.contentLanguages as lang}
+						{#each systemSettings.contentLanguages as lang, index (index)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
@@ -506,7 +506,7 @@ Key Features:
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
-							{#each systemSettings.contentLanguages as lang}
+							{#each systemSettings.contentLanguages as lang, index (index)}
 								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
 									{displayLang(lang)}
 									{#if lang !== systemSettings.defaultContentLanguage}
@@ -559,7 +559,7 @@ Key Features:
 										{#if contentAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
-										{#each contentAvailable as sug}
+										{#each contentAvailable as sug, index (index)}
 											<button
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"

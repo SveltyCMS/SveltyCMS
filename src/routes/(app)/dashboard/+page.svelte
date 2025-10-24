@@ -240,7 +240,7 @@
 	}
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
-		if (!!(event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
+		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
 
 		const coords = 'touches' in event ? event.touches[0] : event;
 		const rect = element.getBoundingClientRect();
@@ -347,7 +347,7 @@
 			<div class="relative">
 				{#if availableWidgets.length > 0}
 					<button
-						class="variant-filled-primary btn"
+						class="variant-filled-tertiary btn dark:variant-filled-primary"
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
@@ -443,12 +443,12 @@
 			{:else}
 				<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center">
 					<div class="flex flex-col items-center px-10 py-12">
-						<iconify-icon icon="mdi:view-dashboard-outline" width="80" class="mb-6 text-primary-400 drop-shadow-lg dark:text-primary-500"
+						<iconify-icon icon="mdi:view-dashboard-outline" width="80" class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"
 						></iconify-icon>
-						<p class="mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
+						<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
 						<button
-							class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
+							class="btn rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
 							onclick={() => (dropdownOpen = true)}
 							aria-label="Add first widget"
 						>

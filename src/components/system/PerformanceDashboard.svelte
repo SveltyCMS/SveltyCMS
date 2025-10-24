@@ -1,3 +1,17 @@
+<!--
+@file src/components/system/PerformanceDashboard.svelte
+@component
+**PerformanceDashboard component for displaying system performance metrics**
+
+@example
+<PerformanceDashboard />
+
+### Features:
+- Fetches and displays system performance data
+- Highlights performance bottlenecks with severity levels
+- Summarizes overall system health and service metrics
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 

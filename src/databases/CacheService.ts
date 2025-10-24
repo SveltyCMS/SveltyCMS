@@ -536,7 +536,7 @@ function getCategoryTTL(category: CacheCategory): number {
 
 	try {
 		// Try to get from dynamic settings (allows runtime changes)
-		const configuredTTL = getPrivateSetting(configKey);
+		const configuredTTL = getPrivateSettingSync(configKey);
 
 		if (typeof configuredTTL === 'number' && configuredTTL > 0) {
 			return configuredTTL;

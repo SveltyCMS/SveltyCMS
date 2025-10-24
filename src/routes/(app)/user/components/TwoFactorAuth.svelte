@@ -56,10 +56,10 @@ This component provides a user interface for managing 2FA settings:
 
 	// Show success toast
 	function showSuccessToast(message: string) {
-		showToast(`<iconify-icon icon=\"mdi:check-circle\" color=\"white\" width=\"24\" class=\"mr-2\"></iconify-icon>${message}`, 'success');
+		showToast(`<iconify-icon icon="mdi:check-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}`, 'success');
 	}
 	function showErrorToast(message: string) {
-		showToast(`<iconify-icon icon=\"mdi:alert-circle\" color=\"white\" width=\"24\" class=\"mr-2\"></iconify-icon>${message}`, 'error');
+		showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}`, 'error');
 	}
 
 	// Setup 2FA - Show QR code modal
@@ -283,7 +283,7 @@ This component provides a user interface for managing 2FA settings:
 										<h4 class="h4">{m.twofa_backup_codes_title()}</h4>
 										<p class="mb-3">{m.twofa_backup_codes_description()}</p>
 										<div class="grid grid-cols-2 gap-2 font-mono text-sm">
-											{#each backupCodes as code}
+											{#each backupCodes as code, index (index)}
 												<div class="rounded bg-surface-200 p-2 text-center dark:bg-surface-700">
 													{code}
 												</div>

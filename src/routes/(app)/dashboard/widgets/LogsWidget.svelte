@@ -148,50 +148,6 @@
 				return 'text-gray-700 dark:text-gray-300';
 		}
 	};
-
-	const processAnsiMessage = (message: string): string => {
-		if (!message) return '';
-		let result = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-		const ansiColors: Record<string, string> = {
-			'30': 'color: #000000',
-			'31': 'color: #dc2626',
-			'32': 'color: #16a34a',
-			'33': 'color: #ca8a04',
-			'34': 'color: #2563eb',
-			'35': 'color: #9333ea',
-			'36': 'color: #0891b2',
-			'37': 'color: #6b7280',
-			'90': 'color: #6b7280',
-			'91': 'color: #ef4444',
-			'92': 'color: #22c55e',
-			'93': 'color: #eab308',
-			'94': 'color: #3b82f6',
-			'95': 'color: #a855f7',
-			'96': 'color: #06b6d4',
-			'97': 'color: #f3f4f6'
-		};
-		let openSpans = 0;
-		const escapePatterns = [/\x1b\[([0-9;]*)m/g, /\u001b\[([0-9;]*)m/g];
-		for (const pattern of escapePatterns) {
-			result = result.replace(pattern, (_, codes) => {
-				if (codes === '0' || codes === '') {
-					const closeSpans = '</span>'.repeat(openSpans);
-					openSpans = 0;
-					return closeSpans;
-				}
-				let html = '';
-				for (const code of codes.split(';').filter((c: string) => c)) {
-					if (ansiColors[code]) {
-						html += `<span style="${ansiColors[code]}">`;
-						openSpans++;
-					}
-				}
-				return html;
-			});
-		}
-		result += '</span>'.repeat(openSpans);
-		return result;
-	};
 </script>
 
 <BaseWidget {label} endpoint={dynamicEndpoint} {pollInterval} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
@@ -252,7 +208,7 @@
 							{log.level.toUpperCase()}
 						</span>
 						<span class="text-text-900 dark:text-text-100 flex-1 select-text truncate text-xs" style="user-select: text;" title={log.message}>
-							{@html processAnsiMessage(log.messageHtml || log.message)}
+							{log.message}
 						</span>
 					</div>
 				{/each}

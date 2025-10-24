@@ -488,43 +488,130 @@ Cookie: session=your-session-id
 
 ---
 
-### 9. System Preferences
+### 9. User & System Preferences
 
-Retrieves current system preferences/configuration.
+Manages user-specific preferences (like dashboard layouts) and system-wide settings through a flexible key-value API.
 
-#### Request
+**Base Path:** `/api/systemPreferences`
+
+#### Permissions Required
+- **GET:** `admin` or `dashboard:read`
+- **POST/DELETE:** `admin` or `dashboard:manage`
+
+---
+
+#### A. Get Preference(s)
+
+Retrieves one or more preference values for the currently authenticated user.
+
+**Request:**
 
 ```http
-GET /api/dashboard/systemPreferences
+GET /api/systemPreferences?key={your_key}
 ```
-
-**Headers:**
-
+or for multiple keys:
 ```http
-Cookie: session=your-session-id
+GET /api/systemPreferences?keys[]={key_1}&keys[]={key_2}
 ```
 
-**Permissions Required:** `admin`
+**Key Naming Convention:**
+For dashboard preferences, use the following structure:
+- **Layout:** `dashboard.layout.{layout_id}` (e.g., `dashboard.layout.default`)
+- **Widget State:** `dashboard.widget.{widget_id}.state`
 
-#### Response
+**Example: Get Dashboard Layout**
+```http
+GET /api/systemPreferences?key=dashboard.layout.default
+```
 
-**Success (200):**
-
+**Success Response (200):**
 ```json
 {
-	"success": true,
-	"preferences": {
-		"siteName": "My SveltyCMS",
-		"siteUrl": "https://cms.example.com",
-		"defaultLanguage": "en",
-		"timezone": "UTC",
-		"dateFormat": "YYYY-MM-DD",
-		"itemsPerPage": 25,
-		"maxUploadSize": 10485760,
-		"allowedFileTypes": ["jpg", "png", "pdf"],
-		"cacheEnabled": true,
-		"maintenanceMode": false
-	}
+  "id": "default",
+  "name": "Default",
+  "preferences": [
+    {
+      "id": "widget-abc-123",
+      "component": "CPUWidget",
+      "label": "CPU Usage",
+      "size": { "w": 1, "h": 1 },
+      "order": 0
+    }
+  ]
+}
+```
+
+---
+
+#### B. Set Preference(s)
+
+Creates or updates one or more preferences for the authenticated user.
+
+**Request:**
+
+To set a single preference:
+```http
+POST /api/systemPreferences
+Content-Type: application/json
+
+{
+  "key": "dashboard.layout.default",
+  "value": {
+    "id": "default",
+    "name": "Default",
+    "preferences": [
+      { "id": "widget-abc-123", "component": "CPUWidget", "size": { "w": 2, "h": 1 }, "order": 0 }
+    ]
+  }
+}
+```
+
+To set multiple preferences in one request (e.g., for bulk widget state saving):
+```http
+POST /api/systemPreferences
+Content-Type: application/json
+
+[
+  {
+    "key": "dashboard.widget.cpu.state",
+    "value": { "showPercentage": true }
+  },
+  {
+    "key": "dashboard.widget.memory.state",
+    "value": { "unit": "GB" }
+  }
+]
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Preference 'dashboard.layout.default' saved."
+}
+```
+
+---
+
+#### C. Delete a Preference
+
+Removes a specific preference for the authenticated user.
+
+**Request:**
+```http
+DELETE /api/systemPreferences?key={your_key}
+```
+
+**Example: Delete a Widget's State**
+```http
+DELETE /api/systemPreferences?key=dashboard.widget.cpu.state
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Preference 'dashboard.widget.cpu.state' deleted."
 }
 ```
 

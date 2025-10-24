@@ -10,12 +10,12 @@
 	charLimit={200} 
 />
 
-#### Props
+### Props
 - `text` {string} - Full text to display
 - `term` {string} - Term to highlight
 - `charLimit` {number} - Limit before 'Show More' appears
 
-Features:
+### Features:
 - Custom highlight colors using Tailwind classes
 - Character limit with "Show More" functionality
 - Debounced highlighting for performance
@@ -38,48 +38,48 @@ Features:
 		return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	}
 
-	// Splits text into segments for highlighting
-	function splitTextForHighlight(text: string, term: string): Array<{ text: string; isHighlighted: boolean }> {
-		if (!term) return [{ text, isHighlighted: false }];
+	// 1) Memoized regex - only recalculates when `term` changes
+	let highlightingRegex = $derived(() => {
+		if (!term || !term.trim()) return null;
+		const escaped = escapeRegex(term);
+		return new RegExp(escaped, 'gi');
+	});
 
-		const escapedTerm = escapeRegex(term);
-		const regex = new RegExp(escapedTerm, 'gi');
+	// 2) Memoized segments - recalculates when term, text, charLimit or isExpanded change
+	let displayTextSegments = $derived(() => {
+		const shouldLimit = !isExpanded && text.length > charLimit;
+		const currentText = shouldLimit ? text.slice(0, charLimit) + '...' : text;
+
+		const regex = highlightingRegex();
+		if (!regex) return [{ text: currentText, isHighlighted: false }];
+
 		const segments: Array<{ text: string; isHighlighted: boolean }> = [];
 		let lastIndex = 0;
 
-		text.replace(regex, (match, index) => {
+		currentText.replace(regex, (match, index) => {
 			if (index > lastIndex) {
-				segments.push({ text: text.slice(lastIndex, index), isHighlighted: false });
+				segments.push({ text: currentText.slice(lastIndex, index), isHighlighted: false });
 			}
 			segments.push({ text: match, isHighlighted: true });
 			lastIndex = index + match.length;
 			return match;
 		});
 
-		if (lastIndex < text.length) {
-			segments.push({ text: text.slice(lastIndex), isHighlighted: false });
+		if (lastIndex < currentText.length) {
+			segments.push({ text: currentText.slice(lastIndex), isHighlighted: false });
 		}
 
 		return segments;
-	}
+	});
 
 	// Toggles between limited and full text
-	function toggleText() {
+	function toggleText(): void {
 		isExpanded = !isExpanded;
 	}
-
-	// Compute displayText and segments based on text, term, charLimit, and isExpanded
-	let displayText = $state([] as Array<{ text: string; isHighlighted: boolean }>);
-
-	$effect(() => {
-		const shouldLimit = !isExpanded && text.length > charLimit;
-		const limitedText = shouldLimit ? text.slice(0, charLimit) + '...' : text;
-		displayText = splitTextForHighlight(limitedText, term);
-	});
 </script>
 
 <div role="region" aria-live="polite">
-	{#each displayText as segment}
+	{#each displayTextSegments() as segment, index (index)}
 		{#if segment.isHighlighted}
 			<mark class="bg-warning-500 px-1">{segment.text}</mark>
 		{:else}
@@ -88,7 +88,12 @@ Features:
 	{/each}
 
 	{#if text.length > charLimit}
-		<button onclick={toggleText} class="text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500" aria-expanded={isExpanded}>
+		<button
+			type="button"
+			onclick={toggleText}
+			class="text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+			aria-expanded={isExpanded}
+		>
 			{isExpanded ? 'Show Less' : 'Show More'}
 		</button>
 	{/if}

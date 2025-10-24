@@ -22,9 +22,7 @@ import type { Unsubscriber } from 'svelte/store';
 import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // Types
-import type { Category, ContentTypes, Schema } from './types';
-import type { CategoryNode, ProcessedModule } from './types';
-import { dbAdapter } from './types';
+import type { Category, CategoryNode, ContentTypes, ProcessedModule, Schema } from './types';
 import type { DatabaseId, ISODateString } from './types';
 
 // System Logger
@@ -161,6 +159,10 @@ function flattenAndSortCategories(): Record<string, CollectionData> {
 	return result;
 }
 
+import { dbAdapter } from '@src/databases/db';
+
+// ...existing code...
+
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<ContentTypes, Schema>>> {
 	logger.trace('Starting getCollections');
@@ -174,15 +176,8 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 		return collectionModelsCache;
 	}
 
-	return new Promise<Partial<Record<ContentTypes, Schema>>>((resolve) => {
-		unsubscribe = collections.subscribe((cols: Partial<Record<ContentTypes, Schema>>) => {
-			if (Object.keys(cols).length > 0) {
-				unsubscribe?.();
-				collectionModelsCache = cols;
-				resolve(cols);
-			}
-		});
-	});
+	collectionModelsCache = collections;
+	return collections;
 }
 
 // Function to update collections
@@ -213,29 +208,26 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 		// Set the stores
 		// Map Category[] to ContentNode[] for store, fix _id type
-		contentStructure.set(
-			_categories.map((cat) => ({
-				_id: cat.id.toString() as DatabaseId,
-				name: cat.name,
-				nodeType: 'category',
-				icon: cat.icon,
-				order: cat.order,
-				parentId: undefined,
-				path: '',
-				translations: [],
-				collectionDef: undefined,
-				children: [],
-				createdAt: new Date().toISOString() as ISODateString,
-				updatedAt: new Date().toISOString() as ISODateString
-			}))
-		);
-		collections.set(_collections);
-		// Fix unAssigned.set to pass a valid Schema or empty default
+		contentStructure.value = _categories.map((cat) => ({
+			_id: cat.id.toString() as DatabaseId,
+			name: cat.name,
+			nodeType: 'category',
+			icon: cat.icon,
+			order: cat.order,
+			parentId: undefined,
+			path: '',
+			translations: [],
+			collectionDef: undefined,
+			children: [],
+			createdAt: new Date().toISOString() as ISODateString,
+			updatedAt: new Date().toISOString() as ISODateString
+		}));
+		collections.value = _collections;
+		// Fix unAssigned.value to pass a valid Schema or empty default
 		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
-		unAssigned.set(unassigned.length > 0 ? unassigned[0] : { fields: [] });
+		unAssigned.value = unassigned.length > 0 ? unassigned[0] : { fields: [] };
 
 		// Only try to fetch collection models if we're server-side and not in development mode
-		// Remove getCollectionModels usage (not defined)
 
 		setCollection({} as Schema);
 		setCollectionValue({});

@@ -46,31 +46,31 @@
 	let isInitialized = $state(false);
 
 	// Animation stores
-	const dropdownOpacity = new Tween(0, {
+	const dropdownOpacity = new Tween<number>(0, {
 		duration: 200,
 		easing: cubicOut
 	});
 
-	const dropdownScale = new Tween(0.95, {
+	const dropdownScale = new Tween<number>(0.95, {
 		duration: 200,
 		easing: cubicOut
 	});
 
-	const progressValue = new Tween(0, {
+	const progressValue = new Tween<number>(0, {
 		duration: 800,
 		easing: quintOut
 	});
 
-	const chevronRotation = new Tween(0, {
+	const chevronRotation = new Tween<number>(0, {
 		duration: 200,
 		easing: cubicOut
 	});
 
 	// Store individual language progress values for smooth transitions
-	let languageProgressValues = $derived.by<Record<string, any>>(() => {
-		const progressValues: Record<string, any> = {};
+	let languageProgressValues = $derived.by<Record<string, Tween<number>>>(() => {
+		const progressValues: Record<string, Tween<number>> = {};
 		for (const lang of availableLanguages) {
-			progressValues[lang] = new Tween(0, { duration: 200, easing: quintOut });
+			progressValues[lang] = new Tween<number>(0, { duration: 200, easing: quintOut });
 		}
 		return progressValues;
 	});
@@ -93,7 +93,7 @@
 	// Update translation progress when field values change
 	$effect(() => {
 		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue as any;
+		const currentCollectionValue = collectionValue as Record<string, unknown>;
 
 		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
 			updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
@@ -101,7 +101,7 @@
 	});
 
 	// Initialize translation progress with all translatable fields
-	function initializeTranslationProgress(currentCollection: any) {
+	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }) {
 		// console.log('[TranslationStatus] Initializing translation progress for collection:', currentCollection.name);
 		const currentProgress = { ...translationProgress.value }; // Create a mutable copy
 		let hasTranslatableFields = false;
@@ -116,7 +116,7 @@
 			}
 
 			// Add all translatable fields to the total set
-			for (const field of currentCollection.fields) {
+			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
 				if (field.translated) {
 					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
 					currentProgress[lang].total.add(fieldName);
@@ -133,19 +133,22 @@
 	}
 
 	// Update translation progress based on current field values
-	function updateTranslationProgressFromFields(currentCollection: any, currentCollectionValue: Record<string, any>) {
+	function updateTranslationProgressFromFields(
+		currentCollection: { fields: unknown[]; name?: unknown },
+		currentCollectionValue: Record<string, unknown>
+	) {
 		const currentProgress = { ...translationProgress.value }; // Create a mutable copy
 		let hasUpdates = false;
 		for (const lang of availableLanguages) {
 			if (!currentProgress[lang]) continue;
 
-			for (const field of currentCollection.fields) {
+			for (const field of currentCollection.fields as { translated?: boolean; label: string }[]) {
 				if (field.translated) {
 					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
 					const dbFieldName = getFieldName(field, false);
 
 					// Check if the field has a value for this language
-					const fieldValue = currentCollectionValue[dbFieldName];
+					const fieldValue = currentCollectionValue[dbFieldName] as Record<string, unknown> | undefined;
 					const langValue = fieldValue?.[lang];
 
 					// Consider field translated if it has a non-empty value

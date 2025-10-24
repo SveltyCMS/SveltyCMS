@@ -243,7 +243,47 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if user is already authenticated
 		if (locals.user) {
 			logger.debug('User is already authenticated in load, attempting to redirect to collection');
-			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+
+			// Check if there are collection source files in config/collections
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const collectionsDir = path.resolve(process.cwd(), 'config/collections');
+
+			let hasCollectionSources = false;
+			try {
+				const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
+				hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
+			} catch {
+				// Directory doesn't exist or can't be read, assume no collections
+				hasCollectionSources = false;
+			}
+
+			let redirectPath: string;
+			if (hasCollectionSources) {
+				// Collections exist in source - ensure they're compiled and redirect to first collection
+				logger.debug('Collections found in config/collections for authenticated user, ensuring compilation and redirecting to first collection');
+
+				// Force ContentManager to reload and compile collections
+				await contentManager.initialize(undefined, true);
+
+				const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+				if (finalCollectionPath) {
+					redirectPath = finalCollectionPath;
+					logger.debug(`Authenticated user redirect to compiled collection: ${redirectPath}`);
+				} else {
+					// Fallback if compilation failed
+					logger.warn('Collection compilation completed but no collections available for authenticated user, redirecting to collection builder');
+					redirectPath = '/config/collectionbuilder';
+				}
+			} else {
+				// No collections in source - redirect based on permissions
+				logger.debug('No collections in config/collections for authenticated user, redirecting based on permissions');
+				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionWithRoles(locals.user, 'config:collectionbuilder', roles);
+				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+			}
+
 			throw redirect(302, redirectPath);
 		}
 
@@ -424,7 +464,47 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				if (user && user._id) {
 					await createSessionAndSetCookie(user._id, cookies);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google', lastLogin: new Date() });
-					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+
+					// Determine redirect path based on collections
+					const fs = await import('fs/promises');
+					const path = await import('path');
+					const collectionsDir = path.resolve(process.cwd(), 'config/collections');
+
+					let hasCollectionSources = false;
+					try {
+						const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
+						hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
+					} catch {
+						// Directory doesn't exist or can't be read, assume no collections
+						hasCollectionSources = false;
+					}
+
+					let redirectPath: string;
+					if (hasCollectionSources) {
+						// Collections exist in source - ensure they're compiled and redirect to first collection
+						logger.debug('Collections found in config/collections for OAuth login, ensuring compilation and redirecting to first collection');
+
+						// Force ContentManager to reload and compile collections
+						await contentManager.initialize(undefined, true);
+
+						const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+						if (finalCollectionPath) {
+							redirectPath = finalCollectionPath;
+							logger.debug(`OAuth login redirect to compiled collection: ${redirectPath}`);
+						} else {
+							// Fallback if compilation failed
+							logger.warn('Collection compilation completed but no collections available for OAuth login, redirecting to collection builder');
+							redirectPath = '/config/collectionbuilder';
+						}
+					} else {
+						// No collections in source - redirect based on permissions
+						logger.debug('No collections in config/collections for OAuth login, redirecting based on permissions');
+						const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+						const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
+						redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+					}
+
 					throw redirect(303, redirectPath);
 				}
 
@@ -673,7 +753,46 @@ export const actions: Actions = {
 			});
 
 			// Redirect to first collection
-			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+			// Check if there are collection source files in config/collections
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const collectionsDir = path.resolve(process.cwd(), 'config/collections');
+
+			let hasCollectionSources = false;
+			try {
+				const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
+				hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
+			} catch {
+				// Directory doesn't exist or can't be read, assume no collections
+				hasCollectionSources = false;
+			}
+
+			let redirectPath: string;
+			if (hasCollectionSources) {
+				// Collections exist in source - ensure they're compiled and redirect to first collection
+				logger.debug('Collections found in config/collections for signUp, ensuring compilation and redirecting to first collection');
+
+				// Force ContentManager to reload and compile collections
+				await contentManager.initialize(undefined, true);
+
+				const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+				if (finalCollectionPath) {
+					redirectPath = finalCollectionPath;
+					logger.debug(`SignUp redirect to compiled collection: ${redirectPath}`);
+				} else {
+					// Fallback if compilation failed
+					logger.warn('Collection compilation completed but no collections available for signUp, redirecting to collection builder');
+					redirectPath = '/config/collectionbuilder';
+				}
+			} else {
+				// No collections in source - redirect based on permissions
+				logger.debug('No collections in config/collections for signUp, redirecting based on permissions');
+				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionWithRoles(newUser, 'config:collectionbuilder', roles);
+				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+			}
+
 			throw redirect(303, redirectPath);
 		} catch (error) {
 			const err = error as Error;
@@ -759,11 +878,8 @@ export const actions: Actions = {
 		let redirectPath;
 
 		try {
-			// Run authentication and collection path retrieval in parallel for faster response
-			const [authResult, collectionPath] = await Promise.all([
-				signInUser(email, password, isToken, event.cookies),
-				getCachedFirstCollectionPath(userLanguage) // Use cached version from store
-			]);
+			// Run authentication (collection path will be determined after auth success)
+			const authResult = await signInUser(email, password, isToken, event.cookies);
 
 			resp = authResult;
 
@@ -779,14 +895,44 @@ export const actions: Actions = {
 				});
 			} else if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
-				// If no collection, redirect based on permission
-				if (!collectionPath) {
-					// Import hasPermissionWithRoles dynamically to avoid circular deps
+
+				// Check if there are collection source files in config/collections
+				const fs = await import('fs/promises');
+				const path = await import('path');
+				const collectionsDir = path.resolve(process.cwd(), 'config/collections');
+
+				let hasCollectionSources = false;
+				try {
+					const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
+					hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
+				} catch {
+					// Directory doesn't exist or can't be read, assume no collections
+					hasCollectionSources = false;
+				}
+
+				if (hasCollectionSources) {
+					// Collections exist in source - ensure they're compiled and redirect to first collection
+					logger.debug('Collections found in config/collections, ensuring compilation and redirecting to first collection');
+
+					// Force ContentManager to reload and compile collections
+					await contentManager.initialize(undefined, true);
+
+					const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+					if (finalCollectionPath) {
+						redirectPath = finalCollectionPath;
+						logger.debug(`Login redirect to compiled collection: ${redirectPath}`);
+					} else {
+						// Fallback if compilation failed
+						logger.warn('Collection compilation completed but no collections available, redirecting to collection builder');
+						redirectPath = '/config/collectionbuilder';
+					}
+				} else {
+					// No collections in source - redirect based on permissions
+					logger.debug('No collections in config/collections, redirecting based on permissions');
 					const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
 					const isAdmin = hasPermissionWithRoles(resp.user, 'config:collectionbuilder', roles);
 					redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
-				} else {
-					redirectPath = collectionPath;
 				}
 
 				const endTime = performance.now();
@@ -888,12 +1034,43 @@ export const actions: Actions = {
 
 			logger.info(`User logged in successfully with 2FA: \x1b[34m${user.username}\x1b[0m (\x1b[32m${userId}\x1b[0m)`);
 
-			// Get redirect path
-			const loggedInUser = await auth.getUserById(userId);
-			let redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
-			if (!redirectPath) {
+			// Determine redirect path based on collections
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const collectionsDir = path.resolve(process.cwd(), 'config/collections');
+
+			let hasCollectionSources = false;
+			try {
+				const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
+				hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
+			} catch {
+				// Directory doesn't exist or can't be read, assume no collections
+				hasCollectionSources = false;
+			}
+
+			let redirectPath: string;
+			if (hasCollectionSources) {
+				// Collections exist in source - ensure they're compiled and redirect to first collection
+				logger.debug('Collections found in config/collections for 2FA login, ensuring compilation and redirecting to first collection');
+
+				// Force ContentManager to reload and compile collections
+				await contentManager.initialize(undefined, true);
+
+				const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+				if (finalCollectionPath) {
+					redirectPath = finalCollectionPath;
+					logger.debug(`2FA login redirect to compiled collection: ${redirectPath}`);
+				} else {
+					// Fallback if compilation failed
+					logger.warn('Collection compilation completed but no collections available for 2FA login, redirecting to collection builder');
+					redirectPath = '/config/collectionbuilder';
+				}
+			} else {
+				// No collections in source - redirect based on permissions
+				logger.debug('No collections in config/collections for 2FA login, redirecting based on permissions');
 				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-				const isAdmin = hasPermissionWithRoles(loggedInUser, 'config:collectionbuilder', roles);
+				const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
 

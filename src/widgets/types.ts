@@ -37,6 +37,7 @@ export interface WidgetFunction {
 	Description?: string;
 	aggregations?: unknown;
 	__widgetType?: WidgetType; // Track if core or custom
+	__isCore?: boolean;
 	__dependencies?: string[]; // Track widget dependencies
 	__inputComponentPath?: string; // Path to Input component (3-pillar architecture)
 	__displayComponentPath?: string; // Path to Display component (3-pillar architecture)

@@ -9,6 +9,8 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	import type { FieldInstance } from '@content/types';
+
 	// Props
 	let {
 		addField = $bindable(false),
@@ -16,15 +18,15 @@
 		onFieldsChange
 	}: {
 		addField?: boolean;
-		fields?: any[];
-		onFieldsChange?: (fields: any[]) => void;
+		fields?: FieldInstance[];
+		onFieldsChange?: (fields: FieldInstance[]) => void;
 	} = $props();
 
 	function toggleAddField() {
 		addField = true;
 	}
 
-	function updateFields(newFields: any[]) {
+	function updateFields(newFields: FieldInstance[]) {
 		fields = newFields;
 		onFieldsChange?.(newFields);
 	}

@@ -46,7 +46,7 @@ Usage
 
 <nav aria-label="Breadcrumb" class="mt-1">
 	<ol class="flex items-center text-sm text-gray-700 dark:text-gray-300">
-		{#each breadcrumb as crumb, index}
+		{#each breadcrumb as crumb, index (index)}
 			<li class="flex items-center">
 				<button
 					class="btn-sm flex items-center text-xs hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"

@@ -94,9 +94,7 @@ export function initializeDarkMode() {
 
 	systemThemeListener = (e: MediaQueryListEvent) => {
 		// Only act if there is NO explicit user cookie
-		const cookieExists = document.cookie
-			.split('; ')
-			.some((row) => row.startsWith(THEME_COOKIE_KEY + '='));
+		const cookieExists = document.cookie.split('; ').some((row) => row.startsWith(THEME_COOKIE_KEY + '='));
 
 		if (!cookieExists) {
 			_setDarkMode(e.matches, false); // false = don't set cookie
@@ -130,11 +128,8 @@ function _setDarkMode(isDark: boolean, setCookie: boolean) {
 	// 4. Save user's explicit preference (if requested)
 	if (setCookie) {
 		const themeValue = isDark ? 'dark' : 'light';
-		const isLocalhost =
-			window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-		const cookieOptions = isLocalhost
-			? `path=/; max-age=31536000; SameSite=Lax`
-			: `path=/; max-age=31536000; SameSite=Lax; Secure`;
+		const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+		const cookieOptions = isLocalhost ? `path=/; max-age=31536000; SameSite=Lax` : `path=/; max-age=31536000; SameSite=Lax; Secure`;
 		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; ${cookieOptions}`;
 	}
 }

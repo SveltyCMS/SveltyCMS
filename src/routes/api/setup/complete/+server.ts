@@ -14,7 +14,7 @@
 import { dev } from '$app/environment';
 
 // Auth
-import type { User, Session } from '@src/databases/schemas';
+import type { User, Session } from '@src/databases/auth/types';
 import { Auth } from '@src/databases/auth';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setupAdminSchema } from '@src/utils/formSchemas';
@@ -408,29 +408,40 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			// Use firstCollection if it was passed from the seed step (faster!)
-			if (firstCollection && firstCollection.path) {
-				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
-				redirectPath = `/${userLanguage}${collectionPath}`;
-				logger.info(`✨ Fast redirect using pre-seeded collection: \x1b[34m${firstCollection.name}\x1b[0m at \x1b[34m${redirectPath}\x1b[0m`, {
-					correlationId
-				});
-			} else {
-				// Fallback: Query ContentManager (slower)
-				logger.debug('No firstCollection passed, querying ContentManager...', { correlationId });
+			// Check if there are collection source files in config/collections
+			const fs = await import('fs/promises');
+			const path = await import('path');
+			const collectionsDir = path.resolve(process.cwd(), 'config/collections');
 
-				// Force ContentManager to reload all collections
+			let hasCollectionSources = false;
+			try {
+				const entries = await fs.readdir(collectionsDir, { withFileTypes: true });
+				hasCollectionSources = entries.some((entry) => entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js')));
+			} catch {
+				// Directory doesn't exist or can't be read, assume no collections
+				hasCollectionSources = false;
+			}
+
+			if (hasCollectionSources) {
+				// Collections exist in source - compile them and redirect to first collection
+				logger.info('Collections found in config/collections, compiling and redirecting to first collection', { correlationId });
+
+				// Force ContentManager to reload and compile collections
 				await contentManager.initialize(undefined, true);
 
 				redirectPath = await getCachedFirstCollectionPath(userLanguage);
 
-				// If no collections found, fall back to collection builder
 				if (!redirectPath) {
+					// Fallback if compilation failed or no collections found
+					logger.warn('Collection compilation completed but no collections available, redirecting to collection builder', { correlationId });
 					redirectPath = '/config/collectionbuilder';
-					logger.info('No collections available, redirecting to collection builder', { correlationId });
 				} else {
-					logger.info('Redirecting to first collection', { correlationId, redirectPath });
+					logger.info(`Redirecting to compiled collection: ${redirectPath}`, { correlationId });
 				}
+			} else {
+				// No collections in source - redirect to collection builder
+				logger.info('No collections in config/collections, redirecting to collection builder', { correlationId });
+				redirectPath = '/config/collectionbuilder';
 			}
 		} catch (redirectError) {
 			logger.warn('Failed to determine redirect path, using default', {

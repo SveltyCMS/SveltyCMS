@@ -1,119 +1,253 @@
 <!--
 @file src/components/Media.svelte
 @component
-**Media component with accessibility updates and button nesting resolved**
+**Media Gallery Component with Accessibility**
 
-```tsx
-<Media bind:files={files} />
-```
-#### Props
-- `files` {array} - Array of media files
+Displays a grid of media files with search, thumbnails, and detailed info view.
+
+@example
+<Media onselect={(file) => console.log('Selected:', file)} />
+
+### Props
+- `onselect` {function} - Callback when a file is selected
+
+### Features
+- Searchable media list
+- Thumbnail previews
+- Toggleable detailed info view	
 -->
 
 <script lang="ts">
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { debounce } from '@utils/utils';
 	import axios from 'axios';
+	import { onMount } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props
-	let { onselect = () => {} } = $props<{
-		onselect?: (file: MediaImage) => void;
-	}>();
+	// Types
+	type ThumbnailSize = 'sm' | 'md' | 'lg';
 
-	// State declarations using $state
+	// Props
+	interface Props {
+		onselect?: (file: MediaImage) => void;
+	}
+
+	let { onselect = () => {} }: Props = $props();
+
+	// Constants
+	const THUMBNAIL_SIZES: ThumbnailSize[] = ['sm', 'md', 'lg'];
+	const DEBOUNCE_MS = 500;
+
+	// State
 	let files = $state<MediaImage[]>([]);
 	let search = $state('');
-	let showInfo = $state<boolean[]>([]);
-	let thumbnailSizes = $state<string[]>(['sm', 'md', 'lg']); // Use string[] instead of keyof typeof publicEnv.IMAGE_SIZES
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let showInfoSet = $state(new Set<number>()); // More efficient than array for toggles
 
-	// Create a separate state updater function
-	function updateShowInfo() {
-		showInfo = Array.from({ length: files.length }, () => false);
+	// Debounced search
+	const searchDebounced = debounce(DEBOUNCE_MS);
+
+	// Filtered files based on search
+	let filteredFiles = $derived.by(() => {
+		if (!search.trim()) return files;
+
+		const searchLower = search.toLowerCase();
+		return files.filter((file) => file.filename.toLowerCase().includes(searchLower));
+	});
+
+	// Check if info is shown for a specific index
+	function isInfoShown(index: number): boolean {
+		return showInfoSet.has(index);
 	}
 
-	const searchDeb = debounce(500);
+	// Toggle info display for a file
+	function toggleInfo(event: Event, index: number): void {
+		event.stopPropagation();
+		event.preventDefault();
 
-	async function refresh() {
-		const res = await axios.get('/media/getAll');
-		files = res.data;
-		updateShowInfo(); // Update showInfo when files change
+		const newSet = new Set(showInfoSet);
+		if (newSet.has(index)) {
+			newSet.delete(index);
+		} else {
+			newSet.add(index);
+		}
+		showInfoSet = newSet;
 	}
 
-	// Initial load
-	refresh();
+	// Fetch all media files
+	async function fetchMedia(): Promise<void> {
+		isLoading = true;
+		error = null;
 
-	// Search effect using $effect instead of $derived
+		try {
+			const res = await axios.get<MediaImage[]>('/media/getAll');
+			files = res.data;
+			showInfoSet = new Set(); // Reset info toggles on refresh
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load media';
+			console.error('Error fetching media:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Handle file selection
+	function handleSelect(file: MediaImage): void {
+		onselect(file);
+	}
+
+	// Handle keyboard selection
+	function handleKeydown(event: KeyboardEvent, file: MediaImage): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleSelect(file);
+		}
+	}
+
+	// Handle info toggle keyboard
+	function handleInfoKeydown(event: KeyboardEvent, index: number): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			toggleInfo(event, index);
+		}
+	}
+
+	// Get thumbnail URL safely
+	function getThumbnailUrl(file: MediaImage, size: ThumbnailSize = 'sm'): string {
+		return file.thumbnails?.[size]?.url || '';
+	}
+
+	// Get thumbnail dimensions safely
+	function getThumbnailDimensions(file: MediaImage, size: ThumbnailSize): string {
+		const thumbnail = file.thumbnails?.[size];
+		return thumbnail ? `${thumbnail.width}x${thumbnail.height}` : 'N/A';
+	}
+
+	// Search effect
 	$effect(() => {
+		// Trigger search only when search value changes
 		if (search !== undefined) {
-			searchDeb(() => refresh());
+			searchDebounced(() => {
+				// Search is handled by filteredFiles derived state
+				// This could trigger a server-side search if needed
+			});
 		}
 	});
 
-	function toggleInfo(event: Event, index: number) {
-		event.stopPropagation();
-		const newShowInfo = [...showInfo];
-		newShowInfo[index] = !newShowInfo[index];
-		showInfo = newShowInfo; // Properly update the state array
-	}
+	// Initial load
+	onMount(() => {
+		fetchMedia();
+	});
 </script>
 
-{#if files.length === 0}
-	<!-- Display a message when no media is found -->
-	<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
-		<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
-		<p class="text-lg">{m.mediagallery_nomedia()}</p>
+<div class="flex h-full flex-col gap-4">
+	<!-- Header with search -->
+	<div class="flex items-center gap-2">
+		<label for="media-search" class="font-bold text-tertiary-500 dark:text-primary-500"> Media </label>
+		<input
+			type="text"
+			bind:value={search}
+			placeholder="Search files..."
+			class="input"
+			id="media-search"
+			aria-label="Search media files"
+			disabled={isLoading}
+		/>
+		<button onclick={fetchMedia} class="variant-ghost-primary btn btn-sm" disabled={isLoading} aria-label="Refresh media">
+			<iconify-icon icon="mdi:refresh" width="20"></iconify-icon>
+		</button>
 	</div>
-{:else}
-	<div class="header flex items-center gap-2">
-		<label for="search" class="font-bold text-tertiary-500 dark:text-primary-500">Media</label>
-		<input type="text" bind:value={search} placeholder="Search" class="input" id="search" />
-	</div>
-	<div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
-		{#each files as file, index}
-			<div
-				onclick={() => onselect(file)}
-				onkeydown={(event) => (event.key === 'Enter' || event.key === ' ') && onselect(file)}
-				role="button"
-				tabindex="0"
-				class="card relative flex w-full cursor-pointer flex-col md:w-[30%]"
-			>
-				<div class="absolute flex w-full items-center bg-surface-700">
-					<span
-						onclick={(event) => toggleInfo(event, index)}
-						onkeydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleInfo(event, index)}
-						aria-label="Show info"
-						role="button"
-						tabindex="0"
-						class="ml-[2px] mt-[2px] block w-[30px]"
-					>
-						<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500"></iconify-icon>
-					</span>
-					<p class="mx-auto pr-[30px] text-white">{file.filename}</p>
-				</div>
-				{#if !showInfo[index]}
-					<img src={file.thumbnails.sm.url} alt={file.filename} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
-				{:else}
-					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
-						<tbody class="table-compact">
-							{#each thumbnailSizes as size}
-								{#if file.thumbnails && file.thumbnails[size]}
-									<tr>
-										<td class="!pl-[10px]">
-											{size}
-										</td>
-										<td>
-											{file.thumbnails[size].width}x{file.thumbnails[size].height}
-										</td>
-									</tr>
-								{/if}
-							{/each}
-						</tbody>
-					</table>
-				{/if}
+
+	<!-- Loading state -->
+	{#if isLoading}
+		<div class="flex flex-1 items-center justify-center text-center">
+			<div class="flex flex-col items-center gap-2">
+				<iconify-icon icon="svg-spinners:ring-resize" height="44" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<p class="text-lg text-tertiary-500 dark:text-primary-500">Loading media...</p>
 			</div>
-		{/each}
-	</div>
-{/if}
+		</div>
+	{:else if error}
+		<!-- Error state -->
+		<div class="flex flex-1 items-center justify-center text-center">
+			<div class="flex flex-col items-center gap-2">
+				<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="text-error-500"></iconify-icon>
+				<p class="text-lg text-error-500">Error: {error}</p>
+				<button onclick={fetchMedia} class="variant-filled-primary btn btn-sm"> Try Again </button>
+			</div>
+		</div>
+	{:else if filteredFiles.length === 0}
+		<!-- Empty state -->
+		<div class="flex flex-1 items-center justify-center text-center">
+			<div class="flex flex-col items-center gap-2">
+				<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<p class="text-lg text-tertiary-500 dark:text-primary-500">
+					{search ? `No media found for "${search}"` : m.mediagallery_nomedia()}
+				</p>
+			</div>
+		</div>
+	{:else}
+		<!-- Media grid -->
+		<div class="grid flex-1 grid-cols-1 gap-4 overflow-auto md:grid-cols-2 lg:grid-cols-3" role="list" aria-label="Media files">
+			{#each filteredFiles as file, index (file.filename)}
+				<div class="group card relative flex flex-col overflow-hidden">
+					<!-- Header -->
+					<div class="relative z-10 flex w-full items-center bg-surface-700/90 backdrop-blur-sm">
+						<button
+							onclick={(event) => toggleInfo(event, index)}
+							onkeydown={(event) => handleInfoKeydown(event, index)}
+							aria-label={`${isInfoShown(index) ? 'Hide' : 'Show'} info for ${file.filename}`}
+							aria-pressed={isInfoShown(index)}
+							class="btn btn-sm m-1 p-1 hover:bg-surface-600"
+							type="button"
+						>
+							<iconify-icon icon={isInfoShown(index) ? 'mdi:information-off' : 'raphael:info'} width="24" class="text-tertiary-500"></iconify-icon>
+						</button>
+						<p class="flex-1 truncate pr-2 text-center text-sm text-white" title={file.filename}>
+							{file.filename}
+						</p>
+					</div>
+
+					<!-- Content - Clickable area -->
+					<button
+						onclick={() => handleSelect(file)}
+						onkeydown={(event) => handleKeydown(event, file)}
+						aria-label={`Select ${file.filename}`}
+						class="flex flex-1 items-center justify-center pt-2 transition-transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-2 focus:outline-primary-500"
+						type="button"
+					>
+						{#if !isInfoShown(index)}
+							<!-- Thumbnail view -->
+							<img src={getThumbnailUrl(file)} alt={file.filename} class="max-h-full max-w-full rounded-md object-contain" loading="lazy" />
+						{:else}
+							<!-- Info view -->
+							<div class="w-full p-4 text-left">
+								<h4 class="mb-2 text-sm font-semibold">Thumbnail Sizes</h4>
+								<table class="table w-full">
+									<thead>
+										<tr>
+											<th class="text-left">Size</th>
+											<th class="text-left">Dimensions</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each THUMBNAIL_SIZES as size (size)}
+											{#if file.thumbnails?.[size]}
+												<tr>
+													<td class="uppercase">{size}</td>
+													<td>{getThumbnailDimensions(file, size)}</td>
+												</tr>
+											{/if}
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{/if}
+					</button>
+				</div>
+			{/each}
+		</div>
+	{/if}
+</div>

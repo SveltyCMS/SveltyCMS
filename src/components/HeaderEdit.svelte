@@ -52,7 +52,7 @@
 	let user = $derived(page.data.user as User);
 	let isAdmin = $derived(page.data.isAdmin || false);
 
-	interface CollectionData extends Record<string, any> {
+	interface CollectionData extends Record<string, unknown> {
 		_id?: string;
 		status?: StatusType;
 		_scheduled?: number;
@@ -67,26 +67,26 @@
 	let previousTabSet = $state<number>(tabSet.value);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
-		typeof (collectionValue as any)?._scheduled === 'number' ? new Date((collectionValue as any)._scheduled).toISOString().slice(0, 16) : ''
+		typeof (collectionValue as CollectionData)?._scheduled === 'number' && (collectionValue as CollectionData)._scheduled !== undefined
+			? new Date((collectionValue as CollectionData)._scheduled!).toISOString().slice(0, 16)
+			: ''
 	);
 	let createdAtDate = $state<string>(
-		typeof (collectionValue as any)?.createdAt === 'number' ? new Date((collectionValue as any).createdAt * 1000).toISOString().slice(0, 16) : ''
+		typeof (collectionValue as CollectionData)?.createdAt === 'number' && (collectionValue as CollectionData).createdAt !== undefined
+			? new Date((collectionValue as CollectionData).createdAt! * 1000).toISOString().slice(0, 16)
+			: ''
 	);
 	let showMore = $state<boolean>(false);
 
 	function getIsPublish(): boolean {
-		const status: StatusType = ((collectionValue as any)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
+		const status: StatusType =
+			((collectionValue as CollectionData)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
 		return status === StatusTypes.publish;
 	}
 	let isPublish = $derived.by(getIsPublish);
 
 	// Create a bindable state for the toggle component
-	let publishToggleState = $state(false);
-
-	// Sync the toggle state with isPublish
-	$effect(() => {
-		publishToggleState = isPublish;
-	});
+	let publishToggleState = $derived(isPublish);
 	let isLoading = $state(false);
 
 	// Handle toggle changes - update collection status directly
@@ -101,12 +101,12 @@
 
 		try {
 			// If entry exists, update via API
-			if ((collectionValue as any)?._id && collection.value?._id) {
-				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue as any)._id), newStatus);
+			if ((collectionValue as CollectionData)?._id && collection.value?._id) {
+				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue as CollectionData)._id), newStatus);
 
 				if (result.success) {
 					// Update the collection value store
-					setCollectionValue({ ...(collectionValue as any), status: newStatus });
+					setCollectionValue({ ...(collectionValue as CollectionData), status: newStatus });
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
@@ -120,7 +120,7 @@
 				}
 			} else {
 				// New entry - just update local state
-				setCollectionValue({ ...(collectionValue as any), status: newStatus });
+				setCollectionValue({ ...(collectionValue as CollectionData), status: newStatus });
 				console.log('[HeaderEdit] Local update for new entry');
 				return true;
 			}
@@ -149,7 +149,7 @@
 		// Only log when HeaderEdit is actually active (not disabled by RightSidebar)
 		if (!shouldDisableStatusToggle) {
 			console.log('[HeaderEdit] Status Debug (Active):', {
-				collectionValueStatus: (collectionValue as any)?.status,
+				collectionValueStatus: (collectionValue as CollectionData)?.status,
 				collectionStatus: collection.value?.status,
 				isPublish,
 				mode: mode.value,
@@ -157,12 +157,12 @@
 				shouldDisableStatusToggle
 			});
 		}
-	}); // Modal Trigger - Schedule
+	});
 	function openScheduleModal(): void {
 		showScheduleModal({
 			onSchedule: (date: Date) => {
 				setCollectionValue({
-					...(collectionValue as any),
+					...(collectionValue as CollectionData),
 					status: StatusTypes.schedule,
 					_scheduled: date.getTime()
 				});
@@ -173,7 +173,7 @@
 
 	$effect(() => {
 		if (tabSet.value !== previousTabSet) {
-			tempData[previousLanguage] = collectionValue as any;
+			tempData[previousLanguage] = collectionValue as Record<string, unknown>;
 			previousTabSet = tabSet.value;
 		}
 	});
@@ -198,14 +198,14 @@
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
-		const dataToSave = { ...(collectionValue as any) };
+		const dataToSave = { ...(collectionValue as Record<string, unknown>) };
 
 		// Status rules: Schedule takes precedence, otherwise use current collection status
 		if (schedule && schedule.trim() !== '') {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
-			dataToSave.status = (collectionValue as any)?.status || collection.value?.status || StatusTypes.unpublish;
+			dataToSave.status = (collectionValue as CollectionData)?.status || collection.value?.status || StatusTypes.unpublish;
 			delete dataToSave._scheduled;
 		}
 		if (mode.value === 'create') {
@@ -213,7 +213,7 @@
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 		if (process.env.NODE_ENV !== 'production') {
-			console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', (collectionValue as any)?.status);
+			console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', (collectionValue as CollectionData)?.status);
 		}
 		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
@@ -259,7 +259,7 @@
 		showCloneModal({
 			count: 1,
 			onConfirm: async () => {
-				const entry = collectionValue as any;
+				const entry = collectionValue as Record<string, unknown>;
 				const coll = collection.value;
 				if (!entry || !coll?._id) {
 					showToast('No entry or collection selected.', 'warning');
@@ -481,10 +481,10 @@
 			{/if}
 
 			<div class="mt-2 text-sm">
-				<p>Created by: {(collectionValue as any)?.createdBy || user.username}</p>
-				{#if (collectionValue as any)?.updatedBy}
+				<p>Created by: {(collectionValue as Record<string, unknown>)?.createdBy || user.username}</p>
+				{#if (collectionValue as Record<string, unknown>)?.updatedBy}
 					<p class="text-tertiary-500">
-						Last updated by: {(collectionValue as any).updatedBy}
+						Last updated by: {(collectionValue as Record<string, unknown>).updatedBy}
 					</p>
 				{/if}
 			</div>

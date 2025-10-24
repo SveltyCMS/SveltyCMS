@@ -265,7 +265,7 @@
 <svelte:head>
 	<!-- Dark Mode -->
 	<!-- eslint-disable-next-line svelte/no-at-html-tags-->
-	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
+	{@html '<script nonce="' + data.nonce + '">(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
 	<meta name="description" content={SeoDescription} />
