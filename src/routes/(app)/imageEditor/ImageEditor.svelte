@@ -745,7 +745,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	{#if !isMobile}
 		<div class="editor-layout">
 			<!-- Left Sidebar -->
-			<EditorSidebar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.file} />
+			<EditorSidebar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.imageNode} />
 
 			<!-- Main Canvas Area -->
 			<div class="editor-main">
@@ -810,7 +810,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 				<!-- Canvas Container -->
 				<div class="canvas-wrapper">
-					<EditorCanvas bind:containerRef hasImage={!!storeState.file} role="region" aria-label="Image editing canvas">
+					<EditorCanvas bind:containerRef hasImage={!!storeState.imageNode} role="region" aria-label="Image editing canvas">
 						<!-- Crop Top Toolbar - overlaid on canvas -->
 						{#if activeState === 'crop'}
 							<CropTopToolbar
@@ -982,7 +982,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 			<!-- Canvas (Mobile) -->
 			<div class="canvas-wrapper-mobile">
-				<EditorCanvas bind:containerRef hasImage={!!storeState.file}>
+				<EditorCanvas bind:containerRef hasImage={!!storeState.imageNode}>
 					<!-- Crop Top Toolbar - overlaid on canvas -->
 					{#if activeState === 'crop'}
 						<CropTopToolbar
@@ -1095,11 +1095,10 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				onRedo={handleRedo}
 				canUndo={imageEditorStore.canUndoState}
 				canRedo={imageEditorStore.canRedoState}
-				hasImage={!!storeState.file}
+				hasImage={!!storeState.imageNode}
 			/>
 		</div>
 	{/if}
-
 	<!-- Tool Interfaces -->
 	<div class="tool-interfaces" role="region" aria-label="Editing tools">
 		{#if stage && layer && imageNode}
