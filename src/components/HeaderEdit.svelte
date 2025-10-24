@@ -28,6 +28,7 @@
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	// Types
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -67,20 +68,20 @@
 	let previousTabSet = $state<number>(tabSet.value);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
-		typeof (collectionValue as CollectionData)?._scheduled === 'number' && (collectionValue as CollectionData)._scheduled !== undefined
-			? new Date((collectionValue as CollectionData)._scheduled!).toISOString().slice(0, 16)
+		typeof (collectionValue.value as CollectionData)?._scheduled === 'number' && (collectionValue.value as CollectionData)._scheduled !== undefined
+			? new Date((collectionValue.value as CollectionData)._scheduled!).toISOString().slice(0, 16)
 			: ''
 	);
 	let createdAtDate = $state<string>(
-		typeof (collectionValue as CollectionData)?.createdAt === 'number' && (collectionValue as CollectionData).createdAt !== undefined
-			? new Date((collectionValue as CollectionData).createdAt! * 1000).toISOString().slice(0, 16)
+		typeof (collectionValue.value as CollectionData)?.createdAt === 'number' && (collectionValue.value as CollectionData).createdAt !== undefined
+			? new Date((collectionValue.value as CollectionData).createdAt! * 1000).toISOString().slice(0, 16)
 			: ''
 	);
 	let showMore = $state<boolean>(false);
 
 	function getIsPublish(): boolean {
 		const status: StatusType =
-			((collectionValue as CollectionData)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
+			((collectionValue.value as CollectionData)?.status as StatusType) || (collection.value?.status as StatusType) || StatusTypes.unpublish;
 		return status === StatusTypes.publish;
 	}
 	let isPublish = $derived.by(getIsPublish);
@@ -101,12 +102,12 @@
 
 		try {
 			// If entry exists, update via API
-			if ((collectionValue as CollectionData)?._id && collection.value?._id) {
-				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue as CollectionData)._id), newStatus);
+			if ((collectionValue.value as CollectionData)?._id && collection.value?._id) {
+				const result = await updateEntryStatus(String(collection.value._id), String((collectionValue.value as CollectionData)._id), newStatus);
 
 				if (result.success) {
 					// Update the collection value store
-					setCollectionValue({ ...(collectionValue as CollectionData), status: newStatus });
+					setCollectionValue({ ...collectionValue.value, status: newStatus });
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
@@ -120,7 +121,7 @@
 				}
 			} else {
 				// New entry - just update local state
-				setCollectionValue({ ...(collectionValue as CollectionData), status: newStatus });
+				setCollectionValue({ ...collectionValue.value, status: newStatus });
 				console.log('[HeaderEdit] Local update for new entry');
 				return true;
 			}
@@ -145,24 +146,34 @@
 
 		return (isCreateMode && isRightSidebarVisible) || (isEditMode && isRightSidebarVisible && isDesktopActive) || isLoading;
 	});
+
+	// Debug logging - only log when needed, wrapped to prevent infinite loops
+	let lastLoggedStatus = $state<string | undefined>(undefined);
 	$effect(() => {
 		// Only log when HeaderEdit is actually active (not disabled by RightSidebar)
 		if (!shouldDisableStatusToggle) {
-			console.log('[HeaderEdit] Status Debug (Active):', {
-				collectionValueStatus: (collectionValue as CollectionData)?.status,
-				collectionStatus: collection.value?.status,
-				isPublish,
-				mode: mode.value,
-				screenSize: screenSize.value,
-				shouldDisableStatusToggle
-			});
+			const currentStatus = (collectionValue.value as CollectionData)?.status;
+			if (currentStatus !== lastLoggedStatus) {
+				untrack(() => {
+					console.log('[HeaderEdit] Status Debug (Active):', {
+						collectionValueStatus: currentStatus,
+						collectionStatus: collection.value?.status,
+						isPublish,
+						mode: mode.value,
+						screenSize: screenSize.value,
+						shouldDisableStatusToggle
+					});
+					lastLoggedStatus = currentStatus;
+				});
+			}
 		}
 	});
+
 	function openScheduleModal(): void {
 		showScheduleModal({
 			onSchedule: (date: Date) => {
 				setCollectionValue({
-					...(collectionValue as CollectionData),
+					...collectionValue.value,
 					status: StatusTypes.schedule,
 					_scheduled: date.getTime()
 				});
@@ -173,24 +184,29 @@
 
 	$effect(() => {
 		if (tabSet.value !== previousTabSet) {
-			tempData[previousLanguage] = collectionValue as Record<string, unknown>;
-			previousTabSet = tabSet.value;
+			untrack(() => {
+				tempData[previousLanguage] = collectionValue.value as Record<string, unknown>;
+				previousTabSet = tabSet.value;
+			});
 		}
 	});
 
 	$effect(() => {
 		if (mode.value === 'view') {
-			tempData = {};
+			untrack(() => {
+				tempData = {};
+			});
 		}
 	});
 
 	$effect(() => {
 		if (mode.value === 'edit' || mode.value === 'create') {
-			showMore = false;
+			untrack(() => {
+				showMore = false;
+			});
 		}
 	}); // Status Store Effects removed: statusStore is not used, use local status logic only
 
-	// Shared save logic for HeaderEdit and RightSidebar
 	// Shared save logic for HeaderEdit and RightSidebar
 	async function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
@@ -198,23 +214,35 @@
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
-		const dataToSave = { ...(collectionValue as Record<string, unknown>) };
+
+		// Get a fresh snapshot of collectionValue to ensure we have the latest widget data
+		const dataToSave: Record<string, unknown> = { ...collectionValue.value };
 
 		// Status rules: Schedule takes precedence, otherwise use current collection status
 		if (schedule && schedule.trim() !== '') {
 			dataToSave.status = StatusTypes.schedule;
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
-			dataToSave.status = (collectionValue as CollectionData)?.status || collection.value?.status || StatusTypes.unpublish;
+			dataToSave.status = (collectionValue.value as CollectionData)?.status || collection.value?.status || StatusTypes.unpublish;
 			delete dataToSave._scheduled;
 		}
+
+		// Set metadata for all saves
 		if (mode.value === 'create') {
 			dataToSave.createdBy = user?.username ?? 'system';
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
+
 		if (process.env.NODE_ENV !== 'production') {
-			console.log('[HeaderEdit] Saving with status:', dataToSave.status, 'collectionValue.status:', (collectionValue as CollectionData)?.status);
+			console.log(
+				'[HeaderEdit] Saving with status:',
+				dataToSave.status,
+				'collectionValue.status:',
+				(collectionValue.value as CollectionData)?.status
+			);
+			console.log('[HeaderEdit] Data to save:', dataToSave);
 		}
+
 		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
 		toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 	}
@@ -259,7 +287,7 @@
 		showCloneModal({
 			count: 1,
 			onConfirm: async () => {
-				const entry = collectionValue as Record<string, unknown>;
+				const entry = collectionValue.value as Record<string, unknown>;
 				const coll = collection.value;
 				if (!entry || !coll?._id) {
 					showToast('No entry or collection selected.', 'warning');
@@ -481,10 +509,10 @@
 			{/if}
 
 			<div class="mt-2 text-sm">
-				<p>Created by: {(collectionValue as Record<string, unknown>)?.createdBy || user.username}</p>
-				{#if (collectionValue as Record<string, unknown>)?.updatedBy}
+				<p>Created by: {collectionValue.value?.createdBy || user.username}</p>
+				{#if collectionValue.value?.updatedBy}
 					<p class="text-tertiary-500">
-						Last updated by: {(collectionValue as Record<string, unknown>).updatedBy}
+						Last updated by: {collectionValue.value.updatedBy}
 					</p>
 				{/if}
 			</div>

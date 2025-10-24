@@ -1,7 +1,7 @@
 <!--
 @file src/components/SearchComponent.svelte
 @component
-**Search Component for Svelte CMS**
+**Search Component for SveltyCMS**
 
 @example:
 <WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
@@ -72,15 +72,14 @@
 			return;
 		}
 
-		// Use .value to access store value outside of reactive context if needed,
-		// but direct access `$globalSearchIndex` works fine here.
 		const index = globalSearchIndex.value; // Or just use $globalSearchIndex directly
 		const upperQuery = query.toUpperCase();
 		const threshold = Math.floor(query.length * 0.9); // Adjust threshold as needed
 
 		// Map, filter, and sort
 		const results = index
-			.map((item): SearchResult & { distance: number } => { // Ensure distance is always number for sorting
+			.map((item): SearchResult & { distance: number } => {
+				// Ensure distance is always number for sorting
 				const upperTitle = item.title.toUpperCase();
 				const upperKeywords = item.keywords.map((k) => k.toUpperCase());
 
@@ -150,7 +149,8 @@
 	function handleKeyDown(event: KeyboardEvent) {
 		switch (event.key) {
 			case 'Escape':
-				if (isSearchVisible.value) { // Use .value for store read in non-reactive context
+				if (isSearchVisible.value) {
+					// Use .value for store read in non-reactive context
 					event.preventDefault();
 					isSearchVisible.set(false);
 				}
@@ -211,9 +211,9 @@
 
 {#if $isSearchVisible}
 	<div
-		class="search-component fixed inset-0 z-[999999] flex flex-col items-center justify-start bg-gray-950/70 pt-[15vh] backdrop-blur-sm" /* Adjusted padding and bg opacity */
+		class="search-component fixed inset-0 z-[999999] flex flex-col items-center justify-start bg-gray-950/70 pt-[15vh] backdrop-blur-sm"
 		role="dialog"
-		aria-modal="true" /* Indicate it's a modal dialog */
+		aria-modal="true"
 		aria-label="Global Search"
 	>
 		<!-- Search input -->
@@ -227,21 +227,21 @@
 			aria-label="Search input"
 			aria-controls="search-results"
 			aria-autocomplete="list"
-			aria-activedescendant={selectedIndex !== -1 ? `search-result-${selectedIndex}` : undefined} /* Link to active item */
-			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-3 text-lg" /* Adjusted padding/text size */
+			aria-activedescendant={selectedIndex !== -1 ? `search-result-${selectedIndex}` : undefined}
+			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-3 text-lg"
 			autocomplete="off"
 		/>
 
 		{#if searchResults.length > 0}
 			<ul
 				bind:this={listElement}
-				id="search-results"
-				class="mt-2 w-full max-w-xl overflow-y-auto rounded-lg bg-surface-800/95 shadow-lg max-h-[50vh]" /* Adjusted background and max height */
+				id="scroll-smooth"
+				class="mt-2 max-h-[50vh] w-full max-w-xl overflow-y-auto rounded-lg bg-surface-800/95 shadow-lg"
 				role="listbox"
 				aria-label="Search results"
 			>
 				{#each searchResults as result, index (result.title + index)}<li
-						id={`search-result-${index}`} /* Unique ID for each item */
+						id={`search-result-${index}`}
 						role="option"
 						aria-selected={index === selectedIndex}
 						class="border-b border-surface-700 last:border-b-0 focus-within:outline-none {index === selectedIndex ? 'bg-primary-500/20' : ''}"
@@ -272,7 +272,7 @@
 								</div>
 							</button>
 						{:else}
-							<div class="px-4 py-3 border-b border-surface-700">
+							<div class="border-b border-surface-700 px-4 py-3">
 								<div class="font-bold text-primary-300">
 									<HighlightedText text={result.title} term={searchQuery} />
 								</div>
@@ -308,11 +308,3 @@
 		{/if}
 	</div>
 {/if}
-
-<style>
-	/* Add smooth scroll behavior for keyboard navigation */
-	#search-results {
-		scroll-behavior: smooth;
-	}
-	
-</style>

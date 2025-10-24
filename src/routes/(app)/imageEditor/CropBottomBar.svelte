@@ -47,9 +47,9 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 <div class="crop-bottom-bar">
 	<!-- Slider area -->
-	<div class="slider-container">
+	<div class="w-full max-w-xl">
 		{#if activeMode === 'rotation'}
-			<div class="slider-wrapper">
+			<div class="gap-2r relative flex flex-col items-center">
 				<input type="range" min="-180" max="180" step="1" value={rotationAngle} oninput={handleRotationInput} class="rotation-slider" />
 				<div class="angle-display">{rotationAngle}°</div>
 				<div class="slider-dots">
@@ -59,7 +59,7 @@ Displays rotation/scale sliders below the canvas without blocking view.
 				</div>
 			</div>
 		{:else if activeMode === 'scale'}
-			<div class="slider-wrapper">
+			<div class="gap-2-wrapper relative flex flex-col items-center">
 				<input type="range" min="10" max="200" step="5" value={scaleValue} oninput={handleScaleInput} class="scale-slider" />
 				<div class="angle-display">{scaleValue}%</div>
 			</div>
@@ -84,14 +84,6 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	:global(.dark) .crop-bottom-bar {
 		background-color: rgb(var(--color-surface-800) / 1);
 		border-color: rgb(var(--color-surface-700) / 1);
-	}
-
-	.slider-container {
-		@apply w-full max-w-xl;
-	}
-
-	.slider-wrapper {
-		@apply relative flex flex-col items-center gap-2;
 	}
 
 	.rotation-slider,

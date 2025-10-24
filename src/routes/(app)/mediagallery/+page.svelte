@@ -579,8 +579,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Small"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style="color:text-black dark:text-white"
-								></iconify-icon>
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style="color:text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}

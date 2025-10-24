@@ -12,37 +12,23 @@ tool controls for mobile/tablet editing experience.
 -->
 
 <script lang="ts">
-	// Types
-	type Tool = {
-		id: string;
-		name: string;
-		icon: string;
-		description: string;
-		category: string;
-		disabled?: boolean;
-		comingSoon?: boolean;
-		actualTool?: string;
-	};
-
-	type ToolInfo = {
-		title: string;
-		tips: string[];
-	};
-
 	// Props
-	interface Props {
+	let {
+		activeState,
+		onToolSelect,
+		hasImage = false
+	}: {
 		activeState: string;
 		onToolSelect: (tool: string) => void;
 		hasImage?: boolean;
-	}
-	let { activeState, onToolSelect, hasImage = false }: Props = $props();
+	} = $props();
 
 	// Mobile tool panel state
 	let showToolPanel = $state(false);
-	let currentToolInfo = $state<ToolInfo | null>(null);
+	let currentToolInfo = $state<any>(null);
 
 	// Tool definitions optimized for mobile
-	const tools: Tool[] = [
+	const tools = [
 		{
 			id: 'crop',
 			name: 'Crop',
@@ -94,7 +80,7 @@ tool controls for mobile/tablet editing experience.
 	];
 
 	// Tool help content for bottom sheet
-	const toolInfo: Record<string, ToolInfo> = {
+	const toolInfo = {
 		crop: {
 			title: 'Crop & Transform',
 			tips: ['Pinch to zoom and pan', 'Drag corners to resize crop area', 'Tap preset ratios for quick sizing', 'Use sliders for rotation']
@@ -113,7 +99,7 @@ tool controls for mobile/tablet editing experience.
 		}
 	};
 
-	function handleToolClick(tool: Tool) {
+	function handleToolClick(tool: any) {
 		if (tool.disabled || !hasImage) return;
 
 		const toolId = tool.actualTool || tool.id;
@@ -135,7 +121,7 @@ tool controls for mobile/tablet editing experience.
 		currentToolInfo = null;
 	}
 
-	function isToolActive(tool: Tool): boolean {
+	function isToolActive(tool: any): boolean {
 		const toolId = tool.actualTool || tool.id;
 		return activeState === toolId;
 	}
@@ -150,7 +136,7 @@ tool controls for mobile/tablet editing experience.
 
 <div class="mobile-toolbar">
 	<!-- Main toolbar with horizontal scroll -->
-	<div class="toolbar-scroll scrollbar-hide">
+	<div class="toolbar-scroll">
 		<div class="toolbar-tools">
 			{#each tools as tool}
 				<button
@@ -179,7 +165,7 @@ tool controls for mobile/tablet editing experience.
 
 <!-- Bottom sheet tool panel -->
 {#if showToolPanel && currentToolInfo}
-	<button class="tool-panel-overlay" onclick={closeToolPanel} aria-label="Close tool panel"></button>
+	<div class="tool-panel-overlay" onclick={closeToolPanel}></div>
 	<div class="tool-panel-sheet" class:visible={showToolPanel}>
 		<div class="sheet-handle">
 			<div class="handle-bar"></div>
@@ -218,7 +204,7 @@ tool controls for mobile/tablet editing experience.
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.mobile-toolbar {
 		@apply fixed bottom-0 left-0 right-0 z-40 border-t shadow-lg;
 		background-color: rgb(var(--color-surface-50) / 1);
@@ -232,6 +218,7 @@ tool controls for mobile/tablet editing experience.
 
 	.toolbar-scroll {
 		@apply overflow-x-auto overflow-y-hidden;
+		@apply scrollbar-hide; /* Hide scrollbar for cleaner look */
 		-webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 	}
 

@@ -1,26 +1,19 @@
 <!--
 @file src/components/TranslationStatus.svelte
 @component
-**Translation status component for displaying translation progress per language in a progress bar with percentage.**
+**Translation status component for displaying translation progress per language.**
 
 @example
 <TranslationStatus />
 
-### Props:
-- `mode` {object} - The current mode object from the mode store
-- `collection` {object} - The current collection object from the collection store
-
-### Features:
-- Persists translation progress through API calls
-- Displays translation progress per language in a progress bar with percentage
-- Handles language selection and translation progress updates
-- Smooth animations and micro-interactions
+### Features
+- Displays available content languages
+- Shows translation progress per language
+- Dropdown menu for selecting content language	
 -->
 
 <script lang="ts">
-	import { cubicOut, quintOut } from 'svelte/easing';
-	import { Tween } from 'svelte/motion';
-
+	import { untrack } from 'svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Skeleton
@@ -30,80 +23,75 @@
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { getFieldName } from '@utils/utils';
-	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
+	import { scale, fade } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
 
-	// Local state management with runes
+	// Types
+	interface CompletionTotals {
+		total: number;
+		translated: number;
+	}
+
+	// State
 	let isOpen = $state(false);
-	let completionTotals = $state({ total: 0, translated: 0 });
-	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
+	let isInitialized = $state(false);
+	let completionTotals = $state<CompletionTotals>({ total: 0, translated: 0 });
+
+	// Derived values
 	let availableLanguages = $derived.by<Locale[]>(() => {
 		return (publicEnv?.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || ['en'];
 	});
 
-	// Track initialization
-	let isInitialized = $state(false);
+	let currentLanguage = $derived(contentLanguage.value);
+	let currentMode = $derived(mode.value);
+	let isViewMode = $derived(currentMode === 'view');
 
-	// Animation stores
-	const dropdownOpacity = new Tween<number>(0, {
-		duration: 200,
-		easing: cubicOut
+	let overallPercentage = $derived.by(() => {
+		const { total, translated } = completionTotals;
+		return total > 0 ? Math.round((translated / total) * 100) : 0;
 	});
 
-	const dropdownScale = new Tween<number>(0.95, {
-		duration: 200,
-		easing: cubicOut
-	});
+	let showProgress = $derived(translationProgress.value?.show || completionTotals.total > 0);
 
-	const progressValue = new Tween<number>(0, {
-		duration: 800,
-		easing: quintOut
-	});
+	// Calculate language-specific progress
+	let languageProgress = $derived.by(() => {
+		const progress: Record<string, number> = {};
+		const currentProgress = translationProgress.value;
 
-	const chevronRotation = new Tween<number>(0, {
-		duration: 200,
-		easing: cubicOut
-	});
-
-	// Store individual language progress values for smooth transitions
-	let languageProgressValues = $derived.by<Record<string, Tween<number>>>(() => {
-		const progressValues: Record<string, Tween<number>> = {};
 		for (const lang of availableLanguages) {
-			progressValues[lang] = new Tween<number>(0, { duration: 200, easing: quintOut });
+			const langProgress = currentProgress?.[lang as Locale];
+			if (langProgress && langProgress.total.size > 0) {
+				progress[lang] = Math.round((langProgress.translated.size / langProgress.total.size) * 100);
+			} else {
+				progress[lang] = 0;
+			}
 		}
-		return progressValues;
-	});
-	// ENHANCEMENT: This effect safely loads the languages from the configuration.
-	// It checks if the data is a valid array before updating the state,
-	// preventing errors if the config is malformed or loads unexpectedly.
 
-	// Initialize translation progress tracking when collection changes
-	$effect(() => {
-		const currentCollection = collection.value;
-		if (currentCollection?.fields && currentCollection._id) {
-			// Reset initialization state when collection changes
-			isInitialized = false;
-			initializeTranslationProgress(currentCollection);
-			renderLanguageProgess();
-			isInitialized = true;
-		}
+		return progress;
 	});
 
-	// Update translation progress when field values change
-	$effect(() => {
-		const currentCollection = collection.value;
-		const currentCollectionValue = collectionValue as Record<string, unknown>;
+	// Helper functions
+	function getProgressColor(value: number): string {
+		if (value >= 80) return 'bg-primary-500';
+		if (value >= 40) return 'bg-warning-500';
+		return 'bg-error-500';
+	}
 
-		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
-			updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
-		}
-	});
+	function getTextColor(value: number): string {
+		return getProgressColor(value).replace('bg-', 'text-');
+	}
 
-	// Initialize translation progress with all translatable fields
-	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }) {
-		// console.log('[TranslationStatus] Initializing translation progress for collection:', currentCollection.name);
-		const currentProgress = { ...translationProgress.value }; // Create a mutable copy
+	function isFieldTranslated(value: unknown): boolean {
+		if (value === null || value === undefined) return false;
+		if (typeof value === 'string') return value.trim() !== '';
+		return Boolean(value);
+	}
+
+	// Initialize translation progress
+	function initializeTranslationProgress(currentCollection: { fields: unknown[]; name?: unknown; _id?: string }): void {
+		const currentProgress = { ...translationProgress.value };
 		let hasTranslatableFields = false;
 
 		// Initialize total fields for each language
@@ -121,24 +109,23 @@
 					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
 					currentProgress[lang].total.add(fieldName);
 					hasTranslatableFields = true;
-					// console.log(`[TranslationStatus] Added translatable field: ${fieldName} for language: ${lang}`);
 				}
 			}
 		}
 
 		// Show translation progress if there are translatable fields
 		currentProgress.show = hasTranslatableFields;
-		// console.log('[TranslationStatus] Translation progress show:', currentProgress.show, 'hasTranslatableFields:', hasTranslatableFields);
 		translationProgress.value = currentProgress;
 	}
 
-	// Update translation progress based on current field values
+	// Update translation progress from field values
 	function updateTranslationProgressFromFields(
 		currentCollection: { fields: unknown[]; name?: unknown },
 		currentCollectionValue: Record<string, unknown>
-	) {
-		const currentProgress = { ...translationProgress.value }; // Create a mutable copy
+	): void {
+		const currentProgress = { ...translationProgress.value };
 		let hasUpdates = false;
+
 		for (const lang of availableLanguages) {
 			if (!currentProgress[lang]) continue;
 
@@ -151,10 +138,7 @@
 					const fieldValue = currentCollectionValue[dbFieldName] as Record<string, unknown> | undefined;
 					const langValue = fieldValue?.[lang];
 
-					// Consider field translated if it has a non-empty value
-					const isTranslated =
-						langValue !== null && langValue !== undefined && (typeof langValue === 'string' ? langValue.trim() !== '' : Boolean(langValue));
-
+					const isTranslated = isFieldTranslated(langValue);
 					const wasTranslated = currentProgress[lang].translated.has(fieldName);
 
 					if (isTranslated && !wasTranslated) {
@@ -170,64 +154,51 @@
 
 		if (hasUpdates) {
 			translationProgress.value = currentProgress;
-			renderLanguageProgess();
+			calculateCompletionTotals();
 		}
 	}
 
-	function renderLanguageProgess() {
+	// Calculate overall completion totals
+	function calculateCompletionTotals(): void {
 		const progress = translationProgress.value;
 		let total = 0;
 		let translated = 0;
+
 		for (const lang of availableLanguages) {
 			const langProgress = progress[lang as Locale];
 			if (!langProgress) continue;
 			translated += langProgress.translated.size;
 			total += langProgress.total.size;
 		}
+
 		completionTotals = { total, translated };
+	}
 
-		// Update overall progress animation
-		const newPercentage = total > 0 ? Math.round((translated / total) * 100) : 0;
-		progressValue.target = newPercentage;
+	// Dropdown position state
+	let dropdownPosition = $state({ top: 0, right: 0 });
 
-		// Initialize and update individual language progress
-		for (const lang of availableLanguages) {
-			const langProgress = progress[lang as Locale];
-			const percentage = langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
-
-			// console.log('[TranslationStatus] lang:', lang, 'percentage:', percentage);
-			if (languageProgressValues[lang]) {
-				languageProgressValues[lang].target = percentage;
-			}
+	// Calculate dropdown position based on button location
+	function updateDropdownPosition(): void {
+		const button = document.querySelector('.translation-status-container button');
+		if (button) {
+			const rect = button.getBoundingClientRect();
+			dropdownPosition = {
+				top: rect.bottom + 4,
+				right: window.innerWidth - rect.right
+			};
 		}
 	}
-	// Animate dropdown visibility
-	$effect(() => {
-		if (isOpen) {
-			dropdownOpacity.target = 1;
-			dropdownScale.target = 1;
-			chevronRotation.target = 180;
-		} else {
-			dropdownOpacity.target = 0;
-			dropdownScale.target = 0.95;
-			chevronRotation.target = 0;
-		}
-	});
 
-	// Derived completion status
-	let completionStatus = $derived(completionTotals.total > 0 ? Math.round((completionTotals.translated / completionTotals.total) * 100) : 0);
+	// Event handlers
+	function toggleDropdown(): void {
+		isOpen = !isOpen;
+	}
 
-	// Simplified language change handler with animation feedback
-	function handleLanguageChange(selectedLanguage: Locale) {
-		// console.log('[TranslationStatus] Language change:', selectedLanguage);
+	function handleLanguageChange(selectedLanguage: Locale): void {
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
-		// Add subtle feedback animation
-		chevronRotation.target = -10;
-		setTimeout(() => (chevronRotation.target = 0), 100);
-
-		// Dispatch a custom event to notify parent components
+		// Dispatch custom event
 		if (typeof window !== 'undefined') {
 			const customEvent = new CustomEvent('languageChanged', {
 				detail: { language: selectedLanguage },
@@ -241,7 +212,6 @@
 	function handleViewModeLanguageChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
-		// console.log('[TranslationStatus] View mode language change:', selectedLanguage);
 
 		// Update the content language store
 		contentLanguage.set(selectedLanguage);
@@ -254,126 +224,157 @@
 		target.dispatchEvent(customEvent);
 	}
 
-	function toggleDropdown() {
-		isOpen = !isOpen;
+	// Close dropdown when clicking outside
+	function handleClickOutside(event: MouseEvent): void {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.translation-status-container')) {
+			isOpen = false;
+		}
 	}
 
-	function getColor(value: number): string {
-		if (value >= 80) return 'bg-primary-500';
-		if (value >= 40) return 'bg-warning-500';
-		return 'bg-error-500';
-	}
+	// Effects
+	let lastCollectionId = $state<string | undefined>(undefined);
+	$effect(() => {
+		const currentCollection = collection.value;
+		const collectionId = currentCollection?._id as string | undefined;
 
-	// Get animated progress value for a language
-	function getAnimatedLanguageProgress(lang: string): number {
-		return languageProgressValues[lang] ? languageProgressValues[lang].current : 0;
-	}
+		if (currentCollection?.fields && collectionId && collectionId !== lastCollectionId) {
+			untrack(() => {
+				isInitialized = false;
+				initializeTranslationProgress(currentCollection);
+				calculateCompletionTotals();
+				isInitialized = true;
+				lastCollectionId = collectionId;
+			});
+		}
+	});
 
-	// Derived value to track current language for debugging
-	const currentLanguage = $derived(contentLanguage.value);
+	// Track last collection value to prevent unnecessary updates
+	let lastCollectionValueStr = $state<string>('');
+	$effect(() => {
+		const currentCollection = collection.value;
+		const currentCollectionValue = collectionValue.value as Record<string, unknown>;
+
+		if (currentCollection?.fields && currentCollectionValue && Object.keys(currentCollectionValue).length > 0 && isInitialized) {
+			// Only update if data actually changed
+			const currentStr = JSON.stringify(currentCollectionValue);
+			if (currentStr !== lastCollectionValueStr) {
+				untrack(() => {
+					updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
+					lastCollectionValueStr = currentStr;
+				});
+			}
+		}
+	});
+
+	$effect(() => {
+		if (isOpen) {
+			updateDropdownPosition();
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+	});
 </script>
 
-{#if mode.value === 'view'}
-	<!-- Language selection -->
+{#if isViewMode}
+	<!-- View mode: Simple language selector -->
 	<select
 		class="select w-full max-w-[70px] transition-all duration-200 hover:scale-105 focus:scale-105 focus:shadow-lg"
 		value={currentLanguage}
 		onchange={handleViewModeLanguageChange}
 		disabled={availableLanguages.length === 0}
+		aria-label="Select content language"
 	>
 		{#if availableLanguages.length === 0}
-			<option disabled>...</option>
+			<option disabled>Loading...</option>
+		{:else}
+			{#each availableLanguages as lang (lang)}
+				<option value={lang}>{lang.toUpperCase()}</option>
+			{/each}
 		{/if}
-		<!-- FIX: Use the robust 'availableLanguages' state variable for iteration. -->
-		{#each availableLanguages as lang (lang)}
-			<option value={lang}>{lang.toUpperCase()}</option>
-		{/each}
 	</select>
 {:else}
-	<!-- Edit mode with translation progress -->
-	<div class="relative mt-1 inline-block text-left">
-		<!-- Button and Overall Progress -->
+	<!-- Edit mode: Language selector with translation progress -->
+	<div class="translation-status-container relative mt-1 inline-block text-left">
 		<div>
+			<!-- Language button -->
 			<button
 				type="button"
 				onclick={toggleDropdown}
-				class="variant-outline-surface btn flex items-center p-1.5"
+				class="variant-outline-surface btn flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
 				aria-haspopup="true"
 				aria-expanded={isOpen}
 				aria-controls="translation-menu"
+				aria-label="Toggle language menu"
 			>
-				<span class="transition-colors duration-200">{currentLanguage.toUpperCase()}</span>
+				<span class="font-medium">{currentLanguage.toUpperCase()}</span>
 				<iconify-icon
 					icon="mdi:chevron-down"
-					class="ml-1 h-5 w-5 transition-transform duration-200 ease-out"
-					style="transform: rotate({chevronRotation.current}deg);"
+					class="h-5 w-5 transition-transform duration-200"
+					style="transform: rotate({isOpen ? 180 : 0}deg);"
 					aria-hidden="true"
 				></iconify-icon>
 			</button>
 
-			<!-- Translation Progress with smooth animation - Always show in edit mode -->
+			<!-- Overall progress bar -->
 			<div class="mt-0.5 transition-all duration-300">
 				<ProgressBar
 					class="variant-outline-secondary transition-all duration-300 hover:shadow-sm"
-					value={progressValue.current}
-					meter={getColor(progressValue.current)}
-					aria-label={m.translationsstatus_overall_progress({ percentage: Math.round(progressValue.current) })}
+					value={overallPercentage}
+					meter={getProgressColor(overallPercentage)}
+					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}
 				/>
 				<div class="mt-1 text-center text-xs text-surface-600 dark:text-surface-400">
-					{Math.round(progressValue.current)}% {m.translationsstatus_completed()}
+					{overallPercentage}% {m.translationsstatus_completed()}
 				</div>
 			</div>
 		</div>
 
-		<!-- Dropdown Language Status -->
+		<!-- Dropdown menu with fixed positioning -->
 		{#if isOpen}
 			<div
 				id="translation-menu"
-				class="{translationProgress.value?.show || completionTotals.total > 0
+				class="fixed z-[9999] mt-1 origin-top-right divide-y divide-surface-200 rounded border border-surface-300 bg-surface-100 py-1 shadow-xl focus:outline-none dark:divide-surface-400 dark:bg-surface-800 {showProgress
 					? 'w-64'
-					: 'w-48'} absolute -right-24 z-10 mt-1 origin-top-right divide-y divide-surface-200 rounded border border-surface-300 bg-surface-100 py-1 shadow-xl ring-1 ring-black ring-opacity-5 backdrop-blur-sm focus:outline-none dark:divide-surface-400 dark:bg-surface-800 md:right-0"
+					: 'w-48'}"
+				style="top: {dropdownPosition.top}px; right: {dropdownPosition.right}px;"
 				role="menu"
 				aria-orientation="vertical"
-				aria-labelledby="options-menu"
-				style="opacity: {dropdownOpacity.current}; transform: scale({dropdownScale.current}); transform-origin: top right;"
+				aria-labelledby="language-menu-button"
+				transition:scale={{ duration: 200, easing: quintOut, start: 0.95, opacity: 0 }}
 			>
-				<!-- Language Items -->
+				<!-- Language list -->
 				<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
-					<!-- FIX: Use the robust 'availableLanguages' state variable for iteration. -->
 					{#each availableLanguages as lang, index (lang)}
+						{@const percentage = languageProgress[lang] || 0}
+						{@const isActive = currentLanguage === lang}
+
 						<button
 							role="menuitem"
-							class="{translationProgress.value?.show || completionTotals.total > 0
-								? 'justify-between'
-								: 'justify-center'} active:scale-98 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 dark:hover:bg-surface-600 {currentLanguage ===
-							lang
+							class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 active:scale-[0.98] dark:hover:bg-surface-600 {isActive
 								? 'bg-primary-500/20 text-primary-700 dark:text-primary-300'
-								: ''}"
+								: ''} {showProgress ? 'justify-between' : 'justify-center'}"
 							onclick={() => handleLanguageChange(lang as Locale)}
 							aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
-							style="animation-delay: {index * 50}ms;"
+							in:fade={{ duration: 200, delay: index * 30 }}
 						>
-							<div class="flex w-full items-center justify-between gap-1">
-								<!-- Language -->
-								<span class="font-medium transition-colors duration-200 hover:text-primary-500">
+							<div class="flex w-full items-center justify-between gap-2">
+								<!-- Language name -->
+								<span class="font-medium transition-colors duration-200">
 									{lang.toUpperCase()}
-									{#if currentLanguage === lang}
-										<span class="ml-1 text-xs">●</span>
+									{#if isActive}
+										<span class="ml-1 text-xs" aria-label="Current language">●</span>
 									{/if}
 								</span>
 
-								<!-- Progress Bar and Percentage -->
-								{#if (translationProgress.value?.show || completionTotals.total > 0) && translationProgress.value?.[lang as Locale]}
+								<!-- Progress indicator -->
+								{#if showProgress && translationProgress.value?.[lang as Locale]}
 									<div class="ml-2 flex flex-1 items-center gap-2">
 										<div class="flex-1">
-											<ProgressBar
-												class="transition-all duration-300"
-												value={getAnimatedLanguageProgress(lang) ?? 0}
-												meter={getColor(getAnimatedLanguageProgress(lang) ?? 0)}
-											/>
+											<ProgressBar class="transition-all duration-300" value={percentage} meter={getProgressColor(percentage)} aria-hidden="true" />
 										</div>
-										<span class="min-w-[2.5rem] text-right text-sm font-semibold transition-all duration-300">
-											{Math.round(getAnimatedLanguageProgress(lang) ?? 0)}%
+										<span class="min-w-[2.5rem] text-right text-sm font-semibold">
+											{percentage}%
 										</span>
 									</div>
 								{/if}
@@ -382,30 +383,25 @@
 					{/each}
 				</div>
 
-				<!-- Overall Completion -->
-				{#if translationProgress.value?.show || completionTotals.total > 0}
-					<div class=" px-4 py-3" role="none">
-						<div class="mb-1 text-center text-xs font-medium">
+				<!-- Overall completion summary -->
+				{#if showProgress}
+					<div class="px-4 py-3" role="none" in:fade={{ duration: 200, delay: 100 }}>
+						<div class="mb-1 text-center text-xs font-medium text-surface-600 dark:text-surface-400">
 							{m.translationsstatus_completed()}
 						</div>
-						<div class="{completionStatus ? 'justify-between' : 'justify-center'} flex items-center gap-3">
-							{#if completionStatus}
+						<div class="flex items-center justify-between gap-3">
+							{#if overallPercentage}
 								<div class="flex-1">
 									<ProgressBar
 										class="transition-all duration-300"
-										value={progressValue.current}
-										meter={getColor(progressValue.current)}
+										value={overallPercentage}
+										meter={getProgressColor(overallPercentage)}
 										aria-hidden="true"
 									/>
 								</div>
 							{/if}
-							<span
-								class="min-w-[2.5rem] text-right text-sm font-bold transition-all duration-300 {getColor(progressValue.current).replace(
-									'bg-',
-									'text-'
-								)}"
-							>
-								{Math.round(progressValue.current)}%
+							<span class="min-w-[2.5rem] text-right text-sm font-bold {getTextColor(overallPercentage)}">
+								{overallPercentage}%
 							</span>
 						</div>
 					</div>

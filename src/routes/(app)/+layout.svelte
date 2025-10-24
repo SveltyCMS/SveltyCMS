@@ -70,6 +70,7 @@
 		data: {
 			user: User;
 			contentStructure: any[]; // Changed from ContentNode[] to any[]
+			nonce: string; // Add nonce property
 		};
 	}
 
@@ -358,9 +359,7 @@
 
 				<!-- Sidebar Right -->
 				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
-					<aside
-						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
-					>
+					<aside class="max-h-dvh w-[220px] border-l bg-white bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
 						<RightSidebar />
 					</aside>
 				{/if}
