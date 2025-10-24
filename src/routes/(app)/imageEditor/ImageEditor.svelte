@@ -30,6 +30,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
 	import Watermark from './components/Watermark.svelte';
 	import WatermarkTopToolbar from './components/toolbars/WatermarkTopToolbar.svelte';
+	import Annotate from './components/Annotate.svelte';
+	import AnnotateTopToolbar from './components/toolbars/AnnotateTopToolbar.svelte';
 
 	// Layout components
 	import EditorSidebar from './components/EditorSidebar.svelte';
@@ -76,8 +78,17 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	let blurToolRef: Blur | null = $state(null);
 	let blurStrength = $state(10);
 
+	// Annotate tool state and reference
+	let annotateToolRef: Annotate | null = $state(null);
+	let annotateCurrentTool = $state('select');
+	let annotateStrokeColor = $state('#000000');
+	let annotateFillColor = $state('#ffffff');
+	let annotateStrokeWidth = $state(2);
+	let annotateFontSize = $state(20);
+
 	// Watermark tool state and reference
 	let watermarkToolRef: Watermark | null = $state(null);
+
 
 	// Derived state for watermark panel - with safety check
 	let watermarkPanelData = $derived.by(() => {
@@ -97,11 +108,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		}
 	});
 
-	// Debug: Watch cropToolRef changes
+	// Debug: Watch tool refs changes
 	$effect(() => {
 		console.log('cropToolRef changed:', cropToolRef);
+		console.log('annotateToolRef changed:', annotateToolRef);
 		console.log('activeState:', activeState);
 		console.log('Should show toolbar?', activeState === 'crop' && cropToolRef);
+		console.log('Should show annotate toolbar?', activeState === 'annotate' && annotateToolRef);
 	});
 
 	// Debug: Watch watermarkToolRef changes
@@ -901,6 +914,29 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								}}
 							/>
 						{/if}
+
+						<!-- Annotate Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'annotate'}
+							<AnnotateTopToolbar
+								bind:currentTool={annotateCurrentTool}
+								bind:strokeColor={annotateStrokeColor}
+								bind:fillColor={annotateFillColor}
+								bind:strokeWidth={annotateStrokeWidth}
+								bind:fontSize={annotateFontSize}
+								onToolChange={(tool) => {
+									annotateCurrentTool = tool;
+									annotateToolRef?.setTool(tool);
+								}}
+								onStyleChange={() => applyEdit()}
+								onDelete={() => annotateToolRef?.deleteSelected()}
+								onDeleteAll={() => annotateToolRef?.deleteAll()}
+								onDone={() => {
+									imageEditorStore.cleanupToolSpecific('annotate');
+									imageEditorStore.setActiveState('');
+									applyEdit();
+								}}
+							/>
+						{/if}
 					</EditorCanvas>
 					<!-- Crop Bottom Bar - below canvas -->
 					{#if activeState === 'crop'}
@@ -1094,6 +1130,10 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			{:else if activeState === 'watermark'}
 				{#key `watermark-${storeState.file?.name || 'unknown'}`}
 					<Watermark bind:this={watermarkToolRef} {stage} {layer} {imageNode} onStickerChange={() => applyEdit()} />
+				{/key}
+			{:else if activeState === 'annotate'}
+				{#key `annotate-${storeState.file?.name || 'unknown'}`}
+					<Annotate bind:this={annotateToolRef} {stage} {layer} {imageNode} onChange={() => applyEdit()} />
 				{/key}
 			{:else if activeState === 'finetune'}
 				{#key `finetune-${storeState.file?.name || 'unknown'}`}

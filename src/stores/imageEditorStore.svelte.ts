@@ -85,13 +85,13 @@ function createImageEditorStore() {
 	function cleanupTempNodes() {
 		if (!state.layer) return;
 
-	// Remove all temporary nodes by name and class
-	const tempSelectors = [
-		'.cropTool',
-		'.transformer',
-		'.blurTool',
-		'.cropOverlayGroup',
-		'[name="cropTool"]',
+		// Remove all temporary nodes by name and class
+		const tempSelectors = [
+			'.cropTool',
+			'.transformer',
+			'.blurTool',
+			'.cropOverlayGroup',
+			'[name="cropTool"]',
 			'[name="cropHighlight"]',
 			'[name="cropOverlay"]',
 			'.rotationGrid',
