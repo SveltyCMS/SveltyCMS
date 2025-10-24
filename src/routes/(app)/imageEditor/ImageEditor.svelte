@@ -26,8 +26,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import CropBottomBar from './components/toolbars/CropBottomBar.svelte';
 	import Blur from './components/Blur.svelte';
 	import BlurTopToolbar from './components/toolbars/BlurTopToolbar.svelte';
-	import FocalPoint from './components/FocalPoint.svelte';
-	import FocalPointTopToolbar from './components/toolbars/FocalPointTopToolbar.svelte';
 	import FineTune from './components/FineTune.svelte';
 	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
 	import Watermark from './components/Watermark.svelte';
@@ -77,12 +75,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	// Blur tool state and reference
 	let blurToolRef: Blur | null = $state(null);
 	let blurStrength = $state(10);
-
-	// Focal point tool state and reference
-	let focalPointToolRef: FocalPoint | null = $state(null);
-	let focalPointX = $state(0);
-	let focalPointY = $state(0);
-	let savedFocalPoint: { x: number; y: number } | null = $state(null); // Store the last applied focal point
 
 	// Watermark tool state and reference
 	let watermarkToolRef: Watermark | null = $state(null);
@@ -540,10 +532,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			formData.append('files', editedFile);
 
 			// Add focal point metadata if it exists
-			if (savedFocalPoint) {
-				formData.append('focalPoint', JSON.stringify(savedFocalPoint));
-				console.log('Saving image with focal point:', savedFocalPoint);
-			}
 
 			// Send to media API
 			const saveResponse = await fetch('/api/media/process', {
@@ -836,32 +824,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							/>
 						{/if}
 
-						<!-- Focal Point Top Toolbar - overlaid on canvas -->
-						{#if activeState === 'focalpoint' && focalPointToolRef}
-							<FocalPointTopToolbar
-								{focalPointX}
-								{focalPointY}
-								onReset={() => focalPointToolRef?.reset()}
-								onRemove={() => {
-									focalPointToolRef?.remove();
-									focalPointX = 0;
-									focalPointY = 0;
-								}}
-								onDone={() => {
-									const focalData = focalPointToolRef?.apply();
-									console.log('Focal point applied:', focalData);
-									// Save the focal point data
-									if (focalData) {
-										savedFocalPoint = focalData;
-									}
-									focalPointToolRef?.cleanup();
-									imageEditorStore.cleanupToolSpecific('focalpoint');
-									imageEditorStore.setActiveState('');
-									applyEdit();
-								}}
-							/>
-						{/if}
-
 						<!-- FineTune Top Toolbar - overlaid on canvas -->
 						{#if activeState === 'finetune' && fineTuneRef}
 							<FineTuneTopToolbar
@@ -1007,32 +969,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 						/>
 					{/if}
 
-					<!-- Focal Point Top Toolbar - overlaid on canvas -->
-					{#if activeState === 'focalpoint' && focalPointToolRef}
-						<FocalPointTopToolbar
-							{focalPointX}
-							{focalPointY}
-							onReset={() => focalPointToolRef?.reset()}
-							onRemove={() => {
-								focalPointToolRef?.remove();
-								focalPointX = 0;
-								focalPointY = 0;
-							}}
-							onDone={() => {
-								const focalData = focalPointToolRef?.apply();
-								console.log('Focal point applied:', focalData);
-								// Save the focal point data
-								if (focalData) {
-									savedFocalPoint = focalData;
-								}
-								focalPointToolRef?.cleanup();
-								imageEditorStore.cleanupToolSpecific('focalpoint');
-								imageEditorStore.setActiveState('');
-								applyEdit();
-							}}
-						/>
-					{/if}
-
 					<!-- FineTune Top Toolbar - overlaid on canvas -->
 					{#if activeState === 'finetune' && fineTuneRef}
 						<FineTuneTopToolbar
@@ -1153,17 +1089,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					onCancel={() => {
 						imageEditorStore.cleanupToolSpecific('crop');
 						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'focalpoint'}
-				<FocalPoint
-					bind:this={focalPointToolRef}
-					{stage}
-					{layer}
-					{imageNode}
-					onFocalpoint={(data) => {
-						focalPointX = data.x;
-						focalPointY = data.y;
 					}}
 				/>
 			{:else if activeState === 'watermark'}

@@ -85,14 +85,13 @@ function createImageEditorStore() {
 	function cleanupTempNodes() {
 		if (!state.layer) return;
 
-		// Remove all temporary nodes by name and class
-		const tempSelectors = [
-			'.cropTool',
-			'.transformer',
-			'.blurTool',
-			'.focalPointTool',
-			'.cropOverlayGroup',
-			'[name="cropTool"]',
+	// Remove all temporary nodes by name and class
+	const tempSelectors = [
+		'.cropTool',
+		'.transformer',
+		'.blurTool',
+		'.cropOverlayGroup',
+		'[name="cropTool"]',
 			'[name="cropHighlight"]',
 			'[name="cropOverlay"]',
 			'.rotationGrid',
@@ -210,15 +209,6 @@ function createImageEditorStore() {
 				});
 				break;
 
-			case 'focalpoint':
-				// Clean up focal point specific elements
-				state.layer.find('.focalPointTool').forEach((node) => {
-					try {
-						node.destroy();
-					} catch (e) {
-						console.warn('Error destroying focal point tool:', e);
-					}
-				});
 				break;
 
 			case 'watermark':

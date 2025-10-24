@@ -51,9 +51,7 @@ and proper active state indication.
 			name: 'Annotate',
 			icon: 'mdi:pencil',
 			description: 'Add text and shapes',
-			category: 'overlay',
-			disabled: true, // Will be implemented as combined text+shape tool
-			comingSoon: true
+			category: 'overlay'
 		},
 		{
 			id: 'watermark',
@@ -61,14 +59,6 @@ and proper active state indication.
 			icon: 'mdi:watermark',
 			description: 'Add watermark images and overlays',
 			category: 'overlay'
-		},
-		{
-			id: 'focal',
-			name: 'Focal',
-			icon: 'mdi:focus-field',
-			description: 'Set focal point with rule of thirds',
-			category: 'composition',
-			actualTool: 'focalpoint'
 		}
 	];
 
