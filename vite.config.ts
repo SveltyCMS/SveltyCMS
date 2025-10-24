@@ -444,7 +444,7 @@ export default defineConfig((): UserConfig => {
 							}
 
 							// Skeleton UI components
-							if (id.includes('@skeletonlabs/skeleton')) {
+							if (id.includes('@skeletonlabs/skeleton-svelte')) {
 								return 'skeleton-ui';
 							}
 
@@ -478,7 +478,7 @@ export default defineConfig((): UserConfig => {
 
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
-			include: ['@skeletonlabs/skeleton']
+			include: ['@skeletonlabs/skeleton-svelte']
 		}
 	};
 });

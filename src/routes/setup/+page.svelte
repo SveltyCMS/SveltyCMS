@@ -32,7 +32,7 @@
 	import VersionCheck from '@components/VersionCheck.svelte';
 
 	// Skeleton
-	import { type ModalSettings, ToastProvider } from '@skeletonlabs/skeleton-svelte';
+	import { getModalStore, getToastStore, type ModalSettings, ToastProvider } from '@skeletonlabs/skeleton-svelte';
 	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

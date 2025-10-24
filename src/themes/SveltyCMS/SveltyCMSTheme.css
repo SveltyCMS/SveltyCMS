@@ -1,3 +1,5 @@
+@reference "tailwindcss";
+
 html,
 body {
 	@apply h-full overflow-auto bg-[#eeeeee] dark:bg-black;

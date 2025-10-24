@@ -48,7 +48,7 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 	// Skeleton
-	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
+	import { ToastProvider, getModalStore, getToastStore, storePopup } from '@skeletonlabs/skeleton-svelte';
 	import { setGlobalModalStore } from '@utils/modalUtils';
 	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function

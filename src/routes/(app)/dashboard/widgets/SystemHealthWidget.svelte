@@ -26,6 +26,7 @@
 </script>
 
 <script lang="ts">
+	import { getToastStore } from '@skeletonlabs/skeleton-svelte';
 	import BaseWidget from '../BaseWidget.svelte';
 	const toastStore = getToastStore();
 
