@@ -21,29 +21,22 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Import individual tool components
-	import Crop from './Crop.svelte';
-	import CropTopToolbar from './CropTopToolbar.svelte';
-	import CropBottomBar from './CropBottomBar.svelte';
-	import Blur from './Blur.svelte';
-	import BlurTopToolbar from './BlurTopToolbar.svelte';
-	import Rotate from './Rotate.svelte';
-	import Zoom from './Zoom.svelte';
-	import FocalPoint from './FocalPoint.svelte';
-	import FocalPointTopToolbar from './FocalPointTopToolbar.svelte';
-	import Watermark from './Watermark.svelte';
-	import Filter from './Filter.svelte';
-	import FineTune from './FineTune.svelte';
-	import FineTuneTopToolbar from './FineTuneTopToolbar.svelte';
-	import TextOverlay from './TextOverlay.svelte';
-	import ShapeOverlay from './ShapeOverlay.svelte';
-	import Sticker from './Sticker.svelte';
-	import StickerTopToolbar from './StickerTopToolbar.svelte';
+	import Crop from './components/Crop.svelte';
+	import CropTopToolbar from './components/toolbars/CropTopToolbar.svelte';
+	import CropBottomBar from './components/toolbars/CropBottomBar.svelte';
+	import Blur from './components/Blur.svelte';
+	import BlurTopToolbar from './components/toolbars/BlurTopToolbar.svelte';
+	import FocalPoint from './components/FocalPoint.svelte';
+	import FocalPointTopToolbar from './components/toolbars/FocalPointTopToolbar.svelte';
+	import FineTune from './components/FineTune.svelte';
+	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
+	import Watermark from './components/Watermark.svelte';
+	import WatermarkTopToolbar from './components/toolbars/WatermarkTopToolbar.svelte';
 
-	// New layout components
-	import EditorSidebar from './EditorSidebar.svelte';
-	import EditorCanvas from './EditorCanvas.svelte';
-	import EditorToolPanel from './EditorToolPanel.svelte';
-	import MobileToolbar from './MobileToolbar.svelte';
+	// Layout components
+	import EditorSidebar from './components/EditorSidebar.svelte';
+	import EditorCanvas from './components/EditorCanvas.svelte';
+	import MobileToolbar from './components/MobileToolbar.svelte';
 
 	// Konva
 	import Konva from 'konva';
@@ -91,23 +84,23 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	let focalPointY = $state(0);
 	let savedFocalPoint: { x: number; y: number } | null = $state(null); // Store the last applied focal point
 
-	// Sticker tool state and reference
-	let stickerToolRef: Sticker | null = $state(null);
+	// Watermark tool state and reference
+	let watermarkToolRef: Watermark | null = $state(null);
 
-	// Derived state for sticker panel - with safety check
-	let stickerPanelData = $derived.by(() => {
+	// Derived state for watermark panel - with safety check
+	let watermarkPanelData = $derived.by(() => {
 		try {
-			if (!stickerToolRef || typeof stickerToolRef.getStickers !== 'function') {
+			if (!watermarkToolRef || typeof watermarkToolRef.getStickers !== 'function') {
 				return { stickers: [], selectedSticker: null };
 			}
-			const stickers = stickerToolRef.getStickers();
-			const selected = stickerToolRef.getSelectedSticker();
+			const stickers = watermarkToolRef.getStickers();
+			const selected = watermarkToolRef.getSelectedSticker();
 			return {
 				stickers: stickers.map((s) => ({ id: s.id, previewUrl: s.previewUrl })),
 				selectedSticker: selected ? { id: selected.id, previewUrl: selected.previewUrl } : null
 			};
 		} catch (e) {
-			console.warn('Error getting sticker data:', e);
+			console.warn('Error getting watermark data:', e);
 			return { stickers: [], selectedSticker: null };
 		}
 	});
@@ -119,12 +112,12 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		console.log('Should show toolbar?', activeState === 'crop' && cropToolRef);
 	});
 
-	// Debug: Watch stickerToolRef changes
+	// Debug: Watch watermarkToolRef changes
 	$effect(() => {
-		console.log('stickerToolRef changed:', stickerToolRef);
+		console.log('watermarkToolRef changed:', watermarkToolRef);
 		console.log('activeState:', activeState);
 		console.log('isMobile:', isMobile, 'isTablet:', isTablet);
-		console.log('Should show sticker panel?', activeState === 'sticker' && stickerToolRef);
+		console.log('Should show watermark panel?', activeState === 'watermark' && watermarkToolRef);
 	});
 
 	// Get store state reactively - since imageEditorStore.state uses $state, it's already reactive
@@ -474,7 +467,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					if (imageNodeState.attrs.y !== undefined) imageNode.y(imageNodeState.attrs.y);
 
 					// Apply filters if they exist
-					if (imageNodeState.attrs.filters && imageNodeState.attrs.filters.length > 0) {
+					if (imageNodeState.attrs.filters && Array.isArray(imageNodeState.attrs.filters) && imageNodeState.attrs.filters.length > 0) {
 						// Reapply filters to the image node
 						imageNode.filters(imageNodeState.attrs.filters);
 
@@ -489,7 +482,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			}
 
 			// Cache the image node if it has filters
-			if (imageNode.filters() && imageNode.filters().length > 0) {
+			const filters = imageNode.filters();
+			if (filters && Array.isArray(filters) && filters.length > 0) {
 				imageNode.cache();
 			}
 
@@ -926,20 +920,20 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							/>
 						{/if}
 
-						<!-- Sticker Top Toolbar - overlaid on canvas -->
-						{#if activeState === 'sticker' && stickerToolRef}
-							<StickerTopToolbar
-								stickers={stickerPanelData.stickers}
-								selectedSticker={stickerPanelData.selectedSticker}
-								onAddSticker={() => stickerToolRef?.openFileDialog()}
-								onDeleteSelected={() => stickerToolRef?.deleteSelectedSticker()}
-								onBringToFront={() => stickerToolRef?.bringToFront()}
-								onSendToBack={() => stickerToolRef?.sendToBack()}
+						<!-- Watermark Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'watermark' && watermarkToolRef}
+							<WatermarkTopToolbar
+								stickers={watermarkPanelData.stickers}
+								selectedSticker={watermarkPanelData.selectedSticker}
+								onAddSticker={() => watermarkToolRef?.openFileDialog()}
+								onDeleteSelected={() => watermarkToolRef?.deleteSelectedSticker()}
+								onBringToFront={() => watermarkToolRef?.bringToFront()}
+								onSendToBack={() => watermarkToolRef?.sendToBack()}
 								onReset={() => {
-									stickerToolRef?.deleteAllStickers();
+									watermarkToolRef?.deleteAllStickers();
 								}}
 								onDone={() => {
-									imageEditorStore.cleanupToolSpecific('sticker');
+									imageEditorStore.cleanupToolSpecific('watermark');
 									imageEditorStore.setActiveState('');
 									applyEdit();
 								}}
@@ -1162,22 +1156,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 						imageEditorStore.setActiveState('');
 					}}
 				/>
-			{:else if activeState === 'zoom'}
-				<Zoom
-					{stage}
-					{layer}
-					{imageNode}
-					imageGroup={storeState.imageGroup}
-					onZoomApplied={() => {
-						imageEditorStore.cleanupToolSpecific('zoom');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onZoomCancelled={() => {
-						imageEditorStore.cleanupToolSpecific('zoom');
-						imageEditorStore.setActiveState('');
-					}}
-				/>
 			{:else if activeState === 'focalpoint'}
 				<FocalPoint
 					bind:this={focalPointToolRef}
@@ -1190,60 +1168,9 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					}}
 				/>
 			{:else if activeState === 'watermark'}
-				<Watermark
-					{stage}
-					{layer}
-					{imageNode}
-					onWatermarkChange={() => applyEdit()}
-					onExitWatermark={() => {
-						imageEditorStore.cleanupToolSpecific('watermark');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-				/>
-			{:else if activeState === 'sticker'}
-				{#key `sticker-${storeState.file?.name || 'unknown'}`}
-					<Sticker bind:this={stickerToolRef} {stage} {layer} {imageNode} onStickerChange={() => applyEdit()} />
+				{#key `watermark-${storeState.file?.name || 'unknown'}`}
+					<Watermark bind:this={watermarkToolRef} {stage} {layer} {imageNode} onStickerChange={() => applyEdit()} />
 				{/key}
-			{:else if activeState === 'filter'}
-				<Filter
-					{stage}
-					{layer}
-					{imageNode}
-					onFilterApplied={() => {
-						imageEditorStore.cleanupToolSpecific('filter');
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onFilterReset={() => {
-						imageEditorStore.cleanupToolSpecific('filter');
-						imageEditorStore.setActiveState('');
-					}}
-					onFilterChange={(filterType, value) => {
-						// Handle filter changes if needed
-						console.log('Filter changed:', filterType, value);
-					}}
-				/>
-			{:else if activeState === 'textoverlay'}
-				<TextOverlay
-					{stage}
-					{layer}
-					onTextAdded={() => applyEdit()}
-					onExitText={() => {
-						imageEditorStore.cleanupToolSpecific('textoverlay');
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'shapeoverlay'}
-				<ShapeOverlay
-					{stage}
-					{layer}
-					onShapeAdded={() => applyEdit()}
-					onExitShape={() => {
-						imageEditorStore.cleanupToolSpecific('shapeoverlay');
-						imageEditorStore.setActiveState('');
-					}}
-				/>
 			{:else if activeState === 'finetune'}
 				{#key `finetune-${storeState.file?.name || 'unknown'}`}
 					<FineTune
