@@ -21,7 +21,6 @@
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// ParaglideJS
@@ -239,9 +238,9 @@
 	};
 
 	// Base Classes
-	const cBase = 'border bg-surface-100-800-token w-full md:w-3/4 rounded p-4 flex flex-col justify-center items-center';
+	const cBase = 'border bg-surface-100-900 w-full md:w-3/4 rounded p-4 flex flex-col justify-center items-center';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token flex flex-col'; // Added w-full, flex, flex-col
+	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container flex flex-col'; // Added w-full, flex, flex-col
 </script>
 
 {#if $modalStore[0]}
@@ -267,7 +266,7 @@
 						<div class="card card-hover relative">
 							<!-- Delete buttons -->
 							<div class="absolute right-0 top-2 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
-								<button type="button" onclick={() => handleDelete(file)} aria-label="Delete" class="variant-ghost-surface btn-icon">
+								<button type="button" onclick={() => handleDelete(file)} aria-label="Delete" class="preset-tonal-surface border border-surface-500 btn-icon">
 									<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500"></iconify-icon>
 								</button>
 							</div>
@@ -297,13 +296,13 @@
 
 							<!-- Media Type & Size -->
 							<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
-								<div class="variant-ghost-tertiary badge flex items-center gap-1">
+								<div class="preset-tonal-tertiary border border-tertiary-500 badge flex items-center gap-1">
 									<!-- Media Icon & type  -->
 									<iconify-icon icon={iconName} width="16" height="16"></iconify-icon>
 									<span class="text-tertiary-500 dark:text-primary-500">{formatMimeType(file.type)}</span>
 								</div>
 								<!-- File Size in KB -->
-								<p class="variant-ghost-tertiary badge flex items-center gap-1">
+								<p class="preset-tonal-tertiary border border-tertiary-500 badge flex items-center gap-1">
 									<span class="text-tertiary-500 dark:text-primary-500">{(file.size / 1024).toFixed(2)}</span>
 									KB
 								</p>
@@ -319,7 +318,7 @@
 						<input id="file-input" type="file" class="input" onchange={handleFileInputChange} />
 					</div>
 					{#if duplicateWarning}
-						<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
+						<p class="preset-filled-error-500 rounded px-2 py-4">{duplicateWarning}</p>
 					{/if}
 				</div>
 			</div>
@@ -327,7 +326,7 @@
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter} flex-shrink-0">
 			<button type="button" class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
-			<button type="submit" form="upload-form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+			<button type="submit" form="upload-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}"
 				>{m.button_save()}</button
 			>
 		</footer>

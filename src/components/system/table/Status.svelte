@@ -40,7 +40,7 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft, archive
 						: value === StatusTypes.test
 							? 'gradient-error'
 							: value === StatusTypes.draft
-								? 'variant-ghost text-surface-900-50-token'
+								? 'preset-tonal border border-surface-500 text-surface-950-50'
 								: value === StatusTypes.archive
 									? 'bg-surface-600 text-white'
 									: 'badge'}"

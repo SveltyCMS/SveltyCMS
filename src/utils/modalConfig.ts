@@ -10,7 +10,7 @@
  * - Action-specific modal templates
  */
 
-import type { ModalSettings } from '@skeletonlabs/skeleton';
+import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 import { showToast } from '@utils/toast';
 import { writable } from 'svelte/store';
 
@@ -65,7 +65,7 @@ export function createConfirmModal(config: ActionModalConfig, onConfirm: () => v
 		// Enhanced styling for buttons (use `meta` as expected by ModalSettings)
 		meta: {
 			buttonConfirmClasses: `variant-${theme.variant}-${theme.color}`,
-			buttonCancelClasses: 'variant-ghost-surface'
+			buttonCancelClasses: 'preset-tonal-surface border border-surface-500'
 		},
 
 		response: (confirmed: boolean) => {

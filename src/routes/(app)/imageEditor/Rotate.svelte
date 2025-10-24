@@ -137,7 +137,7 @@
 
 		<div class="mt-4 flex justify-around gap-4">
 			<button onclick={resetRotation} aria-label="Reset rotation" class="variant-outline btn"> Reset </button>
-			<button onclick={applyRotation} aria-label="Apply rotation" class="variant-filled-primary btn">
+			<button onclick={applyRotation} aria-label="Apply rotation" class="preset-filled-primary-500 btn">
 				<iconify-icon icon="mdi:check" width="20"></iconify-icon>
 				Apply
 			</button>

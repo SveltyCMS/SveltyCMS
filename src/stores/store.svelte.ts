@@ -340,7 +340,7 @@ export const contentLanguage = store<Locale>(initialContentLanguage);
 // Other legacy stores
 export const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
 export const headerActionButton2 = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-export const pkgBgColor = store('variant-filled-primary');
+export const pkgBgColor = store('preset-filled-primary-500');
 export const file = store<File | null>(null);
 export const saveEditedImage = store(false);
 export const saveFunction = store<SaveFunction>({

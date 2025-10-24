@@ -151,7 +151,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="variant-ghost-surface btn-icon"
+				class="preset-tonal-surface border border-surface-500 btn-icon"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>

@@ -28,7 +28,7 @@ Part of the Three Pillars Architecture for wSidget system.
 -->
 
 <script lang="ts">
-	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { contentLanguage } from '@stores/store.svelte';
 	import { debounce } from '@utils/utils';
 	import type { FieldType } from './';
@@ -129,7 +129,7 @@ Part of the Three Pillars Architecture for wSidget system.
 		{/if}
 	</header>
 
-	<TabGroup>
+	<Tabs>
 		<Tab bind:group={activeTab} name="basic" value={0}>Basic</Tab>
 		{#if hasFeature('social')}
 			<Tab bind:group={activeTab} name="social" value={1}>Social</Tab>
@@ -161,7 +161,7 @@ Part of the Three Pillars Architecture for wSidget system.
 				</div>
 			{/if}
 		</svelte:fragment>
-	</TabGroup>
+	</Tabs>
 
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

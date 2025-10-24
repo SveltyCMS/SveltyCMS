@@ -29,7 +29,7 @@
 	import RemoteUpload from './RemoteUpload.svelte';
 
 	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 
 	let tabSet: number = $state(0);
 </script>
@@ -45,7 +45,7 @@
 </div>
 
 <div class="wrapper">
-	<TabGroup>
+	<Tabs>
 		<Tab bind:group={tabSet} name="local" value={0}>
 			<div class="flex items-center justify-between gap-2">
 				<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
@@ -59,7 +59,7 @@
 				<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 			</div>
 		</Tab>
-	</TabGroup>
+	</Tabs>
 
 	<!-- Tab Panels --->
 	{#if tabSet === 0}

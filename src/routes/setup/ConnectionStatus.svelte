@@ -256,7 +256,7 @@
 			<!-- Retry Button -->
 			{#if onRetry}
 				<div class="mt-3 flex justify-end">
-					<button onclick={onRetry} class="variant-ghost-surface btn btn-sm flex items-center gap-2">
+					<button onclick={onRetry} class="preset-tonal-surface border border-surface-500 btn btn-sm flex items-center gap-2">
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"

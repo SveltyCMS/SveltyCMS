@@ -176,9 +176,9 @@ The text is draggable, and the component supports multiple text overlays on the 
 			</div>
 		</div>
 		<div class="flex justify-between space-x-2">
-			<button onclick={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
+			<button onclick={deleteSelectedText} class="preset-filled-error-500 btn" disabled={!selectedText}> Delete Selected </button>
 			<button onclick={resetTextOverlay} class="variant-outline btn"> Reset </button>
-			<button onclick={addText} class="variant-filled-primary btn"> Add Text </button>
+			<button onclick={addText} class="preset-filled-primary-500 btn"> Add Text </button>
 		</div>
 	</div>
 

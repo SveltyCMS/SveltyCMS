@@ -8,7 +8,7 @@
 -->
 
 <script lang="ts">
-	import { modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import { get } from 'svelte/store';
 
 	// Props
@@ -19,7 +19,7 @@
 		iconSize?: number;
 	}
 
-	let { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
+	let { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'preset-tonal border border-surface-500 btn-icon', iconSize = 22 }: Props = $props();
 
 	// Theme toggle tooltip settings
 	const themeToggleTooltip: PopupSettings = {
@@ -59,7 +59,7 @@
 		{/if}
 	</button>
 
-	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
+	<div class="card preset-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
 		<span class="text-sm">
 			{#if $modeCurrent}
 				Switch to Light Mode
@@ -67,7 +67,7 @@
 				Switch to Dark Mode
 			{/if}
 		</span>
-		<div class="variant-filled arrow"></div>
+		<div class="preset-filled arrow"></div>
 	</div>
 {:else}
 	<button onclick={toggleTheme} aria-label="Toggle theme" class={buttonClass}>

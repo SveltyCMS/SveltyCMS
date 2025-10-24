@@ -25,8 +25,6 @@ Key features:
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-
 	// Events
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -80,8 +78,8 @@ Key features:
 						<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</button>
 
-					<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{index}">
-						<table class="table-hover w-full table-auto">
+					<div class="card preset-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{index}">
+						<table class=" w-full table-auto">
 							<thead class="text-tertiary-500">
 								<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
 									<th class="text-left">Format</th>
@@ -131,7 +129,7 @@ Key features:
 								{/each}
 							</tbody>
 						</table>
-						<div class="bg-surface-100-800-token arrow"></div>
+						<div class="bg-surface-100-900 arrow"></div>
 					</div>
 
 					<button aria-label="Edit" class="btn-icon">

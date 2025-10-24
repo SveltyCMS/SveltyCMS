@@ -10,8 +10,6 @@ Allows administrators to monitor system status and restart services.
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { systemState, type SystemState, type ServiceHealth } from '@src/stores/system';
-	import { getToastStore } from '@skeletonlabs/skeleton';
-
 	const toastStore = getToastStore();
 
 	// Reactive state from store
@@ -62,7 +60,7 @@ Allows administrators to monitor system status and restart services.
 		try {
 			toastStore.trigger({
 				message: 'Reinitializing system...',
-				background: 'variant-filled-warning'
+				background: 'preset-filled-warning-500'
 			});
 
 			const response = await fetch('/api/system', {
@@ -75,7 +73,7 @@ Allows administrators to monitor system status and restart services.
 				const result = await response.json();
 				toastStore.trigger({
 					message: result.message || `System reinitialized: ${result.status}`,
-					background: 'variant-filled-success'
+					background: 'preset-filled-success-500'
 				});
 				await fetchHealth();
 			} else {
@@ -85,7 +83,7 @@ Allows administrators to monitor system status and restart services.
 		} catch (error) {
 			toastStore.trigger({
 				message: `Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}`,
-				background: 'variant-filled-error'
+				background: 'preset-filled-error-500'
 			});
 		}
 	}
@@ -127,13 +125,13 @@ Allows administrators to monitor system status and restart services.
 	function getServiceColor(status: ServiceHealth): string {
 		switch (status) {
 			case 'healthy':
-				return 'variant-filled-success';
+				return 'preset-filled-success-500';
 			case 'unhealthy':
-				return 'variant-filled-error';
+				return 'preset-filled-error-500';
 			case 'initializing':
-				return 'variant-filled-primary';
+				return 'preset-filled-primary-500';
 			default:
-				return 'variant-filled-surface';
+				return 'preset-filled-surface-500';
 		}
 	}
 
@@ -197,11 +195,11 @@ Allows administrators to monitor system status and restart services.
 				Auto-refresh
 			</label>
 
-			<button class="variant-ghost-primary btn btn-sm" onclick={fetchHealth} title="Refresh now">
+			<button class="preset-tonal-primary border border-primary-500 btn btn-sm" onclick={fetchHealth} title="Refresh now">
 				<span class="text-lg">🔄</span>
 			</button>
 
-			<button class="variant-ghost-warning btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
+			<button class="preset-tonal-warning border border-warning-500 btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
 				<span class="text-lg">⚡</span>
 				Reinitialize
 			</button>
@@ -210,17 +208,17 @@ Allows administrators to monitor system status and restart services.
 
 	<!-- Stats -->
 	<div class="grid grid-cols-2 gap-4 md:grid-cols-3">
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-tonal-surface border border-surface-500 p-3">
 			<p class="text-xs opacity-70">Uptime</p>
 			<p class="text-lg font-bold">{formatUptime(uptime)}</p>
 		</div>
 
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-tonal-surface border border-surface-500 p-3">
 			<p class="text-xs opacity-70">Last Checked</p>
 			<p class="text-sm font-bold">{new Date(lastChecked).toLocaleTimeString()}</p>
 		</div>
 
-		<div class="card variant-ghost-surface p-3">
+		<div class="card preset-tonal-surface border border-surface-500 p-3">
 			<p class="text-xs opacity-70">Services</p>
 			<p class="text-lg font-bold">{Object.keys(services).length}</p>
 		</div>
@@ -258,7 +256,7 @@ Allows administrators to monitor system status and restart services.
 	</div>
 
 	<!-- Health Endpoint Info -->
-	<div class="card variant-ghost-surface p-3">
+	<div class="card preset-tonal-surface border border-surface-500 p-3">
 		<details class="space-y-2">
 			<summary class="cursor-pointer text-sm font-semibold opacity-70"> API Health Endpoint </summary>
 			<div class="space-y-1 text-xs opacity-70">

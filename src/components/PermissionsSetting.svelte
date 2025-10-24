@@ -117,7 +117,7 @@ Features:
 {#if error}
 	<div class="p-4 text-center text-error-500" role="alert">
 		<p>Error: {error}</p>
-		<button onclick={() => (error = null)} class="variant-filled-primary btn mt-2">Dismiss</button>
+		<button onclick={() => (error = null)} class="preset-filled-primary-500 btn mt-2">Dismiss</button>
 	</div>
 {:else}
 	<div class="flex flex-col gap-4">
@@ -147,7 +147,7 @@ Features:
 								<div class="flex items-center gap-2">
 									<span class="font-semibold">{role.name}</span>
 									{#if role.isAdmin}
-										<span class="variant-filled-primary badge">Admin</span>
+										<span class="preset-filled-primary-500 badge">Admin</span>
 									{/if}
 								</div>
 								{#if role.description}
@@ -160,7 +160,7 @@ Features:
 										onclick={() => togglePermission(role._id, action)}
 										disabled={role.isAdmin}
 										aria-label={`${permissionsState[role._id]?.[action] ? 'Disable' : 'Enable'} ${action} for ${role.name}`}
-										class={`btn ${permissionsState[role._id]?.[action] ? 'variant-filled-success' : 'variant-filled-error'}`}
+										class={`btn ${permissionsState[role._id]?.[action] ? 'preset-filled-success-500' : 'preset-filled-error-500'}`}
 									>
 										<iconify-icon icon={actionIcons[action]} width="18"></iconify-icon>
 									</button>

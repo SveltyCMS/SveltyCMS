@@ -18,8 +18,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	// Skeleton & Stores
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -188,7 +187,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}
@@ -297,7 +296,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 									{#each roles as r}
 										<button
 											type="button"
-											class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+											class="chip {formData.role === r._id ? 'preset-filled-tertiary-500' : 'preset-tonal-secondary border border-secondary-500'}"
 											onclick={() => (formData.role = r._id)}
 										>
 											{#if formData.role === r._id}
@@ -334,7 +333,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Delete User Button -->
 			{#if showDeleteButton}
 				<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
-					<button type="button" onclick={deleteUser} class="variant-filled-error btn">
+					<button type="button" onclick={deleteUser} class="preset-filled-error-500 btn">
 						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 						<span class="hidden sm:block">{m.button_delete()}</span>
 					</button>
@@ -345,7 +344,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				<!-- Cancel -->
 				<button type="button" class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button type="submit" form="change_user_form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">
+				<button type="submit" form="change_user_form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}">
 					{m.button_save()}
 				</button>
 			</div>

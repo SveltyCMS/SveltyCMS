@@ -144,8 +144,8 @@
 			</div>
 		</div>
 		<div class="flex justify-between space-x-2">
-			<button onclick={resetFilters} class="variant-filled-error btn w-full" aria-label="Reset all filters"> Reset Filters </button>
-			<button onclick={exitFilters} class="variant-filled-primary btn w-full" aria-label="Apply filters and return to editor"> Apply </button>
+			<button onclick={resetFilters} class="preset-filled-error-500 btn w-full" aria-label="Reset all filters"> Reset Filters </button>
+			<button onclick={exitFilters} class="preset-filled-primary-500 btn w-full" aria-label="Apply filters and return to editor"> Apply </button>
 		</div>
 	</div>
 	<h2 class="text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h2>

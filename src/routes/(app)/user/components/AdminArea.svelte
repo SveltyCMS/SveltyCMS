@@ -24,8 +24,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action
@@ -367,7 +367,7 @@
 			title: modalTitle,
 			body: modalBody,
 			confirmText: actionWord,
-			confirmClasses: user.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
+			confirmClasses: user.blocked ? 'preset-filled-warning-500' : 'bg-pink-500 hover:bg-pink-600 text-white',
 			onConfirm: async () => {
 				await performBlockAction(user, action, actionPastTense);
 			}
@@ -431,7 +431,7 @@
 			title: modalTitle,
 			body: modalBody,
 			confirmText: actionWord,
-			confirmClasses: token.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
+			confirmClasses: token.blocked ? 'preset-filled-warning-500' : 'bg-pink-500 hover:bg-pink-600 text-white',
 			onConfirm: async () => {
 				await performTokenBlockAction(token, action, actionPastTense);
 			}
@@ -679,7 +679,7 @@
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button
-									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									class="chip {header.visible ? 'preset-filled-secondary-500' : 'preset-tonal-secondary border border-secondary-500'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -699,7 +699,7 @@
 
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table
-					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
+					class="table table-interactive  {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
 				>
 					<thead class="text-tertiary-500 dark:text-primary-500">
 						{#if filterShow}
@@ -820,7 +820,7 @@
 												<span class="font-mono text-sm">{row[header.key]}</span>
 												<button
 													use:clipboard={row[header.key]}
-													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													class="preset-tonal border border-surface-500 btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
 													onclick={(event) => {
@@ -837,7 +837,7 @@
 												<span class="max-w-[200px] truncate font-mono text-sm">{row[header.key]}</span>
 												<button
 													use:clipboard={row[header.key]}
-													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													class="preset-tonal border border-surface-500 btn-icon btn-icon-sm hover:preset-filled-tertiary-500"
 													aria-label="Copy Token"
 													title="Copy Token to clipboard"
 													onclick={(event) => {
@@ -893,7 +893,7 @@
 				/>
 			</div>
 		{:else}
-			<div class="variant-ghost-error btn text-center font-bold">
+			<div class="preset-tonal-error border border-error-500 btn text-center font-bold">
 				{#if showUserList}{m.adminarea_nouser()}{:else if showUsertoken}{m.adminarea_notoken()}{/if}
 			</div>
 		{/if}

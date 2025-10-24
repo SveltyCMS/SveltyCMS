@@ -177,8 +177,8 @@
 
 		<!-- Action Buttons -->
 		<div class="mt-4 flex justify-around gap-4">
-			<button onclick={removeFocalPoint} class="variant-filled-error btn" aria-label="Remove focal point"> Remove Focal Point </button>
-			<button onclick={resetFocalPoint} class="variant-filled-primary btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
+			<button onclick={removeFocalPoint} class="preset-filled-error-500 btn" aria-label="Remove focal point"> Remove Focal Point </button>
+			<button onclick={resetFocalPoint} class="preset-filled-primary-500 btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
 		</div>
 	</div>
 

@@ -23,7 +23,7 @@
 <script lang="ts">
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 
@@ -163,7 +163,7 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button type="button" onclick={() => input?.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
+			<button type="button" onclick={() => input?.click()} class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500">
 				Browse Files
 			</button>
 

@@ -87,8 +87,8 @@
 		else if (field?.maxLength && length > (field?.maxLength as number)) result = 'bg-red-600';
 		else if (field?.count && length === (field?.count as number)) result = 'bg-green-600';
 		else if (field?.count && length > (field?.count as number)) result = 'bg-orange-600';
-		else if (field?.minLength) result = '!variant-filled-surface';
-		else result = '!variant-ghost-surface';
+		else if (field?.minLength) result = '!preset-filled-surface-500';
+		else result = '!preset-tonal-surface border border-surface-500';
 
 		badgeClassCache.set(key, result);
 		return result;
@@ -251,7 +251,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500  flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}

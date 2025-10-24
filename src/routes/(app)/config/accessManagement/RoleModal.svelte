@@ -24,8 +24,6 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -70,7 +68,7 @@
 		{isEditMode ? 'Edit Role' : 'Create New Role'}
 	</header>
 
-	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={onFormSubmit} id="roleForm">
+	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container" onsubmit={onFormSubmit} id="roleForm">
 		<label class="label">
 			<span>Role Name:</span>
 			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
@@ -84,7 +82,7 @@
 
 	<!-- Footer -->
 	<footer class="modal-footer flex justify-end gap-4">
-		<button class="variant-ghost-surface btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-		<button type="submit" form="roleForm" class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create'}</button>
+		<button class="preset-tonal-surface border border-surface-500 btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+		<button type="submit" form="roleForm" class="preset-filled-primary-500 btn">{isEditMode ? 'Update' : 'Create'}</button>
 	</footer>
 </div>

@@ -10,7 +10,7 @@
  * - Centralized status toggle actions
  */
 
-import type { ToastStore } from '@skeletonlabs/skeleton';
+import type { ToastStore } from '@skeletonlabs/skeleton-svelte';
 import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';

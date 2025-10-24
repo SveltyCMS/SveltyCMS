@@ -221,7 +221,7 @@
 
 <!-- Multibutton group-->
 <div class="relative z-20 mt-1 flex items-center font-medium text-white">
-	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
+	<div class="preset-filled-token-500  flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
 		<!-- Left button -->
 		<button
 			type="button"

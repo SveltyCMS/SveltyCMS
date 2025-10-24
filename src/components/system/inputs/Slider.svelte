@@ -10,7 +10,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { RangeSlider } from '@skeletonlabs/skeleton';
+	import { Slider } from '@skeletonlabs/skeleton-svelte';
 
 	let {
 		value = $bindable({
@@ -36,7 +36,7 @@ Features:
 
 <label class="label" for="range-slider">
 	<span>Rating</span>
-	<RangeSlider
+	<Slider
 		name="range-slider"
 		id="range-slider"
 		value={value.current}

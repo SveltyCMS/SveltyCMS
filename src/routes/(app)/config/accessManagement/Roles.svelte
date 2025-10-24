@@ -25,7 +25,7 @@ It provides the following functionality:
 	import Loading from '@components/Loading.svelte';
 	import RoleModal from './RoleModal.svelte';
 	// Skeleton
-	import { getModalStore, popup, type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
@@ -245,9 +245,9 @@ It provides the following functionality:
 	<div class="wrapper my-4">
 		<div class="mb-4 flex items-center justify-between">
 			<!-- Create -->
-			<button onclick={() => openModal(null, '')} class="variant-filled-primary btn">Create Role</button>
+			<button onclick={() => openModal(null, '')} class="preset-filled-primary-500 btn">Create Role</button>
 			<!-- Delete -->
-			<button onclick={deleteSelectedRoles} class="variant-filled-error btn" disabled={selectedRoles.size === 0}>
+			<button onclick={deleteSelectedRoles} class="preset-filled-error-500 btn" disabled={selectedRoles.size === 0}>
 				Delete Roles ({selectedRoles.size})
 			</button>
 		</div>
@@ -284,7 +284,7 @@ It provides the following functionality:
 												class="ml-1 text-tertiary-500 dark:text-primary-500"
 												use:popup={getPopupSettings(role._id)}
 											></iconify-icon>
-											<div class="card variant-filled-surface p-4" data-popup="role-{role._id}">
+											<div class="card preset-filled-surface-500 p-4" data-popup="role-{role._id}">
 												{role.description}
 												<div class="arrow"></div>
 											</div>
@@ -298,7 +298,7 @@ It provides the following functionality:
 								</p>
 
 								<!-- Edit Button: changes layout depending on screen size -->
-								<button onclick={() => openModal(role)} aria-label="Edit role" class="variant-filled-secondary btn">
+								<button onclick={() => openModal(role)} aria-label="Edit role" class="preset-filled-secondary-500 btn">
 									<iconify-icon icon="mdi:pencil" class="text-white" width="18"></iconify-icon>
 									<span class="hidden md:block">Edit</span>
 								</button>

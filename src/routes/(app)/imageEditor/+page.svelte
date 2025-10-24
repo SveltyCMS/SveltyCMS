@@ -305,7 +305,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		>
 			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
+		<button type="button" onclick={handleSave} aria-label="Save" class="preset-filled-tertiary-500 btn-icon dark:preset-filled-primary-500">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 		</button>
 	{/if}

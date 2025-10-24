@@ -273,8 +273,8 @@
 			</div>
 
 			<div class="flex items-center gap-4">
-				<button onclick={resetMosaic} class="variant-filled-error btn" aria-label="Reset blur effect"> Reset </button>
-				<button onclick={applyFinalMosaic} class="variant-filled-primary btn" aria-label="Apply blur effect"> Apply </button>
+				<button onclick={resetMosaic} class="preset-filled-error-500 btn" aria-label="Reset blur effect"> Reset </button>
+				<button onclick={applyFinalMosaic} class="preset-filled-primary-500 btn" aria-label="Apply blur effect"> Apply </button>
 			</div>
 		</div>
 	</div>

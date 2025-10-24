@@ -71,5 +71,5 @@
 		oninput={handleRemoteUrlInput}
 	></textarea>
 	<!-- Upload Button -->
-	<button class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary" onclick={uploadRemoteUrls}> Upload URLs </button>
+	<button class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500" onclick={uploadRemoteUrls}> Upload URLs </button>
 </div>

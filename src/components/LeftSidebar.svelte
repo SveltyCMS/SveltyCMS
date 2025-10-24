@@ -36,7 +36,7 @@
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// Skeleton components and utilities
-	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { Avatar, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
@@ -182,7 +182,7 @@
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
 			<!-- Site name loads dynamically from global settings store -->
-			<span class="text-token relative text-2xl font-bold"><SiteName highlight="CMS" /> </span>
+			<span class="base-font-color relative text-2xl font-bold"><SiteName highlight="CMS" /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
@@ -191,7 +191,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Open Sidebar"
-				class="variant-ghost-surface btn-icon mt-1"
+				class="preset-tonal-surface border border-surface-500 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -272,9 +272,9 @@
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="User">
+				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="User">
 					{m.applayout_userprofile()}
-					<div class="variant-filled arrow"></div>
+					<div class="preset-filled arrow"></div>
 				</div>
 			</div>
 
@@ -286,7 +286,7 @@
 				<div class="language-selector relative" bind:this={dropdownRef}>
 					{#if availableLanguages.length > 5}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
+							class="preset-filled-surface-500 btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
@@ -330,7 +330,7 @@
 						<select
 							bind:value={_languageTag}
 							onchange={handleSelectChange}
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {uiStateManager.uiState.value.leftSidebar === 'full'
+							class="preset-filled-surface-500 !appearance-none rounded-full uppercase text-white {uiStateManager.uiState.value.leftSidebar === 'full'
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
 						>
@@ -342,9 +342,9 @@
 				</div>
 
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
+				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
-					<div class="variant-filled arrow"></div>
+					<div class="preset-filled arrow"></div>
 				</div>
 			</div>
 
@@ -367,9 +367,9 @@
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
+				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
-					<div class="variant-filled arrow"></div>
+					<div class="preset-filled arrow"></div>
 				</div>
 			</div>
 
@@ -395,9 +395,9 @@
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Config">
+				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Config">
 					{m.applayout_systemconfiguration()}
-					<div class="variant-filled arrow"></div>
+					<div class="preset-filled arrow"></div>
 				</div>
 			</div>
 
@@ -409,9 +409,9 @@
 					</button>
 
 					<!-- Popup Tooltip with the arrow element -->
-					<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
+					<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Github">
 						{m.applayout_githubdiscussion()}
-						<div class="variant-filled arrow"></div>
+						<div class="preset-filled arrow"></div>
 					</div>
 				</a>
 			</div>

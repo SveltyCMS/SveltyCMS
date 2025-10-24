@@ -78,10 +78,10 @@ Dynamically loads dashboard widgets on-demand, reducing initial page load time.
 		</div>
 	{:else if error}
 		<!-- Error state -->
-		<div class="widget-error card variant-ghost-error p-4">
+		<div class="widget-error card preset-tonal-error border border-error-500 p-4">
 			<h3 class="h3 mb-2">Widget Load Error</h3>
 			<p class="text-sm">Failed to load widget: {config.component}</p>
-			<button class="variant-filled-error btn btn-sm mt-4" onclick={onRemove}> Remove Widget </button>
+			<button class="preset-filled-error-500 btn btn-sm mt-4" onclick={onRemove}> Remove Widget </button>
 		</div>
 	{:else if WidgetComponent}
 		<!-- Render the actual widget -->

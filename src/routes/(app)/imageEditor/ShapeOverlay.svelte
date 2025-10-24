@@ -171,7 +171,7 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 
 		<!-- Action Buttons -->
 		<div class="mt-4 flex justify-around gap-4">
-			<button onclick={resetFocalPoint} class="variant-filled-primary btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
+			<button onclick={resetFocalPoint} class="preset-filled-primary-500 btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
 		</div>
 	</div>
 
@@ -209,8 +209,8 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 	</div>
 
 	<div class="mt-4 flex justify-between space-x-2">
-		<button onclick={addShape} class="variant-filled-primary btn w-full">Add Shape</button>
-		<button onclick={deleteSelectedShape} class="variant-filled-error btn w-full" disabled={!selectedShape}>Delete</button>
+		<button onclick={addShape} class="preset-filled-primary-500 btn w-full">Add Shape</button>
+		<button onclick={deleteSelectedShape} class="preset-filled-error-500 btn w-full" disabled={!selectedShape}>Delete</button>
 		<button onclick={bringToFront} class="variant-outline btn w-full" disabled={!selectedShape}>Bring to Front</button>
 		<button onclick={sendToBack} class="variant-outline btn w-full" disabled={!selectedShape}>Send to Back</button>
 	</div>

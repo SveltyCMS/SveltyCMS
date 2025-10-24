@@ -169,7 +169,7 @@
 		<div class="mt-4 flex justify-around gap-4">
 			<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn text-center">Reset</button>
 
-			<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
+			<button onclick={applyCrop} aria-label="Apply Crop" class="preset-filled-primary-500 btn">
 				<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
 				Apply Crop
 			</button>

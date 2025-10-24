@@ -25,8 +25,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
-	import { Tab, TabGroup } from '@skeletonlabs/skeleton';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
@@ -225,13 +225,13 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			<button
 				type="button"
 				onclick={handleCollectionDelete}
-				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+				class=" preset-filled-error-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-error-500 dark:text-black"
 				>{m.button_delete()}
 			</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+				class="preset-filled-tertiary-500 btn mb-3 mr-1 mt-1 justify-end dark:preset-filled-tertiary-500 dark:text-black">{m.button_save()}</button
 			>
 		</div>
 	{/if}
@@ -241,7 +241,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
-	<TabGroup bind:group={localTabSet}>
+	<Tabs bind:group={localTabSet}>
 		<!-- User Permissions -->
 		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->
@@ -271,5 +271,5 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{:else if tabSet.value === 1}
 			<CollectionWidget fields={collection.value?.fields as FieldInstance[] | undefined} {handleCollectionSave} />
 		{/if}
-	</TabGroup>
+	</Tabs>
 </div>

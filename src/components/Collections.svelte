@@ -612,7 +612,7 @@ Features:
 			</div>
 			<button
 				onclick={clearSearch}
-				class="variant-filled-surface w-12 transition-colors hover:variant-filled-primary"
+				class="preset-filled-surface-500 w-12 transition-colors hover:preset-filled-primary-500"
 				aria-label="Clear search"
 				disabled={!search}
 			>
@@ -634,7 +634,7 @@ Features:
 			<div class="p-4 text-center text-error-500">
 				<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
 				<p class="mt-1 text-sm">{error}</p>
-				<button class="variant-filled-error btn btn-sm mt-2" onclick={() => window.location.reload()}> Retry </button>
+				<button class="preset-filled-error-500 btn btn-sm mt-2" onclick={() => window.location.reload()}> Retry </button>
 			</div>
 		{:else if collectionStructureNodes.length > 0}
 			<TreeView
@@ -738,7 +738,7 @@ Features:
 			<div class="p-4 text-center text-surface-500">
 				<iconify-icon icon="bi:folder" width="32" class="opacity-50"></iconify-icon>
 				<p class="mt-2 text-sm">No media folders found</p>
-				<button class="variant-filled-primary btn btn-sm mt-2" onclick={() => goto('/mediagallery/create-folder')}> Create Folder </button>
+				<button class="preset-filled-primary-500 btn btn-sm mt-2" onclick={() => goto('/mediagallery/create-folder')}> Create Folder </button>
 			</div>
 		{/if}
 	{/if}

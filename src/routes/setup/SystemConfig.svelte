@@ -23,7 +23,7 @@ Key Features:
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import type { SystemSettings } from '@stores/setupStore.svelte';
 
 	// --- PROPS ---
@@ -368,7 +368,7 @@ Key Features:
 							class="relative flex flex-wrap gap-2 rounded border border-slate-300/50 bg-surface-50 p-2 pr-16 dark:border-slate-600 dark:bg-surface-700/40"
 						>
 							{#each systemSettings.systemLanguages as lang}
-								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+								<span class="group preset-tonal-tertiary border border-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-tonal-primary border border-primary-500">
 									{displayLang(lang)}
 									{#if systemSettings.systemLanguages.length > 1}
 										<button
@@ -377,7 +377,7 @@ Key Features:
 											onclick={() => removeSystemLang(lang)}
 											aria-label="Remove language"
 										>
-											&times;
+											×
 										</button>
 									{/if}
 								</span>
@@ -385,7 +385,7 @@ Key Features:
 							{#if systemAvailable.length}
 								<button
 									type="button"
-									class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+									class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 									onclick={openSystemPicker}
 									aria-haspopup="dialog"
 									aria-expanded={showSystemPicker}
@@ -496,7 +496,7 @@ Key Features:
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
 							{#each systemSettings.contentLanguages as lang}
-								<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+								<span class="group preset-tonal-tertiary border border-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-tonal-primary border border-primary-500">
 									{displayLang(lang)}
 									{#if lang !== systemSettings.defaultContentLanguage}
 										<button
@@ -505,14 +505,14 @@ Key Features:
 											onclick={() => removeContentLang(lang)}
 											aria-label="Remove language"
 										>
-											&times;
+											×
 										</button>
 									{/if}
 								</span>
 							{/each}
 							<button
 								type="button"
-								class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+								class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 								onclick={openContentPicker}
 								aria-haspopup="dialog"
 								aria-expanded={showContentPicker}

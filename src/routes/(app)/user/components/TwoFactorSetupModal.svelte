@@ -24,7 +24,6 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -149,7 +148,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							</code>
 							<button
 								onclick={() => copyToClipboard(secret)}
-								class="variant-soft-primary btn btn-sm"
+								class="preset-tonal-primary btn btn-sm"
 								title={m.button_copy()}
 								aria-label={m.button_copy()}
 							>
@@ -163,7 +162,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 		<!-- Next Step Button -->
 		<div class="flex justify-center">
-			<button onclick={() => (currentStep = 'verify')} class="variant-filled-primary btn">
+			<button onclick={() => (currentStep = 'verify')} class="preset-filled-primary-500 btn">
 				<iconify-icon icon="mdi:arrow-right" width="20" class="mr-2"></iconify-icon>
 				{m.twofa_setup_next()}
 			</button>
@@ -199,12 +198,12 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 		<!-- Action Buttons -->
 		<div class="flex justify-center gap-3">
-			<button onclick={() => (currentStep = 'setup')} class="variant-soft-surface btn">
+			<button onclick={() => (currentStep = 'setup')} class="preset-tonal-surface btn">
 				<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
 				{m.button_back()}
 			</button>
 
-			<button onclick={verifySetup} disabled={verificationCode.length !== 6 || isVerifying} class="variant-filled-primary btn">
+			<button onclick={verifySetup} disabled={verificationCode.length !== 6 || isVerifying} class="preset-filled-primary-500 btn">
 				{#if isVerifying}
 					<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
 					{m.twofa_verifying()}
@@ -232,7 +231,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		<!-- Backup Codes -->
 		{#if showBackupCodes && backupCodes.length > 0}
 			<div class="mb-6">
-				<div class="alert variant-ghost-warning">
+				<div class="alert preset-tonal-warning border border-warning-500">
 					<iconify-icon icon="mdi:key-variant" width="24"></iconify-icon>
 					<div class="alert-message">
 						<h5 class="h5 mb-2">{m.twofa_backup_codes_title()}</h5>
@@ -247,7 +246,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						</div>
 
 						<div class="flex justify-center gap-2">
-							<button onclick={() => copyToClipboard(backupCodes.join('\n'))} class="variant-soft-primary btn btn-sm">
+							<button onclick={() => copyToClipboard(backupCodes.join('\n'))} class="preset-tonal-primary btn btn-sm">
 								<iconify-icon icon="mdi:content-copy" width="16" class="mr-1"></iconify-icon>
 								{m.button_copy_all()}
 							</button>
@@ -264,7 +263,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 		<!-- Complete Button -->
 		<div class="flex justify-center">
-			<button onclick={completeSetup} class="variant-filled-success btn">
+			<button onclick={completeSetup} class="preset-filled-success-500 btn">
 				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
 				{m.button_complete()}
 			</button>
@@ -273,7 +272,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 	<!-- Cancel Button (always visible) -->
 	<div class="mt-4 flex justify-center">
-		<button onclick={cancelSetup} class="variant-soft-surface btn">
+		<button onclick={cancelSetup} class="preset-tonal-surface btn">
 			{m.button_cancel()}
 		</button>
 	</div>

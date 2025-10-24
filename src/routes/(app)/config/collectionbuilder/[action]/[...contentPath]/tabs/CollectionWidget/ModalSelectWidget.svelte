@@ -13,7 +13,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// Props
@@ -67,7 +67,7 @@
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 
 	// Call tooltip
 	function getIconTooltip(item: string): PopupSettings {
@@ -101,7 +101,7 @@
 								aria-label={item}
 								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
 									? 'bg-primary-500'
-									: ' variant-outline-warning hover:variant-ghost-warning'}"
+									: ' variant-outline-warning hover:preset-tonal-warning border border-warning-500'}"
 							>
 								<iconify-icon icon={$widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
@@ -115,9 +115,9 @@
 								></iconify-icon>
 							</button>
 							<!-- IconTooltip -->
-							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
+							<div class="card preset-filled-secondary-500 z-50 max-w-sm p-4" data-popup={item}>
 								<p>{$widgets[item]?.Description}</p>
-								<div class="variant-filled-secondary arrow"></div>
+								<div class="preset-filled-secondary-500 arrow"></div>
 							</div>
 						{/if}
 					{/if}

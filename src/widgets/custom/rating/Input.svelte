@@ -28,7 +28,7 @@ Interactive star rating with hover states and click selection
 -->
 
 <script lang="ts">
-	import { Ratings } from '@skeletonlabs/skeleton';
+	import { Rating } from '@skeletonlabs/skeleton-svelte';
 	import type { FieldType } from './';
 
 	let { field, value = $bindable(), error }: { field: FieldType; value?: number | null | undefined; error?: string | null } = $props();
@@ -50,7 +50,7 @@ Interactive star rating with hover states and click selection
 </script>
 
 <div class="rating-container" class:invalid={error}>
-	<Ratings
+	<Rating
 		max={Number(field.max) || undefined}
 		step="1"
 		interactive
@@ -64,7 +64,7 @@ Interactive star rating with hover states and click selection
 		{#snippet full()}
 			<iconify-icon icon={field.iconFull || 'material-symbols:star'} width="24" class="text-warning-500"></iconify-icon>
 		{/snippet}
-	</Ratings>
+	</Rating>
 
 	{#if error}
 		<p class="error-message" role="alert">{error}</p>

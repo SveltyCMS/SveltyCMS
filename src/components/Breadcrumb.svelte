@@ -62,7 +62,7 @@ Usage
 					{/if}
 				</button>
 				{#if index < breadcrumb.length - 1}
-					<span class="mx-2 text-gray-500 dark:text-gray-400" aria-hidden="true">&rsaquo;</span>
+					<span class="mx-2 text-gray-500 dark:text-gray-400" aria-hidden="true">›</span>
 				{/if}
 			</li>
 		{/each}

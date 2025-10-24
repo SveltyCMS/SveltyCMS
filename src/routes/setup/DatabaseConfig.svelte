@@ -4,7 +4,7 @@
 Provides DB type, host, port, name, user, password inputs, validation display, test button, and change warning.
 -->
 <script lang="ts">
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	import * as m from '@src/paraglide/messages';
 	import type { DbConfig } from '@stores/setupStore.svelte';
 
@@ -497,7 +497,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{/if}
 		</div>
 		{#if !unsupportedDbSelected}
-			<button onclick={handleTestConnection} disabled={isLoading} class="variant-filled-tertiary btn w-full dark:variant-filled-primary">
+			<button onclick={handleTestConnection} disabled={isLoading} class="preset-filled-tertiary-500 btn w-full dark:preset-filled-primary-500">
 				{#if isLoading}
 					<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white"></div>
 					Testing Connection...

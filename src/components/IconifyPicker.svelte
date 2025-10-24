@@ -254,7 +254,7 @@
 				onmouseup={removeIcon}
 				type="button"
 				aria-label="Remove Icon"
-				class="variant-ghost btn-icon transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
+				class="preset-tonal border border-surface-500 btn-icon transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
 			>
 				<iconify-icon icon="icomoon-free:bin" width="22" aria-hidden="true"></iconify-icon>
 			</button>

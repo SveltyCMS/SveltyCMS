@@ -15,8 +15,7 @@ All dynamic CMS settings organized into logical groups
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';
@@ -149,14 +148,14 @@ All dynamic CMS settings organized into logical groups
 
 <PageTitle name="Dynamic System Settings" icon="mdi:cog" showBackButton={true} backUrl="/config" />
 
-<p class="text-surface-600-300-token mb-6 px-2">
+<p class="text-surface-700-300 mb-6 px-2">
 	These are critical system settings loaded dynamically from the database. Most changes take effect immediately, though settings marked with "Restart
 	Required" need a server restart. Settings are organized into <span class="font-bold text-primary-500">{availableGroups.length}</span>
 	logical groups for easy management.
 </p>
 
 {#if unconfiguredCount > 0}
-	<div class="alert variant-filled-error mb-6">
+	<div class="alert preset-filled-error-500 mb-6">
 		<div class="alert-message">
 			<strong
 				>⚠️ Action Required: {unconfiguredCount}
@@ -200,7 +199,7 @@ All dynamic CMS settings organized into logical groups
 								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
 							{/if}
 							{#if group.requiresRestart}
-								<span class="variant-soft-warning badge text-xs">Restart</span>
+								<span class="preset-tonal-warning badge text-xs">Restart</span>
 							{/if}
 						</div>
 					</div>
@@ -275,7 +274,7 @@ All dynamic CMS settings organized into logical groups
 
 <style lang="postcss">
 	.alert {
-		@apply rounded-container-token;
+		@apply rounded-container;
 	}
 	.alert-message p {
 		@apply text-sm opacity-90;

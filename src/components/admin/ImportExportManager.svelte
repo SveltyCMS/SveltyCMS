@@ -16,8 +16,6 @@
 	import Toggles from '@components/system/inputs/Toggles.svelte';
 	import ProgressBar from '@components/system/ProgressBar.svelte';
 	// Skeleton components
-	import { getToastStore } from '@skeletonlabs/skeleton';
-
 	// Utils
 	import { getCollections } from '@utils/apiClient';
 	import { logger } from '@utils/logger.svelte';
@@ -292,12 +290,12 @@
 	function showAlertMessage(message: string, type: 'success' | 'error' | 'info' | 'warning') {
 		const background =
 			type === 'success'
-				? 'variant-filled-success'
+				? 'preset-filled-success-500'
 				: type === 'error'
-					? 'variant-filled-error'
+					? 'preset-filled-error-500'
 					: type === 'warning'
-						? 'variant-filled-warning'
-						: 'variant-filled-secondary';
+						? 'preset-filled-warning-500'
+						: 'preset-filled-secondary-500';
 
 		toastStore.trigger({
 			message,
@@ -345,12 +343,12 @@
 		</div>
 
 		<div class="flex gap-3">
-			<button onclick={() => (showExportModal = true)} class="variant-ghost-secondary btn" disabled={loading}>
+			<button onclick={() => (showExportModal = true)} class="preset-tonal-secondary border border-secondary-500 btn" disabled={loading}>
 				<iconify-icon icon="mdi:export" width="24" class=""></iconify-icon>
 				Export Data
 			</button>
 
-			<button onclick={() => (showImportModal = true)} class="variant-ghost-primary btn" disabled={loading}>
+			<button onclick={() => (showImportModal = true)} class="preset-tonal-primary border border-primary-500 btn" disabled={loading}>
 				<iconify-icon icon="mdi:import" width="24" class=""></iconify-icon>
 
 				Import Data
@@ -361,7 +359,7 @@
 	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="variant-filled-tertiary btn-icon mr-3">
+				<div class="preset-filled-tertiary-500 btn-icon mr-3">
 					<iconify-icon icon="mdi:database-export" width="24" class=""></iconify-icon>
 				</div>
 				<div>
@@ -375,7 +373,7 @@
 
 		<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
-				<div class="variant-filled-primary btn-icon mr-3">
+				<div class="preset-filled-primary-500 btn-icon mr-3">
 					<iconify-icon icon="mdi:folder-multiple" width="24" class=""></iconify-icon>
 				</div>
 				<div>
@@ -408,7 +406,7 @@
 
 	{#if exportUrl}
 		<div class="mb-6">
-			<div class="alert variant-filled-success">
+			<div class="alert preset-filled-success-500">
 				<div class="flex items-center justify-between">
 					<span>Export completed successfully!</span>
 					<button onclick={downloadExport}>
@@ -426,7 +424,7 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Export Collections</h3>
-				<button onclick={() => (showExportModal = false)} class="variant-ghost btn-icon" aria-label="Close export modal">
+				<button onclick={() => (showExportModal = false)} class="preset-tonal border border-surface-500 btn-icon" aria-label="Close export modal">
 					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 				</button>
 			</div>
@@ -443,8 +441,8 @@
 					<div class="mb-3 flex items-center justify-between">
 						<p class="block text-sm font-medium">Select Collections</p>
 						<div class="space-x-2">
-							<button onclick={selectAllCollections} class="variant-ghost-secondary btn">Select All</button>
-							<button onclick={clearCollectionSelection} class="variant-ghost-secondary btn">Clear All</button>
+							<button onclick={selectAllCollections} class="preset-tonal-secondary border border-secondary-500 btn">Select All</button>
+							<button onclick={clearCollectionSelection} class="preset-tonal-secondary border border-secondary-500 btn">Clear All</button>
 						</div>
 					</div>
 
@@ -482,8 +480,8 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showExportModal = false)} class="variant-ghost-secondary btn">Cancel</button>
-				<button onclick={exportSelectedCollections} class="variant-filled-primary btn" disabled={loading || exportOptions.collections.length === 0}>
+				<button onclick={() => (showExportModal = false)} class="preset-tonal-secondary border border-secondary-500 btn">Cancel</button>
+				<button onclick={exportSelectedCollections} class="preset-filled-primary-500 btn" disabled={loading || exportOptions.collections.length === 0}>
 					Export Selected
 				</button>
 			</div>
@@ -496,7 +494,7 @@
 		<div class="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Collections</h3>
-				<button onclick={() => (showImportModal = false)} class="variant-ghost btn-icon" aria-label="Close import modal">
+				<button onclick={() => (showImportModal = false)} class="preset-tonal border border-surface-500 btn-icon" aria-label="Close import modal">
 					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 				</button>
 			</div>
@@ -533,8 +531,8 @@
 			</div>
 
 			<div class="flex justify-end space-x-3 border-t bg-surface-100 p-6 dark:bg-surface-700">
-				<button onclick={() => (showImportModal = false)} class="variant-ghost-secondary btn">Cancel</button>
-				<button onclick={handleImport} class="variant-filled-primary btn" disabled={loading || !importFiles}>Import Data</button>
+				<button onclick={() => (showImportModal = false)} class="preset-tonal-secondary border border-secondary-500 btn">Cancel</button>
+				<button onclick={handleImport} class="preset-filled-primary-500 btn" disabled={loading || !importFiles}>Import Data</button>
 			</div>
 		</div>
 	</div>
@@ -545,7 +543,7 @@
 		<div class="max-h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-lg font-semibold">Import Results</h3>
-				<button onclick={() => (showResultsModal = false)} class="variant-ghost btn btn-sm">
+				<button onclick={() => (showResultsModal = false)} class="preset-tonal border border-surface-500 btn btn-sm">
 					<iconify-icon icon="mdi:close" width="24" class=""></iconify-icon>
 					mdi:close
 				</button>

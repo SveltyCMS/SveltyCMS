@@ -8,8 +8,7 @@ Handles all field types and validation automatically
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
 	import { showToast } from '@utils/toast';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import iso6391 from '@utils/iso639-1.json';
 
 	const modalStore = getModalStore();
@@ -449,12 +448,12 @@ Handles all field types and validation automatically
 			<span class=" mr-2">{group.icon}</span>
 			{group.name}
 		</h2>
-		<p class="text-surface-600-300-token">{group.description}</p>
+		<p class="text-surface-700-300">{group.description}</p>
 	</div>
 
 	<!-- Restart Warning -->
 	{#if group.requiresRestart}
-		<div class="alert variant-filled-warning mb-4">
+		<div class="alert preset-filled-warning-500 mb-4">
 			<div class="alert-message">
 				<strong>⚠️ Restart Required</strong>
 				<p>Changes to these settings require a server restart to take effect.</p>
@@ -464,7 +463,7 @@ Handles all field types and validation automatically
 
 	<!-- Default Values Notice -->
 	{#if hasEmptyRequiredFields}
-		<div class="bordered alert variant-filled-error mb-4">
+		<div class="bordered alert preset-filled-error-500 mb-4">
 			<div class="alert-message">
 				<strong>ℹ️ Default Values Detected</strong>
 				<p>
@@ -477,13 +476,13 @@ Handles all field types and validation automatically
 
 	<!-- Loading State -->
 	{#if loading}
-		<div class="card variant-soft-surface p-6 text-center">
+		<div class="card preset-tonal-surface p-6 text-center">
 			<p>Loading settings...</p>
 		</div>
 	{:else}
 		<!-- Error Message -->
 		{#if error}
-			<div class="alert variant-filled-error mb-4">
+			<div class="alert preset-filled-error-500 mb-4">
 				<div class="alert-message">
 					<strong>Error</strong>
 					<p>{error}</p>
@@ -571,7 +570,7 @@ Handles all field types and validation automatically
 										>
 											{#if (values[availableLangsField.key] as string[])?.length > 0}
 												{#each values[availableLangsField.key] as string[] as langCode}
-													<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+													<span class="group preset-tonal-tertiary border border-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-tonal-primary border border-primary-500">
 														{displayLanguage(langCode)} ({langCode})
 														{#if !availableLangsField.readonly}
 															<button
@@ -580,19 +579,19 @@ Handles all field types and validation automatically
 																onclick={() => removeLanguage(availableLangsField.key, langCode)}
 																aria-label="Remove {langCode}"
 															>
-																&times;
+																×
 															</button>
 														{/if}
 													</span>
 												{/each}
 											{:else if availableLangsField.placeholder}
-												<span class="text-surface-500-400-token text-xs">{availableLangsField.placeholder}</span>
+												<span class="text-surface-600-400 text-xs">{availableLangsField.placeholder}</span>
 											{/if}
 
 											{#if !availableLangsField.readonly}
 												<button
 													type="button"
-													class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 													onclick={() => {
 														showLanguagePicker[availableLangsField.key] = true;
 														languageSearch[availableLangsField.key] = '';
@@ -732,7 +731,7 @@ Handles all field types and validation automatically
 										>
 											{#if (values[localesField.key] as string[])?.length > 0}
 												{#each values[localesField.key] as string[] as langCode}
-													<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+													<span class="group preset-tonal-tertiary border border-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-tonal-primary border border-primary-500">
 														{displayLanguage(langCode)} ({langCode})
 														{#if !localesField.readonly}
 															<button
@@ -749,19 +748,19 @@ Handles all field types and validation automatically
 																}}
 																aria-label="Remove {langCode}"
 															>
-																&times;
+																×
 															</button>
 														{/if}
 													</span>
 												{/each}
 											{:else if localesField.placeholder}
-												<span class="text-surface-500-400-token text-xs">{localesField.placeholder}</span>
+												<span class="text-surface-600-400 text-xs">{localesField.placeholder}</span>
 											{/if}
 
 											{#if !localesField.readonly}
 												<button
 													type="button"
-													class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+													class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 													onclick={() => {
 														showLanguagePicker[localesField.key] = true;
 														languageSearch[localesField.key] = '';
@@ -855,7 +854,7 @@ Handles all field types and validation automatically
 									<!-- Info icon with tooltip -->
 									<button
 										type="button"
-										class="tooltip-trigger text-surface-500-400-token hover:text-surface-900 dark:hover:text-surface-50"
+										class="tooltip-trigger text-surface-600-400 hover:text-surface-900 dark:hover:text-surface-50"
 										data-tooltip={field.description}
 										aria-label="Field information"
 									>
@@ -896,7 +895,7 @@ Handles all field types and validation automatically
 										<div class="input-group-shim text-sm">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
-												<span class="text-surface-500-400-token ml-2">
+												<span class="text-surface-600-400 ml-2">
 													({formatDuration(values[field.key] as number)})
 												</span>
 											{/if}
@@ -921,7 +920,7 @@ Handles all field types and validation automatically
 									{#if !field.readonly}
 										<button
 											type="button"
-											class="text-surface-600-300-token absolute right-2 top-1/2 -translate-y-1/2 hover:text-surface-900 dark:hover:text-surface-50"
+											class="text-surface-700-300 absolute right-2 top-1/2 -translate-y-1/2 hover:text-surface-900 dark:hover:text-surface-50"
 											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 										>
@@ -974,7 +973,7 @@ Handles all field types and validation automatically
 										errors[field.key] = '';
 									}}
 								/>
-								<p class="text-surface-500-400-token mt-1 text-xs">Enter values separated by commas</p>
+								<p class="text-surface-600-400 mt-1 text-xs">Enter values separated by commas</p>
 
 								<!-- Language Multi-Select -->
 							{:else if field.type === 'language-multi'}
@@ -987,7 +986,7 @@ Handles all field types and validation automatically
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{#each values[field.key] as string[] as langCode}
-												<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+												<span class="group preset-tonal-tertiary border border-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-tonal-primary border border-primary-500">
 													{displayLanguage(langCode)} ({langCode})
 													{#if !field.readonly}
 														<button
@@ -996,19 +995,19 @@ Handles all field types and validation automatically
 															onclick={() => removeLanguage(field.key, langCode)}
 															aria-label="Remove {langCode}"
 														>
-															&times;
+															×
 														</button>
 													{/if}
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500-400-token text-xs">{field.placeholder}</span>
+											<span class="text-surface-600-400 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
 											<button
 												type="button"
-												class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 												onclick={() => {
 													showLanguagePicker[field.key] = true;
 													languageSearch[field.key] = '';
@@ -1065,7 +1064,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
-									<p class="text-surface-500-400-token mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-600-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 
 								<!-- Log Level Multi-Select -->
@@ -1078,7 +1077,7 @@ Handles all field types and validation automatically
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{#each values[field.key] as LogLevel[] as level}
-												<span class="group variant-ghost-tertiary badge inline-flex items-center gap-1 rounded-full dark:variant-ghost-primary">
+												<span class="group preset-tonal-tertiary border border-tertiary-500 badge inline-flex items-center gap-1 rounded-full dark:preset-tonal-primary border border-primary-500">
 													{level}
 													{#if !field.readonly}
 														<button
@@ -1087,19 +1086,19 @@ Handles all field types and validation automatically
 															onclick={() => removeLogLevel(field.key, level)}
 															aria-label="Remove {level}"
 														>
-															&times;
+															×
 														</button>
 													{/if}
 												</span>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500-400-token text-xs">{field.placeholder}</span>
+											<span class="text-surface-600-400 text-xs">{field.placeholder}</span>
 										{/if}
 
 										{#if !field.readonly}
 											<button
 												type="button"
-												class="variant-filled-surface badge absolute right-2 top-2 rounded-full"
+												class="preset-filled-surface-500 badge absolute right-2 top-2 rounded-full"
 												onclick={() => (showLogLevelPicker[field.key] = true)}
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
@@ -1142,7 +1141,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
-									<p class="text-surface-500-400-token mt-1 text-[10px]">Example: {field.placeholder}</p>
+									<p class="text-surface-600-400 mt-1 text-[10px]">Example: {field.placeholder}</p>
 								{/if}
 							{/if}
 
@@ -1157,12 +1156,12 @@ Handles all field types and validation automatically
 
 			<!-- Actions -->
 			<div class="actions-container flex flex-col justify-between gap-2 pt-4 sm:flex-row">
-				<button type="button" class="variant-filled-surface btn w-full sm:w-auto" onclick={resetToDefaults} disabled={saving}>
+				<button type="button" class="preset-filled-surface-500 btn w-full sm:w-auto" onclick={resetToDefaults} disabled={saving}>
 					<span>🔄</span>
 					<span>Reset to Defaults</span>
 				</button>
 
-				<button type="submit" class="variant-filled-primary btn w-full sm:w-auto" disabled={saving}>
+				<button type="submit" class="preset-filled-primary-500 btn w-full sm:w-auto" disabled={saving}>
 					{#if saving}
 						<span>Saving...</span>
 					{:else}
@@ -1188,7 +1187,7 @@ Handles all field types and validation automatically
 	}
 
 	.alert {
-		@apply p-3 rounded-container-token md:p-4;
+		@apply p-3 rounded-container md:p-4;
 	}
 
 	.alert-message strong {

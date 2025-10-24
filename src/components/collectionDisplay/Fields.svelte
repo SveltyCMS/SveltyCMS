@@ -46,7 +46,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
@@ -377,12 +377,12 @@
 {#if isLoading}
 	<Loading />
 {:else}
-	<TabGroup
+	<Tabs
 		justify="{collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
-		rounded="rounded-tl-container-token rounded-tr-container-token"
+		rounded="rounded-tl-container rounded-tr-container"
 		flex="flex-1 items-center"
-		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
-		hover="hover:variant-soft-secondary"
+		active="border-b border-tertiary-500 dark:border-primary-500 preset-tonal-secondary"
+		hover="hover:preset-tonal-secondary"
 		bind:group={localTabSet}
 	>
 		<Tab bind:group={localTabSet} name="edit" value={0}>
@@ -396,7 +396,7 @@
 			<Tab bind:group={localTabSet} name="revisions" value={1}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					{m.applayout_version()} <span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
+					{m.applayout_version()} <span class="preset-filled-secondary-500 badge">{revisionsMeta.length}</span>
 				</div>
 			</Tab>
 		{/if}
@@ -527,7 +527,7 @@
 									</option>
 								{/each}
 							</select>
-							<button class="variant-filled-primary btn" onclick={handleRevert} disabled={!selectedRevisionData || isRevisionDetailLoading}>
+							<button class="preset-filled-primary-500 btn" onclick={handleRevert} disabled={!selectedRevisionData || isRevisionDetailLoading}>
 								<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon> Revert
 							</button>
 						</div>
@@ -574,11 +574,11 @@
 				<div class="space-y-4 p-4">
 					<div class="flex items-center gap-2">
 						<input type="text" class="input flex-grow" readonly value={apiUrl} />
-						<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
+						<button class="preset-tonal-surface border border-surface-500 btn" use:clipboard={apiUrl}>Copy</button>
 					</div>
 					<CodeBlock language="json" code={JSON.stringify(collectionValue.value, null, 2)} />
 				</div>
 			{/if}
 		</svelte:fragment>
-	</TabGroup>
+	</Tabs>
 {/if}

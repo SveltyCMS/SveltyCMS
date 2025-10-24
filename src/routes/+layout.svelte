@@ -5,13 +5,12 @@
  -->
 
 <script lang="ts">
-	import '../app.postcss';
+	import '../app.css';
 	// Register Iconify custom element globally
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
 	// Initializing Skeleton stores
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
 	// Import from Floating UI
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 

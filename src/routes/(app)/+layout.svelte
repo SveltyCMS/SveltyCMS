@@ -15,8 +15,8 @@
 -->
 
 <script lang="ts">
-	// selected theme:
-	import '../../app.postcss';
+	// global styles (Tailwind v4 + Skeleton v4)
+	import '../../app.css';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -48,14 +48,12 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 	// Skeleton
-	import { getModalStore, getToastStore, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
+	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
 	import { setGlobalModalStore } from '@utils/modalUtils';
 	import { setGlobalToastStore } from '@utils/toast';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	// import type { ContentNode } from '@root/src/databases/dbInterface';
-	import { storePopup } from '@skeletonlabs/skeleton';
-
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	interface Props {
@@ -290,7 +288,7 @@
 		{#if screenSize.value === 'XS' || screenSize.value === 'SM'}
 			<FloatingNav />
 		{/if}
-		<Toast />
+		<ToastProvider />
 		<Modal />
 		{#if $isSearchVisible}
 			<SearchComponent />
@@ -329,7 +327,7 @@
 					>
 						<!-- The loading component  -->
 						{#if shouldShowLoading}
-							<div transition:fade={{ duration: 200 }} class="variant-glass-surface absolute z-50 flex h-full w-full items-center justify-center">
+							<div transition:fade={{ duration: 200 }} class="preset-tonal-surface absolute z-50 flex h-full w-full items-center justify-center">
 								<Loading
 									customTopText={loadingTopText()}
 									customBottomText={globalLoadingStore.loadingReason === loadingOperations.initialization ? 'Loading application...' : 'Please wait'}

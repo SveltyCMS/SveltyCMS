@@ -171,7 +171,7 @@
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-tonal border border-surface-500 btn-icon">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
@@ -180,7 +180,7 @@
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon">
+						<button onclick={() => (_data = undefined)} aria-label="Delete" class="preset-tonal border border-surface-500 btn-icon">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>

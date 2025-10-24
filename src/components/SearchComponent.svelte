@@ -205,7 +205,7 @@
 		<!-- Search results -->
 		<ul
 			id="search-results"
-			class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose bg-surface-active-token"
+			class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose preset-filled-surface-500"
 			role="listbox"
 			aria-label="Search results"
 		>

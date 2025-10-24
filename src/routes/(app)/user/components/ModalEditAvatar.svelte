@@ -22,11 +22,10 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
+	import { } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 
 	const modalStore = getModalStore();
 
@@ -262,7 +261,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}
@@ -307,7 +306,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					{/if}
 				</div>
 				<!-- FileDropzone Area-->
-				<FileDropzone
+				<FileUpload
 					onchange={onChange}
 					required
 					name="Avatar Upload"
@@ -332,7 +331,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					{#snippet meta()}
 						{m.modaledit_avatarfilesallowed()}
 					{/snippet}
-				</FileDropzone>
+				</FileUpload>
 			</div>
 			{#if !files && !isUploading}
 				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>
@@ -347,7 +346,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
 			{#if avatarSrc.value !== '/Default_User.svg'}
-				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
+				<button type="button" onclick={deleteAvatar} class="preset-filled-error-500 btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
@@ -362,7 +361,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				</button>
 				<!-- Save -->
 				<button
-					class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+					class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}"
 					onclick={onFormSubmit}
 					disabled={!files || isUploading}
 				>

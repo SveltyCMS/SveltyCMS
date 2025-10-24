@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
 
@@ -83,7 +82,7 @@
 				<div class="preview-item" animate:flip>
 					<img src={file.thumbnailUrl} alt={file.name} class="thumbnail" />
 					<span class="name">{file.name}</span>
-					<button onclick={() => removeFile(file._id)} class="remove-btn" aria-label="Remove">&times;</button>
+					<button onclick={() => removeFile(file._id)} class="remove-btn" aria-label="Remove">×</button>
 				</div>
 			{/each}
 		</div>

@@ -21,8 +21,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { page } from '$app/state';
 
 	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 	import { showToast } from '@utils/toast';
 
@@ -187,7 +186,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 <!-- The HTML markup for the form does not need to change -->
@@ -234,7 +233,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								{#each roles as r}
 									<button
 										type="button"
-										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										class="chip {formData.role === r._id ? 'preset-filled-tertiary-500' : 'preset-tonal-secondary border border-secondary-500'}"
 										onclick={() => (formData.role = r._id)}
 									>
 										{#if formData.role === r._id}
@@ -268,7 +267,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		<footer class="modal-footer flex items-center {formData.token ? 'justify-between' : 'justify-end'} p-4 {parent?.regionFooter ?? ''}">
 			<!-- Delete - Only show for existing tokens -->
 			{#if formData.token}
-				<button type="button" onclick={deleteToken} class="variant-filled-error btn">
+				<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{/if}
@@ -276,7 +275,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<!-- Cancel -->
 				<button type="button" class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button type="submit" form="token-form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent?.buttonPositive ?? ''}">
+				<button type="submit" form="token-form" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent?.buttonPositive ?? ''}">
 					{m.button_save()}
 				</button>
 			</div>

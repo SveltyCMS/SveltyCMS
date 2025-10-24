@@ -32,9 +32,8 @@
 	import VersionCheck from '@components/VersionCheck.svelte';
 
 	// Skeleton
-	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore, setInitialClassState } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, ToastProvider } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Utils
@@ -676,7 +675,7 @@
 <div class="bg-surface-50-900 min-h-screen w-full transition-colors">
 	<!-- Modal with component registry for this page -->
 	<Modal components={modalComponentRegistry} />
-	<Toast />
+	<ToastProvider />
 	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
 		<!-- Header -->
 		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
@@ -703,7 +702,7 @@
 					</div>
 					<div class="language-selector relative">
 						{#if systemLanguages.length > 5}
-							<button onclick={toggleLang} class="variant-ghost btn rounded px-2 py-1">
+							<button onclick={toggleLang} class="preset-tonal border border-surface-500 btn rounded px-2 py-1">
 								<span class="hidden sm:inline">{getLanguageName(systemLanguage.value)}</span>
 								<span class="font-mono text-xs font-bold">{systemLanguage.value.toUpperCase()}</span>
 								<svg
@@ -750,7 +749,7 @@
 							</select>
 						{/if}
 					</div>
-					<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="variant-ghost btn-icon" iconSize={22} />
+					<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="preset-tonal border border-surface-500 btn-icon" iconSize={22} />
 				</div>
 
 				<p class="w-full text-center text-sm sm:text-base">{m.setup_heading_subtitle()}</p>
@@ -912,7 +911,7 @@
 								clearStore();
 							}}
 							type="button"
-							class="variant-ghost btn btn-sm rounded text-xs"
+							class="preset-tonal border border-surface-500 btn btn-sm rounded text-xs"
 							aria-label="Reset data"
 							title="Reset data"
 						>
@@ -1054,7 +1053,7 @@
 						<!-- Previous Button -->
 						<div class="flex-1">
 							{#if wizard.currentStep > 0}
-								<button onclick={prevStep} class="variant-filled-tertiary btn dark:variant-filled-primary">
+								<button onclick={prevStep} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
 									<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 									{m.button_previous()}
 								</button>
@@ -1073,7 +1072,7 @@
 									onclick={nextStep}
 									disabled={!canProceed}
 									aria-disabled={!canProceed}
-									class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
+									class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
 								>
 									{m.button_next()}
 									<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
@@ -1083,7 +1082,7 @@
 									onclick={completeSetup}
 									disabled={isLoading}
 									aria-disabled={isLoading}
-									class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+									class="preset-filled-tertiary-500 btn transition-all dark:preset-filled-primary-500 {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
 								>
 									{isLoading ? 'Completing...' : m.button_complete?.() || 'Complete'}
 									<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>

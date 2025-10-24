@@ -18,7 +18,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { showToast } from '@utils/toast';
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -101,7 +101,7 @@
 	<PageTitle name="Access Management" icon="mdi:account-key" showBackButton={true} backUrl="/config" />
 
 	<div class="mt-2 flex items-center justify-center gap-4 lg:mt-0 lg:justify-end">
-		<button onclick={saveAllChanges} aria-label="Save all changes" class="variant-filled-tertiary btn" disabled={!hasModifiedChanges || isLoading}>
+		<button onclick={saveAllChanges} aria-label="Save all changes" class="preset-filled-tertiary-500 btn" disabled={!hasModifiedChanges || isLoading}>
 			{#if isLoading}
 				Saving...
 			{:else}
@@ -109,7 +109,7 @@
 			{/if}
 		</button>
 
-		<button onclick={resetChanges} aria-label="Reset changes" class="variant-filled-secondary btn" disabled={!hasModifiedChanges || isLoading}>
+		<button onclick={resetChanges} aria-label="Reset changes" class="preset-filled-secondary-500 btn" disabled={!hasModifiedChanges || isLoading}>
 			Reset
 		</button>
 	</div>
@@ -126,7 +126,7 @@
 	<Loading customTopText="Saving changes..." />
 {:else}
 	<div class="flex flex-col">
-		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
+		<Tabs justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
 			<Tab bind:group={currentTab} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
@@ -157,6 +157,6 @@
 					<AdminRole roleData={rolesData} {setRoleData} />
 				{/if}
 			</svelte:fragment>
-		</TabGroup>
+		</Tabs>
 	</div>
 {/if}

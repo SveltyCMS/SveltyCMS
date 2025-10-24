@@ -140,7 +140,7 @@
 		<!-- Action Buttons -->
 		<div class="mt-4 flex justify-around gap-4">
 			<button onclick={resetZoom} aria-label="Reset zoom" class="variant-outline btn"> Reset Zoom </button>
-			<button onclick={applyZoomResize} aria-label="Apply zoom and resize" class="variant-filled-primary btn">
+			<button onclick={applyZoomResize} aria-label="Apply zoom and resize" class="preset-filled-primary-500 btn">
 				<iconify-icon icon="mdi:check" width="20"></iconify-icon>
 				Apply
 			</button>

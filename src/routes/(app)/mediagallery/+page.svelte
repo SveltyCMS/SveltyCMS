@@ -38,7 +38,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
 	// Skeleton
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { showToast } from '@utils/toast';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
@@ -454,7 +454,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	<!-- Row 2: Action Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder with loading state -->
-		<button onclick={openAddFolderModal} aria-label="Add folder" class="variant-filled-tertiary btn gap-2" disabled={isLoading} aria-busy={isLoading}>
+		<button onclick={openAddFolderModal} aria-label="Add folder" class="preset-filled-tertiary-500 btn gap-2" disabled={isLoading} aria-busy={isLoading}>
 			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
 			{isLoading ? 'Creating...' : 'Add folder'}
 			{#if isLoading}
@@ -463,7 +463,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		</button>
 
 		<!-- Add Media -->
-		<button onclick={() => handleMobileNavigation('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
+		<button onclick={() => handleMobileNavigation('/mediagallery/uploadMedia')} aria-label="Add Media" class="preset-filled-primary-500 btn gap-2">
 			<iconify-icon icon="carbon:add-filled" width="24"></iconify-icon>
 			Add Media
 		</button>
@@ -479,7 +479,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 			<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
-				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
+				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="preset-filled-surface-500 w-12">
 					<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 				</button>
 			{/if}
@@ -497,7 +497,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
-				<button id="sortButton" aria-label="Sort" class="variant-ghost-surface btn">
+				<button id="sortButton" aria-label="Sort" class="preset-tonal-surface border border-surface-500 btn">
 					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 				</button>
 			</div>
@@ -673,7 +673,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 				{#if globalSearchValue}
-					<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+					<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
 						<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 					</button>
 				{/if}
@@ -693,7 +693,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
 			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
+			<button id="sortButton" class="preset-tonal-surface border border-surface-500 btn" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 			</button>
 		</div>

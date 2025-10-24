@@ -172,7 +172,7 @@
 	</div>
 
 	<!-- Why SMTP is Needed -->
-	<div class="card variant-ghost-primary space-y-2 p-4">
+	<div class="card preset-tonal-primary border border-primary-500 space-y-2 p-4">
 		<div class="flex items-start gap-3">
 			<iconify-icon icon="mdi:information" class="mt-0.5 text-xl text-primary-500"></iconify-icon>
 			<div class="flex-1 space-y-2">
@@ -199,7 +199,7 @@
 			{#each presets as preset}
 				<button
 					type="button"
-					class="variant-ghost-surface btn {selectedPreset === preset.name ? 'variant-filled-primary' : ''}"
+					class="preset-tonal-surface border border-surface-500 btn {selectedPreset === preset.name ? 'preset-filled-primary-500' : ''}"
 					onclick={() => applyPreset(preset.name)}
 				>
 					{preset.name}
@@ -209,7 +209,7 @@
 		{#if selectedPreset !== 'Custom'}
 			{@const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
-				<div class="card variant-ghost-warning flex items-start gap-2 p-3">
+				<div class="card preset-tonal-warning border border-warning-500 flex items-start gap-2 p-3">
 					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500"></iconify-icon>
 					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
 				</div>
@@ -304,14 +304,14 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button type="button" class="variant-filled-primary btn w-full" onclick={testConnection} disabled={!isFormValid || isTesting}>
+		<button type="button" class="preset-filled-primary-500 btn w-full" onclick={testConnection} disabled={!isFormValid || isTesting}>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? 'Testing Connection...' : 'Test SMTP Connection'}
 		</button>
 
 		<!-- Test Result -->
 		{#if testSuccess}
-			<div class="card variant-ghost-success flex items-start gap-3 p-4">
+			<div class="card preset-tonal-success border border-success-500 flex items-start gap-3 p-4">
 				<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-success-700 dark:text-success-300">Connection Successful!</p>
@@ -326,7 +326,7 @@
 		{/if}
 
 		{#if testError}
-			<div class="card variant-ghost-error flex items-start gap-3 p-4">
+			<div class="card preset-tonal-error border border-error-500 flex items-start gap-3 p-4">
 				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-error-700 dark:text-error-300">Connection Failed</p>
@@ -338,15 +338,15 @@
 
 	<!-- Navigation Buttons -->
 	<div class="flex justify-between gap-4 pt-4">
-		<button type="button" class="variant-ghost-surface btn" onclick={onBack}>
+		<button type="button" class="preset-tonal-surface border border-surface-500 btn" onclick={onBack}>
 			← {m.setup_back() || 'Back'}
 		</button>
 
 		<div class="flex gap-2">
-			<button type="button" class="variant-ghost-surface btn" onclick={handleSkip}>
+			<button type="button" class="preset-tonal-surface border border-surface-500 btn" onclick={handleSkip}>
 				{m.setup_skip() || 'Skip'}
 			</button>
-			<button type="button" class="variant-filled-primary btn" onclick={handleNext} disabled={!testSuccess}>
+			<button type="button" class="preset-filled-primary-500 btn" onclick={handleNext} disabled={!testSuccess}>
 				{m.setup_next() || 'Next'} →
 			</button>
 		</div>

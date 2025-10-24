@@ -18,7 +18,7 @@
 </script>
 
 <label for="robots-meta-select" class="label text-black dark:text-primary-500">
-	<span class="text-token">Robots Meta Data:</span>
+	<span class="base-font-color">Robots Meta Data:</span>
 	<select class="select" id="robots-meta-select" bind:value>
 		<option value="index, follow">Index, Follow</option>
 		<option value="noindex, follow">Noindex, Follow</option>

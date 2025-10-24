@@ -30,7 +30,6 @@
 <script lang="ts">
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	// Types
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { User } from '@src/databases/auth/types';
 	import { StatusTypes, type StatusType } from '@src/content/types';
 	import { createEntry, invalidateCollectionCache, updateEntryStatus } from '@src/utils/apiClient';
@@ -294,7 +293,7 @@
 </script>
 
 <header
-	class="border-secondary-600-300-token sticky top-0 z-10 flex w-full items-center justify-between bg-white p-2 dark:bg-surface-700"
+	class="border-secondary-700-300 sticky top-0 z-10 flex w-full items-center justify-between bg-white p-2 dark:bg-surface-700"
 	class:border-b={!showMore}
 >
 	<div class="flex items-center justify-start">
@@ -303,7 +302,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
-				class="variant-ghost-surface btn-icon mt-1"
+				class="preset-tonal-surface border border-surface-500 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -314,8 +313,8 @@
 			aria-label="Save"
 			class={`btn-icon mt-1 ${
 				!validationStore.isValid || !canWrite
-					? 'variant-filled-surface cursor-not-allowed opacity-50'
-					: 'variant-ghost-surface hover:variant-filled-surface'
+					? 'preset-filled-surface-500 cursor-not-allowed opacity-50'
+					: 'preset-tonal-surface border border-surface-500 hover:preset-filled-surface-500'
 			}`}
 			disabled={!validationStore.isValid || !canWrite}
 		>
@@ -355,7 +354,7 @@
 					type="button"
 					onclick={() => (showMore = !showMore)}
 					aria-label="Hide extra actions"
-					class="variant-filled-tertiary btn-icon text-white"
+					class="preset-filled-tertiary-500 btn-icon text-white"
 				>
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
@@ -366,7 +365,7 @@
 
 				{#if ['edit', 'create'].includes(mode.value)}
 					{#if shouldHideNextButton}
-						<button type="button" onclick={next} class="variant-filled-primary btn-icon dark:variant-filled-primary lg:hidden" aria-label="Next">
+						<button type="button" onclick={next} class="preset-filled-primary-500 btn-icon dark:preset-filled-primary-500 lg:hidden" aria-label="Next">
 							<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 						</button>
 					{/if}
@@ -383,7 +382,7 @@
 						</button>
 					{/if}
 				{/if}
-				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="variant-ghost-surface btn-icon">
+				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="preset-tonal-surface border border-surface-500 btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
@@ -394,7 +393,7 @@
 		{/if}
 
 		{#if !headerActionButton.value}
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-tonal-surface border border-surface-500 btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
 			<!-- {:else}
@@ -467,7 +466,7 @@
 				<input
 					type="datetime-local"
 					bind:value={createdAtDate}
-					class="variant-filled-surface w-full p-2 text-left text-sm"
+					class="preset-filled-surface-500 w-full p-2 text-left text-sm"
 					aria-label="Set creation date"
 				/>
 			</div>

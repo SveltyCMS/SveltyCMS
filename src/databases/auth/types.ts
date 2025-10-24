@@ -174,11 +174,11 @@ export const color = {
 		share: 'variant-outline-secondary'
 	},
 	enabled: {
-		create: 'variant-filled-primary',
-		read: 'variant-filled-tertiary',
-		write: 'variant-filled-warning',
-		delete: 'variant-filled-error',
-		share: 'variant-filled-secondary'
+		create: 'preset-filled-primary-500',
+		read: 'preset-filled-tertiary-500',
+		write: 'preset-filled-warning-500',
+		delete: 'preset-filled-error-500',
+		share: 'preset-filled-secondary-500'
 	}
 } as const;
 

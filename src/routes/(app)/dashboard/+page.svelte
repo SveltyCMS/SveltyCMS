@@ -20,7 +20,6 @@
 <script lang="ts">
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { DashboardWidgetConfig, DropIndicator, WidgetComponent, WidgetMeta, WidgetSize } from '@src/content/types';
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { onMount } from 'svelte';
@@ -347,7 +346,7 @@
 			<div class="relative">
 				{#if availableWidgets.length > 0}
 					<button
-						class="variant-filled-primary btn"
+						class="preset-filled-primary-500 btn"
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
@@ -467,7 +466,7 @@
 		<div class="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-surface-50 shadow-xl dark:bg-surface-800">
 			<div class="flex items-center justify-between border-b p-6">
 				<h3 class="text-xl font-semibold">Data Import & Export</h3>
-				<button onclick={() => (showImportExport = false)} class="variant-ghost btn btn-sm" aria-label="Close import/export modal">
+				<button onclick={() => (showImportExport = false)} class="preset-tonal border border-surface-500 btn btn-sm" aria-label="Close import/export modal">
 					<iconify-icon icon="mdi:close" class="h-5 w-5"></iconify-icon>
 				</button>
 			</div>
@@ -482,7 +481,7 @@
 					Your data is securely managed and never leaves your server
 				</div>
 				<div class="flex space-x-2">
-					<button onclick={() => (showImportExport = false)} class="variant-filled-primary btn"> Done </button>
+					<button onclick={() => (showImportExport = false)} class="preset-filled-primary-500 btn"> Done </button>
 				</div>
 			</div>
 		</div>

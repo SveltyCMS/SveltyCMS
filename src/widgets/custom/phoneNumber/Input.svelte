@@ -155,7 +155,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+	<div class="preset-filled-surface-500  flex w-full rounded" role="group">
 		<input
 			type="tel"
 			bind:this={inputElement}

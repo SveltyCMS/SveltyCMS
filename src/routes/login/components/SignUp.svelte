@@ -427,14 +427,14 @@ Features:
 
 					{#if !showOAuth}
 						<!-- Email SignIn only -->
-						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
+						<button type="submit" class="preset-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
 							{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="" aria-hidden="true" decoding="async" class="ml-4 h-6" />{/if}
 						</button>
 
 						<!-- Email + OAuth signin  -->
 					{:else}
-						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
+						<div class=" mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 							<button
 								type="submit"
 								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"

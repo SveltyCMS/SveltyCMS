@@ -106,7 +106,7 @@
 			href: '/dashboard',
 			label: m.dashboard(),
 			icon: 'bi:bar-chart-line',
-			classes: 'variant-ghost-primary dark:text-white',
+			classes: 'preset-tonal-primary border border-primary-500 dark:text-white',
 			iconColor: 'text-error-600',
 			permission: {
 				contextId: 'system:dashboard',
@@ -122,7 +122,7 @@
 			href: 'https://www.sveltyCMS.com',
 			label: m.marketplace(),
 			icon: 'icon-park-outline:shopping-bag',
-			classes: 'variant-ghost-primary dark:text-white',
+			classes: 'preset-tonal-primary border border-primary-500 dark:text-white',
 			target: '_blank',
 			permission: null
 		},
@@ -131,7 +131,7 @@
 			href: '/config/widgetManagement',
 			label: m.config_widgetManagement(),
 			icon: 'mdi:widgets',
-			classes: 'variant-ghost-primary dark:text-white',
+			classes: 'preset-tonal-primary border border-primary-500 dark:text-white',
 			permission: {
 				contextId: 'config:widgetManagement',
 				name: 'Widget Management',
@@ -146,7 +146,7 @@
 			href: '/config/themeManagement',
 			label: m.config_themeManagement(),
 			icon: 'ph:layout',
-			classes: 'variant-ghost-primary dark:text-white',
+			classes: 'preset-tonal-primary border border-primary-500 dark:text-white',
 			permission: {
 				contextId: 'config:themeManagement',
 				name: 'Theme Management',
@@ -161,7 +161,7 @@
 			href: '/config/systemsetting',
 			label: m.config_settings(),
 			icon: 'uil:setting',
-			classes: 'variant-ghost-error dark:text-white',
+			classes: 'preset-tonal-error border border-error-500 dark:text-white',
 			permission: {
 				// FIX: Changed from 'system:settings' to 'config:settings' to match +page.server.ts
 				contextId: 'config:settings',
@@ -177,7 +177,7 @@
 			href: '/config/import-export',
 			label: 'Import & Export',
 			icon: 'mdi:database-import',
-			classes: 'variant-ghost-warning dark:text-white',
+			classes: 'preset-tonal-warning border border-warning-500 dark:text-white',
 			permission: {
 				contextId: 'config:importExport',
 				name: 'Import & Export',
@@ -193,7 +193,7 @@
 			href: '/config/configurationManager',
 			label: 'Config Manager',
 			icon: 'mdi:sync-circle',
-			classes: 'variant-ghost-secondary dark:text-white',
+			classes: 'preset-tonal-secondary border border-secondary-500 dark:text-white',
 			permission: {
 				contextId: 'config:synchronization',
 				name: 'Configuration Manager',
@@ -210,7 +210,7 @@
 			href: '/config/system-health',
 			label: 'System Health',
 			icon: 'mdi:heart-pulse',
-			classes: 'variant-ghost-success dark:text-white',
+			classes: 'preset-tonal-success border border-success-500 dark:text-white',
 			permission: {
 				contextId: 'config:systemHealth',
 				name: 'System Health',
@@ -227,7 +227,7 @@
 			href: '/config/accessManagement',
 			label: m.config_accessManagement(),
 			icon: 'mdi:account-group',
-			classes: 'variant-ghost-error dark:text-white',
+			classes: 'preset-tonal-error border border-error-500 dark:text-white',
 			permission: {
 				contextId: 'config:accessManagement',
 				name: 'Access Management',

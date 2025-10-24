@@ -24,7 +24,7 @@
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Skeleton
-	import { ProgressBar } from '@skeletonlabs/skeleton';
+	import { Progress } from '@skeletonlabs/skeleton-svelte';
 
 	// Store
 	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
@@ -310,7 +310,7 @@
 
 			<!-- Translation Progress with smooth animation - Always show in edit mode -->
 			<div class="mt-0.5 transition-all duration-300">
-				<ProgressBar
+				<Progress
 					class="variant-outline-secondary transition-all duration-300 hover:shadow-sm"
 					value={progressValue.current}
 					meter={getColor(progressValue.current)}
@@ -363,7 +363,7 @@
 								{#if (translationProgress.value?.show || completionTotals.total > 0) && translationProgress.value?.[lang as Locale]}
 									<div class="ml-2 flex flex-1 items-center gap-2">
 										<div class="flex-1">
-											<ProgressBar
+											<Progress
 												class="transition-all duration-300"
 												value={getAnimatedLanguageProgress(lang) ?? 0}
 												meter={getColor(getAnimatedLanguageProgress(lang) ?? 0)}
@@ -388,7 +388,7 @@
 						<div class="{completionStatus ? 'justify-between' : 'justify-center'} flex items-center gap-3">
 							{#if completionStatus}
 								<div class="flex-1">
-									<ProgressBar
+									<Progress
 										class="transition-all duration-300"
 										value={progressValue.current}
 										meter={getColor(progressValue.current)}

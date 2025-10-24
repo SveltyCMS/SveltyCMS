@@ -60,7 +60,7 @@ The `children` snippet is passed an object with the following properties:
 	// Use the pkg version passed from the server load function
 	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
-	let pkgBgColor = $state('variant-soft-surface'); // Default neutral color
+	let pkgBgColor = $state('preset-tonal-surface'); // Default neutral color
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
 	let isLoading = $state(true);
@@ -75,22 +75,22 @@ The `children` snippet is passed an object with the following properties:
 				const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
 				const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
 				if (githubMajor > localMajor) {
-					pkgBgColor = 'variant-filled-error';
+					pkgBgColor = 'preset-filled-error-500';
 					versionStatusMessage = `Major update to v${githubVersion} available!`;
 					statusIcon = 'mdi:alert-circle';
 				} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
-					pkgBgColor = 'variant-filled-warning';
+					pkgBgColor = 'preset-filled-warning-500';
 					versionStatusMessage = `Update to v${githubVersion} recommended`;
 					statusIcon = 'mdi:information';
 				} else {
-					pkgBgColor = 'variant-filled-success';
+					pkgBgColor = 'preset-filled-success-500';
 					versionStatusMessage = 'You are up to date';
 					statusIcon = 'mdi:check-circle';
 				}
 			})
 			.catch(() => {
 				githubVersion = pkg;
-				pkgBgColor = 'variant-soft-surface';
+				pkgBgColor = 'preset-tonal-surface';
 				versionStatusMessage = '';
 				statusIcon = 'mdi:loading';
 			})
@@ -137,9 +137,9 @@ The `children` snippet is passed an object with the following properties:
 					Ver. {pkg}
 					{#if githubVersion !== pkg}
 						{#if versionStatusMessage}
-							&mdash; {versionStatusMessage}
+							— {versionStatusMessage}
 						{:else}
-							&mdash; Setup mode: version check will be available after installation
+							— Setup mode: version check will be available after installation
 						{/if}
 					{/if}
 				{/if}

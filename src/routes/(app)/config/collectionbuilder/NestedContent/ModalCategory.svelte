@@ -6,7 +6,7 @@
 <script lang="ts">
 	// Stores
 	import { contentStructure } from '@src/stores/collectionStore.svelte';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -171,7 +171,7 @@
 	// Base Classes for Skeleton modal
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}
@@ -217,7 +217,7 @@
 			</label>
 			<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 				{#if existingCategory.name}
-					<button type="button" onclick={deleteCategory} class="variant-filled-error btn" aria-label="Delete category" disabled={isSubmitting}>
+					<button type="button" onclick={deleteCategory} class="preset-filled-error-500 btn" aria-label="Delete category" disabled={isSubmitting}>
 						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 						<span class="hidden md:inline">{m.button_delete()}</span>
 					</button>
@@ -229,7 +229,7 @@
 					</button>
 					<button
 						type="submit"
-						class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+						class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}"
 						aria-label={m.button_save()}
 						disabled={isSubmitting}
 					>
