@@ -19,7 +19,7 @@ Displays blur strength slider and action buttons without blocking the canvas.
 		onApply: () => void;
 	}
 
-	let { blurStrength = $bindable(10), onBlurStrengthChange, onReset, onApply } = $props() as Props;
+	let { blurStrength = $bindable(10), onBlurStrengthChange, onReset, onApply }: Props = $props();
 
 	function handleSliderChange(e: Event) {
 		const input = e.target as HTMLInputElement;

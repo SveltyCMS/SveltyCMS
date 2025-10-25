@@ -11,7 +11,6 @@ and action buttons (delete, done).
 - `fillColor`: Current fill color
 - `strokeWidth`: Current stroke width
 - `fontSize`: Current font size
-- `onToolChange`: Callback when tool is selected
 - `onStyleChange`: Callback when style changes
 - `onDelete`: Callback to delete selected annotation
 - `onDeleteAll`: Callback to delete all annotations
@@ -26,7 +25,6 @@ and action buttons (delete, done).
 		fillColor = $bindable('transparent'),
 		strokeWidth = $bindable(2),
 		fontSize = $bindable(20),
-		onToolChange = () => {},
 		onStyleChange = () => {},
 		onDelete = () => {},
 		onDeleteAll = () => {},
@@ -37,7 +35,6 @@ and action buttons (delete, done).
 		fillColor?: string;
 		strokeWidth?: number;
 		fontSize?: number;
-		onToolChange?: (tool: string) => void;
 		onStyleChange?: () => void;
 		onDelete?: () => void;
 		onDeleteAll?: () => void;
@@ -54,7 +51,6 @@ and action buttons (delete, done).
 
 	function handleToolClick(toolId: string) {
 		currentTool = currentTool === toolId ? null : toolId;
-		onToolChange(currentTool || '');
 	}
 
 	function handleStrokeColorChange(e: Event) {
@@ -87,8 +83,14 @@ and action buttons (delete, done).
 	<div class="toolbar-section">
 		<span class="section-label">Tool:</span>
 		<div class="tool-buttons">
-			{#each tools as tool}
-				<button class="tool-button" class:active={currentTool === tool.id} onclick={() => handleToolClick(tool.id)} title={tool.label}>
+			{#each tools as tool (tool.id)}
+				<button
+					class="tool-button"
+					class:active={currentTool === tool.id}
+					onclick={() => handleToolClick(tool.id)}
+					title={tool.label}
+					aria-label={tool.label}
+				>
 					<iconify-icon icon={tool.icon} width="20"></iconify-icon>
 				</button>
 			{/each}
@@ -127,6 +129,7 @@ and action buttons (delete, done).
 						onStyleChange();
 					}}
 					title="Transparent Fill"
+					aria-label="Toggle transparent fill"
 				>
 					<iconify-icon icon="mdi:opacity" width="16"></iconify-icon>
 				</button>
@@ -171,8 +174,9 @@ and action buttons (delete, done).
 	</div>
 </div>
 
-<style>
+<style lang="postcss">
 	.annotate-toolbar {
+		@apply absolute left-0 right-0 top-0 z-40;
 		@apply flex flex-wrap items-center gap-4 rounded-lg px-4 py-3 shadow-lg;
 		background-color: rgb(var(--color-surface-900) / 0.95);
 		backdrop-filter: blur(10px);

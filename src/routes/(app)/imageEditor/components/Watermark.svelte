@@ -49,14 +49,45 @@ UI is in StickerToolPanel.svelte
 
 	let stickerFileInput: HTMLInputElement | undefined = $state();
 
-	// Debug log to verify component mounts
-	console.log('Sticker component mounted');
+	$effect(() => {
+		const activeState = imageEditorStore.state.activeState;
+		if (activeState === 'watermark') {
+			activate();
+		} else {
+			deactivate();
+		}
+	});
+
+	function activate() {
+		if (!layer) return;
+		stickers.forEach((sticker) => {
+			sticker.imageNode.draggable(true);
+		});
+		if (selectedSticker) {
+			selectedSticker.transformer.nodes([selectedSticker.imageNode]);
+			selectedSticker.transformer.show();
+		}
+		layer.draw();
+	}
+
+	function deactivate() {
+		if (!layer) return;
+		stickers.forEach((sticker) => {
+			sticker.imageNode.draggable(false);
+			sticker.transformer.hide();
+		});
+		if (selectedSticker) {
+			selectedSticker.transformer.nodes([]);
+		}
+		layer.draw();
+	}
 
 	// Set up click handler on stage to deselect when clicking empty area
 	$effect(() => {
 		if (!stage) return;
 
 		const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+			if (imageEditorStore.state.activeState !== 'watermark') return;
 			// If clicked on stage (not on any shape), deselect
 			if (e.target === stage || e.target.getType() === 'Layer') {
 				if (selectedSticker) {
@@ -67,10 +98,10 @@ UI is in StickerToolPanel.svelte
 			}
 		};
 
-		stage.on('click tap', handleStageClick);
+		stage.on('click.watermark tap.watermark', handleStageClick);
 
 		return () => {
-			stage.off('click tap', handleStageClick);
+			stage.off('click.watermark tap.watermark');
 		};
 	});
 
@@ -147,7 +178,7 @@ UI is in StickerToolPanel.svelte
 
 			// Create transformer for this sticker
 			const transformer = new Konva.Transformer({
-				nodes: [konvaImage],
+				nodes: [], // Initially no nodes
 				keepRatio: true,
 				enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 				rotateEnabled: true,
@@ -159,7 +190,7 @@ UI is in StickerToolPanel.svelte
 				borderStroke: '#4a90e2',
 				rotateAnchorOffset: 30,
 				name: 'watermarkTransformer'
-			}); // Add to layer
+			});
 			layer.add(konvaImage);
 			layer.add(transformer);
 			layer.draw();
@@ -176,11 +207,13 @@ UI is in StickerToolPanel.svelte
 
 			// Add to stickers array
 			stickers = [...stickers, stickerData];
-			selectedSticker = stickerData;
+			selectSticker(stickerData);
 
 			// Set up click handler to select this sticker
 			konvaImage.on('click tap', () => {
-				selectSticker(stickerData);
+				if (imageEditorStore.state.activeState === 'watermark') {
+					selectSticker(stickerData);
+				}
 			});
 
 			// Set up transform event to take snapshots
@@ -202,6 +235,8 @@ UI is in StickerToolPanel.svelte
 		// Select new
 		selectedSticker = sticker;
 		sticker.transformer.nodes([sticker.imageNode]);
+		sticker.imageNode.moveToTop();
+		sticker.transformer.moveToTop();
 		layer.draw();
 	}
 
@@ -266,8 +301,7 @@ UI is in StickerToolPanel.svelte
 
 		imageEditorStore.takeSnapshot();
 		// Move above the main image but below other stickers
-		selectedSticker.imageNode.moveToBottom();
-		selectedSticker.imageNode.moveUp(); // Move above the main image
+		selectedSticker.imageNode.zIndex(1);
 		selectedSticker.transformer.moveToTop();
 		layer.draw();
 		onStickerChange?.();
@@ -276,29 +310,6 @@ UI is in StickerToolPanel.svelte
 	export function openFileDialog() {
 		stickerFileInput?.click();
 	}
-
-	// Handle stage clicks to deselect stickers
-	$effect(() => {
-		if (!stage) return;
-
-		const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-			// If clicked on empty area, deselect
-			const target = e.target;
-			if (target === stage || target.getType() === 'Layer' || target === imageNode) {
-				if (selectedSticker) {
-					selectedSticker.transformer.nodes([]);
-					selectedSticker = null;
-					layer.draw();
-				}
-			}
-		};
-
-		stage.on('click', handleStageClick);
-
-		return () => {
-			stage.off('click', handleStageClick);
-		};
-	});
 </script>
 
 <!-- Hidden file input for sticker uploads -->

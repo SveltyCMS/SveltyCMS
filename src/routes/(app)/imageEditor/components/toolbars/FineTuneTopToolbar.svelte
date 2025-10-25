@@ -26,16 +26,8 @@ Displays a single slider at the top of the editor for the selected adjustment.
 		onAdjustmentChange: (adjustment: string) => void;
 	}
 
-	const {
-		activeAdjustment,
-		adjustmentValue = $bindable(),
-		onValueChange,
-		onComparisonStart,
-		onComparisonEnd,
-		onReset,
-		onApply,
-		onAdjustmentChange
-	} = $props() as Props;
+	let { activeAdjustment, adjustmentValue, onValueChange, onComparisonStart, onComparisonEnd, onReset, onApply, onAdjustmentChange }: Props =
+		$props();
 
 	// Available adjustments
 	const adjustments = [
@@ -126,7 +118,7 @@ Displays a single slider at the top of the editor for the selected adjustment.
 
 			{#if dropdownOpen}
 				<div class="dropdown-menu">
-					{#each adjustments as adjustment}
+					{#each adjustments as adjustment (adjustment.id)}
 						<button
 							class="dropdown-option"
 							class:selected={adjustment.id === activeAdjustment}
@@ -141,7 +133,6 @@ Displays a single slider at the top of the editor for the selected adjustment.
 				</div>
 			{/if}
 		</div>
-
 		<!-- Number input field -->
 		<div class="number-input-container">
 			<input

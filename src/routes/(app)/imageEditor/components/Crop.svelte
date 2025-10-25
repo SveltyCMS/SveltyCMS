@@ -24,16 +24,17 @@ UI components are external (CropTopToolbar, CropBottomBar).
 -->
 <script lang="ts">
 	import Konva from 'konva';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		container: Konva.Group;
+		container: Konva.Group | null;
 		cropShape?: 'rectangle' | 'square' | 'circular';
 		rotationAngle?: number;
 		scaleValue?: number;
-		onApply?: (data: { x: number; y: number; width: number; height: number; shape: string }) => void;
+		onApply?: (data: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number }) => void;
 		onCancel?: () => void;
 	}
 
@@ -47,7 +48,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		scaleValue = $bindable(100),
 		onApply = () => {},
 		onCancel = () => {}
-	} = $props() as Props;
+	}: Props = $props();
 
 	// Internal state
 	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);
@@ -69,7 +70,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 			// Small delay to ensure all Konva elements are ready
 			setTimeout(() => {
-				initCropTool();
+				// initCropTool();
 			}, 10);
 
 			return () => {
@@ -78,6 +79,19 @@ UI components are external (CropTopToolbar, CropBottomBar).
 				cleanupCropTool();
 				cleanupRotationGrid();
 			};
+		}
+	});
+
+	// Effect to react to active tool state
+	$effect(() => {
+		const activeState = imageEditorStore.state.activeState;
+		if (activeState === 'crop') {
+			// Delay slightly to ensure stage is ready after state change
+			setTimeout(() => {
+				initCropTool();
+			}, 10);
+		} else {
+			cleanupCropTool();
 		}
 	});
 
@@ -283,6 +297,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 		// Add drag boundary to keep crop tool within image bounds
 		cropTool.on('dragmove', () => {
+			if (!cropTool) return;
 			const pos = cropTool.position();
 			const bounds = {
 				minX: containerBox.x,
@@ -384,46 +399,6 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	// ========== ROTATION FUNCTIONS ==========
-
-	function initRotationGrid() {
-		cleanupRotationGrid();
-
-		// Create rule of thirds grid
-		rotationGrid = new Konva.Group({
-			name: 'rotationGrid' // For cleanup
-		});
-
-		const stageWidth = stage.width();
-		const stageHeight = stage.height();
-
-		// Vertical lines
-		for (let i = 1; i <= 2; i++) {
-			const line = new Konva.Line({
-				points: [(stageWidth / 3) * i, 0, (stageWidth / 3) * i, stageHeight],
-				stroke: 'rgba(255, 255, 255, 0.5)',
-				strokeWidth: 1,
-				dash: [5, 5],
-				listening: false
-			});
-			rotationGrid.add(line);
-		}
-
-		// Horizontal lines
-		for (let i = 1; i <= 2; i++) {
-			const line = new Konva.Line({
-				points: [0, (stageHeight / 3) * i, stageWidth, (stageHeight / 3) * i],
-				stroke: 'rgba(255, 255, 255, 0.5)',
-				strokeWidth: 1,
-				dash: [5, 5],
-				listening: false
-			});
-			rotationGrid.add(line);
-		}
-
-		layer.add(rotationGrid);
-		rotationGrid.moveToTop();
-		layer.draw();
-	}
 
 	function cleanupRotationGrid() {
 		if (rotationGrid) {
@@ -528,9 +503,11 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 	export function apply() {
 		if (!cropTool) {
-			onApply({ x: 0, y: 0, width: 0, height: 0, shape: cropShape });
+			onApply({ x: 0, y: 0, width: 0, height: 0, rotation: rotationAngle, scaleX: scaleValue / 100, scaleY: scaleValue / 100 });
 			return;
 		}
+
+		if (!container) return;
 
 		// Get crop tool bounds in stage coordinates BEFORE cleanup
 		const cropBox = cropTool.getClientRect();
@@ -572,7 +549,9 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			y: existingCropY + relativeY,
 			width: relativeWidth,
 			height: relativeHeight,
-			shape: cropShape
+			rotation: rotationAngle,
+			scaleX: scaleValue / 100,
+			scaleY: scaleValue / 100
 		};
 
 		// Cleanup UI elements AFTER getting crop data

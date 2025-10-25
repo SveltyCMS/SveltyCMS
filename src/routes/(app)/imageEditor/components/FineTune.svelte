@@ -6,21 +6,15 @@ Provides comprehensive image adjustments including brightness, contrast, saturat
 temperature, exposure, highlights, shadows, clarity, and vibrance using a top toolbar approach.
 
 #### Props
-- `stage`: Konva stage instance
-- `layer`: Konva layer instance
-- `imageNode`: Konva image node
 - `onFineTuneApplied`: Callback when adjustments are applied
 - `onFineTuneReset`: Callback when adjustments are reset
 -->
 
 <script lang="ts">
 	import Konva from 'konva';
-	import FineTuneTopToolbar from './toolbars/FineTuneTopToolbar.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
-		stage: Konva.Stage;
-		layer: Konva.Layer;
-		imageNode: Konva.Image;
 		activeAdjustment?: string;
 		onActiveAdjustmentChange?: (adjustment: string) => void;
 		onFineTuneApplied?: () => void;
@@ -28,18 +22,18 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	}
 
 	const {
-		stage,
-		layer,
-		imageNode,
 		activeAdjustment: parentActiveAdjustment = 'brightness',
-		onActiveAdjustmentChange = () => {},
+		// Callback prop - not used internally but accepted for parent component
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		onActiveAdjustmentChange: _onActiveAdjustmentChange = () => {},
 		onFineTuneApplied = () => {},
 		onFineTuneReset = () => {}
 	} = $props() as Props;
 
+	const { stage, layer, imageNode } = imageEditorStore.state;
+
 	// Store original image data for before/after comparison
 	let originalImageData: ImageData | null = $state(null);
-	let isComparing = $state(false);
 
 	// Fine-tuning adjustments
 	interface Adjustments {
@@ -107,7 +101,7 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function applyAdjustments() {
 		if (!imageNode || !layer) return;
 
-		const activeFilters: ((imageData: ImageData) => void)[] = [];
+		const activeFilters: any[] = [];
 
 		// Reset all filter properties first
 		imageNode.brightness(0);
@@ -148,13 +142,15 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		if (adjustments.exposure !== 0 || adjustments.highlights !== 0 || adjustments.shadows !== 0 || adjustments.clarity !== 0) {
 			// Create or update the cached custom filter
 			customFilter = createCustomFilter();
-			activeFilters.push(customFilter);
+			if (customFilter) {
+				activeFilters.push(customFilter);
+			}
 		} else {
 			customFilter = null;
 		}
 
 		// Apply filters to the image node
-		imageNode.filters(activeFilters);
+		imageNode.filters(activeFilters as any[]);
 
 		// Force cache reset and redraw to apply changes
 		imageNode.clearCache();
@@ -243,17 +239,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		}, 0);
 	}
 
-	// Handle active adjustment change
-	function handleActiveAdjustmentChange(adjustment: string) {
-		activeAdjustment = adjustment;
-		onActiveAdjustmentChange(adjustment);
-	}
-
-	// Handle value change from top toolbar
-	function handleValueChange(value: number) {
-		handleAdjustmentChange(activeAdjustment as keyof Adjustments, value);
-	}
-
 	// Reset all adjustments
 	function resetAdjustments() {
 		adjustments = {
@@ -268,17 +253,19 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 			vibrance: 0
 		};
 
-		imageNode.filters([]);
-		imageNode.brightness(0);
-		imageNode.contrast(0);
-		imageNode.saturation(0);
-		imageNode.hue(0);
-		imageNode.luminance(0);
+		if (imageNode && layer) {
+			imageNode.filters([]);
+			imageNode.brightness(0);
+			imageNode.contrast(0);
+			imageNode.saturation(0);
+			imageNode.hue(0);
+			imageNode.luminance(0);
 
-		// Force cache reset and redraw
-		imageNode.clearCache();
-		imageNode.cache();
-		layer.batchDraw();
+			// Need to cache and draw to see the reset
+			imageNode.clearCache();
+			imageNode.cache();
+			layer.batchDraw();
+		}
 
 		onFineTuneReset();
 	}
@@ -287,7 +274,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function startComparison() {
 		if (!originalImageData || !imageNode || !layer) return;
 
-		isComparing = true;
 		// Temporarily remove all filters to show original
 		imageNode.filters([]);
 		imageNode.clearCache();
@@ -298,7 +284,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function endComparison() {
 		if (!imageNode || !layer) return;
 
-		isComparing = false;
 		// Reapply all adjustments
 		applyAdjustments();
 	}

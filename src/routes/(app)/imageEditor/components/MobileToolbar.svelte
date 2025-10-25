@@ -31,7 +31,7 @@ tool controls for mobile/tablet editing experience.
 
 	// Props
 	interface Props {
-		activeState: string;
+		activeState: string | null;
 		onToolSelect: (tool: string) => void;
 		hasImage?: boolean;
 	}
@@ -152,7 +152,7 @@ tool controls for mobile/tablet editing experience.
 	<!-- Main toolbar with horizontal scroll -->
 	<div class="toolbar-scroll scrollbar-hide">
 		<div class="toolbar-tools">
-			{#each tools as tool}
+			{#each tools as tool (tool.id)}
 				<button
 					class="mobile-tool-btn"
 					class:active={isToolActive(tool)}
@@ -201,7 +201,7 @@ tool controls for mobile/tablet editing experience.
 					Quick Tips
 				</h4>
 				<ul class="tips-list">
-					{#each currentToolInfo.tips as tip}
+					{#each currentToolInfo.tips as tip, index (index)}
 						<li class="tip-item">
 							<iconify-icon icon="mdi:circle-small" width="16" class="text-surface-400"></iconify-icon>
 							<span class="text-sm text-surface-600 dark:text-surface-300">{tip}</span>

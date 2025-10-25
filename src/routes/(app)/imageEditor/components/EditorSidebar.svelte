@@ -18,13 +18,24 @@ and proper active state indication.
 		onToolSelect,
 		hasImage = false
 	}: {
-		activeState: string;
+		activeState: string | null;
 		onToolSelect: (tool: string) => void;
 		hasImage?: boolean;
 	} = $props();
 
 	// Tool definitions with Pintura-inspired grouping
-	const tools = [
+	interface Tool {
+		id: string;
+		name: string;
+		icon: string;
+		description: string;
+		category: string;
+		disabled?: boolean;
+		comingSoon?: boolean;
+		actualTool?: string;
+	}
+
+	const tools: Tool[] = [
 		{
 			id: 'crop',
 			name: 'Crop',
@@ -62,7 +73,7 @@ and proper active state indication.
 		}
 	];
 
-	function handleToolClick(tool: any) {
+	function handleToolClick(tool: Tool) {
 		if (tool.disabled || !hasImage) return;
 
 		// Use actualTool mapping if available, otherwise use tool.id
@@ -70,7 +81,7 @@ and proper active state indication.
 		onToolSelect(toolId);
 	}
 
-	function isToolActive(tool: any): boolean {
+	function isToolActive(tool: Tool): boolean {
 		const toolId = tool.actualTool || tool.id;
 		return activeState === toolId;
 	}
@@ -84,7 +95,7 @@ and proper active state indication.
 	</div>
 
 	<div class="sidebar-tools">
-		{#each tools as tool}
+		{#each tools as tool (tool.id)}
 			<button
 				class="tool-button"
 				class:active={isToolActive(tool)}
@@ -119,7 +130,7 @@ and proper active state indication.
 	</div>
 </div>
 
-<style>
+<style lang="postcss">
 	.editor-sidebar {
 		@apply flex w-16 flex-col border-r lg:w-20;
 		background-color: rgb(var(--color-surface-100) / 1);

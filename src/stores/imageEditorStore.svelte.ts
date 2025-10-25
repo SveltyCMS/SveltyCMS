@@ -26,7 +26,7 @@ export interface ImageEditorState {
 	layer: Konva.Layer | null;
 	imageNode: Konva.Image | null;
 	imageGroup: Konva.Group | null;
-	activeState: string;
+	activeState: string | null;
 	stateHistory: string[];
 }
 
@@ -78,7 +78,7 @@ function createImageEditorStore() {
 		state.imageGroup = imageGroup;
 	}
 
-	function setActiveState(activeState: string) {
+	function setActiveState(activeState: string | null) {
 		state.activeState = activeState;
 	}
 

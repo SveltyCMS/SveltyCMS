@@ -23,14 +23,14 @@ Displays rotation/scale sliders below the canvas without blocking view.
 		onScaleChange: (scale: number) => void;
 	}
 
-	const {
-		activeMode = $bindable(),
+	let {
+		activeMode = $bindable('rotation'),
 		onModeChange,
-		rotationAngle = $bindable(),
+		rotationAngle = $bindable(0),
 		onRotationChange,
-		scaleValue = $bindable(),
+		scaleValue = $bindable(100),
 		onScaleChange
-	} = $props() as Props;
+	}: Props = $props();
 
 	function handleRotationInput(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -53,7 +53,7 @@ Displays rotation/scale sliders below the canvas without blocking view.
 				<input type="range" min="-180" max="180" step="1" value={rotationAngle} oninput={handleRotationInput} class="rotation-slider" />
 				<div class="angle-display">{rotationAngle}°</div>
 				<div class="slider-dots">
-					{#each [-180, -135, -90, -45, 0, 45, 90, 135, 180] as angle}
+					{#each [-180, -135, -90, -45, 0, 45, 90, 135, 180] as angle (angle)}
 						<button class="dot" class:active={Math.abs(rotationAngle - angle) < 5} onclick={() => onRotationChange(angle)} title="{angle}°"></button>
 					{/each}
 				</div>

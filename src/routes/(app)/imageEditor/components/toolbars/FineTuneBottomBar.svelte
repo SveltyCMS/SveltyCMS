@@ -15,7 +15,7 @@ Displays tabs below the canvas for selecting different adjustment types.
 		onAdjustmentChange: (adjustment: string) => void;
 	}
 
-	const { activeAdjustment = $bindable(), onAdjustmentChange } = $props() as Props;
+	let { activeAdjustment, onAdjustmentChange }: Props = $props();
 
 	// Available adjustments
 	const adjustments = [
@@ -38,7 +38,7 @@ Displays tabs below the canvas for selecting different adjustment types.
 <div class="finetune-bottom-bar">
 	<!-- Adjustment tabs -->
 	<div class="adjustment-tabs">
-		{#each adjustments as adjustment}
+		{#each adjustments as adjustment (adjustment.id)}
 			<button
 				class="adjustment-tab"
 				class:active={activeAdjustment === adjustment.id}
