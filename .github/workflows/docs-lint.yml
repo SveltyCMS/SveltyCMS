@@ -1,21 +1,25 @@
 # .github/workflows/docs-lint.yml
+# Test documentation files for linting errors on pull requests that modify docs.
 name: Docs Lint
 
 on:
   pull_request:
     paths:
-      - 'src/widgets/**/*.mdx'
+      - 'src/widgets/**/*.mdx' # Trigger only when docs or mdx change
       - 'docs/**/*.mdx'
       - 'docs/**/*.ts'
 
 jobs:
   lint-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Ubuntu environment for CI
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm tsx docs/lint-docs.ts
+      - uses: actions/checkout@v4 # Checkout repository code
+
+      - name: Setup Bun # Use Bun instead of Node+pnpm
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install deps # Install dependencies with Bun
+        run: bun install
+
+      - name: Lint docs # Run doc linter using tsx
+        run: bunx tsx docs/lint-docs.ts

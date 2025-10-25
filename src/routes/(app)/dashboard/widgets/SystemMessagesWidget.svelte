@@ -57,7 +57,17 @@
 	}>();
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/systemMessages" pollInterval={30000} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/systemMessages"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: calc({size.h} * 120px - 40px); overflow-y: auto;" role="list" aria-label="System messages">

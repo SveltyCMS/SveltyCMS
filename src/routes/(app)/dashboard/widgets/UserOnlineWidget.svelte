@@ -76,7 +76,17 @@ Features:
 	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/online_user" pollInterval={60000} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/online_user"
+	pollInterval={60000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData?.onlineUsers}
 			{@const filteredUsers = filterUsers(fetchedData.onlineUsers, searchTerm)}

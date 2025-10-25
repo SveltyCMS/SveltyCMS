@@ -80,7 +80,17 @@
 	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/last5media" pollInterval={30000} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/last5media"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 media files">
