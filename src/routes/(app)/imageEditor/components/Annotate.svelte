@@ -60,7 +60,12 @@ with customizable colors, sizes, and styles.
 	 */
 	function activate() {
 		if (!stage) return;
-		console.log('Activating annotation tool listeners');
+
+		// Ensure transformer exists before activating
+		if (!transformer) {
+			initialize();
+		}
+
 		stage.on('mousedown.annotate touchstart.annotate', handleMouseDown);
 		stage.on('mousemove.annotate touchmove.annotate', handleMouseMove);
 		stage.on('mouseup.annotate touchend.annotate', handleMouseUp);
@@ -72,19 +77,40 @@ with customizable colors, sizes, and styles.
 	 */
 	function deactivate() {
 		if (!stage) return;
-		console.log('Deactivating annotation tool listeners');
 		stage.off('mousedown.annotate touchstart.annotate');
 		stage.off('mousemove.annotate touchmove.annotate');
 		stage.off('mouseup.annotate touchend.annotate');
 		stage.off('click.annotate tap.annotate');
+
+		// Clear transformer selection when deactivating
+		if (transformer) {
+			transformer.nodes([]);
+			transformer.hide();
+			layer?.batchDraw();
+		}
+		selectedAnnotation = null;
 	}
 
 	/**
 	 * Initialize the annotation tool
 	 */
 	function initialize() {
-		if (!stage || !layer) return;
+		if (!stage || !layer) {
+			console.warn('Cannot initialize: stage or layer not available');
+			return;
+		}
 
+		// Check if transformer already exists and is valid
+		if (transformer) {
+			try {
+				// Test if transformer is still valid
+				transformer.getLayer();
+				return;
+			} catch (e) {
+				console.warn('Existing transformer is invalid, recreating');
+				transformer = null;
+			}
+		}
 		// Create transformer for selected annotations
 		transformer = new Konva.Transformer({
 			name: 'annotationTransformer',
@@ -105,10 +131,10 @@ with customizable colors, sizes, and styles.
 				return newBox;
 			}
 		});
-		layer.add(transformer);
-		transformer.moveToTop();
 
-		// Do not add stage click handler here, will be managed by activate/deactivate
+		layer.add(transformer);
+		transformer.hide(); // Hide initially
+		transformer.moveToTop();
 
 		layer.batchDraw();
 	}
@@ -201,16 +227,63 @@ with customizable colors, sizes, and styles.
 	 * Select annotation
 	 */
 	function selectAnnotation(node: AnnotationShape) {
-		if (!transformer || !layer || !stage) return;
+		if (!transformer || !layer || !stage) {
+			// Try to reinitialize if transformer is missing
+			if (!transformer && layer && stage) {
+				initialize();
+				if (!transformer) {
+					return;
+				}
+			} else {
+				return;
+			}
+		}
 
 		// Check if node is still attached to the layer
-		if (!node || !node.getParent()) return;
+		if (!node || !node.getParent()) {
+			console.warn('Cannot select annotation: node is not attached to layer');
+			return;
+		}
+
+		// Check if the node is destroyed
+		try {
+			node.getAbsolutePosition(); // This will throw if node is destroyed
+		} catch (e) {
+			console.warn('Cannot select annotation: node is destroyed', e);
+			return;
+		}
+
+		// Detach transformer from any previous nodes completely
+		try {
+			transformer.nodes([]);
+			transformer.detach();
+		} catch (e) {
+			console.warn('Error detaching transformer:', e);
+		}
 
 		selectedAnnotation = node;
-		transformer.nodes([node]);
-		transformer.show();
-		transformer.moveToTop();
-		layer.batchDraw();
+
+		// Ensure node is draggable
+		if (!node.draggable()) {
+			node.draggable(true);
+		}
+
+		// Attach to new node with error handling
+		try {
+			transformer.nodes([node]);
+			transformer.show();
+			transformer.moveToTop();
+
+			// Force update the transformer
+			transformer.forceUpdate();
+
+			layer.batchDraw();
+			stage.batchDraw();
+		} catch (e) {
+			console.error('Error attaching transformer to node:', e);
+			selectedAnnotation = null;
+			transformer.nodes([]);
+		}
 	}
 
 	/**
@@ -432,6 +505,26 @@ with customizable colors, sizes, and styles.
 
 	// Export methods for parent component
 	export function apply() {
+		// Make all annotations non-draggable and remove event listeners
+		annotations.forEach((annotation) => {
+			annotation.draggable(false);
+			// Remove all click/tap event listeners
+			annotation.off('click tap');
+			annotation.off('dblclick dbltap');
+		});
+
+		// Clear selection
+		if (transformer) {
+			transformer.nodes([]);
+			transformer.hide();
+		}
+		selectedAnnotation = null;
+
+		// Deactivate the tool
+		deactivate();
+
+		layer?.batchDraw();
+
 		return annotations;
 	}
 

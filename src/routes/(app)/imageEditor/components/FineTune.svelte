@@ -75,7 +75,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 
 	// Initialize with original image data
 	$effect(() => {
-		console.log('FineTune component mounted');
 		if (imageNode && imageNode.getCanvas()) {
 			const context = imageNode.getCanvas().getContext();
 			if (context) {
@@ -87,7 +86,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		}
 
 		return () => {
-			console.log('FineTune component unmounting');
 			// Cleanup filters when component unmounts
 			if (imageNode) {
 				imageNode.filters([]);
@@ -302,13 +300,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		const imageGroup = imageNode.getParent();
 		if (!imageGroup) return;
 
-		console.log('applyFineTunePermanently - BEFORE:', {
-			imageGroupPos: { x: imageGroup.x(), y: imageGroup.y() },
-			imageGroupScale: { x: imageGroup.scaleX(), y: imageGroup.scaleY() },
-			imageNodeSize: { width: imageNode.width(), height: imageNode.height() },
-			imageNodePos: { x: imageNode.x(), y: imageNode.y() }
-		});
-
 		// Create a temporary canvas at the original image resolution
 		const tempCanvas = document.createElement('canvas');
 		const tempContext = tempCanvas.getContext('2d');
@@ -319,13 +310,15 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		tempCanvas.height = imageNode.height();
 
 		// Calculate the position and scale of the image in the stage
-		const stagePos = imageGroup.getAbsolutePosition();
+		// Use the imageNode's absolute position for accurate capture
+		const imageNodeAbsolutePos = imageNode.getAbsolutePosition();
 		const scale = imageGroup.scaleX(); // Assuming uniform scaling
 
-		const imageX = stagePos.x - (imageNode.width() * scale) / 2;
-		const imageY = stagePos.y - (imageNode.height() * scale) / 2;
-		const imageWidth = imageNode.width() * scale;
-		const imageHeight = imageNode.height() * scale;
+		// The imageNode's absolute position is already the top-left corner after transforms
+		const imageX = imageNodeAbsolutePos.x;
+		const imageY = imageNodeAbsolutePos.y;
+		const imageWidth = imageNode.width() * Math.abs(scale);
+		const imageHeight = imageNode.height() * Math.abs(scale);
 
 		// Calculate the pixel ratio needed to maintain original quality
 		// This ensures we capture at the original image resolution, not the display resolution
@@ -377,19 +370,19 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 				// Update the image node with the new filtered image
 				imageNode.image(newImage);
 
-				// IMPORTANT: Restore the dimensions to prevent any size changes
+				// IMPORTANT: Restore ALL properties to prevent any changes
+				// The new image is already pre-cropped and filtered, so we need to:
+				// 1. Clear crop properties since the new image is the final cropped version
+				imageNode.cropX(0);
+				imageNode.cropY(0);
+				imageNode.cropWidth(currentWidth);
+				imageNode.cropHeight(currentHeight);
+
+				// 2. Restore dimensions and position
 				imageNode.width(currentWidth);
 				imageNode.height(currentHeight);
 				imageNode.x(currentX);
 				imageNode.y(currentY);
-
-				console.log('applyFineTunePermanently - AFTER image update:', {
-					imageGroupPos: { x: imageGroup.x(), y: imageGroup.y() },
-					imageGroupScale: { x: imageGroup.scaleX(), y: imageGroup.scaleY() },
-					imageNodeSize: { width: imageNode.width(), height: imageNode.height() },
-					imageNodePos: { x: imageNode.x(), y: imageNode.y() },
-					newImageSize: { width: newImage.width, height: newImage.height }
-				});
 
 				// Clear cache and redraw
 				imageNode.clearCache();

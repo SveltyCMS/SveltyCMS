@@ -34,7 +34,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		cropShape?: 'rectangle' | 'square' | 'circular';
 		rotationAngle?: number;
 		scaleValue?: number;
-		onApply?: (data: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number }) => void;
+		onApply?: (data: { x: number; y: number; width: number; height: number; rotation: number; scaleX: number; scaleY: number; isCircular?: boolean }) => void;
 		onCancel?: () => void;
 	}
 
@@ -66,16 +66,8 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	$effect(() => {
 		if (!mounted && stage && layer && imageNode && container) {
 			mounted = true;
-			console.log('Crop tool mounted, initializing...', { stage, layer, imageNode, container });
-
-			// Small delay to ensure all Konva elements are ready
-			setTimeout(() => {
-				// initCropTool();
-			}, 10);
 
 			return () => {
-				// Cleanup on unmount
-				console.log('Crop tool unmounting, cleaning up...');
 				cleanupCropTool();
 				cleanupRotationGrid();
 			};
@@ -104,8 +96,6 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	function initCropTool() {
-		console.log('initCropTool called', { imageNode, layer, cropShape, container });
-
 		// Validate required elements
 		if (!stage || !layer || !imageNode || !container) {
 			console.error('Missing required elements for crop tool initialization');
@@ -115,8 +105,16 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		// Clear previous crop tool and transformer
 		if (cropTool) cropTool.destroy();
 		if (transformer) transformer.destroy();
-		if (cropOverlay) cropOverlay.destroy();
-		if (cropHighlight) cropHighlight.destroy();
+
+		// Remove the entire overlay group (contains both overlay and highlight)
+		const existingOverlayGroup = layer.findOne('.cropOverlayGroup');
+		if (existingOverlayGroup) {
+			existingOverlayGroup.destroy();
+		}
+
+		// Clear individual references
+		cropOverlay = null;
+		cropHighlight = null;
 
 		// Get the actual rendered dimensions in stage coordinates
 		// The image is inside a transformed container, so we need to get the bounding box
@@ -268,12 +266,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		layer.add(transformer);
 		transformer.moveToTop(); // Ensure transformer is on top
 
-		// Set up interaction handlers for smooth caching
-		cropTool.on('transformstart', () => {
-			// Disable cache during interaction for smooth updates
-			overlayGroup.clearCache();
-		});
-
+		// Set up interaction handlers
 		cropTool.on('transform', () => {
 			if (cropTool instanceof Konva.Circle) {
 				const scaleX = cropTool.scaleX();
@@ -281,18 +274,13 @@ UI components are external (CropTopToolbar, CropBottomBar).
 				cropTool.scaleX(1);
 				cropTool.scaleY(1);
 			}
-			// Update highlight without re-caching during transform
-			updateHighlight(false);
+			// Update highlight with re-caching for smooth visual updates
+			updateHighlight();
 		});
 
 		cropTool.on('transformend', () => {
-			// Re-cache after transform is complete
-			updateHighlight(true);
-		});
-
-		cropTool.on('dragstart', () => {
-			// Disable cache during drag
-			overlayGroup?.clearCache();
+			// Final update after transform
+			updateHighlight();
 		});
 
 		// Add drag boundary to keep crop tool within image bounds
@@ -318,13 +306,13 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			}
 
 			cropTool.position(pos);
-			// Update highlight without re-caching during drag
-			updateHighlight(false);
+			// Update highlight with re-caching for smooth visual updates
+			updateHighlight();
 		});
 
 		cropTool.on('dragend', () => {
-			// Re-cache after drag is complete
-			updateHighlight(true);
+			// Final update after drag
+			updateHighlight();
 		});
 
 		layer.batchDraw();
@@ -333,24 +321,30 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		stage.batchDraw();
 	}
 
-	function updateHighlight(shouldCache: boolean = true) {
+	function updateHighlight() {
 		if (!cropTool || !cropHighlight) return;
 
 		// Get the overlay group
 		const overlayGroup = layer.findOne('.cropOverlayGroup') as Konva.Group;
 		if (!overlayGroup) return;
 
+		// Clear cache first to prevent checkerboard
+		overlayGroup.clearCache();
+
 		// Sync highlight with crop tool's transform properties
 		if (cropTool instanceof Konva.Circle && cropHighlight instanceof Konva.Circle) {
 			// For circles, sync position and radius
-			cropHighlight.position(cropTool.position());
+			// Important: circles use x/y for center position, not top-left
+			cropHighlight.x(cropTool.x());
+			cropHighlight.y(cropTool.y());
 			cropHighlight.radius(cropTool.radius());
 			cropHighlight.rotation(cropTool.rotation());
 			cropHighlight.scaleX(cropTool.scaleX());
 			cropHighlight.scaleY(cropTool.scaleY());
 		} else if (cropTool instanceof Konva.Rect && cropHighlight instanceof Konva.Rect) {
 			// For rectangles, sync all transform properties including rotation
-			cropHighlight.position(cropTool.position());
+			cropHighlight.x(cropTool.x());
+			cropHighlight.y(cropTool.y());
 			cropHighlight.width(cropTool.width());
 			cropHighlight.height(cropTool.height());
 			cropHighlight.rotation(cropTool.rotation());
@@ -358,18 +352,16 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			cropHighlight.scaleY(cropTool.scaleY());
 		}
 
-		// Only re-cache after interaction is complete, not during
-		if (shouldCache) {
-			const stageWidth = stage.width();
-			const stageHeight = stage.height();
-			overlayGroup.cache({
-				x: 0,
-				y: 0,
-				width: stageWidth,
-				height: stageHeight,
-				pixelRatio: 1
-			});
-		}
+		// Always re-cache immediately to apply the cutout effect
+		const stageWidth = stage.width();
+		const stageHeight = stage.height();
+		overlayGroup.cache({
+			x: 0,
+			y: 0,
+			width: stageWidth,
+			height: stageHeight,
+			pixelRatio: 1
+		});
 
 		layer.batchDraw();
 	}
@@ -429,17 +421,24 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	function applyScale() {
 		if (container) {
 			const scale = scaleValue / 100;
-			container.scale({ x: scale, y: scale });
 
-			// Center the scaled image
-			const imageWidth = imageNode.width() * scale;
-			const imageHeight = imageNode.height() * scale;
+			// Get current scale and preserve flip state
+			const currentScaleX = container.scaleX();
+			const currentScaleY = container.scaleY();
+			const flipX = currentScaleX < 0 ? -1 : 1;
+			const flipY = currentScaleY < 0 ? -1 : 1;
+
+			// Apply scale while preserving flip state
+			container.scale({ x: scale * flipX, y: scale * flipY });
+
+			// Keep container centered - don't change position
+			// The container should stay at stage center (set during initialization)
 			const stageWidth = stage.width();
 			const stageHeight = stage.height();
 
 			container.position({
-				x: (stageWidth - imageWidth) / 2,
-				y: (stageHeight - imageHeight) / 2
+				x: stageWidth / 2,
+				y: stageHeight / 2
 			});
 
 			layer.draw();
@@ -458,13 +457,10 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	// ========== EXPORTED FUNCTIONS ==========
 
 	export function rotateLeft() {
-		console.log('rotateLeft called, current angle:', rotationAngle);
 		rotationAngle = (rotationAngle - 90) % 360;
-		console.log('New angle:', rotationAngle);
 	}
 
 	export function flipHorizontal() {
-		console.log('flipHorizontal called');
 		isFlippedH = !isFlippedH;
 		if (container) {
 			container.scaleX(container.scaleX() * -1);
@@ -486,13 +482,11 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	export function cleanup() {
-		console.log('Manual cleanup called from parent');
 		cleanupCropTool();
 		cleanupRotationGrid();
 	}
 
 	export function setAspectRatio(ratio: string) {
-		console.log('Setting aspect ratio:', ratio);
 		aspectRatio = ratio;
 
 		// Reinitialize crop tool with new aspect ratio constraint
@@ -551,7 +545,8 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			height: relativeHeight,
 			rotation: rotationAngle,
 			scaleX: scaleValue / 100,
-			scaleY: scaleValue / 100
+			scaleY: scaleValue / 100,
+			isCircular: cropShape === 'circular'
 		};
 
 		// Cleanup UI elements AFTER getting crop data

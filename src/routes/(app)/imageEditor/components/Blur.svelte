@@ -41,7 +41,6 @@ UI components are external (BlurTopToolbar).
 
 	function initBlurTool() {
 		if (!stage) return;
-		console.log('Initializing blur tool listeners');
 		stage.on('mousedown touchstart', handleMouseDown);
 		stage.on('mousemove touchmove', handleMouseMove);
 		stage.on('mouseup touchend', handleMouseUp);
@@ -50,7 +49,6 @@ UI components are external (BlurTopToolbar).
 
 	function deactivateBlurTool() {
 		if (!stage) return;
-		console.log('Deactivating blur tool listeners');
 		stage.off('mousedown touchstart', handleMouseDown);
 		stage.off('mousemove touchmove', handleMouseMove);
 		stage.off('mouseup touchend', handleMouseUp);
@@ -64,9 +62,7 @@ UI components are external (BlurTopToolbar).
 		if (!stage || !layer || !imageNode) return;
 		if (!mounted) {
 			mounted = true;
-			console.log('Blur tool component mounted.');
 			return () => {
-				console.log('Blur tool component unmounting, full cleanup...');
 				deactivateBlurTool();
 			};
 		}
@@ -298,17 +294,7 @@ UI components are external (BlurTopToolbar).
 
 		if (clampedWidth === 0 || clampedHeight === 0) return;
 
-		console.log('Blur region:', {
-			clampedX,
-			clampedY,
-			clampedWidth,
-			clampedHeight,
-			nativeWidth,
-			nativeHeight
-		});
-
 		const blurRadius = Math.max(1, Math.round(blurStrength / 2));
-		console.log('Applying blur with radius:', blurRadius);
 
 		// Extract a larger region that includes padding for blur radius
 		// This prevents edge artifacts
@@ -387,21 +373,17 @@ UI components are external (BlurTopToolbar).
 	}
 
 	function apply() {
-		// Take snapshot before applying final blur
-		const { takeSnapshot, state } = imageEditorStore;
-		takeSnapshot();
-
 		// If there's a blur region and overlay, merge it with the image
-		if (mosaicOverlay && blurRegion && state.imageNode && state.layer) {
+		if (mosaicOverlay && blurRegion && imageNode && layer) {
 			// Update the imageNode with the blurred version
 			const canvas = mosaicOverlay.image() as HTMLCanvasElement;
 			if (canvas) {
-				state.imageNode.image(canvas);
-				state.layer.draw();
+				imageNode.image(canvas);
+				layer.draw();
 			}
 		}
 
-		// Clean up blur elements but keep the mosaic overlay until tool deactivation
+		// Clean up blur UI elements (region and transformer)
 		if (blurRegion) {
 			blurRegion.destroy();
 			blurRegion = null;
@@ -410,19 +392,26 @@ UI components are external (BlurTopToolbar).
 			transformer.destroy();
 			transformer = null;
 		}
+
+		// Clean up the mosaic overlay since we merged it into imageNode
+		if (mosaicOverlay) {
+			mosaicOverlay.destroy();
+			mosaicOverlay = null;
+		}
+
 		startPoint = null;
 		isSelecting = false;
 
+		// Redraw the layer to show the applied blur
+		if (layer) {
+			layer.batchDraw();
+		}
+
 		// Call the onBlurApplied callback
 		onBlurApplied();
-
-		// Deactivate tool
-		imageEditorStore.state.activeState = null;
 	}
 
 	function cleanupBlurElements() {
-		console.log('Cleaning up blur elements');
-
 		// Clean up blur region
 		if (blurRegion) {
 			blurRegion.destroy();
@@ -452,7 +441,6 @@ UI components are external (BlurTopToolbar).
 	}
 
 	export function cleanup() {
-		console.log('Blur tool cleanup called');
 		cleanupBlurElements();
 		if (layer) {
 			layer.batchDraw();
@@ -461,13 +449,11 @@ UI components are external (BlurTopToolbar).
 
 	export function saveState() {
 		// Save current blur state before switching tools
-		console.log('Saving blur tool state', { blurStrength });
 		// The parent component will handle taking a snapshot
 	}
 
 	export function beforeExit() {
 		// Called before switching to another tool
-		console.log('Blur tool beforeExit called');
 		saveState();
 		cleanup();
 	}

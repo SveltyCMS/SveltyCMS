@@ -111,8 +111,12 @@ function createImageEditorStore() {
 			});
 		});
 
-		// Also remove all transformers explicitly
+		// Remove all transformers EXCEPT the annotation transformer
 		state.layer.find('Transformer').forEach((node) => {
+			// Keep the annotation transformer alive
+			if (node.name() === 'annotationTransformer') {
+				return;
+			}
 			try {
 				node.destroy();
 			} catch (e) {
@@ -151,8 +155,6 @@ function createImageEditorStore() {
 
 	function cleanupToolSpecific(toolName: string) {
 		if (!state.layer) return;
-
-		console.log(`Cleaning up tool: ${toolName}`);
 
 		switch (toolName) {
 			case 'crop':
@@ -230,8 +232,12 @@ function createImageEditorStore() {
 				break;
 		}
 
-		// Always clean up transformers
+		// Always clean up transformers EXCEPT the annotation transformer
 		state.layer.find('Transformer').forEach((node) => {
+			// Keep the annotation transformer alive
+			if (node.name() === 'annotationTransformer') {
+				return;
+			}
 			try {
 				node.destroy();
 			} catch (e) {
@@ -244,9 +250,8 @@ function createImageEditorStore() {
 		state.layer.batchDraw();
 	}
 
-	function saveToolState(toolName: string) {
+	function saveToolState() {
 		// Take a snapshot before switching tools to preserve the current state
-		console.log(`Saving state for tool: ${toolName}`);
 		if (state.stage) {
 			takeSnapshot();
 		}
@@ -262,8 +267,6 @@ function createImageEditorStore() {
 
 		// Save current canvas state to history
 		const stateData = state.stage.toJSON();
-		const stateJSON = JSON.parse(stateData);
-		console.log('Taking snapshot, imageGroup position:', stateJSON.children?.[0]?.children?.[0]?.attrs);
 		saveStateHistory(stateData);
 	}
 

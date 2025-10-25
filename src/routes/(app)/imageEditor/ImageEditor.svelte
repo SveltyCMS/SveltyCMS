@@ -187,7 +187,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				const currentState = imageEditorStore.state.activeState;
 				if (currentState) {
 					// Save state before exiting
-					imageEditorStore.saveToolState(currentState);
+					imageEditorStore.saveToolState();
 					// Use tool-specific cleanup
 					imageEditorStore.cleanupToolSpecific(currentState);
 					imageEditorStore.setActiveState('');
@@ -400,8 +400,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			// Parse the state data to extract properties
 			const stateJSON = JSON.parse(stateData);
 
-			console.log('Restoring state, imageGroup from saved state:', stateJSON.children?.[0]?.children?.[0]?.attrs);
-
 			// Clear filters temporarily to ensure clean state
 			imageNode.filters([]);
 			imageNode.clearCache(); // Restore image group properties (position, scale, rotation)
@@ -415,12 +413,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					imageGroup.scaleX(imageGroupState.attrs.scaleX !== undefined ? imageGroupState.attrs.scaleX : 1);
 					imageGroup.scaleY(imageGroupState.attrs.scaleY !== undefined ? imageGroupState.attrs.scaleY : 1);
 					imageGroup.rotation(imageGroupState.attrs.rotation !== undefined ? imageGroupState.attrs.rotation : 0);
-					console.log('Restored imageGroup position:', {
-						x: imageGroup.x(),
-						y: imageGroup.y(),
-						scaleX: imageGroup.scaleX(),
-						scaleY: imageGroup.scaleY()
-					});
 				}
 			}
 
@@ -595,20 +587,35 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 	function toggleTool(tool: string) {
 		const currentState = imageEditorStore.state.activeState;
-		console.log('toggleTool called:', { tool, currentState });
 
 		// Save the current tool state before switching
 		if (currentState && currentState !== tool) {
-			imageEditorStore.saveToolState(currentState);
+			imageEditorStore.saveToolState();
 			// Use tool-specific cleanup for better artifact removal
 			imageEditorStore.cleanupToolSpecific(currentState);
+
+			// Ensure imageGroup is centered after tool cleanup
+			const { stage, imageGroup } = imageEditorStore.state;
+			if (stage && imageGroup) {
+				const stageWidth = stage.width();
+				const stageHeight = stage.height();
+				const expectedX = stageWidth / 2;
+				const expectedY = stageHeight / 2;
+				const currentX = imageGroup.x();
+				const currentY = imageGroup.y();
+
+				// Recenter if position has drifted
+				if (Math.abs(currentX - expectedX) > 5 || Math.abs(currentY - expectedY) > 5) {
+					imageGroup.position({
+						x: expectedX,
+						y: expectedY
+					});
+				}
+			}
 		}
 
 		const newState = currentState === tool ? '' : tool;
-		console.log('Setting new state:', newState);
 		imageEditorStore.setActiveState(newState);
-		console.log('After setting, store state is:', imageEditorStore.state.activeState);
-		console.log('Derived activeState is:', activeState);
 	}
 </script>
 
@@ -697,16 +704,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									const { imageNode, imageGroup, layer, stage } = imageEditorStore.state;
 									if (!imageNode || !imageGroup || !layer || !stage) return;
 
-									console.log('handleCrop called with:', cropData);
-									console.log('BEFORE crop - imageGroup position:', {
-										x: imageGroup.x(),
-										y: imageGroup.y(),
-										scaleX: imageGroup.scaleX(),
-										scaleY: imageGroup.scaleY()
-									});
-
 									// Apply crop transformation
-									const { x, y, width, height } = cropData;
+									const { x, y, width, height, isCircular } = cropData;
 
 									// Validate crop dimensions
 									if (width <= 0 || height <= 0) {
@@ -727,41 +726,82 @@ and unified tool experiences (crop includes rotation, scale, flip).
 										y: -height / 2
 									});
 
-									console.log('Image node after crop:', {
-										cropX: imageNode.cropX(),
-										cropY: imageNode.cropY(),
-										cropWidth: imageNode.cropWidth(),
-										cropHeight: imageNode.cropHeight(),
-										width: imageNode.width(),
-										height: imageNode.height()
-									});
+									// Apply circular clipping if needed
+									if (isCircular) {
+										// Create an off-screen canvas to create circular mask
+										const offCanvas = document.createElement('canvas');
+										const offCtx = offCanvas.getContext('2d');
+
+										if (offCtx && imageNode.image()) {
+											const img = imageNode.image() as HTMLImageElement;
+											offCanvas.width = width;
+											offCanvas.height = height;
+
+											// Draw circular clip path
+											const radius = Math.min(width, height) / 2;
+											offCtx.beginPath();
+											offCtx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+											offCtx.closePath();
+											offCtx.clip();
+
+											// Draw the cropped portion of the image
+											offCtx.drawImage(
+												img,
+												x,
+												y,
+												width,
+												height, // Source rectangle
+												0,
+												0,
+												width,
+												height // Destination rectangle
+											);
+
+											// Create a new image from the masked canvas
+											const circularImg = new Image();
+											circularImg.onload = () => {
+												imageNode.image(circularImg);
+												imageNode.setAttrs({
+													cropX: 0,
+													cropY: 0,
+													cropWidth: width,
+													cropHeight: height
+												});
+												layer.batchDraw();
+											};
+											circularImg.src = offCanvas.toDataURL();
+										}
+									}
 
 									// Recenter and rescale the image group to fit the cropped size
 									const stageWidth = stage.width();
 									const stageHeight = stage.height();
+
+									// Calculate scale based on the NEW cropped dimensions
+									// This ensures we fit the cropped area to 80% of stage
 									const scaleX = (stageWidth * 0.8) / width;
 									const scaleY = (stageHeight * 0.8) / height;
 									const scale = Math.min(scaleX, scaleY);
 
-									// Preserve existing rotation and flip states
+									// Preserve existing flip states ONLY (not scale)
 									const currentScaleX = imageGroup.scaleX();
 									const currentScaleY = imageGroup.scaleY();
 									const flipX = currentScaleX < 0 ? -1 : 1;
 									const flipY = currentScaleY < 0 ? -1 : 1;
 
-									imageGroup.position({
-										x: stageWidth / 2,
-										y: stageHeight / 2
-									});
-									imageGroup.scale({ x: scale * flipX, y: scale * flipY });
-									// Keep rotation as-is
+									// Store the rotation before resetting
+									const currentRotation = imageGroup.rotation();
 
-									console.log('AFTER crop - imageGroup position:', {
-										x: imageGroup.x(),
-										y: imageGroup.y(),
-										scaleX: imageGroup.scaleX(),
-										scaleY: imageGroup.scaleY()
-									});
+									// Reset imageGroup transform completely
+									imageGroup.x(stageWidth / 2);
+									imageGroup.y(stageHeight / 2);
+									imageGroup.scaleX(scale * flipX);
+									imageGroup.scaleY(scale * flipY);
+									imageGroup.rotation(currentRotation);
+
+									// Ensure imageGroup is in the layer and properly configured
+									imageGroup.moveToBottom(); // Ensure it's below any overlays
+									imageNode.moveToBottom(); // Ensure image is at bottom of group
 
 									// Force redraw to apply changes
 									layer.batchDraw();
@@ -772,12 +812,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 										// Final cleanup to catch any stragglers
 										imageEditorStore.cleanupToolSpecific('crop');
 										imageEditorStore.setActiveState('');
-										console.log('BEFORE applyEdit() - imageGroup position:', {
-											x: imageGroup.x(),
-											y: imageGroup.y(),
-											scaleX: imageGroup.scaleX(),
-											scaleY: imageGroup.scaleY()
-										});
 										applyEdit();
 									}, 50);
 								}}
@@ -821,7 +855,11 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									blurToolRef?.updateBlurStrength();
 								}}
 								onReset={() => blurToolRef?.reset()}
-								onApply={() => blurToolRef?.apply()}
+								onApply={() => {
+									blurToolRef?.apply();
+									applyEdit();
+									imageEditorStore.setActiveState('');
+								}}
 							/>
 						{/if}
 
@@ -855,27 +893,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 										fineTuneRef.applyFineTunePermanently();
 										// Apply the edit after a short delay to ensure the image is updated
 										setTimeout(() => {
-											const { imageGroup } = imageEditorStore.state;
-											console.log('FineTune onApply - BEFORE applyEdit():', {
-												x: imageGroup?.x(),
-												y: imageGroup?.y(),
-												scaleX: imageGroup?.scaleX(),
-												scaleY: imageGroup?.scaleY()
-											});
 											applyEdit();
-											console.log('FineTune onApply - AFTER applyEdit():', {
-												x: imageGroup?.x(),
-												y: imageGroup?.y(),
-												scaleX: imageGroup?.scaleX(),
-												scaleY: imageGroup?.scaleY()
-											});
 											imageEditorStore.setActiveState('');
-											console.log('FineTune onApply - AFTER setActiveState:', {
-												x: imageGroup?.x(),
-												y: imageGroup?.y(),
-												scaleX: imageGroup?.scaleX(),
-												scaleY: imageGroup?.scaleY()
-											});
 										}, 100);
 									}
 								}}
@@ -914,6 +933,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								onDelete={() => annotateToolRef?.deleteSelected()}
 								onDeleteAll={() => annotateToolRef?.deleteAll()}
 								onDone={() => {
+									annotateToolRef?.apply();
+									applyEdit();
 									imageEditorStore.cleanupToolSpecific('annotate');
 									imageEditorStore.setActiveState('');
 								}}
@@ -977,16 +998,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								const { imageNode, imageGroup, layer, stage } = imageEditorStore.state;
 								if (!imageNode || !imageGroup || !layer || !stage) return;
 
-								console.log('handleCrop called with:', cropData);
-								console.log('BEFORE crop - imageGroup position:', {
-									x: imageGroup.x(),
-									y: imageGroup.y(),
-									scaleX: imageGroup.scaleX(),
-									scaleY: imageGroup.scaleY()
-								});
-
 								// Apply crop transformation
-								const { x, y, width, height } = cropData;
+								const { x, y, width, height, isCircular } = cropData;
 
 								// Validate crop dimensions
 								if (width <= 0 || height <= 0) {
@@ -1007,41 +1020,78 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									y: -height / 2
 								});
 
-								console.log('Image node after crop:', {
-									cropX: imageNode.cropX(),
-									cropY: imageNode.cropY(),
-									cropWidth: imageNode.cropWidth(),
-									cropHeight: imageNode.cropHeight(),
-									width: imageNode.width(),
-									height: imageNode.height()
-								});
+								// Apply circular clipping if needed
+								if (isCircular) {
+									// Create an off-screen canvas to create circular mask
+									const offCanvas = document.createElement('canvas');
+									const offCtx = offCanvas.getContext('2d');
+
+									if (offCtx && imageNode.image()) {
+										const img = imageNode.image() as HTMLImageElement;
+										offCanvas.width = width;
+										offCanvas.height = height;
+
+										// Draw circular clip path
+										const radius = Math.min(width, height) / 2;
+										offCtx.beginPath();
+										offCtx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+										offCtx.closePath();
+										offCtx.clip();
+
+										// Draw the cropped portion of the image
+										offCtx.drawImage(
+											img,
+											x,
+											y,
+											width,
+											height, // Source rectangle
+											0,
+											0,
+											width,
+											height // Destination rectangle
+										);
+
+										// Create a new image from the masked canvas
+										const circularImg = new Image();
+										circularImg.onload = () => {
+											imageNode.image(circularImg);
+											imageNode.setAttrs({
+												cropX: 0,
+												cropY: 0,
+												cropWidth: width,
+												cropHeight: height
+											});
+											layer.batchDraw();
+										};
+										circularImg.src = offCanvas.toDataURL();
+									}
+								}
 
 								// Recenter and rescale the image group to fit the cropped size
 								const stageWidth = stage.width();
 								const stageHeight = stage.height();
+
+								// Calculate scale based on the NEW cropped dimensions
+								// This ensures we fit the cropped area to 80% of stage
 								const scaleX = (stageWidth * 0.8) / width;
 								const scaleY = (stageHeight * 0.8) / height;
 								const scale = Math.min(scaleX, scaleY);
 
-								// Preserve existing rotation and flip states
+								// Preserve existing flip states ONLY (not scale)
 								const currentScaleX = imageGroup.scaleX();
 								const currentScaleY = imageGroup.scaleY();
 								const flipX = currentScaleX < 0 ? -1 : 1;
 								const flipY = currentScaleY < 0 ? -1 : 1;
 
-								imageGroup.position({
-									x: stageWidth / 2,
-									y: stageHeight / 2
-								});
-								imageGroup.scale({ x: scale * flipX, y: scale * flipY });
-								// Keep rotation as-is
+								// Store the rotation before resetting
+								const currentRotation = imageGroup.rotation();
 
-								console.log('AFTER crop - imageGroup position:', {
-									x: imageGroup.x(),
-									y: imageGroup.y(),
-									scaleX: imageGroup.scaleX(),
-									scaleY: imageGroup.scaleY()
-								});
+								// Reset imageGroup transform completely
+								imageGroup.x(stageWidth / 2);
+								imageGroup.y(stageHeight / 2);
+								imageGroup.scaleX(scale * flipX);
+								imageGroup.scaleY(scale * flipY);
+								imageGroup.rotation(currentRotation);
 
 								// Force redraw to apply changes
 								layer.batchDraw();
@@ -1052,12 +1102,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									// Final cleanup to catch any stragglers
 									imageEditorStore.cleanupToolSpecific('crop');
 									imageEditorStore.setActiveState('');
-									console.log('BEFORE applyEdit() - imageGroup position:', {
-										x: imageGroup.x(),
-										y: imageGroup.y(),
-										scaleX: imageGroup.scaleX(),
-										scaleY: imageGroup.scaleY()
-									});
 									applyEdit();
 								}, 50);
 							}}
@@ -1100,7 +1144,11 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								blurToolRef?.updateBlurStrength();
 							}}
 							onReset={() => blurToolRef?.reset()}
-							onApply={() => blurToolRef?.apply()}
+							onApply={() => {
+								blurToolRef?.apply();
+								applyEdit();
+								imageEditorStore.setActiveState('');
+							}}
 						/>
 					{/if}
 
@@ -1174,6 +1222,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							onDelete={() => annotateToolRef?.deleteSelected()}
 							onDeleteAll={() => annotateToolRef?.deleteAll()}
 							onDone={() => {
+								annotateToolRef?.apply();
+								applyEdit();
 								imageEditorStore.cleanupToolSpecific('annotate');
 								imageEditorStore.setActiveState('');
 							}}

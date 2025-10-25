@@ -38,8 +38,8 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 	<div class="toolbar-content">
 		<!-- Left Section - Title -->
 		<div class="toolbar-section">
-			<iconify-icon icon="mdi:sticker-emoji" width="20" class="text-primary-500"></iconify-icon>
-			<span class="toolbar-title">Sticker Tool</span>
+			<iconify-icon icon="mdi:water" width="20" class="text-primary-500"></iconify-icon>
+			<span class="toolbar-title">Watermark Tool</span>
 			{#if stickers && stickers.length > 0}
 				<span class="sticker-count">{stickers.length}</span>
 			{/if}
@@ -47,9 +47,9 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 
 		<!-- Center Section - Actions -->
 		<div class="toolbar-section toolbar-actions">
-			<button onclick={onAddSticker} class="toolbar-btn toolbar-btn-primary" title="Add sticker" aria-label="Add sticker">
+			<button onclick={onAddSticker} class="toolbar-btn toolbar-btn-primary" title="Add watermark" aria-label="Add watermark">
 				<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
-				<span>Add Sticker</span>
+				<span>Add Watermark</span>
 			</button>
 
 			{#if selectedSticker}
@@ -67,7 +67,7 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 
 				<div class="divider"></div>
 
-				<button onclick={onDeleteSelected} class="toolbar-btn toolbar-btn-danger" title="Delete sticker" aria-label="Delete sticker">
+				<button onclick={onDeleteSelected} class="toolbar-btn toolbar-btn-danger" title="Delete watermark" aria-label="Delete watermark">
 					<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 					<span class="btn-label">Delete</span>
 				</button>
@@ -77,7 +77,7 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 		<!-- Right Section - Reset & Done -->
 		<div class="toolbar-section">
 			{#if stickers && stickers.length > 0}
-				<button onclick={onReset} class="toolbar-btn" title="Remove all stickers" aria-label="Reset">
+				<button onclick={onReset} class="toolbar-btn" title="Remove all watermarks" aria-label="Reset">
 					<iconify-icon icon="mdi:refresh" width="20"></iconify-icon>
 				</button>
 			{/if}
