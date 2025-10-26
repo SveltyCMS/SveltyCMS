@@ -45,7 +45,7 @@ const config = {
 
 		// Use SvelteKit's built-in CSP support
 		csp: {
-			mode: 'auto',
+			mode: 'hash',
 			directives: {
 				'default-src': ['self'],
 				'script-src': ['self', 'unsafe-eval', 'blob:'], // unsafe-eval for dev HMR, blob: for workers

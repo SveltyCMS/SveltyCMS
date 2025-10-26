@@ -22,7 +22,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 		onDone: () => void;
 	}
 
-	const { onRotateLeft, onFlipHorizontal, cropShape = $bindable(), onCropShapeChange, onAspectRatio, onDone } = $props() as Props;
+	let { onRotateLeft, onFlipHorizontal, cropShape, onCropShapeChange, onAspectRatio, onDone }: Props = $props();
 
 	// Common aspect ratios
 	const aspectRatios = [
@@ -64,7 +64,7 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 		{#if onAspectRatio && cropShape === 'rectangle'}
 			<div class="aspect-ratio-group">
-				{#each aspectRatios as ratio}
+				{#each aspectRatios as ratio (ratio.label)}
 					<button
 						onclick={() => onAspectRatio?.(ratio.value)}
 						class="aspect-btn"

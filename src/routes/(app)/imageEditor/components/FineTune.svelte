@@ -6,21 +6,15 @@ Provides comprehensive image adjustments including brightness, contrast, saturat
 temperature, exposure, highlights, shadows, clarity, and vibrance using a top toolbar approach.
 
 #### Props
-- `stage`: Konva stage instance
-- `layer`: Konva layer instance
-- `imageNode`: Konva image node
 - `onFineTuneApplied`: Callback when adjustments are applied
 - `onFineTuneReset`: Callback when adjustments are reset
 -->
 
 <script lang="ts">
 	import Konva from 'konva';
-	import FineTuneTopToolbar from './FineTuneTopToolbar.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	interface Props {
-		stage: Konva.Stage;
-		layer: Konva.Layer;
-		imageNode: Konva.Image;
 		activeAdjustment?: string;
 		onActiveAdjustmentChange?: (adjustment: string) => void;
 		onFineTuneApplied?: () => void;
@@ -28,18 +22,18 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	}
 
 	const {
-		stage,
-		layer,
-		imageNode,
 		activeAdjustment: parentActiveAdjustment = 'brightness',
-		onActiveAdjustmentChange = () => {},
+		// Callback prop - not used internally but accepted for parent component
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		onActiveAdjustmentChange: _onActiveAdjustmentChange = () => {},
 		onFineTuneApplied = () => {},
 		onFineTuneReset = () => {}
 	} = $props() as Props;
 
+	const { stage, layer, imageNode } = imageEditorStore.state;
+
 	// Store original image data for before/after comparison
 	let originalImageData: ImageData | null = $state(null);
-	let isComparing = $state(false);
 
 	// Fine-tuning adjustments
 	interface Adjustments {
@@ -81,7 +75,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 
 	// Initialize with original image data
 	$effect(() => {
-		console.log('FineTune component mounted');
 		if (imageNode && imageNode.getCanvas()) {
 			const context = imageNode.getCanvas().getContext();
 			if (context) {
@@ -93,7 +86,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		}
 
 		return () => {
-			console.log('FineTune component unmounting');
 			// Cleanup filters when component unmounts
 			if (imageNode) {
 				imageNode.filters([]);
@@ -107,7 +99,7 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function applyAdjustments() {
 		if (!imageNode || !layer) return;
 
-		const activeFilters: ((imageData: ImageData) => void)[] = [];
+		const activeFilters: any[] = [];
 
 		// Reset all filter properties first
 		imageNode.brightness(0);
@@ -148,13 +140,15 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		if (adjustments.exposure !== 0 || adjustments.highlights !== 0 || adjustments.shadows !== 0 || adjustments.clarity !== 0) {
 			// Create or update the cached custom filter
 			customFilter = createCustomFilter();
-			activeFilters.push(customFilter);
+			if (customFilter) {
+				activeFilters.push(customFilter);
+			}
 		} else {
 			customFilter = null;
 		}
 
 		// Apply filters to the image node
-		imageNode.filters(activeFilters);
+		imageNode.filters(activeFilters as any[]);
 
 		// Force cache reset and redraw to apply changes
 		imageNode.clearCache();
@@ -243,17 +237,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		}, 0);
 	}
 
-	// Handle active adjustment change
-	function handleActiveAdjustmentChange(adjustment: string) {
-		activeAdjustment = adjustment;
-		onActiveAdjustmentChange(adjustment);
-	}
-
-	// Handle value change from top toolbar
-	function handleValueChange(value: number) {
-		handleAdjustmentChange(activeAdjustment as keyof Adjustments, value);
-	}
-
 	// Reset all adjustments
 	function resetAdjustments() {
 		adjustments = {
@@ -268,17 +251,19 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 			vibrance: 0
 		};
 
-		imageNode.filters([]);
-		imageNode.brightness(0);
-		imageNode.contrast(0);
-		imageNode.saturation(0);
-		imageNode.hue(0);
-		imageNode.luminance(0);
+		if (imageNode && layer) {
+			imageNode.filters([]);
+			imageNode.brightness(0);
+			imageNode.contrast(0);
+			imageNode.saturation(0);
+			imageNode.hue(0);
+			imageNode.luminance(0);
 
-		// Force cache reset and redraw
-		imageNode.clearCache();
-		imageNode.cache();
-		layer.batchDraw();
+			// Need to cache and draw to see the reset
+			imageNode.clearCache();
+			imageNode.cache();
+			layer.batchDraw();
+		}
 
 		onFineTuneReset();
 	}
@@ -287,7 +272,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function startComparison() {
 		if (!originalImageData || !imageNode || !layer) return;
 
-		isComparing = true;
 		// Temporarily remove all filters to show original
 		imageNode.filters([]);
 		imageNode.clearCache();
@@ -298,7 +282,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	function endComparison() {
 		if (!imageNode || !layer) return;
 
-		isComparing = false;
 		// Reapply all adjustments
 		applyAdjustments();
 	}
@@ -317,13 +300,6 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		const imageGroup = imageNode.getParent();
 		if (!imageGroup) return;
 
-		console.log('applyFineTunePermanently - BEFORE:', {
-			imageGroupPos: { x: imageGroup.x(), y: imageGroup.y() },
-			imageGroupScale: { x: imageGroup.scaleX(), y: imageGroup.scaleY() },
-			imageNodeSize: { width: imageNode.width(), height: imageNode.height() },
-			imageNodePos: { x: imageNode.x(), y: imageNode.y() }
-		});
-
 		// Create a temporary canvas at the original image resolution
 		const tempCanvas = document.createElement('canvas');
 		const tempContext = tempCanvas.getContext('2d');
@@ -334,13 +310,15 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 		tempCanvas.height = imageNode.height();
 
 		// Calculate the position and scale of the image in the stage
-		const stagePos = imageGroup.getAbsolutePosition();
+		// Use the imageNode's absolute position for accurate capture
+		const imageNodeAbsolutePos = imageNode.getAbsolutePosition();
 		const scale = imageGroup.scaleX(); // Assuming uniform scaling
 
-		const imageX = stagePos.x - (imageNode.width() * scale) / 2;
-		const imageY = stagePos.y - (imageNode.height() * scale) / 2;
-		const imageWidth = imageNode.width() * scale;
-		const imageHeight = imageNode.height() * scale;
+		// The imageNode's absolute position is already the top-left corner after transforms
+		const imageX = imageNodeAbsolutePos.x;
+		const imageY = imageNodeAbsolutePos.y;
+		const imageWidth = imageNode.width() * Math.abs(scale);
+		const imageHeight = imageNode.height() * Math.abs(scale);
 
 		// Calculate the pixel ratio needed to maintain original quality
 		// This ensures we capture at the original image resolution, not the display resolution
@@ -392,19 +370,19 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 				// Update the image node with the new filtered image
 				imageNode.image(newImage);
 
-				// IMPORTANT: Restore the dimensions to prevent any size changes
+				// IMPORTANT: Restore ALL properties to prevent any changes
+				// The new image is already pre-cropped and filtered, so we need to:
+				// 1. Clear crop properties since the new image is the final cropped version
+				imageNode.cropX(0);
+				imageNode.cropY(0);
+				imageNode.cropWidth(currentWidth);
+				imageNode.cropHeight(currentHeight);
+
+				// 2. Restore dimensions and position
 				imageNode.width(currentWidth);
 				imageNode.height(currentHeight);
 				imageNode.x(currentX);
 				imageNode.y(currentY);
-
-				console.log('applyFineTunePermanently - AFTER image update:', {
-					imageGroupPos: { x: imageGroup.x(), y: imageGroup.y() },
-					imageGroupScale: { x: imageGroup.scaleX(), y: imageGroup.scaleY() },
-					imageNodeSize: { width: imageNode.width(), height: imageNode.height() },
-					imageNodePos: { x: imageNode.x(), y: imageNode.y() },
-					newImageSize: { width: newImage.width, height: newImage.height }
-				});
 
 				// Clear cache and redraw
 				imageNode.clearCache();

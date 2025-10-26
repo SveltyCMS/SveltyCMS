@@ -28,12 +28,14 @@
 	// Components
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
+	import ModalImageEditor from './ModalImageEditor.svelte';
 
 	// Define reactive state
 	let isFlipped = $state(false);
 	let _data = $state<File | MediaImage | undefined>(undefined); // Initialize with `undefined`
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
+	let showImageEditor = $state(false);
 
 	// Define props
 	let { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
@@ -170,8 +172,13 @@
 
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
+						<!-- Edit -->
+						<button onclick={() => (showImageEditor = true)} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
+							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
+						</button>
+
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon" title="Flip details">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
@@ -180,7 +187,7 @@
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon">
+						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon" title="Delete image">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>
@@ -196,6 +203,22 @@
 		</p>
 	{/if}
 </div>
+
+<!-- Image Editor Modal -->
+{#if showImageEditor}
+	<ModalImageEditor
+		parent={undefined}
+		{_data}
+		{field}
+		{updated}
+		{value}
+		mediaOnSelect={(file) => {
+			_data = file;
+			showImageEditor = false;
+			validateInput();
+		}}
+	/>
+{/if}
 
 <style lang="postcss">
 	.error {

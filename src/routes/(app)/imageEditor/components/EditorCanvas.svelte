@@ -76,7 +76,7 @@ for the image editor canvas with responsive behavior.
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.editor-canvas-wrapper {
 		@apply relative flex-1;
 		@apply border border-surface-200;
