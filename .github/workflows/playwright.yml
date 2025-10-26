@@ -1,5 +1,6 @@
 # .github/workflows/playwright.yml
-# Full test CI for Playwright + Bun, no release logic
+# Full test CI for Playwright + Bun
+# This workflow now relies on playwright.config.ts to run the setup wizard.
 name: Playwright and Bun Tests
 
 on:
@@ -44,6 +45,7 @@ jobs:
             ${{ runner.OS }}-bun-playwright-
         continue-on-error: true
 
+      # start monogodb
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
         with:
@@ -61,19 +63,19 @@ jobs:
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps
 
-      # Seed database and create admin user for tests (BEFORE building/starting server)
-      - name: Seed SveltyCMS database
-        run: bun run scripts/seed-cms.js
-        env:
-          MONGO_HOST: localhost
-          MONGO_PORT: 27017
-          MONGO_DB: SveltyCMS
-          MONGO_USER: admin
-          MONGO_PASS: admin
+      # Prepare .svelte-kit
+      - name: Sync SvelteKit build internals
+        run: bunx svelte-kit sync.
 
-      - name: Create SveltyCMS admin user
-        run: bun run scripts/create-admin.js
+      - name: Run Playwright tests
+        # We pass all secrets and configs as environment variables
+        # so both playwright.config.ts and setup-wizard.spec.ts can access them.
         env:
+          # --- Config for playwright.config.ts ---
+          CI_MODE: ${{ matrix.mode }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://127.0.0.1:5173' || 'http://127.0.0.1:4173' }}
+
+          # --- Config for setup-wizard.spec.ts ---
           MONGO_HOST: localhost
           MONGO_PORT: 27017
           MONGO_DB: SveltyCMS
@@ -82,53 +84,11 @@ jobs:
           ADMIN_USER: admin
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
-
-      - name: Sync SvelteKit build internals # Prepare .svelte-kit
-        run: bunx svelte-kit sync
-
-      # Only for preview testing
-      - name: Build site (preview only)
-        if: matrix.mode == 'preview'
-        run: bunx vite build
-
-      # Launch correct server mode
-      - name: Start server
-        run: |
-          if [ "${{ matrix.mode }}" = "dev" ]; then
-            bunx vite dev --port 5173 --host 127.0.0.1 > dev.log 2>&1 &
-          else
-            bunx vite preview --port 4173 --host 127.0.0.1 > preview.log 2>&1 &
-          fi
-          echo $! > server.pid
-
-      # Ensure alive before testing
-      - name: Wait for server
-        run: |
-          if [ "${{ matrix.mode }}" = "dev" ]; then
-            bunx wait-on http://127.0.0.1:5173 -t 120000
-          else
-            bunx wait-on http://127.0.0.1:4173 -t 120000
-          fi
-
-      - name: Show server logs (on failure)
-        if: failure()
-        run: |
-          if [ "${{ matrix.mode }}" = "dev" ]; then
-            echo "--- dev.log (last 200 lines) ---"
-            tail -n 200 dev.log || true
-          else
-            echo "--- preview.log (last 200 lines) ---"
-            tail -n 200 preview.log || true
-          fi
-
-      - name: Run Playwright tests
-        env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://127.0.0.1:5173' || 'http://127.0.0.1:4173' }}
         run: |
           mkdir -p test-results/playwright
           bunx playwright test --reporter=line --output=test-results/playwright
 
-      # Server-only tests
+      # Server-only tests (can run after main tests)
       - name: Run Bun tests (API)
         if: matrix.mode == 'preview'
         env:
@@ -136,11 +96,6 @@ jobs:
         run: |
           mkdir -p test-results/bun
           bun test tests/bun > test-results/bun/results.txt
-
-      # Free runner resources
-      - name: Kill server
-        if: always()
-        run: kill $(cat server.pid) || true
 
       # CI history + debugging
       - name: Upload test results

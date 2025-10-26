@@ -11,6 +11,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
 	testDir: './tests',
+	testMatch: '**/*.{test,spec,spect}.ts',
 	/* Run tests in files in parallel */
 	fullyParallel: true,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -28,8 +29,11 @@ export default defineConfig({
 		baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173',
 
 		launchOptions: {
-			slowMo: parseInt(process.env.SLOW_MO || '0')
+			slowMo: parseInt(process.env.SLOW_MO || '0'),
+			devtools: !process.env.CI // Enable devtools when not in CI
 		},
+		// Explicitly set PWDEBUG for local runs
+		// Set environment variables in your test runner or webServer configuration if needed
 
 		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
 		trace: 'on-first-retry',
@@ -43,7 +47,7 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			use: { ...devices['Desktop Chrome'], headless: false }
 		},
 
 		{
@@ -79,12 +83,10 @@ export default defineConfig({
 
 	/* Run your local dev server before starting the tests */
 	webServer: {
-		command: process.env.CI ? 'bun run build && bun run preview' : 'bun run dev',
-		port: process.env.CI ? 4173 : 5173,
-		timeout: 240000, // Timeout in milliseconds
-		// In CI we start the preview server in the workflow; reuse it here
+		command: 'bun install && bun dev --port 5173',
+		port: 5173,
+		timeout: 60000, // Increased timeout to 1 minute
 		reuseExistingServer: true,
-		// Set environment variable to relax CSP during tests
 		env: {
 			PLAYWRIGHT_TEST: 'true'
 		}
