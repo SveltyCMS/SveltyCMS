@@ -269,11 +269,11 @@ export const widgetStoreActions = {
 			// Display name (widgetName) is for UI purposes only
 
 			// Extract dependencies from widget metadata
-			const dependencies = originalFn.dependencies || [];
+			const dependencies = originalFn.__dependencies || [];
 
 			// Extract component paths for 3-pillar architecture
-			const inputComponentPath = originalFn.inputComponentPath || originalFn.__inputComponentPath || '';
-			const displayComponentPath = originalFn.displayComponentPath || originalFn.__displayComponentPath || '';
+			const inputComponentPath = originalFn.__inputComponentPath || '';
+			const displayComponentPath = originalFn.__displayComponentPath || '';
 
 			const widgetFn: WidgetFunction = Object.assign((config: Record<string, unknown>) => originalFn(config), {
 				Name: widgetName,
@@ -356,10 +356,10 @@ export const widgetStoreActions = {
 		if (!currentWidgetFn) return;
 
 		const updatedWidget: WidgetFunction = Object.assign(
-			(cfg: Record<string, unknown>) => ({
-				...currentWidgetFn(cfg),
-				config: { ...currentWidgetFn(cfg).config, ...config }
-			}),
+			(cfg: Record<string, unknown>) => {
+				const newConfig = { ...config, ...cfg };
+				return currentWidgetFn(newConfig);
+			},
 			{
 				Name: currentWidgetFn.Name,
 				GuiSchema: currentWidgetFn.GuiSchema,

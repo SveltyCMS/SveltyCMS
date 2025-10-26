@@ -5,65 +5,102 @@
 
 Displays real-time system state and individual service health.
 Allows administrators to monitor system status and restart services.
+
+### Improvements
+- Proper Svelte 5 runes instead of manual subscriptions
+- Better type safety with explicit types
+- Extracted constants for icons and colors
+- Optimized reactivity with $derived
+- Fixed memory leaks with proper cleanup
+- Better error handling
+- Memoized formatters
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import { systemState, type SystemState, type ServiceHealth } from '@src/stores/system';
 	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { formatDisplayDate } from '@utils/dateUtils';
 
 	const toastStore = getToastStore();
 
-	// Reactive state from store
+	// Type for service data
+	type ServiceData = {
+		status: ServiceHealth;
+		message: string;
+		error?: string;
+		lastChecked?: number;
+	};
+
+	// State configuration maps
+	const STATE_CONFIG = {
+		READY: { color: 'text-success-500', icon: '✅' },
+		DEGRADED: { color: 'text-warning-500', icon: '⚠️' },
+		INITIALIZING: { color: 'text-primary-500', icon: '🔄' },
+		FAILED: { color: 'text-error-500', icon: '❌' },
+		IDLE: { color: 'text-surface-500', icon: '⏸️' }
+	} as const;
+
+	const SERVICE_CONFIG = {
+		healthy: { color: 'variant-filled-success', icon: '✓' },
+		unhealthy: { color: 'variant-filled-error', icon: '✗' },
+		initializing: { color: 'variant-filled-primary', icon: '⟳' },
+		unknown: { color: 'variant-filled-surface', icon: '?' }
+	} as const;
+
+	const REFRESH_INTERVAL_MS = 5000;
+
+	// Reactive state - subscribe to store
 	let currentState = $state<SystemState>('IDLE');
-	let services = $state<any>({});
-	let uptime = $state(0);
-	let lastChecked = $state(0);
+	let services = $state<Record<string, ServiceData>>({});
+	let initializationStartedAt = $state<number | null>(null);
+	let lastChecked = $state<string>(new Date().toISOString());
 	let autoRefresh = $state(true);
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
-	// Subscribe to system state
-	const unsubscribe = systemState.subscribe((state) => {
-		currentState = state.overallState;
-		services = state.services;
-		if (state.initializationStartedAt) {
-			uptime = Date.now() - state.initializationStartedAt;
-		}
-		lastChecked = Date.now();
+	// Derived values
+	let uptime = $derived.by(() => {
+		if (initializationStartedAt) return Date.now() - initializationStartedAt;
+		return 0;
 	});
 
-	onMount(() => {
-		// Auto-refresh every 5 seconds if enabled
+	// Subscribe to store updates
+	$effect(() => {
+		const unsubscribe = systemState.subscribe((state) => {
+			currentState = state.overallState;
+			services = state.services;
+			initializationStartedAt = state.initializationStartedAt || null;
+			lastChecked = new Date().toISOString();
+		});
+		return unsubscribe;
+	});
+
+	// Auto-refresh effect
+	$effect(() => {
 		if (autoRefresh) {
-			refreshInterval = setInterval(() => {
-				// Trigger a re-fetch by calling the health endpoint
-				fetchHealth();
-			}, 5000);
-		}
-	});
-
-	onDestroy(() => {
-		unsubscribe();
-		if (refreshInterval) {
+			refreshInterval = setInterval(() => fetchHealth(), REFRESH_INTERVAL_MS);
+		} else if (refreshInterval) {
 			clearInterval(refreshInterval);
+			refreshInterval = null;
 		}
+
+		// Cleanup on effect re-run or component unmount
+		return () => {
+			if (refreshInterval) clearInterval(refreshInterval);
+		};
 	});
 
-	async function fetchHealth() {
+	async function fetchHealth(): Promise<void> {
 		try {
 			await fetch('/api/system?action=health');
-			// The store will be updated via the backend's state updates
-		} catch (error) {
-			console.error('Failed to fetch health:', error);
+		} catch (err) {
+			console.error('Failed to fetch health:', err);
+			toastStore.trigger({ message: 'Failed to fetch system health', background: 'variant-filled-error', timeout: 3000 });
 		}
 	}
 
-	async function reinitializeSystem() {
+	async function reinitializeSystem(): Promise<void> {
 		try {
-			toastStore.trigger({
-				message: 'Reinitializing system...',
-				background: 'variant-filled-warning'
-			});
+			toastStore.trigger({ message: 'Reinitializing system...', background: 'variant-filled-warning' });
 
 			const response = await fetch('/api/system', {
 				method: 'POST',
@@ -73,81 +110,34 @@ Allows administrators to monitor system status and restart services.
 
 			if (response.ok) {
 				const result = await response.json();
-				toastStore.trigger({
-					message: result.message || `System reinitialized: ${result.status}`,
-					background: 'variant-filled-success'
-				});
+				toastStore.trigger({ message: result.message || `System reinitialized: ${result.status}`, background: 'variant-filled-success' });
 				await fetchHealth();
 			} else {
 				const error = await response.json();
 				throw new Error(error.error || 'Reinitialization failed');
 			}
-		} catch (error) {
+		} catch (err) {
 			toastStore.trigger({
-				message: `Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				message: `Failed to reinitialize: ${err instanceof Error ? err.message : 'Unknown error'}`,
 				background: 'variant-filled-error'
 			});
 		}
 	}
 
 	function getStateColor(state: SystemState): string {
-		switch (state) {
-			case 'READY':
-				return 'text-success-500';
-			case 'DEGRADED':
-				return 'text-warning-500';
-			case 'INITIALIZING':
-				return 'text-primary-500';
-			case 'FAILED':
-				return 'text-error-500';
-			case 'IDLE':
-				return 'text-surface-500';
-			default:
-				return 'text-surface-500';
-		}
+		return STATE_CONFIG[state]?.color || STATE_CONFIG.IDLE.color;
 	}
 
 	function getStateIcon(state: SystemState): string {
-		switch (state) {
-			case 'READY':
-				return '✅';
-			case 'DEGRADED':
-				return '⚠️';
-			case 'INITIALIZING':
-				return '🔄';
-			case 'FAILED':
-				return '❌';
-			case 'IDLE':
-				return '⏸️';
-			default:
-				return '❓';
-		}
+		return STATE_CONFIG[state]?.icon || '❓';
 	}
 
 	function getServiceColor(status: ServiceHealth): string {
-		switch (status) {
-			case 'healthy':
-				return 'variant-filled-success';
-			case 'unhealthy':
-				return 'variant-filled-error';
-			case 'initializing':
-				return 'variant-filled-primary';
-			default:
-				return 'variant-filled-surface';
-		}
+		return SERVICE_CONFIG[status]?.color || SERVICE_CONFIG.unknown.color;
 	}
 
 	function getServiceIcon(status: ServiceHealth): string {
-		switch (status) {
-			case 'healthy':
-				return '✓';
-			case 'unhealthy':
-				return '✗';
-			case 'initializing':
-				return '⟳';
-			default:
-				return '?';
-		}
+		return SERVICE_CONFIG[status]?.icon || SERVICE_CONFIG.unknown.icon;
 	}
 
 	function formatUptime(ms: number): string {
@@ -155,7 +145,6 @@ Allows administrators to monitor system status and restart services.
 		const minutes = Math.floor(seconds / 60);
 		const hours = Math.floor(minutes / 60);
 		const days = Math.floor(hours / 24);
-
 		if (days > 0) return `${days}d ${hours % 24}h`;
 		if (hours > 0) return `${hours}h ${minutes % 60}m`;
 		if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
@@ -165,45 +154,34 @@ Allows administrators to monitor system status and restart services.
 	function formatServiceName(name: string): string {
 		return name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1');
 	}
+
+	// Memoized service entries for better performance
+	let serviceEntries = $derived(Object.entries(services));
+	let serviceCount = $derived(serviceEntries.length);
+	let formattedLastChecked = $derived(formatDisplayDate(lastChecked, 'en', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+	let apiHealthUrl = $derived(typeof window !== 'undefined' ? `${window.location.origin}/api/system?action=health` : '/api/system?action=health');
 </script>
 
 <div class="card space-y-4 p-4">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-3">
-			<span class="text-3xl">{getStateIcon(currentState)}</span>
+			<span class="text-3xl" role="img" aria-label="System status icon">{getStateIcon(currentState)}</span>
 			<div>
 				<h3 class="h3">System Health</h3>
-				<p class="text-sm opacity-70">
-					Status: <span class={`font-bold ${getStateColor(currentState)}`}>{currentState}</span>
-				</p>
+				<p class="text-sm opacity-70">Status: <span class={`font-bold ${getStateColor(currentState)}`}>{currentState}</span></p>
 			</div>
 		</div>
 
 		<div class="flex items-center gap-2">
-			<label class="flex items-center gap-2 text-sm">
-				<input
-					type="checkbox"
-					class="checkbox"
-					bind:checked={autoRefresh}
-					onchange={() => {
-						if (autoRefresh) {
-							refreshInterval = setInterval(fetchHealth, 5000);
-						} else if (refreshInterval) {
-							clearInterval(refreshInterval);
-						}
-					}}
-				/>
-				Auto-refresh
-			</label>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" class="checkbox" bind:checked={autoRefresh} /> Auto-refresh</label>
 
-			<button class="variant-ghost-primary btn btn-sm" onclick={fetchHealth} title="Refresh now">
-				<span class="text-lg">🔄</span>
-			</button>
+			<button class="variant-ghost-primary btn btn-sm" onclick={fetchHealth} title="Refresh now" aria-label="Refresh system health"
+				><span class="text-lg" role="img" aria-hidden="true">🔄</span></button
+			>
 
-			<button class="variant-ghost-warning btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
-				<span class="text-lg">⚡</span>
-				Reinitialize
+			<button class="variant-ghost-warning btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system" aria-label="Reinitialize system">
+				<span class="text-lg" role="img" aria-hidden="true">⚡</span> Reinitialize
 			</button>
 		</div>
 	</div>
@@ -214,15 +192,13 @@ Allows administrators to monitor system status and restart services.
 			<p class="text-xs opacity-70">Uptime</p>
 			<p class="text-lg font-bold">{formatUptime(uptime)}</p>
 		</div>
-
 		<div class="card variant-ghost-surface p-3">
 			<p class="text-xs opacity-70">Last Checked</p>
-			<p class="text-sm font-bold">{new Date(lastChecked).toLocaleTimeString()}</p>
+			<p class="text-sm font-bold">{formattedLastChecked}</p>
 		</div>
-
 		<div class="card variant-ghost-surface p-3">
 			<p class="text-xs opacity-70">Services</p>
-			<p class="text-lg font-bold">{Object.keys(services).length}</p>
+			<p class="text-lg font-bold">{serviceCount}</p>
 		</div>
 	</div>
 
@@ -230,26 +206,23 @@ Allows administrators to monitor system status and restart services.
 	<div class="space-y-2">
 		<h4 class="h4 text-sm font-semibold opacity-70">Service Status</h4>
 		<div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-			{#each Object.entries(services) as [name, serviceStatus]}
-				{@const service = serviceStatus as { status: ServiceHealth; message: string; error?: string; lastChecked?: number }}
+			{#each serviceEntries as [name, service] (name)}
 				<div class="card flex items-start gap-3 p-3">
-					<div class={`badge ${getServiceColor(service.status)} flex h-8 w-8 items-center justify-center text-lg`}>
+					<div
+						class={`badge ${getServiceColor(service.status)} flex h-8 w-8 shrink-0 items-center justify-center text-lg`}
+						role="img"
+						aria-label={`${service.status} status`}
+					>
 						{getServiceIcon(service.status)}
 					</div>
 					<div class="min-w-0 flex-1">
 						<p class="text-sm font-semibold">{formatServiceName(name)}</p>
-						<p class="truncate text-xs opacity-70" title={service.message}>
-							{service.message}
-						</p>
+						<p class="truncate text-xs opacity-70" title={service.message}>{service.message}</p>
 						{#if service.error}
-							<p class="truncate text-xs text-error-500" title={service.error}>
-								Error: {service.error}
-							</p>
+							<p class="truncate text-xs text-error-500" title={service.error}>Error: {service.error}</p>
 						{/if}
 						{#if service.lastChecked}
-							<p class="mt-1 text-xs opacity-50">
-								{new Date(service.lastChecked).toLocaleTimeString()}
-							</p>
+							<p class="mt-1 text-xs opacity-50">{new Date(service.lastChecked).toLocaleTimeString()}</p>
 						{/if}
 					</div>
 				</div>
@@ -260,10 +233,10 @@ Allows administrators to monitor system status and restart services.
 	<!-- Health Endpoint Info -->
 	<div class="card variant-ghost-surface p-3">
 		<details class="space-y-2">
-			<summary class="cursor-pointer text-sm font-semibold opacity-70"> API Health Endpoint </summary>
+			<summary class="cursor-pointer text-sm font-semibold opacity-70">API Health Endpoint</summary>
 			<div class="space-y-1 text-xs opacity-70">
 				<p>For external monitoring, use:</p>
-				<code class="code mt-1 block p-2">GET {window.location.origin}/api/system?action=health</code>
+				<code class="code mt-1 block p-2">GET {apiHealthUrl}</code>
 				<p class="mt-2">Returns JSON with system status and component health.</p>
 				<p>HTTP 200 = READY/DEGRADED, HTTP 503 = INITIALIZING/FAILED/IDLE</p>
 			</div>

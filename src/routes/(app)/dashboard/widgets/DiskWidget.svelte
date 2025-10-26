@@ -64,7 +64,7 @@ This widget fetches and displays real-time disk usage data, including:
 		widgetId = undefined,
 		size = '1/4',
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -72,7 +72,7 @@ This widget fetches and displays real-time disk usage data, including:
 		widgetId?: string;
 		size?: '1/4' | '1/2' | '3/4' | 'full';
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	let currentData = $state<any>(undefined);
@@ -218,7 +218,7 @@ This widget fetches and displays real-time disk usage data, including:
 	{widgetId}
 	{size}
 	{onSizeChange}
-	{onCloseRequest}
+	onCloseRequest={onRemove}
 >
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		{#if fetchedData?.diskInfo?.root}

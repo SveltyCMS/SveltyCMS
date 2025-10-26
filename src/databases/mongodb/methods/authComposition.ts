@@ -18,7 +18,8 @@
  */
 
 import type { IDBAdapter, DatabaseResult } from '@src/databases/dbInterface';
-import type { User, Session } from '@src/databases/schemas';
+import type { User, Session } from '@src/databases/auth/types';
+
 import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
@@ -78,7 +79,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 
 				// Create user first
 				const userResult = await userAdapter.createUser(userData);
-				if (!userResult.success || !userResult.data) {
+				if (!userResult.success) {
 					return {
 						success: false,
 						message: userResult.message || 'Failed to create user',
@@ -93,7 +94,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					tenantId: sessionData.tenantId
 				});
 
-				if (!sessionResult.success || !sessionResult.data) {
+				if (!sessionResult.success) {
 					// Rollback: delete the user we just created
 					await userAdapter.deleteUser(userResult.data._id, sessionData.tenantId);
 					return {

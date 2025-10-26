@@ -1,148 +1,157 @@
 /**
  * @file src/routes/api/systemPreferences/+server.ts
- * @description Server-side API endpoint for saving, loading, and updating user dashboard system preferences.
+ * @description Consolidated server-side API endpoint for managing system and user preferences.
  *
  * ### Usage
- * - POST to /api/systemPreferences with `{ preferences }` in the body to save user dashboard preferences.
- * - GET from /api/systemPreferences to load user dashboard preferences.
- * - PUT to /api/systemPreferences with `{ screenSize, widgets }` in the body to update a specific screen size's preferences.
- * - POST to /api/systemPreferences/widget-state to save individual widget state
- * - GET from /api/systemPreferences/widget-state?widgetId=ID to load individual widget state
+ * - GET /api/systemPreferences?key=... - Loads a specific preference value for the authenticated user.
+ * - GET /api/systemPreferences?keys[]=...&keys[]=... - Loads multiple preference values for the user.
+ * - POST /api/systemPreferences with `{ key, value }` - Saves a single preference for the user.
+ * - POST /api/systemPreferences with `[{ key, value }, ...]` - Saves multiple preferences in a single request.
+ * - DELETE /api/systemPreferences?key=... - Deletes a specific preference for the user.
  *
  * ### Features
- * - User authentication and authorization
- * - Persists user dashboard preferences to the database, scoped to the current tenant.
- * - Update preferences for a specific screen size
- * - Proper error handling and logging
+ * - Unified endpoint for all user-scoped preferences (e.g., dashboard layouts, widget states).
+ * - User authentication and role-based authorization.
+ * - Robust validation using Valibot.
+ * - Bulk operations for getting and setting multiple preferences.
+ * - Consistent error handling and logging.
  */
 
-import { dbAdapter, dbInitPromise } from '@src/databases/db';
-import { json, error } from '@sveltejs/kit';
-import { getPrivateSettingSync } from '@src/services/settingsService';
-
-// System Logger
+import { dbAdapter } from '@src/databases/db';
+import { json } from '@sveltejs/kit';
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { logger } from '@utils/logger.svelte';
+import * as v from 'valibot';
 
+// Validation Schemas
+const PreferenceSchema = v.object({
+	key: v.string([v.minLength(1, 'Preference key cannot be empty.')]),
+	value: v.any()
+});
+
+const SetSinglePreferenceSchema = PreferenceSchema;
+const SetMultiplePreferencesSchema = v.array(PreferenceSchema);
+
+// GET Handler for retrieving one or more preferences
 export const GET = async ({ locals, url }) => {
-	// Wait for database initialization
-	await dbInitPromise;
-
-	const { user, tenantId } = locals;
-
-	// Authentication is handled by hooks.server.ts
-	if (!user) {
-		logger.warn('Unauthorized attempt to load system preferences', {
-			tenantId
-		});
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to load system preferences');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-		throw error(400, 'Tenant could not be identified for this operation.');
-	} // Try to get userId from query param, otherwise use locals.user
+	if (!hasPermissionByAction(locals.user, 'read', 'system_preferences', undefined, locals.roles)) {
+		logger.warn(`User ${locals.user._id} lacks permission to read preferences`);
+		return json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
+	}
 
-	const userId = url.searchParams.get('userId') || user._id.toString(); // Handle widget state requests
-
-	const widgetId = url.searchParams.get('widgetId');
-	if (widgetId) {
-		try {
-			// Use "default" as the default layout ID for widget state
-			const layoutId = url.searchParams.get('layoutId') || 'default';
-			const state = await dbAdapter.systemPreferences.getWidgetState(userId, layoutId, widgetId);
-			return json({ state });
-		} catch (e) {
-			logger.error('Failed to load widget state:', { error: e, tenantId });
-			return json({ error: 'Failed to load widget state' }, { status: 500 });
-		}
-	} // Default system preferences load
+	const userId = locals.user._id;
+	const singleKey = url.searchParams.get('key');
+	const multipleKeys = url.searchParams.getAll('keys[]');
 
 	try {
-		// Use "default" as the default layout ID
-		const layoutId = url.searchParams.get('layoutId') || 'default';
-
-		if (!dbAdapter?.systemPreferences?.getSystemPreferences) {
-			logger.error('System preferences adapter not available', { tenantId, userId });
-			return json({ preferences: [] }, { status: 200 }); // Return empty preferences instead of error
+		// Handle request for multiple keys
+		if (multipleKeys.length > 0) {
+			const result = await dbAdapter.systemPreferences.getMany(multipleKeys, 'user', userId);
+			if (!result.success) {
+				throw new Error(result.message);
+			}
+			return json(result.data);
 		}
 
-		// Get the layout from the database
-		const layoutResult = await dbAdapter.systemPreferences.getSystemPreferences(userId, layoutId);
-
-		if (!layoutResult.success) {
-			logger.error('Failed to load system preferences:', {
-				error: layoutResult.message,
-				tenantId,
-				userId
-			});
-			return json({ preferences: [] }, { status: 200 }); // Return empty preferences instead of error
+		// Handle request for a single key
+		if (singleKey) {
+			const result = await dbAdapter.systemPreferences.get(singleKey, 'user', userId);
+			if (!result.success) {
+				// Return a default value for layout preferences to prevent UI breakage
+				if (singleKey.startsWith('dashboard.layout.')) {
+					return json({ id: singleKey, name: 'Default', preferences: [] });
+				}
+				return json({ value: null }, { status: 404 });
+			}
+			return json(result.data);
 		}
 
-		const response = {
-			preferences: layoutResult.data?.preferences || []
-		};
-		return json(response);
+		return json({ error: "Invalid request. Provide 'key' or 'keys[]' query parameter." }, { status: 400 });
 	} catch (e) {
-		logger.error('Failed to load system preferences:', {
-			error: e instanceof Error ? e.message : String(e),
-			tenantId,
-			userId,
-			stack: e instanceof Error ? e.stack : undefined
-		});
-		// Return empty preferences instead of error to prevent UI breaking
-		return json({ preferences: [] }, { status: 200 });
+		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+		logger.error(`Failed to load preferences for user ${userId}: ${errorMessage}`, e);
+		return json({ error: 'Failed to load preferences' }, { status: 500 });
 	}
 };
+
+// POST Handler for creating or updating one or more preferences
 export const POST = async ({ request, locals }) => {
-	// Wait for database initialization
-	await dbInitPromise;
-
-	const { user, tenantId } = locals;
-	const data = await request.json(); // Try to get userId from request body, otherwise use locals.user
-
-	const userId = data.userId || user?._id?.toString();
-	if (!userId) {
-		logger.warn('Unauthorized attempt to save system preferences.');
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to save system preferences');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
-		throw error(400, 'Tenant could not be identified for this operation.');
-	} // Handle widget state persistence
+	if (!hasPermissionByAction(locals.user, 'manage', 'system_preferences', undefined, locals.roles)) {
+		logger.warn(`User ${locals.user._id} lacks permission to manage preferences`);
+		return json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
+	}
 
-	if (data.widgetId && data.state) {
-		try {
-			// Pass tenantId to the adapter method
-			await dbAdapter.systemPreferences.setWidgetState(userId, data.widgetId, data.state, tenantId);
-			return json({ success: true });
-		} catch (e) {
-			logger.error('Failed to save widget state:', { error: e, tenantId });
-			return json({ error: 'Failed to save widget state' }, { status: 500 });
-		}
-	} // Default preferences save
+	const data = await request.json();
+	const userId = locals.user._id;
 
-	const { preferences, layoutId = 'default' } = data;
 	try {
-		if (!dbAdapter?.systemPreferences?.setUserPreferences) {
-			logger.error('System preferences adapter not available for saving', { tenantId, userId });
-			return json({ error: 'System preferences not available' }, { status: 503 });
+		// Try parsing as a single preference
+		const singleResult = v.safeParse(SetSinglePreferenceSchema, data);
+		if (singleResult.success) {
+			const { key, value } = singleResult.output;
+			const result = await dbAdapter.systemPreferences.set(key, value, 'user', userId);
+			if (!result.success) throw new Error(result.message);
+			return json({ success: true, message: `Preference '${key}' saved.` }, { status: 200 });
 		}
 
-		// Create a layout object as expected by the database
-		const layout = {
-			id: layoutId,
-			name: layoutId === 'default' ? 'Default Layout' : layoutId,
-			preferences: preferences || []
-		};
-		// Save the user preferences
-		await dbAdapter.systemPreferences.setUserPreferences(userId, layoutId, layout);
-		return json({ success: true });
+		// Try parsing as multiple preferences
+		const multipleResult = v.safeParse(SetMultiplePreferencesSchema, data);
+		if (multipleResult.success) {
+			const preferencesToSet = multipleResult.output.map((p) => ({ ...p, scope: 'user' as const, userId }));
+			const result = await dbAdapter.systemPreferences.setMany(preferencesToSet);
+			if (!result.success) throw new Error(result.message);
+			return json({ success: true, message: `${preferencesToSet.length} preferences saved.` }, { status: 200 });
+		}
+
+		// If neither schema matches
+		const issues = singleResult.issues || multipleResult.issues;
+		return json({ error: 'Invalid request data.', issues }, { status: 400 });
 	} catch (e) {
-		logger.error('Failed to save system preferences:', {
-			error: e instanceof Error ? e.message : String(e),
-			tenantId,
-			userId,
-			stack: e instanceof Error ? e.stack : undefined
-		});
+		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+		logger.error(`Failed to save preferences for user ${userId}: ${errorMessage}`, e);
 		return json({ error: 'Failed to save preferences' }, { status: 500 });
+	}
+};
+
+// DELETE Handler for removing a preference
+export const DELETE = async ({ locals, url }) => {
+	if (!locals.user) {
+		logger.warn('Unauthorized attempt to delete a system preference');
+		return json({ error: 'Unauthorized' }, { status: 401 });
+	}
+
+	if (!hasPermissionByAction(locals.user, 'manage', 'system_preferences', undefined, locals.roles)) {
+		logger.warn(`User ${locals.user._id} lacks permission to delete preferences`);
+		return json({ error: 'Forbidden: Insufficient permissions' }, { status: 403 });
+	}
+
+	const key = url.searchParams.get('key');
+	if (!key) {
+		return json({ error: "Missing 'key' query parameter." }, { status: 400 });
+	}
+
+	const userId = locals.user._id;
+
+	try {
+		const result = await dbAdapter.systemPreferences.delete(key, 'user', userId);
+		if (!result.success) {
+			// It might not be an error if the key didn't exist, but we log it just in case.
+			logger.warn(`Attempted to delete non-existent preference key '${key}' for user ${userId}`);
+		}
+		return json({ success: true, message: `Preference '${key}' deleted.` }, { status: 200 });
+	} catch (e) {
+		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+		logger.error(`Failed to delete preference '${key}' for user ${userId}: ${errorMessage}`, e);
+		return json({ error: 'Failed to delete preference' }, { status: 500 });
 	}
 };

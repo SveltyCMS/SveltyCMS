@@ -18,7 +18,7 @@
 		selected_widget = $bindable<string | null>(null),
 		field = $bindable({
 			label: '',
-			widget: { key: null as string | null, GuiFields: {} as Record<string, any> }
+			widget: { key: null as string | null, GuiFields: {} as Record<string, unknown> }
 		})
 	} = $props();
 
@@ -76,7 +76,8 @@
 			</div>
 
 			{#if guiSchema}
-				{#each Object.entries(guiSchema) as [property, value]}
+				{#each Object.entries(guiSchema) as [property, value] (property)}
+					<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 					<InputSwitch value={field.widget.GuiFields[property]} widget={(value as any).widget} key={property} />
 				{/each}
 			{/if}

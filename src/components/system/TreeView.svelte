@@ -38,27 +38,26 @@
 </script>
 
 <script lang="ts">
-	// Import the component itself for recursive usage
+	// Import recursive component and transitions/easing
 	import TreeViewComponent from './TreeView.svelte';
-	// Alias for recursive usage
 	const TreeView = TreeViewComponent;
 	import { fly } from 'svelte/transition';
 
-	// Destructure props with default values
+	// Destructure props with clearer names and defaults
 	const {
-		k, // Key (consider removing if not used)
-		nodes: initialNodes, // Initial tree nodes
-		selectedId = null, // Initially selected node ID
-		ariaLabel = 'Navigation tree', // Default ARIA label for the tree
-		dir = 'ltr', // Default text direction
-		search = '', // Search term for filtering nodes
-		compact = false, // Flag for compact view
-		iconColorClass = 'text-error-500', // Default icon color class
-		showBadges = false, // Default to false so it's optional
-		allowDragDrop = false, // Enable drag & drop functionality
-		onReorder = null // Callback for reordering nodes
+		k = undefined,
+		nodes: initialNodes,
+		selectedId = null,
+		ariaLabel = 'Navigation tree',
+		dir = 'ltr',
+		search = '',
+		compact = false,
+		iconColorClass = 'text-error-500',
+		showBadges = false,
+		allowDragDrop = false,
+		onReorder = null
 	} = $props<{
-		k: number;
+		k?: number;
 		nodes: TreeNode[];
 		selectedId?: string | null;
 		ariaLabel?: string;
@@ -71,141 +70,169 @@
 		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
 	}>();
 
-	// Reactive state for nodes - update when initialNodes change
-	let nodes = $state<TreeNode[]>(initialNodes);
-	$effect(() => {
-		nodes = initialNodes;
-	});
-
+	// Focused item id
 	let focusedNodeId = $state<string | null>(null);
 
-	// Drag & Drop state
+	// Use native Set for expansion state; SvelteSet isn't available in this environment.
+	let expandedNodeIds = $state<Set<string>>(new Set());
+
+	// Drag & drop transient UI state
 	let draggedNode = $state<TreeNode | null>(null);
 	let dragOverNode = $state<TreeNode | null>(null);
 	let dropPosition = $state<'before' | 'after' | 'inside' | null>(null);
 
-	// Filtered Memoize nodes
-	const filteredNodes = $derived.by(() => {
-		if (!search) return nodes;
+	// Helper: check expansion
+	function isNodeExpanded(nodeId: string) {
+		return expandedNodeIds.has(nodeId);
+	}
 
-		return nodes.filter((node) => {
-			const matchesSearch = node.name.toLowerCase().includes(search.toLowerCase());
-			const childMatches = node.children ? node.children.some((child) => child.name.toLowerCase().includes(search.toLowerCase())) : false;
-			return matchesSearch || childMatches;
-		});
+	// Map nodes to derived form including isExpanded without mutating props
+	function mapNodesWithDerivedState(nodesToMap: TreeNode[]): TreeNode[] {
+		return nodesToMap.map((node) => ({
+			...node,
+			isExpanded: isNodeExpanded(node.id),
+			children: node.children ? mapNodesWithDerivedState(node.children) : undefined
+		}));
+	}
+
+	let processedNodes = $derived(() => mapNodesWithDerivedState(initialNodes));
+
+	let filteredNodes = $derived(() => {
+		const searchTermLower = (search || '').toLowerCase().trim();
+		if (!searchTermLower) return processedNodes();
+
+		const filter = (nodesToFilter: TreeNode[]): TreeNode[] => {
+			return nodesToFilter
+				.map((node) => {
+					const nameMatch = node.name.toLowerCase().includes(searchTermLower);
+					if (nameMatch) return node;
+					if (node.children) {
+						const children = filter(node.children);
+						if (children.length > 0) return { ...node, children };
+					}
+					return null;
+				})
+				.filter((n): n is TreeNode => n !== null);
+		};
+		return filter(processedNodes());
 	});
 
-	// Create a map of node IDs to nodes for efficient lookup
-	const nodeMap = $derived.by(() => {
-		const map = new Map<string, TreeNode>();
-		function collectNodes(node: TreeNode, depth = 0) {
-			map.set(node.id, { ...node, depth });
-			if (node.children) {
-				node.children.forEach((child) => collectNodes(child, depth + 1));
-			}
+	// nodeMap derived for lookups (depth + parentId)
+	let nodeMap = $derived(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const map = new Map<string, TreeNode & { depth: number; parentId?: string }>();
+		function collect(node: TreeNode, depth = 0, parentId?: string) {
+			map.set(node.id, { ...node, depth, parentId });
+			if (node.children) node.children.forEach((c) => collect(c, depth + 1, node.id));
 		}
-		nodes.forEach((node) => collectNodes(node));
+		initialNodes.forEach((n: TreeNode) => collect(n));
 		return map;
 	});
 
-	// Function to toggle node expansion
+	// Toggle expansion state
 	function toggleNode(node: TreeNode) {
-		if (node.children) {
-			if (!node.isExpanded) {
-				// Collapse other expanded parents
-				nodes.forEach((n) => {
-					if (n.id !== node.id && n.isExpanded && n.children) {
-						n.isExpanded = false;
-					}
-				});
-			}
-			node.isExpanded = !node.isExpanded;
-		}
+		if (!node.children) return;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const newSet = new Set(expandedNodeIds);
+		if (newSet.has(node.id)) newSet.delete(node.id);
+		else newSet.add(node.id);
+		expandedNodeIds = newSet;
 		if (node.onClick) node.onClick(node);
 	}
 
-	// Function to handle keyboard events
+	// Keyboard handling
 	function handleKeyDown(event: KeyboardEvent, node: TreeNode) {
-		// Define actions for specific keys
-		const keyActions = {
-			Enter: () => toggleNode(node), // Toggle node expansion on Enter
-			' ': () => toggleNode(node), // Toggle node expansion on Space
-			ArrowRight: () => handleArrowRight(node), // Handle right arrow key
-			ArrowLeft: () => handleArrowLeft(node), // Handle left arrow key
-			ArrowDown: () => focusNextNode(node.id), // Focus on the next node
-			ArrowUp: () => focusPreviousNode(node.id), // Focus on the previous node
-			Home: () => focusFirstNode(), // Focus on the first node
-			End: () => focusLastNode() // Focus on the last node
+		const actions: Record<string, (() => void) | undefined> = {
+			Enter: () => toggleNode(node),
+			' ': () => toggleNode(node),
+			ArrowRight: () => handleArrowKey(node, 'right'),
+			ArrowLeft: () => handleArrowKey(node, 'left'),
+			ArrowDown: () => focusNextNode(node.id),
+			ArrowUp: () => focusPreviousNode(node.id),
+			Home: () => focusFirstNode(),
+			End: () => focusLastNode()
 		};
-
-		// Get the action corresponding to the pressed key
-		const action = keyActions[event.key as keyof typeof keyActions];
-		// If an action is found, execute it and prevent default behavior
+		const action = actions[event.key];
 		if (action) {
 			action();
 			event.preventDefault();
 		}
 	}
 
-	// Function to handle right arrow key based on text direction
-	function handleArrowRight(node: TreeNode) {
-		if (dir === 'rtl') {
-			// In RTL, expand if not expanded
-			if (node.children && !node.isExpanded) toggleNode(node);
-		} else {
-			// In LTR, focus next if expanded
-			if (node.children && node.isExpanded) focusNextNode(node.id);
+	function handleArrowKey(node: TreeNode, direction: 'left' | 'right') {
+		const isRtl = dir === 'rtl';
+		const expandKey = isRtl ? 'ArrowLeft' : 'ArrowRight';
+		const collapseKey = isRtl ? 'ArrowRight' : 'ArrowLeft';
+		const currentKey = direction === 'right' ? 'ArrowRight' : 'ArrowLeft';
+		const nodeData = nodeMap().get(node.id);
+
+		if (currentKey === expandKey) {
+			if (node.children && !isNodeExpanded(node.id)) toggleNode(node);
+			else if (node.children && isNodeExpanded(node.id)) focusNextNode(node.id);
+		} else if (currentKey === collapseKey) {
+			if (node.children && isNodeExpanded(node.id)) toggleNode(node);
+			else if (nodeData?.parentId) focusNodeById(nodeData.parentId);
+			else if (nodeData?.depth === 0) focusPreviousNode(node.id);
 		}
 	}
 
-	// Function to handle left arrow key based on text direction
-	function handleArrowLeft(node: TreeNode) {
-		if (dir === 'rtl') {
-			// In RTL, collapse if expanded
-			if (node.children && node.isExpanded) toggleNode(node);
-		} else {
-			// In LTR, collapse if expanded, otherwise focus previous
-			if (node.children && node.isExpanded) toggleNode(node);
-			else focusPreviousNode(node.id);
+	// Visible nodes flattening based on filteredNodes()
+	function getVisibleNodesFlat(): string[] {
+		const visible: string[] = [];
+		function traverse(nodesToTraverse: TreeNode[]) {
+			nodesToTraverse.forEach((n) => {
+				visible.push(n.id);
+				if (n.children && isNodeExpanded(n.id)) traverse(n.children);
+			});
 		}
+		traverse(filteredNodes());
+		return visible;
 	}
 
-	// Function to focus on the next node
+	function focusNodeById(nodeId: string | null) {
+		if (nodeId && nodeMap().has(nodeId)) focusedNodeId = nodeId;
+	}
+
 	function focusNextNode(currentId: string) {
-		const allNodes = Array.from(nodeMap.keys());
-		const index = allNodes.indexOf(currentId);
-		focusedNodeId = allNodes[(index + 1) % allNodes.length];
+		const v = getVisibleNodesFlat();
+		const i = v.indexOf(currentId);
+		focusNodeById(v[(i + 1) % v.length]);
 	}
 
-	// Function to focus on the previous node
 	function focusPreviousNode(currentId: string) {
-		const allNodes = Array.from(nodeMap.keys());
-		const index = allNodes.indexOf(currentId);
-		focusedNodeId = allNodes[(index - 1 + allNodes.length) % allNodes.length];
+		const v = getVisibleNodesFlat();
+		const i = v.indexOf(currentId);
+		focusNodeById(v[(i - 1 + v.length) % v.length]);
 	}
 
-	// Function to focus on the first node
 	function focusFirstNode() {
-		focusedNodeId = Array.from(nodeMap.keys())[0];
+		const v = getVisibleNodesFlat();
+		if (v.length) focusNodeById(v[0]);
 	}
 
-	// Function to focus on the last node
 	function focusLastNode() {
-		const allNodes = Array.from(nodeMap.keys());
-		focusedNodeId = allNodes[allNodes.length - 1];
+		const v = getVisibleNodesFlat();
+		if (v.length) focusNodeById(v[v.length - 1]);
 	}
 
-	// Effect to focus on the node element with enhanced visual feedback
 	$effect(() => {
 		if (focusedNodeId) {
-			const element = document.getElementById(`node-${focusedNodeId}`);
-			if (element) {
-				element.focus();
-			}
+			const el = document.getElementById(`node-${focusedNodeId}`);
+			el?.focus({ preventScroll: true });
 		}
 	});
 
-	// Drag & Drop handlers
+	// Drag/drop helpers (isDescendant, handleDragStart/Over/Leave/Drop/End)
+	function isDescendant(ancestorId: string, nodeId: string): boolean {
+		let currentId: string | undefined = nodeId;
+		while (currentId) {
+			const nd = nodeMap().get(currentId);
+			if (nd?.parentId === ancestorId) return true;
+			currentId = nd?.parentId;
+		}
+		return false;
+	}
+
 	function handleDragStart(event: DragEvent, node: TreeNode) {
 		if (!allowDragDrop || node.id === 'root') return;
 		draggedNode = node;
@@ -214,81 +241,48 @@
 			event.dataTransfer.setData('text/plain', node.id);
 		}
 	}
+
 	function handleDragOver(event: DragEvent, node: TreeNode) {
 		if (!allowDragDrop || !draggedNode || draggedNode.id === node.id) return;
-
-		// Prevent dropping a folder into itself or its descendants
-		if (isDescendant(draggedNode.id, node.id)) return;
-
-		event.preventDefault();
-		if (event.dataTransfer) {
-			event.dataTransfer.dropEffect = 'move';
+		if (isDescendant(draggedNode.id, node.id)) {
+			dropPosition = null;
+			dragOverNode = node;
+			if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+			return;
 		}
-
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
 		dragOverNode = node;
-
-		// Determine drop position based on mouse position
 		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
 		const y = event.clientY - rect.top;
-		const height = rect.height;
-
-		if (y < height * 0.25) {
-			dropPosition = 'before';
-		} else if (y > height * 0.75) {
-			dropPosition = 'after';
-		} else {
-			// Only allow 'inside' for nodes that can have children (virtual folders, not root)
-			dropPosition = node.nodeType === 'virtual' && node.id !== 'root' ? 'inside' : 'after';
-		}
+		const h = rect.height;
+		const threshold = 0.25;
+		if (y < h * threshold) dropPosition = 'before';
+		else if (y > h * (1 - threshold)) dropPosition = 'after';
+		else dropPosition = (node.nodeType === 'virtual' || node.nodeType === 'category') && node.id !== 'root' ? 'inside' : 'after';
 	}
 
-	// Helper function to check if a node is a descendant of another
-	function isDescendant(ancestorId: string, nodeId: string): boolean {
-		const findNodeInNodes = (nodes: TreeNode[], id: string): TreeNode | null => {
-			for (const node of nodes) {
-				if (node.id === id) return node;
-				if (node.children) {
-					const found = findNodeInNodes(node.children, id);
-					if (found) return found;
-				}
-			}
-			return null;
-		};
-
-		const ancestor = findNodeInNodes(nodes, ancestorId);
-		if (!ancestor || !ancestor.children) return false;
-
-		return ancestor.children.some((child) => child.id === nodeId || isDescendant(ancestorId, child.id));
-	}
-
-	function handleDragLeave() {
+	function handleDragLeave(event?: DragEvent) {
 		if (!allowDragDrop) return;
-		// Only clear if we're really leaving the node area
-		setTimeout(() => {
+		const related = event?.relatedTarget as Node | null;
+		if (!related || !(event?.currentTarget as Node).contains(related)) {
 			dragOverNode = null;
 			dropPosition = null;
-		}, 50);
+		}
 	}
 
 	function handleDrop(event: DragEvent, node: TreeNode) {
-		if (!allowDragDrop || !draggedNode || !dropPosition || draggedNode.id === node.id) return;
-
-		event.preventDefault();
-
-		// Call the reorder callback
-		if (onReorder) {
-			onReorder(draggedNode.id, node.id, dropPosition);
+		if (!allowDragDrop || !draggedNode || !dropPosition || draggedNode.id === node.id || isDescendant(draggedNode.id, node.id)) {
+			handleDragEnd();
+			return;
 		}
-
-		// Reset drag state
-		draggedNode = null;
-		dragOverNode = null;
-		dropPosition = null;
+		event.preventDefault();
+		if (onReorder) onReorder(draggedNode.id, node.id, dropPosition);
+		handleDragEnd();
 	}
 
 	function handleDragEnd() {
 		if (!allowDragDrop) return;
-		// Reset drag state
 		draggedNode = null;
 		dragOverNode = null;
 		dropPosition = null;
@@ -301,7 +295,7 @@
 	{dir}
 	class="rtl:space-x-revert scrollbar-thin scrollbar-thumb-primary-500 max-h-[80vh] w-full space-y-1 overflow-y-auto"
 >
-	{#each filteredNodes as node (node.id)}
+	{#each filteredNodes() as node (node.id)}
 		<li
 			role="treeitem"
 			aria-expanded={node.children ? node.isExpanded : undefined}

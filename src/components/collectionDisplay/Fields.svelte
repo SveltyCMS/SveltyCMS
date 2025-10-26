@@ -225,13 +225,52 @@
 	});
 
 	// Update the main collection value store when form data changes (immediate sync for save reliability)
+	// Use untrack to avoid circular dependencies and ensure one-way sync from currentCollectionValue -> collectionValue
+	let lastSyncedData = $state<string>('');
 	$effect(() => {
-		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
+		// Track only the things we WANT to react to: currentCollectionValue changes
+		const currentMode = mode.value;
+		const initialized = isFormDataInitialized;
+
+		// ONLY sync if form is initialized - this prevents sync during initial setup
+		if (!initialized) {
+			return;
+		}
+
+		// Stringify to detect actual changes
+		const currentDataStr = JSON.stringify(currentCollectionValue);
+
+		if (currentDataStr === lastSyncedData) {
+			// No changes, skip
+			return;
+		}
+
+		if (localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
+			// Read collectionValue inside untrack to avoid making it a reactive dependency
 			untrack(() => {
-				setCollectionValue({
-					...collectionValue,
-					...currentCollectionValue
-				});
+				const currentEntryId = (collectionValue as any)?._id;
+				const localEntryId = (currentCollectionValue as any)?._id;
+
+				// Only sync during create OR when editing the same entry
+				if (currentMode === 'create' || currentEntryId === localEntryId) {
+					// Merge currentCollectionValue into the global store
+					const merged = {
+						...(collectionValue as Record<string, unknown>),
+						...currentCollectionValue
+					};
+
+					// Only update if there are actual changes to avoid infinite loops
+					const hasChanges = Object.keys(currentCollectionValue).some(
+						(key) => JSON.stringify(merged[key]) !== JSON.stringify((collectionValue as Record<string, unknown>)[key])
+					);
+
+					if (hasChanges) {
+						setCollectionValue(merged);
+						lastSyncedData = currentDataStr;
+					} else {
+						lastSyncedData = currentDataStr;
+					}
+				}
 			});
 		}
 	});
@@ -304,24 +343,47 @@
 		isLoading = false;
 	});
 
+	// Reset initialization when mode changes to create (allows fresh initialization)
+	let previousModeRef = { value: mode.value }; // Use object reference to avoid reactivity
+	$effect(() => {
+		const currentMode = mode.value;
+
+		if (currentMode === 'create' && previousModeRef.value !== 'create') {
+			// Reset initialization flag to allow fresh setup for new entry
+			untrack(() => {
+				isFormDataInitialized = false;
+				lastEntryId = undefined;
+			});
+			previousModeRef.value = currentMode;
+		} else if (currentMode !== 'create' && currentMode !== previousModeRef.value) {
+			previousModeRef.value = currentMode;
+		}
+	});
+
 	// Initialize form data when the entry changes or fields become available
 	$effect(() => {
-		if (!isFormDataInitialized && collectionValue && derivedFields.length > 0) {
-			formDataSnapshot = { ...(collectionValue as Record<string, any>) };
-			// Ensure all fields have proper initial values
-			const initialValue = { ...defaultCollectionValue };
-			// Double-check that all derived fields have values
-			for (const field of derivedFields) {
-				const safeField = ensureFieldProperties(field);
-				const fieldName = getFieldName(safeField, false);
-				if (initialValue[fieldName] === undefined) {
-					const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
-					initialValue[fieldName] = isTranslated ? {} : '';
+		const globalData = collectionValue as any;
+		const currentEntryId = globalData?._id;
+
+		// Only initialize if not yet initialized OR if we're switching to a completely different entry
+		if (!isFormDataInitialized && globalData && derivedFields.length > 0) {
+			untrack(() => {
+				formDataSnapshot = { ...globalData };
+				// Ensure all fields have proper initial values
+				const initialValue = { ...defaultCollectionValue };
+				// Double-check that all derived fields have values
+				for (const field of derivedFields) {
+					const safeField = ensureFieldProperties(field);
+					const fieldName = getFieldName(safeField, false);
+					if (initialValue[fieldName] === undefined) {
+						const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+						initialValue[fieldName] = isTranslated ? {} : '';
+					}
 				}
-			}
-			currentCollectionValue = initialValue;
-			lastEntryId = (collectionValue as any)?._id; // Track the current entry ID
-			isFormDataInitialized = true;
+				currentCollectionValue = initialValue;
+				lastEntryId = currentEntryId; // Track the current entry ID
+				isFormDataInitialized = true;
+			});
 		}
 	}); // Form data persistence across tab switches
 
@@ -329,18 +391,22 @@
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue) {
 			// Only sync when on edit tab to avoid unnecessary updates
-			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
+			untrack(() => {
+				formDataSnapshot = { ...formDataSnapshot, ...currentCollectionValue };
+			});
 		} else if (localTabSet !== 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
 			// Merge snapshot data back into currentCollectionValue when returning to edit tab
-			const updatedValue = { ...currentCollectionValue };
-			for (const field of derivedFields) {
-				const safeField = ensureFieldProperties(field);
-				const fieldName = getFieldName(safeField, false);
-				if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
-					updatedValue[fieldName] = formDataSnapshot[fieldName];
+			untrack(() => {
+				const updatedValue = { ...currentCollectionValue };
+				for (const field of derivedFields) {
+					const safeField = ensureFieldProperties(field);
+					const fieldName = getFieldName(safeField, false);
+					if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
+						updatedValue[fieldName] = formDataSnapshot[fieldName];
+					}
 				}
-			}
-			currentCollectionValue = updatedValue;
+				currentCollectionValue = updatedValue;
+			});
 		}
 	});
 
@@ -349,11 +415,12 @@
 		const globalData = collectionValue as any;
 		const currentEntryId = globalData?._id;
 
-		// Only reinitialize if we're switching to a different entry (or from no entry to an entry)
-		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized && currentEntryId !== lastEntryId) {
-			console.log('[Fields] Entry changed, reinitializing form data', { from: lastEntryId, to: currentEntryId });
-			currentCollectionValue = { ...globalData };
-			lastEntryId = currentEntryId;
+		// Only reinitialize if we're switching to a different entry (with valid ID) AND form was already initialized
+		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized && currentEntryId && currentEntryId !== lastEntryId) {
+			untrack(() => {
+				currentCollectionValue = { ...globalData };
+				lastEntryId = currentEntryId;
+			});
 		}
 	});
 

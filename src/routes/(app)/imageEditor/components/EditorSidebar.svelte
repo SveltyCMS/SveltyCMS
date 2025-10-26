@@ -1,5 +1,5 @@
 <!--
-@file: src/routes/(app)/imageEditor/components/EditorSidebar.svelte
+@file: /src/routes/(app)/imageEditor/EditorSidebar.svelte
 @component
 **Left sidebar with Pintura-inspired vertical tool layout**
 Provides easy access to all editing tools with clean, minimal design
@@ -48,7 +48,9 @@ and proper active state indication.
 			name: 'Finetune',
 			icon: 'mdi:tune',
 			description: 'Brightness, contrast, saturation',
-			category: 'adjust'
+			category: 'adjust',
+			disabled: true, // Not yet implemented
+			comingSoon: true
 		},
 		{
 			id: 'blur',
@@ -62,7 +64,17 @@ and proper active state indication.
 			name: 'Annotate',
 			icon: 'mdi:pencil',
 			description: 'Add text and shapes',
-			category: 'overlay'
+			category: 'overlay',
+			disabled: true, // Will be implemented as combined text+shape tool
+			comingSoon: true
+		},
+		{
+			id: 'sticker',
+			name: 'Sticker',
+			icon: 'mdi:sticker',
+			description: 'Watermarks and overlays',
+			category: 'overlay',
+			actualTool: 'watermark' // Maps to watermark for now
 		},
 		{
 			id: 'watermark',

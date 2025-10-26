@@ -48,7 +48,7 @@ Features:
 		widgetId = undefined,
 		size = { w: 1, h: 2 },
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -56,7 +56,7 @@ Features:
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	let currentData = $state<any>(undefined);
@@ -76,11 +76,13 @@ Features:
 	$effect(() => {
 		if (!chartCanvas || !currentData?.memoryInfo?.total) return;
 
-		const { usedMemMb, freeMemMb, usedMemPercentage } = currentData.memoryInfo.total;
+		// Data is already in MB from API
+		const usedMemMb = currentData.memoryInfo.total.usedMemMb || 0;
+		const freeMemMb = currentData.memoryInfo.total.freeMemMb || 0;
+		const usedPercent = currentData.memoryInfo.total.usedMemPercentage || 0;
 
 		const plainUsedMem = Number(usedMemMb) || 0;
 		const plainFreeMem = Number(freeMemMb) || 0;
-		const usedPercent = Number(usedMemPercentage) || 0;
 
 		if (chart) {
 			chart.data.datasets[0].data = [plainUsedMem, plainFreeMem];
@@ -188,7 +190,7 @@ Features:
 	{widgetId}
 	{size}
 	{onSizeChange}
-	{onCloseRequest}
+	onCloseRequest={onRemove}
 >
 	{#snippet children({ data: fetchedData }: { data: any | undefined })}
 		{#if fetchedData?.memoryInfo?.total}

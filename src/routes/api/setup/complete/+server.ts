@@ -14,7 +14,7 @@
 import { dev } from '$app/environment';
 
 // Auth
-import type { User, Session } from '@src/databases/schemas';
+import type { User, Session } from '@src/databases/auth/types';
 import { Auth } from '@src/databases/auth';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setupAdminSchema } from '@src/utils/formSchemas';
@@ -24,8 +24,7 @@ import { randomBytes } from 'crypto';
 import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
-// Content Manager for redirects
-import { contentManager } from '@root/src/content/ContentManager';
+// Collection utilities
 import type { Locale } from '@src/paraglide/runtime';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage } from '@stores/store.svelte';
@@ -408,28 +407,21 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			// Use firstCollection if it was passed from the seed step (faster!)
-			if (firstCollection && firstCollection.path) {
-				const collectionPath = firstCollection.path.startsWith('/') ? firstCollection.path : `/${firstCollection.path}`;
-				redirectPath = `/${userLanguage}${collectionPath}`;
-				logger.info(`✨ Fast redirect using pre-seeded collection: \x1b[34m${firstCollection.name}\x1b[0m at \x1b[34m${redirectPath}\x1b[0m`, {
-					correlationId
-				});
+			// Check if collections exist in the database (runtime-created collections)
+			// First try the firstCollection passed from setup wizard (if available)
+			if (firstCollection?.path) {
+				redirectPath = firstCollection.path;
+				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${redirectPath}`, { correlationId });
 			} else {
-				// Fallback: Query ContentManager (slower)
-				logger.debug('No firstCollection passed, querying ContentManager...', { correlationId });
-
-				// Force ContentManager to reload all collections
-				await contentManager.initialize(undefined, true);
-
+				// Fallback: Query database for available collections
 				redirectPath = await getCachedFirstCollectionPath(userLanguage);
 
-				// If no collections found, fall back to collection builder
-				if (!redirectPath) {
-					redirectPath = '/config/collectionbuilder';
-					logger.info('No collections available, redirecting to collection builder', { correlationId });
+				if (redirectPath) {
+					logger.info(`Setup complete: Redirecting to collection from database: ${redirectPath}`, { correlationId });
 				} else {
-					logger.info('Redirecting to first collection', { correlationId, redirectPath });
+					// No collections available - redirect to collection builder
+					logger.info('Setup complete: No collections available, redirecting to collection builder', { correlationId });
+					redirectPath = '/config/collectionbuilder';
 				}
 			}
 		} catch (redirectError) {

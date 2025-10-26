@@ -65,6 +65,7 @@ declare global {
 			__setupLogged?: boolean;
 			__setupRedirectLogged?: boolean;
 			__setupLoginRedirectLogged?: boolean;
+			degradedServices?: string[];
 		}
 	}
 

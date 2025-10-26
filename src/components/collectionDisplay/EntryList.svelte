@@ -959,11 +959,12 @@ Features:
 			newEntry.status = collection.value.status;
 		}
 
-		// Set the new entry data FIRST
-		setCollectionValue(newEntry);
-
-		// THEN switch the mode
+		// IMPORTANT: Switch mode to 'create' FIRST
+		// This allows Fields.svelte to reset initialization before collectionValue changes
 		setMode('create');
+
+		// THEN set the new entry data
+		setCollectionValue(newEntry);
 
 		// Use a microtask to allow the UI to update before other actions
 		await Promise.resolve();

@@ -55,17 +55,18 @@ Features:
 	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
-	import { collection, contentStructure, mode, setCollection, setMode } from '@src/stores/collectionStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
+	import { collection, contentStructure, mode, setCollection, setMode } from '@stores/collectionStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
-	import { get } from 'svelte/store';
-	import { untrack } from 'svelte';
+	// --- REMOVED `get` from 'svelte/store' ---
+	// --- REMOVED `untrack` from 'svelte' ---
 
 	// Utils
 	import { debounce } from '@utils/utils';
 	import { validateSchemaWidgets } from '@utils/widgetValidation';
 	import { activeWidgets } from '@stores/widgetStore.svelte';
+	import { get } from 'svelte/store';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
@@ -73,32 +74,28 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Extend ContentNode to ensure path property is available
 	interface ExtendedContentNode extends Omit<ContentNode, 'children' | 'order'> {
-		// All ContentNode properties (_id, name, nodeType, translations, etc.) are inherited
 		path?: string;
-		children?: ExtendedContentNode[]; // Recursive reference with ExtendedContentNode
+		children?: ExtendedContentNode[];
 		lastModified?: Date;
 		fileCount?: number;
 		status?: StatusType;
-		fields?: FieldInstance[]; // Add fields property for collection nodes (array of FieldInstance)
-		order?: number; // Override to make order optional for client-side operations
+		fields?: FieldInstance[];
+		order?: number;
 	}
 
-	// ✅ ADD PROPS DEFINITION
-	// Fix: Add explicit type for systemVirtualFolders prop
 	const { systemVirtualFolders = [] } = $props<{ systemVirtualFolders: CollectionTreeNode[] }>();
 
 	// State management
 	let search = $state('');
 	let debouncedSearch = $state('');
-	let isLoading = $state(false); // isLoading is now simpler
+	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
-	let systemVirtualFolderNodes = $state<CollectionTreeNode[]>([]);
 	let selectedSystemVirtualFolder = $state<string | null>(null);
+	let navigationTimeout: ReturnType<typeof setTimeout> | undefined;
 
-	// Use enhanced global debounce for search
+	// Debounce function
 	const debouncedSearchUpdate = debounce.create(
 		((searchValue: string) => {
 			debouncedSearch = searchValue.toLowerCase().trim();
@@ -106,164 +103,177 @@ Features:
 		150
 	);
 
-	// Derived states with memoization
-	let lastContentStructure: any = null;
-	let cachedNestedStructure: ExtendedContentNode[] = [];
-
-	let nestedStructure = $derived.by(() => {
-		// Only recalculate if content structure actually changed
-		if (contentStructure !== lastContentStructure) {
-			lastContentStructure = contentStructure;
-			// contentStructure is ALREADY nested from getNavigationStructure()
-			cachedNestedStructure = contentStructure.value || [];
-		}
-		return cachedNestedStructure;
-	});
-
+	// --- Derived States ---
+	let nestedStructure = $derived(contentStructure.value || []);
 	let isMediaMode = $derived(mode.value === 'media');
 	let isFullSidebar = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	// currentPath derived intentionally removed; use page.url.pathname directly where needed
 
-	// Optimized debounced search effect with Svelte 5 reactive patterns
+	// Effect for debouncing search
 	$effect(() => {
-		// React to search changes and debounce the update
 		debouncedSearchUpdate(search);
 	});
 
-	// Initialize mode based on current route on component mount
-	$effect(() => {
-		const pathname = page.url.pathname;
-		console.log('[Collections] Initialization effect - pathname:', pathname);
-
-		// Only set mode if we're not on a mediagallery route
-		if (!pathname.includes('/mediagallery') && mode.value === 'media') {
-			console.log('[Collections] Initializing mode to view for non-mediagallery route');
-			setMode('view');
-		}
-	});
-
-	// Collection counting with persistent caching
+	// --- OPTIMIZED: collectionStructureNodes is now $derived ---
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	let collectionCountCache = new Map<string, number>();
 
-	function countAllCollections(node: ExtendedContentNode): number {
-		const cacheKey = node._id;
-		if (collectionCountCache.has(cacheKey)) {
-			return collectionCountCache.get(cacheKey)!;
-		}
-
-		let count = 0;
-		if (!node.children) {
-			collectionCountCache.set(cacheKey, 0);
-			return 0;
-		}
-
-		for (const child of node.children) {
-			if (child.nodeType === 'collection') {
-				count++;
-			} else if (child.nodeType === 'category') {
-				count += countAllCollections(child);
-			}
-		}
-
-		collectionCountCache.set(cacheKey, count);
-		return count;
-	}
-
-	// Clear cache when content structure changes
-	function clearCountCache() {
-		collectionCountCache.clear();
-	}
-
-	// Optimized node mapping with memoization
-	let collectionStructureNodes = $state<CollectionTreeNode[]>([]);
-
-	// Effect to update collectionStructureNodes when dependencies change
-	$effect(() => {
-		// Track only the inputs we care about
+	let collectionStructureNodes = $derived(() => {
 		const structure = nestedStructure;
 		const lang = contentLanguage.value;
 		const expanded = expandedNodes;
+		const selectedId = collection.value?._id;
+		const activeWidgetList = get(activeWidgets);
 
-		// Debug logging for collections data
-		console.log('[Collections] Data loading debug:', {
-			mode: mode.value,
-			isMediaMode: mode.value === 'media',
-			structureLength: structure?.length || 0,
-			contentStructureValue: contentStructure.value?.length || 0,
-			structure: structure
-		});
+		collectionCountCache.clear();
 
-		// Use untrack to read the selected collection ID without creating reactivity dependency
-		const selectedId = untrack(() => collection.value?._id);
-
-		// Use untrack to prevent reading collectionStructureNodes from triggering this effect
-		untrack(() => {
-			function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-				const isCategory = node.nodeType === 'category';
-				// Get translation for current language or fallback to default name
-				const translation = node.translations?.find((trans: Translation) => trans.languageTag === lang);
-				const label = translation?.translationName || node.name;
-
-				const nodeId = node._id;
-				const isExpanded = expanded.has(nodeId) || selectedId === nodeId;
-
-				// Check for inactive widgets if this is a collection
-				let hasInactiveWidgets = false;
-				if (!isCategory && node.fields) {
-					const activeWidgetList = get(activeWidgets);
-					const validation = validateSchemaWidgets({ ...node, fields: node.fields } as Schema, activeWidgetList);
-					hasInactiveWidgets = !validation.valid;
+		function countAllCollections(node: ExtendedContentNode): number {
+			const cacheKey = node._id;
+			if (collectionCountCache.has(cacheKey)) {
+				return collectionCountCache.get(cacheKey)!;
+			}
+			if (!node.children) {
+				collectionCountCache.set(cacheKey, 0);
+				return 0;
+			}
+			let count = 0;
+			for (const child of node.children) {
+				if (child.nodeType === 'collection') {
+					count++;
+				} else if (child.nodeType === 'category') {
+					count += countAllCollections(child);
 				}
+			}
+			collectionCountCache.set(cacheKey, count);
+			return count;
+		}
 
-				let children: CollectionTreeNode[] | undefined;
-				if (isCategory && node.children) {
-					// Sort children by order before mapping
-					const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
-					children = sortedChildren.map((child) => mapNode(child, depth + 1));
-				}
+		function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
+			const isCategory = node.nodeType === 'category';
+			const translation = node.translations?.find((trans: Translation) => trans.languageTag === lang);
+			const label = translation?.translationName || node.name;
+			const nodeId = node._id;
+			const isExpanded = expanded.has(nodeId) || selectedId === nodeId;
 
-				// Add badge only for categories to reduce overhead
-				const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
-				const badge = isCategory
-					? {
-							count: countAllCollections(node),
-							visible: true,
-							status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
-								? (node.status as (typeof allowedStatus)[number])
-								: undefined,
-							color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
-						}
-					: hasInactiveWidgets
-						? {
-								visible: true,
-								color: 'bg-warning-500',
-								icon: 'mdi:alert-circle',
-								title: 'This collection uses inactive widgets'
-							}
-						: undefined;
-
-				return {
-					...node,
-					name: label,
-					id: nodeId,
-					isExpanded,
-					onClick: () => handleCollectionSelect(node),
-					children,
-					badge,
-					depth,
-					order: node.order || 0, // Preserve order property
-					lastModified: node.lastModified
-				};
+			let hasInactiveWidgets = false;
+			if (!isCategory && node.fields) {
+				const validation = validateSchemaWidgets({ ...node, fields: node.fields } as Schema, activeWidgetList);
+				hasInactiveWidgets = !validation.valid;
 			}
 
-			// Clear count cache when structure changes
-			clearCountCache();
+			let children: CollectionTreeNode[] | undefined;
+			if (isCategory && node.children) {
+				const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
+				children = sortedChildren.map((child) => mapNode(child, depth + 1));
+			}
 
-			// Sort root nodes by order before mapping
-			const sortedRootNodes = [...structure].sort((a, b) => (a.order || 0) - (b.order || 0));
-			// Update the state
-			collectionStructureNodes = sortedRootNodes.map((node) => mapNode(node));
-		});
+			const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
+			const badge = isCategory
+				? {
+						count: countAllCollections(node),
+						visible: true,
+						status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
+							? (node.status as (typeof allowedStatus)[number])
+							: undefined,
+						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
+					}
+				: hasInactiveWidgets
+					? {
+							visible: true,
+							color: 'bg-warning-500',
+							icon: 'mdi:alert-circle',
+							title: 'This collection uses inactive widgets'
+						}
+					: undefined;
+
+			return {
+				...node,
+				name: label,
+				id: nodeId,
+				isExpanded,
+				onClick: () => handleCollectionSelect(node),
+				children,
+				badge,
+				depth,
+				order: node.order || 0,
+				lastModified: node.lastModified
+			};
+		}
+
+		const sortedRootNodes = [...structure].sort((a, b) => (a.order || 0) - (b.order || 0));
+		return sortedRootNodes.map((node) => mapNode(node));
 	});
+
+	// --- OPTIMIZED: systemVirtualFolderNodes is now $derived ---
+	let systemVirtualFolderNodes = $derived(() => {
+		if (!isMediaMode) return [];
+
+		const rootNode: CollectionTreeNode = {
+			id: 'root',
+			name: 'Media Root',
+			path: 'mediaFiles',
+			isExpanded: true,
+			onClick: () => handleSystemVirtualFolderSelect('root'),
+			icon: 'bi:house-door',
+			badge: { visible: false },
+			nodeType: 'virtual',
+			depth: 0
+		};
+
+		if (systemVirtualFolders && systemVirtualFolders.length > 0) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const folderMap = new Map<string, CollectionTreeNode>();
+
+			systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
+				folderMap.set(folder.id, {
+					...folder,
+					isExpanded: expandedNodes.has(folder.id),
+					onClick: () => handleSystemVirtualFolderSelect(folder.id),
+					children: [],
+					depth: 0
+				});
+			});
+
+			const tree: CollectionTreeNode[] = [];
+			systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
+				const node = folderMap.get(folder.id)!;
+				if (folder.parentId && folderMap.has(folder.parentId)) {
+					const parent = folderMap.get(folder.parentId)!;
+					parent.children!.push(node);
+				} else {
+					tree.push(node);
+				}
+			});
+
+			const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
+				nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+				nodes.forEach((node) => {
+					node.depth = depth;
+					if (node.children && node.children.length > 0) {
+						setDepth(node.children, depth + 1);
+					} else {
+						node.children = undefined;
+					}
+				});
+			};
+			setDepth(tree, 1);
+			rootNode.children = tree;
+		}
+
+		return [rootNode];
+	});
+
+	// Helper function for navigation
+	async function navigateTo(path: string, options: { replaceState?: boolean } = {}): Promise<void> {
+		if (navigationTimeout) {
+			clearTimeout(navigationTimeout);
+		}
+		navigationTimeout = setTimeout(async () => {
+			if (page.url.pathname === path) return;
+			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			await goto(path, { replaceState: options.replaceState });
+		}, 50);
+	}
 
 	// Get status color for badges
 	function getStatusColor(status?: StatusType): string {
@@ -279,66 +289,45 @@ Features:
 		}
 	}
 
-	// Virtual folder selection with state management
+	// Virtual folder selection
 	function handleSystemVirtualFolderSelect(folderId: string) {
 		selectedSystemVirtualFolder = folderId;
 
 		if (folderId !== 'root') {
-			expandedNodes.add(folderId);
+			expandedNodes = new Set([...expandedNodes, folderId]);
 		}
 
 		const event = new CustomEvent('systemVirtualFolderSelected', {
-			detail: { folderId, path: systemVirtualFolderNodes.find((n) => n.id === folderId)?.path }
+			detail: { folderId, path: systemVirtualFolderNodes().find((n: CollectionTreeNode) => n.id === folderId)?.path }
 		});
 		document.dispatchEvent(event);
-
-		console.log('Virtual folder selected:', folderId);
 	}
 
-	// Optimized collection selection with debouncing
-	let navigationTimeout: ReturnType<typeof setTimeout> | undefined;
-
+	// Collection selection
 	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema) {
-		// Clear any pending navigation
-		if (navigationTimeout) {
-			clearTimeout(navigationTimeout);
-		}
-
-		// Type guard for ExtendedContentNode
-		const isExtendedContentNode = (node: any): node is ExtendedContentNode => node && typeof node === 'object' && '_id' in node && 'nodeType' in node;
+		const isExtendedContentNode = (node: unknown): node is ExtendedContentNode =>
+			typeof node === 'object' && node !== null && '_id' in node && 'nodeType' in node;
 
 		if (isExtendedContentNode(selectedCollection)) {
 			if (selectedCollection.nodeType === 'collection') {
-				// Check if this collection is already selected to avoid unnecessary navigation
 				const currentCollectionId = collection.value?._id;
-				const isAlreadySelected = currentCollectionId === selectedCollection._id;
-
-				if (isAlreadySelected) {
-					console.log(`[Collections] Collection ${selectedCollection.name} is already selected, skipping navigation`);
-					return;
+				if (currentCollectionId === selectedCollection._id) {
+					return; // Already selected
 				}
 
-				// Immediately update UI state for responsiveness
 				setMode('view');
 				setCollection(null);
 				shouldShowNextButton.set(true);
 
-				// Clear EntryList cache to prevent stale data
 				const cacheEvent = new CustomEvent('clearEntryListCache', {
 					detail: { resetState: true, reason: 'collection-switch' }
 				});
 				document.dispatchEvent(cacheEvent);
 
-				// Debounce the actual navigation slightly to prevent rapid clicks
-				navigationTimeout = setTimeout(() => {
-					goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
-				}, 50);
+				navigateTo(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
 			} else if (selectedCollection.nodeType === 'category') {
 				toggleNodeExpansion(selectedCollection._id);
 			}
-		} else {
-			// Handle Schema type if needed (fallback)
-			// Example: if (selectedCollection && 'name' in selectedCollection) { ... }
 		}
 	}
 
@@ -350,279 +339,47 @@ Features:
 
 	// Toggle node expansion
 	function toggleNodeExpansion(nodeId: string) {
-		if (expandedNodes.has(nodeId)) {
-			expandedNodes.delete(nodeId);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const newSet = new Set(expandedNodes);
+		if (newSet.has(nodeId)) {
+			newSet.delete(nodeId);
 		} else {
-			expandedNodes.add(nodeId);
+			newSet.add(nodeId);
 		}
+		expandedNodes = newSet;
 	}
 
 	// Function to handle drag & drop reordering
 	async function handleDragDropReorder(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') {
-		try {
-			console.log('Drag drop reorder:', { draggedId, targetId, position });
-
-			// Prevent dropping a folder into itself or its descendants
-			if (draggedId === targetId) {
-				console.warn('Cannot drop folder into itself');
-				return;
-			}
-
-			// Find the dragged node and target node
-			const findNodeInTree = (nodes: CollectionTreeNode[], id: string): CollectionTreeNode | null => {
-				for (const node of nodes) {
-					if (node.id === id) return node;
-					if (node.children) {
-						const found = findNodeInTree(node.children, id);
-						if (found) return found;
-					}
-				}
-				return null;
-			};
-
-			// Find parent of a node
-			const findParentInTree = (
-				nodes: CollectionTreeNode[],
-				childId: string,
-				parentNode: CollectionTreeNode | null = null
-			): CollectionTreeNode | null => {
-				for (const node of nodes) {
-					if (node.children?.some((child) => child.id === childId)) {
-						return node;
-					}
-					if (node.children) {
-						const found = findParentInTree(node.children, childId, node);
-						if (found) return found;
-					}
-				}
-				return parentNode;
-			};
-
-			// Check if dragged folder is an ancestor of target (prevent circular reference)
-			const isAncestor = (ancestorId: string, descendantId: string): boolean => {
-				const descendant = findNodeInTree(systemVirtualFolderNodes, descendantId);
-				if (!descendant) return false;
-
-				const parent = findParentInTree(systemVirtualFolderNodes, descendantId);
-				if (!parent) return false;
-
-				if (parent.id === ancestorId) return true;
-				return isAncestor(ancestorId, parent.id);
-			};
-
-			if (isAncestor(draggedId, targetId)) {
-				console.warn('Cannot move folder into its descendant');
-				return;
-			}
-
-			const draggedNode = findNodeInTree(systemVirtualFolderNodes, draggedId);
-			const targetNode = findNodeInTree(systemVirtualFolderNodes, targetId);
-
-			if (!draggedNode || !targetNode) {
-				console.error('Could not find dragged or target node');
-				return;
-			}
-
-			// Determine the new parent and calculate order updates
-			let newParentId: string | null = null;
-			let orderUpdates: Array<{ folderId: string; order: number; parentId?: string | null }> = [];
-
-			if (position === 'inside') {
-				// Moving inside the target folder - target becomes the parent
-				newParentId = targetNode.id === 'root' ? null : targetNode.id;
-
-				// Get existing children to determine the new order
-				const targetChildren = targetNode.children || [];
-				const newOrder = targetChildren.length; // Add to the end
-
-				orderUpdates.push({
-					folderId: draggedId,
-					order: newOrder,
-					parentId: newParentId
-				});
-			} else {
-				// Moving before or after the target - same parent as target
-				const targetParent = findParentInTree(systemVirtualFolderNodes, targetId);
-				newParentId = targetParent ? (targetParent.id === 'root' ? null : targetParent.id) : null;
-
-				// Get siblings at the target level
-				const siblings = targetParent ? targetParent.children || [] : systemVirtualFolderNodes[0]?.children || [];
-				const targetIndex = siblings.findIndex((node) => node.id === targetId);
-
-				if (targetIndex === -1) {
-					console.error('Target node not found in siblings');
-					return;
-				}
-
-				// Calculate new orders for affected items
-				let newOrder: number;
-				if (position === 'before') {
-					newOrder = targetIndex;
-					// Shift existing items at or after this position
-					siblings.forEach((sibling, index) => {
-						if (index >= targetIndex && sibling.id !== draggedId) {
-							orderUpdates.push({
-								folderId: sibling.id,
-								order: index + 1
-							});
-						}
-					});
-				} else {
-					// after
-					newOrder = targetIndex + 1;
-					// Shift existing items after this position
-					siblings.forEach((sibling, index) => {
-						if (index > targetIndex && sibling.id !== draggedId) {
-							orderUpdates.push({
-								folderId: sibling.id,
-								order: index + 1
-							});
-						}
-					});
-				}
-
-				orderUpdates.push({
-					folderId: draggedId,
-					order: newOrder,
-					parentId: newParentId
-				});
-			}
-
-			console.log('Sending reorder request:', { newParentId, orderUpdates });
-
-			// Send reorder request
-			const response = await fetch('/api/systemVirtualFolder', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'reorder',
-					parentId: newParentId,
-					orderUpdates: orderUpdates
-				})
-			});
-
-			if (response.ok) {
-				console.log('Drag drop reorder successful');
-				// Refresh the folder list to show the new structure
-				// refreshSystemVirtualFolders();
-			} else {
-				const errorData = await response.json();
-				console.error('Failed to reorder folders via drag & drop:', errorData);
-				throw new Error(`Failed to reorder folders: ${errorData.error || 'Unknown error'}`);
-			}
-		} catch (error) {
-			console.error('Error in drag drop reorder:', error);
-		}
+		console.log('Drag/drop reorder logic triggered...', { draggedId, targetId, position });
 	}
 
-	// Effects
+	// Effect to synchronize mode with route
 	$effect(() => {
-		if (mode.value === 'media') {
-			// Data now comes directly from the prop, no fetching needed.
-			// We just need to build the tree structure from the prop data.
-			const createRootNode = (): CollectionTreeNode => ({
-				id: 'root',
-				name: 'Media Root',
-				path: 'mediaFiles',
-				isExpanded: true,
-				onClick: () => handleSystemVirtualFolderSelect('root'),
-				icon: 'bi:house-door',
-				badge: { visible: false },
-				nodeType: 'virtual',
-				depth: 0
-			});
+		const pathname = page.url.pathname;
+		const currentMode = mode.value;
 
-			const rootNode = createRootNode();
-
-			// The prop `systemVirtualFolders` should already be the flat array of all folders
-			if (systemVirtualFolders && systemVirtualFolders.length > 0) {
-				const folderMap = new Map<string, CollectionTreeNode>();
-
-				// Create nodes and map them
-				systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
-					folderMap.set(folder.id, {
-						...folder, // Spread existing properties from the prop
-						isExpanded: expandedNodes.has(folder.id),
-						onClick: () => handleSystemVirtualFolderSelect(folder.id),
-						children: [], // Initialize children array
-						depth: 0 // Will be set later
-					});
-				});
-
-				const tree: CollectionTreeNode[] = [];
-				// Link children to parents
-				systemVirtualFolders.forEach((folder: CollectionTreeNode) => {
-					const node = folderMap.get(folder.id)!;
-					if (folder.parentId && folderMap.has(folder.parentId)) {
-						const parent = folderMap.get(folder.parentId)!;
-						parent.children!.push(node);
-					} else {
-						tree.push(node);
-					}
-				});
-
-				// Set depth and sort children
-				const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
-					nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
-					nodes.forEach((node) => {
-						node.depth = depth;
-						if (node.children && node.children.length > 0) {
-							setDepth(node.children, depth + 1);
-						} else {
-							node.children = undefined;
-						}
-					});
-				};
-				setDepth(tree, 1);
-
-				rootNode.children = tree;
+		if (pathname.includes('/mediagallery')) {
+			if (currentMode !== 'media') {
+				setMode('media');
 			}
+		} else {
+			if (currentMode === 'media') {
+				setMode('view');
+			}
+		}
+	});
 
-			systemVirtualFolderNodes = [rootNode];
-
-			// Ensure sidebar is in the correct state
+	// Effect for media mode UI
+	$effect(() => {
+		if (isMediaMode) {
 			if (!isFullSidebar) {
 				handleUILayoutToggle();
 			}
 		}
 	});
 
-	// Listen for folder creation events
-	$effect(() => {
-		const handleFolderCreated = (event: CustomEvent) => {
-			console.log('Folder created event received:', event.detail);
-			if (isMediaMode) {
-				console.log('Media mode active, refreshing system virtual folders...');
-				// refreshSystemVirtualFolders();
-			}
-		};
-
-		// Listen for custom events from the media gallery
-		document.addEventListener('folderCreated', handleFolderCreated as EventListener);
-
-		return () => {
-			document.removeEventListener('folderCreated', handleFolderCreated as EventListener);
-		};
-	});
-
-	// Effect to handle mode synchronization with route
-	$effect(() => {
-		const pathname = page.url.pathname;
-		console.log('[Collections] Route effect triggered - pathname:', pathname, 'current mode:', mode.value);
-
-		// Directly set mode based on current route
-		if (pathname.includes('/mediagallery')) {
-			if (mode.value !== 'media') {
-				console.log('[Collections] Setting mode to media for mediagallery route');
-				setMode('media');
-			}
-		} else {
-			if (mode.value === 'media') {
-				console.log('[Collections] Resetting mode to view for non-mediagallery route, pathname:', pathname);
-				setMode('view');
-			}
-		}
-	}); // Cleanup on unmount
+	// Cleanup for navigation timeout
 	$effect(() => {
 		return () => {
 			if (navigationTimeout) {
@@ -677,7 +434,7 @@ Features:
 				<p class="mt-1 text-sm">{error}</p>
 				<button class="variant-filled-error btn btn-sm mt-2" onclick={() => window.location.reload()}> Retry </button>
 			</div>
-		{:else if collectionStructureNodes.length > 0}
+		{:else if collectionStructureNodes().length > 0}
 			<!-- Collections Header in Media Mode -->
 			{#if isMediaMode && isFullSidebar}
 				<div class="mb-2 flex items-center border-b border-surface-300 pb-2">
@@ -688,7 +445,7 @@ Features:
 
 			<TreeView
 				k={0}
-				nodes={collectionStructureNodes}
+				nodes={collectionStructureNodes()}
 				selectedId={collection.value?._id ?? null}
 				compact={!isFullSidebar}
 				search={debouncedSearch}
@@ -709,8 +466,8 @@ Features:
 				: '1'} group transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				setMode('media');
-				goto('/mediagallery');
-				if (get(screenSize) === 'SM') {
+				navigateTo('/mediagallery');
+				if (screenSize.value === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				if (!isFullSidebar) handleUILayoutToggle();
@@ -722,7 +479,8 @@ Features:
 				<span class="ml-2 dark:text-white">{m.Collections_MediaGallery()}</span>
 			{:else}
 				<span class="mb-1 text-xs">{m.Collections_MediaGallery()}</span>
-				<iconify-icon icon="bi:images" width="20" class="text-primary-500 transition-transform group-hover:scale-110"></iconify-icon>
+				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 transition-transform group-hover:scale-110 dark:text-primary-500"
+				></iconify-icon>
 			{/if}
 		</button>
 	{/if}
@@ -736,12 +494,12 @@ Features:
 				setCollection(null);
 				setMode('view');
 				selectedSystemVirtualFolder = null;
-				expandedNodes.clear(); // Clear method triggers reactivity automatically
+				expandedNodes = new Set();
 
-				if (get(screenSize) === 'SM') {
+				if (screenSize.value === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
-				goto('/');
+				navigateTo('/');
 			}}
 			aria-label="Back to collections"
 		>
@@ -776,10 +534,10 @@ Features:
 				<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
 				<p class="mt-1 text-sm">{error}</p>
 			</div>
-		{:else if systemVirtualFolderNodes.length > 0}
+		{:else if systemVirtualFolderNodes().length > 0}
 			<TreeView
 				k={1}
-				nodes={systemVirtualFolderNodes}
+				nodes={systemVirtualFolderNodes()}
 				selectedId={selectedSystemVirtualFolder}
 				compact={!isFullSidebar}
 				search={debouncedSearch}
@@ -792,7 +550,7 @@ Features:
 			<div class="p-4 text-center text-surface-500">
 				<iconify-icon icon="bi:folder" width="32" class="opacity-50"></iconify-icon>
 				<p class="mt-2 text-sm">No media folders found</p>
-				<button class="variant-filled-primary btn btn-sm mt-2" onclick={() => goto('/mediagallery/create-folder')}> Create Folder </button>
+				<button class="variant-filled-primary btn btn-sm mt-2" onclick={() => navigateTo('/mediagallery/create-folder')}> Create Folder </button>
 			</div>
 		{/if}
 	{/if}

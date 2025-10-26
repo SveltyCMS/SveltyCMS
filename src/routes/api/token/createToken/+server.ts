@@ -22,7 +22,7 @@ import { auth, dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
+import { cacheService } from '@src/databases/CacheService';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';
@@ -169,7 +169,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 				config_status: 'dummy_email_config'
 			});
 			// Return token so it can be delivered manually in dev
-			invalidateAdminCache('tokens', tenantId);
+			cacheService.delete('tokens', tenantId).catch((err) => {
+				logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+			});
 			return json({
 				success: true,
 				message: 'Token created; email sending skipped (development mode).',
@@ -185,7 +187,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			});
 		} // Invalidate the admin cache for tokens so the UI refreshes immediately
 
-		invalidateAdminCache('tokens', tenantId); // Return success response
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		}); // Return success response
 
 		return json({
 			success: true,

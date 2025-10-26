@@ -26,7 +26,7 @@ import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
+import { cacheService } from '@src/databases/CacheService';
 
 // Validation
 import { minLength, number, object, parse, string } from 'valibot';
@@ -112,7 +112,9 @@ export const POST: RequestHandler = async (event) => {
 			type: 'registration' // Or another appropriate type
 		});
 		// Invalidate the tokens cache so the new token appears immediately in admin area
-		invalidateAdminCache('tokens', tenantId);
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
 
 		const responseData = {
 			success: true,

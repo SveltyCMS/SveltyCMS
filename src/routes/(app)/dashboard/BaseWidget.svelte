@@ -129,7 +129,9 @@ New Features:
 		currentRetry = retryAttempt;
 
 		try {
-			const res = await fetch(`${endpoint}?_=${Date.now()}`);
+			// Add cache-busting param, use & if endpoint already has query params
+			const separator = endpoint.includes('?') ? '&' : '?';
+			const res = await fetch(`${endpoint}${separator}_=${Date.now()}`);
 			if (!res.ok) {
 				throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 			}

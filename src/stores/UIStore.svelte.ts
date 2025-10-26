@@ -221,6 +221,11 @@ const createUIStores = () => {
 			clearTimeout(resizeTimeout);
 			resizeTimeout = null;
 		}
+		// Clean up effect root if it exists
+		if (effectRoot) {
+			effectRoot();
+			effectRoot = undefined;
+		}
 		initPromise = null;
 		logger.trace('UIStore: Destroyed');
 	}
@@ -293,7 +298,24 @@ const createUIStores = () => {
 };
 
 // Create and export the UI state manager
-export const uiStateManager = createUIStores();
+let effectRoot: (() => void) | undefined;
+
+export const uiStateManager = (() => {
+	const manager = createUIStores();
+
+	// Set up mode tracking using $effect.root() for module-level reactivity
+	if (typeof window !== 'undefined') {
+		effectRoot = $effect.root(() => {
+			$effect(() => {
+				const currentMode = mode.value;
+				logger.debug(`UIStore: Detected mode change to '${currentMode}', updating layout.`);
+				manager.updateLayout();
+			});
+		});
+	}
+
+	return manager;
+})();
 
 // Export individual store-like wrappers for backward compatibility
 export const userPreferredState = {

@@ -40,7 +40,7 @@
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -48,7 +48,7 @@
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	let currentData = $state<any>(undefined);
@@ -253,13 +253,13 @@
 	{widgetId}
 	{size}
 	{onSizeChange}
-	{onCloseRequest}
+	onCloseRequest={onRemove}
 >
 	{#snippet children({ data: fetchedData })}
 		{#if fetchedData?.cpuInfo}
-			{@const currentUsage = fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0] || 0}
+			{@const currentUsage = Number(fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0] || 0)}
 			{@const usageArray = fetchedData?.cpuInfo?.historicalLoad?.usage || []}
-			{@const averageUsage = usageArray.length > 0 ? usageArray.reduce((a: number, b: number) => a + b, 0) / usageArray.length : 0}
+			{@const averageUsage = usageArray.length > 0 ? Number(usageArray.reduce((a: number, b: number) => a + b, 0) / usageArray.length) : 0}
 			{@const usageLevel = currentUsage > 80 ? 'high' : currentUsage > 50 ? 'medium' : 'low'}
 			<div class="flex h-full flex-col space-y-3">
 				<div class="flex items-center justify-between">

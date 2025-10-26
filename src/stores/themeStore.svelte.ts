@@ -65,7 +65,7 @@ export const themeStore = {
 
 // --- Actions ---
 
-let systemThemeListener: ((this: MediaQueryList, ev: MediaQueryListEvent) => any) | null = null;
+let systemThemeListener: ((this: MediaQueryList, ev: MediaQueryListEvent) => void) | null = null;
 const THEME_COOKIE_KEY = 'theme';
 
 /**
@@ -76,17 +76,44 @@ const THEME_COOKIE_KEY = 'theme';
 export function initializeDarkMode() {
 	if (!browser) return;
 
-	// 1. Read the state from the DOM (set by app.html script)
-	const isDark = document.documentElement.classList.contains('dark');
+	// 1. Read from cookie FIRST (source of truth), fallback to DOM
+	const cookieTheme = document.cookie
+		.split('; ')
+		.find((c) => c.startsWith(`${THEME_COOKIE_KEY}=`))
+		?.split('=')[1];
+
+	const isDarkFromCookie = cookieTheme === 'dark';
+	const isDarkFromDOM = document.documentElement.classList.contains('dark');
+
+	// Use cookie as source of truth if it exists, otherwise use DOM
+	const isDark = cookieTheme ? isDarkFromCookie : isDarkFromDOM;
 
 	// 2. Sync Svelte store state
 	state.darkMode = isDark;
 
-	// 3. Sync Skeleton Labs
+	// 3. Ensure DOM matches the decided state
+	if (isDark) {
+		document.documentElement.classList.add('dark');
+	} else {
+		document.documentElement.classList.remove('dark');
+	}
+
+	// 4. Sync Skeleton Labs
 	setModeCurrent(isDark);
 	setModeUserPrefers(isDark);
 
-	// 4. Listen for system preference changes
+	// 5. Write cookie if not exists (so system preference is saved)
+	if (!cookieTheme) {
+		const themeValue = isDark ? 'dark' : 'light';
+		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; path=/; max-age=31536000; SameSite=Lax`;
+	}
+
+	// 6. Clean up old 'darkMode' cookie if it exists
+	if (document.cookie.includes('darkMode=')) {
+		document.cookie = 'darkMode=; path=/; max-age=0';
+	}
+
+	// 5. Listen for system preference changes
 	const mq = window.matchMedia('(prefers-color-scheme: dark)');
 	if (systemThemeListener) {
 		mq.removeEventListener('change', systemThemeListener);
@@ -114,7 +141,7 @@ function _setDarkMode(isDark: boolean, setCookie: boolean) {
 	// 1. Update internal state
 	state.darkMode = isDark;
 
-	// 2. Update DOM
+	// 2. Update DOM immediately for instant visual feedback
 	if (isDark) {
 		document.documentElement.classList.add('dark');
 	} else {
@@ -127,10 +154,16 @@ function _setDarkMode(isDark: boolean, setCookie: boolean) {
 
 	// 4. Save user's explicit preference (if requested)
 	if (setCookie) {
+		// IMPORTANT: Cookie stores the NEW state (what we're switching TO)
+		// NOT the old state (what we're switching FROM)
 		const themeValue = isDark ? 'dark' : 'light';
-		const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-		const cookieOptions = isLocalhost ? `path=/; max-age=31536000; SameSite=Lax` : `path=/; max-age=31536000; SameSite=Lax; Secure`;
-		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; ${cookieOptions}`;
+
+		// Delete old cookie first to prevent duplicates (try multiple deletion methods)
+		document.cookie = `${THEME_COOKIE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+		document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0`;
+
+		// Set new cookie
+		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; path=/; max-age=31536000; SameSite=Lax`;
 	}
 }
 
@@ -146,9 +179,7 @@ export function toggleDarkMode(force?: boolean) {
 
 	// Call the internal function, explicitly setting the cookie
 	_setDarkMode(nextIsDark, true);
-}
-
-// ... (Rest of your themeStore.svelte.ts file) ...
+} // ... (Rest of your themeStore.svelte.ts file) ...
 export async function initializeThemeStore() {
 	state.isLoading = true;
 	state.error = null;
@@ -183,7 +214,7 @@ export async function updateTheme(newThemeName: string) {
 		const updatedTheme: Theme = await response.json();
 		state.currentTheme = updatedTheme;
 		state.lastUpdateAttempt = nowISODateString();
-		return updated.Theme;
+		return updatedTheme;
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : 'Failed to update theme';
 		state.error = errorMessage;

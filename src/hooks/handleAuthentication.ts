@@ -127,7 +127,9 @@ function addToStrongRefs(sessionId: string, entry: SessionCacheEntry): void {
 	// Evict oldest if over limit
 	if (strongRefs.size > MAX_STRONG_REFS) {
 		const firstKey = strongRefs.keys().next().value;
-		strongRefs.delete(firstKey);
+		if (firstKey) {
+			strongRefs.delete(firstKey);
+		}
 	}
 }
 
@@ -183,7 +185,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 	// Layer 1: In-memory cache with WeakRef (fastest)
 	const memCached = getSessionFromCache(sessionId);
 	if (memCached) {
-		logger.trace(`Session cache hit (memory): ${sessionId.substring(0, 8)}...`);
+		logger.trace(`Session cache hit (memory): \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m`);
 		return memCached.user;
 	}
 
@@ -219,7 +221,7 @@ async function getUserFromSession(sessionId: string, tenantId?: string): Promise
 			await cacheService
 				.set(cacheKey, sessionData, Math.ceil(SESSION_CACHE_TTL_MS / 1000), tenantId)
 				.catch((err) => logger.warn(`Session cache set failed: ${err.message}`));
-			logger.trace(`Session validated from DB: ${sessionId.substring(0, 8)}...`);
+			logger.trace(`Session validated from DB: \x1b[33m${sessionId.substring(0, 8)}...\x1b[0m`);
 			return user;
 		}
 	} catch (err) {
@@ -275,12 +277,12 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 		const user = await getUserFromSession(sessionId, locals.tenantId);
 		if (user) {
 			if (locals.tenantId && user.tenantId && user.tenantId !== locals.tenantId) {
-				logger.warn(`Tenant isolation violation: User ${user._id} (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
+				logger.warn(`Tenant isolation violation: User \x1b[34m${user._id}\x1b[0m (tenant: ${user.tenantId}) tried ${locals.tenantId}`);
 				cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 			} else {
 				locals.user = user;
 				locals.session_id = sessionId;
-				logger.trace(`User authenticated: ${user._id}`);
+				logger.trace(`User authenticated: \x1b[34m${user._id}\x1b[0m`);
 			}
 		} else {
 			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });

@@ -141,10 +141,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			executedBy: user?._id,
 			tenantId
 		});
-		// Invalidate admin cache since user data has changed
-
-		const { invalidateAdminCache } = await import('@src/hooks/handleAuthorization');
-		invalidateAdminCache('users', tenantId);
+		// Invalidate user count cache since users were deleted
+		const { invalidateUserCountCache } = await import('@src/hooks/handleAuthorization');
+		invalidateUserCountCache(tenantId);
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {

@@ -36,7 +36,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
 		onSizeChange = () => {},
-		onCloseRequest = () => {}
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -44,7 +44,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	// Performance indicator color based on metrics
@@ -76,7 +76,7 @@ Displays real-time system metrics integrated with the dashboard grid system
 	{widgetId}
 	{size}
 	{onSizeChange}
-	{onCloseRequest}
+	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
 		{@const metrics = data as HealthMetrics | null}

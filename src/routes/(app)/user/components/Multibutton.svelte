@@ -9,7 +9,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 <Multibutton bind:selectedRows={selectedRows} type="user" />
 
 #### Props
-- `selectedRows` {array} - Array of selected rows (UserData | TokenData)
+- `selectedRows` {array} - Array of selected rows (User | Token)
 - `type` {"user" | "token"} - Type of data to manage (default: 'user')
 -->
 
@@ -30,26 +30,16 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { showToast } from '@utils/toast';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
+	import type { User, Token } from '@src/databases/auth/types';
 
-	interface UserData {
-		_id: string;
-		username: string;
-		email: string;
-		role: string;
-		blocked: boolean;
-	}
-
-	interface TokenData {
-		token: string;
-		email: string;
-		role: string;
-		user_id: string;
-		blocked: boolean;
-		expires: Date;
-		createdAt: Date;
-		updatedAt: Date;
-		[key: string]: any;
-	}
+	const isUser = (row: unknown): row is User => {
+		if (!row || typeof row !== 'object') return false;
+		return '_id' in row && !('token' in row);
+	};
+	const isToken = (row: unknown): row is Token => {
+		if (!row || typeof row !== 'object') return false;
+		return 'token' in row;
+	};
 
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
@@ -61,10 +51,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		totalUsers = 0,
 		currentUser = null
 	} = $props<{
-		selectedRows: (UserData | TokenData)[];
+		selectedRows: (User | Token)[];
 		type: 'user' | 'token';
 		totalUsers?: number;
-		currentUser?: { _id: string; [key: string]: any } | null;
+		currentUser?: { _id: string; [key: string]: unknown } | null;
 	}>();
 
 	// Sync local listboxValue with global store for TableIcons
@@ -73,9 +63,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	});
 
 	// Normalize selection to a safe array
-	let safeSelectedRows = $derived<Array<UserData | TokenData>>(
-		Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<UserData | TokenData>) : []
-	);
+	let safeSelectedRows = $derived<Array<User | Token>>(Array.isArray(selectedRows) ? (selectedRows.filter(Boolean) as Array<User | Token>) : []);
 
 	// Derived values
 	let isDisabled = $derived(safeSelectedRows.length === 0);
@@ -86,19 +74,19 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (safeSelectedRows.length === 0) return null;
 
 		if (type === 'user') {
-			const users = (safeSelectedRows as (UserData | undefined)[]).filter(Boolean) as UserData[];
+			const users = safeSelectedRows.filter(isUser);
 			if (users.length === 0) return null;
-			const blockedCount = users.filter((user) => !!user && user.blocked).length;
-			const unblockedCount = users.filter((user) => !!user && !user.blocked).length;
+			const blockedCount = users.filter((user) => user.blocked).length;
+			const unblockedCount = users.filter((user) => !user.blocked).length;
 
 			if (blockedCount === users.length) return 'all-blocked';
 			if (unblockedCount === users.length) return 'all-unblocked';
 			return 'mixed';
 		} else {
-			const tokens = (safeSelectedRows as (TokenData | undefined)[]).filter(Boolean) as TokenData[];
+			const tokens = safeSelectedRows.filter(isToken);
 			if (tokens.length === 0) return null;
-			const blockedCount = tokens.filter((token) => !!token && token.blocked).length;
-			const unblockedCount = tokens.filter((token) => !!token && !token.blocked).length;
+			const blockedCount = tokens.filter((token) => token.blocked).length;
+			const unblockedCount = tokens.filter((token) => !token.blocked).length;
 
 			if (blockedCount === tokens.length) return 'all-blocked';
 			if (unblockedCount === tokens.length) return 'all-unblocked';
@@ -148,7 +136,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		type === 'user' &&
 			listboxValue === 'delete' &&
 			(totalUsers <= 1 ||
-				(currentUser && safeSelectedRows.length === 1 && (safeSelectedRows[0] as UserData)._id === currentUser._id && totalUsers === 1) ||
+				(currentUser &&
+					safeSelectedRows.length === 1 &&
+					isUser(safeSelectedRows[0]) &&
+					(safeSelectedRows[0] as User)._id === currentUser._id &&
+					totalUsers === 1) ||
 				safeSelectedRows.length >= totalUsers)
 	);
 
@@ -183,7 +175,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	};
 
 	// Unified batch endpoints for consistent API design
-	const actionConfig = {
+	const actionConfig = $derived({
 		edit: {
 			buttonClass: 'gradient-primary',
 			hoverClass: 'gradient-primary-hover',
@@ -194,11 +186,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				if (type === 'user') {
 					return '/api/user/updateUserAttributes';
 				} else {
-					const token = (safeSelectedRows[0] as TokenData)?.token;
-					if (!token) {
-						throw new Error('No token selected for editing');
+					const firstRow = safeSelectedRows[0];
+					if (isToken(firstRow)) {
+						return `/api/token/${firstRow.token}`;
 					}
-					return `/api/token/${token}`;
+					throw new Error('No token selected for editing');
 				}
 			},
 			method: () => 'PUT',
@@ -217,18 +209,24 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			},
 			modalBody: () => {
 				if (type === 'user') {
-					if (selectedRows.length === 1) {
-						const user = selectedRows[0] as UserData;
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This action cannot be undone and will permanently remove the user from the system.`;
+					if (safeSelectedRows.length === 1) {
+						const user = safeSelectedRows[0];
+						if (isUser(user)) {
+							return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This action cannot be undone and will permanently remove the user from the system.`;
+						}
+						return '';
 					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
 					}
 				} else {
-					if (selectedRows.length === 1) {
-						const token = selectedRows[0] as TokenData;
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This action cannot be undone and will permanently remove the token from the system.`;
+					if (safeSelectedRows.length === 1) {
+						const token = safeSelectedRows[0];
+						if (isToken(token)) {
+							return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This action cannot be undone and will permanently remove the token from the system.`;
+						}
+						return '';
 					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} tokens</span>? This action cannot be undone and will permanently remove all selected tokens from the system.`;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This action cannot be undone and will permanently remove all selected tokens from the system.`;
 					}
 				}
 			},
@@ -249,19 +247,25 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			},
 			modalBody: () => {
 				if (type === 'user') {
-					if (selectedRows.length === 1) {
-						const user = selectedRows[0] as UserData;
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
+					if (safeSelectedRows.length === 1) {
+						const user = safeSelectedRows[0];
+						if (isUser(user)) {
+							return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
+						}
+						return '';
 					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This will prevent them from accessing the system.`;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will prevent them from accessing the system.`;
 					}
 				} else {
 					// Token blocking with enhanced styling
-					if (selectedRows.length === 1) {
-						const token = selectedRows[0] as TokenData;
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
+					if (safeSelectedRows.length === 1) {
+						const token = safeSelectedRows[0];
+						if (isToken(token)) {
+							return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
+						}
+						return '';
 					} else {
-						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} tokens</span>? This will prevent them from being used.`;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will prevent them from being used.`;
 					}
 				}
 			},
@@ -282,19 +286,25 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			},
 			modalBody: () => {
 				if (type === 'user') {
-					if (selectedRows.length === 1) {
-						const user = selectedRows[0] as UserData;
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`;
+					if (safeSelectedRows.length === 1) {
+						const user = safeSelectedRows[0];
+						if (isUser(user)) {
+							return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`;
+						}
+						return '';
 					} else {
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This will allow them to access the system again.`;
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} users</span>? This will allow them to access the system again.`;
 					}
 				} else {
 					// Token unblocking with enhanced styling
-					if (selectedRows.length === 1) {
-						const token = selectedRows[0] as TokenData;
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`;
+					if (safeSelectedRows.length === 1) {
+						const token = safeSelectedRows[0];
+						if (isToken(token)) {
+							return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`;
+						}
+						return '';
 					} else {
-						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} tokens</span>? This will allow them to be used again.`;
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${safeSelectedRows.length} tokens</span>? This will allow them to be used again.`;
 					}
 				}
 			},
@@ -303,7 +313,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Unblocked`,
 			toastBackground: 'variant-filled-success'
 		}
-	} as const;
+	});
 
 	interface ModalResponse {
 		username?: string;
@@ -311,6 +321,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		role?: string;
 		token?: string;
 		user_id?: string;
+		_changes?: string[];
 	}
 
 	async function handleAction(action: ActionType) {
@@ -344,7 +355,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 		// Additional validation for token editing
 		if (action === 'edit' && type === 'token') {
-			const tokenData = selectedRows[0] as TokenData;
+			const tokenData = isToken(safeSelectedRows[0]) ? safeSelectedRows[0] : undefined;
 			if (!tokenData?.token) {
 				showToast('Invalid token data selected', 'error');
 				return;
@@ -361,17 +372,17 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						type === 'user'
 							? {
 									isGivenData: true,
-									username: (safeSelectedRows[0] as UserData).username,
+									username: isUser(safeSelectedRows[0]) ? ((safeSelectedRows[0] as User).username ?? null) : null,
 									email: safeSelectedRows[0].email,
 									role: safeSelectedRows[0].role,
-									user_id: (safeSelectedRows[0] as UserData)._id
+									user_id: (safeSelectedRows[0] as User)._id
 								}
 							: {
-									token: (safeSelectedRows[0] as TokenData).token,
+									token: (safeSelectedRows[0] as Token).token,
 									email: safeSelectedRows[0].email,
 									role: safeSelectedRows[0].role,
-									user_id: (safeSelectedRows[0] as TokenData).user_id,
-									expires: convertDateToExpiresFormat((safeSelectedRows[0] as TokenData).expires)
+									user_id: (safeSelectedRows[0] as Token).user_id,
+									expires: convertDateToExpiresFormat((safeSelectedRows[0] as Token).expires)
 								},
 					slot: '<p>Edit Form</p>'
 				} as ModalComponent)
@@ -407,7 +418,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						// Handle edit operations (single item only)
 						if (type === 'user') {
 							body = JSON.stringify({
-								user_id: (safeSelectedRows[0] as UserData)._id,
+								user_id: (safeSelectedRows[0] as User)._id,
 								newUserData: r as ModalResponse
 							});
 						} else {
@@ -420,13 +431,13 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						// Handle batch operations (delete, block, unblock)
 						if (type === 'user') {
 							body = JSON.stringify({
-								userIds: safeSelectedRows.map((row: UserData | TokenData) => (row as UserData)._id),
+								userIds: safeSelectedRows.filter(isUser).map((row) => row._id),
 								action: action
 							});
 						} else {
 							// Token batch operations
 							body = JSON.stringify({
-								tokenIds: safeSelectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
+								tokenIds: safeSelectedRows.filter(isToken).map((row) => row.token),
 								action: action
 							});
 						}
@@ -458,7 +469,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					let toastMessage = data.message || config.toastMessage();
 
 					if (isEdit && type === 'user' && r && typeof r === 'object' && '_changes' in r) {
-						const changes = (r as any)._changes as string[];
+						const changes = (r as ModalResponse)._changes;
 						if (changes && changes.length > 0) {
 							const changeDescriptions = changes.map((change) => {
 								if (change === 'username') return 'username updated';
@@ -482,7 +493,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					// Dispatch token update event for parent component to handle local state updates
 					if (type === 'token' && (action === 'block' || action === 'unblock' || action === 'delete')) {
 						dispatch('tokenUpdate', {
-							tokenIds: safeSelectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
+							tokenIds: safeSelectedRows.filter(isToken).map((row) => row.token),
 							action: action
 						});
 					}
@@ -500,7 +511,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	}
 
 	let buttonConfig = $derived({
-		class: `btn ${actionConfig[listboxValue].buttonClass} rounded-none w-48 justify-between w-full font-semibold uppercase hover:bg-primary-400 ${isDeleteDisabled && listboxValue === 'delete' ? 'opacity-50 cursor-not-allowed' : ''}`,
+		class: `btn bg-surface-500 hover:${actionConfig[listboxValue].buttonClass} rounded-none w-48 justify-between w-full font-semibold uppercase ${isDeleteDisabled && listboxValue === 'delete' ? 'opacity-50 cursor-not-allowed' : ''}`,
 		icon: actionConfig[listboxValue].iconValue
 	});
 </script>
@@ -529,8 +540,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		aria-haspopup="true"
 		aria-expanded="false"
 		class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800"
-		disabled={isDisabled}
-		aria-disabled={isDisabled}
 	>
 		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
@@ -538,19 +547,20 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <!-- Dropdown/Listbox -->
 <div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
-	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
-		{#each filteredActions as action}
+	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-700" class="divide-y">
+		{#each filteredActions as action (action)}
 			{@const actionKey = action as ActionType}
+			{@const config = actionConfig[actionKey]}
 			<ListBoxItem
 				bind:group={listboxValue}
 				name="medium"
 				value={action}
 				active="variant-filled-primary"
-				hover={actionConfig[actionKey].hoverClass}
+				hover="hover:bg-surface-700"
 				role="menuitem"
 			>
 				{#snippet lead()}
-					<iconify-icon icon={actionConfig[actionKey].iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
+					<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
 				{/snippet}
 				{action}
 			</ListBoxItem>

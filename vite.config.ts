@@ -313,15 +313,6 @@ function cmsWatcherPlugin(): Plugin {
 const setupComplete = isSetupComplete();
 const isBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
 
-const customLogger = createLogger();
-const originalWarn = customLogger.warn;
-customLogger.warn = (msg, options) => {
-	if (msg.includes('Circular dependency')) {
-		return;
-	}
-	originalWarn(msg, options);
-};
-
 export default defineConfig((): UserConfig => {
 	// Only log during dev mode, not during builds
 	if (!isBuild) {
@@ -333,7 +324,6 @@ export default defineConfig((): UserConfig => {
 	}
 
 	return {
-		customLogger,
 		plugins: [
 			// Security check plugin runs first to detect private setting imports
 			securityCheckPlugin({

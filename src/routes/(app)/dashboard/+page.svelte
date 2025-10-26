@@ -16,6 +16,7 @@
 - Persistent widget configurations via systemPreferences with multiple layouts
 - Layout switching (e.g., default, compact)
 - Accessible widget addition, removal, and layout switching
+- Lazy loading with Intersection Observer for optimal performance
 -->
 <script lang="ts">
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
@@ -38,6 +39,10 @@
 	let searchQuery = $state('');
 	let registryLoaded = $state(false);
 	let widgetRegistry = $state<Record<string, { component: any; name: string; description: string; icon: string; widgetMeta?: WidgetMeta }>>({});
+
+	// Lazy loading state for widgets
+	let loadedWidgets = $state<Map<string, any>>(new Map());
+	let widgetObservers = new Map<string, IntersectionObserver>();
 
 	let showImportExport = $state(false);
 
@@ -69,6 +74,51 @@
 		}
 		widgetRegistry = registry;
 		registryLoaded = true;
+	}
+
+	// Lazy load individual widget when it becomes visible
+	async function loadWidgetComponent(widgetId: string, componentName: string) {
+		// Skip if already loaded
+		if (loadedWidgets.has(widgetId)) return;
+
+		try {
+			// Dynamically import the widget component
+			const module = await import(`./widgets/${componentName}.svelte`);
+			loadedWidgets.set(widgetId, module.default);
+			loadedWidgets = new Map(loadedWidgets); // Trigger reactivity
+		} catch (error) {
+			console.error(`Failed to load widget: ${componentName}`, error);
+			loadedWidgets.set(widgetId, null); // Mark as failed
+			loadedWidgets = new Map(loadedWidgets);
+		}
+	}
+
+	// Setup intersection observer for lazy loading (Svelte action)
+	function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
+		const [widgetId, componentName] = params;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting && !loadedWidgets.has(widgetId)) {
+						loadWidgetComponent(widgetId, componentName);
+						observer.disconnect();
+						widgetObservers.delete(widgetId);
+					}
+				});
+			},
+			{ rootMargin: '100px' } // Start loading 100px before visible
+		);
+
+		observer.observe(element);
+		widgetObservers.set(widgetId, observer);
+
+		return {
+			destroy() {
+				observer.disconnect();
+				widgetObservers.delete(widgetId);
+			}
+		};
 	}
 
 	const widgetComponentRegistry = $derived(widgetRegistry);
@@ -139,8 +189,6 @@
 
 	// Ensure all widgets have proper order values
 	function ensureWidgetOrder() {
-		if (!data.pageData?.user) return;
-
 		const widgets = [...currentPreferences];
 		let needsUpdate = false;
 
@@ -163,15 +211,11 @@
 
 		// Update widgets if needed using batch update
 		if (needsUpdate) {
-			systemPreferences.updateWidgets(data.pageData.user.id, widgets);
+			systemPreferences.updateWidgets(widgets);
 		}
 	}
 
 	function addNewWidget(componentName: string) {
-		if (!data.pageData?.user) {
-			console.error('SveltyCMS: Cannot add widget, user data is not available.');
-			return;
-		}
 		const componentInfo = widgetComponentRegistry[componentName];
 		if (!componentInfo) {
 			console.error(`SveltyCMS: Widget component info for "${componentName}" not found in registry.`);
@@ -189,36 +233,42 @@
 			settings: componentInfo.widgetMeta?.settings || {},
 			order: currentPreferences.length // Use order instead of gridPosition
 		};
-		systemPreferences.updateWidget(data.pageData.user.id, newItem);
+		systemPreferences.updateWidget(newItem);
 		dropdownOpen = false;
 		searchQuery = '';
 	}
 
 	function removeWidget(id: string) {
-		if (!data.pageData?.user) return;
-		systemPreferences.removeWidget(data.pageData.user.id, id);
+		systemPreferences.removeWidget(id);
+		// Clean up loaded widget and observer
+		loadedWidgets.delete(id);
+		const observer = widgetObservers.get(id);
+		if (observer) {
+			observer.disconnect();
+			widgetObservers.delete(id);
+		}
 	}
 
 	function resetAllWidgets() {
-		if (!data.pageData?.user) return;
-		systemPreferences.setPreference(data.pageData.user.id, []);
+		systemPreferences.setPreferences([]);
+		// Clean up all loaded widgets and observers
+		loadedWidgets.clear();
+		widgetObservers.forEach((observer) => observer.disconnect());
+		widgetObservers.clear();
 	}
 
 	function resizeWidget(widgetId: string, newSize: WidgetSize) {
-		if (!data.pageData?.user) return;
 		const item = currentPreferences.find((i) => i.id === widgetId);
 		if (item) {
 			const updatedSize = {
 				w: Math.max(1, Math.min(MAX_COLUMNS, newSize.w)),
 				h: Math.max(1, Math.min(MAX_ROWS, newSize.h))
 			};
-			systemPreferences.updateWidget(data.pageData.user.id, { ...item, size: updatedSize });
+			systemPreferences.updateWidget({ ...item, size: updatedSize });
 		}
 	}
 
 	function performDrop(widget: DashboardWidgetConfig, indicator: { targetIndex: number }) {
-		if (!data.pageData?.user) return;
-
 		const currentWidgets = [...currentPreferences];
 		const currentIndex = currentWidgets.findIndex((w) => w.id === widget.id);
 
@@ -236,11 +286,11 @@
 			order: index
 		}));
 
-		systemPreferences.updateWidgets(data.pageData.user.id, updatedWidgets);
+		systemPreferences.updateWidgets(updatedWidgets);
 	}
 	function handleDragStart(event: MouseEvent | TouchEvent | PointerEvent, item: DashboardWidgetConfig, element: HTMLElement) {
 		// Ignore clicks on interactive elements and resize handles
-		if (!!(event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
+		if ((event.target as HTMLElement).closest('button, a, input, select, [role=button], .resize-handles, [data-direction]')) return;
 
 		const coords = 'touches' in event ? event.touches[0] : event;
 		const rect = element.getBoundingClientRect();
@@ -325,11 +375,15 @@
 
 	onMount(() => {
 		loadWidgetRegistry();
-		if (data.pageData?.user) {
-			systemPreferences.loadPreferences(data.pageData.user.id);
-			// Ensure proper widget ordering after preferences load
-			setTimeout(ensureWidgetOrder, 100);
-		}
+		systemPreferences.loadPreferences();
+		// Ensure proper widget ordering after preferences load
+		setTimeout(ensureWidgetOrder, 100);
+
+		// Cleanup observers on unmount
+		return () => {
+			widgetObservers.forEach((observer) => observer.disconnect());
+			widgetObservers.clear();
+		};
 	});
 </script>
 
@@ -347,7 +401,7 @@
 			<div class="relative">
 				{#if availableWidgets.length > 0}
 					<button
-						class="variant-filled-primary btn"
+						class="variant-filled-tertiary btn dark:variant-filled-primary"
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
@@ -391,9 +445,7 @@
 
 	<div class="relative m-0 w-full p-0">
 		<section class="w-full px-1 py-4">
-			{#if !registryLoaded}
-				<div role="status" class="flex h-full items-center justify-center text-lg text-gray-500">Loading...</div>
-			{:else if currentPreferences.length > 0}
+			{#if currentPreferences.length > 0}
 				<div class="responsive-dashboard-grid" role="grid">
 					<!-- Grid drop indicator -->
 					{#if gridDropIndicator}
@@ -407,7 +459,7 @@
 					{/if}
 
 					{#each currentPreferences.sort((a, b) => (a.order || 0) - (b.order || 0)) as item (item.id)}
-						{@const SvelteComponent = widgetComponentRegistry[item.component]?.component}
+						{@const WidgetComponent = loadedWidgets.get(item.id)}
 						<div
 							role="button"
 							tabindex="0"
@@ -416,26 +468,45 @@
 							style:grid-column="span {item.size.w}"
 							style:grid-row="span {item.size.h}"
 							style:touch-action="manipulation"
+							style:min-height="{item.size.h * 180}px"
 							animate:flip={{ duration: 300 }}
 							onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
+							use:setupWidgetObserver={[item.id, item.component]}
 						>
-							{#if SvelteComponent}
-								<SvelteComponent
-									{...item}
+							{#if !WidgetComponent}
+								<!-- Loading skeleton -->
+								<div class="widget-skeleton h-full animate-pulse">
+									<div class="mb-2 h-12 rounded-t bg-surface-300 dark:bg-surface-700"></div>
+									<div class="h-full rounded-b bg-surface-200 p-4 dark:bg-surface-800">
+										<div class="mb-3 h-8 rounded bg-surface-300 dark:bg-surface-700"></div>
+										<div class="mb-2 h-6 w-3/4 rounded bg-surface-300 dark:bg-surface-700"></div>
+										<div class="mb-2 h-6 w-1/2 rounded bg-surface-300 dark:bg-surface-700"></div>
+									</div>
+								</div>
+							{:else if WidgetComponent === null}
+								<!-- Error state -->
+								<div class="card variant-ghost-error flex h-full flex-col items-center justify-center p-4">
+									<iconify-icon icon="mdi:alert-circle-outline" width="48" class="mb-2 text-error-500"></iconify-icon>
+									<h3 class="h4 mb-2">Widget Load Error</h3>
+									<p class="text-sm">Failed to load: {item.component}</p>
+									<button class="variant-filled-error btn btn-sm mt-4" onclick={() => removeWidget(item.id)}> Remove Widget </button>
+								</div>
+							{:else}
+								<!-- Render the actual widget - Svelte 5 dynamic components -->
+								<WidgetComponent
+									config={item}
+									onRemove={() => removeWidget(item.id)}
+									onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
 									theme={currentTheme}
 									currentUser={data.pageData?.user}
-									onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
-									onCloseRequest={() => removeWidget(item.id)}
 								/>
-								{#if dropIndicator}
-									{@const currentIndex = currentPreferences.findIndex((p) => p.id === item.id)}
-									{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
-									{#if isDropTarget}
-										<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-primary-500" style:transform="translateY(-50%)"></div>
-									{/if}
+							{/if}
+							{#if dropIndicator}
+								{@const currentIndex = currentPreferences.findIndex((p) => p.id === item.id)}
+								{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
+								{#if isDropTarget}
+									<div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-primary-500" style:transform="translateY(-50%)"></div>
 								{/if}
-							{:else}
-								<div class="flex h-full items-center justify-center p-4 text-error-500">Widget "{item.component}" not found.</div>
 							{/if}
 						</div>
 					{/each}
@@ -443,12 +514,12 @@
 			{:else}
 				<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center">
 					<div class="flex flex-col items-center px-10 py-12">
-						<iconify-icon icon="mdi:view-dashboard-outline" width="80" class="mb-6 text-primary-400 drop-shadow-lg dark:text-primary-500"
+						<iconify-icon icon="mdi:view-dashboard-outline" width="80" class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"
 						></iconify-icon>
-						<p class="mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
+						<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">Click below to add your first widget and get started.</p>
 						<button
-							class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg"
+							class="btn rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
 							onclick={() => (dropdownOpen = true)}
 							aria-label="Add first widget"
 						>

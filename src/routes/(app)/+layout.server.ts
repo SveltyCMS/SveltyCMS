@@ -22,7 +22,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
-	const { theme, user } = locals;
+	const { theme, user, nonce } = locals;
 
 	// Load settings from server-side cache (defaults from seed data)
 	const { public: publicSettings } = await loadSettingsCache();
@@ -60,7 +60,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			theme: theme || DEFAULT_THEME,
 			contentStructure: contentStructure,
 			user: freshUser,
-			publicSettings // Pass public settings to client (includes all defaults from seed)
+			publicSettings, // Pass public settings to client (includes all defaults from seed)
+			nonce
 		};
 	} catch (error) {
 		logger.error('Failed to load layout data:', error);
@@ -71,7 +72,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			user,
 			contentStructure: [],
 			error: 'Failed to load collection data',
-			publicSettings // Pass public settings even on error
+			publicSettings, // Pass public settings even on error
+			nonce
 		};
 	}
 };

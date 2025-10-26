@@ -15,7 +15,6 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
-	import type { Load } from '@sveltejs/kit';
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -42,14 +41,6 @@
 		const posInPattern = index % 10;
 		return posInPattern >= 6 && posInPattern < 9;
 	}
-
-	// Set the error data and SEO information that will be used by the layout
-	export const load: Load = () => {
-		return {
-			SeoTitle: `Error ${page.status} - ${page.data?.settings?.SITE_NAME || 'SveltyCMS'}`,
-			SeoDescription: `An error occurred while trying to access this page. Status: ${page.status}. ${page.error?.message || m.error_pagenotfound()}`
-		};
-	};
 </script>
 
 {#if page}
@@ -59,9 +50,15 @@
 	>
 		<div class="relative">
 			<!-- Rotating SiteName -->
-			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
-				{#each array as char, index}
-					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">
+			<div
+				class="relative animate-spin rounded-full"
+				style="width: {size}px; height: {size}px; font-size: {font}em; animation-duration: {speed * 200}ms;"
+			>
+				{#each array as char, index (index)}
+					<div
+						class="absolute left-1/2 top-0 h-full w-4 -translate-x-1/2 text-center uppercase"
+						style="transform: translateX(-50%) rotate({(1 / array.length) * index}turn);"
+					>
 						{#if isCMSChar(index)}
 							<span class="text-primary-500"><SiteName {char} /></span>
 						{:else}
@@ -72,7 +69,7 @@
 			</div>
 
 			<!-- Site Logo -->
-			<SveltyCMSLogo fill="red" className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 h-16 mb-2" />
+			<SveltyCMSLogo fill="red" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-16 mb-2" />
 		</div>
 
 		<div class="relative">
@@ -99,40 +96,9 @@
 		<!-- Button -->
 		<a
 			href="/"
-			data-sveltekit-preload-data="tap"
 			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase !text-white shadow-xl"
 		>
 			{m.error_gofrontpage()}
 		</a>
 	</main>
 {/if}
-
-<style lang="postcss">
-	@keyframes rotation {
-		0% {
-			transform: rotate(0turn);
-		}
-		100% {
-			transform: rotate(1turn);
-		}
-	}
-
-	.seal {
-		position: relative;
-		width: var(--size);
-		height: var(--size);
-		border-radius: 100%;
-		animation: rotation var(--speed) linear infinite;
-		font-size: var(--font);
-	}
-	.char {
-		width: 1em;
-		height: 100%;
-		position: absolute;
-		top: 0;
-		left: 50%;
-		transform: translateX(-50%) rotate(var(--angle, 0deg));
-		text-align: center;
-		text-transform: uppercase;
-	}
-</style>

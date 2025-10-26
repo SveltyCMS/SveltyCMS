@@ -60,7 +60,7 @@ export class ThemeManager {
 			await this.loadAndCacheDefaultTheme();
 
 			this.initialized = true;
-			logger.info('ThemeManager initialized successfully.');
+			// Removed logger.info here - will be combined with timing in system init
 		} catch (err) {
 			const message = `Error in ThemeManager.initialize: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);

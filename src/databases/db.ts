@@ -213,8 +213,8 @@ export async function loadSettingsFromDB() {
 		}
 
 		// Populate the cache with validated settings, merging dynamic private flags into unified cache
-		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as Record<string, unknown>;
-		await setSettingsCache(mergedPrivate as typeof privateEnv, parsedPublic.output);
+		const mergedPrivate = { ...(parsedPrivate.output as Record<string, unknown>), ...privateDynamic } as any;
+		await setSettingsCache(mergedPrivate, parsedPublic.output);
 
 		logger.info('✅ System settings loaded and cached from database.');
 	} catch (error) {
@@ -340,7 +340,10 @@ async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Prom
 	let lastError: unknown;
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
-			logger.debug(`Initializing virtual folders (attempt ${attempt}/${maxRetries})...`);
+			// Only log attempts if there are retries (attempt > 1)
+			if (attempt > 1) {
+				logger.debug(`Initializing virtual folders (attempt ${attempt}/${maxRetries})...`);
+			}
 
 			// Verify the connection is still active before querying
 			if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
@@ -382,18 +385,16 @@ async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Prom
 					const errorMessage = error instanceof Error ? error.message : String(error);
 					throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 				}
-				logger.debug(`Created root virtual folder: ${defaultMediaFolder}`);
 			}
-			// Success - exit fast
-			logger.debug(`✅ Virtual folders initialized successfully on attempt ${attempt}`);
+			// Success - exit fast (no success logging needed, timing will be shown in parallel summary)
 			return;
 		} catch (err) {
 			lastError = err;
 			const errorMsg = err instanceof Error ? err.message : String(err);
 
 			if (attempt < maxRetries) {
-				logger.warn(`Virtual folder initialization failed (attempt ${attempt}/${maxRetries}): ${errorMsg}`);
-				logger.warn(`Retrying in ${retryDelay}ms...`);
+				// Only log retry attempts, not the first failure
+				logger.debug(`Virtual folder initialization failed (attempt ${attempt}/${maxRetries}), retrying: ${errorMsg}`);
 				await new Promise((resolve) => setTimeout(resolve, retryDelay));
 				// Exponential backoff
 				retryDelay *= 2;
@@ -401,9 +402,7 @@ async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Prom
 				logger.error(`Virtual folder initialization failed after ${maxRetries} attempts: ${errorMsg}`);
 			}
 		}
-	}
-
-	// All retries exhausted
+	} // All retries exhausted
 	const message = `Error initializing virtual folders after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`;
 	logger.error(message);
 	throw new Error(message);
@@ -516,45 +515,60 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 			throw new Error('Auth initialization failed');
 		}
 		updateServiceHealth('auth', 'healthy', 'Authentication service ready');
-		logger.debug(`✓ Authentication initialized in \x1b[32m${(performance.now() - step5StartTime).toFixed(2)}ms\x1b[0m`);
 
 		// Settings (required for app configuration)
+		const settingsStartTime = performance.now();
 		await loadSettingsFromDB();
-		logger.debug(`✓ Settings loaded from DB in \x1b[32m${(performance.now() - step5StartTime).toFixed(2)}ms\x1b[0m`);
+		const settingsTime = performance.now() - settingsStartTime;
+
+		const authTime = performance.now() - step5StartTime;
 
 		// Run slow I/O operations in parallel
 		const parallelStartTime = performance.now();
 		updateServiceHealth('cache', 'initializing', 'Initializing media, revisions, and themes...');
 		updateServiceHealth('themeManager', 'initializing', 'Initializing theme manager...');
 
+		// Collect timings for all parallel operations
+		let mediaTime = 0,
+			revisionsTime = 0,
+			virtualFoldersTime = 0,
+			themesTime = 0;
+
 		await Promise.all([
 			(async () => {
 				const t = performance.now();
 				await initializeMediaFolder();
-				logger.debug(`  - Media folder: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+				mediaTime = performance.now() - t;
 			})(),
 			(async () => {
 				const t = performance.now();
 				await initializeRevisions();
-				logger.debug(`  - Revisions: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+				revisionsTime = performance.now() - t;
 			})(),
 			(async () => {
 				const t = performance.now();
 				await initializeVirtualFolders();
-				logger.debug(`  - Virtual folders: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+				virtualFoldersTime = performance.now() - t;
 			})(),
 			(async () => {
 				const t = performance.now();
 				await initializeDefaultTheme().then(() => initializeThemeManager());
 				updateServiceHealth('themeManager', 'healthy', 'Theme manager initialized');
-				logger.debug(`  - Themes: \x1b[32m${(performance.now() - t).toFixed(2)}ms\x1b[0m`);
+				themesTime = performance.now() - t;
 			})()
 		]);
+
 		updateServiceHealth('cache', 'healthy', 'Media, revisions, and virtual folders initialized');
-		logger.debug(`✓ Parallel I/O operations completed in \x1b[32m${(performance.now() - parallelStartTime).toFixed(2)}ms\x1b[0m`);
+
+		const parallelTime = performance.now() - parallelStartTime;
+		logger.info(
+			`ThemeManager initialized successfully. Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: ${revisionsTime.toFixed(2)}ms, Virtual Folders: ${virtualFoldersTime.toFixed(2)}ms, Themes: ${themesTime.toFixed(2)}ms)`
+		);
 
 		const step5Time = performance.now() - step5StartTime;
-		logger.info(`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
+		logger.info(
+			`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
+		);
 		isInitialized = true;
 
 		// System is now READY - state will be derived automatically from service health
@@ -705,7 +719,7 @@ export async function reinitializeSystem(force = false, waitForAuth = true): Pro
 		// Optionally wait for auth service to be ready (skip during setup to avoid blocking)
 		if (waitForAuth) {
 			logger.info('Waiting for auth service to become available after reinitialization...');
-			const authReady = await waitForServiceHealthy('auth', 3000); // Reduced from 10s to 3s
+			const authReady = await waitForServiceHealthy('auth', { timeoutMs: 3000 }); // Reduced from 10s to 3s
 			if (!authReady) {
 				logger.warn('Auth service not ready after timeout, but will continue');
 			}

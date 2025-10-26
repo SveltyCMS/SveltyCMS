@@ -1,42 +1,50 @@
+# .github/workflows/auto-release.yaml
 # This workflow uses semantic-release to automatically publish new versions of your package to GitHub based on commit messages.
 name: Semantic Release
 
 # Triggers the workflow ONLY when a push happens to the main or next branch.
 on:
   push:
-    branches:
-      - main
-      - next
-  workflow_dispatch: {} # Allows you to run this workflow manually from the Actions tab
+    branches: [main] # Only release from protected main branch
+  workflow_dispatch: {} # Allow manual release if needed
+
+permissions:
+  contents: write # Allow changelog + tags
+  issues: write # Allow release notes on issues
+  pull-requests: write # Comment on PRs for releases
 
 jobs:
-  release:
-    permissions:
-      contents: write # to push new version tag and updated package.json/CHANGELOG.md
-      issues: write # to comment on issues when resolved
-      pull-requests: write # to comment on pull requests when resolved
+  test:
+    name: Run Playwright Tests
+    uses: ./.github/workflows/playwright.yml
 
-    runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
+  release:
+    name: Release with Semantic Release # Auto version + changelog
+    runs-on: ubuntu-latest
+    needs: [test] # Only release if tests pass
 
     steps:
-      - name: Checkout code
+      # Get git code
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           # fetch-depth: 0 is required for semantic-release to analyze the full commit history.
           fetch-depth: 0
 
-      # ✅ Setup Node.js (semantic-release now needs Node 22.14+)
+      # Setup Node.js for semantic-release
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
           check-latest: true
 
+      # Setup Bun environment
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      # Cache Bun dependencies
       - name: Cache Bun dependencies
         id: bun-cache
         uses: actions/cache@v4
@@ -46,6 +54,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
+      # Install only what's needed for release
       - name: Install dependencies
         run: bun install --frozen-lockfile
 

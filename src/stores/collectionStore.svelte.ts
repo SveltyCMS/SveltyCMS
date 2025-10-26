@@ -131,18 +131,6 @@ export const mode = {
 	set value(v) {
 		logger.debug(`mode.value setter: ${_mode} -> ${v}`);
 		_mode = v;
-		// Trigger UI layout update when mode changes
-		// Use dynamic import to avoid circular dependency
-		if (typeof window !== 'undefined') {
-			import('./UIStore.svelte')
-				.then(({ uiStateManager }) => {
-					logger.debug(`Triggering uiStateManager.updateLayout() for mode: ${v}`);
-					requestAnimationFrame(() => uiStateManager.updateLayout());
-				})
-				.catch(() => {
-					// Ignore errors if UIStore is not available
-				});
-		}
 	}
 };
 export const modifyEntry = {

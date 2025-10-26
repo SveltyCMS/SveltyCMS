@@ -499,13 +499,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 						{#if view === 'grid'}
 							<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
 							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-center text-xs">Grid</p>
 							</button>
 						{/if}
@@ -545,7 +545,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Tiny"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:apps" height="40" style="color:text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Tiny</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
@@ -579,8 +579,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Small"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}
-								></iconify-icon>
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style="color:text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
@@ -614,7 +613,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Medium"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
@@ -648,7 +647,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Large"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view" height="40" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Large</p>
 							</button>
 						{/if}

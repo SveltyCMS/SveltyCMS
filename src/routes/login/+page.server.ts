@@ -243,7 +243,23 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if user is already authenticated
 		if (locals.user) {
 			logger.debug('User is already authenticated in load, attempting to redirect to collection');
-			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+
+			// Check if collections exist in the database
+			const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+			let redirectPath: string;
+			if (finalCollectionPath) {
+				// Collections exist - redirect to first collection
+				redirectPath = finalCollectionPath;
+				logger.debug(`Authenticated user redirect to collection: ${redirectPath}`);
+			} else {
+				// No collections available - redirect based on permissions
+				logger.debug('No collections available for authenticated user, redirecting based on permissions');
+				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionWithRoles(locals.user, 'config:collectionbuilder', roles);
+				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+			}
+
 			throw redirect(302, redirectPath);
 		}
 
@@ -424,7 +440,23 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				if (user && user._id) {
 					await createSessionAndSetCookie(user._id, cookies);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google', lastLogin: new Date() });
-					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
+
+					// Determine redirect path based on collections
+					const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+					let redirectPath: string;
+					if (finalCollectionPath) {
+						// Collections exist - redirect to first collection
+						redirectPath = finalCollectionPath;
+						logger.debug(`OAuth login redirect to collection: ${redirectPath}`);
+					} else {
+						// No collections available - redirect based on permissions
+						logger.debug('No collections available for OAuth login, redirecting based on permissions');
+						const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+						const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
+						redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+					}
+
 					throw redirect(303, redirectPath);
 				}
 
@@ -673,7 +705,22 @@ export const actions: Actions = {
 			});
 
 			// Redirect to first collection
-			const redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
+			// Check if collections exist in the database
+			const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+			let redirectPath: string;
+			if (finalCollectionPath) {
+				// Collections exist - redirect to first collection
+				redirectPath = finalCollectionPath;
+				logger.debug(`SignUp redirect to collection: ${redirectPath}`);
+			} else {
+				// No collections available - redirect based on permissions
+				logger.debug('No collections available for signUp, redirecting based on permissions');
+				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
+				const isAdmin = hasPermissionWithRoles(newUser, 'config:collectionbuilder', roles);
+				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
+			}
+
 			throw redirect(303, redirectPath);
 		} catch (error) {
 			const err = error as Error;
@@ -759,11 +806,8 @@ export const actions: Actions = {
 		let redirectPath;
 
 		try {
-			// Run authentication and collection path retrieval in parallel for faster response
-			const [authResult, collectionPath] = await Promise.all([
-				signInUser(email, password, isToken, event.cookies),
-				getCachedFirstCollectionPath(userLanguage) // Use cached version from store
-			]);
+			// Run authentication (collection path will be determined after auth success)
+			const authResult = await signInUser(email, password, isToken, event.cookies);
 
 			resp = authResult;
 
@@ -779,14 +823,20 @@ export const actions: Actions = {
 				});
 			} else if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
-				// If no collection, redirect based on permission
-				if (!collectionPath) {
-					// Import hasPermissionWithRoles dynamically to avoid circular deps
+
+				// Check if collections exist in the database (runtime-created collections)
+				const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+				if (finalCollectionPath) {
+					// Collections exist - redirect to first collection
+					redirectPath = finalCollectionPath;
+					logger.debug(`Login redirect to collection: ${redirectPath}`);
+				} else {
+					// No collections available - redirect based on permissions
+					logger.debug('No collections available, redirecting based on permissions');
 					const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
 					const isAdmin = hasPermissionWithRoles(resp.user, 'config:collectionbuilder', roles);
 					redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
-				} else {
-					redirectPath = collectionPath;
 				}
 
 				const endTime = performance.now();
@@ -888,12 +938,19 @@ export const actions: Actions = {
 
 			logger.info(`User logged in successfully with 2FA: \x1b[34m${user.username}\x1b[0m (\x1b[32m${userId}\x1b[0m)`);
 
-			// Get redirect path
-			const loggedInUser = await auth.getUserById(userId);
-			let redirectPath = await fetchAndRedirectToFirstCollectionCached(userLanguage);
-			if (!redirectPath) {
+			// Determine redirect path based on collections
+			const finalCollectionPath = await getCachedFirstCollectionPath(userLanguage);
+
+			let redirectPath: string;
+			if (finalCollectionPath) {
+				// Collections exist - redirect to first collection
+				redirectPath = finalCollectionPath;
+				logger.debug(`2FA login redirect to collection: ${redirectPath}`);
+			} else {
+				// No collections available - redirect based on permissions
+				logger.debug('No collections available for 2FA login, redirecting based on permissions');
 				const { hasPermissionWithRoles } = await import('@src/databases/auth/permissions');
-				const isAdmin = hasPermissionWithRoles(loggedInUser, 'config:collectionbuilder', roles);
+				const isAdmin = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
 				redirectPath = isAdmin ? '/config/collectionbuilder' : '/user';
 			}
 

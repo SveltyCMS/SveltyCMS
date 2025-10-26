@@ -19,7 +19,7 @@
 	  8. Lazy Component State & Error Handling
 -->
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, type Component } from 'svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { setupStore } from '@stores/setupStore.svelte';
@@ -69,7 +69,7 @@
 		userFriendly?: string;
 		latencyMs?: number;
 		classification?: string;
-		details?: any;
+		details?: unknown;
 	};
 	type SetupCompleteResponse = {
 		success: boolean;
@@ -182,7 +182,7 @@
 		length: wizard.adminUser.password.length >= 8,
 		letter: /[a-zA-Z]/.test(wizard.adminUser.password),
 		number: /[0-9]/.test(wizard.adminUser.password),
-		special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(wizard.adminUser.password),
+		special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(wizard.adminUser.password),
 		match: wizard.adminUser.password === wizard.adminUser.confirmPassword && wizard.adminUser.password !== ''
 	});
 
@@ -272,21 +272,25 @@
 				break;
 			case 1:
 				// Use main schema for instant feedback; server will re-validate
-				const adminResult = safeParse(setupAdminSchema, { ...wizard.adminUser });
-				if (!adminResult.success) {
-					for (const issue of adminResult.issues) {
-						const path = issue.path?.[0]?.key as string;
-						if (path) errs[path] = issue.message;
+				{
+					const adminResult = safeParse(setupAdminSchema, { ...wizard.adminUser });
+					if (!adminResult.success) {
+						for (const issue of adminResult.issues) {
+							const path = issue.path?.[0]?.key as string;
+							if (path) errs[path] = issue.message;
+						}
 					}
 				}
 				break;
 			case 2:
 				// Use main schema for instant feedback; server will re-validate
-				const systemResult = safeParse(systemConfigSchema, { ...wizard.systemSettings });
-				if (!systemResult.success) {
-					for (const issue of systemResult.issues) {
-						const path = issue.path?.[0]?.key as string;
-						if (path) errs[path] = issue.message;
+				{
+					const systemResult = safeParse(systemConfigSchema, { ...wizard.systemSettings });
+					if (!systemResult.success) {
+						for (const issue of systemResult.issues) {
+							const path = issue.path?.[0]?.key as string;
+							if (path) errs[path] = issue.message;
+						}
 					}
 				}
 				break;
@@ -450,15 +454,17 @@
 	}
 
 	// --- 7. UI HANDLERS ---
-	let dbConfigComponent = $state<any>(null);
+	let dbConfigComponent = $state<unknown>(null);
 
 	async function nextStep() {
 		if (!canProceed) return;
 
 		// On database step, write private.ts and seed database
 		if (wizard.currentStep === 0) {
-			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
-				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			if (dbConfigComponent && typeof (dbConfigComponent as any).installDatabaseDriver === 'function') {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				await (dbConfigComponent as any).installDatabaseDriver(wizard.dbConfig.type);
 			}
 
 			// STEP 2: Write private.ts and seed database when user clicks "Next"
@@ -577,13 +583,14 @@
 	}
 
 	// --- 9. LAZY COMPONENT STATE & ERROR HANDLING ---
-	let DatabaseConfig: any = null;
-	let AdminConfig: any = null;
-	let SystemConfig: any = null;
-	let EmailConfig: any = null;
-	let ReviewConfig: any = null;
+	let DatabaseConfig: unknown = null;
+	let AdminConfig: unknown = null;
+	let SystemConfig: unknown = null;
+	let EmailConfig: unknown = null;
+	let ReviewConfig: unknown = null;
 	let stepLoadError = $state('');
-	let CurrentStepComponent = $state<any>(null);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let CurrentStepComponent = $state<Component<any, any, any> | null>(null);
 
 	$effect(() => {
 		stepLoadError = '';
@@ -614,19 +621,24 @@
 		loadStep(wizard.currentStep).then(() => {
 			switch (wizard.currentStep) {
 				case 0:
-					CurrentStepComponent = DatabaseConfig;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					CurrentStepComponent = DatabaseConfig as any;
 					break;
 				case 1:
-					CurrentStepComponent = AdminConfig;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					CurrentStepComponent = AdminConfig as any;
 					break;
 				case 2:
-					CurrentStepComponent = SystemConfig;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					CurrentStepComponent = SystemConfig as any;
 					break;
 				case 3:
-					CurrentStepComponent = EmailConfig;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					CurrentStepComponent = EmailConfig as any;
 					break;
 				case 4:
-					CurrentStepComponent = ReviewConfig;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					CurrentStepComponent = ReviewConfig as any;
 					break;
 				default:
 					CurrentStepComponent = null;
@@ -706,7 +718,7 @@
 								>
 									<input bind:value={langSearch} placeholder={m.setup_search_placeholder()} class="input-sm input mb-2 w-full" />
 									<div class="max-h-56 overflow-y-auto">
-										{#each systemLanguages.filter((l) => getLanguageName(l).toLowerCase().includes(langSearch.toLowerCase())) as lang}
+										{#each systemLanguages.filter((l) => getLanguageName(l).toLowerCase().includes(langSearch.toLowerCase())) as lang (lang)}
 											<button
 												onclick={() => selectLanguage(lang)}
 												class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 {currentLanguageTag ===
@@ -731,7 +743,7 @@
 							{/if}
 						{:else}
 							<select bind:value={currentLanguageTag} class="input" onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}>
-								{#each systemLanguages as lang}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
+								{#each systemLanguages as lang (lang)}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
 							</select>
 						{/if}
 					</div>
@@ -751,7 +763,7 @@
 				<div class="flex flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
 					<!-- Mobile: Horizontal step indicator -->
 					<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
-						{#each steps as _step, i}
+						{#each steps as step, i (i)}
 							<!-- Mobile step (button for backward navigation) -->
 							<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 								<button
@@ -766,7 +778,7 @@
 										? 'cursor-pointer'
 										: 'cursor-not-allowed'}"
 									aria-current={i === wizard.currentStep ? 'step' : undefined}
-									aria-label={`${_step.label} – ${stepCompleted[i] ? 'Completed' : i === wizard.currentStep ? 'Current step' : 'Pending step'}`}
+									aria-label={`${step.label} – ${stepCompleted[i] ? 'Completed' : i === wizard.currentStep ? 'Current step' : 'Pending step'}`}
 									disabled={!(stepClickable[i] || i === wizard.currentStep)}
 									onclick={() => (stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
 								>
@@ -780,7 +792,7 @@
 											? 'text-surface-900 dark:text-white'
 											: 'text-surface-500 dark:text-surface-400'} max-w-16 truncate sm:max-w-20"
 									>
-										{_step.label.split(' ')[0]}
+										{step.label.split(' ')[0]}
 									</div>
 								</div>
 							</div>
@@ -788,7 +800,7 @@
 
 						<!-- Connecting lines for mobile -->
 						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9" aria-hidden="true">
-							{#each steps as _unused, i}{#if i !== steps.length - 1}<div
+							{#each Array.from({ length: steps.length }, (_, i) => i) as i (i)}{#if i !== steps.length - 1}<div
 										class="mx-1 h-0.5 flex-1 {stepCompleted[i] ? 'bg-primary-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
 									></div>{/if}{/each}
 						</div>
@@ -796,7 +808,7 @@
 
 					<!-- Desktop: Vertical step indicator -->
 					<div class="hidden p-6 lg:block">
-						{#each steps as _step, i}
+						{#each steps as step, i (i)}
 							<div class="relative last:pb-0">
 								<button
 									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === wizard.currentStep
@@ -826,7 +838,7 @@
 													? 'text-slate-900 dark:text-white'
 													: 'text-slate-400 dark:text-slate-600'}"
 										>
-											{_step.label}
+											{step.label}
 										</div>
 										<div
 											class="mt-1 text-sm {i < wizard.currentStep
@@ -835,7 +847,7 @@
 													? 'text-slate-600 dark:text-slate-300'
 													: 'text-slate-400 dark:text-slate-600'}"
 										>
-											{_step.shortDesc}
+											{step.shortDesc}
 										</div>
 									</div>
 								</button>
@@ -851,7 +863,7 @@
 							<div class="flex-1">
 								<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
 								<ul class="space-y-2 text-xs">
-									{#each legendItems as item}
+									{#each legendItems as item (item.key)}
 										<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
 											<div
 												class="flex h-5 w-5 items-center justify-center rounded-full font-semibold leading-none

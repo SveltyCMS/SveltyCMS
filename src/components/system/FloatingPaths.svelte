@@ -49,7 +49,7 @@ Spring class for smooth, physics-based motion.
 		stroke-linecap="round"
 		fill="transparent"
 	>
-		{#each paths as path}
+		{#each paths as path (path.id)}
 			<Motion
 				isSVG={true}
 				initial={{ pathLength: 0.3, opacity: 0.6 }}

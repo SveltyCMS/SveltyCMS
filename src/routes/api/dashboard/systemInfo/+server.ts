@@ -39,7 +39,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import os from 'os';
-import osu from 'node-os-utils';
+import { createOSUtils } from 'node-os-utils';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { performance } from 'perf_hooks';
@@ -49,7 +49,8 @@ import { performance } from 'perf_hooks';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-const { cpu, drive, mem, netstat } = osu;
+// Create OSUtils instance
+const osUtils = createOSUtils();
 const execAsync = promisify(exec);
 
 // Configuration
@@ -113,7 +114,9 @@ const getCachedOrFresh = async <T>(type: string, fetchFunction: () => Promise<T>
 
 // Fetches detailed CPU usage information and tracks it over time
 const fetchCPUInfo = async () => {
-	const cpuUsage = await cpu.usage();
+	const cpuUsageResult = await osUtils.cpu.usage();
+	// node-os-utils v2.x returns { success, data, timestamp, cached, platform }
+	const cpuUsage = typeof cpuUsageResult === 'object' && cpuUsageResult.data !== undefined ? cpuUsageResult.data : cpuUsageResult;
 	const cpuCount = os.cpus().length;
 	const timeStamp = new Date().toISOString();
 
@@ -163,7 +166,28 @@ const fetchCPUInfo = async () => {
 // Fetches detailed disk usage information for multiple mount points
 const fetchDiskInfo = async () => {
 	// Get the root drive info
-	const rootDiskUsage = await drive.info('/');
+	const rootDiskUsageResult = await osUtils.disk.info('/');
+	// node-os-utils v2.x returns { success, data, timestamp, cached, platform }
+	// data is an array of disk objects with nested byte values
+	let rootDiskUsage;
+	if (typeof rootDiskUsageResult === 'object' && rootDiskUsageResult.data !== undefined) {
+		// v2.x format - find the main filesystem
+		const diskData =
+			rootDiskUsageResult.data.find((d: { filesystem: string }) => d.filesystem.includes('/dev/')) ||
+			rootDiskUsageResult.data[1] ||
+			rootDiskUsageResult.data[0];
+		// Convert v2.x format to expected format
+		rootDiskUsage = {
+			totalGb: parseFloat((diskData.total.bytes / 1024 / 1024 / 1024).toFixed(2)),
+			usedGb: parseFloat((diskData.used.bytes / 1024 / 1024 / 1024).toFixed(2)),
+			freeGb: parseFloat((diskData.available.bytes / 1024 / 1024 / 1024).toFixed(2)),
+			usedPercentage: parseFloat(diskData.usagePercentage.toFixed(2)),
+			freePercentage: parseFloat((100 - diskData.usagePercentage).toFixed(2))
+		};
+	} else {
+		// v1.x format - use as is
+		rootDiskUsage = rootDiskUsageResult;
+	}
 
 	// Try to get all mount points on Linux/Unix systems
 	let allMounts = [];
@@ -248,7 +272,23 @@ const fetchDiskInfo = async () => {
 
 // Fetches detailed memory usage information
 const fetchMemoryInfo = async () => {
-	const memoryInfo = await mem.info();
+	const memoryInfoResult = await osUtils.memory.info();
+	// node-os-utils v2.x returns { success, data: { total: {bytes}, used: {bytes}, ... }, timestamp, cached, platform }
+	let memoryInfo;
+	if (typeof memoryInfoResult === 'object' && memoryInfoResult.data !== undefined) {
+		// v2.x format - convert to expected format
+		const memData = memoryInfoResult.data;
+		memoryInfo = {
+			totalMemMb: parseFloat((memData.total.bytes / 1024 / 1024).toFixed(2)),
+			usedMemMb: parseFloat((memData.used.bytes / 1024 / 1024).toFixed(2)),
+			freeMemMb: parseFloat((memData.free.bytes / 1024 / 1024).toFixed(2)),
+			usedMemPercentage: parseFloat(memData.usagePercentage.toFixed(2)),
+			freeMemPercentage: parseFloat((100 - memData.usagePercentage).toFixed(2))
+		};
+	} else {
+		// v1.x format - use as is
+		memoryInfo = memoryInfoResult;
+	}
 
 	// Get swap information if available
 	let swapInfo = null;
@@ -310,7 +350,7 @@ const fetchMemoryInfo = async () => {
 
 // Fetches network usage statistics
 const fetchNetworkInfo = async () => {
-	const networkStats = await netstat.stats();
+	const networkStats = await osUtils.network.stats();
 	const networkInterfaces = os.networkInterfaces();
 
 	// Process interface information
