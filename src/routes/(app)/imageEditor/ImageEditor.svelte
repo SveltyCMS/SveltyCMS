@@ -1,5 +1,5 @@
 <!--
-@file: /src/routes/(app)/imageEditor/ImageEditor.svelte
+@file: src/routes/(app)/imageEditor/ImageEditor.svelte
 @component
 **Main reusable Image Editor component with Pintura-inspired UX**
 A comprehensive image editing interface with left sidebar tools, responsive design,
@@ -23,17 +23,17 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Import individual tool components
-	import Crop from './Crop.svelte';
-	import CropTopToolbar from './CropTopToolbar.svelte';
-	import CropBottomBar from './CropBottomBar.svelte';
-	import Blur from './Blur.svelte';
-	import Rotate from './Rotate.svelte';
-	import Zoom from './Zoom.svelte';
-	import FocalPoint from './FocalPoint.svelte';
-	import Watermark from './Watermark.svelte';
-	import Filter from './Filter.svelte';
-	import TextOverlay from './TextOverlay.svelte';
-	import ShapeOverlay from './ShapeOverlay.svelte';
+	import Crop from './components/Crop.svelte';
+	import CropTopToolbar from './components/toolbars/CropTopToolbar.svelte';
+	import CropBottomBar from './components/toolbars/CropBottomBar.svelte';
+	import Blur from './components/Blur.svelte';
+	import BlurTopToolbar from './components/toolbars/BlurTopToolbar.svelte';
+	import FineTune from './components/FineTune.svelte';
+	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
+	import Watermark from './components/Watermark.svelte';
+	import WatermarkTopToolbar from './components/toolbars/WatermarkTopToolbar.svelte';
+	import Annotate from './components/Annotate.svelte';
+	import AnnotateTopToolbar from './components/toolbars/AnnotateTopToolbar.svelte';
 
 	// Layout components
 	import EditorSidebar from './components/EditorSidebar.svelte';
@@ -69,14 +69,51 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	let cropRotationAngle = $state(0);
 	let cropScaleValue = $state(100);
 
-	// Debug: Watch cropToolRef changes
+	// FineTune tool state
+	let fineTuneRef: FineTune | null = $state(null);
+	let fineTuneActiveAdjustment = $state<AdjustmentKey>('brightness');
+
+	// Blur tool state and reference
+	let blurToolRef: Blur | null = $state(null);
+	let blurStrength = $state(10);
+
+	// Annotate tool state and reference
+	let annotateToolRef: Annotate | null = $state(null);
+	let annotateCurrentTool: 'text' | 'rectangle' | 'circle' | 'arrow' | 'line' | null = $state(null);
+	let annotateStrokeColor = $state('#ff0000');
+	let annotateFillColor = $state('transparent');
+	let annotateStrokeWidth = $state(2);
+	let annotateFontSize = $state(20);
+
+	// Effect to sync annotate tool with the component
 	$effect(() => {
-		console.log('cropToolRef changed:', cropToolRef);
-		console.log('activeState:', activeState);
-		console.log('Should show toolbar?', activeState === 'crop' && cropToolRef);
+		if (activeState === 'annotate' && annotateToolRef) {
+			annotateToolRef.setTool(annotateCurrentTool);
+		}
 	});
 
-	// Get store state reactively - since imageEditorStore.state uses $state, it's already reactive
+	// Watermark tool state and reference
+	let watermarkToolRef: Watermark | null = $state(null);
+
+	// Derived state for watermark panel - with safety check
+	let watermarkPanelData = $derived.by(() => {
+		try {
+			if (!watermarkToolRef || typeof watermarkToolRef.getStickers !== 'function') {
+				return { stickers: [], selectedSticker: null };
+			}
+			const stickers = watermarkToolRef.getStickers();
+			const selected = watermarkToolRef.getSelectedSticker();
+			return {
+				stickers: stickers.map((s: { id: string; previewUrl: string }) => ({ id: s.id, previewUrl: s.previewUrl })),
+				selectedSticker: selected ? { id: selected.id, previewUrl: selected.previewUrl } : null
+			};
+		} catch (e) {
+			console.warn('Error getting watermark data:', e);
+			return { stickers: [], selectedSticker: null };
+		}
+	});
+
+	// Get store state reactively - since imageEditorStore.state uses
 	const storeState = imageEditorStore.state;
 
 	// Derive specific values for better reactivity tracking
@@ -127,14 +164,68 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		// Add window resize event listener
 		window.addEventListener('resize', handleResize);
 
-		// Add keyboard event listener for Esc key
+		// Add event listener for fine-tune adjustments
+		function handleFineTuneAdjustment() {
+			// Take a snapshot when fine-tune adjustments are made
+			takeSnapshot();
+		}
+		window.addEventListener('fineTuneAdjustment', handleFineTuneAdjustment as unknown as (event: Event) => void);
+
+		// Add keyboard event listener for shortcuts
 		function handleKeyDown(event: KeyboardEvent) {
+			// Check if user is typing in an input field
+			const target = event.target as HTMLElement;
+			const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+
+			if (isInputField) return; // Don't trigger shortcuts when typing
+
+			const cmdOrCtrl = event.metaKey || event.ctrlKey;
+			const shift = event.shiftKey;
+
+			// Escape: Exit current tool
 			if (event.key === 'Escape') {
 				const currentState = imageEditorStore.state.activeState;
 				if (currentState) {
+					// Save state before exiting
+					imageEditorStore.saveToolState();
+					// Use tool-specific cleanup
+					imageEditorStore.cleanupToolSpecific(currentState);
 					imageEditorStore.setActiveState('');
-					imageEditorStore.cleanupTempNodes();
 				}
+				return;
+			}
+
+			// Cmd/Ctrl+Z: Undo
+			if (cmdOrCtrl && !shift && event.key === 'z') {
+				event.preventDefault();
+				handleUndo();
+				return;
+			}
+
+			// Shift+Cmd/Ctrl+Z: Redo
+			if (cmdOrCtrl && shift && event.key === 'z') {
+				event.preventDefault();
+				handleRedo();
+				return;
+			}
+
+			// Delete: Remove selected text or shape
+			if (event.key === 'Delete') {
+				const currentState = imageEditorStore.state.activeState;
+				if (currentState === 'textoverlay') {
+					// Trigger delete for selected text
+					const deleteBtn = document.querySelector('.variant-filled-error.btn') as HTMLButtonElement;
+					if (deleteBtn && !deleteBtn.disabled) {
+						deleteBtn.click();
+					}
+				} else if (currentState === 'shapeoverlay') {
+					// Trigger delete for selected shape
+					const deleteBtn = document.querySelector('.variant-filled-error.btn') as HTMLButtonElement;
+					if (deleteBtn && !deleteBtn.disabled) {
+						deleteBtn.click();
+					}
+				}
+				return;
 			}
 		}
 
@@ -143,6 +234,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		// Cleanup event listeners and reset store on component destroy
 		return () => {
 			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('fineTuneAdjustment', handleFineTuneAdjustment as unknown as (event: Event) => void);
 			window.removeEventListener('keydown', handleKeyDown);
 
 			// Force cleanup of all temporary nodes first
@@ -251,33 +343,14 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	}
 
 	function takeSnapshot() {
-		const { stage, imageNode, imageGroup } = imageEditorStore.state;
-		if (!stage || !imageNode || !imageGroup) return;
+		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
+		if (!stage || !layer || !imageNode || !imageGroup) return;
 
-		try {
-			const dataURL = stage.toDataURL();
-			const snapshot = {
-				dataURL,
-				imageProps: {
-					width: imageNode.width(),
-					height: imageNode.height(),
-					x: imageNode.x(),
-					y: imageNode.y(),
-					originalImageSrc: originalImage?.src
-				},
-				group: {
-					x: imageGroup.x(),
-					y: imageGroup.y(),
-					rotation: imageGroup.rotation(),
-					scaleX: imageGroup.scaleX(),
-					scaleY: imageGroup.scaleY()
-				}
-			};
+		// Force a redraw to ensure the current state is captured
+		layer.batchDraw();
 
-			imageEditorStore.addEditAction(snapshot);
-		} catch (error) {
-			console.warn('Failed to take snapshot:', error);
-		}
+		// Use the store's JSON-based snapshot system
+		imageEditorStore.takeSnapshot();
 	}
 
 	function applyEdit() {
@@ -287,61 +360,106 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	function handleUndo() {
 		if (!imageEditorStore.canUndoState) return;
 
-		const snapshot = imageEditorStore.undo();
-		if (snapshot) {
-			restoreFromSnapshot(snapshot);
+		// Clean up any active tool before undoing
+		const currentState = imageEditorStore.state.activeState;
+		if (currentState) {
+			imageEditorStore.cleanupToolSpecific(currentState);
+			imageEditorStore.setActiveState('');
+		}
+
+		const stateData = imageEditorStore.undoState();
+		if (stateData) {
+			restoreFromStateData(stateData);
 		}
 	}
 
 	function handleRedo() {
 		if (!imageEditorStore.canRedoState) return;
 
-		const snapshot = imageEditorStore.redo();
-		if (snapshot) {
-			restoreFromSnapshot(snapshot);
+		// Clean up any active tool before redoing
+		const currentState = imageEditorStore.state.activeState;
+		if (currentState) {
+			imageEditorStore.cleanupToolSpecific(currentState);
+			imageEditorStore.setActiveState('');
+		}
+
+		const stateData = imageEditorStore.redoState();
+		if (stateData) {
+			restoreFromStateData(stateData);
 		}
 	}
 
-	function restoreFromSnapshot(snapshot: any) {
-		const { imageNode, imageGroup, layer } = imageEditorStore.state;
-		if (!imageNode || !imageGroup || !layer) return;
+	function restoreFromStateData(stateData: string) {
+		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
+		if (!stage || !layer || !imageNode || !imageGroup) return;
 
-		// Restore with original image if available
-		if (snapshot.imageProps?.originalImageSrc && originalImage) {
-			const img = new Image();
-			img.crossOrigin = 'anonymous';
-			img.onload = () => {
-				originalImage = img;
-				imageNode.image(img);
-				imageNode.setAttrs({
-					width: snapshot.imageProps!.width,
-					height: snapshot.imageProps!.height,
-					x: snapshot.imageProps!.x,
-					y: snapshot.imageProps!.y
-				});
-				if (snapshot.group && imageGroup) {
-					imageGroup.rotation(snapshot.group.rotation);
-					imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
-					imageGroup.scale({ x: snapshot.group.scaleX, y: snapshot.group.scaleY });
+		try {
+			// Clean up any temporary nodes before restoring
+			imageEditorStore.cleanupTempNodes();
+
+			// Parse the state data to extract properties
+			const stateJSON = JSON.parse(stateData);
+
+			// Clear filters temporarily to ensure clean state
+			imageNode.filters([]);
+			imageNode.clearCache(); // Restore image group properties (position, scale, rotation)
+			// The structure is: stage > layer > imageGroup > imageNode
+			// So imageGroup is at stateJSON.children[0].children[0]
+			if (stateJSON.children && stateJSON.children[0] && stateJSON.children[0].children && stateJSON.children[0].children[0]) {
+				const imageGroupState = stateJSON.children[0].children[0];
+				if (imageGroupState.attrs) {
+					imageGroup.x(imageGroupState.attrs.x !== undefined ? imageGroupState.attrs.x : stage.width() / 2);
+					imageGroup.y(imageGroupState.attrs.y !== undefined ? imageGroupState.attrs.y : stage.height() / 2);
+					imageGroup.scaleX(imageGroupState.attrs.scaleX !== undefined ? imageGroupState.attrs.scaleX : 1);
+					imageGroup.scaleY(imageGroupState.attrs.scaleY !== undefined ? imageGroupState.attrs.scaleY : 1);
+					imageGroup.rotation(imageGroupState.attrs.rotation !== undefined ? imageGroupState.attrs.rotation : 0);
 				}
-				layer?.draw();
-			};
-			img.src = snapshot.imageProps.originalImageSrc || imageNode.image()?.src || snapshot.dataURL;
-			return;
-		}
-
-		// Fallback: raster snapshot only
-		const img = new Image();
-		img.onload = () => {
-			imageNode.image(img);
-			if (snapshot.group && imageGroup) {
-				imageGroup.rotation(snapshot.group.rotation);
-				imageGroup.position({ x: snapshot.group.x, y: snapshot.group.y });
-				imageGroup.scale({ x: snapshot.group.scaleX, y: snapshot.group.scaleY });
 			}
-			layer?.draw();
-		};
-		img.src = snapshot.dataURL;
+
+			// Restore image node properties (crop, dimensions, position)
+			if (stateJSON.children && stateJSON.children[0] && stateJSON.children[0].children && stateJSON.children[0].children[0]) {
+				const imageGroupState = stateJSON.children[0].children[0];
+				const imageNodeState = imageGroupState.children && imageGroupState.children[0];
+				if (imageNodeState.attrs) {
+					// Apply crop properties
+					if (imageNodeState.attrs.cropX !== undefined) imageNode.cropX(imageNodeState.attrs.cropX);
+					if (imageNodeState.attrs.cropY !== undefined) imageNode.cropY(imageNodeState.attrs.cropY);
+					if (imageNodeState.attrs.cropWidth !== undefined) imageNode.cropWidth(imageNodeState.attrs.cropWidth);
+					if (imageNodeState.attrs.cropHeight !== undefined) imageNode.cropHeight(imageNodeState.attrs.cropHeight);
+
+					// Apply other image properties
+					if (imageNodeState.attrs.width !== undefined) imageNode.width(imageNodeState.attrs.width);
+					if (imageNodeState.attrs.height !== undefined) imageNode.height(imageNodeState.attrs.height);
+					if (imageNodeState.attrs.x !== undefined) imageNode.x(imageNodeState.attrs.x);
+					if (imageNodeState.attrs.y !== undefined) imageNode.y(imageNodeState.attrs.y);
+
+					// Apply filters if they exist
+					if (imageNodeState.attrs.filters && Array.isArray(imageNodeState.attrs.filters) && imageNodeState.attrs.filters.length > 0) {
+						// Reapply filters to the image node
+						imageNode.filters(imageNodeState.attrs.filters);
+
+						// Apply filter properties
+						if (imageNodeState.attrs.brightness !== undefined) imageNode.brightness(imageNodeState.attrs.brightness);
+						if (imageNodeState.attrs.contrast !== undefined) imageNode.contrast(imageNodeState.attrs.contrast);
+						if (imageNodeState.attrs.saturation !== undefined) imageNode.saturation(imageNodeState.attrs.saturation);
+						if (imageNodeState.attrs.hue !== undefined) imageNode.hue(imageNodeState.attrs.hue);
+						if (imageNodeState.attrs.luminance !== undefined) imageNode.luminance(imageNodeState.attrs.luminance);
+					}
+				}
+			}
+
+			// Cache the image node if it has filters
+			const filters = imageNode.filters();
+			if (filters && Array.isArray(filters) && filters.length > 0) {
+				imageNode.cache();
+			}
+
+			// Redraw the stage
+			layer.batchDraw();
+			stage.batchDraw();
+		} catch (error) {
+			console.error('Failed to restore from state data:', error);
+		}
 	}
 
 	function handleImageUpload(event: Event) {
@@ -365,22 +483,58 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 	async function handleSave() {
 		const { stage, file } = imageEditorStore.state;
-		if (stage && file) {
-			const dataURL = stage.toDataURL();
+		if (!stage || !file) {
+			console.error('No stage or file available for saving');
+			return;
+		}
 
-			// Call custom save handler if provided
+		try {
+			// Convert canvas to blob
+			const dataURL = stage.toDataURL();
+			const response = await fetch(dataURL);
+			const blob = await response.blob();
+
+			// Create a new file with the edited image
+			// Preserve original file extension or default to png
+			const originalExtension = file.name.split('.').pop()?.toLowerCase() || 'png';
+			const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+			const newFileName = `edited-${timestamp}.${originalExtension}`;
+			const editedFile = new File([blob], newFileName, { type: blob.type });
+
+			// Create form data for the API request
+			const formData = new FormData();
+			formData.append('processType', 'save');
+			formData.append('files', editedFile);
+
+			// Add focal point metadata if it exists
+
+			// Send to media API
+			const saveResponse = await fetch('/api/media/process', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!saveResponse.ok) {
+				const errorData = await saveResponse.json();
+				throw new Error(errorData.error || 'Failed to save image');
+			}
+
+			const result = await saveResponse.json();
+
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to save image');
+			}
+
+			// Call custom save handler if provided with the new file info
 			if (onSave) {
-				onSave(dataURL, file);
+				onSave(dataURL, editedFile);
 				return;
 			}
 
-			// Default save behavior
-			const response = await fetch(dataURL);
-			await response.blob();
+			// Update the store with the new file
+			imageEditorStore.setFile(editedFile);
 
-			saveEditedImage.set(true);
-
-			// Show saved notification
+			// Show success notification
 			const notification = document.querySelector('.success-message');
 			if (notification) {
 				notification.classList.add('show');
@@ -388,7 +542,41 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					notification.classList.remove('show');
 				}, 3000);
 			}
+
+			console.log('Image saved successfully:', result.data);
+		} catch (error) {
+			console.error('Error saving image:', error);
+
+			// Show error notification
+			const errorNotification = document.querySelector('.error-message') || createErrorNotification();
+			if (errorNotification) {
+				errorNotification.textContent = `Error: ${error instanceof Error ? error.message : 'Failed to save image'}`;
+				errorNotification.classList.add('show');
+				setTimeout(() => {
+					errorNotification.classList.remove('show');
+				}, 5000);
+			}
 		}
+	}
+
+	function createErrorNotification() {
+		const notification = document.createElement('div');
+		notification.className = 'error-message';
+		notification.style.cssText = `
+			position: fixed;
+			bottom: 20px;
+			right: 20px;
+			background-color: #f44336;
+			color: white;
+			padding: 15px;
+			border-radius: 5px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+			opacity: 0;
+			transition: opacity 0.3s ease;
+			z-index: 1000;
+		`;
+		document.body.appendChild(notification);
+		return notification;
 	}
 
 	function handleCancel() {
@@ -400,175 +588,95 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	function toggleTool(tool: string) {
 		const currentState = imageEditorStore.state.activeState;
 
-		// Cleanup any temporary nodes left by previous tool before switching
+		// Save the current tool state before switching
 		if (currentState && currentState !== tool) {
-			imageEditorStore.cleanupTempNodes();
+			imageEditorStore.saveToolState();
+			// Use tool-specific cleanup for better artifact removal
+			imageEditorStore.cleanupToolSpecific(currentState);
 
-			// Extra cleanup for blur tool specifically
-			if (currentState === 'blur') {
-				const { layer } = imageEditorStore.state;
-				if (layer) {
-					layer.getChildren().forEach((node) => {
-						if (node.name() && node.name().includes('blur')) {
-							try {
-								node.destroy();
-							} catch {}
-						}
-						if (node.getClassName() === 'Rect' && node.dash && node.dash().length > 0) {
-							try {
-								node.destroy();
-							} catch {}
-						}
-						if (node.getClassName() === 'Transformer' && (node as Konva.Transformer).getNodes().length === 0) {
-							try {
-								node.destroy();
-							} catch {}
-						}
+			// Ensure imageGroup is centered after tool cleanup
+			const { stage, imageGroup } = imageEditorStore.state;
+			if (stage && imageGroup) {
+				const stageWidth = stage.width();
+				const stageHeight = stage.height();
+				const expectedX = stageWidth / 2;
+				const expectedY = stageHeight / 2;
+				const currentX = imageGroup.x();
+				const currentY = imageGroup.y();
+
+				// Recenter if position has drifted
+				if (Math.abs(currentX - expectedX) > 5 || Math.abs(currentY - expectedY) > 5) {
+					imageGroup.position({
+						x: expectedX,
+						y: expectedY
 					});
-					layer.batchDraw();
 				}
 			}
 		}
+
 		const newState = currentState === tool ? '' : tool;
 		imageEditorStore.setActiveState(newState);
-		console.log('After setting, store state is:', imageEditorStore.state.activeState);
-		console.log('Derived activeState is:', activeState);
-	}
-
-	// Tool event handlers
-	function handleCrop(cropData: any) {
-		const { imageNode, imageGroup, layer, stage } = imageEditorStore.state;
-		if (!imageNode || !imageGroup || !layer || !stage) return;
-
-		console.log('handleCrop called with:', cropData);
-
-		// Apply crop transformation
-		const { x, y, width, height } = cropData;
-
-		// Validate crop dimensions
-		if (width <= 0 || height <= 0) {
-			console.error('Invalid crop dimensions:', { width, height });
-			imageEditorStore.setActiveState('');
-			return;
-		}
-
-		// Set crop properties on the image node
-		imageNode.setAttrs({
-			cropX: x,
-			cropY: y,
-			cropWidth: width,
-			cropHeight: height,
-			width: width,
-			height: height,
-			x: -width / 2,
-			y: -height / 2
-		});
-
-		console.log('Image node after crop:', {
-			cropX: imageNode.cropX(),
-			cropY: imageNode.cropY(),
-			cropWidth: imageNode.cropWidth(),
-			cropHeight: imageNode.cropHeight(),
-			width: imageNode.width(),
-			height: imageNode.height()
-		});
-
-		// Recenter and rescale the image group to fit the cropped size
-		const stageWidth = stage.width();
-		const stageHeight = stage.height();
-		const scaleX = (stageWidth * 0.8) / width;
-		const scaleY = (stageHeight * 0.8) / height;
-		const scale = Math.min(scaleX, scaleY);
-
-		// Preserve existing rotation and flip states
-		const currentScaleX = imageGroup.scaleX();
-		const currentScaleY = imageGroup.scaleY();
-		const flipX = currentScaleX < 0 ? -1 : 1;
-		const flipY = currentScaleY < 0 ? -1 : 1;
-
-		imageGroup.position({
-			x: stageWidth / 2,
-			y: stageHeight / 2
-		});
-		imageGroup.scale({ x: scale * flipX, y: scale * flipY });
-		// Keep rotation as-is
-
-		// Force redraw to apply changes
-		layer.batchDraw();
-		stage.batchDraw();
-
-		// THEN: Exit crop mode and do final cleanup after a short delay
-		setTimeout(() => {
-			// Final cleanup to catch any stragglers
-			imageEditorStore.cleanupTempNodes();
-			imageEditorStore.setActiveState('');
-			applyEdit();
-		}, 50);
-	}
-
-	function handleRotate(angle: number) {
-		const { imageGroup, layer } = imageEditorStore.state;
-		if (!imageGroup || !layer) return;
-
-		imageGroup.rotation(angle);
-		layer.batchDraw();
-		applyEdit();
 	}
 </script>
 
-<div class="h-full w-full" class:mobile={isMobile} class:tablet={isTablet}>
+<div class="image-editor" class:mobile={isMobile} class:tablet={isTablet} role="application" aria-label="Image editor">
 	<!-- Desktop/Tablet Layout -->
 	{#if !isMobile}
-		<div class="flex h-full">
+		<div class="editor-layout">
 			<!-- Left Sidebar -->
 			<EditorSidebar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.imageNode} />
 
 			<!-- Main Canvas Area -->
-			<div class="flex min-w-0 flex-1 flex-col">
+			<div class="editor-main">
 				<!-- Top Controls -->
 				<div class="editor-controls">
-					<div class="flex items-center gap-2">
+					<div class="controls-left">
 						<div class="file-upload">
 							<input id="image-upload" class="sr-only" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
 							<label for="image-upload" class="variant-filled-primary btn">
 								<iconify-icon icon="mdi:upload" width="18" class="mr-2"></iconify-icon>
 								Choose Image
+								<span class="sr-only">Upload an image to edit</span>
 							</label>
 						</div>
 					</div>
 
-					<div class="controls-center">
+					<div class="controls-center" role="status" aria-live="polite">
 						{#if storeState.file}
-							<span class="max-w-48 truncate text-sm text-surface-600 dark:text-surface-400">
+							<span class="filename text-sm text-surface-600 dark:text-surface-400">
 								{storeState.file.name}
 							</span>
 						{/if}
 					</div>
 
-					<div class="flex items-center gap-2">
+					<div class="controls-right">
 						{#if storeState.file}
 							<div class="flex items-center gap-1">
 								<button
 									onclick={handleUndo}
 									disabled={!imageEditorStore.canUndoState}
-									aria-label="Undo"
+									aria-label="Undo last edit"
+									aria-describedby="undo-shortcut"
 									class="variant-soft-surface btn-icon"
 									title="Undo (Ctrl+Z)"
 								>
 									<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
 								</button>
+								<span id="undo-shortcut" class="sr-only">Keyboard shortcut: Ctrl+Z or Cmd+Z</span>
 								<button
 									onclick={handleRedo}
 									disabled={!imageEditorStore.canRedoState}
-									aria-label="Redo"
+									aria-label="Redo last edit"
+									aria-describedby="redo-shortcut"
 									class="variant-soft-surface btn-icon"
 									title="Redo (Ctrl+Shift+Z)"
 								>
 									<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
 								</button>
+								<span id="redo-shortcut" class="sr-only">Keyboard shortcut: Ctrl+Shift+Z or Cmd+Shift+Z</span>
 							</div>
 							<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-							<button onclick={handleSave} aria-label="Save" class="variant-filled-success btn" title="Save Image">
+							<button onclick={handleSave} aria-label="Save edited image" class="variant-filled-success btn" title="Save Image">
 								<iconify-icon icon="material-symbols:save" width="18" class="mr-2"></iconify-icon>
 								Save
 							</button>
@@ -581,7 +689,151 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 				<!-- Canvas Container -->
 				<div class="canvas-wrapper">
-					<EditorCanvas bind:containerRef hasImage={!!storeState.file}>
+					<EditorCanvas bind:containerRef hasImage={!!storeState.imageNode}>
+						<!-- Render tool components here so they can be controlled -->
+						{#if storeState.stage && storeState.layer && storeState.imageNode && storeState.imageGroup}
+							<Crop
+								bind:this={cropToolRef}
+								bind:rotationAngle={cropRotationAngle}
+								bind:scaleValue={cropScaleValue}
+								stage={storeState.stage}
+								layer={storeState.layer}
+								imageNode={storeState.imageNode}
+								container={storeState.imageGroup}
+								onApply={(cropData) => {
+									const { imageNode, imageGroup, layer, stage } = imageEditorStore.state;
+									if (!imageNode || !imageGroup || !layer || !stage) return;
+
+									// Apply crop transformation
+									const { x, y, width, height, isCircular } = cropData;
+
+									// Validate crop dimensions
+									if (width <= 0 || height <= 0) {
+										console.error('Invalid crop dimensions:', { width, height });
+										imageEditorStore.setActiveState('');
+										return;
+									}
+
+									// Set crop properties on the image node
+									imageNode.setAttrs({
+										cropX: x,
+										cropY: y,
+										cropWidth: width,
+										cropHeight: height,
+										width: width,
+										height: height,
+										x: -width / 2,
+										y: -height / 2
+									});
+
+									// Apply circular clipping if needed
+									if (isCircular) {
+										// Create an off-screen canvas to create circular mask
+										const offCanvas = document.createElement('canvas');
+										const offCtx = offCanvas.getContext('2d');
+
+										if (offCtx && imageNode.image()) {
+											const img = imageNode.image() as HTMLImageElement;
+											offCanvas.width = width;
+											offCanvas.height = height;
+
+											// Draw circular clip path
+											const radius = Math.min(width, height) / 2;
+											offCtx.beginPath();
+											offCtx.arc(width / 2, height / 2, radius, 0, Math.PI * 2);
+											offCtx.closePath();
+											offCtx.clip();
+
+											// Draw the cropped portion of the image
+											offCtx.drawImage(
+												img,
+												x,
+												y,
+												width,
+												height, // Source rectangle
+												0,
+												0,
+												width,
+												height // Destination rectangle
+											);
+
+											// Create a new image from the masked canvas
+											const circularImg = new Image();
+											circularImg.onload = () => {
+												imageNode.image(circularImg);
+												imageNode.setAttrs({
+													cropX: 0,
+													cropY: 0,
+													cropWidth: width,
+													cropHeight: height
+												});
+												layer.batchDraw();
+											};
+											circularImg.src = offCanvas.toDataURL();
+										}
+									}
+
+									// Recenter and rescale the image group to fit the cropped size
+									const stageWidth = stage.width();
+									const stageHeight = stage.height();
+
+									// Calculate scale based on the NEW cropped dimensions
+									// This ensures we fit the cropped area to 80% of stage
+									const scaleX = (stageWidth * 0.8) / width;
+									const scaleY = (stageHeight * 0.8) / height;
+									const scale = Math.min(scaleX, scaleY);
+
+									// Preserve existing flip states ONLY (not scale)
+									const currentScaleX = imageGroup.scaleX();
+									const currentScaleY = imageGroup.scaleY();
+									const flipX = currentScaleX < 0 ? -1 : 1;
+									const flipY = currentScaleY < 0 ? -1 : 1;
+
+									// Store the rotation before resetting
+									const currentRotation = imageGroup.rotation();
+
+									// Reset imageGroup transform completely
+									imageGroup.x(stageWidth / 2);
+									imageGroup.y(stageHeight / 2);
+									imageGroup.scaleX(scale * flipX);
+									imageGroup.scaleY(scale * flipY);
+									imageGroup.rotation(currentRotation);
+
+									// Ensure imageGroup is in the layer and properly configured
+									imageGroup.moveToBottom(); // Ensure it's below any overlays
+									imageNode.moveToBottom(); // Ensure image is at bottom of group
+
+									// Force redraw to apply changes
+									layer.batchDraw();
+									stage.batchDraw();
+
+									// THEN: Exit crop mode and do final cleanup after a short delay
+									setTimeout(() => {
+										// Final cleanup to catch any stragglers
+										imageEditorStore.cleanupToolSpecific('crop');
+										imageEditorStore.setActiveState('');
+										applyEdit();
+									}, 50);
+								}}
+							/>
+							<FineTune bind:this={fineTuneRef} />
+							<Blur bind:this={blurToolRef} />
+							<Watermark bind:this={watermarkToolRef} stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
+							<Annotate
+								bind:this={annotateToolRef}
+								stage={storeState.stage}
+								layer={storeState.layer}
+								imageNode={storeState.imageNode}
+								bind:strokeColor={annotateStrokeColor}
+								bind:fillColor={annotateFillColor}
+								bind:strokeWidth={annotateStrokeWidth}
+								bind:fontSize={annotateFontSize}
+								onAnnotationChange={() => {
+									applyEdit();
+								}}
+							/>
+						{/if}
+
 						<!-- Crop Top Toolbar - overlaid on canvas -->
 						{#if activeState === 'crop'}
 							<CropTopToolbar
@@ -593,8 +845,102 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								onDone={() => cropToolRef?.apply()}
 							/>
 						{/if}
-					</EditorCanvas>
 
+						<!-- Blur Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'blur' && blurToolRef}
+							<BlurTopToolbar
+								bind:blurStrength
+								onBlurStrengthChange={(value) => {
+									blurStrength = value;
+									blurToolRef?.updateBlurStrength();
+								}}
+								onReset={() => blurToolRef?.reset()}
+								onApply={() => {
+									blurToolRef?.apply();
+									applyEdit();
+									imageEditorStore.setActiveState('');
+								}}
+							/>
+						{/if}
+
+						<!-- FineTune Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'finetune' && fineTuneRef}
+							<FineTuneTopToolbar
+								activeAdjustment={fineTuneActiveAdjustment}
+								adjustmentValue={fineTuneRef?.adjustments?.[fineTuneActiveAdjustment] || 0}
+								onValueChange={(value) => {
+									if (fineTuneRef && fineTuneRef.handleAdjustmentChange) {
+										fineTuneRef.handleAdjustmentChange(fineTuneActiveAdjustment, value);
+									}
+								}}
+								onComparisonStart={() => {
+									if (fineTuneRef && fineTuneRef.startComparison) {
+										fineTuneRef.startComparison();
+									}
+								}}
+								onComparisonEnd={() => {
+									if (fineTuneRef && fineTuneRef.endComparison) {
+										fineTuneRef.endComparison();
+									}
+								}}
+								onReset={() => {
+									if (fineTuneRef && fineTuneRef.resetAdjustments) {
+										fineTuneRef.resetAdjustments();
+									}
+								}}
+								onApply={() => {
+									if (fineTuneRef && fineTuneRef.applyFineTunePermanently) {
+										fineTuneRef.applyFineTunePermanently();
+										// Apply the edit after a short delay to ensure the image is updated
+										setTimeout(() => {
+											applyEdit();
+											imageEditorStore.setActiveState('');
+										}, 100);
+									}
+								}}
+								onAdjustmentChange={(adjustment: string) => (fineTuneActiveAdjustment = adjustment as AdjustmentKey)}
+							/>
+						{/if}
+
+						<!-- Watermark Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'watermark' && watermarkToolRef}
+							<WatermarkTopToolbar
+								stickers={watermarkPanelData.stickers}
+								selectedSticker={watermarkPanelData.selectedSticker}
+								onAddSticker={() => watermarkToolRef?.openFileDialog()}
+								onDeleteSelected={() => watermarkToolRef?.deleteSelectedSticker()}
+								onBringToFront={() => watermarkToolRef?.bringToFront()}
+								onSendToBack={() => watermarkToolRef?.sendToBack()}
+								onReset={() => {
+									watermarkToolRef?.deleteAllStickers();
+								}}
+								onDone={() => {
+									imageEditorStore.cleanupToolSpecific('watermark');
+									imageEditorStore.setActiveState('');
+									applyEdit();
+								}}
+							/>
+						{/if}
+
+						<!-- Annotate Top Toolbar - overlaid on canvas -->
+						{#if activeState === 'annotate'}
+							<AnnotateTopToolbar
+								bind:currentTool={annotateCurrentTool}
+								bind:strokeColor={annotateStrokeColor}
+								bind:fillColor={annotateFillColor}
+								bind:strokeWidth={annotateStrokeWidth}
+								bind:fontSize={annotateFontSize}
+								onDelete={() => annotateToolRef?.deleteSelected()}
+								onDeleteAll={() => annotateToolRef?.deleteAll()}
+								onDone={() => {
+									annotateToolRef?.apply();
+									applyEdit();
+									imageEditorStore.cleanupToolSpecific('annotate');
+									imageEditorStore.setActiveState('');
+								}}
+							/>
+						{/if}
+					</EditorCanvas>
 					<!-- Crop Bottom Bar - below canvas -->
 					{#if activeState === 'crop'}
 						<CropBottomBar
@@ -611,24 +957,24 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		</div>
 	{:else}
 		<!-- Mobile Layout -->
-		<div class="flex h-full flex-col">
+		<div class="editor-mobile">
 			<!-- Top Controls (Mobile) -->
 			<div class="mobile-controls">
-				<div class="flex items-center gap-2">
+				<div class="controls-left">
 					{#if onCancel}
-						<button onclick={handleCancel} class="variant-ghost btn-icon" aria-label="Cancel">
+						<button onclick={handleCancel} class="variant-ghost btn-icon" aria-label="Cancel editing">
 							<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 						</button>
 					{/if}
 				</div>
-				<div class="flex flex-1 items-center justify-center">
+				<div class="controls-center" role="status" aria-live="polite">
 					{#if storeState.file}
-						<span class="max-w-48 truncate text-sm font-medium">
+						<span class="filename text-sm font-medium">
 							{storeState.file.name}
 						</span>
 					{/if}
 				</div>
-				<div class="flex items-center gap-2">
+				<div class="controls-right">
 					{#if storeState.file}
 						<button onclick={handleSave} class="variant-filled-primary btn btn-sm"> Save </button>
 					{/if}
@@ -788,6 +1134,101 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							onDone={() => cropToolRef?.apply()}
 						/>
 					{/if}
+
+					<!-- Blur Top Toolbar - overlaid on canvas -->
+					{#if activeState === 'blur' && blurToolRef}
+						<BlurTopToolbar
+							bind:blurStrength
+							onBlurStrengthChange={(value) => {
+								blurStrength = value;
+								blurToolRef?.updateBlurStrength();
+							}}
+							onReset={() => blurToolRef?.reset()}
+							onApply={() => {
+								blurToolRef?.apply();
+								applyEdit();
+								imageEditorStore.setActiveState('');
+							}}
+						/>
+					{/if}
+
+					<!-- FineTune Top Toolbar - overlaid on canvas -->
+					{#if activeState === 'finetune' && fineTuneRef}
+						<FineTuneTopToolbar
+							activeAdjustment={fineTuneActiveAdjustment}
+							adjustmentValue={fineTuneRef?.adjustments?.[fineTuneActiveAdjustment] || 0}
+							onValueChange={(value) => {
+								if (fineTuneRef && fineTuneRef.handleAdjustmentChange) {
+									fineTuneRef.handleAdjustmentChange(fineTuneActiveAdjustment, value);
+								}
+							}}
+							onComparisonStart={() => {
+								if (fineTuneRef && fineTuneRef.startComparison) {
+									fineTuneRef.startComparison();
+								}
+							}}
+							onComparisonEnd={() => {
+								if (fineTuneRef && fineTuneRef.endComparison) {
+									fineTuneRef.endComparison();
+								}
+							}}
+							onReset={() => {
+								if (fineTuneRef && fineTuneRef.resetAdjustments) {
+									fineTuneRef.resetAdjustments();
+								}
+							}}
+							onApply={() => {
+								if (fineTuneRef && fineTuneRef.applyFineTunePermanently) {
+									fineTuneRef.applyFineTunePermanently();
+									// Apply the edit after a short delay to ensure the image is updated
+									setTimeout(() => {
+										applyEdit();
+										imageEditorStore.setActiveState('');
+									}, 100);
+								}
+							}}
+							onAdjustmentChange={(adjustment: string) => (fineTuneActiveAdjustment = adjustment as AdjustmentKey)}
+						/>
+					{/if}
+
+					<!-- Watermark Top Toolbar - overlaid on canvas -->
+					{#if activeState === 'watermark' && watermarkToolRef}
+						<WatermarkTopToolbar
+							stickers={watermarkPanelData.stickers}
+							selectedSticker={watermarkPanelData.selectedSticker}
+							onAddSticker={() => watermarkToolRef?.openFileDialog()}
+							onDeleteSelected={() => watermarkToolRef?.deleteSelectedSticker()}
+							onBringToFront={() => watermarkToolRef?.bringToFront()}
+							onSendToBack={() => watermarkToolRef?.sendToBack()}
+							onReset={() => {
+								watermarkToolRef?.deleteAllStickers();
+							}}
+							onDone={() => {
+								imageEditorStore.cleanupToolSpecific('watermark');
+								imageEditorStore.setActiveState('');
+								applyEdit();
+							}}
+						/>
+					{/if}
+
+					<!-- Annotate Top Toolbar - overlaid on canvas -->
+					{#if activeState === 'annotate'}
+						<AnnotateTopToolbar
+							bind:currentTool={annotateCurrentTool}
+							bind:strokeColor={annotateStrokeColor}
+							bind:fillColor={annotateFillColor}
+							bind:strokeWidth={annotateStrokeWidth}
+							bind:fontSize={annotateFontSize}
+							onDelete={() => annotateToolRef?.deleteSelected()}
+							onDeleteAll={() => annotateToolRef?.deleteAll()}
+							onDone={() => {
+								annotateToolRef?.apply();
+								applyEdit();
+								imageEditorStore.cleanupToolSpecific('annotate');
+								imageEditorStore.setActiveState('');
+							}}
+						/>
+					{/if}
 				</EditorCanvas>
 			</div>
 
@@ -795,143 +1236,41 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			<MobileToolbar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.imageNode} />
 		</div>
 	{/if}
-
-	<!-- Tool Interfaces -->
-	<div class="tool-interfaces">
-		{#if stage && layer && imageNode}
-			<!-- Conditionally display the tool components based on the active state -->
-			{#if activeState === 'rotate'}
-				<Rotate
-					{stage}
-					{layer}
-					{imageNode}
-					imageGroup={storeState.imageGroup}
-					onRotate={handleRotate}
-					onRotateApplied={() => {
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onRotateCancelled={() => {
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'blur'}
-				{#key `blur-${storeState.file?.name || 'unknown'}`}
-					<Blur
-						{stage}
-						{layer}
-						{imageNode}
-						onBlurApplied={() => {
-							imageEditorStore.setActiveState('');
-							applyEdit();
-						}}
-						onBlurReset={() => {
-							imageEditorStore.setActiveState('');
-						}}
-					/>
-				{/key}
-			{:else if activeState === 'crop'}
-				<Crop
-					bind:this={cropToolRef}
-					{stage}
-					{layer}
-					{imageNode}
-					container={storeState.imageGroup}
-					bind:cropShape
-					bind:rotationAngle={cropRotationAngle}
-					bind:scaleValue={cropScaleValue}
-					onApply={handleCrop}
-					onCancel={() => {
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'zoom'}
-				<Zoom
-					{stage}
-					{layer}
-					{imageNode}
-					imageGroup={storeState.imageGroup}
-					onZoomApplied={() => {
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onZoomCancelled={() => {
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'focalpoint'}
-				<FocalPoint
-					{stage}
-					{layer}
-					{imageNode}
-					onFocalpointApplied={() => {
-						imageEditorStore.cleanupTempNodes();
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onFocalpointRemoved={() => {
-						imageEditorStore.cleanupTempNodes();
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'watermark'}
-				<Watermark
-					{stage}
-					{layer}
-					{imageNode}
-					onWatermarkChange={() => applyEdit()}
-					onExitWatermark={() => {
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-				/>
-			{:else if activeState === 'filter'}
-				<Filter
-					{stage}
-					{layer}
-					{imageNode}
-					onFilterApplied={() => {
-						imageEditorStore.setActiveState('');
-						applyEdit();
-					}}
-					onFilterReset={() => {
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'textoverlay'}
-				<TextOverlay
-					{stage}
-					{layer}
-					onTextAdded={() => applyEdit()}
-					onExitText={() => {
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{:else if activeState === 'shapeoverlay'}
-				<ShapeOverlay
-					{stage}
-					{layer}
-					onShapeAdded={() => applyEdit()}
-					onExitShape={() => {
-						imageEditorStore.setActiveState('');
-					}}
-				/>
-			{/if}
-		{/if}
-	</div>
 </div>
 
-<div class="success-message" role="alert">Image saved successfully!</div>
-
 <style lang="postcss">
-	.canvas-wrapper,
-	.canvas-wrapper-mobile {
+	.image-editor {
+		@apply h-full w-full;
+	}
+
+	.editor-layout {
+		@apply flex h-full;
+	}
+
+	.editor-main {
+		@apply flex min-w-0 flex-1 flex-col;
+	}
+
+	.canvas-wrapper {
 		@apply relative flex flex-1 flex-col;
 	}
 
 	.editor-controls {
 		@apply flex items-center justify-between gap-4 border-b p-4;
 		border-color: var(--color-surface-300);
+	}
+
+	.controls-left,
+	.controls-right {
+		@apply flex items-center gap-2;
+	}
+
+	.controls-center {
+		@apply flex flex-1 items-center justify-center;
+	}
+
+	.filename {
+		@apply max-w-48 truncate;
 	}
 
 	.editor-mobile {
@@ -962,7 +1301,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		z-index: 10;
 	}
 
-	/* Responsive utilities */
+	/* Responsive adjustments */
+	.tablet .editor-layout,
 	.mobile .editor-layout {
 		@apply grid grid-cols-[auto_1fr];
 	}

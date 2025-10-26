@@ -22,7 +22,6 @@ UI components are external (CropTopToolbar, CropBottomBar).
 - `setCropShape()`: Change crop shape
 - `apply()`: Apply crop and exit
 -->
-
 <script lang="ts">
 	import Konva from 'konva';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
@@ -134,19 +133,10 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		const visibleHeight = containerBox.height;
 		const size = Math.min(visibleWidth, visibleHeight) * 0.6; // 60% of smallest dimension
 
-		console.log('Container dimensions:', {
-			containerBox,
-			visibleWidth,
-			visibleHeight,
-			size,
-			stageWidth,
-			stageHeight
-		});
-
 		// Create a group for the overlay effect (dark outside, clear inside)
 		// This prevents the cutout from affecting the image layer
 		const overlayGroup = new Konva.Group({
-			name: 'cropOverlayGroup'
+			name: 'cropOverlayGroup' // For cleanup
 		});
 
 		// Create dark overlay covering entire stage
@@ -213,7 +203,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 				stroke: 'white',
 				strokeWidth: 3,
 				draggable: true,
-				name: 'cropTool'
+				name: 'cropTool' // For cleanup
 			});
 		} else {
 			cropTool = new Konva.Rect({
@@ -224,7 +214,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 				stroke: 'white',
 				strokeWidth: 3,
 				draggable: true,
-				name: 'cropTool'
+				name: 'cropTool' // For cleanup
 			});
 		}
 
@@ -252,6 +242,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			anchorStroke: 'white',
 			anchorFill: '#4f46e5', // Primary color
 			rotateAnchorOffset: 30,
+			name: 'cropTransformer', // For cleanup
 			boundBoxFunc: (oldBox, newBox) => {
 				// Limit resize
 				if (newBox.width < 30 || newBox.height < 30) {
@@ -328,17 +319,6 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 		// Force redraw to ensure visibility
 		stage.batchDraw();
-
-		console.log('Crop tool initialized and drawn', {
-			cropTool: cropTool?.attrs,
-			transformer: transformer?.attrs,
-			cropOverlay: cropOverlay?.attrs,
-			centerX,
-			centerY,
-			layerChildren: layer.getChildren().length,
-			cropToolVisible: cropTool?.visible(),
-			transformerVisible: transformer?.visible()
-		});
 	}
 
 	function updateHighlight() {
@@ -411,44 +391,6 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	// ========== ROTATION FUNCTIONS ==========
-
-	function initRotationGrid() {
-		cleanupRotationGrid();
-
-		// Create rule of thirds grid
-		rotationGrid = new Konva.Group();
-
-		const stageWidth = stage.width();
-		const stageHeight = stage.height();
-
-		// Vertical lines
-		for (let i = 1; i <= 2; i++) {
-			const line = new Konva.Line({
-				points: [(stageWidth / 3) * i, 0, (stageWidth / 3) * i, stageHeight],
-				stroke: 'rgba(255, 255, 255, 0.5)',
-				strokeWidth: 1,
-				dash: [5, 5],
-				listening: false
-			});
-			rotationGrid.add(line);
-		}
-
-		// Horizontal lines
-		for (let i = 1; i <= 2; i++) {
-			const line = new Konva.Line({
-				points: [0, (stageHeight / 3) * i, stageWidth, (stageHeight / 3) * i],
-				stroke: 'rgba(255, 255, 255, 0.5)',
-				strokeWidth: 1,
-				dash: [5, 5],
-				listening: false
-			});
-			rotationGrid.add(line);
-		}
-
-		layer.add(rotationGrid);
-		rotationGrid.moveToTop();
-		layer.draw();
-	}
 
 	function cleanupRotationGrid() {
 		if (rotationGrid) {
@@ -606,17 +548,6 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			scaleY: scaleValue / 100,
 			isCircular: cropShape === 'circular'
 		};
-
-		console.log('Applying crop:', {
-			cropBox,
-			containerTransform: containerTransform.m,
-			topLeft,
-			bottomRight,
-			currentSize: { currentWidth, currentHeight },
-			existingCrop: { existingCropX, existingCropY },
-			relative: { relativeX, relativeY, relativeWidth, relativeHeight },
-			finalCropData: cropData
-		});
 
 		// Cleanup UI elements AFTER getting crop data
 		cleanupCropTool();
