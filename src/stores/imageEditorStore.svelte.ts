@@ -12,22 +12,45 @@
 import type Konva from 'konva';
 
 // Types
-export interface EditAction {
-	undo: () => void;
-	redo: () => void;
+// Snapshot data to capture complete image state
+interface SnapshotData {
+	imageDataURL: string; // The actual image source
+	imageAttrs: {
+		width: number;
+		height: number;
+		x: number;
+		y: number;
+		scaleX: number;
+		scaleY: number;
+		rotation: number;
+		cropX?: number;
+		cropY?: number;
+		cropWidth?: number;
+		cropHeight?: number;
+	};
+	groupAttrs: {
+		x: number;
+		y: number;
+		scaleX: number;
+		scaleY: number;
+		rotation: number;
+	};
+	filters: any[];
 }
 
 export interface ImageEditorState {
 	file: File | null;
 	saveEditedImage: boolean;
-	editHistory: EditAction[];
-	currentHistoryIndex: number;
 	stage: Konva.Stage | null;
 	layer: Konva.Layer | null;
 	imageNode: Konva.Image | null;
 	imageGroup: Konva.Group | null;
 	activeState: string | null;
-	stateHistory: string[];
+	stateHistory: SnapshotData[]; // Array of snapshots with metadata
+	currentHistoryIndex: number;
+	maxHistory: number;
+	originalImageWidth: number; // Track original unscaled dimensions
+	originalImageHeight: number;
 }
 
 // Create image editor store
@@ -36,22 +59,22 @@ function createImageEditorStore() {
 	const state = $state<ImageEditorState>({
 		file: null,
 		saveEditedImage: false,
-		editHistory: [],
-		currentHistoryIndex: -1,
 		stage: null,
 		layer: null,
 		imageNode: null,
 		imageGroup: null,
 		activeState: '',
-		stateHistory: []
+		stateHistory: [],
+		currentHistoryIndex: -1,
+		maxHistory: 50,
+		originalImageWidth: 0,
+		originalImageHeight: 0
 	});
 
 	// Derived values using $derived rune
-	const canUndo = $derived(state.currentHistoryIndex >= 0);
-	const canRedo = $derived(state.currentHistoryIndex < state.editHistory.length - 1);
 	const hasActiveImage = $derived(!!state.file && !!state.imageNode);
-	const canUndoState = $derived(state.stateHistory.length > 1 && state.currentHistoryIndex > 0);
-	const canRedoState = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
+	const canUndo = $derived(state.currentHistoryIndex > 0);
+	const canRedo = $derived(state.currentHistoryIndex < state.stateHistory.length - 1);
 
 	// Methods to update state
 	function setFile(file: File | null) {
@@ -258,82 +281,237 @@ function createImageEditorStore() {
 	}
 
 	function takeSnapshot() {
-		if (!state.stage) return;
+		if (!state.stage || !state.layer || !state.imageNode || !state.imageGroup) return;
+
+		console.log('📸 Taking snapshot...');
 
 		// Force a redraw to ensure the current state is captured
-		if (state.layer) {
-			state.layer.batchDraw();
+		state.layer.batchDraw();
+
+		// Get the base image element (not the rendered output)
+		const imgElement = state.imageNode.image() as HTMLImageElement | HTMLCanvasElement;
+		if (!imgElement) {
+			console.error('❌ No image element found');
+			return;
 		}
 
-		// Save current canvas state to history
-		const stateData = state.stage.toJSON();
-		saveStateHistory(stateData);
-	}
+		// Capture current image attributes
+		const imageAttrs = {
+			width: state.imageNode.width(),
+			height: state.imageNode.height(),
+			x: state.imageNode.x(),
+			y: state.imageNode.y(),
+			scaleX: state.imageNode.scaleX(),
+			scaleY: state.imageNode.scaleY(),
+			rotation: state.imageNode.rotation(),
+			cropX: state.imageNode.cropX() || undefined,
+			cropY: state.imageNode.cropY() || undefined,
+			cropWidth: state.imageNode.cropWidth() || undefined,
+			cropHeight: state.imageNode.cropHeight() || undefined
+		};
 
-	function addEditAction(action: EditAction) {
-		// Remove any redoable actions after current index
-		state.editHistory = state.editHistory.slice(0, state.currentHistoryIndex + 1);
-		// Add new action
-		state.editHistory.push(action);
-		// Update current index
-		state.currentHistoryIndex = state.editHistory.length - 1;
-	}
+		console.log('📊 Image attributes:', {
+			width: imageAttrs.width,
+			height: imageAttrs.height,
+			hasCrop: !!(imageAttrs.cropX || imageAttrs.cropY || imageAttrs.cropWidth || imageAttrs.cropHeight),
+			cropInfo: `${imageAttrs.cropX},${imageAttrs.cropY} ${imageAttrs.cropWidth}x${imageAttrs.cropHeight}`
+		});
 
-	function saveStateHistory(stateData: string) {
-		// If we're not at the end of history, truncate it
+		// Capture imageGroup attributes (includes rotation from Crop tool)
+		const groupAttrs = {
+			x: state.imageGroup.x(),
+			y: state.imageGroup.y(),
+			scaleX: state.imageGroup.scaleX(),
+			scaleY: state.imageGroup.scaleY(),
+			rotation: state.imageGroup.rotation()
+		};
+
+		// Capture filters
+		const filters = state.imageNode.filters() || [];
+
+		// Get the image source (this is the original or previously edited image)
+		// Handle both HTMLImageElement (has .src) and HTMLCanvasElement (use toDataURL)
+		let imageDataURL: string;
+		if ('src' in imgElement && imgElement.src) {
+			imageDataURL = imgElement.src;
+		} else if (imgElement instanceof HTMLCanvasElement) {
+			imageDataURL = imgElement.toDataURL('image/png');
+		} else {
+			console.error('❌ Unknown image element type');
+			return;
+		}
+
+		console.log('🔍 Captured state:', {
+			imageAttrs,
+			groupAttrs,
+			filtersCount: filters.length,
+			imageType: imgElement instanceof HTMLCanvasElement ? 'canvas' : 'image',
+			imageSrc: imageDataURL.substring(0, 50) + '...',
+			imageDataURLLength: imageDataURL.length,
+			isBlob: imageDataURL.startsWith('blob:'),
+			isDataURL: imageDataURL.startsWith('data:')
+		});
+
+		// Create snapshot data
+		const snapshotData: SnapshotData = {
+			imageDataURL,
+			imageAttrs,
+			groupAttrs,
+			filters
+		};
+
+		// Deduplication: Basic check on image data URL
+		const lastSnapshot = state.stateHistory[state.currentHistoryIndex];
+		if (lastSnapshot && lastSnapshot.imageDataURL === imageDataURL &&
+		    JSON.stringify(lastSnapshot.imageAttrs) === JSON.stringify(imageAttrs)) {
+			console.log('⏭️ Skipping duplicate snapshot');
+			return;
+		}
+
+		// Truncate future history if we're not at the end
 		if (state.currentHistoryIndex < state.stateHistory.length - 1) {
 			state.stateHistory = state.stateHistory.slice(0, state.currentHistoryIndex + 1);
 		}
 
-		state.stateHistory.push(stateData);
-		state.currentHistoryIndex = state.stateHistory.length - 1;
+		// Add new snapshot
+		state.stateHistory.push(snapshotData);
+
+		// Limit history size (keep most recent maxHistory snapshots)
+		if (state.stateHistory.length > state.maxHistory) {
+			state.stateHistory.shift(); // Remove oldest
+			// Don't increment index since we removed from the beginning
+		} else {
+			state.currentHistoryIndex++;
+		}
+
+		console.log('✅ Snapshot saved. History:', {
+			currentIndex: state.currentHistoryIndex,
+			totalSnapshots: state.stateHistory.length
+		});
 	}
 
 	function undo() {
-		if (state.currentHistoryIndex >= 0) {
-			state.editHistory[state.currentHistoryIndex].undo();
-			state.currentHistoryIndex--;
-		}
+		if (!canUndo) return;
+		state.currentHistoryIndex--;
+		restoreSnapshot(state.stateHistory[state.currentHistoryIndex]);
 	}
 
 	function redo() {
-		if (state.currentHistoryIndex < state.editHistory.length - 1) {
-			state.currentHistoryIndex++;
-			state.editHistory[state.currentHistoryIndex].redo();
+		if (!canRedo) return;
+		state.currentHistoryIndex++;
+		restoreSnapshot(state.stateHistory[state.currentHistoryIndex]);
+	}
+
+	async function restoreSnapshot(snapshotData: SnapshotData) {
+		if (!state.stage || !state.layer || !state.imageGroup || !state.imageNode) return;
+
+		console.log('🔄 Restoring snapshot...');
+		console.log('📦 Snapshot data:', {
+			imageAttrs: snapshotData.imageAttrs,
+			filtersCount: snapshotData.filters.length
+		});
+
+		try {
+			// Load the snapshot image
+			const img = new Image();
+			img.src = snapshotData.imageDataURL;
+
+			await new Promise((resolve, reject) => {
+				img.onload = resolve;
+				img.onerror = reject;
+			});
+
+			console.log('🖼️ Loaded image:', {
+				naturalWidth: img.naturalWidth,
+				naturalHeight: img.naturalHeight
+			});
+
+			// Clear all non-imageGroup children (watermarks, annotations, etc.)
+			const children = state.layer.getChildren();
+			console.log('🧹 Clearing layer overlays (count):', children.length - 1);
+			for (let i = children.length - 1; i >= 0; i--) {
+				const child = children[i];
+				if (child !== state.imageGroup) {
+					child.destroy();
+				}
+			}
+
+			// Clear all children from imageGroup except the main image
+			const groupChildren = state.imageGroup.getChildren();
+			for (let i = groupChildren.length - 1; i >= 0; i--) {
+				const child = groupChildren[i];
+				if (child !== state.imageNode) {
+					child.destroy();
+				}
+			}
+
+			// Restore the image and all its attributes
+			state.imageNode.image(img);
+
+			// Explicitly clear or set crop attributes
+			if (snapshotData.imageAttrs.cropX !== undefined ||
+			    snapshotData.imageAttrs.cropY !== undefined ||
+			    snapshotData.imageAttrs.cropWidth !== undefined ||
+			    snapshotData.imageAttrs.cropHeight !== undefined) {
+				// Has crop - set all crop attributes
+				state.imageNode.setAttrs({
+					...snapshotData.imageAttrs,
+					cropX: snapshotData.imageAttrs.cropX || 0,
+					cropY: snapshotData.imageAttrs.cropY || 0,
+					cropWidth: snapshotData.imageAttrs.cropWidth || snapshotData.imageAttrs.width,
+					cropHeight: snapshotData.imageAttrs.cropHeight || snapshotData.imageAttrs.height
+				});
+			} else {
+				// No crop - clear crop attributes
+				state.imageNode.setAttrs({
+					...snapshotData.imageAttrs,
+					cropX: undefined,
+					cropY: undefined,
+					cropWidth: undefined,
+					cropHeight: undefined
+				});
+			}
+
+			state.imageNode.filters(snapshotData.filters);
+
+			// Restore imageGroup attributes (including rotation)
+			state.imageGroup.setAttrs(snapshotData.groupAttrs);
+
+			console.log('🔢 Restored group attrs:', snapshotData.groupAttrs);
+
+			// CRITICAL: Clear cache and force redraw to show the new image
+			state.imageNode.clearCache();
+			state.imageNode.cache();
+
+			console.log('✅ Snapshot restored');
+
+			// Redraw
+			state.layer.batchDraw();
+			state.stage.batchDraw();
+
+			console.log('🖼️ Final redraw completed');
+		} catch (error) {
+			console.error('❌ Failed to restore snapshot:', error);
 		}
 	}
 
-	function undoState(): string | null {
-		if (!canUndoState) return null;
-		state.currentHistoryIndex--;
-		const stateData = state.stateHistory[state.currentHistoryIndex];
-		return stateData;
-	}
-
-	function redoState(): string | null {
-		if (!canRedoState) return null;
-		state.currentHistoryIndex++;
-		const stateData = state.stateHistory[state.currentHistoryIndex];
-		return stateData;
-	}
-
 	function clearHistory() {
-		state.editHistory = [];
-		state.currentHistoryIndex = -1;
 		state.stateHistory = [];
+		state.currentHistoryIndex = -1;
 	}
 
 	function reset() {
 		state.file = null;
 		state.saveEditedImage = false;
-		state.editHistory = [];
-		state.currentHistoryIndex = -1;
 		state.stage = null;
 		state.layer = null;
 		state.imageNode = null;
 		state.imageGroup = null;
 		state.activeState = '';
 		state.stateHistory = [];
+		state.currentHistoryIndex = -1;
+		state.originalImageWidth = 0;
+		state.originalImageHeight = 0;
 	}
 
 	return {
@@ -349,12 +527,6 @@ function createImageEditorStore() {
 		get hasActiveImage() {
 			return hasActiveImage;
 		},
-		get canUndoState() {
-			return canUndoState;
-		},
-		get canRedoState() {
-			return canRedoState;
-		},
 		setFile,
 		setSaveEditedImage,
 		setStage,
@@ -362,13 +534,9 @@ function createImageEditorStore() {
 		setImageNode,
 		setImageGroup,
 		setActiveState,
-		addEditAction,
-		saveStateHistory,
 		takeSnapshot,
 		undo,
 		redo,
-		undoState,
-		redoState,
 		clearHistory,
 		cleanupTempNodes,
 		cleanupToolSpecific,

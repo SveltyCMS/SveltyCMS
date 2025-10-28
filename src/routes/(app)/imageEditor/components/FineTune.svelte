@@ -293,120 +293,113 @@ temperature, exposure, highlights, shadows, clarity, and vibrance using a top to
 	}
 
 	// Apply the fine-tuning adjustments permanently to the image
-	function applyFineTunePermanently() {
-		if (!imageNode || !layer || !stage) return;
+	async function applyFineTunePermanently(onComplete?: () => void) {
+		if (!imageNode || !layer || !stage) {
+			onComplete?.();
+			return;
+		}
+
+		// Snapshot the current adjustments before they get reset
+		const currentAdjustments = { ...adjustments };
+		console.log('🎨 Applying FineTune permanently with adjustments:', currentAdjustments);
 
 		// Get the image group to calculate position and scale
 		const imageGroup = imageNode.getParent();
-		if (!imageGroup) return;
+		if (!imageGroup) {
+			onComplete?.();
+			return;
+		}
 
-		// Create a temporary canvas at the original image resolution
-		const tempCanvas = document.createElement('canvas');
-		const tempContext = tempCanvas.getContext('2d');
-		if (!tempContext) return;
+		// CRITICAL: Force cache to ensure all filters are rendered
+		imageNode.clearCache();
 
-		// Set canvas size to match the original image dimensions
-		tempCanvas.width = imageNode.width();
-		tempCanvas.height = imageNode.height();
+		// Wait for cache to complete before capturing
+		await new Promise<void>((resolve) => {
+			imageNode.cache();
+			// Use a small delay to ensure cache is complete
+			setTimeout(() => {
+				layer.batchDraw();
+				stage.batchDraw();
+				resolve();
+			}, 100);
+		});
 
-		// Calculate the position and scale of the image in the stage
-		// Use the imageNode's absolute position for accurate capture
-		const imageNodeAbsolutePos = imageNode.getAbsolutePosition();
-		const scale = imageGroup.scaleX(); // Assuming uniform scaling
-
-		// The imageNode's absolute position is already the top-left corner after transforms
-		const imageX = imageNodeAbsolutePos.x;
-		const imageY = imageNodeAbsolutePos.y;
-		const imageWidth = imageNode.width() * Math.abs(scale);
-		const imageHeight = imageNode.height() * Math.abs(scale);
-
-		// Calculate the pixel ratio needed to maintain original quality
-		// This ensures we capture at the original image resolution, not the display resolution
-		const pixelRatio = Math.max(imageNode.width() / imageWidth, imageNode.height() / imageHeight);
-
-		// Get the current filtered image from the stage at high resolution
-		const filteredDataURL = stage.toDataURL({
-			x: imageX,
-			y: imageY,
-			width: imageWidth,
-			height: imageHeight,
-			pixelRatio: pixelRatio,
-			mimeType: 'image/png', // Use PNG for lossless quality
+		// Capture the filtered image directly from the imageNode
+		// This ensures we get the filtered output at the original resolution
+		const filteredDataURL = imageNode.toDataURL({
+			pixelRatio: 1, // Use 1:1 pixel ratio for original quality
+			mimeType: 'image/png',
 			quality: 1.0
 		});
 
 		// Create a new image from the filtered data URL
-		const filteredImage = new Image();
-		filteredImage.crossOrigin = 'anonymous';
+		const newImage = new Image();
+		newImage.crossOrigin = 'anonymous';
 
-		filteredImage.onload = () => {
-			// Draw the filtered image directly to our temporary canvas at full resolution
-			// This avoids quality loss from intermediate scaling
-			tempContext.drawImage(filteredImage, 0, 0, filteredImage.width, filteredImage.height, 0, 0, imageNode.width(), imageNode.height());
+		newImage.onload = () => {
+			// Save the current dimensions and properties before updating
+			const currentWidth = imageNode.width();
+			const currentHeight = imageNode.height();
+			const currentX = imageNode.x();
+			const currentY = imageNode.y();
+			const hadCrop = !!(imageNode.cropX() || imageNode.cropY() || imageNode.cropWidth() || imageNode.cropHeight());
 
-			// Convert the canvas to a data URL with maximum quality
-			// Use PNG format to avoid JPEG compression artifacts
-			const newImageDataURL = tempCanvas.toDataURL('image/png', 1.0);
+			console.log('🖼️ Baking filtered image with dimensions:', {
+				currentWidth,
+				currentHeight,
+				hadCrop,
+				newImageSize: { width: newImage.naturalWidth, height: newImage.naturalHeight }
+			});
 
-			// Create a new image from the data URL
-			const newImage = new Image();
-			newImage.crossOrigin = 'anonymous';
+			// Remove all filters from the current image node
+			imageNode.filters([]);
+			imageNode.brightness(0);
+			imageNode.contrast(0);
+			imageNode.saturation(0);
+			imageNode.hue(0);
+			imageNode.luminance(0);
 
-			newImage.onload = () => {
-				// Save the current dimensions before updating
-				const currentWidth = imageNode.width();
-				const currentHeight = imageNode.height();
-				const currentX = imageNode.x();
-				const currentY = imageNode.y();
+			// Update the image node with the new filtered image
+			imageNode.image(newImage);
 
-				// Remove all filters from the current image node
-				imageNode.filters([]);
-				imageNode.brightness(0);
-				imageNode.contrast(0);
-				imageNode.saturation(0);
-				imageNode.hue(0);
-				imageNode.luminance(0);
+			// Restore dimensions and position
+			imageNode.width(currentWidth);
+			imageNode.height(currentHeight);
+			imageNode.x(currentX);
+			imageNode.y(currentY);
 
-				// Update the image node with the new filtered image
-				imageNode.image(newImage);
+			// IMPORTANT: Clear crop attributes because the baked image already has the crop applied
+			// toDataURL() captures only the cropped portion, so the new image IS the cropped result
+			imageNode.cropX(undefined);
+			imageNode.cropY(undefined);
+			imageNode.cropWidth(undefined);
+			imageNode.cropHeight(undefined);
 
-				// IMPORTANT: Restore ALL properties to prevent any changes
-				// The new image is already pre-cropped and filtered, so we need to:
-				// 1. Clear crop properties since the new image is the final cropped version
-				imageNode.cropX(0);
-				imageNode.cropY(0);
-				imageNode.cropWidth(currentWidth);
-				imageNode.cropHeight(currentHeight);
+			// Clear cache and redraw
+			imageNode.clearCache();
+			imageNode.cache();
+			layer.batchDraw();
 
-				// 2. Restore dimensions and position
-				imageNode.width(currentWidth);
-				imageNode.height(currentHeight);
-				imageNode.x(currentX);
-				imageNode.y(currentY);
+			console.log('✅ Filtered image baked successfully, crop cleared');
 
-				// Clear cache and redraw
-				imageNode.clearCache();
-				imageNode.cache();
-				layer.batchDraw();
-
-				// Reset all adjustments to their default values
-				adjustments = {
-					brightness: 0,
-					contrast: 0,
-					saturation: 0,
-					temperature: 0,
-					exposure: 0,
-					highlights: 0,
-					shadows: 0,
-					clarity: 0,
-					vibrance: 0
-				};
+			// Reset all adjustments to their default values
+			adjustments = {
+				brightness: 0,
+				contrast: 0,
+				saturation: 0,
+				temperature: 0,
+				exposure: 0,
+				highlights: 0,
+				shadows: 0,
+				clarity: 0,
+				vibrance: 0
 			};
 
-			newImage.src = newImageDataURL;
+			// Call completion callback
+			onComplete?.();
 		};
 
-		filteredImage.src = filteredDataURL;
+		newImage.src = filteredDataURL;
 	}
 
 	// Expose methods and state for parent component

@@ -103,14 +103,46 @@ with customizable colors, sizes, and styles.
 		// Check if transformer already exists and is valid
 		if (transformer) {
 			try {
-				// Test if transformer is still valid
-				transformer.getLayer();
-				return;
+				// Test if transformer is still valid and attached to the layer
+				const transformerLayer = transformer.getLayer();
+				if (transformerLayer === layer) {
+					// Transformer is valid and on the correct layer
+					return;
+				} else {
+					// Transformer is on a different layer or detached
+					console.warn('Transformer is on different layer, recreating');
+					try {
+						transformer.destroy();
+					} catch (e) {
+						console.warn('Error destroying old transformer:', e);
+					}
+					transformer = null;
+				}
 			} catch (e) {
 				console.warn('Existing transformer is invalid, recreating');
 				transformer = null;
 			}
 		}
+
+		// Look for existing annotationTransformer in the layer
+		const existingTransformer = layer.findOne('.annotationTransformer') as Konva.Transformer | null;
+		if (existingTransformer) {
+			try {
+				// Test if it's valid
+				existingTransformer.getLayer();
+				transformer = existingTransformer;
+				console.log('Reusing existing annotationTransformer');
+				return;
+			} catch (e) {
+				console.warn('Found invalid transformer in layer, destroying');
+				try {
+					existingTransformer.destroy();
+				} catch (destroyError) {
+					console.warn('Error destroying invalid transformer:', destroyError);
+				}
+			}
+		}
+
 		// Create transformer for selected annotations
 		transformer = new Konva.Transformer({
 			name: 'annotationTransformer',
@@ -135,6 +167,8 @@ with customizable colors, sizes, and styles.
 		layer.add(transformer);
 		transformer.hide(); // Hide initially
 		transformer.moveToTop();
+
+		console.log('Created new annotationTransformer');
 
 		layer.batchDraw();
 	}
@@ -270,6 +304,11 @@ with customizable colors, sizes, and styles.
 
 		// Attach to new node with error handling
 		try {
+			if (!transformer) {
+				console.error('Transformer is not initialized');
+				return;
+			}
+
 			transformer.nodes([node]);
 			transformer.show();
 			transformer.moveToTop();
@@ -282,7 +321,9 @@ with customizable colors, sizes, and styles.
 		} catch (e) {
 			console.error('Error attaching transformer to node:', e);
 			selectedAnnotation = null;
-			transformer.nodes([]);
+			if (transformer) {
+				transformer.nodes([]);
+			}
 		}
 	}
 
@@ -504,26 +545,151 @@ with customizable colors, sizes, and styles.
 	});
 
 	// Export methods for parent component
-	export function apply() {
+	export function apply(onComplete?: () => void) {
+		// If no annotations, just deactivate and call callback
+		if (annotations.length === 0) {
+			deactivate();
+			onComplete?.();
+			return annotations;
+		}
+
+		if (!imageNode || !layer || !stage) {
+			console.error('Cannot apply annotations: missing imageNode, layer, or stage');
+			deactivate();
+			onComplete?.();
+			return annotations;
+		}
+
+		console.log('🎨 Baking annotations into image');
+
 		// Make all annotations non-draggable and remove event listeners
 		annotations.forEach((annotation) => {
 			annotation.draggable(false);
-			// Remove all click/tap event listeners
 			annotation.off('click tap');
 			annotation.off('dblclick dbltap');
 		});
 
-		// Clear selection
+		// Clear selection and hide transformer
 		if (transformer) {
 			transformer.nodes([]);
 			transformer.hide();
 		}
 		selectedAnnotation = null;
 
-		// Deactivate the tool
-		deactivate();
+		// Force redraw to ensure clean visual state
+		layer.batchDraw();
+		stage.batchDraw();
 
-		layer?.batchDraw();
+		// Get the imageNode's bounding box in stage coordinates
+		// This gives us the exact visible region we need to capture
+		const imageNodeRect = imageNode.getClientRect();
+
+		console.log('📐 ImageNode bounds in stage coords:', {
+			x: imageNodeRect.x,
+			y: imageNodeRect.y,
+			width: imageNodeRect.width,
+			height: imageNodeRect.height
+		});
+
+		// Calculate pixel ratio for high quality rendering
+		const imageElement = imageNode.image();
+		const naturalWidth = (imageElement as HTMLImageElement)?.naturalWidth || (imageElement as HTMLCanvasElement)?.width || imageNode.width();
+		const naturalHeight = (imageElement as HTMLImageElement)?.naturalHeight || (imageElement as HTMLCanvasElement)?.height || imageNode.height();
+		const displayWidth = imageNode.width();
+		const displayHeight = imageNode.height();
+		const pixelRatio = Math.max(naturalWidth / displayWidth, naturalHeight / displayHeight);
+
+		console.log('📐 Bake dimensions:', {
+			natural: { width: naturalWidth, height: naturalHeight },
+			display: { width: displayWidth, height: displayHeight },
+			pixelRatio,
+			annotationsCount: annotations.length
+		});
+
+		// Use stage.toCanvas() to capture the exact region containing the imageNode and annotations
+		// This preserves all transformations and positioning automatically
+		const canvas = stage.toCanvas({
+			x: imageNodeRect.x,
+			y: imageNodeRect.y,
+			width: imageNodeRect.width,
+			height: imageNodeRect.height,
+			pixelRatio: pixelRatio
+		});
+
+		console.log('🖼️ Canvas created from stage region:', {
+			width: canvas.width,
+			height: canvas.height
+		});
+
+		// Convert canvas to data URL
+		const compositeDataURL = canvas.toDataURL('image/png', 1.0);
+
+		// Create new image from the composite
+		const newImage = new Image();
+		newImage.crossOrigin = 'anonymous';
+
+		newImage.onload = () => {
+			// Save current attributes
+			const currentWidth = imageNode.width();
+			const currentHeight = imageNode.height();
+			const currentX = imageNode.x();
+			const currentY = imageNode.y();
+			const currentRotation = imageNode.rotation();
+			const currentScaleX = imageNode.scaleX();
+			const currentScaleY = imageNode.scaleY();
+
+			console.log('🖼️ Baking annotated image with preserved transforms');
+
+			// Update the imageNode with the baked image
+			imageNode.image(newImage);
+
+			// Restore all attributes
+			imageNode.width(currentWidth);
+			imageNode.height(currentHeight);
+			imageNode.x(currentX);
+			imageNode.y(currentY);
+			imageNode.rotation(currentRotation);
+			imageNode.scaleX(currentScaleX);
+			imageNode.scaleY(currentScaleY);
+
+			// IMPORTANT: Clear crop attributes because the baked canvas already has the final result
+			// stage.toCanvas() captures the exact visual output, so no crop is needed
+			imageNode.cropX(undefined);
+			imageNode.cropY(undefined);
+			imageNode.cropWidth(undefined);
+			imageNode.cropHeight(undefined);
+
+			// Remove all annotation nodes from the layer since they're now baked
+			annotations.forEach((annotation) => {
+				try {
+					annotation.destroy();
+				} catch (e) {
+					console.warn('Error destroying annotation:', e);
+				}
+			});
+			annotations = [];
+
+			// Clear cache and redraw
+			imageNode.clearCache();
+			imageNode.cache();
+			layer.batchDraw();
+
+			console.log('✅ Annotations baked successfully');
+
+			// Deactivate the tool
+			deactivate();
+
+			// Call completion callback
+			onComplete?.();
+		};
+
+		newImage.onerror = (error) => {
+			console.error('Error loading baked annotation image:', error);
+			deactivate();
+			onComplete?.();
+		};
+
+		newImage.src = compositeDataURL;
 
 		return annotations;
 	}

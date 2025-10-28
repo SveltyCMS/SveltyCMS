@@ -372,43 +372,67 @@ UI components are external (BlurTopToolbar).
 		onBlurReset();
 	}
 
-	function apply() {
-		// If there's a blur region and overlay, merge it with the image
+	function apply(onComplete?: () => void) {
+		// If there's a blur region and overlay, bake it permanently into the image
 		if (mosaicOverlay && blurRegion && imageNode && layer) {
-			// Update the imageNode with the blurred version
 			const canvas = mosaicOverlay.image() as HTMLCanvasElement;
 			if (canvas) {
-				imageNode.image(canvas);
-				layer.draw();
+				// Convert canvas to data URL for permanent storage
+				const blurredDataURL = canvas.toDataURL('image/png', 1.0);
+
+				// Create new image from the blurred version
+				const newImage = new Image();
+				newImage.crossOrigin = 'anonymous';
+
+				newImage.onload = () => {
+					// Save current dimensions and attributes
+					const currentWidth = imageNode.width();
+					const currentHeight = imageNode.height();
+					const currentX = imageNode.x();
+					const currentY = imageNode.y();
+
+					console.log('🔵 Baking blurred image');
+
+					// Update the imageNode with the new blurred image
+					imageNode.image(newImage);
+
+					// Restore dimensions and position
+					imageNode.width(currentWidth);
+					imageNode.height(currentHeight);
+					imageNode.x(currentX);
+					imageNode.y(currentY);
+
+					// IMPORTANT: Clear crop attributes because the baked image already has blur applied
+					// The mosaicOverlay canvas already represents the final blurred result
+					imageNode.cropX(undefined);
+					imageNode.cropY(undefined);
+					imageNode.cropWidth(undefined);
+					imageNode.cropHeight(undefined);
+
+					// Clear cache and redraw
+					imageNode.clearCache();
+					imageNode.cache();
+					layer.batchDraw();
+
+					console.log('✅ Blur baked successfully');
+
+					// Clean up blur UI elements after baking
+					cleanupBlurElements();
+
+					// Call callbacks
+					onBlurApplied();
+					onComplete?.();
+				};
+
+				newImage.src = blurredDataURL;
+				return;
 			}
 		}
 
-		// Clean up blur UI elements (region and transformer)
-		if (blurRegion) {
-			blurRegion.destroy();
-			blurRegion = null;
-		}
-		if (transformer) {
-			transformer.destroy();
-			transformer = null;
-		}
-
-		// Clean up the mosaic overlay since we merged it into imageNode
-		if (mosaicOverlay) {
-			mosaicOverlay.destroy();
-			mosaicOverlay = null;
-		}
-
-		startPoint = null;
-		isSelecting = false;
-
-		// Redraw the layer to show the applied blur
-		if (layer) {
-			layer.batchDraw();
-		}
-
-		// Call the onBlurApplied callback
+		// If no blur was applied, just clean up and call callbacks
+		cleanupBlurElements();
 		onBlurApplied();
+		onComplete?.();
 	}
 
 	function cleanupBlurElements() {

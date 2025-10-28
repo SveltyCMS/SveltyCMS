@@ -66,9 +66,9 @@ and proper active state indication.
 		},
 		{
 			id: 'watermark',
-			name: 'Watermark',
-			icon: 'mdi:watermark',
-			description: 'Add watermark images and overlays',
+			name: 'Sticker',
+			icon: 'mdi:sticker',
+			description: 'Add sticker images and overlays',
 			category: 'overlay'
 		}
 	];

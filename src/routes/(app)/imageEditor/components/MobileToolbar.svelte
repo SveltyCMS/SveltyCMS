@@ -79,7 +79,7 @@ tool controls for mobile/tablet editing experience.
 			id: 'sticker',
 			name: 'Sticker',
 			icon: 'mdi:sticker',
-			description: 'Watermarks',
+			description: 'Stickers',
 			category: 'overlay',
 			actualTool: 'watermark'
 		},
@@ -108,8 +108,8 @@ tool controls for mobile/tablet editing experience.
 			tips: ['Tap to set focal point', 'Use grid lines as guides', 'Affects smart cropping', 'Tap remove to reset']
 		},
 		watermark: {
-			title: 'Watermark',
-			tips: ['Upload watermark image', 'Drag to reposition', 'Pinch to resize', 'Use presets for quick placement']
+			title: 'Sticker',
+			tips: ['Upload sticker image', 'Drag to reposition', 'Pinch to resize', 'Use presets for quick placement']
 		}
 	};
 

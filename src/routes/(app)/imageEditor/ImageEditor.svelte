@@ -30,8 +30,8 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import BlurTopToolbar from './components/toolbars/BlurTopToolbar.svelte';
 	import FineTune from './components/FineTune.svelte';
 	import FineTuneTopToolbar from './components/toolbars/FineTuneTopToolbar.svelte';
-	import Watermark from './components/Watermark.svelte';
-	import WatermarkTopToolbar from './components/toolbars/WatermarkTopToolbar.svelte';
+	import Sticker from './components/Sticker.svelte';
+	import StickerTopToolbar from './components/toolbars/StickerTopToolbar.svelte';
 	import Annotate from './components/Annotate.svelte';
 	import AnnotateTopToolbar from './components/toolbars/AnnotateTopToolbar.svelte';
 
@@ -164,13 +164,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		// Add window resize event listener
 		window.addEventListener('resize', handleResize);
 
-		// Add event listener for fine-tune adjustments
-		function handleFineTuneAdjustment() {
-			// Take a snapshot when fine-tune adjustments are made
-			takeSnapshot();
-		}
-		window.addEventListener('fineTuneAdjustment', handleFineTuneAdjustment as unknown as (event: Event) => void);
-
 		// Add keyboard event listener for shortcuts
 		function handleKeyDown(event: KeyboardEvent) {
 			// Check if user is typing in an input field
@@ -234,7 +227,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		// Cleanup event listeners and reset store on component destroy
 		return () => {
 			window.removeEventListener('resize', handleResize);
-			window.removeEventListener('fineTuneAdjustment', handleFineTuneAdjustment as unknown as (event: Event) => void);
 			window.removeEventListener('keydown', handleKeyDown);
 
 			// Force cleanup of all temporary nodes first
@@ -325,7 +317,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			}
 
 			// Take initial snapshot for undo/redo
-			takeSnapshot();
+			imageEditorStore.takeSnapshot();
 		};
 		img.src = imageSrc;
 	}
@@ -342,23 +334,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 		stage.batchDraw();
 	}
 
-	function takeSnapshot() {
-		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
-		if (!stage || !layer || !imageNode || !imageGroup) return;
-
-		// Force a redraw to ensure the current state is captured
-		layer.batchDraw();
-
-		// Use the store's JSON-based snapshot system
+	function applyEdit() {
+		// Take a snapshot when user confirms an edit
 		imageEditorStore.takeSnapshot();
 	}
 
-	function applyEdit() {
-		takeSnapshot();
-	}
-
 	function handleUndo() {
-		if (!imageEditorStore.canUndoState) return;
+		if (!imageEditorStore.canUndo) return;
 
 		// Clean up any active tool before undoing
 		const currentState = imageEditorStore.state.activeState;
@@ -367,14 +349,11 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			imageEditorStore.setActiveState('');
 		}
 
-		const stateData = imageEditorStore.undoState();
-		if (stateData) {
-			restoreFromStateData(stateData);
-		}
+		imageEditorStore.undo();
 	}
 
 	function handleRedo() {
-		if (!imageEditorStore.canRedoState) return;
+		if (!imageEditorStore.canRedo) return;
 
 		// Clean up any active tool before redoing
 		const currentState = imageEditorStore.state.activeState;
@@ -383,83 +362,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			imageEditorStore.setActiveState('');
 		}
 
-		const stateData = imageEditorStore.redoState();
-		if (stateData) {
-			restoreFromStateData(stateData);
-		}
-	}
-
-	function restoreFromStateData(stateData: string) {
-		const { stage, layer, imageNode, imageGroup } = imageEditorStore.state;
-		if (!stage || !layer || !imageNode || !imageGroup) return;
-
-		try {
-			// Clean up any temporary nodes before restoring
-			imageEditorStore.cleanupTempNodes();
-
-			// Parse the state data to extract properties
-			const stateJSON = JSON.parse(stateData);
-
-			// Clear filters temporarily to ensure clean state
-			imageNode.filters([]);
-			imageNode.clearCache(); // Restore image group properties (position, scale, rotation)
-			// The structure is: stage > layer > imageGroup > imageNode
-			// So imageGroup is at stateJSON.children[0].children[0]
-			if (stateJSON.children && stateJSON.children[0] && stateJSON.children[0].children && stateJSON.children[0].children[0]) {
-				const imageGroupState = stateJSON.children[0].children[0];
-				if (imageGroupState.attrs) {
-					imageGroup.x(imageGroupState.attrs.x !== undefined ? imageGroupState.attrs.x : stage.width() / 2);
-					imageGroup.y(imageGroupState.attrs.y !== undefined ? imageGroupState.attrs.y : stage.height() / 2);
-					imageGroup.scaleX(imageGroupState.attrs.scaleX !== undefined ? imageGroupState.attrs.scaleX : 1);
-					imageGroup.scaleY(imageGroupState.attrs.scaleY !== undefined ? imageGroupState.attrs.scaleY : 1);
-					imageGroup.rotation(imageGroupState.attrs.rotation !== undefined ? imageGroupState.attrs.rotation : 0);
-				}
-			}
-
-			// Restore image node properties (crop, dimensions, position)
-			if (stateJSON.children && stateJSON.children[0] && stateJSON.children[0].children && stateJSON.children[0].children[0]) {
-				const imageGroupState = stateJSON.children[0].children[0];
-				const imageNodeState = imageGroupState.children && imageGroupState.children[0];
-				if (imageNodeState.attrs) {
-					// Apply crop properties
-					if (imageNodeState.attrs.cropX !== undefined) imageNode.cropX(imageNodeState.attrs.cropX);
-					if (imageNodeState.attrs.cropY !== undefined) imageNode.cropY(imageNodeState.attrs.cropY);
-					if (imageNodeState.attrs.cropWidth !== undefined) imageNode.cropWidth(imageNodeState.attrs.cropWidth);
-					if (imageNodeState.attrs.cropHeight !== undefined) imageNode.cropHeight(imageNodeState.attrs.cropHeight);
-
-					// Apply other image properties
-					if (imageNodeState.attrs.width !== undefined) imageNode.width(imageNodeState.attrs.width);
-					if (imageNodeState.attrs.height !== undefined) imageNode.height(imageNodeState.attrs.height);
-					if (imageNodeState.attrs.x !== undefined) imageNode.x(imageNodeState.attrs.x);
-					if (imageNodeState.attrs.y !== undefined) imageNode.y(imageNodeState.attrs.y);
-
-					// Apply filters if they exist
-					if (imageNodeState.attrs.filters && Array.isArray(imageNodeState.attrs.filters) && imageNodeState.attrs.filters.length > 0) {
-						// Reapply filters to the image node
-						imageNode.filters(imageNodeState.attrs.filters);
-
-						// Apply filter properties
-						if (imageNodeState.attrs.brightness !== undefined) imageNode.brightness(imageNodeState.attrs.brightness);
-						if (imageNodeState.attrs.contrast !== undefined) imageNode.contrast(imageNodeState.attrs.contrast);
-						if (imageNodeState.attrs.saturation !== undefined) imageNode.saturation(imageNodeState.attrs.saturation);
-						if (imageNodeState.attrs.hue !== undefined) imageNode.hue(imageNodeState.attrs.hue);
-						if (imageNodeState.attrs.luminance !== undefined) imageNode.luminance(imageNodeState.attrs.luminance);
-					}
-				}
-			}
-
-			// Cache the image node if it has filters
-			const filters = imageNode.filters();
-			if (filters && Array.isArray(filters) && filters.length > 0) {
-				imageNode.cache();
-			}
-
-			// Redraw the stage
-			layer.batchDraw();
-			stage.batchDraw();
-		} catch (error) {
-			console.error('Failed to restore from state data:', error);
-		}
+		imageEditorStore.redo();
 	}
 
 	function handleImageUpload(event: Event) {
@@ -654,24 +557,24 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							<div class="flex items-center gap-1">
 								<button
 									onclick={handleUndo}
-									disabled={!imageEditorStore.canUndoState}
+									disabled={!imageEditorStore.canUndo}
 									aria-label="Undo last edit"
 									aria-describedby="undo-shortcut"
 									class="variant-soft-surface btn-icon"
 									title="Undo (Ctrl+Z)"
 								>
-									<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+									<iconify-icon icon="mdi:undo" width="20" class="text-surface-900 dark:text-white"></iconify-icon>
 								</button>
 								<span id="undo-shortcut" class="sr-only">Keyboard shortcut: Ctrl+Z or Cmd+Z</span>
 								<button
 									onclick={handleRedo}
-									disabled={!imageEditorStore.canRedoState}
+									disabled={!imageEditorStore.canRedo}
 									aria-label="Redo last edit"
 									aria-describedby="redo-shortcut"
 									class="variant-soft-surface btn-icon"
 									title="Redo (Ctrl+Shift+Z)"
 								>
-									<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
+									<iconify-icon icon="mdi:redo" width="20" class="text-surface-900 dark:text-white"></iconify-icon>
 								</button>
 								<span id="redo-shortcut" class="sr-only">Keyboard shortcut: Ctrl+Shift+Z or Cmd+Shift+Z</span>
 							</div>
@@ -705,7 +608,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									if (!imageNode || !imageGroup || !layer || !stage) return;
 
 									// Apply crop transformation
-									const { x, y, width, height, isCircular } = cropData;
+									const { x, y, width, height, isCircular, noCrop } = cropData;
 
 									// Validate crop dimensions
 									if (width <= 0 || height <= 0) {
@@ -714,17 +617,20 @@ and unified tool experiences (crop includes rotation, scale, flip).
 										return;
 									}
 
-									// Set crop properties on the image node
-									imageNode.setAttrs({
-										cropX: x,
-										cropY: y,
-										cropWidth: width,
-										cropHeight: height,
-										width: width,
-										height: height,
-										x: -width / 2,
-										y: -height / 2
-									});
+									// Only apply crop if noCrop flag is not set
+									if (!noCrop) {
+										// Set crop properties on the image node
+										imageNode.setAttrs({
+											cropX: x,
+											cropY: y,
+											cropWidth: width,
+											cropHeight: height,
+											width: width,
+											height: height,
+											x: -width / 2,
+											y: -height / 2
+										});
+									}
 
 									// Apply circular clipping if needed
 									if (isCircular) {
@@ -773,31 +679,33 @@ and unified tool experiences (crop includes rotation, scale, flip).
 										}
 									}
 
-									// Recenter and rescale the image group to fit the cropped size
-									const stageWidth = stage.width();
-									const stageHeight = stage.height();
+									// Only recenter and rescale if actually cropping
+									if (!noCrop) {
+										const stageWidth = stage.width();
+										const stageHeight = stage.height();
 
-									// Calculate scale based on the NEW cropped dimensions
-									// This ensures we fit the cropped area to 80% of stage
-									const scaleX = (stageWidth * 0.8) / width;
-									const scaleY = (stageHeight * 0.8) / height;
-									const scale = Math.min(scaleX, scaleY);
+										// Calculate scale based on the NEW cropped dimensions
+										// This ensures we fit the cropped area to 80% of stage
+										const scaleX = (stageWidth * 0.8) / width;
+										const scaleY = (stageHeight * 0.8) / height;
+										const scale = Math.min(scaleX, scaleY);
 
-									// Preserve existing flip states ONLY (not scale)
-									const currentScaleX = imageGroup.scaleX();
-									const currentScaleY = imageGroup.scaleY();
-									const flipX = currentScaleX < 0 ? -1 : 1;
-									const flipY = currentScaleY < 0 ? -1 : 1;
+										// Preserve existing flip states ONLY (not scale)
+										const currentScaleX = imageGroup.scaleX();
+										const currentScaleY = imageGroup.scaleY();
+										const flipX = currentScaleX < 0 ? -1 : 1;
+										const flipY = currentScaleY < 0 ? -1 : 1;
 
-									// Store the rotation before resetting
-									const currentRotation = imageGroup.rotation();
+										// Store the rotation before resetting
+										const currentRotation = imageGroup.rotation();
 
-									// Reset imageGroup transform completely
-									imageGroup.x(stageWidth / 2);
-									imageGroup.y(stageHeight / 2);
-									imageGroup.scaleX(scale * flipX);
-									imageGroup.scaleY(scale * flipY);
-									imageGroup.rotation(currentRotation);
+										// Reset imageGroup transform completely
+										imageGroup.x(stageWidth / 2);
+										imageGroup.y(stageHeight / 2);
+										imageGroup.scaleX(scale * flipX);
+										imageGroup.scaleY(scale * flipY);
+										imageGroup.rotation(currentRotation);
+									}
 
 									// Ensure imageGroup is in the layer and properly configured
 									imageGroup.moveToBottom(); // Ensure it's below any overlays
@@ -818,7 +726,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							/>
 							<FineTune bind:this={fineTuneRef} />
 							<Blur bind:this={blurToolRef} />
-							<Watermark bind:this={watermarkToolRef} stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
+							<Sticker bind:this={watermarkToolRef} stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
 							<Annotate
 								bind:this={annotateToolRef}
 								stage={storeState.stage}
@@ -828,9 +736,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								bind:fillColor={annotateFillColor}
 								bind:strokeWidth={annotateStrokeWidth}
 								bind:fontSize={annotateFontSize}
-								onAnnotationChange={() => {
-									applyEdit();
-								}}
 							/>
 						{/if}
 
@@ -856,9 +761,12 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								}}
 								onReset={() => blurToolRef?.reset()}
 								onApply={() => {
-									blurToolRef?.apply();
-									applyEdit();
-									imageEditorStore.setActiveState('');
+									if (blurToolRef && blurToolRef.apply) {
+										blurToolRef.apply(() => {
+											applyEdit();
+											imageEditorStore.setActiveState('');
+										});
+									}
 								}}
 							/>
 						{/if}
@@ -890,21 +798,20 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								}}
 								onApply={() => {
 									if (fineTuneRef && fineTuneRef.applyFineTunePermanently) {
-										fineTuneRef.applyFineTunePermanently();
-										// Apply the edit after a short delay to ensure the image is updated
-										setTimeout(() => {
+										// Wait for the image to be fully updated before taking snapshot
+										fineTuneRef.applyFineTunePermanently(() => {
 											applyEdit();
 											imageEditorStore.setActiveState('');
-										}, 100);
+										});
 									}
 								}}
 								onAdjustmentChange={(adjustment: string) => (fineTuneActiveAdjustment = adjustment as AdjustmentKey)}
 							/>
 						{/if}
 
-						<!-- Watermark Top Toolbar - overlaid on canvas -->
+						<!-- Sticker Top Toolbar - overlaid on canvas -->
 						{#if activeState === 'watermark' && watermarkToolRef}
-							<WatermarkTopToolbar
+							<StickerTopToolbar
 								stickers={watermarkPanelData.stickers}
 								selectedSticker={watermarkPanelData.selectedSticker}
 								onAddSticker={() => watermarkToolRef?.openFileDialog()}
@@ -915,9 +822,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									watermarkToolRef?.deleteAllStickers();
 								}}
 								onDone={() => {
-									imageEditorStore.cleanupToolSpecific('watermark');
-									imageEditorStore.setActiveState('');
-									applyEdit();
+									if (watermarkToolRef && watermarkToolRef.apply) {
+										watermarkToolRef.apply(() => {
+											applyEdit();
+											imageEditorStore.cleanupToolSpecific('watermark');
+											imageEditorStore.setActiveState('');
+										});
+									}
 								}}
 							/>
 						{/if}
@@ -933,10 +844,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								onDelete={() => annotateToolRef?.deleteSelected()}
 								onDeleteAll={() => annotateToolRef?.deleteAll()}
 								onDone={() => {
-									annotateToolRef?.apply();
-									applyEdit();
-									imageEditorStore.cleanupToolSpecific('annotate');
-									imageEditorStore.setActiveState('');
+									if (annotateToolRef && annotateToolRef.apply) {
+										annotateToolRef.apply(() => {
+											applyEdit();
+											imageEditorStore.cleanupToolSpecific('annotate');
+											imageEditorStore.setActiveState('');
+										});
+									}
 								}}
 							/>
 						{/if}
@@ -999,7 +913,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								if (!imageNode || !imageGroup || !layer || !stage) return;
 
 								// Apply crop transformation
-								const { x, y, width, height, isCircular } = cropData;
+								const { x, y, width, height, isCircular, noCrop } = cropData;
 
 								// Validate crop dimensions
 								if (width <= 0 || height <= 0) {
@@ -1008,17 +922,20 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									return;
 								}
 
-								// Set crop properties on the image node
-								imageNode.setAttrs({
-									cropX: x,
-									cropY: y,
-									cropWidth: width,
-									cropHeight: height,
-									width: width,
-									height: height,
-									x: -width / 2,
-									y: -height / 2
-								});
+								// Only apply crop if noCrop flag is not set
+								if (!noCrop) {
+									// Set crop properties on the image node
+									imageNode.setAttrs({
+										cropX: x,
+										cropY: y,
+										cropWidth: width,
+										cropHeight: height,
+										width: width,
+										height: height,
+										x: -width / 2,
+										y: -height / 2
+									});
+								}
 
 								// Apply circular clipping if needed
 								if (isCircular) {
@@ -1067,31 +984,33 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									}
 								}
 
-								// Recenter and rescale the image group to fit the cropped size
-								const stageWidth = stage.width();
-								const stageHeight = stage.height();
+								// Only recenter and rescale if actually cropping
+								if (!noCrop) {
+									const stageWidth = stage.width();
+									const stageHeight = stage.height();
 
-								// Calculate scale based on the NEW cropped dimensions
-								// This ensures we fit the cropped area to 80% of stage
-								const scaleX = (stageWidth * 0.8) / width;
-								const scaleY = (stageHeight * 0.8) / height;
-								const scale = Math.min(scaleX, scaleY);
+									// Calculate scale based on the NEW cropped dimensions
+									// This ensures we fit the cropped area to 80% of stage
+									const scaleX = (stageWidth * 0.8) / width;
+									const scaleY = (stageHeight * 0.8) / height;
+									const scale = Math.min(scaleX, scaleY);
 
-								// Preserve existing flip states ONLY (not scale)
-								const currentScaleX = imageGroup.scaleX();
-								const currentScaleY = imageGroup.scaleY();
-								const flipX = currentScaleX < 0 ? -1 : 1;
-								const flipY = currentScaleY < 0 ? -1 : 1;
+									// Preserve existing flip states ONLY (not scale)
+									const currentScaleX = imageGroup.scaleX();
+									const currentScaleY = imageGroup.scaleY();
+									const flipX = currentScaleX < 0 ? -1 : 1;
+									const flipY = currentScaleY < 0 ? -1 : 1;
 
-								// Store the rotation before resetting
-								const currentRotation = imageGroup.rotation();
+									// Store the rotation before resetting
+									const currentRotation = imageGroup.rotation();
 
-								// Reset imageGroup transform completely
-								imageGroup.x(stageWidth / 2);
-								imageGroup.y(stageHeight / 2);
-								imageGroup.scaleX(scale * flipX);
-								imageGroup.scaleY(scale * flipY);
-								imageGroup.rotation(currentRotation);
+									// Reset imageGroup transform completely
+									imageGroup.x(stageWidth / 2);
+									imageGroup.y(stageHeight / 2);
+									imageGroup.scaleX(scale * flipX);
+									imageGroup.scaleY(scale * flipY);
+									imageGroup.rotation(currentRotation);
+								}
 
 								// Force redraw to apply changes
 								layer.batchDraw();
@@ -1108,7 +1027,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 						/>
 						<FineTune bind:this={fineTuneRef} />
 						<Blur bind:this={blurToolRef} />
-						<Watermark bind:this={watermarkToolRef} stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
+						<Sticker bind:this={watermarkToolRef} stage={storeState.stage} layer={storeState.layer} imageNode={storeState.imageNode} />
 						<Annotate
 							bind:this={annotateToolRef}
 							stage={storeState.stage}
@@ -1118,9 +1037,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							bind:fillColor={annotateFillColor}
 							bind:strokeWidth={annotateStrokeWidth}
 							bind:fontSize={annotateFontSize}
-							onAnnotationChange={() => {
-								applyEdit();
-							}}
 						/>
 					{/if}
 
@@ -1145,9 +1061,12 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							}}
 							onReset={() => blurToolRef?.reset()}
 							onApply={() => {
-								blurToolRef?.apply();
-								applyEdit();
-								imageEditorStore.setActiveState('');
+								if (blurToolRef && blurToolRef.apply) {
+									blurToolRef.apply(() => {
+										applyEdit();
+										imageEditorStore.setActiveState('');
+									});
+								}
 							}}
 						/>
 					{/if}
@@ -1179,21 +1098,20 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							}}
 							onApply={() => {
 								if (fineTuneRef && fineTuneRef.applyFineTunePermanently) {
-									fineTuneRef.applyFineTunePermanently();
-									// Apply the edit after a short delay to ensure the image is updated
-									setTimeout(() => {
+									// Wait for the image to be fully updated before taking snapshot
+									fineTuneRef.applyFineTunePermanently(() => {
 										applyEdit();
 										imageEditorStore.setActiveState('');
-									}, 100);
+									});
 								}
 							}}
 							onAdjustmentChange={(adjustment: string) => (fineTuneActiveAdjustment = adjustment as AdjustmentKey)}
 						/>
 					{/if}
 
-					<!-- Watermark Top Toolbar - overlaid on canvas -->
+					<!-- Sticker Top Toolbar - overlaid on canvas -->
 					{#if activeState === 'watermark' && watermarkToolRef}
-						<WatermarkTopToolbar
+						<StickerTopToolbar
 							stickers={watermarkPanelData.stickers}
 							selectedSticker={watermarkPanelData.selectedSticker}
 							onAddSticker={() => watermarkToolRef?.openFileDialog()}
@@ -1204,9 +1122,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								watermarkToolRef?.deleteAllStickers();
 							}}
 							onDone={() => {
-								imageEditorStore.cleanupToolSpecific('watermark');
-								imageEditorStore.setActiveState('');
-								applyEdit();
+								if (watermarkToolRef && watermarkToolRef.apply) {
+									watermarkToolRef.apply(() => {
+										applyEdit();
+										imageEditorStore.cleanupToolSpecific('watermark');
+										imageEditorStore.setActiveState('');
+									});
+								}
 							}}
 						/>
 					{/if}
@@ -1222,10 +1144,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 							onDelete={() => annotateToolRef?.deleteSelected()}
 							onDeleteAll={() => annotateToolRef?.deleteAll()}
 							onDone={() => {
-								annotateToolRef?.apply();
-								applyEdit();
-								imageEditorStore.cleanupToolSpecific('annotate');
-								imageEditorStore.setActiveState('');
+								if (annotateToolRef && annotateToolRef.apply) {
+									annotateToolRef.apply(() => {
+										applyEdit();
+										imageEditorStore.cleanupToolSpecific('annotate');
+										imageEditorStore.setActiveState('');
+									});
+								}
 							}}
 						/>
 					{/if}

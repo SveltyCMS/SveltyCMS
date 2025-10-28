@@ -537,17 +537,42 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		const relativeWidth = Math.max(1, Math.min(currentWidth - relativeX, Math.round(bottomRight.x - topLeft.x)));
 		const relativeHeight = Math.max(1, Math.min(currentHeight - relativeY, Math.round(bottomRight.y - topLeft.y)));
 
-		// If this is a successive crop, add to existing crop coordinates
-		const cropData = {
-			x: existingCropX + relativeX,
-			y: existingCropY + relativeY,
-			width: relativeWidth,
-			height: relativeHeight,
-			rotation: rotationAngle,
-			scaleX: scaleValue / 100,
-			scaleY: scaleValue / 100,
-			isCircular: cropShape === 'circular'
-		};
+		// Check if crop selector covers the entire image (no actual crop)
+		// Allow small tolerance (2 pixels) for rounding errors
+		const tolerance = 2;
+		const noCrop =
+			Math.abs(relativeX) <= tolerance &&
+			Math.abs(relativeY) <= tolerance &&
+			Math.abs(relativeWidth - currentWidth) <= tolerance &&
+			Math.abs(relativeHeight - currentHeight) <= tolerance;
+
+		let cropData;
+		if (noCrop) {
+			// No crop - only apply rotation/scale
+			cropData = {
+				x: existingCropX,
+				y: existingCropY,
+				width: currentWidth,
+				height: currentHeight,
+				rotation: rotationAngle,
+				scaleX: scaleValue / 100,
+				scaleY: scaleValue / 100,
+				isCircular: cropShape === 'circular',
+				noCrop: true // Flag to indicate no cropping should occur
+			};
+		} else {
+			// Actual crop - add to existing crop coordinates
+			cropData = {
+				x: existingCropX + relativeX,
+				y: existingCropY + relativeY,
+				width: relativeWidth,
+				height: relativeHeight,
+				rotation: rotationAngle,
+				scaleX: scaleValue / 100,
+				scaleY: scaleValue / 100,
+				isCircular: cropShape === 'circular'
+			};
+		}
 
 		// Cleanup UI elements AFTER getting crop data
 		cleanupCropTool();
