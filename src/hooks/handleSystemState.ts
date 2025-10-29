@@ -12,7 +12,6 @@
 
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-import { metricsService } from '@src/services/MetricsService';
 import { getSystemState, isSystemReady } from '@src/stores/system'; // Import from your state machine
 import { logger } from '@utils/logger.svelte';
 import { dbInitPromise } from '@src/databases/db';
@@ -102,13 +101,13 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 	// If the system is in a DEGRADED state, attach info about which services are down.
 	if (systemState.overallState === 'DEGRADED') {
-		const degradedServices = Object.values(systemState.services)
-			.filter((s) => s.status === 'unhealthy' && !s.isCritical)
-			.map((s) => s.name);
+		const degradedServices = Object.entries(systemState.services)
+			.filter(([, s]) => s.status === 'unhealthy')
+			.map(([name]) => name);
 
 		if (degradedServices.length > 0) {
 			event.locals.degradedServices = degradedServices;
-			metricsService.increment('degradedRequests'); // For measurement
+			// metricsService.increment('degradedRequests'); // For measurement - TODO: implement this method
 			logger.warn(`Request to ${pathname} is proceeding in a DEGRADED state. Unhealthy services: ${degradedServices.join(', ')}`);
 		}
 	}

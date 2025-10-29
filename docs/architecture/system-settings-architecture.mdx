@@ -6,7 +6,7 @@ order: 2
 icon: 'mdi:tune'
 author: 'admin'
 created: '2025-10-09'
-updated: '2025-10-09'
+updated: '2025-10-28'
 tags:
   - 'architecture'
   - 'settings'
@@ -22,34 +22,94 @@ This document details the architecture of the SveltyCMS System Settings. The sys
 
 ## Core Principles
 
-1.  **Database as Active Source of Truth:** All active, environment-specific settings (like site names or secret API keys) are stored in the database.
-2.  **Filesystem for Defaults:** A `config/seeds.ts` file defines the initial, default values for all system settings, providing a predictable fallback and initial setup state.
-3.  **Performant In-Memory Cache:** The `globalSettings.ts` store acts as a high-speed, server-side cache to minimize database queries on every user request.
+1.  **Database as the Source of Truth:** All dynamic system settings are stored in the database. This allows for real-time changes without needing to restart the server.
+2.  **In-Memory Cache for Performance:** For maximum performance, all settings are loaded from the database into a server-side in-memory cache at startup. All runtime requests read from this fast cache, avoiding database queries.
+3.  **Filesystem for Defaults & Roles:**
+    *   **`/src/routes/setup/seed.ts`**: Defines the initial, default values for all system settings. This provides a predictable fallback and is used to seed the database during the initial setup.
+    *   **`config/roles.ts`**: Defines the user roles and their associated permissions, which is a core part of the system's configuration.
+4.  **Reactive Client-Side Store:** The `src/stores/globalSettings.svelte.ts` store holds **public** settings and automatically updates in near real-time using a polling mechanism, ensuring a dynamic UI.
 
 ## The Data Flow
 
-The flow of settings data is unidirectional and designed for optimal performance and consistency.
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as Settings Page
+    participant API as Settings API
+    participant ServerCache as In-Memory Cache
+    participant DB as Database
+    participant ClientStore as globalSettings.svelte.ts
 
-1.  **Server Startup:** The application calls `loadAndCacheSettings()`, which reads defaults from `seeds.ts`, queries the database for overrides, and loads the final merged settings into the `globalSettings.ts` cache.
-2.  **User Request:** A hook or API endpoint needs a setting and reads it directly from the fast, in-memory `globalSettings` cache. No database query is needed.
-3.  **Admin Update:** An admin uses the UI to change a setting. The UI sends a `PUT` request to the `/api/settings/[group]` endpoint. The API updates the database and then calls `invalidateSettingsCache()`. The cache is automatically repopulated from the updated database on the next request.
+    User->>UI: Changes a setting (e.g., Site Name)
+    UI->>API: PUT /api/settings/site { SITE_NAME: "New Name" }
+    API->>DB: Updates the setting in the database
+    DB-->>API: Success
+    API->>ServerCache: Invalidates and reloads settings cache
+    API->>API: Updates settings version
+    API-->>UI: Returns success message
 
-<Callout type="info">
-  The `globalSettings.ts` store is a **server-side read cache**. The admin UI **writes directly** to the database via the API and then invalidates this cache.
-</Callout>
+    loop Every 5 seconds
+        ClientStore->>API: GET /api/settings/public/version
+        API-->>ClientStore: Returns new version
+        ClientStore->>ClientStore: Version has changed!
+        ClientStore->>API: GET /api/settings/public
+        API-->>ClientStore: Returns new public settings
+        ClientStore->>UI: Store updates, UI refreshes automatically
+    end
+```
 
-## Interaction with Configuration Management
+### Server-Side
 
-System Settings are a key part of the overall configuration landscape.
+1.  **Server Startup:** The application loads all settings from the database into a fast, in-memory cache.
+2.  **Admin Update:** An admin uses the UI to change a setting. The UI sends a `PUT` request to the `/api/settings/[group]` endpoint.
+3.  **Database Update:** The API updates the setting in the database.
+4.  **Cache Invalidation:** The API calls `invalidateSettingsCache()` and `loadSettingsFromDB()` to immediately refresh the server-side cache with the new value.
+5.  **Version Update:** The API calls `updateVersion()` to bump the settings version number. This signals to clients that settings have changed.
+
+### Client-Side (Public Settings)
+
+1.  **Initial Load:** The client-side `globalSettings.svelte.ts` store is populated with public settings on initial page load.
+2.  **Polling for Versions:** The store polls the `/api/settings/public/version` endpoint every 5 seconds.
+3.  **Updating on Change:** If the client detects a new version number, it automatically fetches the complete set of public settings from `/api/settings/public` and updates the store. This makes UI elements that depend on public settings (like the site name) reactive and update in near real-time.
+
+## The User Interface
+
+The main UI for managing settings is located at `/config/systemsetting`. It features:
+- A tabbed interface for each settings group.
+- A generic component (`GenericSettingsGroup.svelte`) that dynamically renders the fields for any group.
+- Real-time validation and unsaved changes indicators.
+- A search bar to quickly find settings.
+
+## "Restart Required" Workflow
+
+For critical settings that require a server restart, a clear workflow is implemented to ensure administrators are aware and can take action.
+
+1.  **State Tracking:** When a setting group with `requiresRestart: true` is modified, the server sets a `restartNeeded` flag.
+2.  **Client-Side Polling:** The main application layout polls the `/api/system/restart-required` endpoint to check the status of this flag.
+3.  **UI Notification:** If a restart is needed, a prominent banner is displayed across the top of the application.
+4.  **Admin Action:** For administrators, this banner includes a "Restart Now" button. Clicking this button sends a `POST` request to the secure `/api/system/restart` endpoint.
+5.  **Graceful Restart:** This endpoint is designed to integrate with a process manager like `pm2`. It creates a `restart.txt` file in the project root, which can be watched by the process manager to trigger a graceful restart of the application (e.g., `pm2 reload <app_name>`).
+
+## API Endpoints
+
+-   **`GET /api/settings/[group]`**: Retrieves all settings for a specific group.
+-   **`PUT /api/settings/[group]`**: Updates one or more settings in a group.
+-   **`DELETE /api/settings/[group]`**: Resets all settings in a group to their default values.
+-   **`GET /api/settings/public`**: Retrieves all settings marked as `category: 'public'`.
+-   **`GET /api/settings/public/version`**: Gets the current version timestamp of the settings.
+-   **`GET /api/system/restart-required`**: Checks if a server restart is needed.
+-   **`POST /api/system/restart`**: Initiates the graceful restart process.
+
+## Configuration Management
 
 ### Exporting (`config:export`)
-When a full configuration export is run, the `ConfigExporter` service queries the `system_settings` table and saves all non-secret settings to a file like `/config/sync/system/system.settings.json`.
+When a full configuration export is run, the `ConfigExporter` service queries the `system_preferences` table and saves all non-secret settings to a file like `/config/sync/system/system.settings.json`.
 
 <Callout type="warning">
-  **Security:** The export process must be configured to **exclude** secrets like `SMTP_PASSWORD`. The `_requiredSettings` property on config entities helps identify which settings are environment-specific secrets and should not be exported.
+  **Security:** The export process must be configured to **exclude** secrets like `SMTP_PASSWORD`. The `category: 'private'` property on a setting field ensures it is not included in public exports.
 </Callout>
 
 ### Importing (`config:import`)
 When importing configuration to a new environment:
-1.  The `ConfigImporter` reads `system.settings.json` and populates the `system_settings` table with the baseline configuration.
+1.  The `ConfigImporter` reads `system.settings.json` and populates the `system_preferences` table with the baseline configuration.
 2.  As a final step, the `ConfigImporter` calls `invalidateSettingsCache()`. This forces the application to reload its cache with the newly imported settings, bringing the entire system into a fully consistent state.

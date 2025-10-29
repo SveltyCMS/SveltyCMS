@@ -6,7 +6,7 @@
 
 import type { Model } from 'mongoose';
 import { logger } from '@utils/logger.svelte';
-import type { Layout, SystemPreferencesDocument } from '@src/content/types';
+import type { SystemPreferencesDocument } from '@src/content/types';
 import type { DatabaseId } from '../../dbInterface';
 import type { SystemSetting } from '../models/systemSetting';
 import { createDatabaseError } from './mongoDBUtils';

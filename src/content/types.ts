@@ -20,7 +20,7 @@
  */
 
 import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
-import { collectionSchemas } from '../databases/schemas';
+// Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
 import type { RolePermissions } from '@src/databases/auth/types';
@@ -165,6 +165,15 @@ export type MinimalContentNode = {
 	path: string;
 	nodeType: 'category';
 };
+
+export interface Category {
+	id: number;
+	name: string;
+	icon: string;
+	order: number;
+	collections: string[];
+	subcategories?: Category[];
+}
 
 export type ContentNodeOperatianType = 'create' | 'delete' | 'move' | 'rename' | 'update';
 
@@ -324,4 +333,5 @@ export interface ImportError {
 // Sensitive field patterns to exclude from exports
 export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT_SECRET', 'PRIVATE_KEY', 'JWT_SECRET', 'ENCRYPTION_KEY', 'API_KEY'];
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type ContentTypes = {};

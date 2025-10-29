@@ -17,7 +17,7 @@ import { builtinModules } from 'module';
 import path from 'path';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
-import { defineConfig, createLogger } from 'vite';
+import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
 import { isSetupComplete } from './src/utils/setupCheck';
 import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
@@ -223,7 +223,7 @@ function cmsWatcherPlugin(): Plugin {
 					await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
 					log.success('Re-compilation successful!');
 
-					// ✅ NEW: Register collection models in database after recompilation
+					// Register collection models in database after recompilation
 					try {
 						const { dbAdapter } = await server.ssrLoadModule('./src/databases/db.ts?t=' + Date.now());
 

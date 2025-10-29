@@ -659,55 +659,63 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 
 ---
 
-## Request Flow
+## Middleware Pipeline
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant SvelteKit
-    participant SystemState
-    participant Setup
-    participant Locale
-    participant Theme
-    participant Auth
-    participant Authz
-    participant SecurityHeaders
+    participant SystemState as 1. handleSystemState
+    participant Setup as 2. handleSetup
+    participant Locale as 3. handleLocale
+    participant Theme as 4. handleTheme
+    participant Auth as 5. handleAuthentication
+    participant Authz as 6. handleAuthorization
+    participant Security as 7. addSecurityHeaders
+    participant Endpoint
 
-    Client->>SvelteKit: HTTP Request
-
-    SvelteKit->>SystemState: 1. handleSystemState
-    alt System Not Ready (IDLE/INITIALIZING/FAILED)
+    Client->>SvelteKit: Request
+    SvelteKit->>SystemState: resolve(event)
+    alt System NOT READY
         SystemState-->>Client: 503 Service Unavailable
     end
-
-    SvelteKit->>Setup: 2. handleSetup
-    alt Setup Incomplete
+    SystemState->>Setup: resolve(event)
+    alt Setup INCOMPLETE
         Setup-->>Client: 302 Redirect to /setup
     end
-
-    SvelteKit->>Locale: 3. handleLocale
-    Note over Locale: Sync language cookies to stores
-
-    SvelteKit->>Theme: 4. handleTheme
-    Note over Theme: Inject dark class for SSR
-
-    SvelteKit->>Auth: 5. handleAuthentication
-    Note over Auth: WeakRef cache (3-layer)<br/>In-memory → Redis → DB
-    alt Invalid/Expired Session
-        Auth->>Auth: Delete cookie
-    end
-
-    SvelteKit->>Authz: 6. handleAuthorization
-    Note over Authz: Load roles<br/>Conditional admin data
-    alt Unauthorized
+    Setup->>Locale: resolve(event)
+    Locale->>Theme: resolve(event)
+    Theme->>Auth: resolve(event)
+    Auth->>Authz: resolve(event)
+    alt User UNAUTHORIZED
         Authz-->>Client: 302 Redirect to /login
     end
-
-    SvelteKit->>SecurityHeaders: 7. addSecurityHeaders
-    Note over SecurityHeaders: X-Frame-Options, HSTS, etc.
-
-    SecurityHeaders-->>Client: 200 OK with Response
+    Authz->>Security: resolve(event)
+    Security->>Endpoint: resolve(event)
+    Endpoint-->>Security: Response
+    Security-->>Authz: Response
+    Authz-->>Auth: Response
+    Auth-->>Theme: Response
+    Theme-->>Locale: Response
+    Locale-->>Setup: Response
+    Setup-->>SystemState: Response
+    SystemState-->>SvelteKit: Response
+    SvelteKit-->>Client: Final Response
 ```
+
+---
+
+## Best Practices for Creating New Hooks
+
+When extending the middleware pipeline, follow these best practices to maintain system stability, performance, and consistency:
+
+1.  **Idempotency**: Ensure your hook can run multiple times without causing side effects.
+2.  **Performance First**: Avoid long-running operations. Use caching for expensive lookups.
+3.  **Early Exits**: Design your hook to exit as early as possible for requests it doesn't need to handle.
+4.  **Use `event.locals`**: Pass data between hooks using `event.locals` instead of global state.
+5.  **Single Responsibility**: Each hook should have a single, well-defined purpose.
+6.  **Error Handling**: Wrap your logic in `try...catch` blocks and use the SvelteKit `error` helper for throwing errors.
+7.  **Logging**: Use the `logger` service to log important information and errors.
 
 ---
 

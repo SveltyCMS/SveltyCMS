@@ -13,6 +13,8 @@ import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.svelte';
 import { getSettingGroup } from '@src/routes/(app)/config/systemsetting/settingsGroups';
 import { defaultPublicSettings, defaultPrivateSettings } from '../../setup/seed';
+import { updateVersion } from '@src/utils/server/settingsVersion';
+import { setRestartNeeded } from '@src/utils/server/restartRequired';
 
 /**
  * GET - Retrieve current settings for a group
@@ -224,6 +226,13 @@ export const PUT: RequestHandler = async ({ request, locals, params }) => {
 		const { loadSettingsFromDB } = await import('@src/databases/db');
 		await loadSettingsFromDB();
 
+		// Update the settings version to notify clients
+		updateVersion();
+
+		if (groupDef.requiresRestart) {
+			setRestartNeeded(true);
+		}
+
 		logger.info(`Settings group '${groupId}' updated by user ${locals.user._id}`, {
 			keys: Object.keys(updates)
 		});
@@ -279,6 +288,13 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		invalidateSettingsCache();
 		const { loadSettingsFromDB } = await import('@src/databases/db');
 		await loadSettingsFromDB();
+
+		// Update the settings version to notify clients
+		updateVersion();
+
+		if (groupDef.requiresRestart) {
+			setRestartNeeded(true);
+		}
 
 		logger.info(`Settings group '${groupId}' reset to defaults by user ${locals.user._id}`);
 

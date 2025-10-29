@@ -90,7 +90,9 @@ class ContentManager {
 			this.initState = 'error';
 			if (error instanceof Error) {
 				logger.error('ContentManager initialization failed:', error.message);
-				logger.error(error.stack);
+				if (error.stack) {
+					logger.error(error.stack);
+				}
 			} else {
 				logger.error('ContentManager initialization failed:', error);
 			}

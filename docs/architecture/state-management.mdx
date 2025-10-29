@@ -31,53 +31,23 @@ SveltyCMS features a modular, intelligent **state machine** that manages system 
 
 The state management system is composed of several focused modules located in `src/stores/system/`. This modular design separates concerns, making the system easier to maintain and extend.
 
-### Architecture Diagram
-
-This diagram illustrates how the different modules of the state system interact with each other and with the rest of the application.
+### State Transition Diagram
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
-flowchart TD
-    subgraph "State Machine Core (/stores/system)"
-        direction LR
-        Config["config.ts<br/>Constants & Initial State"]
-        Types["types.ts<br/>Interfaces & Types"]
-        Metrics["metrics.ts<br/>Anomaly Detection, Calibration"]
-        State["state.ts<br/>Core Store & State Logic"]
-        Async["async.ts<br/>Async Wait Utilities"]
-        Reporting["reporting.ts<br/>Health & Perf Reports"]
-        Index["index.ts<br/>Public API Barrel File"]
-    end
+stateDiagram-v2
+    [*] --> IDLE: Server Starts
 
-    subgraph "Application Consumers"
-        direction TB
-        Hooks["/hooks/server.ts<br/>Server Hooks"]
-        APIs["API Endpoints<br/>/routes/api"]
-        GUI["GUI Components<br/>SystemHealth.svelte"]
-    end
+    IDLE --> INITIALIZING: First Request
+    INITIALIZING --> READY: All Services Healthy
+    INITIALIZING --> DEGRADED: Non-Critical Service Fails
+    INITIALIZING --> FAILED: Critical Service Fails
 
-    %% Define relationships
-    Config --> State;
-    Types --> State;
-    Metrics --> State;
-    State --> Async;
-    State --> Reporting;
-    State --> Index;
-    Async --> Index;
-    Reporting --> Index;
+    READY --> DEGRADED: Service Fails
+    DEGRADED --> READY: Service Recovers
+    READY --> FAILED: Critical Service Fails
+    DEGRADED --> FAILED: Critical Service Fails
 
-    Index --> Hooks;
-    Index --> APIs;
-    Index --> GUI;
-
-    %% Define styles for dark theme
-    classDef core fill:#282a36,stroke:#f8f8f2,stroke-width:2px,color:#f8f8f2;
-    classDef logic fill:#44475a,stroke:#f8f8f2,stroke-width:2px,color:#f8f8f2;
-    classDef consumers fill:#6272a4,stroke:#f8f8f2,stroke-width:2px,color:#f8f8f2;
-
-    class Config,Types core;
-    class State,Index,Metrics,Async,Reporting logic;
-    class Hooks,APIs,GUI consumers;
+    FAILED --> INITIALIZING: Admin Triggers Re-init
 ```
 
 ### File Breakdown
@@ -175,6 +145,22 @@ An endpoint that provides a detailed performance summary, including bottlenecks 
 - **`isSystemReady(): boolean`**: A synchronous check to see if the system is `READY` or `DEGRADED`. Used by the `handleSystemState` hook.
 - **`updateServiceHealth(...)`**: Used by services during initialization to report their status (`healthy`, `unhealthy`) to the state machine.
 - **`waitForSystemReady(options)`**: An async function that returns a promise, resolving when the system is ready. Useful in scripts or services that run outside the main request lifecycle.
+
+### Interaction with Server Hooks
+
+The `handleSystemState` hook in `src/hooks.server.ts` acts as a gatekeeper for the entire application, using the state machine to control access:
+
+```typescript
+// src/hooks/server.ts
+export const handleSystemState: Handle = async ({ event, resolve }) => {
+	if (!isSystemReady()) {
+		// If the system is not ready, block the request and return a 503 error.
+		// (With exceptions for the setup and health check pages)
+		throw error(503, 'Service Unavailable');
+	}
+	return resolve(event);
+};
+```
 
 ---
 

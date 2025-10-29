@@ -4,20 +4,6 @@
  *
  * This module provides functionality to:
  * - Dynamically register collection schemas based on the 	const finalTypeDefs = Array.from(typeDefsSet).join('\n') + collectionSchemas.join('\n');
-
-	logger.debug('GraphQL schema generation complete', {
-		typeDefsCount: typeDefsSet.size,
-		collectionSchemasCount: collectionSchemas.length,
-		collectionsWithFields: collections.filter(c => (c.fields as FieldInstance[])?.length > 0).length,
-		sampleTypeDefs: finalTypeDefs.substring(0, 500) // First 500 chars for debugging
-	});
-
-	return {
-		typeDefs: finalTypeDefs,
-		resolvers,
-		collections
-	};
-}ion for a specific tenant
  * - Generate GraphQL type definitions and resolvers for each collection
  * - Handle complex field types and nested structures
  * - Integrate with Redis for caching (if enabled), now tenant-aware
@@ -34,7 +20,7 @@
  */
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import type { DatabaseAdapter } from '@src/databases/dbInterface';
+import type { DatabaseAdapter, CollectionModel } from '@src/databases/dbInterface';
 import { getFieldName } from '@utils/utils';
 import { widgetFunctions } from '@stores/widgetStore.svelte';
 import { get } from 'svelte/store';
@@ -53,6 +39,7 @@ import { logger } from '@utils/logger.svelte';
 // Types
 import type { User } from '@src/databases/auth/types';
 import type { Schema, FieldInstance } from '@src/content/types';
+import type { createPubSub } from 'graphql-yoga';
 
 /**
  * Creates a clean GraphQL type name from collection info
@@ -205,8 +192,12 @@ export async function registerCollections(tenantId?: string) {
 				logger.warn(`Duplicate type ID: ${schema.typeID}`);
 			}
 
-			if ((field as any).extract && (field as any).fields && (field as any).fields.length > 0) {
-				for (const _field of (field as any).fields) {
+			if (
+				'extract' in field &&
+				Array.isArray((field as FieldInstance & { fields?: FieldInstance[] }).fields) &&
+				(field as FieldInstance & { fields?: FieldInstance[] }).fields!.length > 0
+			) {
+				for (const _field of (field as FieldInstance & { fields?: FieldInstance[] }).fields!) {
 					const nestedWidgetNameRaw = _field.widget?.Name;
 					if (!nestedWidgetNameRaw || typeof nestedWidgetNameRaw !== 'string') {
 						logger.warn('Nested widget name missing or not a string for field', _field);
@@ -303,6 +294,7 @@ export async function collectionsResolvers(
 	dbAdapter: DatabaseAdapter,
 	cacheClient: CacheClient | null,
 	_privateEnv: { USE_REDIS?: boolean },
+	pubSub: ReturnType<typeof createPubSub>,
 	tenantId?: string
 ) {
 	if (!dbAdapter) {
@@ -375,7 +367,7 @@ export async function collectionsResolvers(
 						await modifyRequest({
 							data: resultArray,
 							fields: collection.fields as FieldInstance[],
-							collection: collection as Schema,
+							collection: collection as unknown as CollectionModel,
 							user: ctx.user!,
 							type: 'GET'
 						});
@@ -403,6 +395,32 @@ export async function collectionsResolvers(
 				logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);
 				throw new Error(`Failed to fetch data for ${collection._id}: ${errorMessage}`);
 			}
+		};
+
+		// Add mutation resolvers
+		resolvers.Query[`create${cleanTypeName}`] = async function resolver(
+			_parent: unknown,
+			args: { input: Record<string, unknown> },
+			context: unknown
+		): Promise<DocumentBase> {
+			const ctx = context as { user?: User; tenantId?: string };
+			if (!ctx.user) {
+				throw new Error('Authentication required');
+			}
+
+			const collectionName = `collection_${collection._id}`;
+			const result = await dbAdapter.crud.insert(collectionName, args.input);
+
+			if (!result.success) {
+				throw new Error(`Database query failed: ${result.error?.message || 'Unknown error'}`);
+			}
+
+			const newPost = result.data as unknown as DocumentBase;
+
+			// Publish the new post to the subscription
+			pubSub.publish('postAdded', newPost);
+
+			return newPost;
 		};
 	}
 

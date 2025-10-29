@@ -13,6 +13,7 @@
  * - Type-safe access to public configuration
  */
 
+import { browser } from '$app/environment';
 import { publicConfigSchema } from '@src/databases/schemas';
 import { type InferOutput } from 'valibot';
 
@@ -23,6 +24,8 @@ type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string
  * Initialized empty and populated by initPublicEnv() from layout load.
  */
 const state = $state<PublicEnv>({} as PublicEnv);
+let currentVersion = $state(0);
+let isPollingStarted = false;
 
 /**
  * Check if settings have been loaded on the client.
@@ -33,12 +36,51 @@ export function isInitialized(): boolean {
 }
 
 /**
+ * Fetches the latest public settings from the server.
+ */
+async function fetchPublicSettings() {
+	try {
+		const response = await fetch('/api/settings/public');
+		if (response.ok) {
+			const data = await response.json();
+			Object.assign(state, data);
+		}
+	} catch (error) {
+		console.error('Failed to fetch public settings:', error);
+	}
+}
+
+/**
+ * Starts polling for settings changes.
+ */
+function startPolling() {
+	if (!browser || isPollingStarted) return;
+	isPollingStarted = true;
+
+	setInterval(async () => {
+		try {
+			const response = await fetch('/api/settings/public/version');
+			if (response.ok) {
+				const data = await response.json();
+				if (currentVersion !== 0 && currentVersion < data.version) {
+					await fetchPublicSettings();
+				}
+				currentVersion = data.version;
+			}
+		} catch (error) {
+			console.error('Failed to poll for settings version:', error);
+		}
+	}, 5000); // Poll every 5 seconds
+}
+
+/**
  * Initializes or updates the client-side public environment store.
  * This should be called from a root layout's load function.
  * @param data The public settings loaded from the server.
  */
 export function initPublicEnv(data: PublicEnv): void {
 	Object.assign(state, data);
+	startPolling();
 }
 
 /**

@@ -85,7 +85,16 @@ type Mutation {
 	# Media mutations
 	deleteMedia(id: ID!): Boolean
 }
+
+type Subscription {
+	# Real-time collection updates
+	postAdded: Post
+	postUpdated: Post
+	postDeleted: ID
+}
 ```
+
+> **Note:** Subscriptions require WebSocket connection. See [WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx) for details.
 
 ---
 
@@ -754,12 +763,84 @@ GraphQL endpoint is rate limited:
 
 ---
 
+## Real-Time Subscriptions
+
+GraphQL subscriptions enable real-time data updates via WebSocket connections.
+
+### Available Subscriptions
+
+```graphql
+type Subscription {
+	postAdded: Post
+}
+```
+
+### Example Usage
+
+```graphql
+subscription OnPostAdded {
+	postAdded {
+		_id
+		title
+		content
+		createdAt
+		author {
+			username
+		}
+	}
+}
+```
+
+### WebSocket Connection
+
+Subscriptions require a WebSocket connection on **port 3001**:
+
+- **Endpoint:** `ws://localhost:3001/api/graphql`
+- **Protocol:** `graphql-ws`
+- **Authentication:** Session ID, Cookie, or Bearer Token
+
+### Quick Start
+
+```typescript
+import { createClient } from 'graphql-ws';
+
+const client = createClient({
+	url: 'ws://localhost:3001/api/graphql',
+	connectionParams: {
+		cookie: document.cookie
+	}
+});
+
+client.subscribe(
+	{
+		query: `
+      subscription {
+        postAdded {
+          _id
+          title
+        }
+      }
+    `
+	},
+	{
+		next: (data) => console.log('New post:', data),
+		error: (error) => console.error('Error:', error)
+	}
+);
+```
+
+For complete WebSocket authentication methods and implementation details, see:
+
+- [GraphQL WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx)
+
+---
+
 ## Related Documentation
 
+- [GraphQL WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx) - Real-time updates guide
 - [Collection API](/docs/api/Collection_API.mdx)
 - [User Management API](/docs/api/User_Management_API.mdx)
 - [Media API](/docs/api/Media_API.mdx)
-- [GraphQL Best Practices](/docs/dev-guide/graphql-best-practices)
 
 ---
 

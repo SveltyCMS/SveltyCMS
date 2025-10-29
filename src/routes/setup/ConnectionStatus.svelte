@@ -275,7 +275,7 @@
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	@keyframes slide {
 		0% {
 			transform: translateX(-100%);
