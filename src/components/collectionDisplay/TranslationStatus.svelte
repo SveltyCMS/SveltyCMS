@@ -15,6 +15,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
@@ -41,7 +43,12 @@
 
 	// Derived values
 	let availableLanguages = $derived.by<Locale[]>(() => {
-		return (publicEnv?.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || ['en'];
+		// Wait for publicEnv to be initialized
+		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
+		if (!languages || !Array.isArray(languages)) {
+			return ['en'] as Locale[];
+		}
+		return languages as Locale[];
 	});
 
 	let currentLanguage = $derived(contentLanguage.value);
@@ -198,6 +205,17 @@
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
+		// Navigate to the new URL with updated language
+		const currentPath = $page.url.pathname;
+		const pathParts = currentPath.split('/').filter(Boolean);
+
+		// Replace the language part (first segment) with the new language
+		if (pathParts.length > 0) {
+			pathParts[0] = selectedLanguage;
+			const newPath = '/' + pathParts.join('/');
+			goto(newPath, { replaceState: false, keepFocus: true });
+		}
+
 		// Dispatch custom event
 		if (typeof window !== 'undefined') {
 			const customEvent = new CustomEvent('languageChanged', {
@@ -215,6 +233,17 @@
 
 		// Update the content language store
 		contentLanguage.set(selectedLanguage);
+
+		// Navigate to the new URL with updated language
+		const currentPath = $page.url.pathname;
+		const pathParts = currentPath.split('/').filter(Boolean);
+
+		// Replace the language part (first segment) with the new language
+		if (pathParts.length > 0) {
+			pathParts[0] = selectedLanguage;
+			const newPath = '/' + pathParts.join('/');
+			goto(newPath, { replaceState: false, keepFocus: true });
+		}
 
 		// Dispatch a custom event to notify parent components
 		const customEvent = new CustomEvent('languageChanged', {

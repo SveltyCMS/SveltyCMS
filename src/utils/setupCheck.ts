@@ -51,13 +51,11 @@ export function isSetupComplete(): boolean {
 export async function isSetupCompleteAsync(): Promise<boolean> {
 	// First check config file
 	if (!isSetupComplete()) {
-		console.log('[setupCheck] Config check failed');
 		return false;
 	}
 
 	// If we've already checked the database, return cached result
 	if (setupStatusCheckedDb) {
-		console.log('[setupCheck] Returning cached DB check result:', setupStatus);
 		return setupStatus ?? false;
 	}
 
@@ -66,9 +64,6 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		const db = await import('@src/databases/db');
 		const dbAdapter = db.dbAdapter;
 
-		// console.log('[setupCheck] dbAdapter exists:', !!dbAdapter);
-		// console.log('[setupCheck] dbAdapter.auth exists:', !!dbAdapter?.auth);
-
 		if (!dbAdapter || !dbAdapter.auth) {
 			// Database not initialized yet - don't cache this, allow retry
 			console.log('[setupCheck] Database not initialized yet');
@@ -76,20 +71,13 @@ export async function isSetupCompleteAsync(): Promise<boolean> {
 		}
 
 		// Check if admin users exist in database using dbAdapter.auth
-		console.log('[setupCheck] Calling getAllUsers...');
+
 		const result = await dbAdapter.auth.getAllUsers({ limit: 1 });
-		console.log('[setupCheck] getAllUsers result:', {
-			success: result.success,
-			hasData: result.success ? !!result.data : false,
-			dataLength: result.success ? result.data?.length : 0,
-			error: !result.success ? result.error : null
-		});
 
 		const hasUsers = result.success && result.data && result.data.length > 0;
 
 		setupStatus = hasUsers;
 		setupStatusCheckedDb = true;
-		console.log('[setupCheck] Setup complete:', hasUsers);
 		return hasUsers;
 	} catch (error) {
 		// Database check failed - might be dropped DB or connection issue

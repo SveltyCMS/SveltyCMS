@@ -34,15 +34,13 @@ export function setGlobalModalStore(store?: ModalStore): void {
 
 // Triggers a modal using the initialized global modal store
 export function showModal(settings: ModalSettings): void {
-	console.log('[modalUtils] showModal called, modalStoreRef exists:', !!modalStoreRef);
 	if (!modalStoreRef) {
 		// Avoid throwing hard errors in production; log a warning for debugging
 		console.warn('[modalUtils] Modal store not initialized. Call setGlobalModalStore(getModalStore()) in a root component.');
 		return;
 	}
-	console.log('[modalUtils] Triggering modal with settings:', settings);
+
 	modalStoreRef.trigger(settings);
-	console.log('[modalUtils] Modal triggered, store length:', modalStoreRef.length);
 }
 
 // Creates a standardized confirmation modal configuration

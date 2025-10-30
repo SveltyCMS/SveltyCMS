@@ -121,9 +121,7 @@ Features:
 	 */
 	let updateTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	function handleNodeReorder(itemId: string, newParentId: DatabaseId | undefined, updatedChildren: DndItem[]) {
-		console.log('Board: handleNodeReorder called', { itemId, newParentId, childrenCount: updatedChildren.length });
-
+	function handleNodeReorder(_itemId: string, _newParentId: DatabaseId | undefined, _updatedChildren: DndItem[]) {
 		// Debounce: Clear any pending update
 		if (updateTimeout) {
 			clearTimeout(updateTimeout);
@@ -132,9 +130,7 @@ Features:
 		// Schedule update after all zones have finished
 		updateTimeout = setTimeout(() => {
 			try {
-				console.log('Board: Flattening structure after debounce');
 				const flatNodes = flattenNodes(structureState);
-				console.log('Board: Flattened nodes:', flatNodes.length);
 				onNodeUpdate(flatNodes);
 				updateTimeout = null;
 			} catch (err) {

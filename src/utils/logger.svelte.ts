@@ -409,7 +409,6 @@ const serverFileOps = isServer
 								`^${config.logFileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z(\\.gz)?$`
 							);
 							if (rotatedLogPattern.test(file)) {
-								console.log(`Deleting old log file: ${filePath}`);
 								await fsPromises.unlink(filePath);
 							}
 						}

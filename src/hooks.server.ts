@@ -90,4 +90,4 @@ export const handle: Handle = sequence(...middleware);
 
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
-export { invalidateSessionCache, clearAllSessionCaches } from './hooks/handleAuthentication';
+export { invalidateSessionCache, clearAllSessionCaches, clearSessionRefreshAttempt } from './hooks/handleAuthentication';

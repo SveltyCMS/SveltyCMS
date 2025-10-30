@@ -128,7 +128,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			console.log('Closing modal with success result:', { success: true, action: isEditMode ? 'edit' : 'create' }); // Debug log
 			if (parent.onClose) {
 				(parent.onClose as any)({ success: true, action: isEditMode ? 'edit' : 'create' });
 			}
@@ -162,7 +161,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 			await invalidateAll();
 
 			// Close modal and trigger response handler
-			console.log('Closing modal after delete with success result:', { success: true, action: 'delete' }); // Debug log
 			if (parent.onClose) {
 				(parent.onClose as any)({ success: true, action: 'delete' });
 			}

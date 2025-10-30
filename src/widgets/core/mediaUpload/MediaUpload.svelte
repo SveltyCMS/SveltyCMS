@@ -210,9 +210,8 @@
 		parent={undefined}
 		{_data}
 		{field}
-		{updated}
 		{value}
-		mediaOnSelect={(file) => {
+		mediaOnSelect={(file: File | MediaImage) => {
 			_data = file;
 			showImageEditor = false;
 			validateInput();

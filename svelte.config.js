@@ -45,7 +45,7 @@ const config = {
 
 		// Use SvelteKit's built-in CSP support
 		csp: {
-			mode: 'hash',
+			mode: 'nonce', // Use nonce for inline scripts (not hash)
 			directives: {
 				'default-src': ['self'],
 				'script-src': ['self', 'unsafe-eval', 'blob:'], // unsafe-eval for dev HMR, blob: for workers

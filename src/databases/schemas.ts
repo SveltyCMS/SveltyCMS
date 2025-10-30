@@ -351,7 +351,7 @@ function performConditionalValidation(config: Config): string[] {
  */
 export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<unknown>>, config: unknown, configName: string): unknown {
 	if (!validationLogPrinted) {
-		console.log(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
+		logger.trace(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
 		validationLogPrinted = true;
 	}
 
@@ -362,27 +362,27 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		// Perform secondary, cross-field validation
 		const conditionalErrors = performConditionalValidation(result.output as Config);
 		if (conditionalErrors.length > 0) {
-			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
-			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
-			console.error('━'.repeat(70));
-			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
+			logger.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
+			logger.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
+			logger.error('━'.repeat(70));
+			logger.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
 			conditionalErrors.forEach((error) => {
-				console.error(`   - ${error}`);
+				logger.error(`   - ${error}`);
 			});
-			console.error('\n' + '━'.repeat(70));
-			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
+			logger.error('\n' + '━'.repeat(70));
+			logger.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
 			process.exit(1);
 		}
 		return result.output;
 	} else {
 		// Handle schema validation failures
-		console.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
-		console.error('━'.repeat(70));
+		logger.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
+		logger.error('━'.repeat(70));
 
 		logValidationErrors(result.issues, configFile);
 
-		console.error('\n' + '━'.repeat(70));
-		console.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
+		logger.error('\n' + '━'.repeat(70));
+		logger.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
 		process.exit(1);
 	}
 }

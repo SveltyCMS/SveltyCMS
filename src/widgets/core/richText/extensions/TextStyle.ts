@@ -9,13 +9,9 @@ import { TextStyle } from '@tiptap/extension-text-style';
 declare module '@tiptap/core' {
 	interface Commands<ReturnType> {
 		fontSize: {
-			/**
-			 * Set the font size
-			 */
-			setFontSize: (size: string | number) => ReturnType;
-			/**
-			 * Unset the font size
-			 */
+			// Set the font size
+			setFontSize: (size: string) => ReturnType;
+			// Unset the font size
 			unsetFontSize: () => ReturnType;
 		};
 	}

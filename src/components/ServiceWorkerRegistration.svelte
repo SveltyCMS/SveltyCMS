@@ -25,13 +25,11 @@ Registers and manages the service worker for offline support and caching.
 	onMount(() => {
 		// Only register in production and in browser
 		if (!browser || import.meta.env.DEV) {
-			console.log('[ServiceWorker] Skipping registration (dev mode or SSR)');
 			return;
 		}
 
 		// Check if service worker is supported
 		if (!('serviceWorker' in navigator)) {
-			console.log('[ServiceWorker] Not supported in this browser');
 			return;
 		}
 
@@ -43,8 +41,6 @@ Registers and manages the service worker for offline support and caching.
 			registration = await navigator.serviceWorker.register('/service-worker.js', {
 				scope: '/'
 			});
-
-			console.log('[ServiceWorker] Registered successfully');
 
 			// Check for updates every hour
 			setInterval(
@@ -62,14 +58,12 @@ Registers and manages the service worker for offline support and caching.
 					if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
 						// New service worker available
 						updateAvailable = true;
-						console.log('[ServiceWorker] Update available');
 					}
 				});
 			});
 
 			// Handle controller change (new SW activated)
 			navigator.serviceWorker.addEventListener('controllerchange', () => {
-				console.log('[ServiceWorker] Controller changed, reloading page...');
 				window.location.reload();
 			});
 		} catch (error) {
@@ -87,7 +81,6 @@ Registers and manages the service worker for offline support and caching.
 	function clearCache() {
 		if (registration?.active) {
 			registration.active.postMessage({ type: 'CLEAR_CACHE' });
-			console.log('[ServiceWorker] Cache cleared');
 		}
 	}
 </script>

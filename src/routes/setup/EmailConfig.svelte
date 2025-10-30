@@ -1,6 +1,6 @@
 <!--
 @file src/routes/setup/EmailConfig.svelte
-@description Optional SMTP Configuration step for SveltyCMS setup wizard
+@description Optional SMTP Configuration with Auto-Detection step for SveltyCMS setup wizard
 
 ### Features:
 - Optional step - can be skipped without blocking setup
@@ -13,6 +13,8 @@
 	import { setupStore } from '@stores/setupStore.svelte';
 	import * as m from '@src/paraglide/messages';
 	import { showToast } from '@utils/toast';
+	import { safeParse } from 'valibot';
+	import { smtpConfigSchema, type SmtpConfigSchema } from '@utils/formSchemas';
 
 	const { wizard } = setupStore;
 
@@ -21,10 +23,11 @@
 	let testSuccess = $state(false);
 	let testError = $state('');
 	let testEmailSent = $state(false);
-	let showSuccessDetails = $state(true); // Default to true on desktop, controlled on mobile
-
-	// "Why Configure SMTP?" section - collapsed by default on both mobile and desktop
+	let showSuccessDetails = $state(true);
 	let showWhySmtp = $state(false);
+	let validationErrors = $state<Record<string, string>>({});
+	let touchedFields = $state<Set<string>>(new Set());
+	let localValidationErrors = $state<Record<string, string>>({});
 
 	// SMTP Configuration
 	let smtpHost = $state('');
@@ -34,6 +37,8 @@
 	let smtpFrom = $state('');
 	let smtpSecure = $state(true);
 	let useCustomPort = $state(false);
+	let portAutoDetected = $state(false);
+	let showPassword = $state(false);
 
 	// Common SMTP ports with descriptions
 	const commonPorts = $derived([
@@ -43,20 +48,107 @@
 		{ value: 25, label: m.setup_email_port_25(), description: m.setup_email_port_25_desc() }
 	]);
 
+	// Enhanced SMTP provider detection
+	const providerPatterns = [
+		{
+			pattern: /gmail\.com|googlemail\.com/i,
+			name: 'Gmail',
+			host: 'smtp.gmail.com',
+			port: 587,
+			secure: true,
+			note: m.setup_email_preset_note_gmail()
+		},
+		{
+			pattern: /outlook\.com|hotmail\.com|live\.com|office365\.com/i,
+			name: 'Outlook/Office 365',
+			host: 'smtp.office365.com',
+			port: 587,
+			secure: true,
+			note: ''
+		},
+		{
+			pattern: /sendgrid/i,
+			name: 'SendGrid',
+			host: 'smtp.sendgrid.net',
+			port: 587,
+			secure: true,
+			note: m.setup_email_preset_note_sendgrid()
+		},
+		{
+			pattern: /mailgun/i,
+			name: 'Mailgun',
+			host: 'smtp.mailgun.org',
+			port: 587,
+			secure: true,
+			note: ''
+		},
+		{
+			pattern: /smtp\.mail\.yahoo\.com/i,
+			name: 'Yahoo Mail',
+			host: 'smtp.mail.yahoo.com',
+			port: 465,
+			secure: true,
+			note: ''
+		},
+		{
+			pattern: /smtp\.zoho\.com/i,
+			name: 'Zoho Mail',
+			host: 'smtp.zoho.com',
+			port: 465,
+			secure: true,
+			note: ''
+		},
+		{
+			pattern: /smtp\.ionos\.(com|de)/i,
+			name: 'IONOS',
+			host: 'smtp.ionos.com',
+			port: 587,
+			secure: true,
+			note: ''
+		},
+		{
+			pattern: /smtp\.1und1\.(de|com)/i,
+			name: '1&1',
+			host: 'smtp.1und1.de',
+			port: 587,
+			secure: true,
+			note: ''
+		},
+		{
+			pattern: /smtp\.strato\.(de|com)/i,
+			name: 'Strato',
+			host: 'smtp.strato.de',
+			port: 465,
+			secure: true,
+			note: ''
+		}
+	];
+
+	// Detect provider from host and auto-configure
+	function detectProviderFromHost(host: string) {
+		if (!host) return null;
+
+		for (const provider of providerPatterns) {
+			if (provider.pattern.test(host)) {
+				return provider;
+			}
+		}
+		return null;
+	}
+
 	// Auto-detect TLS/STARTTLS based on port
 	function autoDetectSecure(port: number): boolean {
 		switch (port) {
-			case 465: // SSL/TLS (implicit)
-				return true;
-			case 587: // STARTTLS (explicit)
-				return true;
-			case 2525: // Alternative STARTTLS port
-				return true;
-			case 25: // Usually unencrypted (legacy)
-				return false;
+			case 465:
+				return true; // SSL/TLS (implicit)
+			case 587:
+				return true; // STARTTLS (explicit)
+			case 2525:
+				return true; // Alternative STARTTLS port
+			case 25:
+				return false; // Usually unencrypted (legacy)
 			default:
-				// For custom ports, default to secure
-				return true;
+				return true; // For custom ports, default to secure
 		}
 	}
 
@@ -65,10 +157,95 @@
 		smtpSecure = autoDetectSecure(smtpPort);
 	});
 
-	// Validation
-	const isFormValid = $derived(smtpHost.trim() !== '' && smtpPort > 0 && smtpUser.trim() !== '' && smtpPassword.trim() !== '');
+	// Watch for host changes and auto-detect provider
+	let lastDetectedHost = '';
+	$effect(() => {
+		// Only auto-detect if user isn't using custom port and host has changed
+		if (!useCustomPort && smtpHost !== lastDetectedHost) {
+			lastDetectedHost = smtpHost;
 
-	// Common SMTP presets
+			const provider = detectProviderFromHost(smtpHost);
+			if (provider) {
+				smtpPort = provider.port;
+				smtpSecure = provider.secure;
+				portAutoDetected = true;
+
+				// Show subtle feedback
+			} else {
+				portAutoDetected = false;
+			}
+		}
+	});
+
+	// Validation using schema
+	const validationResult = $derived(() => {
+		const config: SmtpConfigSchema = {
+			host: smtpHost,
+			port: smtpPort,
+			user: smtpUser,
+			password: smtpPassword,
+			from: smtpFrom || smtpUser,
+			secure: smtpSecure
+		};
+
+		const result = safeParse(smtpConfigSchema, config);
+
+		if (result.success) {
+			return { valid: true, errors: {} };
+		} else {
+			// Extract validation errors
+			const errors: Record<string, string> = {};
+			if (result.issues) {
+				for (const issue of result.issues) {
+					const path = issue.path?.[0]?.key as string;
+					if (path) {
+						errors[path] = issue.message;
+					}
+				}
+			}
+			return { valid: false, errors };
+		}
+	});
+
+	const isFormValid = $derived(validationResult().valid);
+
+	// Update local validation errors when validation result changes
+	$effect(() => {
+		localValidationErrors = validationResult().errors;
+	});
+
+	// Only display errors for fields that have been touched (blurred)
+	const displayErrors = $derived.by(() => {
+		const errors: Record<string, string> = {};
+
+		// Show validation errors only for touched fields
+		for (const field of touchedFields) {
+			if (localValidationErrors[field]) {
+				errors[field] = localValidationErrors[field];
+			}
+		}
+
+		// Parent validation errors always show (from API responses)
+		return {
+			...errors,
+			...validationErrors
+		};
+	});
+
+	// Mark field as touched on blur
+	function handleBlur(fieldName: string) {
+		touchedFields.add(fieldName);
+		touchedFields = touchedFields;
+	}
+
+	// Legacy hostname validation for UI feedback
+	const isValidHostname = $derived(() => {
+		if (!smtpHost.trim()) return true;
+		if (smtpHost.includes('@')) return false;
+		return /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(smtpHost);
+	});
+
+	// SMTP presets for dropdown
 	const presets = [
 		{
 			name: m.setup_email_preset_gmail(),
@@ -116,7 +293,8 @@
 			smtpHost = preset.host;
 			smtpPort = preset.port;
 			smtpSecure = preset.secure;
-			useCustomPort = false; // Reset to standard port dropdown
+			useCustomPort = false;
+			portAutoDetected = false;
 			testSuccess = false;
 			testError = '';
 		}
@@ -240,19 +418,44 @@
 			<input
 				type="text"
 				class="input"
+				class:input-error={displayErrors.host || (smtpHost.trim() && !isValidHostname())}
 				bind:value={smtpHost}
 				placeholder={m.setup_email_host_placeholder()}
 				required
+				onblur={() => handleBlur('host')}
 				onchange={() => {
 					testSuccess = false;
 					testError = '';
 				}}
 			/>
+			{#if displayErrors.host}
+				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
+					{displayErrors.host}
+				</span>
+			{:else if smtpHost.trim() && !isValidHostname()}
+				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
+					{#if smtpHost.includes('@')}
+						Invalid hostname. Use "smtp.domain.com" not "email@domain.com"
+					{:else}
+						Invalid hostname format. Example: smtp.gmail.com
+					{/if}
+				</span>
+			{/if}
 		</label>
 
-		<!-- SMTP Port -->
+		<!-- SMTP Port with Auto-Detection -->
 		<label class="label">
-			<span class="font-medium">{m.setup_email_port()} <span class="text-error-500">*</span></span>
+			<div class="mb-1 flex items-center justify-between">
+				<span class="font-medium">{m.setup_email_port()} <span class="text-error-500">*</span></span>
+				{#if portAutoDetected && !useCustomPort}
+					<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+						<iconify-icon icon="mdi:auto-fix" class="text-sm"></iconify-icon>
+						Auto-detected
+					</span>
+				{/if}
+			</div>
 
 			{#if useCustomPort}
 				<!-- Custom port input -->
@@ -260,14 +463,17 @@
 					<input
 						type="number"
 						class="input flex-1"
+						class:input-error={displayErrors.port}
 						bind:value={smtpPort}
 						placeholder={m.setup_email_port_custom()}
 						min="1"
 						max="65535"
 						required
+						onblur={() => handleBlur('port')}
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
+							portAutoDetected = false;
 						}}
 					/>
 					<button
@@ -283,7 +489,14 @@
 						{m.setup_email_button_use_standard()}
 					</button>
 				</div>
-				<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_port_custom_desc()}</span>
+				{#if displayErrors.port}
+					<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
+						<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
+						{displayErrors.port}
+					</span>
+				{:else}
+					<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_port_custom_desc()}</span>
+				{/if}
 			{:else}
 				<!-- Standard port dropdown -->
 				<div class="flex gap-2">
@@ -294,6 +507,7 @@
 						onchange={() => {
 							testSuccess = false;
 							testError = '';
+							portAutoDetected = false;
 						}}
 					>
 						{#each commonPorts as port}
@@ -304,7 +518,10 @@
 						type="button"
 						class="variant-ghost-surface btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
-						onclick={() => (useCustomPort = true)}
+						onclick={() => {
+							useCustomPort = true;
+							portAutoDetected = false;
+						}}
 					>
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{m.setup_email_button_custom()}
@@ -312,7 +529,15 @@
 				</div>
 				{@const selectedPort = commonPorts.find((p) => p.value === smtpPort)}
 				{#if selectedPort}
-					<span class="text-xs text-surface-600 dark:text-surface-400">{selectedPort.description}</span>
+					<div class="mt-1 flex items-center gap-2">
+						{#if smtpSecure}
+							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
+								Encrypted
+							</span>
+						{/if}
+						<span class="text-xs text-surface-600 dark:text-surface-400">{selectedPort.description}</span>
+					</div>
 				{/if}
 			{/if}
 		</label>
@@ -323,30 +548,56 @@
 			<input
 				type="text"
 				class="input"
+				class:input-error={displayErrors.user}
 				bind:value={smtpUser}
 				placeholder={m.setup_email_user_placeholder()}
 				required
+				onblur={() => handleBlur('user')}
 				onchange={() => {
 					testSuccess = false;
 					testError = '';
 				}}
 			/>
+			{#if displayErrors.user}
+				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
+					{displayErrors.user}
+				</span>
+			{/if}
 		</label>
 
 		<!-- SMTP Password -->
 		<label class="label">
 			<span class="font-medium">{m.setup_email_password()} <span class="text-error-500">*</span></span>
-			<input
-				type="password"
-				class="input"
-				bind:value={smtpPassword}
-				placeholder={m.setup_email_password_placeholder()}
-				required
-				onchange={() => {
-					testSuccess = false;
-					testError = '';
-				}}
-			/>
+			<div class="relative">
+				<input
+					type={showPassword ? 'text' : 'password'}
+					class="input pr-10"
+					class:input-error={displayErrors.password}
+					bind:value={smtpPassword}
+					placeholder={m.setup_email_password_placeholder()}
+					required
+					onblur={() => handleBlur('password')}
+					onchange={() => {
+						testSuccess = false;
+						testError = '';
+					}}
+				/>
+				<button
+					type="button"
+					class="btn-icon btn-sm absolute right-1 top-1/2 -translate-y-1/2"
+					onclick={() => (showPassword = !showPassword)}
+					aria-label={showPassword ? 'Hide password' : 'Show password'}
+				>
+					<iconify-icon icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'} class="text-lg text-surface-600 dark:text-surface-400"></iconify-icon>
+				</button>
+			</div>
+			{#if displayErrors.password}
+				<span class="mt-1 flex items-center gap-1 text-xs text-error-500">
+					<iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon>
+					{displayErrors.password}
+				</span>
+			{/if}
 		</label>
 
 		<!-- From Email (Optional) -->
@@ -354,29 +605,6 @@
 			<span class="font-medium">{m.setup_email_from()}</span>
 			<input type="email" class="input" bind:value={smtpFrom} placeholder={smtpUser || 'noreply@example.com'} />
 			<span class="text-xs text-surface-600 dark:text-surface-400">{m.setup_email_from_note()}</span>
-		</label>
-	</div>
-
-	<!-- Security Options -->
-	<div class="space-y-2">
-		<label class="flex items-start space-x-2">
-			<input type="checkbox" class="checkbox mt-0.5" bind:checked={smtpSecure} disabled />
-			<div class="flex-1">
-				<span class="text-sm font-medium">{smtpSecure ? m.setup_email_tls_enabled() : m.setup_email_tls_disabled()}</span>
-				<p class="text-xs text-surface-600 dark:text-surface-400">
-					{#if smtpPort === 587}
-						{m.setup_email_port_auto_starttls()}
-					{:else if smtpPort === 465}
-						{m.setup_email_port_auto_ssl()}
-					{:else if smtpPort === 2525}
-						{m.setup_email_port_auto_2525()}
-					{:else if smtpPort === 25}
-						{m.setup_email_port_auto_25()}
-					{:else}
-						{m.setup_email_port_auto_custom({ port: smtpPort })}
-					{/if}
-				</p>
-			</div>
 		</label>
 	</div>
 

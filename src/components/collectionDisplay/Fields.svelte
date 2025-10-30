@@ -200,7 +200,14 @@
 				const dbFieldName = getFieldName(field as any, false);
 				const fieldValue = (currentCollectionValue as Record<string, unknown>)[dbFieldName];
 
-				for (const lang of (publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en']) as Locale[]) {
+				// Safely get available languages with fallback
+				const availableLanguages = (
+					publicEnv?.AVAILABLE_CONTENT_LANGUAGES && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)
+						? publicEnv.AVAILABLE_CONTENT_LANGUAGES
+						: ['en']
+				) as Locale[];
+
+				for (const lang of availableLanguages) {
 					if (!progress[lang]) continue;
 					const langValue = (fieldValue as Record<string, any>)?.[lang];
 					const isTranslated =

@@ -7,6 +7,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
 	import type { DbConfig } from '@stores/setupStore.svelte';
+	import { safeParse } from 'valibot';
+	import { dbConfigSchema } from '@utils/formSchemas';
 
 	// Popup settings (click to toggle)
 	const popupDbType: PopupSettings = { event: 'click', target: 'popupDbType', placement: 'top' };
@@ -56,7 +58,64 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	let showConnectionStringHelper = $state(false);
 	let showAtlasHelper = $state(true); // Collapsible Atlas helper
 
-	// Parse MongoDB connection string (Atlas or standard)
+	// Track which fields have been touched (blurred)
+	let touchedFields = $state<Set<string>>(new Set());
+
+	// Real-time validation state (always computed, but only shown for touched fields)
+	let localValidationErrors = $state<ValidationErrors>({});
+
+	// Validate form data in real-time
+	const validationResult = $derived(
+		safeParse(dbConfigSchema, {
+			type: dbConfig.type,
+			host: dbConfig.host,
+			port: dbConfig.port,
+			name: dbConfig.name,
+			user: dbConfig.user,
+			password: dbConfig.password
+		})
+	);
+
+	// Export validation state for parent to check if form is valid
+	export function getIsValid() {
+		return validationResult.success;
+	}
+
+	// Update local validation errors when validation result changes
+	$effect(() => {
+		const newErrors: ValidationErrors = {};
+		if (!validationResult.success) {
+			for (const issue of validationResult.issues) {
+				const path = issue.path?.[0]?.key as string;
+				if (path) {
+					newErrors[path] = issue.message;
+				}
+			}
+		}
+		localValidationErrors = newErrors;
+	});
+
+	// Only display errors for fields that have been touched (blurred)
+	const displayErrors = $derived.by(() => {
+		const errors: ValidationErrors = {};
+
+		// Show validation errors only for touched fields
+		for (const field of touchedFields) {
+			if (localValidationErrors[field]) {
+				errors[field] = localValidationErrors[field];
+			}
+		}
+
+		// Parent validation errors always show (from API responses)
+		return {
+			...errors,
+			...validationErrors
+		};
+	}); // Handle field blur to mark as touched
+	function handleBlur(fieldName: string) {
+		touchedFields.add(fieldName);
+		touchedFields = touchedFields; // Trigger reactivity
+	} // Parse MongoDB connection string (Atlas or standard)
 	function parseMongoConnectionString(connStr: string): { host: string; user: string; password: string; database?: string } | null {
 		try {
 			// MongoDB connection string patterns:
@@ -251,7 +310,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</p>
 		</div>
 	{/if}
-	<div class="space-y-4 sm:space-y-6">
+	<form
+		onsubmit={(e) => {
+			e.preventDefault();
+			handleTestConnection();
+		}}
+		class="space-y-4 sm:space-y-6"
+	>
 		<div class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
 			<div>
 				<label for="db-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -333,13 +398,14 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					bind:value={dbConfig.host}
 					type="text"
 					onchange={clearDbTestError}
+					onblur={() => handleBlur('host')}
 					onpaste={handleHostPaste}
-					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net OR paste full mongodb+srv://...' : 'localhost OR paste full connection string'}
-					class="input w-full rounded {validationErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-					aria-invalid={!!validationErrors.host}
-					aria-describedby={validationErrors.host ? 'db-host-error' : undefined}
+					placeholder={isAtlas ? 'cluster0.abcde.mongodb.net' : m.setup_database_host_placeholder?.() || 'localhost'}
+					class="input w-full rounded {displayErrors.host ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					aria-invalid={!!displayErrors.host}
+					aria-describedby={displayErrors.host ? 'db-host-error' : undefined}
 				/>
-				{#if validationErrors.host}<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.host}</div>{/if}
+				{#if displayErrors.host}<div id="db-host-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.host}</div>{/if}
 				{#if showConnectionStringHelper}
 					<div
 						class="mt-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
@@ -378,12 +444,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						bind:value={dbConfig.port}
 						type="text"
 						onchange={clearDbTestError}
+						onblur={() => handleBlur('port')}
 						placeholder={m.setup_database_port_placeholder?.() || '27017'}
-						class="input w-full rounded {validationErrors.port ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-						aria-invalid={!!validationErrors.port}
-						aria-describedby={validationErrors.port ? 'db-port-error' : undefined}
+						class="input w-full rounded {displayErrors.port ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.port}
+						aria-describedby={displayErrors.port ? 'db-port-error' : undefined}
 					/>
-					{#if validationErrors.port}<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.port}</div>{/if}
+					{#if displayErrors.port}<div id="db-port-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.port}</div>{/if}
 				</div>
 			{/if}
 			<div>
@@ -411,12 +478,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					bind:value={dbConfig.name}
 					type="text"
 					onchange={clearDbTestError}
+					onblur={() => handleBlur('name')}
 					placeholder={m.setup_database_name_placeholder?.() || 'SveltyCMS'}
-					class="input w-full rounded {validationErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-					aria-invalid={!!validationErrors.name}
-					aria-describedby={validationErrors.name ? 'db-name-error' : undefined}
+					class="input w-full rounded {displayErrors.name ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					aria-invalid={!!displayErrors.name}
+					aria-describedby={displayErrors.name ? 'db-name-error' : undefined}
 				/>
-				{#if validationErrors.name}<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.name}</div>{/if}
+				{#if displayErrors.name}<div id="db-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.name}</div>{/if}
 			</div>
 			<div>
 				<label for="db-user" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -440,15 +508,18 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 				<input
 					id="db-user"
+					name="username"
 					bind:value={dbConfig.user}
 					type="text"
+					autocomplete="username"
 					onchange={clearDbTestError}
+					onblur={() => handleBlur('user')}
 					placeholder={m.setup_database_user_placeholder?.() || 'Database username'}
-					class="input rounded {validationErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
-					aria-invalid={!!validationErrors.user}
-					aria-describedby={validationErrors.user ? 'db-user-error' : undefined}
+					class="input rounded {displayErrors.user ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : 'border-slate-200'}"
+					aria-invalid={!!displayErrors.user}
+					aria-describedby={displayErrors.user ? 'db-user-error' : undefined}
 				/>
-				{#if validationErrors.user}<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.user}</div>{/if}
+				{#if displayErrors.user}<div id="db-user-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.user}</div>{/if}
 			</div>
 			<div>
 				<label for="db-password" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -473,39 +544,36 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				<div class="relative">
 					<input
 						id="db-password"
+						name="password"
 						bind:value={dbConfig.password}
 						onchange={clearDbTestError}
-						onkeydown={(e) => {
-							if (e.key === 'Enter') {
-								e.preventDefault();
-								handleTestConnection();
-							}
-						}}
+						onblur={() => handleBlur('password')}
 						type={showDbPassword ? 'text' : 'password'}
+						autocomplete="current-password"
 						placeholder={m.setup_database_password_placeholder?.() || 'Leave blank if none'}
-						class="input w-full rounded {validationErrors.password
+						class="input w-full rounded {displayErrors.password
 							? 'border-error-500 focus:border-error-500 focus:ring-error-500'
 							: 'border-slate-200'}"
-						aria-invalid={!!validationErrors.password}
-						aria-describedby={validationErrors.password ? 'db-password-error' : undefined}
+						aria-invalid={!!displayErrors.password}
+						aria-describedby={displayErrors.password ? 'db-password-error' : undefined}
 					/>
 					<button
 						type="button"
 						onclick={toggleDbPassword}
-						class="absolute inset-y-0 right-0 flex min-w-[2.5rem] items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none"
+						class="absolute inset-y-0 right-0 flex min-w-[2.5rem] items-center pr-3 text-slate-400 hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-400"
 						aria-label={showDbPassword ? 'Hide database password' : 'Show database password'}
 					>
 						<iconify-icon icon={showDbPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
-				{#if validationErrors.password}
-					<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.password}</div>
+				{#if displayErrors.password}
+					<div id="db-password-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.password}</div>
 				{/if}
 			</div>
 		</div>
 		{#if !unsupportedDbSelected}
 			<button
-				onclick={handleTestConnection}
+				type="submit"
 				disabled={isLoading}
 				aria-label={isLoading ? 'Testing database connection, please wait' : 'Test database connection'}
 				class="variant-filled-tertiary btn w-full dark:variant-filled-primary"
@@ -530,5 +598,5 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				{m.setup_help_database_type?.() || 'Database settings changed since last successful test. Please re-test to proceed.'}
 			</div>
 		{/if}
-	</div>
+	</form>
 </div>

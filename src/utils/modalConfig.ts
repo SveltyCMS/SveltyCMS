@@ -186,10 +186,11 @@ export function createBatchModal(
 	availableActions: string[],
 	onAction: (action: string) => void
 ): ModalSettings {
+	const messages = m as Record<string, ((args?: Record<string, unknown>) => string) | undefined>;
 	return {
 		type: 'component',
-		title: m.batch_title?.({ count: selectedCount, type: itemType }) || `Batch Actions (${selectedCount})`,
-		body: m.batch_body?.() || 'Select an action to perform on the selected items.',
+		title: messages.batch_title?.({ count: selectedCount, type: itemType }) || `Batch Actions (${selectedCount})`,
+		body: messages.batch_body?.() || 'Select an action to perform on the selected items.',
 		component: {
 			ref: 'BatchActionModal',
 			props: {
@@ -243,12 +244,12 @@ export function showActionToast(action: string, itemType: string, count = 1, suc
 	if (key) {
 		// Try to call the generated message function if available
 		// Paraglide exports functions named after the keys (underscores)
-		const fn = (m as unknown)[key];
+		const fn = (m as Record<string, unknown>)[key];
 		if (typeof fn === 'function') {
 			try {
 				message = fn({ count, type: itemType }) as string;
 			} catch {
-				message = (fn as unknown) || '';
+				message = count > 1 ? `${count} ${itemType} ${action}ed.` : `${itemType} ${action}ed.`;
 			}
 		} else {
 			// Fallback to raw string in messages file via known keys from en.json

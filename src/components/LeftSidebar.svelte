@@ -92,7 +92,7 @@
 	let isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
 
 	let availableLanguages = $derived(
-		[...(publicEnv.LOCALES || $page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
+		[...(publicEnv?.LOCALES || $page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
 			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
 		)
 	);
@@ -137,7 +137,12 @@
 		}
 
 		setMode('view');
-		await goto(path, { replaceState: false });
+
+		// Ensure path includes language prefix
+		const currentLocale = getLocale();
+		const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
+
+		await goto(pathWithLanguage, { replaceState: false });
 	}
 
 	// Click outside handler

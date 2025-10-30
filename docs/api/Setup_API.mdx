@@ -1,23 +1,26 @@
 ---
 path: 'docs/api/Setup_API.mdx'
 title: 'Setup API Reference'
-description: 'Complete API reference for the SveltyCMS initial setup wizard endpoints'
+description: 'Complete API reference for the SveltyCMS initial setup wizard endpoints with real-time validation'
 order: 15
 icon: 'mdi:application-cog'
 author: 'admin'
 created: '2025-10-14'
-updated: '2025-10-14'
+updated: '2025-10-30'
 tags:
   - 'api'
   - 'setup'
   - 'initialization'
   - 'configuration'
   - 'wizard'
+  - 'validation'
 ---
 
 # Setup API Reference
 
 The Setup API provides endpoints for the initial configuration and setup of a fresh SveltyCMS installation. These endpoints are **only accessible during the initial setup phase** before the system has been fully configured.
+
+> The setup wizard includes real-time client-side validation using Valibot, intelligent error classification, and auto-save functionality for improved user experience. See the [Setup Wizard Guide](/docs/guides/setup-wizard.mdx) for complete UI documentation.
 
 ## Table of Contents
 
@@ -25,10 +28,12 @@ The Setup API provides endpoints for the initial configuration and setup of a fr
 - [Authentication](#authentication)
 - [Endpoints](#endpoints)
   - [Test Database Connection](#test-database-connection)
+  - [Install Database Driver](#install-database-driver)
   - [Seed Database](#seed-database)
   - [Test SMTP Configuration (Optional)](#test-smtp-configuration-optional)
   - [Complete Setup](#complete-setup)
 - [Setup Workflow](#setup-workflow)
+- [Validation](#validation)
 - [Error Handling](#error-handling)
 - [Security Considerations](#security-considerations)
 
@@ -191,6 +196,88 @@ If the MongoDB driver (`mongoose`) is not installed, the endpoint will:
 | `DATABASE_ERROR` | Database-specific error                   |
 | `CONFIG_ERROR`   | Invalid configuration parameters          |
 | `DRIVER_ERROR`   | Failed to install or load database driver |
+
+---
+
+### Install Database Driver
+
+Automatically installs the required database driver (currently MongoDB/Mongoose) if it's not already installed. This endpoint is called automatically by the test-database endpoint but can also be called directly.
+
+#### Request
+
+```http
+POST /api/setup/install-driver
+Content-Type: application/json
+
+{
+  "dbType": "mongodb"
+}
+```
+
+#### Parameters
+
+| Field    | Type   | Required | Description                               |
+| -------- | ------ | -------- | ----------------------------------------- |
+| `dbType` | string | Yes      | Database type: `mongodb` (others planned) |
+
+#### Response (Success)
+
+```json
+{
+	"success": true,
+	"message": "Successfully installed driver for mongodb",
+	"alreadyInstalled": false
+}
+```
+
+#### Response (Already Installed)
+
+```json
+{
+	"success": true,
+	"message": "Driver for mongodb is already installed",
+	"alreadyInstalled": true
+}
+```
+
+#### Response (Failure)
+
+```json
+{
+	"success": false,
+	"error": "Failed to install driver: npm install mongoose exited with code 1"
+}
+```
+
+#### Installation Process
+
+1. **Detect Package Manager**: Checks for lock files (bun.lockb, package-lock.json, pnpm-lock.yaml, yarn.lock)
+2. **Check Existing Installation**: Tests if `mongoose` can be imported
+3. **Install Driver**: Runs appropriate package manager command
+4. **Verify Installation**: Confirms driver can be loaded
+
+**Supported Package Managers**:
+
+- Bun (recommended for SveltyCMS)
+- npm
+- pnpm
+- Yarn
+
+**Installation Commands**:
+
+```bash
+# Bun
+bun add mongoose
+
+# npm
+npm install mongoose
+
+# pnpm
+pnpm add mongoose
+
+# Yarn
+yarn add mongoose
+```
 
 ---
 
@@ -615,13 +702,212 @@ gantt
 
 ---
 
+## Validation
+
+### Client-Side Validation
+
+The setup wizard implements real-time validation using [Valibot](https://valibot.dev/) schemas before any API calls are made.
+
+#### Database Configuration Schema
+
+```typescript
+import * as v from 'valibot';
+
+export const dbConfigSchema = v.object({
+	type: v.string(),
+	host: v.pipe(v.string(), v.minLength(1, 'Host is required')),
+	port: v.string(),
+	name: v.pipe(v.string(), v.minLength(1, 'Database name is required')),
+	user: v.string(),
+	password: v.string()
+});
+```
+
+#### Admin User Schema
+
+```typescript
+export const setupAdminSchema = v.object(
+	{
+		username: v.pipe(v.string(), v.minLength(3, 'Username must be at least 3 characters'), v.maxLength(50, 'Username must not exceed 50 characters')),
+		email: v.pipe(v.string(), v.email('Invalid email address')),
+		password: v.pipe(
+			v.string(),
+			v.minLength(8, 'Password must be at least 8 characters'),
+			v.regex(/[A-Z]/, 'Must contain uppercase letter'),
+			v.regex(/[a-z]/, 'Must contain lowercase letter'),
+			v.regex(/[0-9]/, 'Must contain number'),
+			v.regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/, 'Must contain special character')
+		),
+		confirmPassword: v.string()
+	},
+	[
+		v.forward(
+			v.partialCheck([['password'], ['confirmPassword']], (input) => input.password === input.confirmPassword, 'Passwords do not match'),
+			['confirmPassword']
+		)
+	]
+);
+```
+
+#### System Settings Schema
+
+```typescript
+export const systemSettingsSchema = v.object({
+	siteName: v.pipe(v.string(), v.minLength(1, 'Site name is required')),
+	hostProd: v.pipe(v.string(), v.url('Must be a valid URL (e.g., https://mysite.com)')),
+	defaultSystemLanguage: v.string(),
+	systemLanguages: v.pipe(v.array(v.string()), v.minLength(1, 'At least one system language is required')),
+	defaultContentLanguage: v.string(),
+	contentLanguages: v.pipe(v.array(v.string()), v.minLength(1, 'At least one content language is required')),
+	mediaStorageType: v.string(),
+	mediaFolder: v.string()
+});
+```
+
+#### Validation Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as Input Field
+    participant V as Valibot
+    participant API as Setup API
+
+    U->>UI: Types in field
+    UI->>V: Validate (real-time)
+    V-->>UI: Validation result
+
+    alt Invalid
+        UI->>U: Show error message
+        Note over UI: Red border + error text
+    else Valid
+        UI->>U: Clear error
+        Note over UI: Normal border
+    end
+
+    U->>UI: Click "Next" or "Complete"
+    UI->>V: Validate entire step
+
+    alt Step invalid
+        V-->>UI: Error list
+        UI->>U: Show all errors + focus first
+    else Step valid
+        UI->>API: POST request
+        API->>API: Server-side validation
+        API-->>UI: Response
+    end
+```
+
+### Server-Side Validation
+
+All endpoints perform server-side validation even though client-side validation exists. This provides security and handles edge cases where client validation is bypassed.
+
+**Validation Points**:
+
+1. **Request Body Structure** - JSON parsing and field presence
+2. **Data Types** - String, number, boolean validation
+3. **Business Rules** - Database connectivity, unique constraints
+4. **Security Checks** - XSS prevention, SQL injection protection
+
+**Example**:
+
+```typescript
+// Server-side validation (TypeScript)
+function validateAdminUser(data: unknown) {
+	if (!data || typeof data !== 'object') {
+		throw new Error('Invalid request body');
+	}
+
+	const { username, email, password } = data as Record<string, unknown>;
+
+	if (!username || typeof username !== 'string' || username.length < 3) {
+		throw new Error('Username must be at least 3 characters');
+	}
+
+	if (!email || typeof email !== 'string' || !isValidEmail(email)) {
+		throw new Error('Invalid email address');
+	}
+
+	if (!password || typeof password !== 'string' || password.length < 8) {
+		throw new Error('Password must be at least 8 characters');
+	}
+
+	// Additional password complexity checks...
+}
+```
+
+---
+
 ## Error Handling
 
-### Common Errors
+All setup API endpoints return standardized error responses with classification to help the UI provide appropriate recovery options.
 
-#### 1. Database Connection Failures
+### Error Categories
 
-**Error:**
+Errors are classified into four categories based on their nature and recovery options:
+
+#### 1. Validation Errors (`VALIDATION_ERROR`)
+
+**Description**: User input doesn't meet requirements. **Recoverable** - user can fix and retry.
+
+**Example:**
+
+```json
+{
+	"success": false,
+	"error": "Password must be at least 8 characters",
+	"errorType": "VALIDATION_ERROR"
+}
+```
+
+**Common Causes**:
+
+- Password too short or missing complexity requirements
+- Invalid email format
+- Missing required fields
+- Mismatched password confirmation
+- Invalid URL format for host configuration
+
+**Recovery**:
+
+- Fix the validation error indicated in the message
+- Check all fields meet requirements
+- Retry the request
+
+#### 2. Configuration Errors (`CONFIG_ERROR`)
+
+**Description**: System configuration issues. **Recoverable** - admin can fix configuration.
+
+**Example:**
+
+```json
+{
+	"success": false,
+	"error": "Unable to write to config/private.ts - check permissions",
+	"errorType": "CONFIG_ERROR"
+}
+```
+
+**Common Causes**:
+
+- File system permission denied
+- Config directory not writable
+- Invalid file paths
+- Missing environment variables
+- Incorrect file structure
+
+**Recovery**:
+
+- Check filesystem permissions (`chmod 755 config/`)
+- Verify user running the application has write access
+- Ensure config directory exists
+- Check disk space availability
+
+#### 3. Network Errors (`NETWORK_ERROR`)
+
+**Description**: Network/connectivity issues. **Recoverable** - wait and retry.
+
+**Example:**
 
 ```json
 {
@@ -631,63 +917,107 @@ gantt
 }
 ```
 
-**Solutions:**
+**Common Causes**:
 
-- Check firewall rules
-- Verify database is running
-- Check network connectivity
-- Verify host/port are correct
+- Database server not reachable
+- Network connectivity issues
+- Firewall blocking connection
+- DNS resolution failures
+- Timeout waiting for response
 
-#### 2. Permission Errors
+**Recovery**:
 
-**Error:**
+- Verify database server is running
+- Check firewall rules and network connectivity
+- Confirm host/port are correct
+- Check if database accepts remote connections
+- Retry after network is stable
 
-```json
-{
-	"success": false,
-	"error": "EACCES: permission denied, open 'config/private.ts'"
-}
-```
+#### 4. System Errors (`SYSTEM_ERROR`)
 
-**Solutions:**
+**Description**: Unexpected server-side errors. **May require technical support**.
 
-- Check filesystem permissions
-- Ensure `config/` directory is writable
-- Run with appropriate user permissions
-
-#### 3. Validation Errors
-
-**Error:**
+**Example:**
 
 ```json
 {
 	"success": false,
-	"error": "Invalid admin user data: Password must be at least 8 characters"
+	"error": "Failed to initialize system: TypeError: Cannot read property 'connect' of undefined",
+	"errorType": "SYSTEM_ERROR"
 }
 ```
 
-**Solutions:**
+**Common Causes**:
 
-- Follow password requirements
-- Ensure email format is valid
-- Match password confirmation
+- Unhandled exceptions in server code
+- Missing dependencies
+- Database driver installation failures
+- Out of memory errors
+- Corrupted data or invalid state
 
-#### 4. Mongoose/Driver Errors
+**Recovery**:
 
-**Error:**
+- Check server logs for detailed stack traces
+- Verify all dependencies are installed (`bun install`)
+- Try restarting the application
+- Check for system resource availability (memory, disk)
+- Contact technical support if issue persists
 
-```json
-{
-	"success": false,
-	"error": "Failed to install driver: npm install mongoose failed"
+### Error Response Format
+
+All endpoints return errors in a consistent format:
+
+```typescript
+interface ErrorResponse {
+	success: false;
+	error: string; // Human-readable error message
+	errorType?: string; // Category: VALIDATION_ERROR | CONFIG_ERROR | NETWORK_ERROR | SYSTEM_ERROR
+	details?: unknown; // Optional additional context
 }
 ```
 
-**Solutions:**
+### UI Error Handling
 
-- Check internet connection
-- Verify package manager is installed
-- Manually install: `npm install mongoose`
+The setup wizard UI handles errors based on their category:
+
+````typescript
+// Example error handling in UI
+async function handleApiCall(endpoint: string, data: unknown) {
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      switch (result.errorType) {
+        case 'VALIDATION_ERROR':
+          // Show inline validation errors
+          showFieldErrors(result.error);
+          break;
+        case 'CONFIG_ERROR':
+          // Show modal with configuration guidance
+          showConfigHelp(result.error);
+          break;
+        case 'NETWORK_ERROR':
+          // Show retry prompt
+          showRetryDialog(result.error);
+          break;
+        case 'SYSTEM_ERROR':
+        default:
+          // Show error with support contact
+          showSystemError(result.error);
+          break;
+      }
+    }
+  } catch (error) {
+    // Handle fetch failures
+    showNetworkError('Failed to connect to server');
+  }
+}
 
 ---
 
@@ -803,8 +1133,22 @@ async function setupSveltyCMS() {
 	// System is now ready!
 	window.location.href = result.redirectPath;
 }
-```
+````
 
 ---
 
 This API provides a seamless, secure, and user-friendly setup experience with automatic driver installation, intelligent seeding, and zero-restart initialization.
+
+---
+
+## Related Documentation
+
+- [Setup Wizard Guide](/docs/guides/setup-wizard.mdx) - Complete UI and UX documentation
+- [Authentication 2FA API](/docs/api/Authentication_2FA_API.mdx) - User authentication system
+- [User Management API](/docs/api/User_Management_API.mdx) - User CRUD operations
+- [Configuration API](/docs/api/Configuration_API.mdx) - System configuration
+- [Database Documentation](/docs/database/README.md) - Database adapters and connections
+- [Initialization Workflow](/docs/architecture/initialization-workflow.mdx) - System startup sequence
+- [Valibot Documentation](https://valibot.dev/) - Validation library reference
+
+---

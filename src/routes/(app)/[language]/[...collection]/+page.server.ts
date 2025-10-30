@@ -6,7 +6,7 @@
  * Most authentication and user data is already handled by hooks.server.ts.
  */
 
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import { getPublicSettingSync } from '@src/services/settingsService';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	// Handle user system language preferences
 	const userSystemLanguage = user?.systemLanguage;
-	const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
+	const availableLanguages = getPublicSettingSync('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
 	if (userSystemLanguage && userSystemLanguage !== language && availableLanguages.includes(userSystemLanguage)) {
 		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
 		logger.trace(`Redirecting to user's preferred language: from /\x1b[34m${language}\x1b[0m/ to /${userSystemLanguage}/`);
@@ -98,8 +98,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		throw error(404, message);
 	}
 
-	// Get site name from publicEnv
-	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
+	// Get site name from server-side settings
+	const siteName = getPublicSettingSync('SITE_NAME') || 'SveltyCMS';
 
 	// Return simplified data - hooks.server.ts already provided most of what we need
 	return {

@@ -16,6 +16,9 @@ Features:
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	// Types from setupStore
 	import type { AdminUser } from '@stores/setupStore.svelte';
+	// Validation
+	import { safeParse } from 'valibot';
+	import { setupAdminSchema } from '@utils/formSchemas';
 
 	// Popup settings (click event)
 	const popupAdminUsername: PopupSettings = { event: 'click', target: 'popupAdminUsername', placement: 'top' };
@@ -58,6 +61,63 @@ Features:
 		toggleConfirmPassword: () => void;
 		checkPasswordRequirements: () => void;
 	}>();
+
+	// Track which fields have been touched (blurred)
+	let touchedFields = $state<Set<string>>(new Set());
+
+	// Real-time validation state (always computed, but only shown for touched fields)
+	let localValidationErrors = $state<ValidationErrors>({});
+
+	// Validate form data in real-time
+	const validationResult = $derived(
+		safeParse(setupAdminSchema, {
+			username: adminUser.username,
+			email: adminUser.email,
+			password: adminUser.password,
+			confirmPassword: adminUser.confirmPassword
+		})
+	);
+
+	// Export validation state for parent to check if form is valid
+	export function getIsValid() {
+		return validationResult.success;
+	}
+
+	// Update local validation errors when validation result changes
+	$effect(() => {
+		const newErrors: ValidationErrors = {};
+		if (!validationResult.success) {
+			for (const issue of validationResult.issues) {
+				const path = issue.path?.[0]?.key as string;
+				if (path) {
+					newErrors[path] = issue.message;
+				}
+			}
+		}
+		localValidationErrors = newErrors;
+	});
+
+	// Only display errors for fields that have been touched (blurred)
+	const displayErrors = $derived.by(() => {
+		const errors: ValidationErrors = {};
+
+		// Show validation errors only for touched fields
+		for (const field of touchedFields) {
+			if (localValidationErrors[field]) {
+				errors[field] = localValidationErrors[field];
+			}
+		}
+
+		// Parent validation errors always show (from API responses)
+		return {
+			...errors,
+			...validationErrors
+		};
+	}); // Handle field blur to mark as touched
+	function handleBlur(fieldName: string) {
+		touchedFields.add(fieldName);
+		touchedFields = touchedFields; // Trigger reactivity
+	}
 </script>
 
 <div class="fade-in">
@@ -95,15 +155,16 @@ Features:
 					id="admin-username"
 					value={adminUser.username}
 					oninput={(e) => (adminUser.username = (e.target as HTMLInputElement).value.trim())}
+					onblur={() => handleBlur('username')}
 					type="text"
 					placeholder={m.setup_admin_placeholder_username?.() || 'Enter username'}
-					class="input w-full rounded {validationErrors.username ? 'border-error-500' : 'border-slate-200'}"
-					aria-invalid={!!validationErrors.username}
-					aria-describedby={validationErrors.username ? 'admin-username-error' : undefined}
+					class="input w-full rounded {displayErrors.username ? 'border-error-500' : 'border-slate-200'}"
+					aria-invalid={!!displayErrors.username}
+					aria-describedby={displayErrors.username ? 'admin-username-error' : undefined}
 				/>
-				{#if validationErrors.username}
+				{#if displayErrors.username}
 					<div id="admin-username-error" class="mt-1 text-xs text-error-500" role="alert">
-						{validationErrors.username}
+						{displayErrors.username}
 					</div>
 				{/if}
 			</div>
@@ -126,15 +187,16 @@ Features:
 					id="admin-email"
 					value={adminUser.email}
 					oninput={(e) => (adminUser.email = (e.target as HTMLInputElement).value.trim())}
+					onblur={() => handleBlur('email')}
 					type="email"
 					placeholder={m.setup_admin_placeholder_email?.() || 'admin@example.com'}
-					class="input w-full rounded {validationErrors.email ? 'border-error-500' : 'border-slate-200'}"
-					aria-invalid={!!validationErrors.email}
-					aria-describedby={validationErrors.email ? 'admin-email-error' : undefined}
+					class="input w-full rounded {displayErrors.email ? 'border-error-500' : 'border-slate-200'}"
+					aria-invalid={!!displayErrors.email}
+					aria-describedby={displayErrors.email ? 'admin-email-error' : undefined}
 				/>
-				{#if validationErrors.email}
+				{#if displayErrors.email}
 					<div id="admin-email-error" class="mt-1 text-xs text-error-500" role="alert">
-						{validationErrors.email}
+						{displayErrors.email}
 					</div>
 				{/if}
 			</div>
@@ -166,11 +228,12 @@ Features:
 							adminUser.password = (e.target as HTMLInputElement).value.trim();
 							checkPasswordRequirements();
 						}}
+						onblur={() => handleBlur('password')}
 						type={showAdminPassword ? 'text' : 'password'}
 						placeholder={m.setup_admin_placeholder_password?.() || 'Enter secure password'}
-						class="input w-full rounded {validationErrors.password ? 'border-error-500' : 'border-slate-200'}"
-						aria-invalid={!!validationErrors.password}
-						aria-describedby={validationErrors.password ? 'admin-password-error' : undefined}
+						class="input w-full rounded {displayErrors.password ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.password}
+						aria-describedby={displayErrors.password ? 'admin-password-error' : undefined}
 					/>
 					<button
 						type="button"
@@ -182,9 +245,9 @@ Features:
 						<iconify-icon icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
-				{#if validationErrors.password}
+				{#if displayErrors.password}
 					<div id="admin-password-error" class="mt-1 text-xs text-error-500" role="alert">
-						{validationErrors.password}
+						{displayErrors.password}
 					</div>
 				{/if}
 			</div>
@@ -216,11 +279,12 @@ Features:
 							adminUser.confirmPassword = (e.target as HTMLInputElement).value.trim();
 							checkPasswordRequirements();
 						}}
+						onblur={() => handleBlur('confirmPassword')}
 						type={showConfirmPassword ? 'text' : 'password'}
 						placeholder={m.setup_admin_placeholder_confirm_password?.() || 'Confirm your password'}
-						class="input w-full rounded {validationErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
-						aria-invalid={!!validationErrors.confirmPassword}
-						aria-describedby={validationErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
+						class="input w-full rounded {displayErrors.confirmPassword ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.confirmPassword}
+						aria-describedby={displayErrors.confirmPassword ? 'admin-confirm-password-error' : undefined}
 					/>
 					<button
 						type="button"
@@ -232,9 +296,9 @@ Features:
 						<iconify-icon icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'} width="18" height="18" aria-hidden="true"></iconify-icon>
 					</button>
 				</div>
-				{#if validationErrors.confirmPassword}
+				{#if displayErrors.confirmPassword}
 					<div id="admin-confirm-password-error" class="mt-1 text-xs text-error-500" role="alert">
-						{validationErrors.confirmPassword}
+						{displayErrors.confirmPassword}
 					</div>
 				{/if}
 			</div>

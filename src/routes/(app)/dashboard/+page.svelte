@@ -348,8 +348,6 @@
 	function handleDragEnd() {
 		if (!dragState.isActive) return;
 
-		console.log('Drag end - dropIndicator:', dropIndicator, 'dragState.item:', dragState.item);
-
 		const originalElement = mainContainerEl?.querySelector(`[data-widget-id="${dragState.item?.id}"]`) as HTMLElement;
 		if (originalElement) {
 			originalElement.style.opacity = '';
@@ -362,7 +360,6 @@
 
 		// Handle repositioning based on drop indicator
 		if (dropIndicator && dragState.item && dropIndicator.targetIndex !== undefined) {
-			console.log('Performing drop with targetIndex:', dropIndicator.targetIndex);
 			performDrop(dragState.item, { targetIndex: dropIndicator.targetIndex });
 		}
 

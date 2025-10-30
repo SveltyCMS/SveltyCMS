@@ -24,8 +24,7 @@ type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string
  * Initialized empty and populated by initPublicEnv() from layout load.
  */
 const state = $state<PublicEnv>({} as PublicEnv);
-let currentVersion = $state(0);
-let isPollingStarted = false;
+let eventSource: EventSource | null = null;
 
 /**
  * Check if settings have been loaded on the client.
@@ -51,26 +50,37 @@ async function fetchPublicSettings() {
 }
 
 /**
- * Starts polling for settings changes.
+ * Starts listening for real-time settings changes via Server-Sent Events.
+ * This replaces the old polling mechanism for better efficiency.
  */
-function startPolling() {
-	if (!browser || isPollingStarted) return;
-	isPollingStarted = true;
+function startListening() {
+	if (!browser || eventSource) return;
 
-	setInterval(async () => {
-		try {
-			const response = await fetch('/api/settings/public/version');
-			if (response.ok) {
-				const data = await response.json();
-				if (currentVersion !== 0 && currentVersion < data.version) {
+	try {
+		eventSource = new EventSource('/api/settings/public/stream');
+
+		eventSource.addEventListener('message', async (event) => {
+			try {
+				const data = JSON.parse(event.data);
+
+				if (data.type === 'connected') {
+					console.log('Connected to settings stream');
+				} else if (data.type === 'update') {
+					console.log('Settings updated, fetching new values...');
 					await fetchPublicSettings();
 				}
-				currentVersion = data.version;
+			} catch (error) {
+				console.error('Failed to process settings update:', error);
 			}
-		} catch (error) {
-			console.error('Failed to poll for settings version:', error);
-		}
-	}, 5000); // Poll every 5 seconds
+		});
+
+		eventSource.addEventListener('error', (error) => {
+			console.warn('Settings stream connection error, will auto-reconnect...', error);
+			// EventSource automatically reconnects on error
+		});
+	} catch (error) {
+		console.error('Failed to start settings listener:', error);
+	}
 }
 
 /**
@@ -80,7 +90,7 @@ function startPolling() {
  */
 export function initPublicEnv(data: PublicEnv): void {
 	Object.assign(state, data);
-	startPolling();
+	startListening();
 }
 
 /**

@@ -145,7 +145,7 @@
 		const actions = { ...BASE_ACTIONS };
 
 		// Handle delete/archive based on configuration
-		if (publicEnv.USE_ARCHIVE_ON_DELETE) {
+		if (publicEnv?.USE_ARCHIVE_ON_DELETE) {
 			if (isAdmin) {
 				// Admins see both archive and delete
 				actions.archive = {
@@ -253,7 +253,7 @@
 				deleteAction(false); // Archive mode
 				break;
 			case StatusTypes.delete:
-				deleteAction(publicEnv.USE_ARCHIVE_ON_DELETE && !isAdmin ? false : true);
+				deleteAction(publicEnv?.USE_ARCHIVE_ON_DELETE && !isAdmin ? false : true);
 				break;
 			case StatusTypes.test:
 				test();

@@ -38,7 +38,7 @@ Features:
 
 	// Set Initial active state based on conditions
 	let active = $state<undefined | 0 | 1>(
-		publicEnv.DEMO || publicEnv.SEASONS
+		publicEnv?.DEMO || publicEnv?.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
 				? undefined // Show SignIn if the first user exists
@@ -64,9 +64,9 @@ Features:
 
 	// Set initial background based on conditions (will be updated reactively)
 	let background = $state<'white' | '#242728'>(
-		publicEnv.DEMO
+		publicEnv?.DEMO
 			? '#242728' // Dark background for DEMO mode
-			: publicEnv.SEASONS
+			: publicEnv?.SEASONS
 				? 'white' // Light background for SEASONS mode
 				: firstUserExists
 					? 'white' // Light background for existing users
@@ -239,8 +239,6 @@ Features:
 	// Prefetch when active state changes to SignIn (0) or SignUp (1)
 	$effect(() => {
 		if (active !== undefined) {
-			console.log(`[DEBUG] Active state changed to: ${active}, triggering prefetch...`);
-
 			// Call prefetch action on the server
 			fetch('/login?/prefetch', {
 				method: 'POST',
@@ -253,7 +251,6 @@ Features:
 			})
 				.then((response) => {
 					if (response.ok) {
-						console.log('[DEBUG] Prefetch action completed successfully');
 					} else {
 						console.log('[DEBUG] Prefetch action failed:', response.status);
 					}

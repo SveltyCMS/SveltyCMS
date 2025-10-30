@@ -1,13 +1,17 @@
 /**
  * @file src/stores/themeStore.svelte.ts
  * @description Centralized, rune-based theme management store.
- * Now uses 'theme' cookie with 'dark' | 'light' values.
+ * Supports explicit theme preferences: 'system', 'light', 'dark'
+ * Pure Tailwind CSS implementation - no Skeleton Labs dependencies
  */
 import { browser } from '$app/environment';
 import type { Theme } from '@src/databases/dbInterface';
 import { nowISODateString } from '@src/utils/dateUtils';
 import type { ISODateString } from '@src/content/types';
-import { setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+import { logger } from '../utils/logger.svelte';
+
+// --- Theme Preference Type ---
+export type ThemePreference = 'system' | 'light' | 'dark' | 'unknown';
 
 // --- State Shape ---
 interface ThemeState {
@@ -15,7 +19,8 @@ interface ThemeState {
 	isLoading: boolean;
 	error: string | null;
 	lastUpdateAttempt: ISODateString | null;
-	darkMode: boolean; // Internal state remains boolean
+	themePreference: ThemePreference; // User's explicit preference
+	resolvedDarkMode: boolean; // Computed dark mode state (considering system preference)
 	autoRefreshEnabled: boolean;
 }
 
@@ -25,7 +30,8 @@ const state = $state<ThemeState>({
 	isLoading: false,
 	error: null,
 	lastUpdateAttempt: null,
-	darkMode: false, // Will be set by initializeDarkMode
+	themePreference: 'unknown',
+	resolvedDarkMode: false,
 	autoRefreshEnabled: false
 });
 
@@ -35,7 +41,8 @@ const hasTheme = $derived(!!state.currentTheme);
 const themeName = $derived(state.currentTheme?.name ?? 'default');
 const isLoading = $derived(state.isLoading);
 const error = $derived(state.error);
-const isDarkMode = $derived(state.darkMode); // The reactive boolean
+const themePreference = $derived(state.themePreference);
+const isDarkMode = $derived(state.resolvedDarkMode);
 const autoRefreshEnabled = $derived(state.autoRefreshEnabled);
 
 // --- Exported Store Object ---
@@ -55,6 +62,9 @@ export const themeStore = {
 	get error() {
 		return error;
 	},
+	get themePreference() {
+		return themePreference;
+	},
 	get isDarkMode() {
 		return isDarkMode;
 	},
@@ -69,116 +79,188 @@ let systemThemeListener: ((this: MediaQueryList, ev: MediaQueryListEvent) => voi
 const THEME_COOKIE_KEY = 'theme';
 
 /**
- * Initializes the dark mode state *from the DOM* and syncs Skeleton.
+ * Get the system's preferred color scheme
+ */
+function getSystemPreference(): boolean {
+	if (!browser) return false;
+	return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+/**
+ * Resolve the actual dark mode state based on preference
+ */
+function resolveDarkMode(preference: ThemePreference): boolean {
+	switch (preference) {
+		case 'dark':
+			return true;
+		case 'light':
+			return false;
+		case 'system':
+			return getSystemPreference();
+		case 'unknown':
+			return getSystemPreference();
+		default:
+			return false;
+	}
+}
+
+/**
+ * Initializes the dark mode state from cookie/DOM and syncs Skeleton.
  * The DOM state is set pre-render by the script in app.html.
  * This MUST be called from a component's onMount lifecycle hook.
  */
 export function initializeDarkMode() {
 	if (!browser) return;
 
-	// 1. Read from cookie FIRST (source of truth), fallback to DOM
-	const cookieTheme = document.cookie
+	// 1. Read theme preference from cookie
+	const cookieValue = document.cookie
 		.split('; ')
 		.find((c) => c.startsWith(`${THEME_COOKIE_KEY}=`))
-		?.split('=')[1];
+		?.split('=')[1] as ThemePreference | undefined;
 
-	const isDarkFromCookie = cookieTheme === 'dark';
-	const isDarkFromDOM = document.documentElement.classList.contains('dark');
+	// 2. Check current DOM state (already set by SSR script)
+	const currentlyDark = document.documentElement.classList.contains('dark');
 
-	// Use cookie as source of truth if it exists, otherwise use DOM
-	const isDark = cookieTheme ? isDarkFromCookie : isDarkFromDOM;
+	// 3. Determine user's preference (default to 'system' if no cookie)
+	let preference: ThemePreference = 'system';
 
-	// 2. Sync Svelte store state
-	state.darkMode = isDark;
-
-	// 3. Ensure DOM matches the decided state
-	if (isDark) {
-		document.documentElement.classList.add('dark');
-	} else {
-		document.documentElement.classList.remove('dark');
+	if (cookieValue === 'dark' || cookieValue === 'light' || cookieValue === 'system') {
+		preference = cookieValue;
+	} else if (cookieValue) {
+		console.warn('[Theme Init] Unknown cookie value, defaulting to system:', cookieValue);
+		preference = 'system';
 	}
 
-	// 4. Sync Skeleton Labs
-	setModeCurrent(isDark);
-	setModeUserPrefers(isDark);
+	// 4. Update state WITHOUT touching the DOM (SSR script already set it correctly)
+	state.themePreference = preference;
+	state.resolvedDarkMode = currentlyDark; // Use current DOM state
 
-	// 5. Write cookie if not exists (so system preference is saved)
-	if (!cookieTheme) {
-		const themeValue = isDark ? 'dark' : 'light';
-		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; path=/; max-age=31536000; SameSite=Lax`;
+	// 5. Save preference if not set
+	if (!cookieValue) {
+		_setCookie(preference);
+		logger.debug('[Theme Init] Set cookie to:', preference);
 	}
 
 	// 6. Clean up old 'darkMode' cookie if it exists
 	if (document.cookie.includes('darkMode=')) {
 		document.cookie = 'darkMode=; path=/; max-age=0';
+		logger.debug('[Theme Init] Cleaned up old darkMode cookie');
 	}
 
-	// 5. Listen for system preference changes
+	// 7. Listen for system preference changes (only if using 'system' preference)
+	_setupSystemListener();
+} /**
+ * Apply dark mode state to DOM
+ */
+function _applyThemeToDOM(isDark: boolean) {
+	if (!browser) return;
+
+	if (isDark) {
+		document.documentElement.classList.add('dark');
+		logger.debug('[Theme] Applied dark class to DOM');
+	} else {
+		document.documentElement.classList.remove('dark');
+		logger.debug('[Theme] Removed dark class from DOM');
+	}
+}
+
+/**
+ * Set the theme cookie
+ */
+function _setCookie(preference: ThemePreference) {
+	if (!browser) return;
+
+	// Delete old cookie first
+	document.cookie = `${THEME_COOKIE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+	document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0`;
+
+	// Set new cookie
+	document.cookie = `${THEME_COOKIE_KEY}=${preference}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
+/**
+ * Setup listener for system preference changes
+ */
+function _setupSystemListener() {
+	if (!browser) return;
+
 	const mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+	// Remove old listener if exists
 	if (systemThemeListener) {
 		mq.removeEventListener('change', systemThemeListener);
 	}
 
 	systemThemeListener = (e: MediaQueryListEvent) => {
-		// Only act if there is NO explicit user cookie
-		const cookieExists = document.cookie.split('; ').some((row) => row.startsWith(THEME_COOKIE_KEY + '='));
-
-		if (!cookieExists) {
-			_setDarkMode(e.matches, false); // false = don't set cookie
+		// Only react to system changes if user has 'system' preference
+		if (state.themePreference === 'system') {
+			logger.debug('[Theme] System preference changed to:', e.matches ? 'dark' : 'light');
+			state.resolvedDarkMode = e.matches;
+			_applyThemeToDOM(e.matches);
 		}
 	};
+
 	mq.addEventListener('change', systemThemeListener);
 }
 
 /**
- * Internal helper to set dark mode state, update DOM, and sync Skeleton.
- * @param isDark The new dark mode state
- * @param setCookie Whether to write the cookie (user's explicit choice)
+ * Set theme preference explicitly
+ * @param preference - 'system', 'light', or 'dark'
  */
-function _setDarkMode(isDark: boolean, setCookie: boolean) {
+export function setThemePreference(preference: ThemePreference) {
 	if (!browser) return;
-
-	// 1. Update internal state
-	state.darkMode = isDark;
-
-	// 2. Update DOM immediately for instant visual feedback
-	if (isDark) {
-		document.documentElement.classList.add('dark');
-	} else {
-		document.documentElement.classList.remove('dark');
+	if (preference === 'unknown') {
+		console.warn('[Theme] Cannot set preference to "unknown", defaulting to "system"');
+		preference = 'system';
 	}
 
-	// 3. Sync with Skeleton Labs
-	setModeUserPrefers(isDark);
-	setModeCurrent(isDark);
+	logger.debug('[Theme] Setting preference to:', preference);
 
-	// 4. Save user's explicit preference (if requested)
-	if (setCookie) {
-		// IMPORTANT: Cookie stores the NEW state (what we're switching TO)
-		// NOT the old state (what we're switching FROM)
-		const themeValue = isDark ? 'dark' : 'light';
+	// Update state
+	state.themePreference = preference;
+	state.resolvedDarkMode = resolveDarkMode(preference);
 
-		// Delete old cookie first to prevent duplicates (try multiple deletion methods)
-		document.cookie = `${THEME_COOKIE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-		document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0`;
+	// Apply to DOM
+	_applyThemeToDOM(state.resolvedDarkMode);
 
-		// Set new cookie
-		document.cookie = `${THEME_COOKIE_KEY}=${themeValue}; path=/; max-age=31536000; SameSite=Lax`;
-	}
+	// Save to cookie
+	_setCookie(preference);
+
+	// Re-setup system listener (in case preference changed to/from 'system')
+	_setupSystemListener();
 }
 
 /**
- * Toggles dark mode or sets it to a specific state.
- * This action *always* sets a cookie, as it represents an
- * explicit user choice.
+ * Toggle between light and dark modes (ignoring system preference)
+ * If currently on 'system', will switch to explicit light/dark
  */
 export function toggleDarkMode(force?: boolean) {
 	if (!browser) return;
 
-	const nextIsDark = force !== undefined ? force : !state.darkMode;
+	let newPreference: ThemePreference;
 
-	// Call the internal function, explicitly setting the cookie
-	_setDarkMode(nextIsDark, true);
+	if (force !== undefined) {
+		// Force specific mode
+		newPreference = force ? 'dark' : 'light';
+	} else {
+		// Toggle current state
+		if (state.themePreference === 'system') {
+			// If on system, toggle to opposite of current resolved state
+			newPreference = state.resolvedDarkMode ? 'light' : 'dark';
+		} else {
+			// Toggle between light and dark
+			newPreference = state.themePreference === 'dark' ? 'light' : 'dark';
+		}
+	}
+
+	setThemePreference(newPreference);
+}
+
+/**
+ * Reset to system preference
+ */
+export function useSystemPreference() {
+	setThemePreference('system');
 } // ... (Rest of your themeStore.svelte.ts file) ...
 export async function initializeThemeStore() {
 	state.isLoading = true;

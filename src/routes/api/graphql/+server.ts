@@ -23,7 +23,7 @@ import { userResolvers, userTypeDefs } from './resolvers/users';
 
 // GraphQL Subscriptions
 import { WebSocketServer } from 'ws';
-import { useServer } from 'graphql-ws';
+import { useServer } from 'graphql-ws/use/ws';
 
 // Widget Store - ensure widgets are loaded before GraphQL setup
 import { widgetStoreActions, isLoaded } from '@stores/widgetStore.svelte';

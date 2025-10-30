@@ -93,12 +93,10 @@
 	// Handle toggle changes - update collection status directly
 	async function handleStatusToggle(newValue: boolean) {
 		if (newValue === isPublish || isLoading) {
-			console.log('[HeaderEdit] Toggle skipped', { newValue, isPublish: isPublish, isLoading });
 			return false;
 		}
 		const newStatus: StatusType = newValue ? StatusTypes.publish : StatusTypes.unpublish;
 		isLoading = true;
-		console.log('[HeaderEdit] Status toggle clicked - updating to:', newStatus);
 
 		try {
 			// If entry exists, update via API
@@ -111,25 +109,21 @@
 
 					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
 
-					console.log('[HeaderEdit] API update successful');
 					return true;
 				} else {
 					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
 
-					console.error('[HeaderEdit] API update failed:', result.error);
 					return false;
 				}
 			} else {
 				// New entry - just update local state
 				setCollectionValue({ ...collectionValue.value, status: newStatus });
-				console.log('[HeaderEdit] Local update for new entry');
 				return true;
 			}
 		} catch (e) {
 			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
 			showToast(errorMessage, 'error');
 
-			console.error('[HeaderEdit] Toggle error:', e);
 			return false;
 		} finally {
 			isLoading = false;
@@ -155,14 +149,6 @@
 			const currentStatus = (collectionValue.value as CollectionData)?.status;
 			if (currentStatus !== lastLoggedStatus) {
 				untrack(() => {
-					console.log('[HeaderEdit] Status Debug (Active):', {
-						collectionValueStatus: currentStatus,
-						collectionStatus: collection.value?.status,
-						isPublish,
-						mode: mode.value,
-						screenSize: screenSize.value,
-						shouldDisableStatusToggle
-					});
 					lastLoggedStatus = currentStatus;
 				});
 			}
@@ -177,7 +163,6 @@
 					status: StatusTypes.schedule,
 					_scheduled: date.getTime()
 				});
-				console.log('[HeaderEdit] Entry scheduled');
 			}
 		});
 	}
@@ -240,7 +225,6 @@
 				'collectionValue.status:',
 				(collectionValue.value as CollectionData)?.status
 			);
-			console.log('[HeaderEdit] Data to save:', dataToSave);
 		}
 
 		await saveEntry(dataToSave); // Wait for save to complete (includes setMode('view'))
@@ -261,7 +245,6 @@
 	function handleCancel() {
 		// Clear collectionValue before setting mode to 'view' to prevent auto-draft save
 		if (mode.value === 'create') {
-			console.log('[HeaderEdit] Cancel in create mode - clearing collectionValue to prevent auto-draft');
 			setCollectionValue({});
 		}
 		setMode('view');

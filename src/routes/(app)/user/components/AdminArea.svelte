@@ -251,10 +251,8 @@
 				}
 			},
 			response: (result) => {
-				console.log('Modal response received:', result); // Debug log
 				// On success, refresh data without changing view state
 				if (result && result.success) {
-					console.log('Token creation successful, refreshing data...'); // Debug log
 					// Don't change the view state, just refresh the data
 					fetchData(); // Refetch data
 					return;
@@ -283,10 +281,8 @@
 				}
 			},
 			response: (result) => {
-				console.log('Edit modal response received:', result); // Debug log
 				// On success, refresh the data without changing view state
 				if (result && result.success) {
-					console.log('Token edit/delete successful, refreshing data...'); // Debug log
 					// Don't change the view state, just refresh the data
 					fetchData(); // Refetch data
 					return;

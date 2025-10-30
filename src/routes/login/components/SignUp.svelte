@@ -153,7 +153,6 @@ Features:
 		if (browser && !isInviteFlow) {
 			const inviteToken = params.get('invite_token') || params.get('regToken');
 			if (inviteToken && inviteToken !== $form.token) {
-				console.log('Setting invite token from URL:', inviteToken);
 				$form.token = inviteToken;
 			}
 		}

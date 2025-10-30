@@ -301,8 +301,13 @@ export function invalidateSessionCache(sessionId: string, tenantId?: string): vo
 	strongRefs.delete(sessionId);
 	lastRefreshAttempt.delete(sessionId);
 	const cacheKey = tenantId ? `session:${tenantId}:${sessionId}` : `session:${sessionId}`;
-	cacheService.delete(cacheKey).catch((err) => logger.warn(`Failed to delete session: ${err.message}`));
-	logger.debug(`Session invalidated: ${sessionId.substring(0, 8)}...`);
+	cacheService.delete(cacheKey, tenantId).catch((err) => logger.warn(`Failed to delete session from Redis: ${err.message}`));
+	logger.debug(`Session cache invalidated: ${sessionId.substring(0, 8)}...`);
+}
+
+/** Clear session refresh cooldown to allow immediate validation */
+export function clearSessionRefreshAttempt(sessionId: string): void {
+	lastRefreshAttempt.delete(sessionId);
 }
 
 /** Clears all session caches (maintenance only) */

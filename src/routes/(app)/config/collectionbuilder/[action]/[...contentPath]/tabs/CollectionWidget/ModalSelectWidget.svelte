@@ -43,13 +43,6 @@
 		await widgetStoreActions.initializeWidgets();
 	});
 
-	// Log changes in an effect
-	$effect(() => {
-		console.log('Available widgets:', widget_keys);
-		console.log('Search term:', searchTerm);
-		console.log('Active widgets:', activeWidgetList);
-	});
-
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(selected: any): void {
 		if (selected !== null) {

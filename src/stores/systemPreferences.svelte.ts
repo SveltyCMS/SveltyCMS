@@ -11,6 +11,7 @@
 
 import type { DashboardWidgetConfig, Layout, SystemPreferences } from '@src/content/types';
 import { writable } from 'svelte/store';
+import { logger } from '../utils/logger.svelte';
 
 // Initial state
 const initialState: SystemPreferences = {
@@ -31,7 +32,7 @@ function createSystemPreferencesStore() {
 			const response = await fetch(`/api/systemPreferences?key=${DASHBOARD_LAYOUT_KEY}`);
 			if (!response.ok) {
 				if (response.status === 404) {
-					console.log('No saved dashboard layout found for user. Using default.');
+					logger.warn('No saved dashboard layout found for user. Using default.');
 					return null; // No layout saved yet, this is not an error.
 				}
 				throw new Error(`Failed to fetch preferences: ${response.statusText}`);

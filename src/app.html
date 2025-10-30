@@ -3,17 +3,32 @@
 	<head>
 		<meta charset="utf-8" />
 		<script nonce="%sveltekit.nonce%">
-			// Minified, optimized version
+			// Theme initialization (before page render to prevent flicker)
 			(() => {
 				const c = document.cookie.match(/theme=(\w+)/)?.[1];
-				const d = 'dark';
 				const h = document.documentElement;
 
 				try {
-					if (c === d || (!c && matchMedia('(prefers-color-scheme: dark)').matches)) {
-						h.classList.add(d);
+					// Determine if dark mode should be active
+					let isDark = false;
+					const systemPrefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+
+					if (c === 'dark') {
+						isDark = true;
+					} else if (c === 'light') {
+						isDark = false;
+					} else if (c === 'system' || !c) {
+						// Use system preference if explicitly set to 'system' or no preference
+						isDark = systemPrefersDark;
 					}
-				} catch {}
+
+					if (isDark) {
+						h.classList.add('dark');
+					} else {
+					}
+				} catch (e) {
+					console.error('[SSR Script] Error:', e);
+				}
 			})();
 		</script>
 		<link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg" />

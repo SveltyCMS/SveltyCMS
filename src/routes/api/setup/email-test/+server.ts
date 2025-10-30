@@ -14,27 +14,17 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { safeParse } from 'valibot';
+import { smtpConfigSchema, type SmtpConfigSchema } from '@utils/formSchemas';
 
 /**
  * SMTP Test Request Schema
  */
-interface SMTPTestRequest {
-	/** SMTP server hostname */
-	host: string;
-	/** SMTP server port (typically 587 for TLS, 465 for SSL) */
-	port: number;
-	/** SMTP username/email */
-	user: string;
-	/** SMTP password or app-specific password */
-	password: string;
-	/** Sender email address (optional, defaults to user) */
-	from?: string;
+interface SMTPTestRequest extends SmtpConfigSchema {
 	/** Email address to send test email to */
 	testEmail: string;
 	/** Whether to save settings to database */
 	saveToDatabase?: boolean;
-	/** Use TLS/STARTTLS (default: true) */
-	secure?: boolean;
 }
 
 /**
@@ -62,22 +52,26 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { host, port, user, password, from, testEmail, saveToDatabase, secure = true } = body;
 
 		// Validate required fields
-		if (!host || !port || !user || !password || !testEmail) {
+		if (!testEmail) {
 			return json(
 				{
 					success: false,
-					error: 'Missing required fields: host, port, user, password, testEmail'
+					error: 'Missing required field: testEmail'
 				} as SMTPTestResponse,
 				{ status: 400 }
 			);
 		}
 
-		// Validate port is a number
-		if (isNaN(port) || port < 1 || port > 65535) {
+		// Validate SMTP configuration using schema
+		const smtpConfig: SmtpConfigSchema = { host, port, user, password, from: from || user, secure };
+		const validationResult = safeParse(smtpConfigSchema, smtpConfig);
+
+		if (!validationResult.success) {
+			const errors = validationResult.issues.map((issue) => `${issue.path?.[0]?.key}: ${issue.message}`).join(', ');
 			return json(
 				{
 					success: false,
-					error: 'Invalid port number. Must be between 1 and 65535.'
+					error: `Invalid SMTP configuration: ${errors}`
 				} as SMTPTestResponse,
 				{ status: 400 }
 			);

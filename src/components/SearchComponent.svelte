@@ -33,6 +33,7 @@
 
 	// Stores
 	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
+	import type { SearchData } from '@utils/globalSearchIndex';
 
 	// Types
 	interface Trigger {
@@ -72,16 +73,16 @@
 			return;
 		}
 
-		const index = globalSearchIndex.value; // Or just use $globalSearchIndex directly
+		const index = $globalSearchIndex;
 		const upperQuery = query.toUpperCase();
 		const threshold = Math.floor(query.length * 0.9); // Adjust threshold as needed
 
 		// Map, filter, and sort
 		const results = index
-			.map((item): SearchResult & { distance: number } => {
+			.map((item: SearchData): SearchResult & { distance: number } => {
 				// Ensure distance is always number for sorting
 				const upperTitle = item.title.toUpperCase();
-				const upperKeywords = item.keywords.map((k) => k.toUpperCase());
+				const upperKeywords = item.keywords.map((k: string) => k.toUpperCase());
 
 				// Quick exact match check before expensive edit distance calculation
 				if (upperTitle === upperQuery || upperKeywords.includes(upperQuery)) {
@@ -90,7 +91,7 @@
 
 				// Calculate edit distances only if necessary
 				const titleDistance = getEditDistance(upperQuery, upperTitle) ?? Infinity;
-				const keywordDistances = upperKeywords.map((keyword) => getEditDistance(upperQuery, keyword) ?? Infinity);
+				const keywordDistances = upperKeywords.map((keyword: string) => getEditDistance(upperQuery, keyword) ?? Infinity);
 				const minKeywordDistance = keywordDistances.length > 0 ? Math.min(...keywordDistances) : Infinity;
 
 				return {
@@ -98,15 +99,15 @@
 					distance: Math.min(titleDistance, minKeywordDistance)
 				};
 			})
-			.filter((result) => {
+			.filter((result: SearchResult & { distance: number }) => {
 				// Already calculated distance, check includes as fallback
 				if (result.distance <= threshold) return true;
 				const upperTitle = result.title.toUpperCase();
 				if (upperTitle.includes(upperQuery)) return true;
-				if (result.keywords.some((keyword) => keyword.toUpperCase().includes(upperQuery))) return true;
+				if (result.keywords.some((keyword: string) => keyword.toUpperCase().includes(upperQuery))) return true;
 				return false;
 			})
-			.sort((a, b) => a.distance - b.distance); // Sort by distance ascending
+			.sort((a: SearchResult & { distance: number }, b: SearchResult & { distance: number }) => a.distance - b.distance); // Sort by distance ascending
 
 		searchResults = results.slice(0, 5); // Limit results
 		selectedIndex = -1; // Reset index when results change
@@ -149,7 +150,7 @@
 	function handleKeyDown(event: KeyboardEvent) {
 		switch (event.key) {
 			case 'Escape':
-				if (isSearchVisible.value) {
+				if ($isSearchVisible) {
 					// Use .value for store read in non-reactive context
 					event.preventDefault();
 					isSearchVisible.set(false);
@@ -190,7 +191,7 @@
 	// Close search on outside click
 	function handleClickOutside(event: MouseEvent) {
 		// Use .value for store read in non-reactive context
-		if (isSearchVisible.value && event.target && !(event.target as Element).closest('.search-component')) {
+		if ($isSearchVisible && event.target && !(event.target as Element).closest('.search-component')) {
 			isSearchVisible.set(false);
 		}
 	}
@@ -198,7 +199,7 @@
 	// Lifecycle
 	$effect(() => {
 		// Auto-focus input when search becomes visible
-		if (isSearchVisible.value && inputRef) {
+		if ($isSearchVisible && inputRef) {
 			inputRef.focus();
 		}
 	});

@@ -1,6 +1,11 @@
 <!--
 @file src/routes/setup/ConnectionStatus.svelte
 @description Real-time connection status indicator with detailed feedback
+
+Features:
+- Real-time connection status updates
+- Success and error details with troubleshooting tips
+- Animated testing indicator
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';

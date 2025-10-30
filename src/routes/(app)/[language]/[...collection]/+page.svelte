@@ -83,7 +83,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	$effect(() => {
 		const handleLanguageChange = (_event: CustomEvent) => {
-			// console.log('[PAGE DEBUG] User-initiated language change detected:', _event.detail.language);
 			userInitiatedLanguageChange = true;
 		};
 
@@ -98,18 +97,16 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	$effect(() => {
 		// Reset the flag if the URL language has actually changed (navigation)
 		if (data.contentLanguage !== lastUrlLanguage) {
-			// console.log('[PAGE DEBUG] URL language changed from', lastUrlLanguage, 'to', data.contentLanguage, '- resetting user flag');
 			userInitiatedLanguageChange = false;
 			lastUrlLanguage = data.contentLanguage;
 		}
 
 		// Only set language from URL if user hasn't initiated a language change
 		if (!userInitiatedLanguageChange) {
-			const availableContentLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES || ['en'];
+			const availableContentLanguages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES || ['en'];
 			if (!(availableContentLanguages as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
 				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
 				if (!contentLanguage.value || !(availableContentLanguages as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
-					console.log('[PAGE DEBUG] Setting invalid language fallback to en');
 					contentLanguage.set('en');
 				}
 			} else {

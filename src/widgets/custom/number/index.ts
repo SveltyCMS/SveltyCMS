@@ -30,16 +30,13 @@ const validationSchema = (field: FieldInstance) => {
 	const baseSchema = number('Value must be a number.');
 
 	// Build validation rules based on field config
-	const validations = [];
+	let schema = baseSchema;
 	if (field.min !== undefined) {
-		validations.push(minValue(field.min as number, `Value must be at least ${field.min}.`));
+		schema = pipe(schema, minValue(field.min as number, `Value must be at least ${field.min}.`));
 	}
 	if (field.max !== undefined) {
-		validations.push(maxValue(field.max as number, `Value must not exceed ${field.max}.`));
+		schema = pipe(schema, maxValue(field.max as number, `Value must not exceed ${field.max}.`));
 	}
-
-	// Apply validations if any exist
-	const schema = validations.length > 0 ? pipe(baseSchema, ...validations) : baseSchema;
 
 	// If the field is not required, wrap the schema to allow it to be undefined.
 	return field.required ? schema : optional(schema);

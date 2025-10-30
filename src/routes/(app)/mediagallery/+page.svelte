@@ -383,8 +383,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			? Array.isArray(currentSystemVirtualFolder.path)
 				? currentSystemVirtualFolder.path.join('/')
 				: currentSystemVirtualFolder.path
-			: publicEnv.MEDIA_FOLDER || 'mediaFiles';
-
+			: publicEnv?.MEDIA_FOLDER || 'mediaFiles';
 		const modal: ModalSettings = {
 			type: 'prompt',
 			title: 'Add Folder',

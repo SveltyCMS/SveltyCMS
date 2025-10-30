@@ -345,7 +345,7 @@ export class MediaService {
 		// 5. Updating the media item in the DB with the new version info.
 		// 6. Returning the updated media item.
 
-		console.log('Media manipulation not yet implemented.', { id, manipulations });
+		logger.warn('Media manipulation not yet implemented.', { id, manipulations });
 
 		// Return the original media item for now
 		const mediaItem = await this.db.crud.findOne('MediaItem', { _id: this.db.convertId(id), tenantId });

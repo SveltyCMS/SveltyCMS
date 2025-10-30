@@ -88,9 +88,6 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const privateFileContent = await fs.readFile(privateFilePath, 'utf-8');
 			logger.debug('File read successfully', { length: privateFileContent.length });
 
-			// Debug: Show first 500 characters to understand the format
-			logger.debug('File content preview:', { preview: privateFileContent.substring(0, 500) });
-
 			// Extract database config from the file content
 			// The format is: DB_TYPE: 'value', (inside createPrivateConfig call)
 			const dbTypeMatch = privateFileContent.match(/DB_TYPE:\s*['"]([^'"]+)['"]/);
@@ -354,6 +351,41 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		const { invalidateSetupCache } = await import('@utils/setupCheck');
 		invalidateSetupCache();
 		logger.info('Caches invalidated', { correlationId });
+
+		// 5.1 Warm up session cache in the global auth instance
+		// This ensures the newly created session is recognized immediately after setup
+		try {
+			const { auth: globalAuth } = await import('@src/databases/db');
+			if (globalAuth && session && session._id) {
+				// Validate the session using the global auth instance to populate its cache
+				const validatedUser = await globalAuth.validateSession(session._id);
+				if (validatedUser) {
+					logger.info('✅ Session cache warmed up in global auth instance', {
+						correlationId,
+						sessionId: session._id,
+						userId: validatedUser._id
+					});
+
+					// Also warm up the handleAuthentication cache
+					const { clearSessionRefreshAttempt } = await import('@src/hooks/handleAuthentication');
+					if (clearSessionRefreshAttempt) {
+						clearSessionRefreshAttempt(session._id);
+						logger.debug('Cleared session refresh cooldown', { correlationId, sessionId: session._id });
+					}
+				} else {
+					logger.warn('Session validation returned null - session may not be recognized', {
+						correlationId,
+						sessionId: session._id
+					});
+				}
+			}
+		} catch (cacheWarmupError) {
+			// Non-fatal: Log but continue - user can still login manually if needed
+			logger.warn('Failed to warm up session cache (non-fatal)', {
+				correlationId,
+				error: cacheWarmupError instanceof Error ? cacheWarmupError.message : String(cacheWarmupError)
+			});
+		}
 
 		// 6. Send welcome email to the new admin user (optional - graceful failure)
 		// Only send if SMTP was configured during setup

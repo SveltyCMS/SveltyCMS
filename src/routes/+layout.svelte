@@ -44,7 +44,6 @@
 
 		const interval = 30 * 60 * 1000; // 30 minutes
 		const intervalId = setInterval(() => {
-			console.log('Auto-refreshing theme...');
 			initializeThemeStore().catch(console.error);
 		}, interval);
 

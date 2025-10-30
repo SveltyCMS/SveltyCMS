@@ -542,8 +542,6 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					notification.classList.remove('show');
 				}, 3000);
 			}
-
-			console.log('Image saved successfully:', result.data);
 		} catch (error) {
 			console.error('Error saving image:', error);
 

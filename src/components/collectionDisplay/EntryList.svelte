@@ -126,10 +126,6 @@ Features:
 			totalItems = 0;
 			rawData = undefined;
 			data = undefined;
-			// console.log('[EntryList] Cleared cache due to collection change', {
-			// 	from: lastCollectionId,
-			// 	to: currentCollId
-			// });
 		}
 
 		// Set flags to prevent pagination effect from triggering during collection change
@@ -183,10 +179,6 @@ Features:
 				// Don't set loading state here - let refreshTableData handle it
 				// Clear client cache for new collection - do this FIRST
 				clientCache.clear();
-				// console.log('[EntryList] Cleared client cache during collection switch', {
-				// 	newCollectionId: currentCollId,
-				// 	cacheSize: clientCache.size
-				// });
 				// Immediately clear table data and related state to prevent showing old data
 				tableData = [];
 				pagesCount = 1;
@@ -263,7 +255,6 @@ Features:
 
 	// Destructure for easier access
 	const currentLanguage = $derived(currentStates.language);
-	const currentSystemLanguage = $derived(currentStates.systemLanguage);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
 
@@ -464,7 +455,6 @@ Features:
 			const canUseCache = !isCollectionSwitch && collectionState.stableDataExists && clientCache.has(currentFetchKey);
 
 			if (canUseCache) {
-				// console.log('[EntryList] Using client cache', { currentFetchKey });
 				const cached = clientCache.get(currentFetchKey)!;
 
 				// Check cache TTL
@@ -802,7 +792,6 @@ Features:
 
 		// Only invalidate cache if language actually changed and we have a collection
 		if (collectionId && lastLanguage !== null && lastLanguage !== language) {
-			// console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
 			invalidateCollectionCache(collectionId);
 			// Clear client cache on language change to ensure fresh data
 			clientCache.clear();
@@ -885,11 +874,13 @@ Features:
 
 	let pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		// Remove the first segment if it matches the current system language
+		// Remove the first segment (language code) from the path
 		const segments = pathSegments?.slice() ?? [];
-		if (segments.length > 0 && segments[0].toLowerCase() === currentSystemLanguage?.toLowerCase()) {
+		if (segments.length > 0) {
+			// First segment is always the language code in /[language]/[...collection] routes
 			segments.shift();
 		}
+		// Join remaining segments (excluding the last one which is the current page)
 		return segments.slice(0, -1).join('>') || '';
 	});
 
@@ -982,7 +973,7 @@ Features:
 			return;
 		}
 
-		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE || false;
+		const useArchiving = publicEnv?.USE_ARCHIVE_ON_DELETE ?? false;
 		const isForArchived = showDeleted || isPermanent;
 		const willDelete = !useArchiving || isForArchived;
 
@@ -1039,83 +1030,6 @@ Features:
 		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
 		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
 	};
-
-	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
-	// function legacyOnPublish() {
-	// 	console.log('onPublish called - will show modal');
-	// 	modifyEntry.value(StatusTypes.publish);
-	// }
-	// function legacyOnUnpublish() {
-	// 	console.log('onUnpublish called - will show modal');
-	// 	modifyEntry.value(StatusTypes.unpublish);
-	// }
-	// function legacyOnSchedule() {
-	// 	console.log('onSchedule called - will show modal');
-	// 	modifyEntry.value(StatusTypes.schedule);
-	// }
-
-	// Direct action functions for MultiButton (bypass modals)
-	// async function executePublish() {
-	// 	await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
-	// }
-	// async function executeUnpublish() {
-	// 	await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	// }
-	// async function executeSchedule() {
-	// 	// This needs a modal to select a date, so direct execution is not simple.
-	// 	// For now, it will open the schedule modal.
-	// 	legacyOnSchedule();
-	// }
-	// async function executeTest() {
-	// 	await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess);
-	// }
-
-	// Helper function to execute status changes without modals
-	// async function executeDelete() {
-	// 	const selectedIds = getSelectedIds();
-	// 	if (!selectedIds.length) return;
-
-	// 	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE || false;
-	// 	const isForArchived = showDeleted;
-	// 	const willDelete = !useArchiving || isForArchived;
-
-	// 	try {
-	// 		if (willDelete) {
-	// 			// Use batch delete API with fallback to individual deletes
-	// 			try {
-	// 				const collId = collection.value?._id;
-	// 				if (collId) {
-	// 					const result = await batchDeleteEntries(collId, selectedIds);
-	// 					if (!result.success) {
-	// 						throw new Error('Batch delete failed');
-	// 					}
-	// 				}
-	// 			} catch (batchError) {
-	// 				// Fallback to individual deletes
-	// 				console.warn('Batch delete failed, using individual deletes:', batchError);
-	// 				await Promise.all(
-	// 					selectedIds.map((entryId) => {
-	// 						const collId = collection.value?._id;
-	// 						if (collId) {
-	// 							return deleteEntry(collId, entryId);
-	// 						}
-	// 						return Promise.resolve();
-	// 					})
-	// 				);
-	// 			}
-	// 		} else {
-	// 			// Archive entries
-	// 			await setEntriesStatus(selectedIds, StatusTypes.archived, () => {});
-	// 		}
-	// 		onActionSuccess();
-	// 	} catch (error) {
-	// 		showToast(`Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`, 'error');
-	// 	}
-	// }
-	// Legacy onClone function - now calls centralized action
-	// function legacyOnClone() {
-	// 	onClone();
-	// }
 
 	// Show content as soon as we have a collection, with improved logic to prevent flicker
 	let shouldShowContent = $derived(

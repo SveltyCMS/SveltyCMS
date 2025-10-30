@@ -26,30 +26,24 @@
 		disabled = false,
 		title = '',
 		onChange
-	} = $props<Props>();
+	} = $props();
 
 	// Generate a unique ID for a11y
 	const id = `toggle-${Math.random().toString(36).substring(2, 9)}`;
 
 	// Handle toggle state change
 	function handleToggle(event: Event) {
-		console.log('[Toggles] handleToggle called, disabled:', disabled, 'event type:', event.type);
-
 		if (disabled) {
-			console.log('[Toggles] Toggle is disabled, returning early');
 			event.preventDefault();
 			return;
 		}
 
 		const checked = (event.target as HTMLInputElement).checked;
-		console.log('[Toggles] Current value:', value, 'new checked:', checked);
 
 		value = checked;
-		console.log('[Toggles] Updated value to:', value, 'calling onChange with:', checked);
 
 		try {
 			onChange?.(checked);
-			console.log('[Toggles] onChange callback completed');
 		} catch (error) {
 			console.error('[Toggles] Error in onChange callback:', error);
 		}

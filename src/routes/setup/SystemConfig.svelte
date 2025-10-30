@@ -25,6 +25,9 @@ Key Features:
 	import { getLanguageName } from '@utils/languageUtils';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import type { SystemSettings } from '@stores/setupStore.svelte';
+	// Validation
+	import { safeParse } from 'valibot';
+	import { systemSettingsSchema } from '@utils/formSchemas';
 
 	// --- PROPS ---
 	const {
@@ -37,6 +40,61 @@ Key Features:
 		availableLanguages?: string[];
 	}>();
 
+	// Real-time validation state
+	let localValidationErrors = $state<Record<string, string>>({});
+	let touchedFields = $state<Set<string>>(new Set());
+
+	// Validate form data in real-time
+	const validationResult = $derived(
+		safeParse(systemSettingsSchema, {
+			siteName: systemSettings.siteName,
+			hostProd: systemSettings.hostProd,
+			defaultSystemLanguage: systemSettings.defaultSystemLanguage,
+			systemLanguages: systemSettings.systemLanguages,
+			defaultContentLanguage: systemSettings.defaultContentLanguage,
+			contentLanguages: systemSettings.contentLanguages,
+			mediaStorageType: systemSettings.mediaStorageType,
+			mediaFolder: systemSettings.mediaFolder
+		})
+	);
+
+	// Update local validation errors when validation result changes
+	$effect(() => {
+		const newErrors: Record<string, string> = {};
+		if (!validationResult.success) {
+			for (const issue of validationResult.issues) {
+				const path = issue.path?.[0]?.key as string;
+				if (path) {
+					newErrors[path] = issue.message;
+				}
+			}
+		}
+		localValidationErrors = newErrors;
+	});
+
+	// Only display errors for fields that have been touched (blurred)
+	const displayErrors = $derived.by(() => {
+		const errors: Record<string, string> = {};
+
+		// Show validation errors only for touched fields
+		for (const field of touchedFields) {
+			if (localValidationErrors[field]) {
+				errors[field] = localValidationErrors[field];
+			}
+		}
+
+		// Parent validation errors always show (from API responses)
+		return {
+			...errors,
+			...validationErrors
+		};
+	});
+
+	// Mark field as touched on blur
+	function handleBlur(fieldName: string) {
+		touchedFields.add(fieldName);
+		touchedFields = touchedFields;
+	}
 	// Utility: human friendly language label
 	function displayLang(code: string) {
 		try {
@@ -206,14 +264,15 @@ Key Features:
 						id="site-name"
 						bind:value={systemSettings.siteName}
 						oninput={(e) => (systemSettings.siteName = (e.target as HTMLInputElement).value.trim())}
+						onblur={() => handleBlur('siteName')}
 						type="text"
 						placeholder={m.setup_system_site_name_placeholder?.() || 'My SveltyCMS Site'}
-						class="input w-full rounded {validationErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
-						aria-invalid={!!validationErrors.siteName}
-						aria-describedby={validationErrors.siteName ? 'site-name-error' : undefined}
+						class="input w-full rounded {displayErrors.siteName ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.siteName}
+						aria-describedby={displayErrors.siteName ? 'site-name-error' : undefined}
 					/>
-					{#if validationErrors.siteName}
-						<div id="site-name-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.siteName}</div>
+					{#if displayErrors.siteName}
+						<div id="site-name-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.siteName}</div>
 					{/if}
 
 					<label for="host-prod" class="mb-1 flex items-center gap-1 text-sm font-medium">
@@ -240,13 +299,14 @@ Key Features:
 						id="host-prod"
 						bind:value={systemSettings.hostProd}
 						type="url"
+						onblur={() => handleBlur('hostProd')}
 						placeholder="https://mysite.com"
-						class="input w-full rounded {validationErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
-						aria-invalid={!!validationErrors.hostProd}
-						aria-describedby={validationErrors.hostProd ? 'host-prod-error' : undefined}
+						class="input w-full rounded {displayErrors.hostProd ? 'border-error-500' : 'border-slate-200'}"
+						aria-invalid={!!displayErrors.hostProd}
+						aria-describedby={displayErrors.hostProd ? 'host-prod-error' : undefined}
 					/>
-					{#if validationErrors.hostProd}
-						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.hostProd}</div>
+					{#if displayErrors.hostProd}
+						<div id="host-prod-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.hostProd}</div>
 					{/if}
 				</div>
 
@@ -469,16 +529,17 @@ Key Features:
 					</div>
 					<select
 						bind:value={systemSettings.defaultContentLanguage}
-						class="input w-full rounded {validationErrors.defaultContentLanguage ? 'border-error-500' : ''}"
-						aria-invalid={!!validationErrors.defaultContentLanguage}
-						aria-describedby={validationErrors.defaultContentLanguage ? 'default-content-lang-error' : undefined}
+						onblur={() => handleBlur('defaultContentLanguage')}
+						class="input w-full rounded {displayErrors.defaultContentLanguage ? 'border-error-500' : ''}"
+						aria-invalid={!!displayErrors.defaultContentLanguage}
+						aria-describedby={displayErrors.defaultContentLanguage ? 'default-content-lang-error' : undefined}
 					>
 						{#each systemSettings.contentLanguages as lang, index (index)}
 							<option value={lang}>{displayLang(lang)}</option>
 						{/each}
 					</select>
-					{#if validationErrors.defaultContentLanguage}
-						<div id="default-content-lang-error" class="mt-1 text-xs text-error-500" role="alert">{validationErrors.defaultContentLanguage}</div>
+					{#if displayErrors.defaultContentLanguage}
+						<div id="default-content-lang-error" class="mt-1 text-xs text-error-500" role="alert">{displayErrors.defaultContentLanguage}</div>
 					{/if}
 					<div>
 						<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
@@ -502,7 +563,7 @@ Key Features:
 							<div class="arrow border border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700"></div>
 						</div>
 						<div
-							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {validationErrors.contentLanguages
+							class="relative flex min-h-[42px] flex-wrap items-center gap-2 rounded border p-2 pr-16 {displayErrors.contentLanguages
 								? 'border-error-500 bg-error-50 dark:bg-error-900/20'
 								: 'border-slate-300/50 bg-surface-50 dark:border-slate-600 dark:bg-surface-700/40'}"
 						>
@@ -579,8 +640,8 @@ Key Features:
 						<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
 							{m.setup_note_add_codes_default_cannot_be_removed?.() || 'Add existing or custom codes. Default cannot be removed.'}
 						</p>
-						{#if validationErrors.contentLanguages}
-							<div class="mt-1 text-xs text-error-500" role="alert">{validationErrors.contentLanguages}</div>
+						{#if displayErrors.contentLanguages}
+							<div class="mt-1 text-xs text-error-500" role="alert">{displayErrors.contentLanguages}</div>
 						{/if}
 					</div>
 				</div>

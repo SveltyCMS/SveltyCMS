@@ -90,7 +90,7 @@ export function validateLayoutWidgets(
 function extractWidgetsFromSchema(schema: Schema): string[] {
 	const widgets: string[] = [];
 
-	for (const field of schema.fields) {
+	for (const field of schema.fields as FieldInstance[]) {
 		if (field.widget) {
 			if (typeof field.widget === 'string') {
 				widgets.push(field.widget);

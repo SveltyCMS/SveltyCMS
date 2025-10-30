@@ -93,12 +93,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		await contentManager.refresh(); // Force a refresh to bypass any stale cache
 		const navStructure = await contentManager.getNavigationStructure();
-		console.log('navStructure:', JSON.stringify(navStructure, null, 2));
+		logger.trace('navStructure:', JSON.stringify(navStructure, null, 2));
 		const collection = params.contentPath;
 
 		const currentCollection = await contentManager.getCollection(`/${collection}`);
 
-		console.log('currentCollection in server load (after refresh):', currentCollection);
+		logger.trace('currentCollection in server load (after refresh):', currentCollection);
 
 		function deepCloneAndRemoveFunctions(obj: any): any {
 			if (obj === null || typeof obj !== 'object') {

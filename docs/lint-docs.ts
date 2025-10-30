@@ -29,7 +29,7 @@ function parseFrontmatter(content: string): Record<string, unknown> {
 	const lines = yaml.split(/\r?\n/);
 
 	const data: Record<string, unknown> = {};
-	const currentKey: string | null = null;
+	let currentKey: string | null = null;
 
 	for (const line of lines) {
 		if (!line.trim()) continue;
@@ -48,7 +48,7 @@ function parseFrontmatter(content: string): Record<string, unknown> {
 		// normal key: value
 		const [key, ...rest] = line.split(':');
 		const rawValue = rest.join(':').trim();
-		const currentKey = key.trim();
+		currentKey = key.trim();
 
 		if (rawValue.startsWith('[') && rawValue.endsWith(']')) {
 			data[currentKey] = rawValue

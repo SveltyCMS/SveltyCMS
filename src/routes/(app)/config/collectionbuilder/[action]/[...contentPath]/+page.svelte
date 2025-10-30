@@ -129,8 +129,6 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		const currentCollection = collection.value;
 		const currentName = String(currentCollection?.name || '');
 
-		console.log(currentCollection, currentName, page.params);
-
 		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
 			showToast('Please fix validation errors before saving', 'error');
@@ -178,7 +176,6 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	function handleCollectionDelete() {
 		const currentCollection = collection.value;
-		console.log('Delete collection:', currentCollection?.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',

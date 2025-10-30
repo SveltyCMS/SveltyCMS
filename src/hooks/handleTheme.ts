@@ -3,24 +3,33 @@
  * @description Handles server-side theme rendering to prevent theme flickering.
  *
  * ### Features
- * - Reads a single 'theme' cookie ('dark' | 'light') as the source of truth.
- * - Injects the 'dark' class into the initial HTML for correct SSR.
- * - Sets `event.locals.darkMode` (boolean) and `event.locals.theme` (string) for use in other server `load` functions.
+ * - Reads 'theme' cookie with values: 'system' | 'light' | 'dark'
+ * - Injects the 'dark' class into the initial HTML for correct SSR
+ * - Sets `event.locals.darkMode` (boolean) for use in other server `load` functions
  */
 
 import type { Handle } from '@sveltejs/kit';
 
 export const handleTheme: Handle = async ({ event, resolve }) => {
-	// 1. Read the single 'theme' cookie
-	const theme = event.cookies.get('theme') as 'dark' | 'light' | undefined;
+	// 1. Read the theme preference cookie
+	const themePreference = event.cookies.get('theme') as 'system' | 'light' | 'dark' | undefined;
 
 	// 2. Determine the dark mode state
-	const isDarkMode = theme === 'dark';
+	let isDarkMode = false;
+
+	if (themePreference === 'dark') {
+		isDarkMode = true;
+	} else if (themePreference === 'light') {
+		isDarkMode = false;
+	} else {
+		// For 'system' or no preference, we can't determine server-side
+		// The inline script in app.html will handle this client-side
+		// Default to false for SSR (will be corrected by client script immediately)
+		isDarkMode = false;
+	}
 
 	// 3. Set darkMode (boolean) for use in other server load functions
 	event.locals.darkMode = isDarkMode;
-	// Note: locals.theme expects a Theme entity from DB, not a simple string
-	// For theme preference, use locals.darkMode instead
 	event.locals.theme = null;
 
 	// 4. Transform the HTML response to prevent flickering
@@ -29,8 +38,9 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 			// This string MUST match your <html ...> tag in app.html
 			const htmlTag = '<html lang="en" dir="ltr">';
 
-			if (isDarkMode) {
-				// Inject the 'dark' class
+			// Only inject dark class if explicitly set to 'dark'
+			// For 'system', let the client-side script handle it
+			if (themePreference === 'dark') {
 				return html.replace(htmlTag, '<html lang="en" dir="ltr" class="dark">');
 			}
 			return html;

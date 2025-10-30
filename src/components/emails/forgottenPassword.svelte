@@ -29,19 +29,19 @@
 
 <Html lang={languageTag}>
 	<Head>
-		<title>Reset your password for {publicEnv.SITE_NAME}</title>
+		<title>Reset your password for {publicEnv?.SITE_NAME ?? 'SveltyCMS'}</title>
 	</Head>
 
-	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
+	<Preview preview="Reset your password for {publicEnv?.SITE_NAME ?? 'SveltyCMS'}" />
 
 	<Body>
 		<Container style={{ fontSize: '16px' }}>
 			<!-- Header Section -->
 			<Section>
-				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+				<Link href={dev ? (publicEnv?.HOST_DEV ?? 'http://localhost:5173') : (publicEnv?.HOST_PROD ?? '')}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt={`${publicEnv.SITE_NAME} logo`}
+						alt={`${publicEnv?.SITE_NAME ?? 'SveltyCMS'} logo`}
 						width="150"
 						height="auto"
 						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}

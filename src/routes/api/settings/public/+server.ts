@@ -7,10 +7,10 @@
 import { json } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
 import { settingsGroups } from '@src/routes/(app)/config/systemsetting/settingsGroups';
-import { defaultPublicSettings } from '@src/routes/setup/seed';
+import { defaultPublicSettings } from '@src/routes/api/setup/seed';
 
 export const GET = async () => {
-	const publicSettings: Record<string, any> = {};
+	const publicSettings: Record<string, unknown> = {};
 	const publicFields = settingsGroups.flatMap((g) => g.fields).filter((f) => f.category === 'public');
 
 	const keys = publicFields.map((f) => f.key);

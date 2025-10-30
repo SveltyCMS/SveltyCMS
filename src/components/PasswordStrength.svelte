@@ -40,7 +40,7 @@
 	let { password = '', confirmPassword = '' }: Props = $props();
 
 	// Customizable password strength thresholds
-	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH;
+	const MIN_PASSWORD_LENGTH = publicEnv?.PASSWORD_LENGTH ?? 8;
 	const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
 	const GREEN_LENGTH = YELLOW_LENGTH + 4;
 

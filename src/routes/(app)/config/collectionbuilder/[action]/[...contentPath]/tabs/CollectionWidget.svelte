@@ -146,8 +146,6 @@ component
 				if (collection?.value) {
 					collection.value.fields = fields;
 				}
-
-				console.log('updated collection', collection);
 			}
 		};
 		modalStore.trigger(modal);

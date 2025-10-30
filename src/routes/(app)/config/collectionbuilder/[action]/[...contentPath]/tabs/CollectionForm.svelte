@@ -33,8 +33,6 @@
 
 	let props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
 
-	console.log('CollectionForm data:', props.data);
-
 	// Popup Tooltips
 	const NameTooltip: PopupSettings = {
 		event: 'hover',

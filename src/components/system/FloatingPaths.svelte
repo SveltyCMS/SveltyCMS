@@ -36,7 +36,8 @@ Spring class for smooth, physics-based motion.
 			152 - i * 5 * position
 		} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
 		color: `rgba(218,218,218,${0.05 + i * 0.015})`, //  color
-		width: 0.05 + i * 0.01 // stroke width
+		width: 0.05 + i * 0.01, // stroke width
+		duration: 20 + (i % 15) * 0.7 // Deterministic duration (20-29.8s)
 	}));
 </script>
 
@@ -59,7 +60,7 @@ Spring class for smooth, physics-based motion.
 					pathOffset: mirrorAnimation ? [1, 0, 1] : [0, 1, 0] // Adjust path offset for mirror animation
 				}}
 				transition={{
-					duration: 20 + Math.random() * 10,
+					duration: path.duration,
 					repeat: Infinity,
 					ease: 'linear'
 				}}

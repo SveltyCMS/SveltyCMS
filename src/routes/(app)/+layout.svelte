@@ -122,8 +122,6 @@
 	// Component State
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList | undefined;
-	let restartPollingInterval: ReturnType<typeof setInterval> | undefined;
-	let restartRequired = $state<boolean>(false);
 
 	// ============================================================================
 	// DERIVED STATE
@@ -151,7 +149,7 @@
 	});
 
 	// SEO meta content
-	const siteName = publicEnv.SITE_NAME || 'SveltyCMS';
+	const siteName = publicEnv?.SITE_NAME || 'SveltyCMS';
 	const seoDescription = `${siteName} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 
 	// ============================================================================
@@ -191,31 +189,6 @@
 
 		document.documentElement.dir = dir;
 		document.documentElement.lang = lang;
-	});
-
-	// Effect: Poll for restart-required state (dev/prod hot-reload)
-	$effect(() => {
-		restartPollingInterval = setInterval(async () => {
-			try {
-				const response = await fetch('/api/restart-required');
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				const result = await response.json();
-				restartRequired = result.restartRequired;
-			} catch (error) {
-				// Silently fail - this is a non-critical feature
-				console.debug('Restart status polling failed:', error);
-			}
-		}, 5000); // Poll every 5 seconds
-
-		// Cleanup function
-		return () => {
-			if (restartPollingInterval) {
-				clearInterval(restartPollingInterval);
-				restartPollingInterval = undefined;
-			}
-		};
 	});
 
 	// ============================================================================
@@ -318,11 +291,6 @@
 		// Cleanup: remove event listeners
 		mediaQuery?.removeEventListener('change', handleSystemThemeChange);
 		window.removeEventListener('keydown', handleKeyDown);
-
-		// Cleanup: clear restart polling interval
-		if (restartPollingInterval) {
-			clearInterval(restartPollingInterval);
-		}
 	});
 </script>
 

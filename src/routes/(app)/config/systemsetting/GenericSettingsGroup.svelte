@@ -47,7 +47,6 @@ Handles all field types and validation automatically
 			const data = await response.json();
 			if (data.locales && Array.isArray(data.locales)) {
 				allowedLocales = data.locales;
-				console.log('[GenericSettingsGroup] Loaded allowed locales from project.inlang:', allowedLocales);
 			}
 		} catch (err) {
 			console.warn('[GenericSettingsGroup] Could not load project.inlang/settings.json, using all languages:', err);
@@ -105,15 +104,10 @@ Handles all field types and validation automatically
 			const response = await fetch(url);
 			const data = await response.json();
 
-			// Debug logging
-			console.log(`[${group.id}] API Response:`, data);
-			console.log(`[${group.id}] Values received:`, data.values);
-
 			if (data.success) {
 				values = data.values || {};
 				// Store a deep copy of original values
 				originalValues = JSON.parse(JSON.stringify(values));
-				console.log(`[${group.id}] Values set to:`, values);
 				checkForEmptyFields(); // Check if configuration is needed
 			} else {
 				throw new Error(data.error || 'Failed to load settings');

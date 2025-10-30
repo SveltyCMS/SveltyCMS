@@ -40,15 +40,6 @@ It handles widget configuration, permissions, and specific options.
 	let availableWidgets = $derived($widgetFunctions || {});
 	let guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
 
-	// Debug logging
-	$effect(() => {
-		console.log('Modal data:', modalData);
-		console.log('Widget key:', widgetKey);
-		console.log('Available widgets:', Object.keys(availableWidgets));
-		console.log('GuiSchema:', guiSchema);
-		console.log('GuiSchema keys:', Object.keys(guiSchema));
-	});
-
 	// Derive options from guiSchema
 	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);
 	let specificOptions = $derived(

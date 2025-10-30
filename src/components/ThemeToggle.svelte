@@ -1,14 +1,15 @@
 <!--
 @file src/components/ThemeToggle.svelte
 @component
-**A simple, display-only component for toggling the application theme.**
+**A component for cycling through all application theme states.**
 It relies entirely on the centralized `themeStore` for its state and logic.
 ### Features
-- Theme toggle button with icons
+- Three-way theme cycle: System → Light → Dark → System
+- Icons represent current theme preference (system/light/dark)
 - Optional tooltip for user guidance
 -->
 <script lang="ts">
-	import { themeStore, toggleDarkMode } from '@stores/themeStore.svelte';
+	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
 	// Props
@@ -27,33 +28,49 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		target: 'ThemeToggleTooltip',
 		placement: tooltipPlacement
 	};
+
+	// Cycle through system -> light -> dark -> system
+	function cycleTheme() {
+		const current = themeStore.themePreference;
+		if (current === 'system') {
+			setThemePreference('light');
+		} else if (current === 'light') {
+			setThemePreference('dark');
+		} else {
+			useSystemPreference();
+		}
+	}
+
+	// Get tooltip text based on current preference
+	const getTooltipText = $derived(() => {
+		const current = themeStore.themePreference;
+		if (current === 'system') return 'System theme (click for Light)';
+		if (current === 'light') return 'Light theme (click for Dark)';
+		return 'Dark theme (click for System)';
+	});
+
+	// Get icon based on current preference
+	const getCurrentIcon = $derived(() => {
+		const current = themeStore.themePreference;
+		if (current === 'system') return 'bi:circle-half';
+		if (current === 'light') return 'bi:sun';
+		return 'bi:moon-fill';
+	});
 </script>
 
 {#if showTooltip}
-	<button use:popup={themeToggleTooltip} onclick={() => toggleDarkMode()} aria-label="Toggle theme" class={buttonClass}>
-		{#if themeStore.isDarkMode}
-			<iconify-icon icon="bi:sun" width={iconSize}></iconify-icon>
-		{:else}
-			<iconify-icon icon="bi:moon-fill" width={iconSize}></iconify-icon>
-		{/if}
+	<button use:popup={themeToggleTooltip} onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
+		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
 	</button>
 
 	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
 		<span class="text-sm">
-			{#if themeStore.isDarkMode}
-				Switch to Light Mode
-			{:else}
-				Switch to Dark Mode
-			{/if}
+			{getTooltipText()}
 		</span>
 		<div class="variant-filled arrow"></div>
 	</div>
 {:else}
-	<button onclick={() => toggleDarkMode()} aria-label="Toggle theme" class={buttonClass}>
-		{#if themeStore.isDarkMode}
-			<iconify-icon icon="bi:sun" width={iconSize}></iconify-icon>
-		{:else}
-			<iconify-icon icon="bi:moon-fill" width={iconSize}></iconify-icon>
-		{/if}
+	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
+		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
 	</button>
 {/if}

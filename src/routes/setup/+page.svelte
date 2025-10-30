@@ -3,20 +3,20 @@
 @description Professional multi-step setup wizard for SveltyCMS with clean, modern design
 
 ### Features:
-- Type-safe Svelte 5 rune-based state management
 - Responsive design with mobile/desktop step indicators
 - Professional visual design with icons and animations
 - Integration with setupStore for persistence
 - Database-agnostic integration with IDBAdapter and authDBInterface
-@note Code is organized into numbered sections for clarity:
-      1. State Management
-      2. Type Definitions
-      3. Local UI State
-      4. Lifecycle Hooks
-      5. Derived State
-      6. Core Logic & API Calls
-      7. UI Handlers
-	  8. Lazy Component State & Error Handling
+
+### Code is organized into numbered sections for clarity:
+	1. State Management
+	2. Type Definitions
+	3. Local UI State
+	4. Lifecycle Hooks
+	5. Derived State
+	6. Core Logic & API Calls
+	7. UI Handlers
+	8. Lazy Component State & Error Handling
 -->
 <script lang="ts">
 	import { onDestroy, onMount, type Component } from 'svelte';
@@ -38,9 +38,8 @@
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
 	// Utils
-	import { setupAdminSchema } from '@utils/formSchemas';
+	import { setupAdminSchema, dbConfigSchema, systemSettingsSchema } from '@utils/formSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
-	import { systemConfigSchema } from '@utils/setupValidationSchemas';
 	import { setGlobalToastStore, showToast } from '@utils/toast';
 	// Valiation
 	import { safeParse } from 'valibot';
@@ -80,6 +79,7 @@
 
 	// --- 3. LOCAL UI STATE ---
 	let isLoading = $state(false);
+	let isSubmitting = $state(false); // Track final submission state
 	let errorMessage = $state('');
 	let successMessage = $state('');
 	let lastDbTestResult = $state<DatabaseTestResult | null>(null);
@@ -90,6 +90,17 @@
 	let showDbPassword = $state(false);
 	let showAdminPassword = $state(false);
 	let showConfirmPassword = $state(false);
+
+	// Track if form has been modified (for unsaved changes warning)
+	let initialDataSnapshot = $state<string>('');
+
+	// Track all errors across all steps
+	let stepErrors = $state<Record<number, string[]>>({
+		0: [], // Database config errors
+		1: [], // Admin user errors
+		2: [], // System settings errors
+		3: [] // Review (no validation errors expected)
+	});
 
 	// Language dropdown UI state
 	let isLangOpen = $state(false);
@@ -111,11 +122,11 @@
 	onMount(() => {
 		setGlobalToastStore(getToastStore());
 
-		console.log('onMount - modalStore:', modalStore);
-		console.log('onMount - modalComponentRegistry:', modalComponentRegistry);
-
 		// Load existing data from localStorage
 		loadStore();
+
+		// Capture initial data snapshot for unsaved changes detection
+		initialDataSnapshot = JSON.stringify(wizard);
 
 		document.addEventListener('click', outsideLang);
 
@@ -126,15 +137,12 @@
 		// Using sessionStorage so it shows once per browser session
 		// If setup is already complete, don't show the modal
 		const welcomeShown = sessionStorage.getItem('sveltycms_welcome_modal_shown');
-		console.log('welcomeShown from sessionStorage:', welcomeShown);
 
 		// Show the welcome modal after component mounts
 		if (!welcomeShown) {
-			console.log('Welcome modal not shown this session, will trigger...');
 			// Use requestAnimationFrame to ensure DOM is fully ready
 			requestAnimationFrame(() => {
 				setTimeout(() => {
-					console.log('Triggering welcome modal NOW...');
 					showWelcomeModal();
 					// Set the flag so it doesn't show again this session
 					sessionStorage.setItem('sveltycms_welcome_modal_shown', 'true');
@@ -143,6 +151,22 @@
 		} else {
 			console.log('Welcome modal already shown this session, skipping...');
 		}
+
+		// Warn user before leaving with unsaved changes
+		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+			if (hasUnsavedChanges() && !isSubmitting) {
+				e.preventDefault();
+				e.returnValue = ''; // Required for Chrome
+				return ''; // Required for some browsers
+			}
+		};
+
+		window.addEventListener('beforeunload', handleBeforeUnload);
+
+		// Cleanup
+		return () => {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		};
 	});
 
 	onDestroy(() => {
@@ -150,13 +174,11 @@
 	});
 
 	function showWelcomeModal() {
-		console.log('showWelcomeModal called, modalStore:', modalStore);
 		const modal: ModalSettings = {
 			type: 'component',
 			component: 'welcomeModal', // Use the string key for the registered component
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('User clicked Get Started in welcome modal.');
 					// Potentially trigger navigation to step 1 or some other setup start action
 				} else {
 					console.log('User closed welcome modal without starting.');
@@ -164,9 +186,8 @@
 				}
 			}
 		};
-		console.log('Triggering modal with settings:', modal);
+
 		modalStore.trigger(modal);
-		console.log('Modal trigger called');
 	}
 
 	// --- 5. DERIVED STATE ---
@@ -177,6 +198,13 @@
 	const dbConfigChangedSinceTest = $derived<boolean>(
 		!!lastTestFingerprint && lastTestFingerprint !== dbConfigFingerprint && !!lastDbTestResult?.success
 	);
+
+	// Check if current data has changed from initial snapshot
+	const hasUnsavedChanges = $derived(() => {
+		if (!initialDataSnapshot) return false;
+		const currentSnapshot = JSON.stringify(wizard);
+		return currentSnapshot !== initialDataSnapshot;
+	});
 
 	const passwordRequirements = $derived<PasswordRequirements>({
 		length: wizard.adminUser.password.length >= 8,
@@ -237,7 +265,7 @@
 		}
 
 		// Fallback to publicEnv.LOCALES (after setup is complete)
-		const raw = publicEnv.LOCALES;
+		const raw = publicEnv?.LOCALES;
 		let normalized: string[] = [];
 
 		if (typeof raw === 'string' && (raw as string).trim()) {
@@ -264,38 +292,68 @@
 	// --- 6. CORE LOGIC & API CALLS ---
 	function validateStep(step: number, mutateErrors = true): boolean {
 		const errs: ValidationErrors = {};
+		const errorMessages: string[] = [];
+
 		switch (step) {
 			case 0:
-				if (!wizard.dbConfig.host) errs.host = m.setup_validation_host_required();
-				if (!isFullUri && !wizard.dbConfig.port) errs.port = m.setup_validation_port_required();
-				if (!wizard.dbConfig.name) errs.name = m.setup_validation_dbname_required();
+				// Database Configuration Validation using schema
+				{
+					const dbResult = safeParse(dbConfigSchema, {
+						type: wizard.dbConfig.type,
+						host: wizard.dbConfig.host,
+						port: wizard.dbConfig.port,
+						name: wizard.dbConfig.name,
+						user: wizard.dbConfig.user,
+						password: wizard.dbConfig.password
+					});
+					if (!dbResult.success) {
+						for (const issue of dbResult.issues) {
+							const path = issue.path?.[0]?.key as string;
+							if (path) {
+								errs[path] = issue.message;
+								errorMessages.push(`${path}: ${issue.message}`);
+							}
+						}
+					}
+				}
 				break;
 			case 1:
-				// Use main schema for instant feedback; server will re-validate
+				// Admin User Validation using schema
 				{
 					const adminResult = safeParse(setupAdminSchema, { ...wizard.adminUser });
 					if (!adminResult.success) {
 						for (const issue of adminResult.issues) {
 							const path = issue.path?.[0]?.key as string;
-							if (path) errs[path] = issue.message;
+							if (path) {
+								errs[path] = issue.message;
+								errorMessages.push(`${path}: ${issue.message}`);
+							}
 						}
 					}
 				}
 				break;
 			case 2:
-				// Use main schema for instant feedback; server will re-validate
+				// System Settings Validation using schema
 				{
-					const systemResult = safeParse(systemConfigSchema, { ...wizard.systemSettings });
+					const systemResult = safeParse(systemSettingsSchema, { ...wizard.systemSettings });
 					if (!systemResult.success) {
 						for (const issue of systemResult.issues) {
 							const path = issue.path?.[0]?.key as string;
-							if (path) errs[path] = issue.message;
+							if (path) {
+								errs[path] = issue.message;
+								errorMessages.push(`${path}: ${issue.message}`);
+							}
 						}
 					}
 				}
 				break;
 		}
-		if (mutateErrors) validationErrors = errs;
+
+		if (mutateErrors) {
+			validationErrors = errs;
+			stepErrors[step] = errorMessages;
+		}
+
 		return Object.keys(errs).length === 0;
 	}
 
@@ -325,8 +383,6 @@
 
 			const data: DatabaseTestResult = await response.json();
 			lastDbTestResult = data;
-
-			console.log('Database test response:', data);
 
 			if (data.success) {
 				successMessage = data.message || 'Connection successful!';
@@ -399,10 +455,30 @@
 	}
 
 	async function completeSetup(): Promise<void> {
-		if (!validateStep(2, true)) {
-			wizard.currentStep = 2;
+		// Prevent multiple submissions
+		if (isSubmitting) {
 			return;
 		}
+
+		// Validate all steps one final time
+		const step0Valid = validateStep(0, true);
+		const step1Valid = validateStep(1, true);
+		const step2Valid = validateStep(2, true);
+
+		if (!step0Valid || !step1Valid || !step2Valid) {
+			showToast('Please fix validation errors before completing setup.', 'error');
+			// Find first invalid step and navigate to it
+			if (!step0Valid) {
+				wizard.currentStep = 0;
+			} else if (!step1Valid) {
+				wizard.currentStep = 1;
+			} else if (!step2Valid) {
+				wizard.currentStep = 2;
+			}
+			return;
+		}
+
+		isSubmitting = true;
 		isLoading = true;
 		errorMessage = '';
 
@@ -436,6 +512,9 @@
 			// Clear store data
 			clearStore();
 
+			// Update initial snapshot to prevent unsaved changes warning
+			initialDataSnapshot = JSON.stringify(wizard);
+
 			// Wait for toast to be visible, then redirect
 			setTimeout(() => {
 				window.location.href = data.redirectPath || '/config/collectionbuilder';
@@ -450,6 +529,7 @@
 			}
 		} finally {
 			isLoading = false;
+			isSubmitting = false;
 		}
 	}
 
@@ -472,7 +552,6 @@
 			if (wizard.dbTestPassed) {
 				try {
 					isLoading = true;
-					console.log('🎯 Writing config and seeding database...');
 
 					const seedResponse = await fetch('/api/setup/seed', {
 						method: 'POST',
@@ -488,7 +567,6 @@
 						// Store first collection info for faster redirect
 						if (seedData.firstCollection) {
 							wizard.firstCollection = seedData.firstCollection;
-							console.log('📁 First collection:', seedData.firstCollection.name);
 						}
 					} else {
 						console.warn('⚠️  Database initialization had issues:', seedData.error);
