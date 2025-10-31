@@ -3,7 +3,11 @@
 @component
 **Two-Factor Authentication Verification Modal**
 
-This modal handles verification of 2FA codes for various operations like disabling 2FA.
+This modal			class="input text-center font-mono tracking-wider"
+			class:text-2xl={!useBackupCode}
+			class:text-lg={useBackupCode}
+			maxlength={useBackupCode ? 10 : 6}
+			autocomplete="off"les verification of 2FA codes for various operations like disabling 2FA.
 
 @example
 <TwoFactorVerifyModal title="Verify 2FA" description="Enter your code..." />
@@ -87,8 +91,8 @@ This modal handles verification of 2FA codes for various operations like disabli
 
 		try {
 			// Return the code to the parent modal
-			if (parent.onClose) parent.onClose();
-			modalStore.close(trimmedCode);
+			if (parent.onClose) parent.onClose(trimmedCode);
+			modalStore.close();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Verification failed';
 		} finally {
@@ -98,8 +102,8 @@ This modal handles verification of 2FA codes for various operations like disabli
 
 	// Cancel verification
 	function cancelVerification() {
-		if (parent.onClose) parent.onClose();
-		modalStore.close(null);
+		if (parent.onClose) parent.onClose(null);
+		modalStore.close();
 	}
 
 	// Toggle between authenticator and backup code
@@ -117,7 +121,7 @@ This modal handles verification of 2FA codes for various operations like disabli
 	}
 </script>
 
-<div class="modal-content max-w-md">
+<div class="max-w-md p-6">
 	<div class="mb-6 text-center">
 		<div class="mb-4">
 			<iconify-icon icon="mdi:shield-key" width="48" class="mx-auto text-primary-500"></iconify-icon>
@@ -141,12 +145,11 @@ This modal handles verification of 2FA codes for various operations like disabli
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				placeholder={useBackupCode ? m.twofa_backup_code_placeholder() : m.twofa_code_placeholder()}
-				class="input text-center font-mono tracking-wider"
-				class:text-2xl={!useBackupCode}
-				class:text-lg={useBackupCode}
-				maxlength={useBackupCode ? '10' : '6'}
+				class={'input text-center font-mono tracking-wider ' +
+					(useBackupCode ? 'text-lg' : 'text-2xl') +
+					(error ? ' border-error-500 focus:border-error-500' : '')}
+				maxlength={useBackupCode ? 10 : 6}
 				autocomplete="off"
-				class:input-error={error}
 			/>
 
 			<!-- Character counter for backup codes -->
@@ -201,13 +204,3 @@ This modal handles verification of 2FA codes for various operations like disabli
 		</div>
 	</div>
 </div>
-
-<style>
-	.modal-content {
-		@apply p-6;
-	}
-
-	.input-error {
-		@apply border-error-500 focus:border-error-500;
-	}
-</style>

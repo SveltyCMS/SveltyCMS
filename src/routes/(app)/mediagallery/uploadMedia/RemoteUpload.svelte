@@ -38,7 +38,7 @@
 		formData.append('remoteUrls', JSON.stringify(remoteUrls));
 
 		try {
-			const response = await fetch('/api/media/saveMedia', {
+			const response = await fetch('?/remoteUpload', {
 				method: 'POST',
 				body: formData
 			});

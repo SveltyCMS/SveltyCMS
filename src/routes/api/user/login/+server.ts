@@ -1,11 +1,5 @@
 /**
- * @file src/routes/api/user		if (!auth) {
-			logger.error('Authentication service not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
-
-		// Prevent an already authenticated user from trying to log in again.
-		if (existingUser) {er.ts
+ * @file src/routes/api/user
  * @description API endpoint for user login.
  *
  * This endpoint handles user authentication by:
@@ -20,15 +14,18 @@
  * - Robust error handling and logging.
  */
 
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
 import { auth } from '@src/databases/db';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
+
+// Password utility
+import { verifyPassword } from '@utils/password';
 
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 	// The main try...catch block is for unexpected server errors (e.g., DB connection fails).
@@ -42,7 +39,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 		}
 
 		// In multi-tenant mode, a tenantId is required for login.
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			logger.error('Login attempt failed: Tenant ID is missing in a multi-tenant setup.');
 			throw error(400, 'Could not identify the tenant for this request.');
 		} // Prevent an already authenticated user from trying to log in again.
@@ -60,7 +57,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		// --- MULTI-TENANCY: Scope user lookup to the current tenant ---
 		const userLookupCriteria: { email: string; tenantId?: string } = { email };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			userLookupCriteria.tenantId = tenantId;
 		}
 		const user = await auth.getUserByEmail(userLookupCriteria); // **SECURITY**: Use a generic error message for both non-existent users and wrong passwords.
@@ -76,8 +73,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 			throw error(403, 'Your account has been suspended. Please contact support.');
 		}
 
-		const argon2 = await import('argon2');
-		const isValidPassword = await argon2.verify(user.password, password);
+		const isValidPassword = await verifyPassword(user.password, password);
 
 		if (!isValidPassword) {
 			logger.warn(`Login attempt failed: Invalid password for user: ${email}`, { userId: user._id, tenantId });
@@ -87,7 +83,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		const session = await auth.createSession({
 			user_id: user._id,
-			...(privateEnv.MULTI_TENANT && { tenantId }), // Add tenantId to the session
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Add tenantId to the session
 			expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24-hour session
 		}); // Cache user in session store
 

@@ -1,12 +1,13 @@
 <!--
 @file src/routes/(app)/config/widgetManagement/+page.svelte
 @component
-**Widget Management Configuration Page - Provides interface for managing content widgets and their activation status.**
+**Widget Management Configuration Page - Provides interface for managing content widgets and their activation status with 3-pillar architecture support.**
 
 Features:
 - List all available content widgets (core and custom)
 - Toggle widget status (active/inactive)
 - View widget dependencies and requirements
+- Display 3-pillar architecture components (Definition, Input, Display)
 - Bulk activate required widgets
 - Collection validation against active widgets
 - Multi-tenant widget configuration
@@ -30,5 +31,5 @@ Features:
 <!-- Page Title with Back Button -->
 <PageTitle name="Widget Management" icon="mdi:widgets" showBackButton={true} backUrl="/config" />
 
-<!-- New Widget Management Dashboard -->
+<!-- Widget Management Dashboard with 3-Pillar Architecture Support -->
 <WidgetDashboard {data} />

@@ -30,6 +30,7 @@ and configurable quality settings for weaker devices.
 	import { browser } from '$app/environment';
 	import { Tween } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	// Define props with default values
 	const {
@@ -51,7 +52,6 @@ and configurable quality settings for weaker devices.
 	// Performance-based configuration
 	let actualQuality = $state(quality);
 	let pathCount = $state(12); // Reduced from 72
-	let animationDuration = $state(8000); // Reduced from 20000
 	let shouldReduceMotion = $state(false);
 
 	// Single animation progress value
@@ -60,13 +60,28 @@ and configurable quality settings for weaker devices.
 		easing: cubicOut
 	});
 
-	// Performance detection
+	// Performance detection with proper types
 	function detectPerformance(): 'low' | 'medium' | 'high' {
 		if (!browser) return 'medium';
 
-		// Simple performance heuristics
-		const connection = (navigator as any).connection;
-		const memory = (performance as any).memory;
+		// Properly typed Network Information API
+		interface NavigatorConnection extends Navigator {
+			connection?: {
+				effectiveType?: '4g' | '3g' | '2g' | 'slow-2g';
+			};
+		}
+
+		// Properly typed Memory API
+		interface PerformanceMemory extends Performance {
+			memory?: {
+				totalJSHeapSize?: number;
+				usedJSHeapSize?: number;
+				jsHeapSizeLimit?: number;
+			};
+		}
+
+		const connection = (navigator as NavigatorConnection).connection;
+		const memory = (performance as PerformanceMemory).memory;
 		const hardwareConcurrency = navigator.hardwareConcurrency || 4;
 
 		let score = 0;
@@ -76,14 +91,14 @@ and configurable quality settings for weaker devices.
 		else if (hardwareConcurrency >= 4) score += 1;
 
 		// Memory (if available)
-		if (memory && memory.totalJSHeapSize) {
+		if (memory?.totalJSHeapSize) {
 			if (memory.totalJSHeapSize > 100 * 1024 * 1024)
 				score += 2; // 100MB+
 			else if (memory.totalJSHeapSize > 50 * 1024 * 1024) score += 1; // 50MB+
 		}
 
 		// Connection speed
-		if (connection) {
+		if (connection?.effectiveType) {
 			if (connection.effectiveType === '4g') score += 1;
 			else if (connection.effectiveType === '3g') score -= 1;
 			else if (connection.effectiveType === '2g') score -= 2;
@@ -109,14 +124,13 @@ and configurable quality settings for weaker devices.
 
 		const config = settings[detectedQuality];
 		pathCount = config.paths;
-		animationDuration = config.duration;
 
 		// Update animation with new duration
 		animationProgress.set(0, { duration: config.duration });
 	}
 
 	// Optimized path generation with memoization
-	const pathCache = new Map<string, string>();
+	const pathCache = new SvelteMap<string, string>();
 
 	function generatePath(start: string, end: string, index: number, position: number): string {
 		const cacheKey = `${start}-${end}-${index}-${position}`;

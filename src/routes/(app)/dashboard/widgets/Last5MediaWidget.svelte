@@ -26,8 +26,8 @@
 </script>
 
 <script lang="ts">
-	import BaseWidget from '../BaseWidget.svelte';
 	import { formatDisplayDate } from '@utils/dateUtils';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface MediaFile {
 		id: string;
@@ -47,8 +47,8 @@
 		icon = 'mdi:image-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
-		onCloseRequest = () => {}
+		onSizeChange = () => {},
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -56,7 +56,7 @@
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	function formatFileSize(bytes: number): string {
@@ -80,7 +80,17 @@
 	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/last5media" pollInterval={30000} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/last5media"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 media files">

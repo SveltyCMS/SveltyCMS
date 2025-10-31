@@ -1,0 +1,288 @@
+---
+path: 'docs/api/index.mdx'
+title: 'API Reference'
+description: 'Complete REST API documentation for SveltyCMS - authentication, collections, widgets, and more.'
+order: 1
+icon: 'mdi:api'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'api'
+  - 'developer'
+  - 'rest'
+  - 'reference'
+---
+
+# API Reference
+
+Welcome to the SveltyCMS API documentation. This section provides comprehensive reference documentation for all REST API endpoints available in SveltyCMS.
+
+## Overview
+
+The SveltyCMS API is a RESTful API that enables programmatic access to all core functionality of the CMS. All endpoints follow consistent patterns for:
+
+- **Authentication:** Session-based or token-based authentication
+- **Authorization:** Role-based access control (RBAC) with fine-grained permissions
+- **Response Format:** Consistent JSON response structure
+- **Error Handling:** Standardized error codes and messages
+- **Multi-Tenancy:** Optional tenant isolation for SaaS deployments
+
+## Base URL
+
+All API endpoints are accessed relative to your SveltyCMS installation:
+
+```
+https://your-domain.com/api/
+```
+
+For local development:
+
+```
+http://localhost:5173/api/
+```
+
+## Available API Documentation
+
+### Authentication & Authorization
+
+- **[Authentication 2FA API](Authentication_2FA_API.mdx)** - Two-factor authentication endpoints including setup, verification, and recovery codes
+- **[User Management API](User_Management_API.mdx)** - User authentication, registration, profile management, and batch operations
+- **[User Token Management API](User_Token_Management_API.mdx)** - API token generation, management, and revocation for programmatic access
+
+### Data Management
+
+- **[Collection API](Collection_API.mdx)** - CRUD operations for collection entries, schema management, and bulk operations
+- **[Export/Import API](Export_Import_API.mdx)** - Data backup, migration, and restoration endpoints with encryption support
+- **[Search API](Search_API.mdx)** - Full-text search across collections with advanced filtering and pagination
+- **[GraphQL API](GraphQL_API.mdx)** - Flexible GraphQL query language for accessing and manipulating data
+
+### Media Management
+
+- **[Media API](Media_API.mdx)** - Upload, manage, and serve media files including images, videos, and documents
+
+### System Configuration
+
+- **[Settings API](Settings_API.mdx)** - System and tenant-specific settings management
+- **[Configuration API](Configuration_API.mdx)** - System setup, database configuration, and maintenance
+- **[Widget API](Widget_API.mdx)** - Widget installation, activation, and management with dependency handling
+
+### Monitoring & Analytics
+
+- **[Dashboard API](Dashboard_API.mdx)** - System metrics, performance monitoring, and analytics data
+
+### Utilities
+
+- **[Miscellaneous API](Miscellaneous_API.mdx)** - Additional endpoints for permissions, email, folders, and utilities
+
+- Settings API - System configuration management
+- Widget API - Widget installation, activation, and management
+- Media API - File upload and media library management
+- Export/Import API - Data export and import operations
+
+## Authentication
+
+Most API endpoints require authentication. SveltyCMS supports two authentication methods:
+
+### 1. Session Authentication (Recommended for Web Apps)
+
+Used by the web interface. Session cookies are automatically handled by the browser:
+
+```http
+Cookie: session=your-session-id
+```
+
+### 2. Token Authentication (Recommended for API Clients)
+
+Use API tokens for programmatic access:
+
+```http
+Authorization: Bearer your-api-token
+```
+
+**Getting an API Token:**
+
+API tokens can be generated from the user dashboard at `/user` once logged in.
+
+## Authorization
+
+All endpoints enforce role-based access control (RBAC). Each endpoint documents the required permissions. Common permission patterns:
+
+- `read` - View data
+- `write` - Create new data
+- `update` - Modify existing data
+- `delete` - Remove data
+- `manage` - Full administrative access
+
+Admin users bypass all permission checks.
+
+## Response Format
+
+All API responses follow a consistent structure:
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Optional success message"
+}
+```
+
+### Error Response
+
+```json
+{
+	"success": false,
+	"error": "Error description",
+	"message": "User-friendly error message"
+}
+```
+
+### Paginated Response
+
+```json
+{
+  "success": true,
+  "data": [ ... ],
+  "pagination": {
+    "total": 100,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 5
+  }
+}
+```
+
+## Common HTTP Status Codes
+
+| Code | Meaning               | Description                         |
+| ---- | --------------------- | ----------------------------------- |
+| 200  | OK                    | Request succeeded                   |
+| 201  | Created               | Resource created successfully       |
+| 400  | Bad Request           | Invalid request data or parameters  |
+| 401  | Unauthorized          | Authentication required or invalid  |
+| 403  | Forbidden             | Insufficient permissions            |
+| 404  | Not Found             | Resource does not exist             |
+| 409  | Conflict              | Resource conflict (e.g., duplicate) |
+| 422  | Unprocessable Entity  | Validation failed                   |
+| 429  | Too Many Requests     | Rate limit exceeded                 |
+| 500  | Internal Server Error | Server-side error occurred          |
+
+## Rate Limiting
+
+API requests are rate-limited to prevent abuse. Default limits:
+
+- **Authenticated users:** 100 requests per minute
+- **Anonymous requests:** 20 requests per minute
+
+Rate limit headers are included in responses:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1696512000
+```
+
+## CORS
+
+Cross-Origin Resource Sharing (CORS) is configured based on your system settings. By default:
+
+- Same-origin requests are always allowed
+- Cross-origin requests require proper CORS configuration
+
+## Versioning
+
+Currently, the API is **unversioned**. Breaking changes will be documented in release notes. In future releases, API versioning may be introduced:
+
+```
+/api/v2/collections/...
+```
+
+## Multi-Tenant Support
+
+If multi-tenancy is enabled, all API requests are automatically scoped to the user's tenant. The `tenantId` is derived from:
+
+1. Subdomain (e.g., `tenant1.your-cms.com`)
+2. Custom domain mapping
+3. User's tenant association
+
+No additional headers or parameters are required for tenant isolation.
+
+## Testing the API
+
+### Using cURL
+
+```bash
+# Example: Get all collections
+curl -X GET https://your-domain.com/api/collections \
+  -H "Cookie: session=your-session-id" \
+  -H "Content-Type: application/json"
+```
+
+### Using JavaScript/Fetch
+
+```javascript
+// Example: Create a new entry
+const response = await fetch('https://your-domain.com/api/collections/posts', {
+	method: 'POST',
+	headers: {
+		'Content-Type': 'application/json'
+	},
+	credentials: 'include', // Include session cookies
+	body: JSON.stringify({
+		title: 'My Post',
+		content: 'Post content here'
+	})
+});
+
+const result = await response.json();
+```
+
+### Using Postman
+
+1. Import the SveltyCMS API collection (if available)
+2. Set your base URL as an environment variable
+3. Configure authentication (session or token)
+4. Use the pre-configured requests
+
+## API Client Libraries
+
+_(Coming soon)_
+
+Official client libraries will be available for:
+
+- JavaScript/TypeScript
+- Python
+- PHP
+
+## Best Practices
+
+1. **Always handle errors gracefully** - Check response status and handle error cases
+2. **Use pagination** - Don't fetch all records at once for large collections
+3. **Cache responses** - Reduce API calls by caching data when appropriate
+4. **Implement retry logic** - Handle transient errors with exponential backoff
+5. **Monitor rate limits** - Track rate limit headers and adjust request frequency
+6. **Validate input** - Validate data on the client side before sending
+7. **Use batch operations** - Combine multiple operations into batch requests when possible
+
+## Support & Feedback
+
+- **Bug Reports:** [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- **Feature Requests:** [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- **Documentation Issues:** Open a PR to improve this documentation
+
+## Quick Links
+
+- [Widget System](/docs/widgets/index.mdx)
+- [Creating Custom Widgets](/docs/widgets/Creating_Custom_Widgets.mdx)
+- [Contributing Guide](/docs/contributing/contributing-docs.mdx)
+
+---
+
+**Next Steps:**
+
+- Explore the [Collection API](./Collection_API.mdx) for content management
+- Set up [Two-Factor Authentication](./Authentication_2FA_API.mdx) for enhanced security
+- Review [User & Token Management](./User_Token_Management_API.mdx) for access control

@@ -6,28 +6,27 @@
 @example
 <IconifyPicker bind:iconselected />
 
-### Props
-- `iconselected` {string} - Selected icon name
-- `searchQuery` {string} - Search query for icons
-
-@features Search icons, pagination, library selection, icon preview, smooth animations
+### Features
+- Search icons with debounce
+- Paginated results
+- Select from multiple icon libraries
+- Loading and error states
 -->
 
 <script lang="ts">
-	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
 	import { onDestroy } from 'svelte';
-	import { tweened } from 'svelte/motion';
-	import { cubicOut, quintOut } from 'svelte/easing';
+	import { fade, scale } from 'svelte/transition';
+	import { quintOut } from 'svelte/easing';
 
-	interface Props {
-		iconselected: string;
-		searchQuery?: string;
-	}
+	// Constants
+	const DEBOUNCE_MS = 300;
+	const ICONS_PER_PAGE = 50;
+	const DEFAULT_LIBRARY = 'ic';
+	const ICONIFY_API_BASE = 'https://api.iconify.design';
 
+	// Types
 	interface IconLibrary {
 		name: string;
 		total: number;
@@ -43,86 +42,71 @@
 		hidden?: boolean;
 	}
 
+	interface IconSearchResponse {
+		icons: string[];
+		total: number;
+		limit: number;
+		start: number;
+		collections: Record<string, { total: number }>;
+		request: {
+			query: string;
+			limit: number;
+			start: number;
+			prefix: string;
+		};
+		prefix?: string;
+	}
+
+	interface Props {
+		iconselected: string;
+		searchQuery?: string;
+	}
+
 	let { iconselected = $bindable(), searchQuery = $bindable('') }: Props = $props();
 
-	// State variables
+	// State
 	let icons = $state<string[]>([]);
-	let start = $state(0);
-	let selectedLibrary = $state('ic');
-	let librariesLoaded = $state(false);
+	let currentPage = $state(0);
+	let selectedLibrary = $state(DEFAULT_LIBRARY);
 	let iconLibraries = $state<Record<string, IconLibrary>>({});
-	let page = $state(0);
 	let showDropdown = $state(false);
 	let isLoading = $state(false);
+	let isLoadingLibraries = $state(false);
 	let searchError = $state<string | null>(null);
-	let searchTimeout: number | undefined;
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// Animation stores
-	const dropdownOpacity = tweened(0, {
-		duration: 200,
-		easing: cubicOut
+	// Derived values
+	let hasIcons = $derived(icons.length > 0);
+	let canGoPrevious = $derived(currentPage > 0);
+	let canGoNext = $derived(icons.length >= ICONS_PER_PAGE);
+	let startIndex = $derived(currentPage * ICONS_PER_PAGE);
+	let librariesLoaded = $derived(Object.keys(iconLibraries).length > 0);
+	let hasSearchQuery = $derived(searchQuery.trim().length > 0);
+
+	let sortedLibraries = $derived.by(() => {
+		return Object.entries(iconLibraries).sort(([, a], [, b]) => a.name.localeCompare(b.name));
 	});
 
-	const dropdownScale = tweened(0.95, {
-		duration: 200,
-		easing: cubicOut
-	});
-
-	const selectedIconScale = tweened(1, {
-		duration: 150,
-		easing: quintOut
-	});
-
-	const gridOpacity = tweened(0, {
-		duration: 300,
-		easing: cubicOut
-	});
-
-	// Animate dropdown visibility
-	$effect(() => {
-		if (showDropdown) {
-			dropdownOpacity.set(1);
-			dropdownScale.set(1);
-		} else {
-			dropdownOpacity.set(0);
-			dropdownScale.set(0.95);
-		}
-	});
-
-	// Animate grid when icons change
-	$effect(() => {
-		if (icons.length > 0) {
-			gridOpacity.set(1);
-		} else {
-			gridOpacity.set(0);
-		}
-	});
-
-	// Animate selected icon
-	$effect(() => {
-		if (iconselected) {
-			selectedIconScale.set(1.1);
-			setTimeout(() => selectedIconScale.set(1), 150);
-		}
-	});
-
-	// Debounced search function
-	function debouncedSearch(query: string, library: string) {
-		if (searchTimeout) clearTimeout(searchTimeout);
-
-		// Show loading immediately for better UX
-		if (query.trim()) {
-			isLoading = true;
-			gridOpacity.set(0.5);
+	// Debounced search
+	function debouncedSearch(query: string, library: string): void {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
 		}
 
-		searchTimeout = window.setTimeout(() => {
+		if (!query.trim()) {
+			icons = [];
+			isLoading = false;
+			return;
+		}
+
+		isLoading = true;
+		debounceTimer = setTimeout(() => {
 			searchIcons(query, library);
-		}, 300);
+		}, DEBOUNCE_MS);
 	}
 
 	// Fetch icons from Iconify API
-	async function searchIcons(query: string, libraryCategory: string) {
+	async function searchIcons(query: string, library: string): Promise<void> {
 		if (!query.trim()) {
 			icons = [];
 			isLoading = false;
@@ -131,129 +115,151 @@
 
 		isLoading = true;
 		searchError = null;
-		start = page * 50;
-		showDropdown = true;
-
-		// Smooth transition out
-		await gridOpacity.set(0.3);
 
 		try {
-			const response = await fetch(
-				`https://api.iconify.design/search?query=${encodeURIComponent(query)}&prefix=${libraryCategory || 'ic'}&start=${start}`
-			);
+			const url = new URL(`${ICONIFY_API_BASE}/search`);
+			url.searchParams.set('query', query);
+			url.searchParams.set('prefix', library || DEFAULT_LIBRARY);
+			url.searchParams.set('start', startIndex.toString());
+			url.searchParams.set('limit', ICONS_PER_PAGE.toString());
+
+			const response = await fetch(url.toString());
 
 			if (!response.ok) {
-				throw new Error(`API error: ${response.status}`);
+				throw new Error(`API error: ${response.status} ${response.statusText}`);
 			}
 
-			const data = await response.json();
+			const data: IconSearchResponse = await response.json();
 
-			if (data && data.icons) {
+			if (data?.icons && Array.isArray(data.icons)) {
 				icons = data.icons;
-				await loadIcons(icons.map((icon) => `${data.prefix}:${icon}`));
+
+				// Preload icons for better UX
+				const iconIds = icons.map((icon) => `${data.prefix || library}:${icon}`);
+				await loadIcons(iconIds);
 			} else {
 				icons = [];
 			}
 		} catch (error) {
 			console.error('Error fetching icons:', error);
-			searchError = error instanceof Error ? error.message : 'Error fetching icons';
+			searchError = error instanceof Error ? error.message : 'Failed to fetch icons';
 			icons = [];
 		} finally {
 			isLoading = false;
-			// Smooth transition in
-			await gridOpacity.set(1);
 		}
-	}
-
-	// Pagination handlers
-	async function nextPage() {
-		page += 1;
-		await gridOpacity.set(0.3);
-		await searchIcons(searchQuery, selectedLibrary);
-	}
-
-	async function prevPage() {
-		page = Math.max(0, page - 1);
-		await gridOpacity.set(0.3);
-		await searchIcons(searchQuery, selectedLibrary);
-	}
-
-	// Icon selection handler
-	function selectIcon(icon: string) {
-		iconselected = icon;
-		showDropdown = false;
-
-		// Animate selection
-		selectedIconScale.set(1.2);
-		setTimeout(() => selectedIconScale.set(1), 200);
-	}
-
-	// Remove selected icon
-	function removeIcon() {
-		iconselected = '';
-		selectedIconScale.set(0.8);
-		setTimeout(() => selectedIconScale.set(1), 150);
 	}
 
 	// Fetch available icon libraries
-	async function getIconLibraries() {
-		if (librariesLoaded) return;
+	async function fetchIconLibraries(): Promise<void> {
+		if (librariesLoaded || isLoadingLibraries) return;
 
-		isLoading = true;
+		isLoadingLibraries = true;
 		searchError = null;
 
 		try {
-			const response = await fetch('https://api.iconify.design/collections');
+			const response = await fetch(`${ICONIFY_API_BASE}/collections`);
+
 			if (!response.ok) {
-				throw new Error(`Failed to fetch icon libraries: ${response.status}`);
+				throw new Error(`Failed to fetch libraries: ${response.status}`);
 			}
 
-			const data = await response.json();
+			const data: Record<string, IconLibrary> = await response.json();
 			iconLibraries = data;
-			librariesLoaded = true;
 		} catch (error) {
 			console.error('Error fetching icon libraries:', error);
-			searchError = error instanceof Error ? error.message : 'Error fetching libraries';
+			searchError = error instanceof Error ? error.message : 'Failed to load libraries';
 		} finally {
-			isLoading = false;
+			isLoadingLibraries = false;
 		}
 	}
 
-	// Show dropdown and fetch libraries
-	function showLibrariesAndDropdown() {
-		getIconLibraries();
-		showDropdown = true;
+	// Navigation handlers
+	function nextPage(): void {
+		if (!canGoNext) return;
+		currentPage += 1;
+		searchIcons(searchQuery, selectedLibrary);
 	}
+
+	function previousPage(): void {
+		if (!canGoPrevious) return;
+		currentPage -= 1;
+		searchIcons(searchQuery, selectedLibrary);
+	}
+
+	// Icon selection
+	function selectIcon(icon: string): void {
+		iconselected = `${selectedLibrary}:${icon}`;
+		showDropdown = false;
+	}
+
+	function removeIcon(): void {
+		iconselected = '';
+		searchQuery = '';
+		icons = [];
+	}
+
+	// Library change handler
+	function handleLibraryChange(): void {
+		currentPage = 0;
+		if (hasSearchQuery) {
+			searchIcons(searchQuery, selectedLibrary);
+		}
+	}
+
+	// Show dropdown and load libraries
+	function handleFocus(): void {
+		showDropdown = true;
+		fetchIconLibraries();
+	}
+
+	// Close dropdown when clicking outside
+	function handleClickOutside(event: MouseEvent): void {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.icon-picker-container')) {
+			showDropdown = false;
+		}
+	}
+
+	// Setup click outside listener
+	$effect(() => {
+		if (showDropdown) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+	});
 
 	// Cleanup
 	onDestroy(() => {
-		if (searchTimeout) clearTimeout(searchTimeout);
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
 	});
 </script>
 
-<div class="flex w-full flex-col">
-	<!-- Display selected icon -->
+<div class="icon-picker-container flex w-full flex-col">
+	<!-- Selected icon display -->
 	{#if iconselected}
 		<div
-			class="-mt-3 mb-1 flex items-center justify-start gap-2 transition-all duration-200"
-			style="transform: scale({$selectedIconScale}); transform-origin: left center;"
+			class="-mt-3 mb-1 flex items-center justify-start gap-2"
+			in:scale={{ duration: 200, easing: quintOut, start: 0.9 }}
+			out:scale={{ duration: 150, easing: quintOut, start: 0.9 }}
 		>
-			<div class="flex items-center gap-3 p-2">
+			<div class="flex items-center gap-3 rounded-lg bg-surface-100 p-2 dark:bg-surface-800">
 				<iconify-icon
 					icon={iconselected}
 					width="30"
-					class="py-2 text-tertiary-500 transition-transform duration-200 hover:scale-110"
+					class="text-tertiary-500 transition-transform duration-200 hover:scale-110 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<p class="transition-colors duration-200">
-					{m.iconpicker_name()}
+				<p class="text-sm">
+					<span class="text-surface-600 dark:text-surface-400">{m.iconpicker_name()}</span>
 					<span class="font-medium text-tertiary-500 dark:text-primary-500">{iconselected}</span>
 				</p>
 			</div>
 			<button
-				onmouseup={removeIcon}
+				onclick={removeIcon}
 				type="button"
-				aria-label="Remove Icon"
+				aria-label="Remove selected icon"
 				class="variant-ghost btn-icon transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
 			>
 				<iconify-icon icon="icomoon-free:bin" width="22" aria-hidden="true"></iconify-icon>
@@ -261,116 +267,135 @@
 		</div>
 	{/if}
 
-	<!-- Icon search input -->
+	<!-- Search input -->
 	<input
 		type="text"
-		id="icon"
+		role="combobox"
 		bind:value={searchQuery}
-		placeholder={iconselected ? `Replace Icon: ${iconselected}` : m.iconpicker_placeholder()}
-		class="input w-full text-black transition-all duration-200 focus:scale-[1.02] focus:shadow-lg dark:text-primary-500"
+		placeholder={iconselected ? `Replace: ${iconselected}` : m.iconpicker_placeholder()}
+		class="input w-full transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
 		oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
-		onfocus={showLibrariesAndDropdown}
+		onfocus={handleFocus}
 		aria-label="Search icons"
 		aria-controls="icon-dropdown"
+		aria-haspopup="listbox"
+		aria-expanded={showDropdown}
 		aria-describedby={searchError ? 'search-error' : undefined}
 	/>
 
+	<!-- Error message -->
 	{#if searchError}
 		<div
 			id="search-error"
-			class="mt-2 animate-pulse rounded border-l-4 border-error-500 bg-error-500/10 p-2 text-error-500 transition-all duration-300"
+			class="mt-2 rounded border-l-4 border-error-500 bg-error-500/10 p-3 text-sm text-error-500"
 			role="alert"
+			in:fade={{ duration: 200 }}
 		>
 			{searchError}
 		</div>
 	{/if}
 
-	<!-- Dropdown section -->
+	<!-- Dropdown -->
 	{#if showDropdown}
 		<div
 			id="icon-dropdown"
-			class="dropdown mt-2 overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-xl dark:border-surface-700 dark:bg-surface-800"
-			role="listbox"
-			style="opacity: {$dropdownOpacity}; transform: scale({$dropdownScale}); transform-origin: top;"
+			class="mt-2 overflow-hidden rounded-lg border border-surface-200 bg-surface-50 shadow-xl dark:border-surface-700 dark:bg-surface-800"
+			role="region"
+			aria-label="Icon picker dropdown"
+			in:scale={{ duration: 200, easing: quintOut, start: 0.95, opacity: 0 }}
+			out:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
 		>
-			<!-- Library filter dropdown -->
+			<!-- Library selector -->
 			<div class="border-b border-surface-200 p-4 dark:border-surface-700">
+				<label for="library-select" class="mb-2 block text-sm font-medium"> Icon Library </label>
 				<select
+					id="library-select"
 					bind:value={selectedLibrary}
-					onclick={getIconLibraries}
-					onchange={async () => {
-						start = 0;
-						page = 0;
-						await gridOpacity.set(0.3);
-						await searchIcons(searchQuery, selectedLibrary);
-					}}
-					class="input w-full transition-all duration-200 hover:scale-[1.01]"
+					onchange={handleLibraryChange}
+					onclick={fetchIconLibraries}
+					class="input w-full"
+					disabled={isLoadingLibraries}
 					aria-label="Select icon library"
-					disabled={isLoading}
 				>
-					{#if librariesLoaded}
-						{#each Object.entries(iconLibraries) as [library, data]}
-							<option value={library}>
-								{data.name}: {library}/{data.total}
+					{#if !librariesLoaded}
+						<option value={DEFAULT_LIBRARY}>Loading libraries...</option>
+					{:else}
+						{#each sortedLibraries as [prefix, library] (prefix)}
+							<option value={prefix}>
+								{library.name} ({prefix}) — {library.total.toLocaleString()} icons
 							</option>
 						{/each}
 					{/if}
 				</select>
 			</div>
 
+			<!-- Icon grid or loading state -->
 			<div class="p-4">
 				{#if isLoading}
-					<div class="flex justify-center p-8">
-						<iconify-icon icon="eos-icons:loading" class="animate-spin text-primary-500" width="32"></iconify-icon>
+					<div class="flex justify-center py-12" in:fade={{ duration: 200 }}>
+						<div class="flex flex-col items-center gap-3">
+							<iconify-icon icon="eos-icons:loading" class="animate-spin text-primary-500" width="40" aria-hidden="true"></iconify-icon>
+							<p class="text-sm text-surface-600 dark:text-surface-400">Loading icons...</p>
+						</div>
 					</div>
-				{:else}
-					<!-- Icon selection buttons -->
-					<div
-						class="grid grid-cols-6 gap-2 transition-opacity duration-300 sm:grid-cols-8 md:grid-cols-10"
-						role="group"
-						style="opacity: {$gridOpacity};"
-					>
-						{#each icons as icon, index}
+				{:else if hasIcons}
+					<!-- Icon grid -->
+					<div class="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10" role="listbox" aria-label="Available icons" in:fade={{ duration: 300 }}>
+						{#each icons as icon (icon)}
 							<button
 								onclick={() => selectIcon(icon)}
 								type="button"
 								class="flex items-center justify-center rounded-lg p-3 transition-all duration-200 hover:scale-110 hover:bg-primary-500/10 focus:outline-none focus:ring-2 focus:ring-primary-500 active:scale-95"
 								aria-label={`Select icon ${icon}`}
 								role="option"
-								aria-selected={iconselected === icon}
-								style="animation-delay: {index * 20}ms;"
+								aria-selected={iconselected === `${selectedLibrary}:${icon}`}
 							>
-								<iconify-icon {icon} width="24" aria-hidden="true" class="transition-all duration-200 hover:text-primary-500"></iconify-icon>
+								<iconify-icon
+									icon={`${selectedLibrary}:${icon}`}
+									width="24"
+									aria-hidden="true"
+									class="transition-colors duration-200 hover:text-primary-500"
+								></iconify-icon>
 							</button>
 						{/each}
 					</div>
 
-					<!-- Pagination buttons -->
-					{#if icons.length > 0}
-						<div class="mt-6 flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">
-							<button
-								disabled={page === 0}
-								onclick={prevPage}
-								class={`${page === 0 ? 'pointer-events-none opacity-0' : 'opacity-100'} variant-filled-primary btn-sm rounded transition-all duration-200 hover:scale-105 active:scale-95`}
-								aria-label="Previous page"
-							>
-								{m.button_previous()}
-							</button>
+					<!-- Pagination -->
+					<div class="mt-6 flex items-center justify-between border-t border-surface-200 pt-4 dark:border-surface-700">
+						<button
+							onclick={previousPage}
+							disabled={!canGoPrevious}
+							class="variant-filled-primary btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
+							aria-label="Previous page"
+						>
+							{m.button_previous()}
+						</button>
 
-							<div class="font-medium dark:text-white" role="status">
-								Showing Icons: <span class="font-bold text-primary-500">{icons.length}</span>
-							</div>
-
-							<button
-								disabled={icons.length < 50}
-								onclick={nextPage}
-								class={`${icons.length < 50 ? 'pointer-events-none opacity-0' : 'opacity-100'} variant-filled-primary btn-sm rounded transition-all duration-200 hover:scale-105 active:scale-95`}
-								aria-label="Next page"
-							>
-								{m.button_next()}
-							</button>
+						<div class="text-sm font-medium" role="status" aria-live="polite">
+							Showing <span class="font-bold text-primary-500">{icons.length}</span> icons
 						</div>
-					{/if}
+
+						<button
+							onclick={nextPage}
+							disabled={!canGoNext}
+							class="variant-filled-primary btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
+							aria-label="Next page"
+						>
+							{m.button_next()}
+						</button>
+					</div>
+				{:else if hasSearchQuery}
+					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: 200 }}>
+						<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400" aria-hidden="true"></iconify-icon>
+						<p class="text-surface-600 dark:text-surface-400">
+							No icons found for "<span class="font-medium">{searchQuery}</span>"
+						</p>
+					</div>
+				{:else}
+					<div class="flex flex-col items-center gap-3 py-12 text-center" in:fade={{ duration: 200 }}>
+						<iconify-icon icon="mdi:magnify" width="48" class="text-surface-400" aria-hidden="true"></iconify-icon>
+						<p class="text-surface-600 dark:text-surface-400">Start typing to search icons</p>
+					</div>
 				{/if}
 			</div>
 		</div>

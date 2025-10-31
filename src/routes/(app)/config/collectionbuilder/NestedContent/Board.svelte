@@ -12,39 +12,57 @@ Features:
 	import Column from './Column.svelte';
 
 	// Svelte DND-actions
-	import { flip } from 'svelte/animate';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
-	import { constructNestedStructure } from '@root/src/content/utils';
+	import { flip } from 'svelte/animate';
+	import { untrack } from 'svelte';
 	import type { DndItem } from './types';
 
 	interface Props {
-		contentNodes: ContentNode[]; // Flat list of all content nodes from the parent
+		contentNodes: ContentNode[]; // ALREADY NESTED content nodes from the parent
 		onNodeUpdate: (updatedNodes: ContentNode[]) => void; // Callback to inform parent of structural changes
-		onEditCategory: (category: ContentNode) => void;
+		onEditCategory: (category: Partial<DndItem>) => void;
 	}
 
 	let { contentNodes = $bindable([]), onNodeUpdate, onEditCategory }: Props = $props();
 
-	// Derived state: Transforms the flat `contentNodes` into a nested structure suitable for `dndzone`.
-	// This structure includes `id` and `children` properties required by `svelte-dnd-action`.
-	let structureState = $derived(createStructuredItems(constructNestedStructure(contentNodes)));
+	// State: Transforms the ALREADY NESTED `contentNodes` into DndItems.
+	// Use $state instead of $derived since we need to mutate it during drag operations
+	let structureState = $state(createStructuredItems(contentNodes || []));
+
+	// Track if we're currently in a drag operation to prevent effect from firing during drag
+	let isDuringDrag = false;
+
+	// Watch for changes in contentNodes and update structureState
+	// But only when NOT during a drag operation (to prevent infinite loops)
+	$effect(() => {
+		const nodes = contentNodes; // Read the dependency
+
+		// Use untrack to prevent reading structureState from creating a dependency
+		untrack(() => {
+			if (!isDuringDrag) {
+				// contentNodes is ALREADY NESTED from the server
+				structureState = createStructuredItems(nodes);
+			}
+		});
+	});
 
 	// UI state for drag operations
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
 
 	/**
-	 * Converts a list of `NestedContentNode`s into `DndItem`s suitable for `svelte-dnd-action`.
+	 * Converts a list of ALREADY NESTED `ContentNode`s into `DndItem`s suitable for `svelte-dnd-action`.
 	 * Recursively processes children to maintain the nested structure.
-	 * @param nodes The nested content nodes.
+	 * @param nodes The already nested content nodes from the server.
 	 * @returns An array of `DndItem`s.
 	 */
-	function createStructuredItems(nodes: NestedContentNode[]): DndItem[] {
+	function createStructuredItems(nodes: ContentNode[]): DndItem[] {
 		return nodes.map((node, index) => ({
 			...node,
 			id: node._id, // `svelte-dnd-action` requires an `id` property
-			children: createStructuredItems(node.children ?? []),
+			// Recursively process children if they exist
+			children: node.children ? createStructuredItems(node.children) : [],
 			isCategory: node.nodeType === 'category',
 			order: index // Assign order based on current visual position
 		}));
@@ -62,10 +80,10 @@ Features:
 		let flatNodes: ContentNode[] = [];
 		dndItems.forEach((dndItem, index) => {
 			// Destructure to separate dnd-specific props from ContentNode props
-			const { id, children, isCategory, ...rest } = dndItem;
+			const { id, children, isCategory, _id, order, ...rest } = dndItem;
 			const contentNode: ContentNode = {
 				_id: id as DatabaseId,
-				parentId: parentId, // Set the current parentId
+				...(parentId ? { parentId } : {}),
 				order: index, // Set the order based on its position in the current list
 				...rest
 			};
@@ -86,6 +104,7 @@ Features:
 	 */
 	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
 		isDragging = true;
+		isDuringDrag = true; // Prevent effect from firing during drag
 		try {
 			// `e.detail.items` contains the items in their *potential* new order/location
 			structureState = e.detail.items;
@@ -97,6 +116,29 @@ Features:
 	}
 
 	/**
+	 * Handles node reordering from child components (Column components).
+	 * Uses a debounce mechanism to batch multiple rapid updates.
+	 */
+	let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function handleNodeReorder(_itemId: string, _newParentId: DatabaseId | undefined, _updatedChildren: DndItem[]) {
+		// Debounce: Clear any pending update
+		if (updateTimeout) {
+			clearTimeout(updateTimeout);
+		}
+
+		// Schedule update after all zones have finished
+		updateTimeout = setTimeout(() => {
+			try {
+				const flatNodes = flattenNodes(structureState);
+				onNodeUpdate(flatNodes);
+				updateTimeout = null;
+			} catch (err) {
+				console.error('Error flattening in timeout:', err);
+				dragError = err instanceof Error ? err.message : 'Error flattening structure';
+			}
+		}, 100); // Wait 100ms for all zones to settle
+	} /**
 	 * Handles the `finalize` event from `dndzone`. This is where the actual state update occurs
 	 * after a drag operation is completed.
 	 * @param e CustomEvent from `dndzone` containing drag details.
@@ -116,6 +158,9 @@ Features:
 		} catch (error) {
 			console.error('Error handling DnD finalize in Board:', error);
 			dragError = error instanceof Error ? error.message : 'Error finalizing drag operation';
+		} finally {
+			// Allow the effect to run again after drag is complete
+			isDuringDrag = false;
 		}
 	}
 
@@ -148,7 +193,7 @@ Features:
 					level={0}
 					{item}
 					children={item.children ?? []}
-					onNodeReorder={handleDndFinalize}
+					onNodeReorder={handleNodeReorder}
 					isCategory={item.nodeType === 'category'}
 					{onEditCategory}
 				/>

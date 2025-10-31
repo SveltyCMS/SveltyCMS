@@ -9,18 +9,17 @@ It handles widget configuration, permissions, and specific options.
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
-	import widgets from '@widgets';
+	import { widgetFunctions } from '@stores/widgetStore.svelte';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
+	import { collectionValue, setCollectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
-	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { getModalStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	let localTabSet: number = $state(0);
@@ -36,8 +35,10 @@ It handles widget configuration, permissions, and specific options.
 
 	// Local variables
 	let modalData = $derived($modalStore[0]);
-	let widgetKey = $derived(modalData?.value?.widget?.key as keyof typeof widgets);
-	let guiSchema = $derived(widgets[widgetKey]?.GuiSchema || widgets);
+	// Widget key is the folder name (lowercase), not the widget Name
+	let widgetKey = $derived(modalData?.value?.widget?.key || (modalData?.value?.widget?.Name?.toLowerCase() as string));
+	let availableWidgets = $derived($widgetFunctions || {});
+	let guiSchema = $derived((availableWidgets[widgetKey]?.GuiSchema || {}) as Record<string, { widget?: any; [key: string]: unknown }>);
 
 	// Derive options from guiSchema
 	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);
@@ -50,7 +51,7 @@ It handles widget configuration, permissions, and specific options.
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
 		if (modalData?.response) {
-			modalData.response(targetWidget.value);
+			modalData.response(targetWidget);
 		}
 		modalStore.close();
 	}
@@ -60,12 +61,13 @@ It handles widget configuration, permissions, and specific options.
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			collectionValue.update((c) => {
-				if (c && Array.isArray(c.fields)) {
-					c.fields = c.fields.filter((field: any) => field.id !== modalData?.value.id);
-				}
-				return c;
-			});
+			if (collectionValue && Array.isArray(collectionValue.value.fields)) {
+				const newFields = (collectionValue.value.fields as any[]).filter((field: any) => field.id !== modalData?.value.id);
+				setCollectionValue({
+					...collectionValue.value,
+					fields: newFields
+				});
+			}
 			modalStore.close();
 		}
 	}

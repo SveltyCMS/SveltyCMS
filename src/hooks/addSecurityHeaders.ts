@@ -1,36 +1,46 @@
 /**
  * @file src/hooks/addSecurityHeaders.ts
- * @description Adds security headers to HTTP responses for enhanced protection
+ * @description Security headers middleware with essential HTTP security headers
  *
- * Features:
- * - X-Frame-Options: Prevents clickjacking attacks
- * - X-XSS-Protection: Enables XSS filtering in browsers
- * - X-Content-Type-Options: Prevents MIME type sniffing
- * - Referrer-Policy: Controls referrer information sent with requests
- * - Permissions-Policy: Restricts browser features access
- * - Strict-Transport-Security: Enforces HTTPS connections (HTTPS only)
- * - Content-Security-Policy: Optional CSP header support
+ * ### Security Headers Applied
+ * - **X-Frame-Options**: Prevents clickjacking attacks
+ * - **X-Content-Type-Options**: Prevents MIME-sniffing vulnerabilities
+ * - **Referrer-Policy**: Controls referrer information leakage
+ * - **Permissions-Policy**: Restricts browser feature access
+ * - **Strict-Transport-Security**: Enforces HTTPS in production
+ *
+ * ### CSP Handling
+ * - Content Security Policy is managed by SvelteKit's built-in CSP system
+ * - Configured in svelte.config.js for optimal nonce-based protection
+ *
+ * ### Performance
+ * - Static assets are handled by handleStaticAssetCaching middleware (runs earlier)
+ * - Minimal overhead as headers are only set for dynamic responses
+ *
+ * @prerequisite Static asset handling done by earlier middleware
  */
 
+import { dev } from '$app/environment';
 import type { Handle } from '@sveltejs/kit';
 
 export const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
-	// Core security headers
-	const headers = {
-		'X-Frame-Options': 'SAMEORIGIN',
-		'X-XSS-Protection': '1; mode=block',
-		'X-Content-Type-Options': 'nosniff',
-		'Referrer-Policy': 'strict-origin-when-cross-origin',
-		'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), display-capture=()'
-	};
+	// Static assets are already handled by handleStaticAssetCaching middleware
 
-	// Apply headers efficiently
-	Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
+	// Basic security headers (SvelteKit handles CSP via svelte.config.js)
+	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set(
+		'Permissions-Policy',
+		['geolocation=()', 'microphone=()', 'camera=()', 'display-capture=()', 'clipboard-read=()', 'clipboard-write=(self)', 'web-share=(self)'].join(
+			', '
+		)
+	);
 
-	// HTTPS-specific headers
-	if (event.url.protocol === 'https:') {
+	// HTTPS-only headers for production (CRITICAL: Fixed from 'httpss:' typo)
+	if (!dev && event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	}
 

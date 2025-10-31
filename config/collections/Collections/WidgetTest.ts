@@ -3,8 +3,8 @@
  * @description Collection file for WidgetTest
  */
 
-import widgets from '@widgets';
 import type { Schema } from '@root/src/content/types';
+import { widgetProxy as widgets } from '@src/widgets/proxy';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
@@ -52,8 +52,8 @@ export const schema: Schema = {
 			prefix: 'pre',
 			suffix: 'suf',
 			count: 10,
-			minlength: 2,
-			maxlength: 15,
+			minLength: 2,
+			maxLength: 15,
 			placeholder: 'Enter Full Text',
 			translated: true,
 			required: true
@@ -82,7 +82,9 @@ export const schema: Schema = {
 			required: true
 		}),
 
-		widgets.DateTime({
+		// DateTime is provided by the same core Date widget via the `timePicker` option.
+		widgets.Date({
+			timePicker: true,
 			label: 'DateTime',
 			db_fieldName: 'datetime',
 			icon: 'bi:calendar3',
@@ -95,15 +97,15 @@ export const schema: Schema = {
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Number',
 			required: true,
+			min: 0,
 			prefix: 'height',
 			suffix: 'mm'
-			// step: 0.01
 		}),
 
 		widgets.Currency({
 			label: 'Currency',
 			db_fieldName: 'currency',
-			currencyCode: 'Euro',
+			currencyCode: 'Eur',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Currency',
 			required: true,
@@ -160,13 +162,13 @@ export const schema: Schema = {
 			db_fieldName: 'RichText',
 			icon: 'ri:t-box-line',
 			required: true
-		})
+		}),
 
-		// widgets.Seo({
-		// 	label: 'Seo',
-		// 	db_fieldName: 'seo',
-		// 	icon: 'tabler:seo',
-		// 	required: true
-		// })
+		widgets.Seo({
+			label: 'Seo',
+			db_fieldName: 'seo',
+			icon: 'tabler:seo',
+			required: true
+		})
 	]
 };

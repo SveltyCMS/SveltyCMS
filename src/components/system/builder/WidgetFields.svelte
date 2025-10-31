@@ -9,25 +9,25 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import widgets from '@widgets';
 	import AddWidget from './AddWidget.svelte';
 
 	import { debounce } from '@utils/utils';
+	import type { FieldInstance } from '@content/types';
 
 	// Props
-	let { fields = [], onFieldsUpdate = (newFields: any[]) => {} } = $props<{
-		fields: any[];
-		onFieldsUpdate: (newFields: any[]) => void;
+	let { fields = [], onFieldsUpdate = () => {} } = $props<{
+		fields: FieldInstance[];
+		onFieldsUpdate: (newFields: FieldInstance[]) => void;
 	}>();
 
 	// State
 	let container = $state<HTMLDivElement | null>(null);
-	let currentFieldKey = $state<keyof typeof widgets | null>(null);
-	let currentField = $state<any>(null);
+	let currentFieldKey = $state<string | null>(null);
+	let currentField = $state<FieldInstance | null>(null);
 
 	function initDragAndDrop(node: HTMLElement) {
 		function drag(e: PointerEvent) {
-			let timeOut: any;
+			let timeOut: ReturnType<typeof setTimeout> | undefined;
 			const pointerID = e.pointerId;
 
 			let targets = $state(
@@ -107,7 +107,9 @@
 					if (clone_index < closest_index) {
 						closest_index--;
 					}
-					e.clientY > closest.center && closest_index++;
+					if (e.clientY > closest.center) {
+						closest_index++;
+					}
 					newFields.splice(closest_index, 0, dragged_item);
 					onFieldsUpdate(newFields);
 					clone.remove();
@@ -130,14 +132,14 @@
 		};
 	}
 
-	function handleFieldClick(field: any) {
+	function handleFieldClick(field: FieldInstance) {
 		currentFieldKey = field.widget.Name;
 		currentField = field;
 	}
 
-	function handleFieldDelete(field: any, event: Event) {
+	function handleFieldDelete(field: FieldInstance, event: Event) {
 		event.stopPropagation();
-		const newFields = fields.filter((f: any) => f !== field);
+		const newFields = fields.filter((f: FieldInstance) => f !== field);
 		onFieldsUpdate(newFields);
 	}
 
@@ -181,7 +183,7 @@
 </div>
 
 {#if currentField}
-	<AddWidget {fields} field={currentField} addField={currentField} selected_widget={currentFieldKey} editField={true} />
+	<AddWidget {fields} field={currentField} addField={false} selected_widget={currentFieldKey} editField={true} />
 {/if}
 
 <!-- Edit individual selected widget  -->

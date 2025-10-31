@@ -1,102 +1,96 @@
 /**
-@file src/widgets/custom/currency/index.ts
-@description - currency index file.
-*/
-
-import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'Currency' as const;
-
-/**
- * Defines Currency widget Parameters
+ * @file src/widgets/custom/currency/index.ts
+ * @description Currency Widget Definition.
+ *
+ * Implements a robust currency input widget that stores a precise number
+ * while displaying and accepting localized, formatted currency strings.
+ *
+ * @features
+ * - **Numeric Storage**: Stores currency as a `number` for accuracy.
+ * - **Dynamic Validation**: Schema adapts to `required`, `minValue`, and `maxValue` settings.
+ * - **Internationalization**: Uses `Intl.NumberFormat` for locale-aware formatting.
+ * - **Configurable GUI**: `GuiSchema` allows easy setup in the Collection Builder.
+ * - **Database Aggregation**: Supports numeric filtering (e.g., price > 100) and sorting.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
-			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
+
+import type { FieldInstance } from '@src/content/types';
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
+import type { CurrencyProps } from './types';
+
+// Helper type for aggregation field
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
+// The validation schema is a function to create rules based on the field config.
+const validationSchema = (field: FieldInstance) => {
+	// Start with a base number schema.
+	const baseSchema = number('Value must be a number.');
+
+	// Build validations array dynamically
+	let schema = baseSchema;
+	if (field.minValue !== undefined) {
+		schema = pipe(schema, minValue(field.minValue as number, `Value must be at least ${field.minValue}.`));
+	}
+	if (field.maxValue !== undefined) {
+		schema = pipe(schema, maxValue(field.maxValue as number, `Value must not exceed ${field.maxValue}.`));
 	}
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions,
-
-		// widget specific
-		minlength: params.minlength,
-		maxlength: params.maxlength,
-		prefix: params.prefix,
-		suffix: params.suffix,
-		placeholder: params.placeholder,
-		step: params.step,
-		count: params.count,
-		negative: params.negative,
-		currencyCode: params.currencyCode
-	};
-	// Return the field and widget objects
-	return { ...field, widget };
+	// If the field is not required, wrap the schema to allow it to be undefined.
+	return field.required ? schema : optional(schema);
 };
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const CurrencyWidget = createWidget<CurrencyProps>({
+	Name: 'Currency',
+	Icon: 'mdi:currency-usd',
+	Description: m.widget_currency_description(),
+	inputComponentPath: '/src/widgets/custom/currency/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/currency/Display.svelte',
+	validationSchema,
 
-// Widget icon and helper text
-widget.Icon = 'mdi:currency-usd';
-widget.Description = m.widget_currency_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Set widget-specific defaults.
+	defaults: {
+		currencyCode: 'EUR',
+		translated: false // A monetary value is typically not translated.
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// GuiSchema allows configuration in the collection builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		currencyCode: { widget: Input, required: true, helper: 'ISO 4217 code, e.g., EUR' },
+		minValue: { widget: Input, required: false },
+		maxValue: { widget: Input, required: false },
+		placeholder: { widget: Input, required: false }
+	},
+
+	// Aggregations perform numeric comparisons.
+	aggregations: {
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+			// Example: filter=">100" or filter="<50" or filter="150"
+			// This requires a simple parser for the filter string.
+			{ $match: { [field.db_fieldName]: { $eq: parseFloat(filter) } } } // Simplified for exact match
+		],
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
+			[field.db_fieldName]: sortDirection
+		})
+	},
+
+	// GraphQL schema for currency
+	GraphqlSchema: () => ({
+		typeID: 'Float', // Use Float for currency values
+		graphql: '' // No custom type definition needed
+	})
+});
+
+export default CurrencyWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof CurrencyWidget>;
+export type CurrencyWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

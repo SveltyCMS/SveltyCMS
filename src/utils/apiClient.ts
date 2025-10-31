@@ -191,7 +191,7 @@ function generateCacheKey(query: Record<string, unknown>): string {
 		collectionId: (query.collectionId as string)?.trim().toLowerCase(),
 		page: query.page || 1,
 		pageSize: query.pageSize || query.limit || 25,
-		contentLanguage: query.contentLanguage || 'en',
+		contentLanguage: query.contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE,
 		filter: query.filter || '{}',
 		sortField: query.sortField || 'createdAt',
 		sortDirection: query.sortDirection || 'desc',

@@ -4,30 +4,32 @@
  * This module handles all file system operations and media processing.
  */
 
-import { publicEnv } from '@root/config/public';
 import { cacheService } from '@src/databases/CacheService';
 import { dbAdapter } from '@src/databases/db';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error } from '@sveltejs/kit';
 import { sanitize } from '@utils/utils';
 import crypto from 'crypto';
 import mime from 'mime-types';
 import Path from 'path';
 import Sharp from 'sharp';
-import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
 import { MediaTypeEnum, Permission } from './mediaModels';
 import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
+
+import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Image sizes configuration
-type ImageSizesType = typeof publicEnv.IMAGE_SIZES & {
+const defaultImageSizes = { sm: 600, md: 900, lg: 1200 };
+type ImageSizesType = typeof defaultImageSizes & {
 	original: 0;
 	thumbnail: 200;
 };
 
 const SIZES: ImageSizesType = {
-	...publicEnv.IMAGE_SIZES,
+	...(publicEnv.IMAGE_SIZES || defaultImageSizes),
 	original: 0,
 	thumbnail: 200
 } as const;
@@ -119,15 +121,16 @@ export async function saveResizedImages(
 			let resizedBuffer = await resizeImage(buffer, width);
 
 			// Apply format conversion if configured
-			if (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format !== 'original') {
-				resizedBuffer = resizedBuffer.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as 'avif' | 'webp', {
-					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality,
+			const formatQuality = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY;
+			if (formatQuality && formatQuality.format !== 'original') {
+				resizedBuffer = resizedBuffer.toFormat(formatQuality.format as 'avif' | 'webp', {
+					quality: formatQuality.quality,
 					lossless: false
 				});
 			}
 
 			// Use correct extension based on output format
-			const outputExt = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : `.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+			const outputExt = formatQuality && formatQuality.format === 'original' ? ext : `.${formatQuality?.format ?? ''}`;
 
 			const resizedUrl = Path.posix.join(basePath, size, `${fileName}-${hash}.${outputExt}`);
 
@@ -240,7 +243,7 @@ export async function fileExists(url: string): Promise<boolean> {
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	const mediaFolder = publicEnv.MEDIA_FOLDER || 'mediaFiles';
+	const mediaFolder = publicEnv.MEDIA_FOLDER;
 
 	// Normalize various possible forms:
 	// - /files/avatars/...
@@ -418,8 +421,9 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		if (existingFile && existingFile.success && existingFile.data) {
 			const mediaData = existingFile.data as { url?: string };
 			let fileUrl = mediaData.url || '';
-			if (publicEnv.MEDIASERVER_URL) {
-				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			const mediaServerUrl = publicEnv.MEDIASERVER_URL;
+			if (mediaServerUrl) {
+				fileUrl = `${mediaServerUrl}/${fileUrl}`;
 			} else {
 				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 			}

@@ -3,7 +3,7 @@
  * @description Collection file for Names
  */
 
-import widgets from '@widgets';
+import { widgetProxy as widgets } from '@src/widgets/proxy';
 import type { Schema } from '@root/src/content/types';
 
 export const schema: Schema = {

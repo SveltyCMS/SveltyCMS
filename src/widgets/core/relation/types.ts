@@ -1,92 +1,35 @@
 /**
-@file src/widgets/core/relation/types.ts
-@description - relation widget types
-*/
-
-// Components
-import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@components/system/inputs/Input.svelte';
-import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@root/src/auth';
-import GuiField from './GuiField.svelte';
-
-import { getFieldName } from '@utils/utils';
-//import { dbAdapter } from '@src/databases/db'; // Import your database adapter
-
-// Update all dbAdapter calls to use dbAdapter.get()
+ * @file src/widgets/core/relation/types.ts
+ * @description Type definitions for the Relation and RelationList widgets.
+ *
+ * @features
+ * - **Strongly Typed**: Defines clear configuration options for relationships.
+ * - **Modular**: Separates props for single and multiple relation types.
+ */
 
 /**
- * Defines Relation widget Parameters
+ * Defines the properties unique to the Relation & RelationList widgets.
  */
-export type Params<K, T> = {
-	// default required parameters
-	label: string;
-	display?: DISPLAY;
-	db_fieldName?: string;
-	widget?: typeof Input | typeof Toggles | typeof IconifyPicker | typeof PermissionsSetting | typeof GuiField;
-	required?: boolean;
-	// translated?: boolean;
-	icon?: string;
-	helper?: string;
-	width?: number;
+export interface RelationProps {
+	/**
+	 * The `_id` of the collection to relate to.
+	 */
+	collection: string;
 
-	// Permissions
-	permissions?: Permission[];
-
-	// Widget Specific parameters
-	displayPath: K;
-	relation: T;
-};
+	/**
+	 * The field from the related collection to display in the selector.
+	 */
+	displayField: string;
+}
 
 /**
- * Defines Relation GuiSchema
+ * Defines the properties unique to the RelationList widget.
+ * It inherits from RelationProps and adds a `multiselect` option.
  */
-export const GuiSchema = {
-	label: { widget: Input, required: true },
-	display: { widget: Input, required: true },
-	db_fieldName: { widget: Input, required: true },
-	required: { widget: Toggles, required: false },
-	// translated: { widget: Toggles, required: false },
-	icon: { widget: IconifyPicker, required: false },
-	helper: { widget: Input, required: false },
-	width: { widget: Input, required: false },
-
-	// Permissions
-	permissions: { widget: PermissionsSetting, required: false },
-
-	// Widget Specific parameters
-	relation: {
-		widget: GuiField,
-		required: true,
-		imports: ['import {relation} from "./{relation}"']
-	}
-};
-
-/**
- * Define Relation GraphqlSchema function
- */
-export const GraphqlSchema: GraphqlSchema = ({ field, collection, collectionNameMapping }) => {
-	// Resolve the collection name to clean type name using the mapping
-	const cleanTypeName = collectionNameMapping?.get(field.relation) || field.relation;
-
-	// Return an object containing the type name and the GraphQL schema
-	return {
-		typeID: cleanTypeName,
-		graphql: '', // relation does not need its own graphql because it copies related collection type
-		resolver: {
-			[collection.name]: {
-				async [getFieldName(field)](parent: Record<string, unknown>) {
-					const adapter = await dbAdapter.get();
-					const res = await adapter.findOne(field.relation, {
-						_id: parent[getFieldName(field)] as string
-					});
-
-					return res;
-				}
-			}
-		}
-	};
-};
+export interface RelationListProps extends RelationProps {
+	/**
+	 * Allow the user to select multiple entries.
+	 * @default true
+	 */
+	multiselect?: boolean;
+}

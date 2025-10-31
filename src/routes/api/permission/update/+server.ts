@@ -10,7 +10,7 @@
  * - Validate and transform incoming roles/permissions data
  * - Handle authorization and access control
  */
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -20,14 +20,14 @@ import * as ts from 'typescript';
 
 // Authorization
 import { dbInitPromise } from '@src/databases/db';
-import { getAllPermissions } from '@src/auth/permissions';
+import { getAllPermissions } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Importing and using the Role type from auth/types.ts
-import type { Role } from '@src/auth/types';
+import type { Role } from '@src/databases/auth/types';
 
 // Constants for validation
 const MAX_ROLE_NAME_LENGTH = 50;
@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// --- MULTI-TENANCY SECURITY BLOCK ---
 	// This endpoint modifies a global file and is fundamentally incompatible with multi-tenancy.
 	// It is disabled to prevent one tenant from overwriting the roles of all other tenants.
-	if (privateEnv.MULTI_TENANT) {
+	if (getPrivateSettingSync('MULTI_TENANT')) {
 		logger.error('CRITICAL: The permission/update API endpoint was called in multi-tenant mode. This operation is disabled for security reasons.');
 		throw error(501, 'This feature is not available in multi-tenant mode.');
 	}
@@ -199,8 +199,8 @@ async function generateRolesFileWithAST(rolesData: Role[]): Promise<string> {
  * @description Role configuration file
  */
 
-import type { Role } from '../src/auth/types';
-import { getAllPermissions } from '../src/auth/permissions';
+import type { Role } from '@src/databases/auth/types';
+import { getAllPermissions } from '@src/databases/auth';
 
 const permissions = getAllPermissions();
 

@@ -2,11 +2,10 @@
 // @ts-expect-error - Bun types are not available in TypeScript
 import { expect, test, describe, beforeEach, mock } from 'bun:test';
 import { render, fireEvent, cleanup } from '@testing-library/svelte';
-import { get } from 'svelte/store';
 import Text from '@src/widgets/text/Text.svelte';
 import widget from '@src/widgets/text';
 import { contentLanguage, validationStore } from '@stores/store';
-import { mode, collectionValue } from '@stores/collectionStore.svelte';
+import { collectionValue, setMode, setCollectionValue } from '@stores/collectionStore.svelte';
 
 // Mock config
 const publicEnv = {
@@ -25,10 +24,10 @@ mock('@src/paraglide/messages', () => ({
 describe('Text Widget', () => {
 	beforeEach(() => {
 		cleanup();
-		// Reset stores
-		mode.set('create');
+		// Reset stores using Svelte 5 pattern
+		setMode('create');
 		contentLanguage.set(publicEnv.DEFAULT_CONTENT_LANGUAGE);
-		collectionValue.set({});
+		setCollectionValue({});
 		validationStore.clearError('test_field');
 	});
 
@@ -80,8 +79,9 @@ describe('Text Widget', () => {
 			await fireEvent.input(input, { target: { value: `test-${lang}` } });
 		}
 
-		const data = get(collectionValue);
-		expect(Object.keys(data.test_field).length).toBe(publicEnv.AVAILABLE_CONTENT_LANGUAGES.length);
+		// Access collectionValue using .value (Svelte 5 runes pattern)
+		const data = collectionValue.value as Record<string, unknown>;
+		expect(Object.keys((data.test_field as Record<string, unknown>) || {}).length).toBe(publicEnv.AVAILABLE_CONTENT_LANGUAGES.length);
 	});
 
 	test('should update character count', async () => {

@@ -9,123 +9,216 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 @example
 <FloatingNav />
 
-@features
-- Draggable floating action button
-- Radial menu expansion with smooth animations
-- SvelteKit navigation integration
-- Position persistence via localStorage
-- Role-based endpoint filtering
-- Touch-optimized for mobile devices
+### Features
+- Draggable floating button
+- Radial menu for quick access to main sections
 -->
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { motion } from '@src/utils/utils';
-	import { fade } from 'svelte/transition';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { linear } from 'svelte/easing';
-	import { tick, onMount, onDestroy } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import { browser } from '$app/environment';
 
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 
 	// Stores
-	import { page } from '$app/stores';
-	import { mode } from '@stores/collectionStore.svelte';
+	import { setMode } from '@stores/collectionStore.svelte';
 	import { toggleUIElement } from '@stores/UIStore.svelte';
 
-	// Skeleton UI - Import popup action and modal store
+	// Skeleton UI
 	import { getModalStore, popup } from '@skeletonlabs/skeleton';
+
 	const modalStore = getModalStore();
 
-	// --- Tooltip State ---
-	const navPopup = 'floatingNavTooltip'; // A unique ID for the popup target
-	let activeTooltipText = ''; // This will hold the text for the currently hovered button
+	// Constants
+	const BUTTON_RADIUS = 25;
+	const EDGE_MARGIN = 12;
+	const MENU_RADIUS = 160;
+	const DRAG_THRESHOLD = 10;
+	const MOTION_MS_DEFAULT = 200;
+	const VIBRATE_OPEN_MS = 10;
+	const VIBRATE_CLOSE_MS = 5;
 
-	// Config / UX constants
-	const buttonRadius = 25; // home button size
-	const EDGE_MARGIN = 12; // px gap from screen edges for the FAB
-	let navigation_info: Record<string, any> = {};
-	let showRoutes = false;
-	let center = { x: 0, y: 0 };
-
-	// Refs
-	let firstLine: SVGLineElement;
-	let firstCircle: HTMLDivElement;
-	const circles: HTMLDivElement[] = [];
-	let svg: SVGElement;
-	let user: User = $page.data.user;
-
-	// Motion preferences
-	let prefersReducedMotion = false;
-	let MOTION_MS = 200;
-
-	// Endpoint definition now includes a 'tooltip' property
-	let endpoints: {
+	// Endpoint type
+	type Endpoint = {
+		tooltip: string;
 		url: {
 			external: boolean;
 			path: string;
 		};
 		icon: string;
-		tooltip: string;
 		color?: string;
-	}[] = [
+	};
+
+	// Get user from page data
+	let user = $derived($page.data.user as User | undefined);
+
+	// Endpoint definitions
+	const ALL_ENDPOINTS: Endpoint[] = [
 		{
 			tooltip: 'Home',
-			url: { external: false, path: `/` },
+			url: { external: false, path: '/' },
 			icon: 'solar:home-bold'
 		},
 		{
 			tooltip: 'User Profile',
-			url: { external: false, path: `/user` },
+			url: { external: false, path: '/user' },
 			icon: 'radix-icons:avatar',
 			color: 'bg-orange-500'
 		},
 		{
 			tooltip: 'Collection Builder',
-			url: { external: false, path: `/config/collectionbuilder` },
+			url: { external: false, path: '/config/collectionbuilder' },
 			icon: 'fluent-mdl2:build-definition',
 			color: 'bg-green-500'
 		},
 		{
 			tooltip: 'Image Editor',
-			url: { external: false, path: `/imageEditor` },
+			url: { external: false, path: '/imageEditor' },
 			icon: 'tdesign:image-edit'
 		},
 		{
 			tooltip: 'GraphQL Explorer',
-			url: { external: true, path: `/api/graphql` },
+			url: { external: true, path: '/api/graphql' },
 			icon: 'teenyicons:graphql-outline',
 			color: 'bg-pink-500'
 		},
 		{
 			tooltip: 'System Configuration',
-			url: { external: false, path: `/config` },
+			url: { external: false, path: '/config' },
 			icon: 'mynaui:config',
 			color: 'bg-surface-400'
 		},
 		{
 			tooltip: 'Marketplace',
-			url: { external: true, path: `https://www.sveltycms.com` },
+			url: { external: true, path: 'https://www.sveltycms.com' },
 			icon: 'icon-park-outline:shopping-bag',
 			color: 'bg-primary-700'
 		}
-	].filter((endpoint) => {
-		if (user?.role === 'admin') return true;
-		else if (endpoint.url.path === '/collection') return false;
-		else return true;
+	];
+
+	// Filter endpoints based on user role
+	let endpoints = $derived(
+		ALL_ENDPOINTS.filter((endpoint) => {
+			if (user?.role === 'admin') return true;
+			if (endpoint.url.path === '/collection') return false;
+			return true;
+		})
+	);
+
+	// State
+	let showRoutes = $state(false);
+	let activeTooltipText = $state('');
+	let prefersReducedMotion = $state(false);
+	let motionMs = $state(MOTION_MS_DEFAULT);
+
+	let buttonInfo = $state({
+		x: 0,
+		y: 0,
+		radius: BUTTON_RADIUS
 	});
 
-	export let buttonInfo: { x: number; y: number; radius: number } = { x: 0, y: 0, radius: buttonRadius };
+	let center = $state({
+		x: browser ? window.innerWidth / 2 : 0,
+		y: browser ? window.innerHeight / 2 : 0
+	});
 
-	// Adjust button position on window resize
-	async function handleResize() {
-		const minX = buttonRadius + EDGE_MARGIN;
-		const maxX = window.innerWidth - (buttonRadius + EDGE_MARGIN);
-		const minY = buttonRadius + EDGE_MARGIN;
-		const maxY = window.innerHeight - (buttonRadius + EDGE_MARGIN);
+	// Refs
+	let firstLine = $state<SVGLineElement | undefined>(undefined);
+	let firstCircle = $state<HTMLDivElement | undefined>(undefined);
+	let svg = $state<SVGElement | undefined>(undefined);
+	let circles = $state<(HTMLDivElement | undefined)[]>([]);
+
+	// Popup ID
+	const NAV_POPUP_ID = 'floatingNavTooltip';
+
+	// Calculate endpoint positions
+	let endpointsWithPos = $derived(
+		endpoints.map((endpoint, index) => {
+			const angle = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
+			const x = center.x + MENU_RADIUS * Math.cos(angle);
+			const y = center.y + MENU_RADIUS * Math.sin(angle);
+			return { ...endpoint, x, y, angle };
+		})
+	);
+
+	// Helper functions
+	function getBasePath(pathname: string): string {
+		const params = Object.values($page.params);
+		const replaced = params.reduce((acc, param) => acc.replace(param, ''), pathname);
+		return params.length > 0 ? replaced : pathname;
+	}
+
+	function isRightToLeft(): boolean {
+		return browser && document.documentElement.dir === 'rtl';
+	}
+
+	function vibrate(duration: number): void {
+		if (browser) {
+			try {
+				navigator.vibrate?.(duration);
+			} catch {
+				// Vibration not supported
+			}
+		}
+	}
+
+	function loadSavedPosition(): void {
+		if (!browser) return;
+
+		try {
+			const navigationInfo = JSON.parse(localStorage.getItem('navigation') || '{}');
+			const key = getBasePath($page.url.pathname);
+			const saved = navigationInfo[key] as { x?: number; y?: number } | undefined;
+
+			if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+				buttonInfo = { x: saved.x, y: saved.y, radius: BUTTON_RADIUS };
+			} else {
+				buttonInfo = {
+					x: window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
+					y: window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN),
+					radius: BUTTON_RADIUS
+				};
+			}
+		} catch {
+			buttonInfo = {
+				x: window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
+				y: window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN),
+				radius: BUTTON_RADIUS
+			};
+		}
+	}
+
+	function savePosition(): void {
+		if (!browser) return;
+
+		try {
+			const navigationInfo = JSON.parse(localStorage.getItem('navigation') || '{}');
+			const key = getBasePath($page.url.pathname);
+			navigationInfo[key] = { x: buttonInfo.x, y: buttonInfo.y };
+			localStorage.setItem('navigation', JSON.stringify(navigationInfo));
+		} catch (error) {
+			console.error('Failed to save position:', error);
+		}
+	}
+
+	async function handleResize(): Promise<void> {
+		if (!browser) return;
+
+		const minX = BUTTON_RADIUS + EDGE_MARGIN;
+		const maxX = window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN);
+		const minY = BUTTON_RADIUS + EDGE_MARGIN;
+		const maxY = window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN);
+
 		buttonInfo.x = Math.min(Math.max(buttonInfo.x, minX), maxX);
 		buttonInfo.y = Math.min(Math.max(buttonInfo.y, minY), maxY);
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
 		if (firstLine && firstCircle) {
 			firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
 			firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
@@ -134,69 +227,19 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}
 
-	function getBasePath(pathname: string) {
-		const params = Object.values($page.params);
-		const replaced = params.reduce((acc, param) => {
-			return acc.replace(param, '');
-		}, pathname);
-		return params.length > 0 ? replaced : pathname;
-	}
-
-	onMount(() => {
-		try {
-			navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
-		} catch {
-			navigation_info = {};
-		}
-		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		MOTION_MS = prefersReducedMotion ? 0 : 200;
-		const key = getBasePath($page.url.pathname);
-		const saved = navigation_info[key];
-		if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
-			buttonInfo = { x: saved.x, y: saved.y, radius: buttonRadius };
-		} else {
-			buttonInfo = {
-				x: window.innerWidth - (buttonRadius + EDGE_MARGIN),
-				y: window.innerHeight - (buttonRadius + EDGE_MARGIN),
-				radius: buttonRadius
-			};
-		}
-		window.addEventListener('resize', handleResize, { passive: true });
-		window.addEventListener('keydown', onKeyDown);
-	});
-
-	onDestroy(() => {
-		window.removeEventListener('resize', handleResize);
-		window.removeEventListener('keydown', onKeyDown);
-	});
-
-	const MENU_RADIUS = 160;
-
-	$: endpointsWithPos = endpoints.map((endpoint, index) => {
-		const angle = ((Math.PI * 2) / endpoints.length) * (index + 1.25);
-		const x = center.x + MENU_RADIUS * Math.cos(angle);
-		const y = center.y + MENU_RADIUS * Math.sin(angle);
-		return { ...endpoint, x, y, angle };
-	});
-
-	function closeMenu() {
+	function closeMenu(): void {
 		if (!showRoutes) return;
 		showRoutes = false;
-		try {
-			navigator.vibrate?.(5);
-		} catch {}
+		vibrate(VIBRATE_CLOSE_MS);
 		setTimeout(() => firstCircle?.focus?.(), 0);
 	}
 
-	async function toggleMenuOpen() {
+	async function toggleMenuOpen(): Promise<void> {
 		if (!showRoutes) {
 			center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 			await tick();
 			showRoutes = true;
-			try {
-				navigator.vibrate?.(10);
-			} catch {}
+			vibrate(VIBRATE_OPEN_MS);
 			await tick();
 			circles[0]?.focus?.();
 		} else {
@@ -204,96 +247,127 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		}
 	}
 
-	function onKeyDown(e: KeyboardEvent) {
+	function onKeyDown(e: KeyboardEvent): void {
 		if (e.key === 'Escape') closeMenu();
 	}
 
+	async function navigateToEndpoint(endpoint: Endpoint): Promise<void> {
+		if (endpoint.url.external) {
+			window.open(endpoint.url.path, '_blank');
+		} else {
+			await goto(endpoint.url.path, { replaceState: false });
+		}
+		showRoutes = false;
+	}
+
+	async function navigateHome(): Promise<void> {
+		setMode('view');
+		modalStore.clear();
+		toggleUIElement('leftSidebar', 'hidden');
+
+		const homeEndpoint = endpoints[0];
+		if (homeEndpoint?.url?.external) {
+			location.href = homeEndpoint.url.path || '/';
+		} else {
+			await goto(homeEndpoint?.url?.path || '/', { replaceState: false });
+		}
+		showRoutes = false;
+	}
+
+	// Drag functionality
 	function drag(node: HTMLDivElement) {
 		let moved = false;
 		let dragging = false;
 		let startX = 0;
 		let startY = 0;
-		const DRAG_THRESHOLD = 10;
+
 		node.onpointerdown = (e) => {
 			startX = e.clientX;
 			startY = e.clientY;
 			moved = false;
 			dragging = false;
 			node.setPointerCapture(e.pointerId);
+
 			node.onpointermove = (moveEvent) => {
 				const dx = moveEvent.clientX - startX;
 				const dy = moveEvent.clientY - startY;
 				const distance = Math.sqrt(dx * dx + dy * dy);
+
 				if (!dragging && distance > DRAG_THRESHOLD) {
 					dragging = true;
 				}
+
 				if (dragging) {
 					moved = true;
 					const offsetX = e.offsetX - node.offsetWidth / 2;
 					const offsetY = e.offsetY - node.offsetHeight / 2;
+
 					buttonInfo = {
 						...buttonInfo,
 						x: moveEvent.clientX - offsetX,
 						y: moveEvent.clientY - offsetY
 					};
+
 					if (firstLine) {
 						firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 					}
 				}
 			};
 		};
+
 		node.onpointerup = async (e) => {
 			if (!dragging) {
 				await toggleMenuOpen();
 			}
+
 			node.onpointermove = null;
 			node.releasePointerCapture(e.pointerId);
+
 			if (!moved) return;
-			const distance = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
-			let promise: Promise<void>;
-			switch (distance.indexOf(Math.min(...distance))) {
-				case 0: {
-					promise = motion([buttonInfo.x], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
+
+			// Snap to nearest edge
+			const distances = [buttonInfo.x, window.innerWidth - buttonInfo.x, buttonInfo.y, window.innerHeight - buttonInfo.y];
+
+			const nearestEdgeIndex = distances.indexOf(Math.min(...distances));
+			let promise: Promise<void> = Promise.resolve();
+
+			switch (nearestEdgeIndex) {
+				case 0: // Left edge
+					promise = motion([buttonInfo.x], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
 						buttonInfo.x = t[0];
 						await tick();
 						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 					});
 					break;
-				}
-				case 1: {
-					promise = motion([buttonInfo.x], [window.innerWidth - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
+				case 1: // Right edge
+					promise = motion([buttonInfo.x], [window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN)], motionMs, async (t) => {
 						buttonInfo.x = t[0];
 						await tick();
 						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 					});
 					break;
-				}
-				case 2: {
-					promise = motion([buttonInfo.y], [buttonRadius + EDGE_MARGIN], MOTION_MS, async (t) => {
+				case 2: // Top edge
+					promise = motion([buttonInfo.y], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
 						buttonInfo.y = t[0];
 						await tick();
 						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 					});
 					break;
-				}
-				case 3: {
-					promise = motion([buttonInfo.y], [window.innerHeight - (buttonRadius + EDGE_MARGIN)], MOTION_MS, async (t) => {
+				case 3: // Bottom edge
+					promise = motion([buttonInfo.y], [window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)], motionMs, async (t) => {
 						buttonInfo.y = t[0];
 						await tick();
 						if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
 					});
 					break;
-				}
 			}
-			await tick();
-			if (firstLine) firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+
 			await promise;
-			navigation_info = { ...navigation_info, ...{ [getBasePath($page.url.pathname)]: buttonInfo } };
-			localStorage.setItem('navigation', JSON.stringify(navigation_info));
+			savePosition();
 		};
 	}
 
-	function setDash(node: SVGElement) {
+	function setDash(node: SVGElement): void {
 		let first = true;
 		for (const lineElement of node.children) {
 			const el = lineElement as SVGLineElement;
@@ -301,69 +375,101 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 			el.style.strokeDasharray = totalLength;
 			el.style.strokeDashoffset = totalLength;
 			setTimeout(() => {
-				el.style.transition = first ? 'stroke-dashoffset 0.2s ' : 'stroke-dashoffset 0.2s 0.2s';
+				el.style.transition = first ? 'stroke-dashoffset 0.2s' : 'stroke-dashoffset 0.2s 0.2s';
 				el.style.strokeDashoffset = '0';
 				first = false;
 			}, 0);
 		}
 	}
 
-	function reverse() {
+	function reverse(): void {
 		if (!svg) return;
+
 		let first = true;
 		for (const lineElement of svg.children) {
 			const el = lineElement as SVGLineElement;
-			el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s ';
+			el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
 			const totalLength = el.getTotalLength().toString();
 			el.style.strokeDasharray = totalLength;
 			el.style.strokeDashoffset = totalLength;
 			first = false;
 		}
+
 		for (const circle of circles) {
-			circle.style.display = 'none';
+			if (circle) circle.style.display = 'none';
 		}
 	}
 
-	$: if (!showRoutes) reverse();
-	function keepAlive(node, { delay = 0, duration = 200, easing: easing$1 = linear } = {}) {
-		return { delay, duration, easing: easing$1, css: (t) => `` };
+	function keepAlive(_node: HTMLElement, { delay = 0, duration = 200, easing: easingFn = linear } = {}) {
+		return { delay, duration, easing: easingFn, css: (_: number) => '' };
 	}
 
-	function isRightToLeft() {
-		return document.documentElement.dir === 'rtl';
-	}
+	// Effects
+	$effect(() => {
+		if (!showRoutes) reverse();
+	});
+
+	// Lifecycle
+	onMount(() => {
+		if (!browser) return;
+
+		prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		motionMs = prefersReducedMotion ? 0 : MOTION_MS_DEFAULT;
+
+		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+		loadSavedPosition();
+
+		window.addEventListener('resize', handleResize, { passive: true });
+		window.addEventListener('keydown', onKeyDown);
+	});
+
+	onDestroy(() => {
+		if (!browser) return;
+
+		window.removeEventListener('resize', handleResize);
+		window.removeEventListener('keydown', onKeyDown);
+	});
 </script>
 
-<div class="card variant-filled-surface z-[99999999] p-2" data-popup={navPopup}>
+<!-- Tooltip -->
+<div class="card variant-filled-surface z-[99999999] p-2" data-popup={NAV_POPUP_ID}>
 	{activeTooltipText}
 	<div class="variant-filled-surface arrow"></div>
 </div>
 
+<!-- Main navigation button -->
 <div
 	bind:this={firstCircle}
-	use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
-	on:mouseenter={() => (activeTooltipText = 'Open Navigation Menu')}
-	on:mouseleave={() => (activeTooltipText = '')}
+	use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
+	onmouseenter={() => (activeTooltipText = 'Open Navigation Menu')}
+	onmouseleave={() => (activeTooltipText = '')}
 	aria-label="Open Navigation Menu"
 	role="button"
 	aria-expanded={showRoutes}
+	tabindex="0"
 	use:drag
 	class="circle flex touch-none items-center justify-center bg-tertiary-500 [&>*]:pointer-events-none"
-	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;left:{(Math.min(
-		isRightToLeft() ? buttonRadius : buttonInfo.x,
-		window.innerWidth - buttonRadius
-	) /
-		window.innerWidth) *
-		100}%;width:{buttonRadius * 2}px;height:{buttonRadius * 2}px"
+	style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
+	       left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
+		(browser ? window.innerWidth : 1)) *
+		100}%;
+	       width:{BUTTON_RADIUS * 2}px;
+	       height:{BUTTON_RADIUS * 2}px"
+	onkeydown={(event) => {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			toggleMenuOpen();
+		}
+	}}
 >
 	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white"></iconify-icon>
 </div>
 
 {#if showRoutes}
-	<button out:keepAlive|local on:click|self={closeMenu} class=" fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
+	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
-			{#each endpointsWithPos.slice(1, endpointsWithPos.length) as endpoint}
+			{#each endpointsWithPos.slice(1) as endpoint (endpoint.tooltip)}
 				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
 			{/each}
 		</svg>
@@ -371,58 +477,58 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 		<div
 			transition:fade
 			class="absolute left-1/2 top-1/4 -z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
-			style="top:{center.y}px;left:{center.x}px;width:{MENU_RADIUS * 2}px;height:{MENU_RADIUS *
-				2}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
+			style="top:{center.y}px;
+			       left:{center.x}px;
+			       width:{MENU_RADIUS * 2}px;
+			       height:{MENU_RADIUS * 2}px;
+			       visibility:hidden;
+			       animation: showEndPoints 0.2s 0.2s forwards"
 		></div>
 
 		<div
 			bind:this={circles[0]}
-			use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
-			on:mouseenter={() => (activeTooltipText = endpoints[0]?.tooltip)}
-			on:mouseleave={() => (activeTooltipText = '')}
+			use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
+			onmouseenter={() => (activeTooltipText = endpoints[0]?.tooltip || '')}
+			onmouseleave={() => (activeTooltipText = '')}
 			role="button"
 			aria-label={endpoints[0]?.tooltip || 'Home'}
 			tabindex="0"
-			on:click={() => {
-				mode.set('view');
-				modalStore.clear();
-				toggleUIElement('leftSidebar', 'hidden');
-				endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
-				showRoutes = false;
-			}}
-			on:keydown={(event) => {
+			onclick={navigateHome}
+			onkeydown={(event) => {
 				if (event.key === 'Enter' || event.key === ' ') {
-					mode.set('view');
-					modalStore.clear();
-					toggleUIElement('leftSidebar', 'hidden');
-					endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
-					showRoutes = false;
+					event.preventDefault();
+					navigateHome();
 				}
 			}}
 			class="circle flex items-center justify-center border-2 bg-gray-600"
-			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
+			style="top:{center.y}px;
+			       left:{center.x}px;
+			       visibility:hidden;
+			       animation: showEndPoints 0.2s 0.2s forwards"
 		>
-			<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon}></iconify-icon>
+			<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon || 'solar:home-bold'}></iconify-icon>
 		</div>
 
-		{#each endpointsWithPos.slice(1, endpointsWithPos.length) as endpoint, index}
+		{#each endpointsWithPos.slice(1) as endpoint, index (endpoint.tooltip)}
 			<div
 				bind:this={circles[index + 1]}
-				use:popup={{ event: 'hover', target: navPopup, placement: 'top' }}
-				on:mouseenter={() => (activeTooltipText = endpoint.tooltip)}
-				on:mouseleave={() => (activeTooltipText = '')}
+				use:popup={{ event: 'hover', target: NAV_POPUP_ID, placement: 'top' }}
+				onmouseenter={() => (activeTooltipText = endpoint.tooltip)}
+				onmouseleave={() => (activeTooltipText = '')}
 				role="button"
 				aria-label={endpoint.tooltip}
-				on:click={() => {
-					if (endpoint?.url?.external) {
-						window.open(endpoint?.url?.path || '/', '_blank');
-					} else {
-						goto(endpoint?.url?.path || '/');
+				tabindex="0"
+				onclick={() => navigateToEndpoint(endpoint)}
+				onkeydown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						navigateToEndpoint(endpoint);
 					}
-					showRoutes = false;
 				}}
 				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
-				style="top:{endpoint.y}px;left:{endpoint.x}px;animation: showEndPoints 0.2s 0.4s forwards"
+				style="top:{endpoint.y}px;
+				       left:{endpoint.x}px;
+				       animation: showEndPoints 0.2s 0.4s forwards"
 			>
 				<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
 			</div>

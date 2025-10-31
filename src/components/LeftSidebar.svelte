@@ -1,5 +1,5 @@
-<!-- 
-@file src/components/LeftSidebar.svelte 
+<!--
+@file src/components/LeftSidebar.svelte
 
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
@@ -15,95 +15,140 @@
 - Displays collection fields
 - Displays publish options
 - Displays translation status
+- Optimized event handlers
 -->
-
-<script module lang="ts">
-	declare const __VERSION__: string;
-</script>
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { publicEnv } from '@root/config/public';
 	import axios from 'axios';
+	import { browser } from '$app/environment';
+
 	// Import necessary utilities and types
-	import { page } from '$app/state';
+	import { page } from '$app/stores';
 	import { getLanguageName } from '@utils/languageUtils';
+
 	// Stores
-	import { mode } from '@stores/collectionStore.svelte';
-	import { isDesktop, isMobile, screenSize } from '@stores/screenSizeStore.svelte';
-	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
-	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
-	import { get } from 'svelte/store';
-	// Import components and utilities
+	import { contentStructure, setMode } from '@stores/collectionStore.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
+
+	// Import components
+	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
+	import type { CollectionTreeNode } from '@components/Collections.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	// Skeleton components and utilities
-	import { Avatar, modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
-	// Language and messaging setup
+	import ThemeToggle from '@components/ThemeToggle.svelte';
+
+	// Skeleton components
+	import { Avatar, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+
+	// Language and messaging
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+	import type { ContentNode } from '@src/content/types';
 
-	// Define user data and state variables - make it reactive to page data changes
-	const user = $derived(page.data.user);
+	// Constants
+	const MOBILE_BREAKPOINT = 768;
+	const LANGUAGE_DROPDOWN_THRESHOLD = 5;
+	const AVATAR_CACHE_BUSTER = Date.now();
 
-	// Tooltip settings
-	const UserTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'User',
-		placement: 'right'
-	};
-	const GithubTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Github',
-		placement: 'right'
-	};
-	const SwitchThemeTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SwitchTheme',
-		placement: 'right'
-	};
-	const SignOutTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SignOutButton',
-		placement: 'right'
-	};
-	const ConfigTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Config',
-		placement: 'right'
-	};
-	const SystemLanguageTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SystemLanguage',
-		placement: 'right'
-	};
+	// Types
+	type AvailableLanguage = string;
+	type SidebarState = 'full' | 'collapsed' | 'hidden';
 
-	// Define language type based on available languages
-	type AvailableLanguage = typeof publicEnv.LOCALES extends string[] ? (typeof publicEnv.LOCALES)[number] : string;
+	// Reactive user data
+	let user = $derived($page.data.user);
+	let currentPath = $derived($page.url.pathname);
 
-	let _languageTag = $state(getLocale()); // Get the current language tag
+	// Collection tree nodes mapping
+	let collectionTreeNodes = $derived.by(() => {
+		const mapNodes = (nodes: ContentNode[]): CollectionTreeNode[] => {
+			return nodes.map((node) => ({
+				id: node._id,
+				name: node.name,
+				isExpanded: false,
+				onClick: () => {
+					if (node.path) {
+						navigateTo(node.path);
+					}
+				},
+				icon: node.icon,
+				children: node.children ? mapNodes(node.children) : undefined
+			}));
+		};
+		return mapNodes(contentStructure.value || []);
+	});
 
-	// Enhanced language selector
+	// Language state
+	let languageTag = $state(getLocale() as AvailableLanguage);
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
 	let dropdownRef = $state<HTMLElement | null>(null);
 
-	// Computed values
-	const availableLanguages = $derived(
-		[...(publicEnv.LOCALES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+	// Derived values
+	let isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	let isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
+
+	let availableLanguages = $derived(
+		[...(publicEnv?.LOCALES || $page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
+			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
+		)
 	);
 
-	const filteredLanguages = $derived(
-		availableLanguages.filter(
-			(lang: string) =>
-				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
-				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
-		) as AvailableLanguage[]
+	let showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
+
+	let filteredLanguages = $derived(
+		availableLanguages.filter((lang: string) => {
+			const searchLower = searchQuery.toLowerCase();
+			const systemLangName = getLanguageName(lang, systemLanguage.value).toLowerCase();
+			const enLangName = getLanguageName(lang, 'en').toLowerCase();
+			return systemLangName.includes(searchLower) || enLangName.includes(searchLower);
+		}) as AvailableLanguage[]
 	);
 
-	// Click outside effect
+	let avatarUrl = $derived.by(() => {
+		const src = avatarSrc.value;
+		if (!src) return '/Default_User.svg';
+		if (src.startsWith('data:')) return src;
+		return `${src}?t=${AVATAR_CACHE_BUSTER}`;
+	});
+
+	// Tooltip configurations
+	const tooltips = {
+		user: { event: 'hover', target: 'User', placement: 'right' } as PopupSettings,
+		github: { event: 'hover', target: 'Github', placement: 'right' } as PopupSettings,
+		signOut: { event: 'hover', target: 'SignOutButton', placement: 'right' } as PopupSettings,
+		config: { event: 'hover', target: 'Config', placement: 'right' } as PopupSettings,
+		systemLanguage: { event: 'hover', target: 'SystemLanguage', placement: 'right' } as PopupSettings
+	};
+
+	// Helper functions
+	function isMobile(): boolean {
+		return browser && window.innerWidth < MOBILE_BREAKPOINT;
+	}
+
+	async function navigateTo(path: string): Promise<void> {
+		if (currentPath === path) return;
+
+		if (isMobile()) {
+			toggleUIElement('leftSidebar', 'hidden');
+		}
+
+		setMode('view');
+
+		// Ensure path includes language prefix
+		const currentLocale = getLocale();
+		const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
+
+		await goto(pathWithLanguage, { replaceState: false });
+	}
+
+	// Click outside handler
 	$effect(() => {
+		if (!browser) return;
+
 		const handleClick = (event: MouseEvent) => {
 			if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
 				isDropdownOpen = false;
@@ -116,115 +161,80 @@
 	});
 
 	// Event handlers
-	function handleLanguageSelection(lang: AvailableLanguage) {
+	function handleLanguageSelection(lang: AvailableLanguage): void {
 		systemLanguage.set(lang as any);
-		_languageTag = lang as any;
+		languageTag = lang;
 		isDropdownOpen = false;
 		searchQuery = '';
 	}
 
-	// SignOut function
-	async function signOut() {
+	function handleLanguageSelectChange(event: Event): void {
+		const target = event.target as HTMLSelectElement;
+		if (target?.value) {
+			handleLanguageSelection(target.value as AvailableLanguage);
+		}
+	}
+
+	function toggleLanguageDropdown(event: Event): void {
+		event.stopPropagation();
+		isDropdownOpen = !isDropdownOpen;
+	}
+
+	function toggleSidebar(): void {
+		const current = uiStateManager.uiState.value.leftSidebar;
+		const newState: SidebarState = current === 'full' ? 'collapsed' : 'full';
+		toggleUIElement('leftSidebar', newState);
+		userPreferredState.set(newState);
+	}
+
+	async function handleUserClick(event?: Event): Promise<void> {
+		event?.stopPropagation();
+		await navigateTo('/user');
+	}
+
+	async function handleConfigClick(event?: Event): Promise<void> {
+		event?.stopPropagation();
+		await navigateTo('/config');
+	}
+
+	async function signOut(): Promise<void> {
 		try {
-			console.log('Starting sign-out process...');
-
-			// Call the logout API endpoint
-			await axios.post(
-				'/api/user/logout',
-				{},
-				{
-					withCredentials: true // This is important to include cookies
-				}
-			);
-
-			console.log('Logout successful, redirecting to login page');
-			window.location.href = '/login';
+			await axios.post('/api/user/logout', {}, { withCredentials: true });
 		} catch (error) {
 			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
-
-			// Even if there's an error, redirect to login since logout was attempted
-			window.location.href = '/login';
+		} finally {
+			// Always redirect to login, even if logout fails
+			if (browser) {
+				window.location.href = '/login';
+			}
 		}
 	}
 
-	// GitHub version and theme toggle
-	const pkg = __VERSION__ || '';
-	let githubVersion = '';
-
-	axios
-		.get('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest')
-		.then((response) => {
-			githubVersion = response.data.tag_name.slice(1);
-			const [localMajor, localMinor] = pkg.split('.').map(Number);
-			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
-
-			if (githubMinor > localMinor) {
-				$pkgBgColor = 'variant-filled-warning';
-			} else if (githubMajor !== localMajor) {
-				$pkgBgColor = 'variant-filled-error';
-			}
-		})
-		.catch((error) => {
-			console.error('Error von Github Release found:', error);
-			githubVersion = pkg;
-			$pkgBgColor = 'variant-filled-tertiary';
-		});
-
-	const toggleTheme = () => {
-		const currentMode = get(modeCurrent);
-		const newMode = !currentMode;
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
-		localStorage.setItem('theme', newMode ? 'light' : 'dark');
-	};
-
-	// Navigation handlers - simplified and more direct
-	function handleUserClick() {
-		if (page.url.pathname !== '/user') {
-			// Force hide sidebar first on mobile
-			if (typeof window !== 'undefined' && window.innerWidth < 768) {
-				console.log('Mobile detected, hiding sidebar before navigation');
-				toggleUIElement('leftSidebar', 'hidden');
-			}
-			mode.set('view');
-			goto('/user');
-		}
-	}
-
-	function handleConfigClick() {
-		if (page.url.pathname !== '/config') {
-			// Force hide sidebar first on mobile
-			if (typeof window !== 'undefined' && window.innerWidth < 768) {
-				console.log('Mobile detected, hiding sidebar before navigation');
-				toggleUIElement('leftSidebar', 'hidden');
-			}
-			mode.set('view');
-			goto('/config');
-		}
-	}
-
-	function handleSelectChange(event: Event) {
-		const target = event.target as HTMLSelectElement;
-		if (target) {
-			handleLanguageSelection(target.value as AvailableLanguage);
+	// Keyboard handlers
+	function handleKeyPress(event: KeyboardEvent, callback: () => void | Promise<void>): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			event.stopPropagation();
+			callback();
 		}
 	}
 </script>
 
 <div class="flex h-full w-full flex-col justify-between">
-	<!-- Corporate Identity Full-->
-	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+	<!-- Corporate Identity -->
+	{#if isSidebarFull}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
+			<span class="text-token relative text-2xl font-bold">
+				<SiteName highlight="CMS" />
+			</span>
 		</a>
 	{:else}
-		<!-- Corporate Identity Collapsed-->
-		<div class="gap flex justify-start">
+		<div class="flex justify-start gap-2">
 			<button
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
-				aria-label="Open Sidebar"
+				aria-label="Close Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
@@ -236,101 +246,74 @@
 		</div>
 	{/if}
 
-	<!-- Button to expand/collapse sidebar -->
+	<!-- Expand/Collapse Button -->
 	<button
 		type="button"
-		onclick={() => {
-			const current = uiStateManager.uiState.value.leftSidebar;
-			const newState = current === 'full' ? 'collapsed' : 'full';
-			toggleUIElement('leftSidebar', newState);
-			userPreferredState.set(newState);
-		}}
-		aria-label="Expand/Collapse Sidebar"
-		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center !rounded-full border-[1px] p-0 dark:border-black ltr:-right-4 rtl:-left-4"
+		onclick={toggleSidebar}
+		aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
+		aria-expanded={isSidebarFull}
+		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center !rounded-full border border-black p-0 dark:border-black ltr:-right-4 rtl:-left-4"
 	>
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
 			width="34"
-			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${uiStateManager.uiState.value.leftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
+			class="rounded-full bg-surface-500 text-white transition-transform hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 {isSidebarFull
+				? 'rotate-0 rtl:rotate-180'
+				: 'rotate-180 rtl:rotate-0'}"
 		></iconify-icon>
 	</button>
 
-	<!--SideBar Middle -->
-	<Collections />
+	<!-- Collections Navigation -->
+	<Collections systemVirtualFolders={collectionTreeNodes} />
 
-	<!-- Sidebar Left Footer -->
-	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
+	<!-- Footer -->
+	<div class="mb-2 mt-auto">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
-		<div
-			class="{uiStateManager.uiState.value.leftSidebar === 'full'
-				? 'grid-cols-3 grid-rows-3'
-				: 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
-		>
-			<!-- Avatar with user settings -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
+		<div class="grid items-center justify-center {isSidebarFull ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'}">
+			<!-- Avatar -->
+			<div class={isSidebarFull ? 'order-1 row-span-2' : 'order-1'}>
 				<button
-					use:popup={UserTooltip}
-					onclick={(e) => {
-						handleUserClick();
-						e.stopPropagation();
-					}}
-					onkeypress={(e) => {
-						e.stopPropagation();
-						if (e.key === 'Enter' || e.key === ' ') {
-							handleUserClick();
-							e.preventDefault();
-						}
-					}}
-					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
+					use:popup={tooltips.user}
+					onclick={handleUserClick}
+					onkeypress={(e) => handleKeyPress(e, handleUserClick)}
+					aria-label="User Profile"
+					class="btn-icon relative flex-col items-center justify-center text-center !no-underline md:row-span-2"
 				>
-					<Avatar
-						src={avatarSrc.value && avatarSrc.value.startsWith('data:')
-							? avatarSrc.value
-							: avatarSrc.value
-								? `${avatarSrc.value}?t=${Date.now()}`
-								: '/Default_User.svg'}
-						alt="Avatar"
-						initials="AV"
-						class="mx-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
-					/>
-					<div class="-mt-1 text-center text-[10px] uppercase text-black dark:text-white">
-						{#if uiStateManager.uiState.value.leftSidebar === 'full'}
-							{#if user?.username}
-								<div class=" -ml-1.5">
-									{user?.username}
-								</div>
-							{/if}
-						{/if}
-					</div>
+					<Avatar src={avatarUrl} alt="User Avatar" initials="AV" class="mx-auto {isSidebarFull ? 'w-[40px]' : 'w-[35px]'}" />
+					{#if isSidebarFull && user?.username}
+						<div class="-ml-1.5 -mt-1 text-center text-[10px] uppercase text-black dark:text-white">
+							{user.username}
+						</div>
+					{/if}
 				</button>
 
-				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="User">
 					{m.applayout_userprofile()}
 					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
-			<!-- System Language Selector -->
-			<div
-				class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
-				use:popup={SystemLanguageTooltip}
-			>
+			<!-- Language Selector -->
+			<div class={isSidebarFull ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'} use:popup={tooltips.systemLanguage}>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if (publicEnv.LOCALES as string[]).length > 5}
+					{#if showLanguageDropdown}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
-								.leftSidebar === 'full'
+							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {isSidebarFull
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
-							onclick={(e) => {
-								e.stopPropagation();
-								isDropdownOpen = !isDropdownOpen;
-							}}
+							onclick={toggleLanguageDropdown}
+							aria-label="Select language"
+							aria-expanded={isDropdownOpen}
 						>
-							<span>{_languageTag}</span>
-							<svg class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<span>{languageTag}</span>
+							<svg
+								class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+								aria-hidden="true"
+							>
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 							</svg>
 						</button>
@@ -343,13 +326,14 @@
 										bind:value={searchQuery}
 										placeholder="Search language..."
 										class="w-full rounded-md bg-surface-800 px-3 py-2 text-white placeholder:text-surface-400 focus:outline-none focus:ring-2"
+										aria-label="Search languages"
 									/>
 								</div>
 
 								<div class="max-h-48 divide-y divide-surface-600 overflow-y-auto py-1">
-									{#each filteredLanguages as lang}
+									{#each filteredLanguages as lang (lang)}
 										<button
-											class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-surface-600 {_languageTag === lang
+											class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-surface-600 {languageTag === lang
 												? 'bg-surface-600'
 												: ''}"
 											onclick={() => handleLanguageSelection(lang)}
@@ -362,118 +346,87 @@
 						{/if}
 					{:else}
 						<select
-							bind:value={_languageTag}
-							onchange={handleSelectChange}
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {uiStateManager.uiState.value.leftSidebar === 'full'
+							bind:value={languageTag}
+							onchange={handleLanguageSelectChange}
+							aria-label="Select language"
+							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {isSidebarFull
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
 						>
-							{#each availableLanguages as lang}
-								<option value={lang} selected={lang === _languageTag}>{lang.toUpperCase()}</option>
+							{#each availableLanguages as lang (lang)}
+								<option value={lang}>{lang.toUpperCase()}</option>
 							{/each}
 						</select>
 					{/if}
 				</div>
 
-				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
 					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
-			<!-- Light/Dark mode switch -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
-				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
-					{#if !$modeCurrent}
-						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
-					{:else}
-						<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
-					{/if}
-				</button>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SwitchTheme">
-					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-					<div class="variant-filled arrow"></div>
-				</div>
+			<!-- Theme Toggle -->
+			<div class={isSidebarFull ? 'order-2' : 'order-3'}>
+				<ThemeToggle showTooltip={true} tooltipPlacement="right" buttonClass="btn-icon hover:bg-surface-500 hover:text-white" iconSize={22} />
 			</div>
 
 			<!-- Sign Out -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-4' : 'order-4'}>
+			<div class="order-4">
 				<button
-					use:popup={SignOutTooltip}
+					use:popup={tooltips.signOut}
 					onclick={signOut}
-					type="submit"
-					value="Sign out"
+					type="button"
 					aria-label="Sign Out"
 					class="btn-icon hover:bg-surface-500 hover:text-white"
 				>
 					<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 				</button>
 
-				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
 					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
-			<!-- System Configuration -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
+			<!-- Config -->
+			<div class={isSidebarFull ? 'order-5' : 'order-6'}>
 				<button
-					use:popup={ConfigTooltip}
-					onclick={(e) => {
-						handleConfigClick();
-						e.stopPropagation();
-					}}
-					onkeypress={(e) => {
-						e.stopPropagation();
-						if (e.key === 'Enter' || e.key === ' ') {
-							handleConfigClick();
-							e.preventDefault();
-						}
-					}}
+					use:popup={tooltips.config}
+					onclick={handleConfigClick}
+					onkeypress={(e) => handleKeyPress(e, handleConfigClick)}
 					aria-label="System Configuration"
-					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
+					class="btn-icon hover:bg-surface-500 hover:text-white"
 				>
-					<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
+					<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 				</button>
 
-				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Config">
 					{m.applayout_systemconfiguration()}
 					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
-			<!-- Github discussions -->
-			<div class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-7' : 'order-7 hidden'} ">
-				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
-					<button use:popup={GithubTooltip} aria-label="Github Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
-						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
-					</button>
-
-					<!-- Popup Tooltip with the arrow element -->
-					<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
-						{m.applayout_githubdiscussion()}
-						<div class="variant-filled arrow"></div>
-					</div>
-				</a>
+			<!-- Version -->
+			<div class={isSidebarFull ? 'order-6' : 'order-5'}>
+				<VersionCheck compact={isSidebarCollapsed} />
 			</div>
 
-			<!-- CMS Version -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
-				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
-					<span
-						class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if uiStateManager.uiState.value.leftSidebar === 'full'}
-							{m.applayout_version()}
-						{/if}
-						{pkg}
-					</span>
-				</a>
-			</div>
+			<!-- GitHub (only when expanded) -->
+			{#if isSidebarFull}
+				<div class="order-7">
+					<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="_blank" rel="noopener noreferrer">
+						<button use:popup={tooltips.github} aria-label="GitHub Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
+							<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
+						</button>
+
+						<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
+							{m.applayout_githubdiscussion()}
+							<div class="variant-filled arrow"></div>
+						</div>
+					</a>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -496,6 +449,5 @@
 	.overflow-y-auto::-webkit-scrollbar-thumb {
 		background-color: rgb(var(--color-surface-500));
 		border-radius: 3px;
-		border: transparent;
 	}
 </style>

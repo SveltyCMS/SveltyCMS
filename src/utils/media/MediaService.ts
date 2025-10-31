@@ -18,7 +18,7 @@ import { saveFileToDisk, saveResizedImages } from './mediaStorage';
 import { validateMediaFile } from './mediaUtils';
 
 // Permission Management
-import { validateUserPermission as checkMediaAccess } from '@src/auth/permissions';
+import { validateUserPermission as checkMediaAccess } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -168,13 +168,12 @@ export class MediaService {
 	public async saveMedia(file: File, userId: string, access: MediaAccess): Promise<MediaType> {
 		const startTime = performance.now();
 		this.ensureInitialized();
-		logger.debug('Starting media upload process', {
-			fileName: file?.name,
-			size: file?.size,
-			userId,
-			accessLevels: access?.levels?.join(',') || 'none'
+		logger.trace('Starting media upload process', {
+			filename: file.name,
+			fileSize: file.size,
+			mimeType: file.type,
+			tenantId
 		});
-
 		if (!file) {
 			const message = 'File is required';
 			logger.error(message, {
@@ -232,10 +231,7 @@ export class MediaService {
 						version: 1,
 						url: fileInfo.url,
 						createdAt: new Date(),
-						createdBy: userId,
-						size: file.size,
-						hash: fileInfo.hash,
-						processingTimeMs: performance.now() - startTime
+						createdBy: userId
 					}
 				],
 				access,
@@ -247,7 +243,7 @@ export class MediaService {
 
 			logger.debug('Saving media to database', {
 				filename: cleanMedia.filename,
-				type: cleanMedia.type,
+				mimeType: cleanMedia.mimeType,
 				processingTime: performance.now() - startTime
 			});
 
@@ -283,23 +279,21 @@ export class MediaService {
 				stack: err instanceof Error ? err.stack : undefined,
 				processingTime: performance.now() - startTime
 			});
-			throw error(500, {
-				message,
-				fileName: file?.name,
-				error: err instanceof Error ? err.stack : undefined,
-				processingTime: performance.now() - startTime
-			});
+			throw error(500, message);
 		}
 	}
 
 	private createCleanMediaObject(object: MediaBaseWithThumbnails): Omit<MediaItem, '_id'> {
-		const dbObject = {
+		const dbObject: Omit<MediaItem, '_id'> = {
 			...object,
+			originalFilename: object.filename, // Use filename as originalFilename
 			createdAt: object.createdAt.toISOString() as ISODateString,
 			updatedAt: object.updatedAt.toISOString() as ISODateString,
 			createdBy: object.user as DatabaseId,
-			updatedBy: object.user as DatabaseId
-		} as Omit<MediaItem, '_id'>;
+			updatedBy: object.user as DatabaseId,
+			thumbnails: object.thumbnails || {},
+			metadata: object.metadata || {}
+		};
 
 		return dbObject;
 	}

@@ -71,7 +71,7 @@ async function discoverWidgets(): Promise<WidgetInfo[]> {
 		const widgets = await Promise.all(widgetPromises);
 		const sortedWidgets = widgets.sort((a, b) => a.name.localeCompare(b.name));
 
-		logger.debug(`Discovered ${sortedWidgets.length} dashboard widgets`);
+		logger.trace(`Discovered ${sortedWidgets.length} dashboard widgets`);
 		return sortedWidgets;
 	} catch (err) {
 		logger.error('Failed to discover widgets:', err);
@@ -92,7 +92,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/'); // Redirect to home page or an access-denied page
 	}
 
-	logger.debug(`Admin user authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
+	logger.trace(`Admin user authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
 
 	const { _id, ...rest } = user;
 	const availableWidgets = await discoverWidgets();
@@ -144,7 +144,7 @@ export const actions: Actions = {
 			resizable: true
 		};
 
-		logger.debug(`Created widget ${widget.id} for user ${userId}`);
+		logger.trace(`Created widget ${widget.id} for user ${userId}`);
 		return json(widget);
 	}
 };

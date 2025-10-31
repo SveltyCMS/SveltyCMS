@@ -1,23 +1,34 @@
 /**
  * @file src/content/types.ts
- * @description Content Type Definition for Content Manager
+ * @description Defines the application-level TypeScript interfaces for content modeling and runtime data.
+ * @summary
+ * This file is the central repository for TypeScript interfaces governing the application's content
+ * model and runtime data structures. It defines the "vocabulary" used across the frontend and backend
+ * for entities like collections, fields, widgets, and content nodes.
+ *
+ * Key definitions in this file include:
+ * - `Schema`: The structure of a collection.
+ * - `FieldInstance`: A configured instance of a widget within a collection.
+ * - `WidgetDefinition`: The blueprint for a widget.
+ * - `ContentNode`: A unified type for categories and collections in the content tree.
+ * - Core types like `FieldValue`, `StatusType`, and strongly-typed IDs.
+ *
+ * You should edit this file when you need to:
+ * - Define the shape of a new content structure (e.g., a new kind of widget or field).
+ * - Create a type that represents a composed or processed version of data for use in the UI.
+ * - Describe the data contract for API endpoints related to content.
  */
 
-import type { WidgetPlaceholder } from '@src/widgets/types';
-import type widgets from '@widgets';
-import type { ModifyRequestParams } from '@widgets';
+import type { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
+// Note: collectionSchemas may be used in the future for runtime validation
 
 // Auth
-import type { RolePermissions } from '@src/auth/types';
-import type { ContentNode } from '../databases/dbInterface';
+import type { RolePermissions } from '@src/databases/auth/types';
+import type { WidgetPlaceholder } from '@src/widgets/placeholder';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
-// Widget field type definition
-export type WidgetKeys = keyof typeof widgets;
-export type WidgetTypes = (typeof widgets)[WidgetKeys];
-
-// Field value types
-export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
-
+// Define core value and status types
+export type FieldValue = string | number | boolean | object | null;
 // Status types for collections and entries
 export const StatusTypes = {
 	archive: 'archive',
@@ -32,61 +43,121 @@ export const StatusTypes = {
 
 export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];
 
-// Extended field definition
-export interface Field {
-	widget: WidgetTypes;
-	type: WidgetKeys;
-	config: WidgetTypes;
-	label: string;
-	required?: boolean;
-	unique?: boolean;
-	default?: FieldValue;
-	validate?: (value: FieldValue) => boolean | Promise<boolean>;
-	display?: (args: {
-		data: Record<string, FieldValue>;
-		collection: string;
-		field: Field;
-		entry: Record<string, FieldValue>;
-		contentLanguage: string;
-	}) => Promise<string> | string;
-	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
+// --- Strongly-Typed Identifiers ---
+export type DatabaseId = string & { readonly __brand: 'DatabaseId' };
+export type ISODateString = string & { readonly __isoDate: 'ISODateString' };
+
+export interface BaseEntity {
+	_id: DatabaseId;
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
 }
 
-// Field definition
-export type FieldDefinition = Field | WidgetPlaceholder;
-
-// Collection Registry - defines all available collections
-export const CollectionRegistry = {
-	ContentManager: 'ContentManager',
-	categories: 'categories'
-} as const;
-
-// Define the Translation Schema
 export interface Translation {
 	languageTag: string;
 	translationName: string;
 	isDefault?: boolean;
 }
 
+// --- Unified Content Node ---
+// A single interface to represent both categories and collections in the content tree.
+export interface ContentNode {
+	_id: DatabaseId;
+	name: string;
+	nodeType: 'category' | 'collection';
+	icon?: string;
+	order: number;
+	parentId?: DatabaseId;
+	path?: string;
+	translations: Translation[];
+	collectionDef?: Schema; // Only present if nodeType is 'collection'
+	children?: ContentNode[];
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
+	tenantId?: string; // For multi-tenant support
+}
+
+// Widget field type definition
+export type WidgetKeys = keyof typeof widgets;
+export type WidgetTypes = (typeof widgets)[WidgetKeys];
+
+// Widget Definition
+export interface WidgetDefinition {
+	widgetId: string;
+	Name: string;
+	Icon?: string;
+	Description?: string;
+	inputComponentPath: string;
+	displayComponentPath: string;
+	validationSchema: BaseSchema<unknown, unknown, BaseIssue<unknown>>;
+	defaults?: Partial<Record<string, unknown>>;
+	GuiFields: Record<string, unknown>;
+	aggregations?: unknown;
+}
+
+// Field Instance - An actual field using a widget with specific configuration
+export interface FieldInstance {
+	/** A reference to the widget's immutable definition. */
+	widget: WidgetDefinition;
+
+	// Field properties
+	label: string;
+	db_fieldName: string; // Now required (factory sets default)
+	translated: boolean; // Now required (factory sets default)
+	required: boolean; // Now required (factory sets default)
+	unique?: boolean;
+	default?: FieldValue;
+
+	// UI properties
+	icon?: string;
+	width?: number;
+	helper?: string;
+
+	// Permissions
+	permissions?: Record<string, Record<string, boolean>>;
+
+	// Functions
+	validate?: (value: FieldValue) => boolean | Promise<boolean>;
+	display?: (args: {
+		data: Record<string, FieldValue>;
+		collection?: string;
+		field?: FieldInstance;
+		entry?: Record<string, FieldValue>;
+		contentLanguage?: string;
+	}) => Promise<string> | string;
+	callback?: (args: { data: Record<string, FieldValue> }) => void;
+	modifyRequest?: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+
+	/** Widget-specific properties, now strongly typed by the factory. */
+	[key: string]: unknown;
+}
+
+// Field definition
+export type FieldDefinition = unknown | WidgetPlaceholder;
+
+// ContentTypes is now dynamic, based on collectionSchemas
+
+// Collection Schema Definition (SINGLE DEFINITION)
 export interface Schema {
-	_id: string; // UUID from collection file header
-	name?: ContentTypes | string; // Collection name can be from registry or dynamic
-	label?: string; // Optional label that will display instead of name if used
-	slug?: string; // Optional Slug for the collection
-	icon?: string; // Optional icon
-	order?: number; // Optional display order
-	description?: string; // Optional description for the collection
-	strict?: boolean; // Optional strict mode
-	revision?: boolean; // Optional revisions
-	revisionLimit?: number; // Optional: Maximum number of revisions to keep
-	path?: string; // Path within the collections folder structure
-	permissions?: RolePermissions; // Optional permission restrictions
-	livePreview?: boolean; // Optional live preview
-	status?: StatusType; // Optional default status
-	links?: Array<ContentTypes>; // Optional links to other collections
-	fields: FieldDefinition[]; // Collection fields
+	id?: number;
+	_id?: string;
+	name?: ContentTypes | string;
+	label?: string;
+	slug?: string;
+	icon?: string;
+	order?: number;
+	description?: string;
+	strict?: boolean;
+	revision?: boolean;
+	revisionLimit?: number;
+	path?: string;
+	permissions?: RolePermissions;
+	livePreview?: boolean;
+	status?: StatusType;
+	links?: Array<ContentTypes>;
+	fields: FieldDefinition[];
 	translations?: Translation[]; // Optional translations with enhanced metadata
+	tenantId?: string; // For multi-tenant support
 }
 
 export type MinimalContentNode = {
@@ -95,6 +166,15 @@ export type MinimalContentNode = {
 	nodeType: 'category';
 };
 
+export interface Category {
+	id: number;
+	name: string;
+	icon: string;
+	order: number;
+	collections: string[];
+	subcategories?: Category[];
+}
+
 export type ContentNodeOperatianType = 'create' | 'delete' | 'move' | 'rename' | 'update';
 
 export type ContentNodeOperation = {
@@ -102,39 +182,156 @@ export type ContentNodeOperation = {
 	node: ContentNode;
 };
 
-// Category interface for representing the folder structure
-export interface Category {
-	_id: string; // UUID for Category
-	name: string; // Category name, derived from folder name
-	path: string; // Path within the structure, derived from folder path
-	icon?: string; // Optional icon for the category
-	order?: number; // Optional display order
-	nodeType: 'category' | 'collection';
-	parentPath?: string | null;
-	translations?: { languageTag: string; translationName: string }[]; // Optional translations for the category name
-	collectionConfig?: Record<string, unknown>; // Optional collection configuration
+// Dashboard types
+export interface WidgetSize {
+	w: number; // Width in grid units
+	h: number; // Height in grid units
 }
 
-// Collection data interface for configuration
-export interface CollectionData {
-	_id: string; // UUID for Collection
-	icon?: string; // Optional collection icon
-	name: string; // Collection name
-	label?: string; // Optional display label
-	order?: number; // Optional display order
-	path: string; // Collection path
-	translations?: { languageTag: string; translationName: string }[]; // Optional translations
-	permissions?: RolePermissions; // Optional permissions
-	livePreview?: boolean; // Optional live preview
-	strict?: boolean; // Optional strict mode
-	revision?: boolean; // Optional revisions
-	fields: FieldDefinition[]; // Collection fields
-	description?: string; // Optional description
-	slug?: string; // Optional slug
-	status?: StatusType; // Optional status
-	links?: Array<ContentTypes>; // Optional links to other collections
+export interface DashboardWidgetConfig {
+	id: string; // Unique widget identifier
+	component: string; // Svelte component name
+	label: string; // Display label for the widget
+	icon: string; // Icon identifier (iconify icon)
+	size: WidgetSize; // Widget dimensions
+	settings: Record<string, unknown>; // Widget-specific settings
+	gridPosition?: number; // Optional position in the grid layout
+	order?: number; // Optional order for sorting
 }
 
-// Collection types for collections registry
+export interface Layout {
+	id: string; // Layout identifier
+	name: string; // Human-readable layout name
+	preferences: DashboardWidgetConfig[]; // Array of widget configurations
+}
 
+export interface SystemPreferences {
+	preferences: DashboardWidgetConfig[]; // Current widget preferences
+	loading: boolean; // Loading state
+	error: string | null; // Error message if any
+}
+
+export interface SystemPreferencesDocument {
+	_id: string; // Document ID (combination of userId and layoutId)
+	userId?: string; // Optional user ID for user-scoped preferences
+	layoutId: string; // Layout identifier
+	layout: Layout; // Complete layout configuration
+	scope: 'user' | 'system' | 'widget'; // Preference scope
+	createdAt: Date; // Creation timestamp
+	updatedAt: Date; // Last update timestamp
+}
+
+export interface DropIndicator {
+	show: boolean;
+	position: number;
+	targetIndex?: number; // Optional target index for drop operations
+}
+
+export interface WidgetComponent {
+	component: unknown; // Svelte component
+	props: Record<string, unknown>;
+}
+
+export interface WidgetMeta {
+	id: string;
+	label: string;
+	icon: string;
+	component: string;
+	defaultSize: WidgetSize;
+	name?: string; // Optional widget name
+	description?: string; // Optional widget description
+	settings?: Record<string, unknown>; // Optional default settings
+}
+
+// --- Import/Export Types ---
+
+export interface ExportMetadata {
+	exported_at: string;
+	cms_version: string;
+	environment: string;
+	exported_by: string;
+	export_id: string;
+}
+
+export interface ExportOptions {
+	includeSettings: boolean;
+	includeCollections: boolean;
+	includeSensitive: boolean;
+	format: 'json' | 'zip';
+	groups?: string[]; // Specific settings groups to export
+	collections?: string[]; // Specific collections to export
+	sensitivePassword?: string; // Password to encrypt sensitive data (required if includeSensitive is true)
+}
+
+export interface ImportOptions {
+	strategy: 'skip' | 'overwrite' | 'merge';
+	dryRun: boolean;
+	validateOnly: boolean;
+	sensitivePassword?: string; // Password to decrypt sensitive data
+}
+
+export interface ExportData {
+	metadata: ExportMetadata;
+	settings?: Record<string, unknown>;
+	collections?: CollectionExport[];
+	encryptedSensitive?: string; // Encrypted sensitive data (AES-256)
+	hasSensitiveData?: boolean; // Flag indicating presence of encrypted sensitive data
+}
+
+export interface CollectionExport {
+	id: string;
+	name: string;
+	label: string;
+	description?: string;
+	schema: unknown;
+	fields: unknown[];
+	permissions?: string[];
+	settings?: Record<string, unknown>;
+}
+
+export interface ValidationResult {
+	valid: boolean;
+	errors: ValidationError[];
+	warnings: ValidationWarning[];
+}
+
+export interface ValidationError {
+	path: string;
+	message: string;
+	code: string;
+}
+
+export interface ValidationWarning {
+	path: string;
+	message: string;
+	code: string;
+}
+
+export interface Conflict {
+	type: 'setting' | 'collection';
+	key: string;
+	current: unknown;
+	import: unknown;
+	recommendation: 'skip' | 'overwrite' | 'merge';
+}
+
+export interface ImportResult {
+	success: boolean;
+	imported: number;
+	skipped: number;
+	merged: number;
+	errors: ImportError[];
+	conflicts: Conflict[];
+}
+
+export interface ImportError {
+	key: string;
+	message: string;
+	code: string;
+}
+
+// Sensitive field patterns to exclude from exports
+export const SENSITIVE_PATTERNS = ['PASSWORD', 'SECRET', 'TOKEN', 'KEY', 'CLIENT_SECRET', 'PRIVATE_KEY', 'JWT_SECRET', 'ENCRYPTION_KEY', 'API_KEY'];
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type ContentTypes = {};

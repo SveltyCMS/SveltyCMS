@@ -1,13 +1,14 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
-  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS-light.png">
+  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
 </p>
 
 <h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
 <p align="center"><strong>(Still in Development - Your Support is always Appreciated!!)</strong></>
 
 <p align="center">
- <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
- <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
+ <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/SveltyCMS/SveltyCMS">
+ <img alt="GitHub issues" src="https://img.shields.io/github/issues/SveltyCMS/SveltyCMS">
+ <img alt="Bundle Size" src="https://img.shields.io/badge/Bundle-508%20KB%20Brotli-success?style=flat">
 </p>
 
 <p align="center">
@@ -151,7 +152,7 @@ bun run preview
 
 </details>
 
-### Automated Setup via CLI Installer
+### Automated Setup via GUI Setup Installer
 
 SveltyCMS features an intelligent CLI installer that automatically launches when you start the development server without configuration files. The installer handles all setup automatically:
 
@@ -192,14 +193,14 @@ If you require a different look, use the [skeleton theme generator](https://www.
 
 We use [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), the best i18n library together with [inlang](https://inlang.com/) ecosystem for first class System Translations with full typescript support.
 
-Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SveltyCMS) and can easily be extended.
+Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/SveltyCMS/SveltyCMS) and can easily be extended.
 
 If a language has not yet been defined, reach out to us, so that you can help extend the System Localization.
 
 </td>
 <td>
 
-[![inlang status badge](https://badge.inlang.com/?url=github.com/Rar9/SveltyCMS)](https://fink.inlang.com/github.com/Rar9/SveltyCMS?ref=badge)
+[![inlang status badge](https://badge.inlang.com/?url=github.com/SveltyCMS/SveltyCMS)](https://fink.inlang.com/github.com/SveltyCMS/SveltyCMS?ref=badge)
 
 </td>
 </tr>
@@ -214,12 +215,49 @@ Full Typescript support to display all available widgets, options to create full
 
 Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and TypeScript.
 
+## 📦 Optimized Bundle Size
+
+SveltyCMS is built with modern optimization techniques resulting in a **compact bundle** compared to traditional CMS platforms:
+
+<div align="center">
+
+| CMS Platform    | Bundle Size (gzipped) | Bundle Size (Brotli) | Technology Stack   |
+| --------------- | --------------------- | -------------------- | ------------------ |
+| **SveltyCMS**   | **604 KB**            | **508 KB** ⚡        | SvelteKit 5 + Vite |
+| WordPress Admin | ~800 KB               | ~675 KB              | jQuery + PHP       |
+| Drupal Admin    | ~1.1 MB               | ~930 KB              | jQuery + Drupal    |
+
+</div>
+
+**What this means:**
+
+- ✅ **Smaller downloads** = Faster initial load
+- ✅ **Lower bandwidth costs** = Savings at scale
+- ✅ **Better mobile experience** = Works well on slower connections
+- ✅ **Brotli compression** = Automatically served by modern servers
+
+## 📚 Documentation
+
+Comprehensive documentation is available to help you get started:
+
+- 📖 **[Full Documentation](docs/)** - Complete guides, API reference, and architecture docs
+- 🚀 **[Installation Guide](docs/installation.mdx)** - Setup instructions
+- 🎯 **[Getting Started](docs/getting-started.mdx)** - Quick start guide
+- 🧪 **[Testing Guide](docs/testing.mdx)** - Testing documentation
+- 🤝 **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
+
 ## :question: Need help
 
-Contact us if you're struggling installation or other issues via:
-[GitHub Discussions](https://github.com/SveltyCMS/SvelteCMS/discussions)
+Contact us if you're struggling with installation or other issues:
+
+- 💬 [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
+- 🐛 [Report Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
+- 📖 [Documentation](docs/)
+- 📧 Email: support@sveltycms.com
 
 ## :rocket: Semantic Versioning
+
+For detailed information on our Git workflow, branching strategy, and commit conventions, see our [Git Workflow & Automated Releases guide](docs/git-workflows.mdx).
 
 We use [semantic versioning](https://semver.org/) to manage our releases. This means that our version numbers follow a specific format: `MAJOR.MINOR.PATCH`.
 
@@ -229,7 +267,7 @@ We use [semantic versioning](https://semver.org/) to manage our releases. This m
 
 When submitting pull requests, please make sure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This will help us automatically generate changelogs and release notes.
 
-Please also read our [Code of Conduct](https://github.com/SveltyCMS/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+Please also read our [Code of Conduct](https://github.com/SveltyCMS/SveltyCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
 
 If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running pnpm changeset and following the prompts.
 Changesets that add features should be minor and those that fix bugs should be patch.
@@ -242,7 +280,7 @@ Thank you for helping us maintain a consistent and predictable release process! 
 
 # Contributing
 
-We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SvelteCMS/CONTRIBUTING.md) for details on how to get started with this.
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
 
 ## :moneybag: Sponsoring
 

@@ -3,7 +3,6 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { publicEnv } from '@root/config/public';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -14,18 +13,20 @@ import { google } from 'googleapis';
 import { auth, dbInitPromise } from '@src/databases/db';
 
 // Cache invalidation
-import { invalidateUserCountCache } from '@src/hooks.server';
+import { invalidateUserCountCache } from '@src/hooks/handleAuthorization';
 
 // Utils
-import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { contentManager } from '@root/src/content/ContentManager';
+import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
 // System Logger
-import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';
+import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/googleAuth';
 import { logger } from '@utils/logger.svelte';
 
 // Import roles
@@ -50,11 +51,13 @@ async function sendWelcomeEmail(
 ) {
 	try {
 		const userLanguage = (get(systemLanguage) as Locale) || 'en';
+		const hostProd = publicEnv.HOST_PROD;
+		const siteName = publicEnv.SITE_NAME;
 		const emailProps = {
 			username,
 			email,
-			hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-			sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+			hostLink: hostProd || `https://${request.headers.get('host')}`,
+			sitename: siteName || 'SveltyCMS'
 		};
 
 		await fetchFn('/api/sendMail', {
@@ -322,13 +325,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		try {
 			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
-			// Import and get the private config directly
-			const { privateEnv } = await import('@root/config/private');
-
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
+			const googleAuthClient = new google.auth.OAuth2(
+				getPrivateSettingSync('GOOGLE_CLIENT_ID'),
+				getPrivateSettingSync('GOOGLE_CLIENT_SECRET'),
+				redirectUri
+			);
 			const { tokens } = await googleAuthClient.getToken(code);
 			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 
@@ -344,27 +348,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			logger.info('Successfully processed OAuth callback and created session');
 
-			// Prefetch first collection data for instant loading (fire and forget)
-			import('@utils/collections-prefetch')
-				.then(({ prefetchFirstCollectionData }) => {
-					const userLanguage = url.searchParams.get('lang') || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
-						logger.debug('Prefetch failed during OAuth callback:', err);
-					});
-				})
-				.catch(() => {
-					// Silently fail if prefetch module can't be loaded
-				});
+			// Redirect to the first available collection
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			const userLanguage = url.searchParams.get('lang') || defaultLanguage;
+			const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(userLanguage);
 
-			// Redirect to first collection
-			let redirectUrl = '/';
-			const firstCollection = contentManager.getFirstCollection();
-			if (firstCollection && firstCollection.path) {
-				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
-			}
-			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
-			throw redirect(302, redirectUrl);
+			logger.debug(`Redirecting to: \x1b[34m${redirectUrl || '/'}\x1b[0m`);
+			throw redirect(302, redirectUrl || '/');
 		} catch (err) {
 			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
 				throw err;

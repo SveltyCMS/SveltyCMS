@@ -26,10 +26,7 @@ This component provides a user interface for managing 2FA settings:
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	// Auth
-	import type { User } from '@src/auth/types';
-
-	// Config
-	import { privateEnv } from '@root/config/private';
+	import type { User } from '@src/databases/auth/types';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -37,7 +34,6 @@ This component provides a user interface for managing 2FA settings:
 	// Components
 	import TwoFactorSetupModal from './TwoFactorSetupModal.svelte';
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
-
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -47,10 +43,12 @@ This component provides a user interface for managing 2FA settings:
 	// Props
 	let { user } = $props<{ user: User }>();
 
-	const modalStore = getModalStore();
+	// Note: modalStore is not directly used; kept to ensure modal system initializes if required
+	getModalStore();
 
 	// State
 	let isLoading = $state(false);
+	let isExpanded = $state(false); // Collapsed by default
 	let backupCodes = $state<string[]>([]);
 
 	// Check if 2FA is enabled
@@ -58,10 +56,10 @@ This component provides a user interface for managing 2FA settings:
 
 	// Show success toast
 	function showSuccessToast(message: string) {
-		showToast(`<iconify-icon icon=\"mdi:check-circle\" color=\"white\" width=\"24\" class=\"mr-2\"></iconify-icon>${message}`, 'success');
+		showToast(`<iconify-icon icon="mdi:check-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}`, 'success');
 	}
 	function showErrorToast(message: string) {
-		showToast(`<iconify-icon icon=\"mdi:alert-circle\" color=\"white\" width=\"24\" class=\"mr-2\"></iconify-icon>${message}`, 'error');
+		showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-2"></iconify-icon>${message}`, 'error');
 	}
 
 	// Setup 2FA - Show QR code modal
@@ -191,122 +189,129 @@ This component provides a user interface for managing 2FA settings:
 	}
 </script>
 
-{#if privateEnv.USE_2FA}
-	<div class="card p-6 shadow-md">
-		<div class="mb-4 flex items-center justify-between">
+<!-- TwoFactorAuth is rendered conditionally by parent based on is2FAEnabledGlobal -->
+{#if true}
+	<div class="card shadow-md">
+		<!-- Collapsible Header -->
+		<button
+			onclick={() => (isExpanded = !isExpanded)}
+			class="flex w-full items-center justify-between p-6 text-left transition-colors hover:bg-surface-100 dark:hover:bg-surface-700"
+			aria-expanded={isExpanded}
+			aria-controls="twofa-content"
+		>
 			<div class="flex items-center gap-3">
 				<iconify-icon icon="mdi:shield-check" width="24" class="text-primary-500"></iconify-icon>
 				<h3 class="h3">{m.twofa_title()}</h3>
 			</div>
 
-			<!-- Status badge -->
-			<div class="badge {is2FAEnabled ? 'variant-filled-success' : 'variant-filled-surface'}">
-				<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width="16" class="mr-1"></iconify-icon>
-				{is2FAEnabled ? m.twofa_status_enabled() : m.twofa_status_disabled()}
+			<div class="flex items-center gap-3">
+				<!-- Status badge -->
+				<div class="badge {is2FAEnabled ? 'variant-filled-success' : 'variant-filled-surface'}">
+					<iconify-icon icon="mdi:{is2FAEnabled ? 'check-circle' : 'circle-outline'}" width="16" class="mr-1"></iconify-icon>
+					{is2FAEnabled ? m.twofa_status_enabled() : m.twofa_status_disabled()}
+				</div>
+
+				<!-- Expand/Collapse Icon -->
+				<iconify-icon icon="mdi:chevron-{isExpanded ? 'up' : 'down'}" width="24" class="text-surface-500"></iconify-icon>
 			</div>
-		</div>
+		</button>
 
-		<p class="mb-6 text-surface-600 dark:text-surface-300">
-			{m.twofa_description()}
-		</p>
+		<!-- Collapsible Content -->
+		{#if isExpanded}
+			<div id="twofa-content" class="border-t border-surface-300 p-6 dark:border-surface-600">
+				<p class="mb-6 text-surface-600 dark:text-surface-300">
+					{m.twofa_description()}
+				</p>
 
-		<div class="space-y-4">
-			{#if !is2FAEnabled}
-				<!-- Setup 2FA -->
-				<div class="flex flex-col gap-3 sm:flex-row">
-					<button onclick={setup2FA} disabled={isLoading} class="variant-filled-primary btn flex-1">
-						{#if isLoading}
-							<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
-							{m.twofa_setting_up()}
-						{:else}
-							<iconify-icon icon="mdi:shield-plus" width="20" class="mr-2"></iconify-icon>
-							{m.twofa_setup_button()}
-						{/if}
-					</button>
-				</div>
+				<div class="space-y-4">
+					{#if !is2FAEnabled}
+						<!-- Setup 2FA -->
+						<div class="flex flex-col gap-3 sm:flex-row">
+							<button onclick={setup2FA} disabled={isLoading} class="variant-filled-primary btn flex-1">
+								{#if isLoading}
+									<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
+									{m.twofa_setting_up()}
+								{:else}
+									<iconify-icon icon="mdi:shield-plus" width="20" class="mr-2"></iconify-icon>
+									{m.twofa_setup_button()}
+								{/if}
+							</button>
+						</div>
 
-				<div class="alert variant-ghost-primary">
-					<iconify-icon icon="mdi:information" width="20"></iconify-icon>
-					<div class="alert-message">
-						<h4 class="h4">{m.twofa_setup_info_title()}</h4>
-						<p>{m.twofa_setup_info_description()}</p>
-						<ul class="mt-2 list-inside list-disc space-y-1 text-sm">
-							<li>{m.twofa_setup_step_1()}</li>
-							<li>{m.twofa_setup_step_2()}</li>
-							<li>{m.twofa_setup_step_3()}</li>
-						</ul>
-					</div>
-				</div>
-			{:else}
-				<!-- 2FA is enabled -->
-				<div class="space-y-3">
-					<div class="flex flex-col gap-3 sm:flex-row">
-						<button onclick={disable2FA} disabled={isLoading} class="variant-filled-error btn flex-1">
-							{#if isLoading}
-								<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
-								{m.twofa_disabling()}
-							{:else}
-								<iconify-icon icon="mdi:shield-remove" width="20" class="mr-2"></iconify-icon>
-								{m.twofa_disable_button()}
-							{/if}
-						</button>
-
-						<button onclick={generateBackupCodes} disabled={isLoading} class="variant-filled-secondary btn flex-1">
-							{#if isLoading}
-								<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
-								{m.twofa_generating_codes()}
-							{:else}
-								<iconify-icon icon="mdi:key-variant" width="20" class="mr-2"></iconify-icon>
-								{m.twofa_generate_backup_codes()}
-							{/if}
-						</button>
-					</div>
-
-					<!-- Show backup codes if generated -->
-					{#if backupCodes.length > 0}
-						<div class="alert variant-ghost-warning">
-							<iconify-icon icon="mdi:key-variant" width="20"></iconify-icon>
+						<div class="alert variant-ghost-primary">
+							<iconify-icon icon="mdi:information" width="20"></iconify-icon>
 							<div class="alert-message">
-								<h4 class="h4">{m.twofa_backup_codes_title()}</h4>
-								<p class="mb-3">{m.twofa_backup_codes_description()}</p>
-								<div class="grid grid-cols-2 gap-2 font-mono text-sm">
-									{#each backupCodes as code}
-										<div class="rounded bg-surface-200 p-2 text-center dark:bg-surface-700">
-											{code}
+								<h4 class="h4">{m.twofa_setup_info_title()}</h4>
+								<p>{m.twofa_setup_info_description()}</p>
+								<ul class="mt-2 list-inside list-disc space-y-1 text-sm">
+									<li>{m.twofa_setup_step_1()}</li>
+									<li>{m.twofa_setup_step_2()}</li>
+									<li>{m.twofa_setup_step_3()}</li>
+								</ul>
+							</div>
+						</div>
+					{:else}
+						<!-- 2FA is enabled -->
+						<div class="space-y-3">
+							<div class="flex flex-col gap-3 sm:flex-row">
+								<button onclick={disable2FA} disabled={isLoading} class="variant-filled-error btn flex-1">
+									{#if isLoading}
+										<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
+										{m.twofa_disabling()}
+									{:else}
+										<iconify-icon icon="mdi:shield-remove" width="20" class="mr-2"></iconify-icon>
+										{m.twofa_disable_button()}
+									{/if}
+								</button>
+
+								<button onclick={generateBackupCodes} disabled={isLoading} class="variant-filled-secondary btn flex-1">
+									{#if isLoading}
+										<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
+										{m.twofa_generating_codes()}
+									{:else}
+										<iconify-icon icon="mdi:key-variant" width="20" class="mr-2"></iconify-icon>
+										{m.twofa_generate_backup_codes()}
+									{/if}
+								</button>
+							</div>
+
+							<!-- Show backup codes if generated -->
+							{#if backupCodes.length > 0}
+								<div class="alert variant-ghost-warning">
+									<iconify-icon icon="mdi:key-variant" width="20"></iconify-icon>
+									<div class="alert-message">
+										<h4 class="h4">{m.twofa_backup_codes_title()}</h4>
+										<p class="mb-3">{m.twofa_backup_codes_description()}</p>
+										<div class="grid grid-cols-2 gap-2 font-mono text-sm">
+											{#each backupCodes as code, index (index)}
+												<div class="rounded bg-surface-200 p-2 text-center dark:bg-surface-700">
+													{code}
+												</div>
+											{/each}
 										</div>
-									{/each}
+										<p class="mt-3 text-sm text-warning-600 dark:text-warning-400">
+											<iconify-icon icon="mdi:alert" width="16" class="mr-1"></iconify-icon>
+											{m.twofa_backup_codes_warning()}
+										</p>
+									</div>
 								</div>
-								<p class="mt-3 text-sm text-warning-600 dark:text-warning-400">
-									<iconify-icon icon="mdi:alert" width="16" class="mr-1"></iconify-icon>
-									{m.twofa_backup_codes_warning()}
-								</p>
+							{/if}
+
+							<div class="alert variant-ghost-success">
+								<iconify-icon icon="mdi:shield-check" width="20"></iconify-icon>
+								<div class="alert-message">
+									<h4 class="h4">{m.twofa_enabled_title()}</h4>
+									<p>{m.twofa_enabled_description()}</p>
+								</div>
 							</div>
 						</div>
 					{/if}
-
-					<div class="alert variant-ghost-success">
-						<iconify-icon icon="mdi:shield-check" width="20"></iconify-icon>
-						<div class="alert-message">
-							<h4 class="h4">{m.twofa_enabled_title()}</h4>
-							<p>{m.twofa_enabled_description()}</p>
-						</div>
-					</div>
 				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</div>
 {/if}
 
 <style>
-	.alert {
-		@apply rounded-lg border p-4;
-	}
-
-	.alert-message {
-		@apply flex-1;
-	}
-
-	.alert-message h4 {
-		@apply mb-1 font-semibold;
-	}
+	/* Tailwind styles are applied via class attributes directly */
 </style>

@@ -18,13 +18,13 @@
  *
  */
 
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error } from '@sveltejs/kit';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
 
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { RequestHandler } from './$types';
-import { publicEnv } from '@root/config/public';
 
 // Database adapter for collection queries
 import { dbAdapter } from '@src/databases/db';
@@ -58,7 +58,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -69,19 +69,20 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 
-		if (!publicEnv.EXTRACT_DATA_PATH) {
+		const extractDataPath = publicEnv.EXTRACT_DATA_PATH;
+		if (!extractDataPath) {
 			logger.error('EXTRACT_DATA_PATH not configured');
 			throw error(500, 'Server configuration error: EXTRACT_DATA_PATH not set');
 		}
 
 		// --- MULTI-TENANCY: Modify the file path to be tenant-specific ---
-		let filePath = publicEnv.EXTRACT_DATA_PATH;
-		if (privateEnv.MULTI_TENANT && tenantId) {
+		let filePath = extractDataPath;
+		if (getPrivateSettingSync('MULTI_TENANT') && tenantId) {
 			const dir = path.dirname(filePath);
 			const ext = path.extname(filePath);
 			const base = path.basename(filePath, ext);
 			filePath = path.join(dir, `${base}-${tenantId}${ext}`);
-		} // Write the fetched data to the specified file
+		}
 
 		await writeDataToFile(data, filePath);
 		logger.info(`Data successfully written to ${filePath}`, { tenantId });
@@ -108,8 +109,8 @@ async function fetchAllCollectionData(collections: Record<string, DatabaseCollec
 		logger.debug(`Fetching data for collection: ${name}`, { tenantId });
 
 		try {
-			const filter = privateEnv.MULTI_TENANT && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant
-			const result = await dbAdapter.getCollectionData(name, filter);
+			const filter = getPrivateSettingSync('MULTI_TENANT') && tenantId ? { tenantId } : {}; // Use the database adapter to fetch collection entries, scoped by tenant
+			const result = await dbAdapter.getCollectionEntries(name, filter);
 			const entryList = result.success ? result.data : [];
 			return [name, entryList];
 		} catch (error) {

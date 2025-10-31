@@ -1,98 +1,71 @@
 /**
-@file src/widgets/custom/phoneNumber/index.ts
-@description - PhoneNumber index file.
-*/
-
-import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'PhoneNumber' as const;
-
-/**
- * Defines PhoneNumber widget Parameters
+ * @file src/widgets/custom/phonenumber/index.ts
+ * @description PhoneNumber Widget Definition.
+ *
+ * Implements a robust phone number input that stores a simple string.
+ *
+ * @features
+ * - **Dynamic Validation**: Uses a custom `pattern` if provided, otherwise defaults to E.164 international format.
+ * - **Semantic HTML**: The input component uses `<input type="tel">` for accessibility.
+ * - **Actionable Display**: The display component renders a clickable `tel:` link.
+ * - **Configurable GUI**: `GuiSchema` allows for easy setup in the Collection Builder.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
-			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
+import type { FieldInstance } from '@src/content/types';
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { minLength, optional, pipe, regex, string, type InferInput as ValibotInput } from 'valibot';
+import type { PhoneNumberProps } from './types';
 
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
+// The validation schema is a function to create rules based on the field config.
+const validationSchema = (field: FieldInstance) => {
+	// A robust default regex for international E.164 format (e.g., +491234567).
+	const defaultPattern = /^\+[1-9]\d{1,14}$/;
+	const validationMessage = 'Please enter a valid phone number format.';
 
-		// permissions
-		permissions: params.permissions,
+	// Use the custom pattern from the field config, or fall back to the default.
+	const validationPattern = field.pattern ? new RegExp(field.pattern as string) : defaultPattern;
 
-		// widget specific
-		placeholder: params.placeholder,
-		count: params.count,
-		minlength: params.minlength,
-		maxlength: params.maxlength,
-		pattern: params.pattern,
-		size: params.size,
-		readonly: params.readonly
-	};
+	// Start with a base string schema that includes the regex validation.
+	const baseSchema = pipe(string(), regex(validationPattern, validationMessage));
 
-	// Return the field and widget objects
-	return { ...field, widget };
+	// If the field is required, also ensure it's not empty.
+	const schema = field.required ? pipe(string(), minLength(1, 'This field is required.'), regex(validationPattern, validationMessage)) : baseSchema;
+
+	// If not required, wrap the schema to allow it to be optional.
+	return field.required ? schema : optional(schema, '');
 };
 
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
+// Create the widget definition using the factory.
+const PhoneNumberWidget = createWidget<PhoneNumberProps>({
+	Name: 'PhoneNumber',
+	Icon: 'ic:baseline-phone-in-talk',
+	Description: m.widget_phoneNumber_description(),
+	inputComponentPath: '/src/widgets/custom/phonenumber/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/phonenumber/Display.svelte',
+	validationSchema,
 
-widget.Icon = 'ic:baseline-phone-in-talk';
-widget.Description = m.widget_phoneNumber_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Set widget-specific defaults.
+	defaults: {
+		translated: false // A phone number should not be translatable.
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// Define the UI for configuring this widget in the Collection Builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		placeholder: { widget: Input, required: false },
+		pattern: { widget: Input, required: false, helper: 'Optional: Custom regex for validation.' }
+	}
+});
+
+export default PhoneNumberWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof PhoneNumberWidget>;
+export type PhoneNumberWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

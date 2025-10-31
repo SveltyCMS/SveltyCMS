@@ -29,8 +29,7 @@ This widget fetches and displays the latest content items, including:
 
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+
 	import { formatDistanceToNow } from 'date-fns';
 
 	interface ContentItem {
@@ -50,8 +49,8 @@ This widget fetches and displays the latest content items, including:
 		icon = 'mdi:file-document-multiple-outline',
 		widgetId = undefined,
 		size = { w: 1, h: 1 },
-		onSizeChange = (newSize: { w: number; h: number }) => {},
-		onCloseRequest = () => {}
+		onSizeChange = () => {},
+		onRemove = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
@@ -59,7 +58,7 @@ This widget fetches and displays the latest content items, including:
 		widgetId?: string;
 		size?: { w: number; h: number };
 		onSizeChange?: (newSize: { w: number; h: number }) => void;
-		onCloseRequest?: () => void;
+		onRemove?: () => void;
 	}>();
 
 	function getStatusColor(status: string) {
@@ -76,7 +75,17 @@ This widget fetches and displays the latest content items, including:
 	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/dashboard/last5Content" pollInterval={30000} {icon} {widgetId} {size} {onSizeChange} {onCloseRequest}>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/last5Content"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{size}
+	{onSizeChange}
+	onCloseRequest={onRemove}
+>
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 content items">

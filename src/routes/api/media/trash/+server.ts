@@ -13,7 +13,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Permission checking
 
@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(500, 'Auth service not available');
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	}
 

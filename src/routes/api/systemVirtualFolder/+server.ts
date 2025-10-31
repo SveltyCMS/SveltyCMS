@@ -11,9 +11,9 @@
  * - ModifyRequest support for widget-based data processing.
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -33,7 +33,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -82,7 +82,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Parse request body
 
@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const folderData: Partial<SystemVirtualFolder> = {
 			name: name.trim(),
 			parentId: parentId || null,
-			...(privateEnv.MULTI_TENANT && { tenantId }),
+			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		}; // Create the folder
@@ -119,6 +119,59 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Error creating system virtual folder: ${message}`, { tenantId });
+
+		throw error(500, message);
+	}
+};
+
+// PATCH /api/systemVirtualFolder - Handles folder reordering
+export const PATCH: RequestHandler = async ({ request, locals }) => {
+	const { user, tenantId } = locals;
+	try {
+		// Check authentication
+		if (!user) {
+			throw error(401, 'Authentication required');
+		}
+
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
+
+		const body = await request.json();
+		const { action, parentId, orderUpdates } = body;
+
+		if (action !== 'reorder') {
+			throw error(400, 'Invalid action');
+		}
+
+		if (!Array.isArray(orderUpdates)) {
+			throw error(400, 'orderUpdates must be an array');
+		}
+
+		// Update each folder in a transaction
+		const results = await Promise.all(
+			orderUpdates.map(async (update: { folderId: string; order: number; parentId?: string | null }) => {
+				const { folderId, order, parentId: newParentId } = update;
+				const updateData: Partial<SystemVirtualFolder> = { order };
+				if (newParentId !== undefined) {
+					updateData.parentId = newParentId;
+				}
+				return dbAdapter.systemVirtualFolder.update(folderId, updateData);
+			})
+		);
+
+		const errors = results.filter((r) => !r.success);
+		if (errors.length > 0) {
+			logger.error('Error reordering folders', { errors });
+			throw error(500, 'Error reordering folders');
+		}
+
+		logger.info('Reordered folders successfully', { tenantId });
+
+		return json({ success: true });
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Unknown error occurred';
+		logger.error(`Error reordering folders: ${message}`, { tenantId });
 
 		throw error(500, message);
 	}

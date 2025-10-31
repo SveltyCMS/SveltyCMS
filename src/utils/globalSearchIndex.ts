@@ -29,7 +29,7 @@ export const isSearchVisible = writable(false);
 export const triggerActionStore = writable<(() => void | Promise<void>)[]>([]);
 
 // Create a writable store for the global search index
-interface SearchData {
+export interface SearchData {
 	title: string;
 	description: string;
 	keywords: string[];

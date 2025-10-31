@@ -12,14 +12,14 @@
  * - **Multi-Level Filtering:** Supports filtering by log level, search text, and date range.
  */
 
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { error, json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
-import { publicEnv } from '@root/config/public';
+import { createBrotliDecompress, createGunzip } from 'node:zlib';
+import type { RequestHandler } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -238,7 +238,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			}
 
 			let fileStream: NodeJS.ReadableStream = createReadStream(filePath);
-			if (file.endsWith('.gz')) {
+			// Prefer Brotli (faster & better compression) but keep gzip backwards compatibility
+			if (file.endsWith('.br')) {
+				fileStream = fileStream.pipe(createBrotliDecompress());
+			} else if (file.endsWith('.gz')) {
 				fileStream = fileStream.pipe(createGunzip());
 			}
 

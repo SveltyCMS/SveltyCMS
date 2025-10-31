@@ -3,8 +3,6 @@
  * @description Defines media models and interfaces for the CMS
  */
 
-import { publicEnv } from '@root/config/public';
-
 // Enum representing media types
 export enum MediaTypeEnum {
 	Image = 'image',
@@ -98,7 +96,7 @@ export interface MediaImage extends MediaBase {
 	width: number;
 	height: number;
 	thumbnail: Thumbnail;
-	thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail>;
+	thumbnails: Record<string, Thumbnail>; // Use string instead of keyof typeof publicEnv.IMAGE_SIZES
 }
 
 // Represents a document media item

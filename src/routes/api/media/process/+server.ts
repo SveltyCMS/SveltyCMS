@@ -15,14 +15,14 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
 
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing';
-import { MediaService } from '@utils/media/MediaService';
+import { MediaService } from '@src/services/MediaService';
 import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
 import { Permission } from '@utils/media/mediaModels';
 
@@ -71,7 +71,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, error: 'Process type not specified' }, { status: 400 });
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		} // Check appropriate permissions based on operation type
 

@@ -1,0 +1,780 @@
+---
+path: 'docs/architecture/code-structure'
+title: 'Code Structure & Organization'
+description: 'Comprehensive overview of SveltyCMS codebase organization, architecture, and design patterns'
+order: 1
+icon: 'mdi:folder-tree'
+author: 'SveltyCMS Team'
+created: '2025-10-05'
+updated: '2025-10-05'
+tags:
+  - 'architecture'
+  - 'structure'
+  - 'patterns'
+  - 'organization'
+---
+
+# SveltyCMS Code Structure & Organization
+
+This document provides a comprehensive overview of the SveltyCMS codebase organization, architecture, and design patterns.
+
+---
+
+## 📁 Directory Structure
+
+```
+SveltyCMS/
+├── config/                 # Core configuration
+│   ├── collections/        # Collection schema definitions
+│   ├── public.ts           # Public settings (version controlled)
+│   └── private.ts          # Private settings (gitignored)
+│
+├── src/                    # Source code
+│   ├── routes/             # SvelteKit routes (UI and API)
+│   │   ├── (admin)/        # Admin panel routes
+│   │   └── api/            # API endpoints (95+ endpoints)
+│   │
+│   ├── databases/          # Database adapters
+│   │   ├── auth/           # Authentication system
+│   │   ├── mongodb/        # MongoDB adapter
+│   │   ├── mariadb/        # MariaDB adapter
+│   │   └── postgresql/     # PostgreSQL adapter
+│   │
+│   ├── components/         # Reusable Svelte components
+│   │   ├── atoms/          # Basic UI elements
+│   │   ├── molecules/      # Component combinations
+│   │   └── organisms/      # Complex UI sections
+│   │
+│   ├── widgets/            # CMS widget implementations
+│   ├── stores/             # Svelte stores (state management)
+│   ├── utils/              # Utility functions
+│   ├── hooks/              # SvelteKit server hooks
+│   └── content/            # Content management system
+│
+├── docs/                   # Documentation
+│   ├── api/                # API documentation (16 files)
+│   ├── guides/             # User guides
+│   ├── architecture/       # Architecture docs
+│   ├── widgets/            # Widget documentation
+│   └── contributing/       # Contribution guides
+│
+├── tests/                  # Test suites
+│   ├── playwright/         # E2E tests
+│   └── bun/                # Unit tests
+│
+├── static/                 # Static assets
+└── build/                  # Production build output
+```
+
+---
+
+## 🏗️ Core Components
+
+### 1. Database Layer (`src/databases/`)
+
+The database layer provides a **unified interface** for different database backends through the adapter pattern.
+
+**Key Files:**
+
+- `dbInterface.ts` - Database adapter interface definition
+- `index.ts` - Database initialization and adapter selection
+- Database adapters implement the same interface for consistency
+
+**Interface Example:**
+
+```typescript
+interface DatabaseAdapter {
+	// Connection
+	connect(): Promise<DatabaseResult<void>>;
+	disconnect(): Promise<void>;
+
+	// Collections
+	find(collection: string, query: object): Promise<any[]>;
+	findOne(collection: string, query: object): Promise<any>;
+	create(collection: string, data: object): Promise<any>;
+	update(collection: string, id: string, data: object): Promise<any>;
+	delete(collection: string, id: string): Promise<boolean>;
+
+	// ... More methods for media, widgets, settings, etc.
+}
+```
+
+**Supported Adapters:**
+
+- ✅ **MongoDB** (`/src/databases/mongodb/`) - Via Mongoose
+- ✅ **MariaDB** (`/src/databases/mariadb/`) - Via mariadb driver
+- ✅ **PostgreSQL** (`/src/databases/postgresql/`) - Via pg driver
+
+**Why Adapter Pattern?**
+
+- Database-agnostic application code
+- Easy to add new database support
+- Consistent API across all databases
+- Simplified testing and mocking
+
+---
+
+### 2. Authentication System (`src/databases/auth/`)
+
+Handles user authentication, authorization, and session management.
+
+**Features:**
+
+- JWT token generation and validation
+- Session management (cookie-based)
+- OAuth integration (Google, GitHub)
+- Role-based access control (RBAC)
+- 2FA (Two-Factor Authentication)
+- Password hashing (bcrypt)
+
+**Key Components:**
+
+```typescript
+// Authentication flow
+login() → validateCredentials() → generateJWT() → createSession()
+
+// Authorization flow
+checkPermission() → getUserRole() → validatePermission() → allow/deny
+```
+
+**Security Measures:**
+
+- Bcrypt password hashing (10 rounds)
+- JWT with expiration
+- CSRF token protection
+- Secure session cookies (httpOnly, secure, sameSite)
+- Rate limiting on auth endpoints
+
+---
+
+### 3. Component Library (`src/components/`)
+
+Reusable UI components following **Atomic Design** principles.
+
+**Structure:**
+
+```
+components/
+├── atoms/              # Basic building blocks
+│   ├── Button.svelte
+│   ├── Input.svelte
+│   └── Icon.svelte
+│
+├── molecules/          # Combinations of atoms
+│   ├── FormField.svelte
+│   ├── SearchBar.svelte
+│   └── Card.svelte
+│
+└── organisms/          # Complex UI sections
+    ├── Header.svelte
+    ├── Sidebar.svelte
+    └── DataTable.svelte
+```
+
+**Svelte 5 Patterns:**
+
+```svelte
+<script lang="ts">
+	// Using Svelte 5 runes
+	let count = $state(0);
+	let doubled = $derived(count * 2);
+
+	function increment() {
+		count++;
+	}
+</script>
+
+<button onclick={increment}>
+	Count: {count} (doubled: {doubled})
+</button>
+```
+
+---
+
+### 4. Configuration System (`config/` + `src/stores/`)
+
+Manages CMS configuration through static files and reactive stores.
+
+**Configuration Files:**
+
+**`config/public.ts`** - Public, non-sensitive settings:
+
+```typescript
+export const publicConfig = {
+	siteName: 'My CMS',
+	siteUrl: 'https://example.com',
+	defaultLanguage: 'en',
+	mediaUploadLimit: 10485760 // 10MB
+	// ... More public settings
+};
+```
+
+**`config/private.ts`** - Private, sensitive settings (gitignored):
+
+```typescript
+export const privateConfig = {
+	jwtSecret: process.env.JWT_SECRET,
+	databaseUrl: process.env.DATABASE_URL,
+	oauthClientId: process.env.OAUTH_CLIENT_ID
+	// ... API keys, secrets, etc.
+};
+```
+
+**Global Settings Store:**
+
+```typescript
+// src/stores/globalSettings.ts
+import { writable } from 'svelte/store';
+
+export const globalSettings = writable({
+	// Settings loaded from database at startup
+	// Provides reactive, type-safe access throughout app
+});
+```
+
+---
+
+### 5. Content Management (`src/content/`)
+
+The **ContentManager** handles all content operations.
+
+**Responsibilities:**
+
+- Load collection schemas from `config/collections/`
+- Create database models dynamically
+- Provide CRUD API for content
+- Handle content relationships
+- Validate content against schemas
+
+**Example:**
+
+```typescript
+import { ContentManager } from '$lib/content';
+
+// Load collections
+const contentManager = new ContentManager(db);
+await contentManager.loadCollections();
+
+// CRUD operations
+const post = await contentManager.create('posts', {
+	title: 'Hello World',
+	content: 'My first post',
+	author: userId
+});
+```
+
+---
+
+### 6. Widget System (`src/widgets/`)
+
+Extensible widget framework for custom fields and displays.
+
+**Widget Types:**
+
+- **Form widgets** - Input fields (text, number, date, etc.)
+- **Display widgets** - Content rendering
+- **Media widgets** - File uploads, image galleries
+- **Custom widgets** - User-defined widgets
+
+**Widget Structure:**
+
+```typescript
+interface Widget {
+	id: string;
+	name: string;
+	type: 'form' | 'display' | 'media';
+	component: SvelteComponent;
+	schema: WidgetSchema;
+	validate: (value: any) => ValidationResult;
+}
+```
+
+See [Widget System Architecture](../widgets/widget-system-architecture.mdx) for details.
+
+---
+
+## 🎨 Key Design Patterns
+
+### 1. Adapter Pattern (Database)
+
+Provides a unified interface for different database implementations.
+
+```typescript
+// Usage in API endpoint
+export async function GET({ locals }) {
+	const db = getDB(locals.dbType); // Gets correct adapter
+	const items = await db.find('posts', {});
+	return json(items);
+}
+```
+
+**Benefits:**
+
+- Database-agnostic code
+- Easy to test (mock adapters)
+- Simple to add new databases
+
+---
+
+### 2. Repository Pattern
+
+Separates data access logic from business logic.
+
+```typescript
+class ContentRepository {
+	constructor(private db: DatabaseAdapter) {}
+
+	async findById(id: string): Promise<Content | null> {
+		return this.db.findOne('content', { _id: id });
+	}
+
+	async findPublished(): Promise<Content[]> {
+		return this.db.find('content', {
+			status: 'published',
+			publishDate: { $lte: new Date() }
+		});
+	}
+}
+```
+
+---
+
+### 3. Dependency Injection
+
+Services receive dependencies through constructors.
+
+```typescript
+class ContentService {
+	constructor(
+		private db: DatabaseAdapter,
+		private cache: CacheService,
+		private events: EventEmitter
+	) {}
+
+	async getContent(id: string): Promise<Content> {
+		// Check cache first
+		const cached = await this.cache.get(`content:${id}`);
+		if (cached) return cached;
+
+		// Fetch from database
+		const content = await this.db.findOne('content', { _id: id });
+
+		// Cache result
+		await this.cache.set(`content:${id}`, content);
+
+		return content;
+	}
+}
+```
+
+---
+
+### 4. Event-Driven Architecture
+
+Decouples components through events.
+
+```typescript
+class ContentManager {
+	async createContent(data: ContentData): Promise<Content> {
+		// Create content
+		const content = await this.repository.create(data);
+
+		// Emit event for other services to react
+		await this.events.emit('content:created', content);
+
+		return content;
+	}
+}
+
+// Elsewhere, listen for events
+events.on('content:created', async (content) => {
+	// Clear cache
+	await cache.invalidate('content:*');
+
+	// Send notification
+	await notifications.send('New content created', content);
+});
+```
+
+---
+
+### 5. Plugin System
+
+Extensible architecture for custom functionality.
+
+```typescript
+interface Plugin {
+	name: string;
+	version: string;
+	initialize: (cms: CMS) => Promise<void>;
+	routes?: Route[];
+	widgets?: Widget[];
+}
+
+class PluginManager {
+	async register(plugin: Plugin): Promise<void> {
+		// Validate plugin
+		this.validate(plugin);
+
+		// Initialize plugin
+		await plugin.initialize(this.cms);
+
+		// Register routes and widgets
+		if (plugin.routes) this.registerRoutes(plugin.routes);
+		if (plugin.widgets) this.registerWidgets(plugin.widgets);
+	}
+}
+```
+
+---
+
+## 🔄 State Management
+
+SveltyCMS uses a combination of state management approaches:
+
+### 1. Svelte Stores (Client-Side)
+
+```typescript
+import { writable, derived } from 'svelte/store';
+
+// Simple store
+export const count = writable(0);
+
+// Derived store
+export const doubled = derived(count, ($count) => $count * 2);
+
+// Custom store with methods
+function createCounter() {
+	const { subscribe, set, update } = writable(0);
+
+	return {
+		subscribe,
+		increment: () => update((n) => n + 1),
+		decrement: () => update((n) => n - 1),
+		reset: () => set(0)
+	};
+}
+
+export const counter = createCounter();
+```
+
+### 2. Server-Side State (SvelteKit Load Functions)
+
+```typescript
+// +page.server.ts
+export async function load({ locals, params }) {
+	const db = getDB(locals.dbType);
+	const post = await db.findOne('posts', { slug: params.slug });
+
+	return {
+		post
+	};
+}
+```
+
+### 3. Cache Layers
+
+```typescript
+// In-memory cache with TTL
+class CacheService {
+	private cache = new Map<string, CacheEntry>();
+
+	async get(key: string): Promise<any> {
+		const entry = this.cache.get(key);
+		if (!entry) return null;
+
+		if (Date.now() > entry.expires) {
+			this.cache.delete(key);
+			return null;
+		}
+
+		return entry.value;
+	}
+
+	async set(key: string, value: any, ttl = 3600): Promise<void> {
+		this.cache.set(key, {
+			value,
+			expires: Date.now() + ttl * 1000
+		});
+	}
+}
+```
+
+---
+
+## 🚦 Routing Architecture
+
+SvelteKit file-based routing with clear separation:
+
+```
+src/routes/
+├── (admin)/                 # Admin panel (grouped route)
+│   ├── +layout.svelte       # Admin layout wrapper
+│   ├── dashboard/           # Dashboard pages
+│   ├── collections/         # Collection management
+│   ├── media/               # Media library
+│   ├── settings/            # Settings pages
+│   └── users/               # User management
+│
+├── api/                     # API endpoints
+│   ├── auth/                # Authentication endpoints
+│   ├── collections/         # Collection CRUD
+│   ├── media/               # Media upload/management
+│   ├── settings/            # Settings API
+│   └── widgets/             # Widget API
+│
+├── +page.svelte             # Homepage
+├── +layout.svelte           # Root layout
+└── [slug]/                  # Dynamic content pages
+    └── +page.server.ts      # Server-side rendering
+```
+
+**Route Protection:**
+
+```typescript
+// hooks.server.ts
+export async function handle({ event, resolve }) {
+	// Check authentication
+	const session = await getSession(event.cookies);
+	event.locals.user = session?.user || null;
+
+	// Protect admin routes
+	if (event.url.pathname.startsWith('/admin') && !event.locals.user) {
+		throw redirect(302, '/login');
+	}
+
+	return resolve(event);
+}
+```
+
+---
+
+## 🧪 Testing Strategy
+
+### 1. Unit Tests (Bun)
+
+```typescript
+import { describe, it, expect } from 'bun:test';
+
+describe('ContentService', () => {
+	it('should create content', async () => {
+		const service = new ContentService(mockDB);
+		const content = await service.create({
+			title: 'Test',
+			content: 'Hello'
+		});
+
+		expect(content.title).toBe('Test');
+	});
+});
+```
+
+### 2. Integration Tests
+
+```typescript
+// Test API endpoints
+describe('Collections API', () => {
+	it('POST /api/collections - should create collection', async () => {
+		const response = await fetch('http://localhost:5173/api/collections', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: 'test', fields: [] })
+		});
+
+		expect(response.ok).toBe(true);
+		const data = await response.json();
+		expect(data.name).toBe('test');
+	});
+});
+```
+
+### 3. E2E Tests (Playwright)
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('admin can create post', async ({ page }) => {
+	// Login
+	await page.goto('/login');
+	await page.fill('input[name="email"]', 'admin@test.com');
+	await page.fill('input[name="password"]', 'password');
+	await page.click('button[type="submit"]');
+
+	// Navigate to posts
+	await page.goto('/admin/collections/posts');
+
+	// Create post
+	await page.click('button:has-text("New Post")');
+	await page.fill('input[name="title"]', 'My Test Post');
+	await page.fill('textarea[name="content"]', 'Hello World');
+	await page.click('button:has-text("Save")');
+
+	// Verify
+	await expect(page.locator('text=My Test Post')).toBeVisible();
+});
+```
+
+---
+
+## ⚡ Performance Optimizations
+
+### 1. Code Splitting
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					'svelte-vendor': ['svelte'],
+					'ui-components': ['./src/components/atoms', './src/components/molecules'],
+					admin: ['./src/routes/(admin)']
+				}
+			}
+		}
+	}
+});
+```
+
+### 2. Lazy Loading
+
+```svelte
+<script>
+	import { onMount } from 'svelte';
+
+	let HeavyComponent;
+
+	onMount(async () => {
+		const module = await import('./HeavyComponent.svelte');
+		HeavyComponent = module.default;
+	});
+</script>
+
+{#if HeavyComponent}
+	<svelte:component this={HeavyComponent} />
+{/if}
+```
+
+### 3. Database Optimization
+
+- **Indexes** on frequently queried fields
+- **Connection pooling** for database connections
+- **Query optimization** (select only needed fields)
+- **Pagination** for large result sets
+
+### 4. Caching Strategy
+
+- **In-memory cache** for frequently accessed data
+- **Redis** for distributed caching (optional)
+- **HTTP caching** headers for static assets
+- **CDN** for media files
+
+---
+
+## 🔐 Security Measures
+
+### 1. Authentication
+
+- ✅ JWT with expiration (24h default)
+- ✅ Secure session cookies (httpOnly, secure, sameSite)
+- ✅ Password hashing with bcrypt (10 rounds)
+- ✅ OAuth2 integration (Google, GitHub)
+- ✅ 2FA support (TOTP)
+
+### 2. Authorization
+
+- ✅ Role-based access control (RBAC)
+- ✅ Permission system (create, read, update, delete)
+- ✅ Field-level permissions
+- ✅ Content ownership validation
+
+### 3. Data Protection
+
+- ✅ Input validation (Zod schemas)
+- ✅ Output sanitization (HTML escaping)
+- ✅ SQL injection prevention (parameterized queries)
+- ✅ XSS prevention (content sanitization)
+- ✅ CSRF protection (tokens)
+- ✅ Rate limiting on API endpoints
+
+---
+
+## 🚀 Build and Deployment
+
+### Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+
+# Lint code
+npm run lint
+
+# Format code
+npm run format
+```
+
+### Production Build
+
+```bash
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Deployment Options
+
+1. **Docker**
+
+   ```dockerfile
+   FROM node:20-alpine
+   WORKDIR /app
+   COPY package*.json ./
+   RUN npm ci --only=production
+   COPY . .
+   RUN npm run build
+   CMD ["node", "build"]
+   ```
+
+2. **Vercel/Netlify**
+   - Automatic deployments from Git
+   - Serverless functions support
+   - Edge caching
+
+3. **Traditional Hosting**
+   - VPS with Node.js
+   - PM2 for process management
+   - Nginx reverse proxy
+
+---
+
+## 📚 Additional Resources
+
+- **[API Documentation](../api/)** - Complete API reference
+- **[Widget System](../widgets/)** - Widget architecture
+- **[Database Architecture](./database-methods.mdx)** - Database adapter pattern
+- **[Security Plugin](./security-plugin.mdx)** - Security implementation
+- **[Contributing Guide](../../CONTRIBUTING.md)** - How to contribute
+
+---
+
+## 🤝 Contributing
+
+When contributing code:
+
+1. **Follow the structure** - Place files in appropriate directories
+2. **Use TypeScript** - Type all functions and components
+3. **Write tests** - Unit tests for services, E2E for features
+4. **Document code** - JSDoc comments for complex functions
+5. **Follow patterns** - Use existing design patterns consistently
+
+See [Contributing Guide](../../CONTRIBUTING.md) for detailed guidelines.

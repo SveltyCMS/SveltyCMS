@@ -1,104 +1,93 @@
 /**
-@file src/widgets/custom/number/index.ts
-@description - Number index file.
-*/
-
-import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
-const WIDGET_NAME = 'Number' as const;
-
-/**
- * Defines Number widget Parameters
+ * @file src/widgets/custom/number/index.ts
+ * @description Number Widget Definition.
+ *
+ * Implements a robust number input widget that stores a precise number.
+ *
+ * @features
+ * - **Numeric Storage**: Stores data as a `number` for accuracy and calculations.
+ * - **Dynamic Validation**: Schema adapts to `required`, `min`, and `max` settings.
+ * - **Native Number Input**: Uses `<input type="number">` for optimal UX and accessibility.
+ * - **Database Aggregation**: Supports numeric filtering (e.g., value > 100) and sorting.
  */
-const widget = (params: Params & { widgetId?: string }) => {
-	// Define the display function
-	let display: any;
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
-			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
-		};
-		display.default = true;
-	} else {
-		display = params.display;
+// Import components needed for the GuiSchema
+import Input from '@components/system/inputs/Input.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
+
+import type { FieldInstance } from '@src/content/types';
+import * as m from '@src/paraglide/messages';
+import { createWidget } from '@src/widgets/factory';
+import { maxValue, minValue, number, optional, pipe, type InferInput as ValibotInput } from 'valibot';
+import type { NumberProps } from './types';
+
+// Helper type for aggregation field parameter
+type AggregationField = { db_fieldName: string; [key: string]: unknown };
+
+// The validation schema is a function to create rules based on the field config.
+const validationSchema = (field: FieldInstance) => {
+	// Start with a base number schema.
+	const baseSchema = number('Value must be a number.');
+
+	// Build validation rules based on field config
+	let schema = baseSchema;
+	if (field.min !== undefined) {
+		schema = pipe(schema, minValue(field.min as number, `Value must be at least ${field.min}.`));
+	}
+	if (field.max !== undefined) {
+		schema = pipe(schema, maxValue(field.max as number, `Value must not exceed ${field.max}.`));
 	}
 
-	// Define the widget object
-	const widget = {
-		widgetId: params.widgetId,
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
-	};
-
-	// Define the field object
-	const field = {
-		// default fields
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
-		required: params.required,
-		icon: params.icon,
-		width: params.width,
-		helper: params.helper,
-
-		// permissions
-		permissions: params.permissions,
-
-		// widget specific
-		placeholder: params.placeholder,
-		count: params.count,
-		minlength: params.minlength,
-		maxlength: params.maxlength,
-		step: params.step,
-		negative: params.negative,
-		prefix: params.prefix,
-		suffix: params.suffix,
-		readonly: params.readonly,
-		currencyCode: params.currencyCode
-	};
-
-	// Return the field and widget objects
-	return { ...field, widget };
+	// If the field is not required, wrap the schema to allow it to be undefined.
+	return field.required ? schema : optional(schema);
 };
 
-// Assign Name, GuiSchema and GraphqlSchema to the widget function
-widget.Name = WIDGET_NAME;
-widget.GuiSchema = GuiSchema;
-widget.GraphqlSchema = GraphqlSchema;
-widget.toString = () => '';
+// Create the widget definition using the factory.
+const NumberWidget = createWidget<NumberProps>({
+	Name: 'Number',
+	Icon: 'mdi:numeric',
+	Description: m.widget_number_description(),
+	inputComponentPath: '/src/widgets/custom/number/Input.svelte',
+	displayComponentPath: '/src/widgets/custom/number/Display.svelte',
+	validationSchema,
 
-// Widget icon and helper text
-widget.Icon = 'ant-design:number-outlined';
-widget.Description = m.widget_number_description();
-
-// Widget Aggregations:
-widget.aggregations = {
-	filters: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		return [
-			{
-				$match: {
-					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
-				}
-			}
-		];
+	// Set widget-specific defaults.
+	defaults: {
+		step: 1,
+		translated: false // A number is a universal value.
 	},
-	sorts: async (info) => {
-		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
-	}
-} as Aggregations;
 
-// Export FieldType type and widget function
-export type FieldType = ReturnType<typeof widget>;
-export default widget;
+	// GuiSchema allows configuration in the collection builder.
+	GuiSchema: {
+		label: { widget: Input, required: true },
+		db_fieldName: { widget: Input, required: false },
+		required: { widget: Toggles, required: false },
+		min: { widget: Input, required: false, helper: 'Minimum allowed value.' },
+		max: { widget: Input, required: false, helper: 'Maximum allowed value.' },
+		step: { widget: Input, required: false, helper: 'Stepping interval.' },
+		placeholder: { widget: Input, required: false }
+	},
+
+	// Aggregations perform numeric comparisons.
+	aggregations: {
+		filters: async ({ field, filter }: { field: AggregationField; filter: string }) => [
+			// Example: filter=">100" or filter="<50" or filter="150"
+			{ $match: { [field.db_fieldName]: { $eq: parseFloat(filter) } } }
+		],
+		sorts: async ({ field, sortDirection }: { field: AggregationField; sortDirection: number }) => ({
+			[field.db_fieldName]: sortDirection
+		})
+	},
+
+	// GraphQL schema for number
+	GraphqlSchema: () => ({
+		typeID: 'Float', // Use Float for numeric values
+		graphql: '' // No custom type definition needed
+	})
+});
+
+export default NumberWidget;
+
+// Export helper types.
+export type FieldType = ReturnType<typeof NumberWidget>;
+export type NumberWidgetData = ValibotInput<ReturnType<typeof validationSchema>>;

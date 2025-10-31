@@ -1,24 +1,20 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/+page.svelte
 @component
 **This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings.**
-
-This refactored version uses a data-driven approach with a Svelte #each loop to generate the configuration buttons. This reduces code repetition and makes the component easier to maintain. It also explicitly adds Tailwind CSS border classes to fix the missing border issue.
-
-This version includes corrections for permission contexts and link typos.
 -->
 
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import * as m from '@src/paraglide/messages';
-	import { onMount } from 'svelte';
-	import { collection } from '@src/stores/collectionStore.svelte';
+	import { setCollection } from '@src/stores/collectionStore.svelte';
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
-	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	onMount(() => {
-		collection.set(null);
+		setCollection(null);
 	});
 
 	function handleInternalNavigation(href: string, target?: string) {
@@ -29,7 +25,6 @@ This version includes corrections for permission contexts and link typos.
 
 		// Hide sidebar on mobile before navigation
 		if (typeof window !== 'undefined' && window.innerWidth < 768) {
-			console.log('Mobile detected, hiding sidebar before navigation to:', href);
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 
@@ -48,6 +43,8 @@ This version includes corrections for permission contexts and link typos.
 			iconColor: 'text-tertiary-600',
 			permission: {
 				contextId: 'config:collectionManagement',
+				name: 'Collection Builder',
+				description: 'Manage and build collections',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -63,6 +60,8 @@ This version includes corrections for permission contexts and link typos.
 			target: '_blank',
 			permission: {
 				contextId: 'api:graphql',
+				name: 'GraphQL',
+				description: 'Access GraphQL API',
 				requiredRole: 'developer',
 				action: 'access',
 				contextType: 'system'
@@ -77,6 +76,8 @@ This version includes corrections for permission contexts and link typos.
 			iconColor: 'text-primary-600',
 			permission: {
 				contextId: 'content:images',
+				name: 'Image Editor',
+				description: 'Edit and manage images',
 				requiredRole: 'editor',
 				action: 'manage',
 				contextType: 'system'
@@ -92,6 +93,8 @@ This version includes corrections for permission contexts and link typos.
 			target: '_blank',
 			permission: {
 				contextId: 'system:admin',
+				name: 'Email Previews',
+				description: 'Preview system emails',
 				requiredRole: 'admin',
 				action: 'access',
 				contextType: 'system'
@@ -100,12 +103,14 @@ This version includes corrections for permission contexts and link typos.
 		{
 			id: 'dashboard',
 			href: '/dashboard',
-			label: m.config_Dashboard(),
+			label: m.dashboard(),
 			icon: 'bi:bar-chart-line',
 			classes: 'variant-ghost-primary dark:text-white',
 			iconColor: 'text-error-600',
 			permission: {
 				contextId: 'system:dashboard',
+				name: 'Dashboard',
+				description: 'Access system dashboard',
 				requiredRole: 'user',
 				action: 'access',
 				contextType: 'system'
@@ -114,7 +119,7 @@ This version includes corrections for permission contexts and link typos.
 		{
 			id: 'marketplace',
 			href: 'https://www.sveltyCMS.com',
-			label: m.config_Martketplace(),
+			label: m.marketplace(),
 			icon: 'icon-park-outline:shopping-bag',
 			classes: 'variant-ghost-primary dark:text-white',
 			target: '_blank',
@@ -128,6 +133,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-primary dark:text-white',
 			permission: {
 				contextId: 'config:widgetManagement',
+				name: 'Widget Management',
+				description: 'Manage system widgets',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -141,6 +148,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-primary dark:text-white',
 			permission: {
 				contextId: 'config:themeManagement',
+				name: 'Theme Management',
+				description: 'Manage system themes',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -155,11 +164,62 @@ This version includes corrections for permission contexts and link typos.
 			permission: {
 				// FIX: Changed from 'system:settings' to 'config:settings' to match +page.server.ts
 				contextId: 'config:settings',
+				name: 'Settings',
+				description: 'Manage system settings',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'system'
 			}
 		},
+		{
+			id: 'importExport',
+			href: '/config/import-export',
+			label: 'Import & Export',
+			icon: 'mdi:database-import',
+			classes: 'variant-ghost-warning dark:text-white',
+			permission: {
+				contextId: 'config:importExport',
+				name: 'Import & Export',
+				description: 'Import and export system data',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			}
+		},
+		// START: New Configuration Manager Button
+		{
+			id: 'configurationManager',
+			href: '/config/configurationManager',
+			label: 'Config Manager',
+			icon: 'mdi:sync-circle',
+			classes: 'variant-ghost-secondary dark:text-white',
+			permission: {
+				contextId: 'config:synchronization',
+				name: 'Configuration Manager',
+				description: 'Synchronize configuration between filesystem and database.',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			}
+		},
+		// END: New Configuration Manager Button
+		// START: System Health Monitor
+		{
+			id: 'systemHealth',
+			href: '/config/system-health',
+			label: 'System Health',
+			icon: 'mdi:heart-pulse',
+			classes: 'variant-ghost-success dark:text-white',
+			permission: {
+				contextId: 'config:systemHealth',
+				name: 'System Health',
+				description: 'Monitor system services and health status',
+				requiredRole: 'admin',
+				action: 'view',
+				contextType: 'system'
+			}
+		},
+		// END: System Health Monitor
 		{
 			id: 'accessManagement',
 			// FIX: Corrected typo from 'assessManagement'
@@ -169,6 +229,8 @@ This version includes corrections for permission contexts and link typos.
 			classes: 'variant-ghost-error dark:text-white',
 			permission: {
 				contextId: 'config:accessManagement',
+				name: 'Access Management',
+				description: 'Manage user access and roles',
 				requiredRole: 'admin',
 				action: 'manage',
 				contextType: 'configuration'
@@ -180,7 +242,7 @@ This version includes corrections for permission contexts and link typos.
 <PageTitle name={m.config_pagetitle()} showBackButton={true} backUrl="/" icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto p-2">
-	<h2 class="mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
+	<h2 class="h2 mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
 		{m.config_body()}
 	</h2>
 
@@ -191,54 +253,50 @@ This version includes corrections for permission contexts and link typos.
 			{#if usePermissionGuard}
 				<PermissionGuard config={item.permission}>
 					{#if item.target === '_blank'}
-						<!-- External links use anchor tags -->
-						<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
-							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-							<p class="config-text">{item.label}</p>
+						<a
+							href={item.href}
+							class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
+							aria-label={item.label}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+							<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 						</a>
 					{:else}
-						<!-- Internal links use buttons with click handlers -->
 						<button
 							type="button"
-							class="config-btn {item.classes}"
+							class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
 							aria-label={item.label}
 							onclick={() => handleInternalNavigation(item.href, item.target)}
 						>
-							<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-							<p class="config-text">{item.label}</p>
+							<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+							<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 						</button>
 					{/if}
 				</PermissionGuard>
 			{:else if item.target === '_blank'}
-				<!-- External links use anchor tags -->
-				<a href={item.href} class="config-btn {item.classes}" aria-label={item.label} target="_blank" rel="noopener noreferrer">
-					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-					<p class="config-text">{item.label}</p>
+				<a
+					href={item.href}
+					class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
+					aria-label={item.label}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</a>
 			{:else}
-				<!-- Internal links use buttons with click handlers -->
 				<button
 					type="button"
-					class="config-btn {item.classes}"
+					class={`flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20 ${item.classes}`}
 					aria-label={item.label}
 					onclick={() => handleInternalNavigation(item.href, item.target)}
 				>
-					<iconify-icon icon={item.icon} class="config-icon {item.iconColor || ''}"></iconify-icon>
-					<p class="config-text">{item.label}</p>
+					<iconify-icon icon={item.icon} class={`text-3xl lg:text-2xl ${item.iconColor || ''}`}></iconify-icon>
+					<p class="w-full truncate text-xs font-medium uppercase lg:text-sm">{item.label}</p>
 				</button>
 			{/if}
 		{/each}
 	</div>
 </div>
-
-<style lang="postcss">
-	:global(.config-btn) {
-		@apply flex h-24 flex-col items-center justify-center gap-2 rounded p-2 text-center shadow-md transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg lg:h-20;
-	}
-	:global(.config-icon) {
-		@apply text-3xl lg:text-2xl;
-	}
-	:global(.config-text) {
-		@apply w-full truncate text-xs font-medium uppercase lg:text-sm;
-	}
-</style>

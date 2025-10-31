@@ -5,6 +5,7 @@
  */
 
 import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 export interface ConfirmModalOptions {
@@ -38,6 +39,7 @@ export function showModal(settings: ModalSettings): void {
 		console.warn('[modalUtils] Modal store not initialized. Call setGlobalModalStore(getModalStore()) in a root component.');
 		return;
 	}
+
 	modalStoreRef.trigger(settings);
 }
 
@@ -169,7 +171,10 @@ export function createScheduleModal(options: ScheduleModalOptions = {}): ModalSe
 
 // Convenience: open a schedule modal using the global store
 export function showScheduleModal(options: ScheduleModalOptions = {}): void {
-	showModal(createScheduleModal(options));
+	console.log('[modalUtils] showScheduleModal called with options:', options);
+	const modalSettings = createScheduleModal(options);
+	console.log('[modalUtils] Created modal settings:', modalSettings);
+	showModal(modalSettings);
 }
 
 // Creates a clone confirmation modal

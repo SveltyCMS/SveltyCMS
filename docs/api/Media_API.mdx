@@ -1,0 +1,347 @@
+---
+path: 'docs/api/Media_API.mdx'
+title: 'Media API Reference'
+description: 'Complete API reference for uploading, managing, and serving media files in SveltyCMS.'
+order: 5
+icon: 'mdi:image-multiple'
+author: 'admin'
+created: '2025-10-05'
+updated: '2025-10-28'
+tags:
+  - 'api'
+  - 'media'
+  - 'upload'
+  - 'files'
+  - 'images'
+---
+
+# Media API Reference
+
+## Overview
+
+The Media API provides comprehensive endpoints for managing media files (images, videos, documents) in SveltyCMS. All operations use a database-agnostic adapter and support multi-tenancy.
+
+**Base Path:** `/api/media`
+
+## Authentication
+
+All media endpoints require authentication:
+
+```http
+Cookie: session=your-session-id
+```
+
+## Endpoints
+
+### 1. List Media Files
+
+Retrieves a paginated list of media files.
+
+#### Request
+
+```http
+GET /api/media
+```
+
+**Query Parameters:**
+
+- `limit` (number, optional) - Max files to return (1-100, default: 25)
+- `folder` (string, optional) - Filter by folder path
+- `type` (string, optional) - Filter by MIME type (e.g., `image/jpeg`)
+
+**Permissions Required:** `media:read` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": [
+		{
+			"id": "file123",
+			"name": "image.jpg",
+			"size": 245760,
+			"modified": "2025-10-05T14:30:00Z",
+			"type": "jpeg",
+			"url": "/uploads/image.jpg",
+			"mimeType": "image/jpeg",
+			"folder": "/images"
+		}
+	],
+	"pagination": {
+		"page": 1,
+		"pageSize": 25,
+		"total": 42
+	}
+}
+```
+
+---
+
+### 2. Process Media Files (Upload, Delete, etc.)
+
+A versatile endpoint for processing files. The action is determined by the `processType` field in the `multipart/form-data` body.
+
+#### Request
+
+```http
+POST /api/media/process
+```
+
+**Headers:**
+
+```http
+Cookie: session=your-session-id
+Content-Type: multipart/form-data
+```
+
+#### Process Type: `save` (Upload Files)
+
+**Body (multipart/form-data):**
+
+- `processType`: `save`
+- `files` (file) - One or more files to upload
+- `folder` (string, optional) - Target folder path
+- `alt` (string, optional) - Alt text for images
+- `title` (string, optional) - File title/caption
+
+**Permissions Required:** `media:write` or authenticated user
+
+**Response (Success 200):**
+
+```json
+{
+	"success": true,
+	"files": [
+		{
+			"_id": "file123",
+			"filename": "image.jpg",
+			"originalName": "My Photo.jpg",
+			"path": "/uploads/2025/10/image.jpg",
+			"url": "https://cdn.example.com/uploads/2025/10/image.jpg",
+			"size": 245760,
+			"mimeType": "image/jpeg"
+		}
+	],
+	"message": "Files uploaded successfully"
+}
+```
+
+#### Process Type: `delete` (Delete File)
+
+**Body (multipart/form-data):**
+
+- `processType`: `delete`
+- `mediaId` (string) - The ID of the media file to delete.
+
+**Permissions Required:** `media:delete` or admin
+
+**Response (Success 200):**
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+### 3. Get Media File Details
+
+Retrieves detailed information about a specific media file.
+
+#### Request
+
+```http
+GET /api/media/[fileId]
+```
+
+**Permissions Required:** `media:read` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"data": {
+		"_id": "file123",
+		"filename": "image.jpg",
+		"url": "/uploads/image.jpg",
+		"size": 245760,
+		"mimeType": "image/jpeg",
+		"width": 1920,
+		"height": 1080,
+		"metadata": {
+			"camera": "Canon EOS"
+		}
+	}
+}
+```
+
+---
+
+### 4. Update Media File Metadata
+
+Updates media file metadata (not the file itself).
+
+#### Request
+
+```http
+PATCH /api/media/[fileId]
+```
+
+**Body (JSON):**
+
+```json
+{
+	"alt": "Updated alt text",
+	"title": "Updated title",
+	"folder": "/new-folder"
+}
+```
+
+**Permissions Required:** `media:update` or file owner
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+	"success": true,
+	"message": "Media file updated successfully"
+}
+```
+
+---
+
+### 5. Save Remote Media
+
+Saves a media file from a remote URL.
+
+#### Request
+
+```http
+POST /api/media/remote
+```
+
+**Body (JSON):**
+
+- `fileUrl` (string, required): The URL of the file to save.
+- `contentTypes` (string, required): The collection type to save the file to (e.g., `media_images`).
+
+**Permissions Required:** `media:write` or authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+  "success": true,
+  "id": "file456",
+  "fileInfo": { ... }
+}
+```
+
+---
+
+### 6. Move to Trash
+
+Moves a media file to the trash.
+
+#### Request
+
+```http
+POST /api/media/trash
+```
+
+**Body (JSON):**
+
+- `url` (string, required): The URL of the file to move to the trash.
+
+**Permissions Required:** `media:delete` or admin
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+### 7. Check File Existence
+
+Checks if a media file exists.
+
+#### Request
+
+```http
+GET /api/media/exists?url={file_url}
+```
+
+**Permissions Required:** Authenticated user
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+  "exists": true
+}
+```
+
+---
+
+### 8. Get File Content
+
+Retrieves the raw media file.
+
+#### Request
+
+```http
+GET /api/media/get?url={file_url}
+```
+
+**Permissions Required:** Authenticated user (for private files)
+
+#### Response
+
+The raw file data with appropriate `Content-Type` and `Content-Disposition` headers.
+
+---
+
+### 9. Permanently Delete File
+
+Permanently deletes a media file from storage and the database.
+
+#### Request
+
+```http
+DELETE /api/media/delete
+```
+
+**Body (JSON):**
+
+- `url` (string, required): The URL of the file to delete.
+
+**Permissions Required:** `admin`
+
+#### Response
+
+**Success (200):**
+
+```json
+{
+  "success": true
+}
+```

@@ -4,9 +4,11 @@
  *
  * This module defines the `themeSchema` and `ThemeModel` for managing themes in the CMS
  */
-import mongoose, { Schema } from 'mongoose';
+
+import type { Theme } from '@src/databases/dbInterface';
 import type { Model } from 'mongoose';
-import type { Theme, ISODateString } from '@src/databases/dbInterface';
+import mongoose, { Schema } from 'mongoose';
+import { nowISODateString, toISOString } from '@utils/dateUtils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -16,7 +18,6 @@ export const themeSchema = new Schema<Theme>(
 	{
 		_id: { type: String, required: true }, // UUID
 		name: { type: String, required: true },
-		description: String,
 		path: { type: String, required: true },
 		isActive: { type: Boolean, default: false },
 		isDefault: { type: Boolean, default: false },
@@ -30,22 +31,14 @@ export const themeSchema = new Schema<Theme>(
 			}
 		},
 		previewImage: String,
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now },
-		translations: [
-			{
-				languageTag: { type: String, required: true },
-				translationName: { type: String, required: true },
-				isDefault: { type: Boolean, default: false }
-			}
-		],
-		order: { type: Number, default: 999 },
-		parentPath: { type: String, default: null }
+		createdAt: { type: String, default: () => nowISODateString() },
+		updatedAt: { type: String, default: () => nowISODateString() }
 	},
 	{
 		timestamps: true,
-		collection: 'system_themes',
-		strict: true
+		collection: 'system_theme',
+		strict: true,
+		_id: false // Disable Mongoose auto-ObjectId generation
 	}
 );
 
@@ -60,12 +53,12 @@ themeSchema.statics = {
 		try {
 			const theme = await this.findOne({ isActive: true }).lean().exec();
 			if (theme) {
-				theme.createdAt = theme.createdAt.toISOString() as ISODateString;
-				theme.updatedAt = theme.updatedAt.toISOString() as ISODateString;
+				theme.createdAt = toISOString(theme.createdAt);
+				theme.updatedAt = toISOString(theme.updatedAt);
 			}
 			return theme;
 		} catch (error) {
-			logger.error(`Error retrieving active theme: ${error.message}`);
+			logger.error(`Error retrieving active theme: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	},
@@ -75,31 +68,42 @@ themeSchema.statics = {
 		try {
 			const theme = await this.findOne({ name }).lean().exec();
 			if (theme) {
-				theme.createdAt = theme.createdAt.toISOString() as ISODateString;
-				theme.updatedAt = theme.updatedAt.toISOString() as ISODateString;
+				theme.createdAt = toISOString(theme.createdAt);
+				theme.updatedAt = toISOString(theme.updatedAt);
 			}
 			return theme;
 		} catch (error) {
-			logger.error(`Error retrieving theme by name: ${error.message}`);
+			logger.error(`Error retrieving theme by name: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	},
 
-	// Store themes (bulk upsert) -
+	// Store themes (bulk upsert) - Optimized with bulkWrite for atomic operation
 	async storeThemes(themes: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>[], generateId: () => string): Promise<void> {
+		if (themes.length === 0) return;
+
 		try {
-			for (const themeData of themes) {
-				const existingTheme = await this.findOne({ name: themeData.name }).exec();
-				if (existingTheme) {
-					await this.updateOne({ name: themeData.name }, { $set: themeData }).exec();
-				} else {
-					// Use the passed generateId function - V4 UUID - and pass it as argument - remove comment
-					await this.create({ ...themeData, _id: generateId() });
+			// Build bulk operations: upsert each theme by name
+			const operations = themes.map((themeData) => ({
+				updateOne: {
+					filter: { name: themeData.name },
+					update: {
+						$set: themeData,
+						$setOnInsert: { _id: generateId() }
+					},
+					upsert: true
 				}
-			}
-			logger.info(`Stored /x1b[34m${themes.length}/x1b[0m themes`);
+			}));
+
+			// Execute all upserts in a single atomic database call
+			// Performance: 10 themes = 1 DB call instead of 20 (10 findOne + 10 updateOne/create)
+			const result = await this.bulkWrite(operations, { ordered: false });
+
+			logger.info(
+				`Stored \x1b[34m${themes.length}\x1b[0m themes via bulk operation ` + `(${result.upsertedCount} inserted, ${result.modifiedCount} updated)`
+			);
 		} catch (error) {
-			logger.error(`Error storing themes: /x1b[31m${error.message}/x1b[0m`);
+			logger.error(`Error storing themes: \x1b[31m${error instanceof Error ? error.message : String(error)}\x1b[0m`);
 			throw error;
 		}
 	},
@@ -108,13 +112,13 @@ themeSchema.statics = {
 	async getAllThemes(): Promise<Theme[]> {
 		try {
 			const themes = await this.find().lean().exec();
-			return themes.map((theme) => {
-				theme.createdAt = theme.createdAt.toISOString() as ISODateString;
-				theme.updatedAt = theme.updatedAt.toISOString() as ISODateString;
+			return themes.map((theme: Theme) => {
+				theme.createdAt = toISOString(theme.createdAt);
+				theme.updatedAt = toISOString(theme.updatedAt);
 				return theme;
 			});
 		} catch (error) {
-			logger.error(`Error retrieving all themes: ${error.message}`);
+			logger.error(`Error retrieving all themes: ${error instanceof Error ? error.message : String(error)}`);
 			throw error;
 		}
 	}

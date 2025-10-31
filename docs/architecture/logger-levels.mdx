@@ -1,0 +1,486 @@
+---
+path: 'docs/dev-guide/logger-levels.mdx'
+title: 'Logger Levels Guide'
+description: 'Comprehensive guide to the SveltyCMS performance-optimized logger system with priority-based levels, configuration, and best practices.'
+order: 8
+icon: 'mdi:math-log'
+author: 'admin'
+created: '2025-10-04'
+updated: '2025-10-05'
+tags:
+  - 'logger'
+  - 'debugging'
+  - 'performance'
+  - 'development'
+  - 'best-practices'
+---
+
+# Logger Levels Guide
+
+## Overview
+
+The SveltyCMS logger now uses a performance-optimized priority-based system with the following levels:
+
+## Log Levels (from most to least restrictive)
+
+### `none` (Priority 0)
+
+- **Purpose**: Disable all logging for maximum performance
+- **Use Case**: Production environments where logging overhead must be eliminated
+- **Performance**: Zero overhead - all log calls are skipped before any processing
+
+### `fatal` (Priority 1)
+
+- **Purpose**: Critical errors that cause system failure
+- **Use Case**: Application crashes, unrecoverable errors
+- **Example**: Database connection failure, critical configuration missing
+
+### `error` (Priority 2)
+
+- **Purpose**: Error conditions that should be investigated
+- **Use Case**: Recoverable errors, failed operations
+- **Example**: Failed API calls, validation errors, database query failures
+
+### `warn` (Priority 3)
+
+- **Purpose**: Warning messages about potential issues
+- **Use Case**: Deprecated features, fallback behaviors, potential problems
+- **Example**: Missing optional configuration, performance warnings
+
+### `info` (Priority 4) - **Default Level**
+
+- **Purpose**: General informational messages about application flow
+- **Use Case**: Application startup, major state changes, important user actions
+- **Example**: Server started, user logged in, collection created
+
+### `debug` (Priority 5)
+
+- **Purpose**: Detailed debugging information for development
+- **Use Case**: Request/response timing, performance metrics, important state changes
+- **Example**: Request timing, cache hits/misses, session management
+
+### `trace` (Priority 6)
+
+- **Purpose**: Very detailed trace information for deep debugging
+- **Use Case**: Content structure details, widget initialization, data flow
+- **Example**: ContentManager initialization, tree structure, widget state changes
+
+## Configuration
+
+### Setting Log Levels
+
+In your environment configuration, set the `LOG_LEVELS` array:
+
+```typescript
+// Only errors and warnings
+LOG_LEVELS: ['error', 'warn'];
+
+// Default: info and above
+LOG_LEVELS: ['error', 'warn', 'info'];
+
+// Development: debug and above
+LOG_LEVELS: ['error', 'warn', 'info', 'debug'];
+
+// Deep debugging: everything
+LOG_LEVELS: ['error', 'warn', 'info', 'debug', 'trace'];
+
+// Maximum performance: nothing
+LOG_LEVELS: ['none'];
+```
+
+### Runtime Level Changes
+
+If you need to change log levels at runtime:
+
+```typescript
+import { logger } from '@src/utils/logger.svelte';
+
+// After changing LOG_LEVELS in publicEnv
+logger.refreshLogLevels();
+```
+
+## Performance Optimizations
+
+### 1. Early Exit with Centralized Building Check
+
+Log calls are checked **before** any argument processing. The `building` check is centralized in the priority calculation for maximum efficiency:
+
+```typescript
+// Building check is handled once in updateMaxEnabledPriority()
+// All logger methods benefit without repetitive checks
+logger.trace('Complex data:', expensiveOperation());
+// If trace is disabled OR we're building, expensiveOperation() is never called!
+```
+
+### 2. Priority Caching
+
+The maximum enabled priority is cached and checked with a simple integer comparison instead of array lookups. The building state is also factored into the cached priority:
+
+```typescript
+// If building, maxEnabledPriority is set to 0 (disables all logging)
+// Otherwise, it's calculated from LOG_LEVELS configuration
+```
+
+### 3. No Reactivity Overhead
+
+Config and state use plain objects instead of Svelte `$state` for zero reactivity overhead.
+
+### 4. Batch Processing with Timeout Management
+
+Logs are batched and written in groups to reduce I/O operations. The batching system automatically:
+
+- Flushes immediately when batch size is reached
+- Clears pending timeouts to prevent redundant flushes
+- Schedules timed flushes for smaller batches
+
+### 5. DRY Principle Applied
+
+The `building` check is handled once in `updateMaxEnabledPriority()` rather than being repeated in every logger method, following the Don't Repeat Yourself principle.
+
+## Best Practices
+
+### Use Appropriate Levels
+
+```typescript
+// ❌ Wrong - Too detailed for info
+logger.info('Widget state:', complexWidgetState);
+
+// ✅ Right - Use trace for detailed state
+logger.trace('Widget state:', complexWidgetState);
+
+// ❌ Wrong - Request timing is useful in debug
+logger.trace('Request took 42ms');
+
+// ✅ Right - Performance metrics belong in debug
+logger.debug('Request took 42ms');
+```
+
+### Avoid Expensive Operations
+
+```typescript
+// ❌ Wrong - JSON.stringify runs even if logging is disabled
+logger.trace('Data: ' + JSON.stringify(largeObject));
+
+// ✅ Right - Pass the object directly, logger handles formatting
+logger.trace('Data:', largeObject);
+```
+
+### Content Structure Logging
+
+Content structure and tree operations use `trace` level:
+
+```typescript
+logger.trace('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
+logger.trace('[ContentManager] getContentStructure - tree:', tree);
+```
+
+### Request Timing
+
+Request performance metrics use `debug` level:
+
+```typescript
+logger.debug(`Request ${event.url.pathname} ${dt.toFixed(1)}ms ${emoji}`);
+```
+
+## Backend vs Frontend
+
+The logger is optimized for backend use. Frontend logging is minimal to avoid console clutter. Most detailed logging (`trace`, `debug`) only outputs on the server side.
+
+---
+
+## Usage Guide for Developers
+
+### Quick Reference: When to Use Each Level
+
+```typescript
+import { logger } from '@utils/logger.svelte';
+
+// ❌ FATAL - System cannot continue (rare)
+logger.fatal('Database connection permanently failed', { error });
+
+// 🔴 ERROR - Operation failures that need investigation
+logger.error('Failed to save user data', { userId, error });
+
+// ⚠️ WARN - Potential issues or fallback behaviors
+logger.warn('Using default theme, custom theme not found', { themeId });
+
+// ℹ️ INFO - Important milestones and user actions
+logger.info('User logged in successfully', { userId, email });
+
+// 🔧 DEBUG - Useful metrics and diagnostics (development)
+logger.debug('Cache hit for collection query', { collectionId, cacheKey });
+
+// 🔍 TRACE - Internal flow details (deep debugging)
+logger.trace('Processing authentication flow', { step, userId });
+```
+
+### Detailed Usage Guidelines
+
+#### Use `trace` for:
+
+- Internal implementation details
+- Step-by-step flow tracking
+- Authentication flow details
+- Data processing stages
+- Field mapping operations
+- Widget initialization steps
+
+**Example:**
+
+```typescript
+logger.trace('Processing field mapping', {
+	fieldName,
+	widgetType,
+	entryIndex
+});
+```
+
+#### Use `debug` for:
+
+- Performance metrics (timing, counts)
+- Cache operations (hits, misses)
+- Security diagnostics (token validation)
+- Configuration details
+- Database query details
+- Useful troubleshooting information
+
+**Example:**
+
+```typescript
+logger.debug('Request completed', {
+	endpoint: '/api/collections',
+	duration: '42ms',
+	cacheHit: true
+});
+```
+
+#### Use `info` for:
+
+- Important user actions (login, logout, create, update)
+- Major system milestones (startup, shutdown)
+- Successful operations
+- State changes that matter to operations
+
+**Example:**
+
+```typescript
+logger.info('Collection created successfully', {
+	collectionId,
+	name,
+	userId
+});
+```
+
+#### Use `warn` for:
+
+- Potential security issues
+- Deprecated feature usage
+- Fallback behaviors
+- Missing optional configuration
+- Validation warnings
+
+**Example:**
+
+```typescript
+logger.warn('Rate limit approaching', {
+	userId,
+	requestCount,
+	limit
+});
+```
+
+#### Use `error` for:
+
+- Operation failures
+- API errors
+- Database errors
+- Validation failures
+- Recoverable errors
+
+**Example:**
+
+```typescript
+logger.error('Failed to update user profile', {
+	userId,
+	error: error.message,
+	stack: error.stack
+});
+```
+
+### Performance Best Practices
+
+#### ✅ DO: Pass objects directly
+
+```typescript
+// Good - Logger handles formatting
+logger.trace('User data:', userData);
+logger.debug('Query result:', { count, items });
+```
+
+#### ❌ DON'T: Pre-format expensive operations
+
+```typescript
+// Bad - JSON.stringify runs even if trace is disabled
+logger.trace('Data: ' + JSON.stringify(largeObject));
+
+// Good - Let the logger handle it
+logger.trace('Data:', largeObject);
+```
+
+#### ✅ DO: Use appropriate levels for visibility
+
+```typescript
+// Cache operations are useful metrics - use debug
+logger.debug('Cache miss, fetching from database', { cacheKey });
+
+// Internal flow details - use trace
+logger.trace('Validating user permissions', { userId, resource });
+```
+
+### Common Patterns
+
+#### Authentication & Authorization
+
+```typescript
+// Internal flow - trace
+logger.trace('User authenticated successfully', { userId });
+
+// Security warnings - warn
+logger.warn('Failed login attempt', { email, ip });
+
+// Auth failures - error
+logger.error('Invalid JWT token', { error });
+```
+
+#### API Requests
+
+```typescript
+// Request completion - debug
+logger.debug('API request completed', {
+	endpoint,
+	method,
+	duration,
+	statusCode
+});
+
+// Internal processing - trace
+logger.trace('Applying filters to query', { filters });
+
+// API errors - error
+logger.error('API request failed', { endpoint, error });
+```
+
+#### Database Operations
+
+```typescript
+// Query metrics - debug
+logger.debug('Database query executed', {
+	collection,
+	duration,
+	count
+});
+
+// Query details - trace
+logger.trace('Building database query', { filters, sort });
+
+// Database errors - error
+logger.error('Database operation failed', { operation, error });
+```
+
+#### Widget System
+
+```typescript
+// Widget loading - info
+logger.info('Widgets initialized', { count, coreWidgets, customWidgets });
+
+// Widget details - trace
+logger.trace('Processing widget configuration', { widgetName, config });
+
+// Widget warnings - warn
+logger.warn('Widget missing dependency', { widgetName, dependency });
+```
+
+### Testing Your Logs
+
+When developing features:
+
+1. **Start with trace** - Add detailed trace logs for your implementation flow
+2. **Promote to debug** - Move useful metrics and diagnostics to debug
+3. **Use info sparingly** - Only for operations users/admins care about
+4. **Test visibility** - Run with different LOG_LEVELS to verify output
+
+```bash
+# Test with debug level
+LOG_LEVELS='["error","warn","info","debug"]' bun run dev
+
+# Test with info level (production-like)
+LOG_LEVELS='["error","warn","info"]' bun run dev
+
+# Test with trace level (deep debugging)
+LOG_LEVELS='["error","warn","info","debug","trace"]' bun run dev
+```
+
+### Anti-Patterns to Avoid
+
+#### ❌ Wrong Level Usage
+
+```typescript
+// Bad - Info is for important events, not internal details
+logger.info('Processing field entry 5/100');
+
+// Good - Use trace for internal processing
+logger.trace('Processing field entry 5/100', { fieldName, entryIndex });
+```
+
+#### ❌ Verbose Info Logs
+
+```typescript
+// Bad - Too detailed for info level
+logger.info('Widget state:', complexWidgetState);
+
+// Good - Use trace for detailed state
+logger.trace('Widget state:', complexWidgetState);
+```
+
+#### ❌ Missing Context
+
+```typescript
+// Bad - No context for debugging
+logger.error('Operation failed');
+
+// Good - Include actionable context
+logger.error('Failed to create collection', {
+	collectionName,
+	userId,
+	error: error.message
+});
+```
+
+### Security Considerations
+
+The logger automatically masks sensitive data:
+
+- Passwords are redacted to `[REDACTED]`
+- Email addresses are partially masked (`jo**@ex****e.com`)
+- Tokens and secrets are redacted
+
+However, be mindful of what you log:
+
+```typescript
+// ✅ Safe - No sensitive data
+logger.debug('User updated profile', { userId, fields: ['name', 'avatar'] });
+
+// ⚠️ Careful - Contains PII
+logger.trace('User profile data:', userData); // Acceptable for trace (disabled in prod)
+
+// ❌ Never log these
+logger.debug('Auth credentials:', { password, apiKey }); // Don't do this!
+```
+
+---
+
+## Related Documentation
+
+- [Logger Quick Reference](./Logger_Quick_Reference.md) - Quick decision guide
+- [Logger Performance Refinements](./Logger_Performance_Refinements.md) - Performance details
+- [Logger Audit Final Report](./Logger_Audit_Final_Report.md) - Audit results

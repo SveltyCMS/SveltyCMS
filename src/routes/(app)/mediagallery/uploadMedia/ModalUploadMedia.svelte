@@ -83,7 +83,6 @@
 			previousObjectUrls.forEach((url, key) => {
 				// Revoke URL if the file key is gone OR if the URL itself is not in the new map (e.g., error during creation)
 				if (!currentFileKeys.has(key) || !urlsInCurrentState.has(url)) {
-					console.log(`Revoking URL for removed/changed file: ${key}`);
 					URL.revokeObjectURL(url);
 				}
 			});
@@ -94,11 +93,9 @@
 	$effect(() => {
 		// This effect runs once on mount and its cleanup runs once on unmount
 		return () => {
-			console.log('Component unmounting, revoking all object URLs');
 			// Make sure to access the latest state of objectUrls inside the cleanup
 			const urlsToRevoke = objectUrls;
-			urlsToRevoke.forEach((url, key) => {
-				console.log(`Revoking URL on unmount: ${key}`);
+			urlsToRevoke.forEach((url) => {
 				URL.revokeObjectURL(url);
 			});
 		};
@@ -200,8 +197,7 @@
 	// Function to handle the Cancel button click
 	function handleCancel() {
 		// Explicitly revoke URLs and clear the map for immediate UI update
-		objectUrls.forEach((url, key) => {
-			console.log(`Revoking URL on cancel: ${key}`);
+		objectUrls.forEach((url) => {
 			URL.revokeObjectURL(url);
 		});
 		objectUrls = new Map(); // Clear the state map
@@ -216,7 +212,6 @@
 		// Prevent submission if there are no files
 		if (files.length === 0) {
 			// Optionally show a message to the user
-			console.warn('No files selected for upload.');
 			showToast('No files selected for upload.', 'warning');
 			// You might want to set a warning message state here instead of just logging
 			duplicateWarning = 'No files selected for upload.'; // Reuse existing warning state for simplicity

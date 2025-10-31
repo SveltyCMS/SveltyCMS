@@ -3,9 +3,8 @@
  * @description Global state management
  */
 
-import { publicEnv } from '@root/config/public';
 import type { Locale } from '@src/paraglide/runtime';
-import { store } from '@utils/reactivity.svelte';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 
 // --- Helper Functions & Interfaces ---
@@ -47,9 +46,9 @@ const initialTranslationProgress: TranslationProgress = { show: false };
 // Safely handle the languages array to prevent server-side initialization errors
 let availableLanguages: Locale[] = [];
 try {
-	availableLanguages = (publicEnv?.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || [];
+	availableLanguages = (publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) || [];
 } catch {
-	// If publicEnv is not available (e.g., during server initialization), use empty array
+	// If not available (e.g., during server initialization), use empty array
 	console.warn('publicEnv not available during store initialization, using empty languages array');
 	availableLanguages = [];
 }
@@ -165,7 +164,7 @@ export const avatarSrc = {
 				return;
 			}
 
-			const MEDIA_FOLDER = publicEnv?.MEDIA_FOLDER || 'mediaFiles';
+			const MEDIA_FOLDER = publicEnv.MEDIA_FOLDER;
 
 			// Strip any leading origin or duplicate slashes (defensive)
 			let url = newValue.replace(/^https?:\/\/[^/]+/i, '');
@@ -321,51 +320,252 @@ function createRuneBackedStore<T>(initial: T) {
 
 // --- Legacy Svelte 3/4 Stores (for compatibility) ---
 
+/**
+ * Language Management with ParaglideJS Integration
+ *
+ * Architecture:
+ * - systemLanguage store: UI state management (read/write interface for components)
+ * - ParaglideJS: Reads from `systemLanguage` cookie, provides translations via getLocale()
+ *
+ * Flow:
+ * 1. Component calls: systemLanguage.set('de')
+ * 2. Store automatically sets cookie: systemLanguage=de
+ * 3. ParaglideJS reads cookie and updates translations
+ * 4. Components read via: getLocale() or systemLanguage.value
+ *
+ * Why not use ParaglideJS directly?
+ * - ParaglideJS doesn't provide a client-side API to change language
+ * - It relies on cookies/URL routing for language detection
+ * - Our store provides the reactive bridge between UI and ParaglideJS
+ */
+
 // Get initial values from cookies or use defaults (with error handling for server-side)
 let initialSystemLanguage: Locale;
 let initialContentLanguage: Locale;
 
 try {
-	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv?.BASE_LOCALE as Locale) ?? 'en';
-	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv?.DEFAULT_CONTENT_LANGUAGE as Locale) ?? 'en';
+	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.BASE_LOCALE as Locale) ?? 'en';
+	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale) ?? 'en';
 } catch {
 	// Fallback values for server-side initialization
 	initialSystemLanguage = 'en' as Locale;
 	initialContentLanguage = 'en' as Locale;
 }
 
-export const systemLanguage = store<Locale>(initialSystemLanguage);
-export const contentLanguage = store<Locale>(initialContentLanguage);
+// Create reactive state for languages with cookie syncing
+let _systemLanguage = $state<Locale>(initialSystemLanguage);
+let _contentLanguage = $state<Locale>(initialContentLanguage);
 
-// Other legacy stores
-export const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-export const headerActionButton2 = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-export const pkgBgColor = store('variant-filled-primary');
-export const file = store<File | null>(null);
-export const saveEditedImage = store(false);
-export const saveFunction = store<SaveFunction>({
+// Subscriber sets for manual subscription tracking (server-safe)
+const systemLanguageSubscribers = new SvelteSet<(value: Locale) => void>();
+const contentLanguageSubscribers = new SvelteSet<(value: Locale) => void>();
+
+// Notify all subscribers
+function notifySystemLanguage() {
+	for (const fn of systemLanguageSubscribers) {
+		try {
+			fn(_systemLanguage);
+		} catch {
+			// noop: subscriber errors shouldn't break notifications
+		}
+	}
+}
+
+function notifyContentLanguage() {
+	for (const fn of contentLanguageSubscribers) {
+		try {
+			fn(_contentLanguage);
+		} catch {
+			// noop: subscriber errors shouldn't break notifications
+		}
+	}
+}
+
+// Language stores with Svelte store API compatibility (server-safe)
+export const systemLanguage = {
+	get value() {
+		return _systemLanguage;
+	},
+	set value(newValue: Locale) {
+		_systemLanguage = newValue;
+		if (typeof document !== 'undefined' && newValue) {
+			document.cookie = `systemLanguage=${newValue}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		}
+		notifySystemLanguage();
+	},
+	set(newValue: Locale) {
+		this.value = newValue;
+	},
+	update(fn: (value: Locale) => Locale) {
+		this.value = fn(this.value);
+	},
+	subscribe(run: (value: Locale) => void) {
+		systemLanguageSubscribers.add(run);
+		// Run immediately with current value (Svelte store convention)
+		try {
+			run(_systemLanguage);
+		} catch {
+			// noop on initial call
+		}
+		return () => {
+			systemLanguageSubscribers.delete(run);
+		};
+	}
+};
+
+export const contentLanguage = {
+	get value() {
+		return _contentLanguage;
+	},
+	set value(newValue: Locale) {
+		_contentLanguage = newValue;
+		if (typeof document !== 'undefined' && newValue) {
+			document.cookie = `contentLanguage=${newValue}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+		}
+		notifyContentLanguage();
+	},
+	set(newValue: Locale) {
+		this.value = newValue;
+	},
+	update(fn: (value: Locale) => Locale) {
+		this.value = fn(this.value);
+	},
+	subscribe(run: (value: Locale) => void) {
+		contentLanguageSubscribers.add(run);
+		// Run immediately with current value (Svelte store convention)
+		try {
+			run(_contentLanguage);
+		} catch {
+			// noop on initial call
+		}
+		return () => {
+			contentLanguageSubscribers.delete(run);
+		};
+	}
+};
+
+// Simple reactive state for other stores
+let _headerActionButton = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+let _headerActionButton2 = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+let _pkgBgColor = $state('variant-filled-primary');
+let _file = $state<File | null>(null);
+let _saveEditedImage = $state(false);
+let _saveFunction = $state<SaveFunction>({
 	fn: () => {},
 	reset: () => {}
 });
-// Switch to rune-backed values while preserving store API
+let _validationErrors = $state<ValidationErrors>({});
+
+// Subscriber sets for manual subscription tracking
+const headerActionButtonSubscribers = new SvelteSet<(value: ConstructorOfATypedSvelteComponent | string | undefined) => void>();
+const headerActionButton2Subscribers = new SvelteSet<(value: ConstructorOfATypedSvelteComponent | string | undefined) => void>();
+const pkgBgColorSubscribers = new SvelteSet<(value: string) => void>();
+const fileSubscribers = new SvelteSet<(value: File | null) => void>();
+const saveEditedImageSubscribers = new SvelteSet<(value: boolean) => void>();
+const saveFunctionSubscribers = new SvelteSet<(value: SaveFunction) => void>();
+const validationErrorsSubscribers = new SvelteSet<(value: ValidationErrors) => void>();
+
+// Helper to create simple store wrappers
+function createSimpleStore<T>(getter: () => T, setter: (value: T) => void, subscribers: SvelteSet<(value: T) => void>) {
+	const notify = () => {
+		const currentValue = getter();
+		for (const fn of subscribers) {
+			try {
+				fn(currentValue);
+			} catch {
+				// noop
+			}
+		}
+	};
+
+	return {
+		get value() {
+			return getter();
+		},
+		set value(newValue: T) {
+			setter(newValue);
+			notify();
+		},
+		set(newValue: T) {
+			this.value = newValue;
+		},
+		update(fn: (value: T) => T) {
+			this.value = fn(this.value);
+		},
+		subscribe(run: (value: T) => void) {
+			subscribers.add(run);
+			try {
+				run(getter());
+			} catch {
+				// noop
+			}
+			return () => {
+				subscribers.delete(run);
+			};
+		}
+	};
+}
+
+// Export stores with Svelte store API compatibility
+export const headerActionButton = createSimpleStore(
+	() => _headerActionButton,
+	(v) => {
+		_headerActionButton = v;
+	},
+	headerActionButtonSubscribers
+);
+
+export const headerActionButton2 = createSimpleStore(
+	() => _headerActionButton2,
+	(v) => {
+		_headerActionButton2 = v;
+	},
+	headerActionButton2Subscribers
+);
+
+export const pkgBgColor = createSimpleStore(
+	() => _pkgBgColor,
+	(v) => {
+		_pkgBgColor = v;
+	},
+	pkgBgColorSubscribers
+);
+
+export const file = createSimpleStore(
+	() => _file,
+	(v) => {
+		_file = v;
+	},
+	fileSubscribers
+);
+
+export const saveEditedImage = createSimpleStore(
+	() => _saveEditedImage,
+	(v) => {
+		_saveEditedImage = v;
+	},
+	saveEditedImageSubscribers
+);
+
+export const saveFunction = createSimpleStore(
+	() => _saveFunction,
+	(v) => {
+		_saveFunction = v;
+	},
+	saveFunctionSubscribers
+);
+
+export const validationErrors = createSimpleStore(
+	() => _validationErrors,
+	(v) => {
+		_validationErrors = v;
+	},
+	validationErrorsSubscribers
+);
+
+// These are already using createRuneBackedStore which is fine
 export const saveLayerStore = createRuneBackedStore<() => Promise<void>>(async () => {});
 export const shouldShowNextButton = createRuneBackedStore(false);
-export const validationErrors = store<ValidationErrors>({});
-
-// Update cookies when language stores change
-systemLanguage.subscribe((sysLang) => {
-	if (typeof document !== 'undefined' && sysLang) {
-		document.cookie = `systemLanguage=${sysLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-	}
-});
-
-contentLanguage.subscribe((contentLang) => {
-	if (typeof document !== 'undefined' && contentLang) {
-		document.cookie = `contentLanguage=${contentLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-	}
-});
-
-// --- Backward Compatibility Helpers ---
 
 // For components still using the old store-like API for runes
 export const tabSet = {
@@ -422,11 +622,6 @@ export const storeListboxValue = {
 	}
 };
 
-// Updates the system language, ensuring the change is persisted to cookies
-export function setSystemLanguage(lang: Locale) {
-	systemLanguage.set(lang);
-}
-
 // Export table headers constant
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
 
@@ -457,29 +652,16 @@ function createValidationStore() {
 		},
 		get isValid() {
 			const valid = isValid(); // Call the derived function to get the boolean value
-			const errorKeys = Object.keys(errors);
-			const hasErrors = errorKeys.length > 0;
-			if (process.env.NODE_ENV !== 'production') {
-				// Only log if there's a change in state to reduce spam
-				const currentState = `${valid}-${hasErrors}-${errorKeys.join(',')}`;
-				if (!this._lastLoggedState || this._lastLoggedState !== currentState) {
-					console.log(`[ValidationStore] isValid check: valid=${valid}, hasErrors=${hasErrors}, errors keys:`, errorKeys);
-					this._lastLoggedState = currentState;
-				}
-			}
+			// Validation tracking is silent for performance
 			return valid;
 		},
 		setError: (fieldName: string, errorMessage: string | null) => {
-			if (process.env.NODE_ENV !== 'production') {
-				console.log(`[ValidationStore] Setting error for ${fieldName}:`, errorMessage);
-			}
+			// Silent validation error setting
 			errors[fieldName] = errorMessage;
 			notify();
 		},
 		clearError: (fieldName: string) => {
-			if (process.env.NODE_ENV !== 'production') {
-				console.log(`[ValidationStore] Clearing error for ${fieldName}`);
-			}
+			// Silent validation error clearing
 			if (fieldName in errors) {
 				delete errors[fieldName];
 				notify();

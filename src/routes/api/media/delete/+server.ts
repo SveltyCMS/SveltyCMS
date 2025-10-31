@@ -14,7 +14,7 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Permissions
 
@@ -28,7 +28,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;
 	// Authentication is handled by hooks.server.ts - user presence confirms access
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	}
 

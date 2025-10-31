@@ -1,380 +1,484 @@
 /**
  * @file vite.config.ts
- * @description This configuration file defines the Vite setup for a SvelteKit project.
- * It includes checks & validation for required configuration files (private.ts and public.ts),
- * a custom plugin for dynamic collection handling (compilation, type generation, hot reloading),
- * dynamic role and permission handling with hot reloading, Tailwind CSS purging
- * and Paraglide integration for internationalization. The configuration also initializes
- * compilation tasks, sets up environment variables, and defines alias paths for the project
+ * @description This file contains the Vite configuration for the SvelteKit project, optimized for performance and developer experience.
+ * It employs a unified config structure with conditional plugins for the initial setup wizard vs. normal development mode.
+ *
+ * Key Features:
+ * - Centralized path management and logging utilities.
+ * - Efficient, direct Hot Module Replacement (HMR) for roles and content structure without fake HTTP requests.
+ * - Dynamic compilation of user-defined collections with real-time feedback.
+ * - Seamless integration with Paraglide for i18n and svelte-email-tailwind for email templating.
  */
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { execSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
-import type { IncomingMessage, ServerResponse } from 'http';
+import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
-import Path, { resolve } from 'path';
+import path from 'path';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
-import { pathToFileURL } from 'url'; // Import pathToFileURL
+import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
-import { purgeCss } from 'vite-plugin-tailwind-purgecss';
-import { generateContentTypes } from './src/content/vite';
 import { compile } from './src/utils/compilation/compile';
+import { isSetupComplete } from './src/utils/setupCheck';
+import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+import { exec } from 'node:child_process';
+import { platform } from 'node:os';
 
-// Validation
-import { privateConfigSchema, publicConfigSchema, validateConfig } from './config/types.ts';
+// Cross-platform open URL function (replaces 'open' package)
+function openUrl(url: string) {
+	const plat = platform();
+	let cmd;
+	if (plat === 'win32') {
+		cmd = `start "" "${url}"`;
+	} else if (plat === 'darwin') {
+		cmd = `open "${url}"`;
+	} else {
+		cmd = `xdg-open "${url}"`;
+	}
+	exec(cmd);
+}
 
-export default defineConfig(async () => {
-	// Config file paths
-	const configDir = resolve(process.cwd(), 'config');
+// --- Constants & Configuration ---
 
-	// Support multiple extensions for config files (.ts, .mjs, .js, .cjs)
-	const resolveExistingFile = (baseName: string): { path: string; name: string } => {
-		const candidates = [`${baseName}.ts`, `${baseName}.mjs`, `${baseName}.js`, `${baseName}.cjs`];
-		for (const rel of candidates) {
-			const abs = resolve(configDir, rel.replace(/^.*\//, ''));
-			if (existsSync(abs)) return { path: abs, name: `config/${rel.split('/').pop()}` };
+const CWD = process.cwd();
+
+const paths = {
+	configDir: path.resolve(CWD, 'config'),
+	privateConfig: path.resolve(CWD, 'config/private.ts'),
+	userCollections: path.resolve(CWD, 'config/collections'),
+	compiledCollections: path.resolve(CWD, 'compiledCollections'),
+	roles: path.resolve(CWD, 'config/roles.ts'),
+	widgets: path.resolve(CWD, 'src/widgets')
+};
+
+// --- Utilities ---
+const useColor = process.stdout.isTTY;
+
+/**
+ * Standardized logger for build-time scripts, mimicking the main application logger's style.
+ */
+// Colored tag printed once so message-local color codes render correctly.
+const TAG = useColor ? `\x1b[34m[SveltyCMS]\x1b[0m` : `[SveltyCMS]`;
+const log = {
+	// Info level — tag is blue, message follows (may contain its own color codes)
+	info: (message: string) => console.log(`${TAG} ${message}`),
+	// Custom success level for clarity in build process
+	success: (message: string) => console.log(`${TAG} ${useColor ? `✅ \x1b[32m${message}\x1b[0m` : `✅ ${message}`}`),
+	// Corresponds to 'warn' level
+	warn: (message: string) => console.warn(`${TAG} ${useColor ? `⚠️ \x1b[33m${message}\x1b[0m` : `⚠️ ${message}`}`),
+	// Corresponds to 'error' level
+	error: (message: string, error?: unknown) => console.error(`${TAG} ${useColor ? `❌ \x1b[31m${message}\x1b[0m` : `❌ ${message}`}`, error ?? '')
+};
+
+/**
+ * Ensures collection directories exist and performs an initial compilation if needed.
+ * Creates placeholder files if no collections are found to prevent module import errors.
+ */
+let hasLoggedCollectionInit = false; // Prevent duplicate logs during multi-build
+
+async function initializeCollectionsStructure() {
+	await fs.mkdir(paths.userCollections, { recursive: true });
+	await fs.mkdir(paths.compiledCollections, { recursive: true });
+
+	const sourceFiles = (await fs.readdir(paths.userCollections, { recursive: true })).filter(
+		(file): file is string => typeof file === 'string' && (file.endsWith('.ts') || file.endsWith('.js'))
+	);
+
+	if (sourceFiles.length > 0) {
+		if (!hasLoggedCollectionInit) {
+			log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
 		}
-		// Default to .ts path (for messaging) if none found
-		return { path: resolve(configDir, `${baseName.split('/').pop()}.ts`), name: `config/${baseName.split('/').pop()}.ts` } as {
-			path: string;
-			name: string;
-		};
+		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+		if (!hasLoggedCollectionInit) {
+			log.success('Initial collection compilation successful!');
+			hasLoggedCollectionInit = true;
+		}
+	} else {
+		if (!hasLoggedCollectionInit) {
+			log.info('No user collections found. Creating placeholder structure.');
+			hasLoggedCollectionInit = true;
+		}
+		const placeholderContent = '// This is a placeholder file generated by Vite.\nexport default {};';
+		const collectionsDir = path.resolve(paths.compiledCollections, 'Collections');
+		const menuDir = path.resolve(paths.compiledCollections, 'Menu');
+		await fs.mkdir(collectionsDir, { recursive: true });
+		await fs.mkdir(menuDir, { recursive: true });
+		await fs.writeFile(path.resolve(collectionsDir, '_placeholder.js'), placeholderContent);
+		await fs.writeFile(path.resolve(menuDir, '_placeholder.js'), placeholderContent);
+	}
+}
+
+// Force exit on SIGINT to prevent hanging processes
+process.on('SIGINT', () => {
+	log.warn('\nReceived SIGINT, forcing exit...');
+	process.exit(0);
+});
+
+// --- Vite Plugins ---
+/**
+ * A lightweight plugin to handle the initial setup wizard.
+ * It creates a default private.ts and opens the setup page in the browser.
+ */
+function setupWizardPlugin(): Plugin {
+	let wasPrivateConfigMissing = false;
+	return {
+		name: 'svelty-cms-setup-wizard',
+		async buildStart() {
+			// Check if private config exists before creating it
+			wasPrivateConfigMissing = !existsSync(paths.privateConfig);
+
+			// Ensure config directory and default private config exist.
+			if (wasPrivateConfigMissing) {
+				const content = `
+/**
+ * @file config/private.ts
+ * @description Private configuration file containing essential bootstrap variables.
+ * These values are required for the server to start and connect to the database.
+ * This file will be populated during the initial setup process.
+ */
+import { createPrivateConfig } from '@src/databases/schemas';
+
+export const privateEnv = createPrivateConfig({
+	// --- Core Database Connection ---
+	DB_TYPE: 'mongodb',
+	DB_HOST: '',
+	DB_PORT: 27017,
+	DB_NAME: '',
+	DB_USER: '',
+	DB_PASSWORD: '',
+
+	// --- Connection Behavior ---
+	DB_RETRY_ATTEMPTS: 5,
+	DB_RETRY_DELAY: 3000, // 3 seconds
+
+	// --- Core Security Keys ---
+	JWT_SECRET_KEY: '',
+	ENCRYPTION_KEY: '',
+
+	// --- Fundamental Architectural Mode ---
+	MULTI_TENANT: false,
+
+	/* * NOTE: All other settings (SMTP, Google OAuth, feature flags, etc.)
+	 * are loaded dynamically from the database after the application starts.
+	 */
+});
+`;
+				try {
+					await fs.mkdir(paths.configDir, { recursive: true });
+					await fs.writeFile(paths.privateConfig, content);
+					log.info('Created initial private config -> config/private.ts');
+				} catch (e) {
+					log.error('Failed to provision private config:', e);
+				}
+			}
+			// Ensure collections are ready even in setup mode
+			await initializeCollectionsStructure();
+		},
+		config: () => ({
+			define: { __FRESH_INSTALL__: JSON.stringify(wasPrivateConfigMissing) }
+		}),
+		configureServer(server) {
+			const originalListen = server.listen;
+			server.listen = function (port?: number, isRestart?: boolean) {
+				const result = originalListen.apply(this, [port, isRestart]);
+				result.then(() => {
+					setTimeout(async () => {
+						const address = server.httpServer?.address();
+						const resolvedPort = typeof address === 'object' && address ? address.port : 5173;
+						const setupUrl = `http://localhost:${resolvedPort}/setup`;
+
+						try {
+							log.info(`Opening setup wizard in your browser...`);
+							openUrl(setupUrl);
+						} catch {
+							const coloredUrl = useColor ? `\x1b[34m${setupUrl}\x1b[0m` : setupUrl;
+							log.info(`Please open this URL to continue setup: ${coloredUrl}`);
+						}
+					}, 1000);
+				});
+				return result;
+			};
+		}
+	};
+}
+
+/**
+ * Plugin to watch for changes in collections, roles, and widgets, triggering
+ * recompilation and efficient HMR updates.
+ */
+function cmsWatcherPlugin(): Plugin {
+	let compileTimeout: NodeJS.Timeout;
+	let widgetTimeout: NodeJS.Timeout; // Debounce timer for widgets
+
+	const handleHmr = async (server: ViteDevServer, file: string) => {
+		const isCollectionFile = file.startsWith(paths.userCollections) && /\.(ts|js)$/.test(file);
+		const isRolesFile = file === paths.roles;
+		const isWidgetFile = file.startsWith(paths.widgets) && (file.endsWith('index.ts') || file.endsWith('.svelte'));
+
+		if (isCollectionFile) {
+			clearTimeout(compileTimeout);
+			compileTimeout = setTimeout(async () => {
+				log.info(`Collection change detected. Recompiling...`);
+				try {
+					await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+					log.success('Re-compilation successful!');
+
+					// Register collection models in database after recompilation
+					try {
+						const { dbAdapter } = await server.ssrLoadModule('./src/databases/db.ts?t=' + Date.now());
+
+						if (dbAdapter && dbAdapter.collection) {
+							const { scanCompiledCollections } = await server.ssrLoadModule('./src/content/collectionScanner.ts?t=' + Date.now());
+							const collections = await scanCompiledCollections();
+
+							log.info(`Found ${collections.length} collections, registering models...`);
+
+							// Register each collection sequentially with delay (prevent race condition)
+							for (const schema of collections) {
+								await dbAdapter.collection.createModel(schema);
+								await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms delay
+							}
+
+							log.success(`Collection models registered! (${collections.length} total)`);
+						} else {
+							log.warn('Database adapter not available, skipping model registration');
+						}
+					} catch (dbError) {
+						log.error('Failed to register collection models (non-fatal):', dbError);
+						// Don't fail the entire HMR process
+					}
+
+					const { generateContentTypes } = await server.ssrLoadModule('./src/content/vite.ts');
+					await generateContentTypes(server);
+					log.info('Content structure types regenerated.');
+					server.ws.send({ type: 'full-reload', path: '*' });
+				} catch (error) {
+					log.error(`Error recompiling collections:`, error);
+				}
+			}, 150); // Debounce changes
+		}
+
+		if (isRolesFile) {
+			log.info('Roles file changed. Performing HMR...');
+			try {
+				const { roles } = await server.ssrLoadModule('./config/roles.ts?t=' + Date.now());
+				const { setLoadedRoles } = await server.ssrLoadModule('./src/auth/types.ts?t=' + Date.now());
+				setLoadedRoles(roles);
+				server.ws.send({ type: 'full-reload', path: '*' });
+				log.success('Roles reloaded and client updated.');
+			} catch (err) {
+				log.error('Error reloading roles.ts:', err);
+			}
+		}
+
+		// ---  WATCHER LOGIC  ---
+		if (isWidgetFile) {
+			clearTimeout(widgetTimeout);
+			widgetTimeout = setTimeout(async () => {
+				log.info(`Widget file change detected. Reloading widget store...`);
+				try {
+					// Invalidate and reload the widget store module to get the latest code
+					const { widgetStoreActions } = await server.ssrLoadModule('./src/stores/widgetStore.svelte.ts?t=' + Date.now());
+
+					// Call the reload action, which re-scans the filesystem
+					await widgetStoreActions.reloadWidgets();
+
+					// Trigger a full reload on the client to reflect the changes
+					server.ws.send({ type: 'full-reload', path: '*' });
+					log.success('Widgets reloaded and client updated.');
+				} catch (err) {
+					log.error('Error reloading widgets:', err);
+				}
+			}, 150); // Debounce changes
+		}
 	};
 
-	const privateResolved = resolveExistingFile('private');
-	const publicResolved = resolveExistingFile('public');
-	const privateConfigPath = privateResolved.path;
-	const publicConfigPath = publicResolved.path;
-	const configPaths = [privateResolved, publicResolved];
-
-	// Check if config files exist
-	const missingConfigs = configPaths.filter((config) => !existsSync(config.path));
-	if (missingConfigs.length > 0) {
-		console.error('\n❌ Configuration files missing:');
-		missingConfigs.forEach((config) => {
-			console.error(`  - ${config.name}`);
-		});
-		console.error('\n💡 Running installer to generate missing configuration files...');
-		try {
-			execSync('bun run installer', { stdio: 'inherit' });
-
-			// Immediately check if config files were actually created
-			const stillMissingAfterInstall = configPaths.filter((config) => !existsSync(config.path));
-			if (stillMissingAfterInstall.length > 0) {
-				console.error('\n❌ Configuration files were not created by the installer:');
-				stillMissingAfterInstall.forEach((config) => {
-					console.error(`  - ${config.name}`);
-				});
-				console.error('\n💡 This usually happens when the installer is cancelled or fails.');
-				console.error('Please run `bun run installer` manually to complete the setup.');
-				console.error('👋 Exiting Vite configuration gracefully...');
-				process.exit(0); // Exit gracefully instead of crashing
-			}
-
-			console.log('✅ Installer completed successfully.');
-		} catch (e) {
-			console.error('❌ Error running the installer:', e);
-			console.error('Please run `bun run installer` manually to generate config files.');
-			console.error('👋 Exiting Vite configuration gracefully...');
-			process.exit(0); // Exit gracefully instead of crashing
+	return {
+		name: 'svelty-cms-watcher',
+		enforce: 'post',
+		async buildStart() {
+			await initializeCollectionsStructure();
+		},
+		configureServer(server) {
+			server.watcher.on('all', (event, file) => {
+				if (event === 'add' || event === 'change' || event === 'unlink') {
+					handleHmr(server, file);
+				}
+			});
 		}
-	}
+	};
+}
 
-	// Import configs only after ensuring they exist
-	let actualPublicConfig, actualPrivateConfig;
-	try {
-		// Double-check that files still exist before importing
-		if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
-			console.error('\n❌ Config files are missing after installer check.');
-			console.error('This usually means the installer was cancelled or failed.');
-			console.error('Please run `bun run installer` manually to complete the setup.');
-			console.error('👋 Exiting Vite configuration gracefully...');
-			process.exit(0); // Exit gracefully
-		}
+// --- Main Vite Configuration ---
+const setupComplete = isSetupComplete();
+const isBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
 
-		// Use dynamic import with file:// protocol to avoid cache issues and support Windows
-		const publicModule = await import(pathToFileURL(publicConfigPath).href);
-		const privateModule = await import(pathToFileURL(privateConfigPath).href);
-		actualPublicConfig = publicModule.publicEnv;
-		actualPrivateConfig = privateModule.privateEnv;
-	} catch (importError) {
-		console.error('\n❌ Failed to import config files after installer.');
-		console.error('This usually means the installer was cancelled or the files are malformed.');
-		console.error('Please run `bun run installer` manually to recreate the config files.');
-		console.error('👋 Exiting Vite configuration gracefully...');
-		console.error('\nError details:', importError);
-		process.exit(0); // Exit gracefully instead of crashing
-	}
-
-	// Validate configs
-	try {
-		validateConfig(publicConfigSchema, actualPublicConfig, 'Public Config (config/public.ts)');
-		validateConfig(privateConfigSchema, actualPrivateConfig, 'Private Config (config/private.ts)');
-	} catch (validationError) {
-		console.error('\n❌ Config validation failed.');
-		console.error(validationError);
-		process.exit(1);
-	}
-
-	// If validation passes, start the app
-	const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-	const userCollections = Path.posix.join(process.cwd(), 'config/collections');
-	const compiledCollections = Path.posix.join(process.cwd(), 'compiledCollections');
-
-	let compileTimeout: NodeJS.Timeout;
-	// Helper function for non-blocking validation during development
-	function tryValidateConfig(privateConfig: unknown, publicConfig: unknown): boolean {
-		try {
-			validateConfig(publicConfigSchema, publicConfig, 'Public Config');
-			validateConfig(privateConfigSchema, privateConfig, 'Private Config');
-			return true;
-		} catch {
-			return false;
+export default defineConfig((): UserConfig => {
+	// Only log during dev mode, not during builds
+	if (!isBuild) {
+		if (setupComplete) {
+			log.success('Setup check passed. Initializing full dev environment...');
+		} else {
+			log.info('Starting in setup mode...');
 		}
 	}
 
 	return {
 		plugins: [
+			// Security check plugin runs first to detect private setting imports
+			securityCheckPlugin({
+				failOnError: true,
+				showWarnings: true,
+				extensions: ['.svelte', '.ts', '.js']
+			}),
 			sveltekit(),
-			{
-				name: 'collection-watcher',
-				async buildStart() {
-					try {
-						await compile({ userCollections, compiledCollections });
-						console.log('\x1b[32m✅ Initial compilation successful!\x1b[0m\n');
-					} catch (error) {
-						console.error('\x1b[31m❌ Initial compilation failed:\x1b[0m', error);
-						throw error;
-					}
-				},
-				configureServer(server) {
-					let lastUnlinkFile: string | null = null;
-					let lastUnlinkTime = 0;
-
-					return () => {
-						server.watcher.on('all', async (event, file) => {
-							// Monitor changes in config/collections/**/*.ts and **/*.js
-							if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
-								console.log(`📁 Collection file event: \x1b[33m${event}\x1b[0m - \x1b[34m${file}\x1b[0m`);
-
-								clearTimeout(compileTimeout);
-								compileTimeout = setTimeout(async () => {
-									try {
-										const currentTime = Date.now();
-										console.log(`⚡ Processing collection change: \x1b[33m${event}\x1b[0m for \x1b[34m${file}\x1b[0m`);
-
-										// Rename detection logic
-										if (event === 'unlink' || event === 'unlinkDir') {
-											lastUnlinkFile = file;
-											lastUnlinkTime = currentTime;
-										} else if (event === 'add') {
-											const isRename = lastUnlinkFile && currentTime - lastUnlinkTime < 100;
-											if (isRename) {
-												console.log(`🔄 Detected rename: \x1b[33m${lastUnlinkFile}\x1b[0m -> \x1b[32m${file}\x1b[0m`);
-												lastUnlinkFile = null;
-											}
-										}
-
-										// Run compilation with cleanup
-										await compile({ userCollections, compiledCollections });
-										console.log('\x1b[32m✅ Compilation and cleanup successful!\x1b[0m\n');
-
-										// Generate types for add/change events
-										if (event === 'add' || event === 'change') {
-											try {
-												await generateContentTypes(server);
-												console.log(`📝 Collection types updated for: \x1b[32m${file}\x1b[0m`);
-											} catch (error) {
-												console.error('❌ Error updating collection types:', error);
-											}
-										}
-
-										// Trigger content-structure sync
-										{
-											const maxRetries = 3;
-											let retryCount = 0;
-											const syncContentStructure = async () => {
-												try {
-													// Mock request
-													const req = {
-														method: 'POST',
-														url: '/api/content-structure',
-														originalUrl: '/api/content-structure',
-														headers: { 'content-type': 'application/json' },
-														body: JSON.stringify({ action: 'recompile' }),
-														on: (event, callback) => {
-															if (event === 'data') callback(Buffer.from(req.body || ''));
-															if (event === 'end') callback();
-														}
-													};
-
-													// Mock response
-													const res = {
-														writeHead: () => {},
-														setHeader: () => {},
-														getHeader: () => {},
-														write: () => {},
-														end: () => {},
-														statusCode: 200
-													};
-
-													await new Promise<void>((resolveMiddleware) => {
-														server.middlewares(req as IncomingMessage, res as ServerResponse, () => resolveMiddleware());
-													});
-
-													console.log('🔄 Content structure sync triggered successfully');
-												} catch (syncError) {
-													if (retryCount < maxRetries) {
-														retryCount++;
-														console.log(`🔄 Retrying content structure sync (attempt ${retryCount})...`);
-														await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
-														await syncContentStructure();
-													} else {
-														console.error('❌ Failed to trigger content structure sync after retries:', syncError);
-													}
-												}
-											};
-											await syncContentStructure();
-										}
-
-										// Notify client to reload collections
-										server.ws.send({
-											type: 'custom',
-											event: 'collections-updated',
-											data: {}
-										});
-									} catch (error) {
-										console.error(`❌ Error processing collection file ${event}:`, error);
-									}
-								}, 50);
-							}
-
-							// Handle config file changes with re-validation
-							if (file.includes('config/private') || file.includes('config/public')) {
-								console.log(`⚙️  Config file changed: \x1b[34m${file}\x1b[0m`);
-								console.log('🔍 Re-validating configuration...');
-
-								try {
-									// Re-import configs with a cache-busting query string
-									const timestamp = Date.now();
-									const { privateEnv: newPrivateConfig } = await import(`${pathToFileURL(privateConfigPath).href}?t=${timestamp}`);
-									const { publicEnv: newPublicConfig } = await import(`${pathToFileURL(publicConfigPath).href}?t=${timestamp}`);
-
-									// Re-validate configurations
-									const validationPassed = tryValidateConfig(newPrivateConfig, newPublicConfig);
-
-									if (!validationPassed) {
-										console.error('❌ Configuration validation failed after changes.');
-										console.error('Please fix the errors and save the file again.');
-									} else {
-										console.log('✅ Configuration re-validated successfully!');
-										// Trigger full page reload for config changes
-										server.ws.send({ type: 'full-reload' });
-									}
-								} catch (error) {
-									console.error('❌ Error re-validating configuration:', error);
-								}
-							}
-
-							// Handle roles file changes
-							if (file.startsWith(Path.posix.join(process.cwd(), 'config/roles.ts'))) {
-								console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
-
-								try {
-									// Dynamically re-import updated roles & permissions using file URL and cache-busting
-									const rolesPath = pathToFileURL(resolve(process.cwd(), 'config', 'roles.ts')).href;
-									const { roles } = await import(`${rolesPath}?update=${Date.now()}`);
-
-									// Update roles and permissions in the application
-									const { setLoadedRoles } = await import('./src/auth/types');
-									setLoadedRoles(roles);
-
-									// Trigger full page reload
-									server.ws.send({ type: 'full-reload' });
-									console.log('Roles updated successfully');
-								} catch (error) {
-									console.error('Error reloading roles:', error);
-								}
-							}
-						});
-					};
-				},
-				config() {
-					return {
-						define: {
-							'import.meta.env.root': JSON.stringify(Path.posix.join('/', process.cwd().replace(Path.parse(process.cwd()).root, ''))),
-							'import.meta.env.userCollectionsPath': JSON.stringify(userCollections),
-							'import.meta.env.compiledCollectionsPath': JSON.stringify(compiledCollections)
-						}
-					};
-				},
-				enforce: 'post'
-			},
-			purgeCss(), // Purge unused Tailwind CSS classes
+			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({
-				project: './project.inlang', // Path to your inlang project settings
-				outdir: './src/paraglide', // This is where you specify the output directory
-				strategy: ['cookie', 'baseLocale'] // Changed to use cookie-based routing
+				project: './project.inlang',
+				outdir: './src/paraglide'
 			}),
 			svelteEmailTailwind({
-				pathToEmailFolder: './src/components/emails' // defaults to '/src/lib/emails'
+				pathToEmailFolder: './src/components/emails'
 			})
 		],
 
-		// Build configuration to support top-level await and modern JavaScript features
-		build: {
-			target: 'esnext', // Support latest JavaScript features including top-level await
-			minify: 'esbuild',
-			sourcemap: true,
-			rollupOptions: {
-				external: [
-					...builtinModules,
-					...builtinModules.map((m) => `node:${m}`),
-					'typescript',
-					// Additional modules that should not be bundled
-					'ts-node',
-					'ts-loader',
-					'@typescript-eslint/parser',
-					'@typescript-eslint/eslint-plugin'
-				]
-				// The conflicting `output.manualChunks` option has been removed.
-			}
-		},
-
-		// ESBuild configuration to ensure consistency
-		esbuild: {
-			target: 'esnext',
-			supported: {
-				'top-level-await': true
-			}
-		},
-
 		server: {
-			fs: { allow: ['static', '.'] } // Allow serving files from specific directories
-			// Temporarily disable HMR to test if it's causing loading flicker
-			// hmr: false // Uncomment this line to disable HMR for testing
+			fs: { allow: ['static', '.'] },
+			watch: {
+				// Prevent watcher from triggering on generated/sensitive files
+				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**']
+			}
 		},
+
 		resolve: {
 			alias: {
-				'@root': resolve(process.cwd(), './'),
-				'@src': resolve(process.cwd(), './src'),
-				'@components': resolve(process.cwd(), './src/components'),
-				'@content': resolve(process.cwd(), './src/content'),
-				'@utils': resolve(process.cwd(), './src/utils'),
-				'@stores': resolve(process.cwd(), './src/stores'),
-				'@widgets': resolve(process.cwd(), './src/widgets')
+				'@root': path.resolve(CWD, './'),
+				'@src': path.resolve(CWD, './src'),
+				'@components': path.resolve(CWD, './src/components'),
+				'@content': path.resolve(CWD, './src/content'),
+				'@utils': path.resolve(CWD, './src/utils'),
+				'@stores': path.resolve(CWD, './src/stores'),
+				'@widgets': path.resolve(CWD, './src/widgets')
 			}
 		},
+
 		define: {
-			__VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
-			SUPERFORMS_LEGACY: true, // Legacy flag for SuperForms (if needed)
-			// ES Module polyfills for Node.js globals
+			__FRESH_INSTALL__: false, // Default, may be overridden by setupWizardPlugin
+			// NOTE: PKG_VERSION is now provided by the server at runtime from package.json
+			// This ensures version always reflects installed package, not build-time snapshot
+			// SUPERFORMS_LEGACY: true, // Uncomment if using older versions of Superforms
+			// `global` polyfill for libraries that expect it (e.g., older crypto libs)
 			global: 'globalThis'
 		},
+
+		build: {
+			target: 'esnext',
+			minify: 'esbuild',
+			sourcemap: true,
+			chunkSizeWarningLimit: 600, // Increase from 500KB (after optimizations)
+			rollupOptions: {
+				onwarn(warning, warn) {
+					// Suppress circular dependency warnings from third-party libraries
+					// These are internal to the libraries and don't affect functionality
+					if (warning.code === 'CIRCULAR_DEPENDENCY') {
+						// Check all possible fields where the path might be
+						const ids = warning.ids || [];
+						const message = warning.message || '';
+
+						// Combine all text to check
+						const allText = [message, ...ids].join(' ');
+
+						// If it contains node_modules, it's a third-party circular dependency - suppress it
+						if (allText.includes('node_modules')) {
+							return; // Suppress warnings from these specific packages
+						}
+					}
+
+					// Suppress unused external import warnings
+					if (warning.code === 'UNUSED_EXTERNAL_IMPORT') {
+						return;
+					}
+
+					// Suppress eval warnings from Vite (common in dev dependencies)
+					if (warning.code === 'EVAL' && warning.id?.includes('node_modules')) {
+						return;
+					}
+
+					// Suppress "dynamic import will not move module" warnings for known patterns
+					// This happens when a module is both statically and dynamically imported
+					// It's intentional in our architecture (eager + lazy loading patterns)
+					if (warning.message?.includes('dynamic import will not move module')) {
+						const knownPatterns = ['widgetStore.svelte.ts', 'richText/Input.svelte'];
+						if (knownPatterns.some((pattern) => warning.message?.includes(pattern))) {
+							return; // Suppress these specific warnings
+						}
+					}
+
+					// Show all other warnings
+					warn(warning);
+				},
+				external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`), 'typescript', 'ts-node'],
+				output: {
+					// Optimized chunking for better caching and smaller initial load
+					manualChunks: (id: string) => {
+						// Only split vendor libraries (node_modules)
+						if (id.includes('node_modules')) {
+							// Rich text editors (TipTap, ProseMirror) - usually large (~150KB)
+							if (id.includes('tiptap') || id.includes('prosemirror')) {
+								return 'vendor-editor';
+							}
+
+							// Code editor (CodeMirror) - large (~100KB)
+							if (id.includes('codemirror') || id.includes('@codemirror')) {
+								return 'vendor-codemirror';
+							}
+
+							// Chart/visualization libraries
+							if (id.includes('chart') || id.includes('d3')) {
+								return 'vendor-charts';
+							}
+
+							// MongoDB/Mongoose - server-side only, shouldn't be in client bundle
+							if (id.includes('mongodb') || id.includes('mongoose')) {
+								return 'vendor-db';
+							}
+
+							// Skeleton UI components
+							if (id.includes('@skeletonlabs/skeleton')) {
+								return 'skeleton-ui';
+							}
+
+							// Svelte ecosystem (including SvelteKit to avoid circular deps)
+							if (id.includes('svelte')) {
+								return 'vendor-svelte';
+							}
+
+							// Everything else (core utilities)
+							return 'vendor';
+						}
+
+						// Route-based code splitting for admin vs public routes
+						// This keeps admin-heavy features separate from public pages
+						if (id.includes('src/routes/(app)/dashboard')) {
+							return 'route-dashboard';
+						}
+						if (id.includes('src/routes/(app)/config')) {
+							return 'route-admin-config';
+						}
+
+						if (id.includes('src/routes/(app)/mediagallery')) {
+							return 'route-media';
+						}
+
+						// Let Vite handle other application code automatically
+					}
+				}
+			}
+		},
+
 		optimizeDeps: {
-			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)]
+			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
+			include: ['@skeletonlabs/skeleton']
 		}
 	};
 });

@@ -16,7 +16,7 @@
  * Requires: Admin authentication or system permissions
  */
 
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 // Permissions
@@ -39,9 +39,9 @@ export const GET: RequestHandler = async () => {
 	logger.debug('Checking provided tokens...');
 
 	const tokensProvided: TokenStatus = {
-		google: Boolean(privateEnv.GOOGLE_API_KEY),
-		twitch: Boolean(privateEnv.TWITCH_TOKEN),
-		tiktok: Boolean(privateEnv.TIKTOK_TOKEN)
+		google: Boolean(getPrivateSettingSync('GOOGLE_API_KEY')),
+		twitch: Boolean(getPrivateSettingSync('TWITCH_TOKEN')),
+		tiktok: Boolean(getPrivateSettingSync('TIKTOK_TOKEN'))
 	};
 
 	Object.entries(tokensProvided).forEach(([service, isProvided]) => {

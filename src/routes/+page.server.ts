@@ -1,19 +1,15 @@
 /**
  * @file src/routes/+page.server.ts
  * @description
- * Server-side logic for the root route, handling redirection to the first collection with the correct language for the current tenant.
- *
- * ### Features
- * - Fetches and returns the content structure for the website, scoped by tenant
- * - Redirects to the first collection with the correct language
- * - Throws an error if there are no collections for the tenant
+ * Server-side logic for the root route, handling redirection to the first collection.
+ * This version is updated to use the modern ContentManager for cleaner logic.
  */
-import { publicEnv } from '@root/config/public';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
 
-import { redirect, error } from '@sveltejs/kit';
-import { dbInitPromise } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';
+import { dbInitPromise } from '@src/databases/db';
+import { error, redirect } from '@sveltejs/kit';
 
 import type { PageServerLoad } from './$types';
 
@@ -23,81 +19,60 @@ import { roles } from '@root/config/roles';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const load: PageServerLoad = async ({ locals, url, fetch }) => {
-	const { user, tenantId, roles: tenantRoles } = locals; // Unauthenticated users should be redirected to the login page
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const { user, tenantId, roles: tenantRoles } = locals;
 	if (!user) {
 		logger.debug('User is not authenticated, redirecting to login');
 		throw redirect(302, '/login');
 	}
 
 	try {
-		// Wait for the database connection, model creation, and initial ContentManager load
+		// Wait for the database and ContentManager to be ready
 		await dbInitPromise;
-		logger.debug('System is ready, proceeding with page load.', { tenantId }); // If the current route is not the root route, simply return the user data
+		await contentManager.initialize(tenantId);
+		logger.debug('System is ready, proceeding with page load.', { tenantId });
 
+		// For any route other than the root, just return user data
 		if (url.pathname !== '/') {
-			logger.debug(`Already on route ${url.pathname}`, { tenantId }); // Determine admin status properly by checking tenant-specific role
-
 			const rolesToUse = tenantRoles && tenantRoles.length > 0 ? tenantRoles : roles;
 			const userRole = rolesToUse.find((role) => role._id === user?.role);
 			const isAdmin = Boolean(userRole?.isAdmin);
 
 			return {
-				user: {
-					...user,
-					isAdmin
-				},
+				user: { ...user, isAdmin },
 				permissions: locals.permissions
 			};
-		} // Get the first collection redirect URL for the current tenant
+		}
 
-		if (url.pathname === '/') {
-			if (privateEnv.MULTI_TENANT && !tenantId) {
-				throw error(400, 'Tenant could not be identified for this operation.');
-			}
-			const firstCollection = await contentManager.getFirstCollection(tenantId);
-			let redirectUrl = '/';
+		// --- Start of Redirect Logic for the Root Route ('/') ---
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
+			throw error(400, 'Tenant could not be identified for this operation.');
+		}
 
-			if (firstCollection && firstCollection.path) {
-				const contentLanguageCookie = url.searchParams.get('contentLanguage');
-				const userLanguage = user?.systemLanguage;
-				const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-				redirectUrl = `/${redirectLanguage}${firstCollection.path}`;
-			} else {
-				// Fallback: Get content structure for the tenant
-				const contentNodes = await contentManager.getContentStructure(tenantId);
-				if (Array.isArray(contentNodes) && contentNodes.length > 0) {
-					const collections = contentNodes.filter((node) => node.nodeType === 'collection' && node._id);
-					if (collections.length > 0) {
-						const sortedCollections = collections.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.name || '').localeCompare(b.name || ''));
-						const firstCollectionNode = sortedCollections[0];
-						const contentLanguageCookie = url.searchParams.get('contentLanguage');
-						const userLanguage = user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-						const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
-						redirectUrl = `/${redirectLanguage}${collectionPath}`;
-					}
-				}
-			}
+		// Determine the correct language for the redirect URL
+		const redirectLanguage = url.searchParams.get('contentLanguage') || user.systemLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
-			logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`, { tenantId }); // Prefetch first collection data for instant loading
+		// Use the new, efficient method from ContentManager to get the redirect URL
+		const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
 
-			if (redirectUrl !== '/') {
-				import('@utils/collections-prefetch')
-					.then(({ prefetchFirstCollectionData }) => {
-						const contentLanguageCookie = url.searchParams.get('contentLanguage');
-						const userLanguage = user?.systemLanguage;
-						const redirectLanguage = contentLanguageCookie || userLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-						prefetchFirstCollectionData(redirectLanguage, fetch).catch((err) => {
-							logger.debug('Prefetch failed during root redirect:', err);
-						});
-					})
-					.catch(() => {});
-			}
-
+		// If a valid collection URL is found, redirect the user
+		if (redirectUrl) {
+			logger.info(`Redirecting to first collection: \x1b[34m${redirectUrl}\x1b[0m`, { tenantId });
 			throw redirect(302, redirectUrl);
 		}
+
+		// If no collections are found, do not redirect.
+		// The page can render a message like "No collections configured."
+		logger.warn('No collections found for user. Staying on root page.', { tenantId });
+		const rolesToUse = tenantRoles && tenantRoles.length > 0 ? tenantRoles : roles;
+		const userRole = rolesToUse.find((role) => role._id === user?.role);
+		const isAdmin = Boolean(userRole?.isAdmin);
+		return {
+			user: { ...user, isAdmin },
+			permissions: locals.permissions
+		};
 	} catch (err) {
+		// Re-throw redirects and known errors
 		if (typeof err === 'object' && err !== null && 'status' in err) {
 			throw err;
 		}

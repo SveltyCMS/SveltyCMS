@@ -6,7 +6,6 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { logger } from './logger.svelte';
-import { publicEnv } from '@root/config/public';
 
 const getRootPath = () => {
 	// Use process.cwd() which is more reliable across different runtimes

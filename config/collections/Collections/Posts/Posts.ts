@@ -3,8 +3,8 @@
  * @description Collection file for Posts
  */
 
-import widgets from '@widgets';
-import type { Schema } from '@root/src/content/types';
+import type { FieldInstance, Schema } from '@root/src/content/types';
+import { widgetProxy as widgets } from '@src/widgets/proxy';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
@@ -22,8 +22,10 @@ export const schema: Schema = {
 		widgets.Email({
 			label: 'Email',
 			icon: 'material-symbols:mail',
-			display: async ({ data, contentLanguage }) => {
-				return data[contentLanguage];
+			display: async ({ data }: Parameters<NonNullable<FieldInstance['display']>>[0]) => {
+				// Since email is non-translatable, use default language
+				const lang = 'en'; // or use publicEnv.DEFAULT_CONTENT_LANGUAGE
+				return data[lang as string] as string;
 			}
 		}),
 

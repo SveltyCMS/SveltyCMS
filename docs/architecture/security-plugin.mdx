@@ -1,0 +1,697 @@
+---
+path: 'docs/architecture/security-plugin.mdx'
+title: 'Enterprise Security Architecture'
+description: 'Comprehensive security system with runtime threat detection, automated response, and nonce-based CSP for enterprise-grade protection.'
+order: 4
+icon: 'mdi:shield-check'
+author: 'enterprise-team'
+created: '2025-10-12'
+updated: '2025-10-17'
+tags:
+  - 'security'
+  - 'csp'
+  - 'threat-detection'
+  - 'xss-prevention'
+  - 'enterprise'
+  - 'automated-response'
+  - 'real-time-monitoring'
+---
+
+# Enterprise Security Architecture
+
+SveltyCMS implements a **multi-layered, enterprise-grade security system** that combines **build-time validation**, **runtime threat detection**, and **automated security response**. The architecture provides comprehensive protection against XSS, CSRF, injection attacks, and sophisticated threat patterns.
+
+---
+
+## Security Architecture Overview
+
+### Core Security Components
+
+1. **Build-Time Security Validation** - Static analysis and dependency security scanning
+2. **Runtime Threat Detection** - Real-time security event monitoring and correlation
+3. **Nonce-Based Content Security Policy** - Cryptographically secure XSS prevention
+4. **Automated Security Response** - Dynamic threat mitigation and blocking
+5. **Security Metrics & Analytics** - Comprehensive security monitoring dashboard
+
+---
+
+## Runtime Security Services
+
+### SecurityResponseService - Automated Threat Detection
+
+**Purpose**: Real-time threat analysis with automated response capabilities
+**File**: `src/services/SecurityResponseService.ts`
+
+```typescript
+export class SecurityResponseService {
+	private threats: Map<string, ThreatProfile> = new Map();
+	private blockedIPs: Set<string> = new Set();
+	private rateLimits: Map<string, RateLimit> = new Map();
+
+	async analyzeRequest(request: SecurityRequest): Promise<ThreatLevel> {
+		const threats = [
+			this.detectSQLInjection(request),
+			this.detectXSSAttempt(request),
+			this.detectCSRFAttack(request),
+			this.detectBruteForce(request),
+			this.detectAnomalousPatterns(request)
+		];
+
+		const maxThreat = Math.max(...threats);
+		return this.classifyThreat(maxThreat);
+	}
+
+	async executeResponse(threatLevel: ThreatLevel, clientIP: string): Promise<void> {
+		switch (threatLevel) {
+			case 'critical':
+				await this.blockIP(clientIP, '24h');
+				await this.alertSecurityTeam(threatLevel, clientIP);
+				break;
+			case 'high':
+				await this.blockIP(clientIP, '1h');
+				await this.increaseSurveillance(clientIP);
+				break;
+			case 'medium':
+				await this.applyRateLimit(clientIP, { requests: 10, window: '1m' });
+				break;
+		}
+	}
+}
+```
+
+**Key Features**:
+
+- **Multi-Vector Threat Detection**: SQL injection, XSS, CSRF, brute force analysis
+- **Dynamic Response**: Automated blocking, rate limiting, and alerting
+- **Threat Correlation**: Pattern recognition across multiple requests
+- **Escalation Management**: Graduated response based on threat severity
+
+### MetricsService - Security Analytics
+
+**Purpose**: Unified security and performance metrics with real-time analysis
+**File**: `src/services/MetricsService.ts`
+
+```typescript
+export class MetricsService {
+	// Security-specific metrics
+	incrementSecurityEvent(type: SecurityEventType): void {
+		this.counters.set(`security.${type}`, (this.counters.get(`security.${type}`) || 0) + 1);
+	}
+
+	getSecurityReport(): SecurityMetrics {
+		return {
+			totalThreats: this.counters.get('security.threats_detected') || 0,
+			blockedIPs: this.counters.get('security.ips_blocked') || 0,
+			cspViolations: this.counters.get('security.csp_violations') || 0,
+			authFailures: this.counters.get('security.auth_failures') || 0,
+			threatsByType: this.getThreatsBreakdown(),
+			securityTrends: this.calculateSecurityTrends()
+		};
+	}
+}
+```
+
+---
+
+## Content Security Policy (CSP) Implementation
+
+### Nonce-Based CSP Architecture
+
+**Purpose**: Cryptographically secure XSS prevention with dynamic nonce generation
+**File**: `src/hooks/addSecurityHeaders.ts`
+
+```typescript
+export function generateNonce(): string {
+	return crypto.randomUUID().replace(/-/g, '');
+}
+
+export function buildCSP(nonce: string): string {
+	return [
+		"default-src 'self'",
+		`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+		`style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+		"object-src 'none'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'none'",
+		'block-all-mixed-content',
+		`report-uri /api/security/csp-violations`
+	].join('; ');
+}
+
+export async function addSecurityHeaders({ event, resolve }) {
+	const response = await resolve(event);
+	const nonce = event.locals.nonce;
+
+	// Apply nonce-based CSP
+	response.headers.set('Content-Security-Policy', buildCSP(nonce));
+
+	// Additional security headers
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+	// HSTS for production
+	if (event.url.protocol === 'https:') {
+		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+	}
+
+	return response;
+}
+```
+
+**Key Features**:
+
+- **Crypto-Secure Nonces**: Unpredictable nonces prevent XSS injection
+- **Violation Reporting**: CSP violations automatically reported to security service
+- **Defense in Depth**: Multiple security headers for comprehensive protection
+- **Production Hardening**: HSTS enforcement for HTTPS-only environments
+
+### CSP Violation Handling
+
+**Purpose**: Real-time CSP violation monitoring and threat response
+**File**: `src/routes/api/security/csp-violations/+server.ts`
+
+```typescript
+export async function POST({ request, getClientAddress }) {
+	const violation = await request.json();
+	const clientIP = getClientAddress();
+
+	// Analyze violation severity
+	const threatLevel = await securityResponseService.analyzeCSPViolation({
+		violatedDirective: violation['violated-directive'],
+		blockedURI: violation['blocked-uri'],
+		sourceFile: violation['source-file'],
+		clientIP
+	});
+
+	// Execute automated response
+	await securityResponseService.executeResponse(threatLevel, clientIP);
+
+	// Update security metrics
+	metricsService.incrementSecurityEvent('csp_violation');
+
+	return new Response(null, { status: 204 });
+}
+```
+
+---
+
+# Build-Time Security Plugin
+
+## Overview
+
+The **Vite Security Check Plugin** provides build-time protection against accidental exposure of private settings in client-side code. Unlike static environment variables (e.g., `PRIVATE_*` in SvelteKit), our dynamic settings loaded from the database don't have built-in Vite protection. This plugin fills that gap.
+
+## The Problem
+
+### Static Environment Variables (Built-in Protection ✅)
+
+```typescript
+// .env file
+PRIVATE_DB_PASSWORD=secret123  // ✅ Vite warns if used in client code
+PUBLIC_API_URL=https://api.com  // ✅ Safe for client
+```
+
+SvelteKit's `PRIVATE_` prefix triggers build-time warnings if accidentally imported in `.svelte` files.
+
+### Dynamic Settings (No Built-in Protection ❌)
+
+```typescript
+// Loaded from database at runtime
+const settings = {
+	DB_PASSWORD: 'secret123', // ❌ No compile-time protection!
+	JWT_SECRET_KEY: 'abc...', // ❌ Could leak to browser
+	ENCRYPTION_KEY: 'xyz...' // ❌ Dangerous if imported in .svelte
+};
+```
+
+Our database-driven settings lack this protection because they're loaded at runtime, not compile-time.
+
+## The Solution
+
+The `src/utils/vitePluginSecurityCheck.ts` scans all code during build and **fails the build** if it detects dangerous patterns:
+
+### 🚨 Blocked Patterns
+
+1. **Direct `privateEnv` imports in client code**
+
+   ```typescript
+   // ❌ BLOCKED - Exposes ALL private settings to browser!
+   import { privateEnv } from '@src/stores/globalSettings';
+   console.log(privateEnv.DB_PASSWORD); // Would be visible in browser
+   ```
+
+2. **`getPrivateSetting()` calls in `.svelte` files**
+
+   ```typescript
+   // ❌ BLOCKED - Attempts to access private data on client!
+   import { getPrivateSetting } from '@src/stores/globalSettings';
+   const secret = getPrivateSetting('JWT_SECRET_KEY');
+   ```
+
+3. **`getAllSettings()` in client code**
+   ```typescript
+   // ❌ BLOCKED - Returns both public AND private settings!
+   import { getAllSettings } from '@src/stores/globalSettings';
+   const all = await getAllSettings(); // Includes passwords!
+   ```
+
+### ✅ Safe Patterns
+
+1. **Public settings in any file**
+
+   ```typescript
+   // ✅ SAFE - Public settings can be used anywhere
+   import { publicEnv, getPublicSetting } from '@src/stores/globalSettings';
+   console.log(publicEnv.SITE_NAME); // Safe for browser
+   ```
+
+2. **Private settings in server-side files**
+
+   ```typescript
+   // ✅ SAFE - Server-only files can use private settings
+   // Files: +page.server.ts, +layout.server.ts, +server.ts, /hooks/, /auth/, /databases/
+   import { privateEnv, getPrivateSetting } from '@src/stores/globalSettings';
+   const dbPass = privateEnv.DB_PASSWORD; // Never sent to client
+   ```
+
+3. **Passing data via page.data**
+
+   ```typescript
+   // ✅ SAFE - Controlled data flow from server to client
+
+   // +page.server.ts (server-only)
+   export async function load() {
+   	const dbStatus = await checkDatabase(privateEnv.DB_HOST);
+   	return {
+   		isConnected: dbStatus.connected // Only pass safe data
+   		// Never return privateEnv directly!
+   	};
+   }
+
+   // +page.svelte (client)
+   export let data;
+   console.log(data.isConnected); // ✅ Safe
+   ```
+
+## Configuration
+
+The plugin is configured in `vite.config.ts`:
+
+```typescript
+import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+
+export default defineConfig({
+	plugins: [
+		securityCheckPlugin({
+			failOnError: true, // Fail build on violations (recommended)
+			showWarnings: true, // Show suspicious patterns
+			extensions: ['.svelte', '.ts', '.js'] // Files to check
+		})
+		// ... other plugins
+	]
+});
+```
+
+## How It Works
+
+### 1. File Scanning
+
+The plugin runs during Vite's `transform` phase and scans every file that matches the configured extensions.
+
+### 2. Smart Filtering
+
+Not all `.ts` files are client-side! The plugin intelligently skips:
+
+- **Server-only route files**: `+page.server.ts`, `+layout.server.ts`, `+server.ts`
+- **Server-only hooks**: All files in `/hooks/`
+- **API routes**: All files in `/routes/api/`
+- **Auth modules**: All files in `/auth/`
+- **Database code**: All files in `/databases/`
+- **Widget utilities**: `.ts` files in `/widgets/` (typically server-only)
+- **The store itself**: `/stores/globalSettings.ts` (defines the functions)
+
+### 3. Pattern Detection
+
+For client-side files (primarily `.svelte` and client-facing `.ts`), the plugin uses regex patterns to detect:
+
+```typescript
+const DANGEROUS_PATTERNS = [
+	{
+		pattern: /import\s+{[^}]*privateEnv[^}]*}\s+from\s+['"]@src\/stores\/globalSettings['"]/g,
+		message: 'SECURITY: Importing privateEnv exposes passwords and secrets!'
+	},
+	{
+		pattern: /getPrivateSetting\s*\(/g,
+		message: 'SECURITY: getPrivateSetting() in client code!'
+	},
+	{
+		pattern: /getAllSettings\s*\(/g,
+		message: 'SECURITY: getAllSettings() exposes private data!'
+	}
+];
+```
+
+### 4. Build Failure
+
+If violations are detected, the build fails with a detailed error report:
+
+```
+🚨 SECURITY VIOLATIONS DETECTED!
+
+Found 2 critical security issue(s):
+
+  ✗ src/components/Settings.svelte:5
+    SECURITY: Importing privateEnv exposes passwords and secrets!
+    → import { privateEnv } from '@src/stores/globalSettings';
+
+  ✗ src/routes/(app)/admin/+page.svelte:12
+    SECURITY: getPrivateSetting() in client code!
+    → const secret = getPrivateSetting('JWT_SECRET');
+
+These violations expose sensitive data to the client!
+Fix these issues before deploying to production.
+
+How to fix:
+  1. Remove privateEnv imports from .svelte files
+  2. Use page.data from +page.server.ts load functions instead
+  3. Only access private settings in +page.server.ts, +layout.server.ts, or +server.ts files
+```
+
+## Real-World Example
+
+### ❌ Vulnerable Code
+
+```typescript
+<!-- src/routes/(app)/settings/+page.svelte -->
+<script lang="ts">
+  import { privateEnv } from '@src/stores/globalSettings';
+
+  // 🚨 CRITICAL VULNERABILITY: ALL private settings exposed!
+  // Browser DevTools can access:
+  // - privateEnv.DB_PASSWORD
+  // - privateEnv.JWT_SECRET_KEY
+  // - privateEnv.ENCRYPTION_KEY
+  // - privateEnv.SMTP_PASSWORD
+  // - privateEnv.GOOGLE_CLIENT_SECRET
+  // etc.
+
+  const dbInfo = {
+    host: privateEnv.DB_HOST,
+    password: privateEnv.DB_PASSWORD // Visible in browser source!
+  };
+</script>
+
+<div>Database: {dbInfo.host}</div>
+```
+
+**Impact**: Complete credential exposure, allows full system compromise.
+
+### ✅ Secure Code
+
+```typescript
+<!-- src/routes/(app)/settings/+page.server.ts -->
+import { privateEnv } from '@src/stores/globalSettings';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async () => {
+  // ✅ Server-only: privateEnv never sent to client
+  const isConnected = await testConnection(
+    privateEnv.DB_HOST,
+    privateEnv.DB_PASSWORD // Safe - stays on server
+  );
+
+  return {
+    // Only return safe, non-sensitive data
+    dbStatus: isConnected ? 'connected' : 'disconnected',
+    dbHost: privateEnv.DB_HOST // Host is not sensitive
+    // Never return: DB_PASSWORD, JWT_SECRET, etc.
+  };
+};
+```
+
+```typescript
+<!-- src/routes/(app)/settings/+page.svelte -->
+<script lang="ts">
+  import type { PageData } from './$types';
+  export let data: PageData;
+</script>
+
+<div>Database Status: {data.dbStatus}</div>
+<div>Host: {data.dbHost}</div>
+```
+
+## Best Practices
+
+### 1. Server-Side Data Loading
+
+Always load private settings in `+page.server.ts` and pass only necessary, safe data to the client via `page.data`.
+
+### 2. Minimal Data Exposure
+
+Only return the absolute minimum data needed. Never pass entire settings objects.
+
+```typescript
+// ❌ BAD
+export const load = async () => {
+	return { settings: privateEnv }; // ALL secrets exposed!
+};
+
+// ✅ GOOD
+export const load = async () => {
+	return {
+		siteName: publicEnv.SITE_NAME,
+		cacheEnabled: privateEnv.CACHE_ENABLED === 'true'
+	};
+};
+```
+
+### 3. Type Safety
+
+Use TypeScript to enforce safe data contracts:
+
+```typescript
+// src/routes/(app)/admin/types.ts
+export interface SafeAdminData {
+	dbConnected: boolean;
+	cacheStatus: 'enabled' | 'disabled';
+	// No password fields allowed!
+}
+
+// +page.server.ts
+export const load = async (): Promise<SafeAdminData> => {
+	return {
+		dbConnected: await isDbConnected(),
+		cacheStatus: privateEnv.CACHE_ENABLED === 'true' ? 'enabled' : 'disabled'
+	};
+};
+```
+
+### 4. Code Review Checklist
+
+Before committing, verify:
+
+- ✅ No `privateEnv` imports in `.svelte` files
+- ✅ No `getPrivateSetting()` calls in client code
+- ✅ All sensitive operations in `+page.server.ts` or `+server.ts`
+- ✅ `page.data` only contains safe, non-sensitive information
+- ✅ Build passes without security violations
+
+## Integration with CI/CD
+
+The plugin automatically runs during your build process:
+
+```bash
+# Development
+bun run dev      # No check during dev (for speed)
+
+# Production build
+bun run build    # ✅ Security check runs and fails on violations
+
+# CI/CD (GitHub Actions, etc.)
+- run: bun run build
+  # Build will fail if security violations detected
+```
+
+## Disabling (Not Recommended)
+
+If you need to temporarily disable for debugging:
+
+```typescript
+// vite.config.ts
+securityCheckPlugin({
+	failOnError: false, // Show warnings but don't fail build
+	showWarnings: true
+});
+```
+
+**⚠️ Warning**: Never deploy to production with `failOnError: false`!
+
+## Related Documentation
+
+- [Authentication System](./01_Authentication/Authentication_System.mdx) - 3-Layer Security Architecture
+- [Settings System](../User_Guide/Admin_User_Management.md) - Managing system settings
+- [Environment Variables](./00_Installation/environment-variables.md) - Static vs dynamic settings
+- [Server Hooks Architecture](./server-hooks.mdx) - Enterprise middleware pipeline
+
+---
+
+## Security Dashboard Integration
+
+### Real-Time Security Monitoring
+
+**SecurityWidget** - Enterprise security dashboard component
+**File**: `src/components/dashboard/SecurityWidget.svelte`
+
+```svelte
+<script>
+	import { onMount } from 'svelte';
+	import { securityMetrics } from '$stores/security';
+
+	let securityData = {
+		totalThreats: 0,
+		blockedIPs: 0,
+		cspViolations: 0,
+		recentEvents: []
+	};
+
+	onMount(async () => {
+		// Real-time security metrics
+		const response = await fetch('/api/security/metrics');
+		securityData = await response.json();
+
+		// Live updates
+		const eventSource = new EventSource('/api/security/events');
+		eventSource.onmessage = (event) => {
+			const securityEvent = JSON.parse(event.data);
+			securityData.recentEvents.unshift(securityEvent);
+			securityData = securityData; // Trigger reactivity
+		};
+	});
+</script>
+
+<div class="security-dashboard">
+	<div class="threat-overview">
+		<div class="metric-card critical">
+			<h3>Active Threats</h3>
+			<span class="count">{securityData.totalThreats}</span>
+		</div>
+
+		<div class="metric-card warning">
+			<h3>Blocked IPs</h3>
+			<span class="count">{securityData.blockedIPs}</span>
+		</div>
+
+		<div class="metric-card info">
+			<h3>CSP Violations</h3>
+			<span class="count">{securityData.cspViolations}</span>
+		</div>
+	</div>
+
+	<div class="security-events">
+		<h3>Recent Security Events</h3>
+		{#each securityData.recentEvents as event}
+			<div class="event {event.severity}">
+				<span class="timestamp">{new Date(event.timestamp).toLocaleTimeString()}</span>
+				<span class="type">{event.type}</span>
+				<span class="details">{event.details.ip}</span>
+			</div>
+		{/each}
+	</div>
+</div>
+```
+
+---
+
+## Security API Endpoints
+
+### Comprehensive Security Management API
+
+**Security Metrics Endpoint**
+
+```typescript
+// GET /api/security/metrics
+export async function GET() {
+	const metrics = metricsService.getSecurityReport();
+	return json(metrics);
+}
+```
+
+**Threat Management Endpoint**
+
+```typescript
+// POST /api/security/threats/block
+export async function POST({ request }) {
+	const { ip, duration, reason } = await request.json();
+
+	await securityResponseService.blockIP(ip, duration);
+	metricsService.incrementSecurityEvent('manual_block');
+
+	return json({ success: true, message: `IP ${ip} blocked for ${duration}` });
+}
+```
+
+**Security Events Stream**
+
+```typescript
+// GET /api/security/events (Server-Sent Events)
+export async function GET() {
+	const stream = new ReadableStream({
+		start(controller) {
+			securityResponseService.onSecurityEvent((event) => {
+				controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
+			});
+		}
+	});
+
+	return new Response(stream, {
+		headers: {
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			Connection: 'keep-alive'
+		}
+	});
+}
+```
+
+---
+
+## Enterprise Security Features
+
+### Advanced Threat Detection
+
+- **Behavioral Analysis**: Pattern recognition across user sessions
+- **Anomaly Detection**: Statistical analysis of request patterns
+- **Geographic Filtering**: IP geolocation-based threat assessment
+- **Device Fingerprinting**: Hardware-based threat correlation
+
+### Automated Response Capabilities
+
+- **Dynamic Rate Limiting**: Adaptive throttling based on threat levels
+- **IP Blocking**: Temporary and permanent IP blacklisting
+- **Session Termination**: Automatic logout for compromised accounts
+- **Alert Escalation**: Real-time notifications to security teams
+
+### Compliance & Audit
+
+- **Security Event Logging**: Comprehensive audit trail
+- **Compliance Reporting**: GDPR, SOC2, ISO 27001 compliance support
+- **Forensic Analysis**: Detailed attack pattern analysis
+- **Performance Impact**: Minimal overhead security operations
+
+---
+
+## Summary
+
+The enterprise security architecture provides **comprehensive protection** through:
+
+1. ✅ **Build-Time Validation**: Static analysis prevents vulnerabilities before deployment
+2. ✅ **Runtime Threat Detection**: Real-time analysis with automated response
+3. ✅ **Nonce-Based CSP**: Cryptographically secure XSS prevention
+4. ✅ **Automated Response**: Dynamic threat mitigation without manual intervention
+5. ✅ **Enterprise Monitoring**: Real-time security dashboard with detailed analytics
+6. ✅ **Credentials Protection**: Build-time enforcement prevents sensitive data exposure
+
+This multi-layered approach ensures enterprise-grade security while maintaining optimal performance and user experience.

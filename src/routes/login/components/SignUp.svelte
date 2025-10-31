@@ -1,11 +1,11 @@
-<!-- 
+<!--
 @file src/routes/login/components/SignUp.svelte
 @component
-**SignUp component with optional OAuth support**
+**SignUP with optional OAuth support**
 
 Features:
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
- - Demo mode support with auto-reset timer displayed when active
+ - Demo mode support with auto-reset timer 
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
  - Reset state functionality for easy return to initial screen
  - Accessibility features for language selection and form navigation
@@ -13,7 +13,6 @@ Features:
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { privateEnv } from '@root/config/private';
 
 	import type { PageData } from '../$types';
 
@@ -31,8 +30,6 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	// Lazy-load FloatingPaths for performance on desktop
-	let FloatingPathsComponent = $state<any>(null);
 	import SignupIcon from './icons/SignupIcon.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -75,6 +72,7 @@ Features:
 	let showPassword = $state(false);
 	let isSubmitting = $state(false);
 	let isRedirecting = $state(false);
+	let FloatingPathsComponent = $state<any>(null);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -155,7 +153,6 @@ Features:
 		if (browser && !isInviteFlow) {
 			const inviteToken = params.get('invite_token') || params.get('regToken');
 			if (inviteToken && inviteToken !== $form.token) {
-				console.log('Setting invite token from URL:', inviteToken);
 				$form.token = inviteToken;
 			}
 		}
@@ -168,12 +165,11 @@ Features:
 	// Event handlers
 	function handleOAuth() {
 		// Check if user needs an invitation token
-		// First user (!firstUserExists) should NOT require a token
-		// Only existing users (firstUserExists) without an invite flow or token should be blocked
-		if (!isInviteFlow && firstUserExists && !hasExistingOAuthUsers && !currentFormToken) {
+		// All users now require invite tokens (first user goes through /setup)
+		if (!isInviteFlow && !hasExistingOAuthUsers && !currentFormToken) {
 			// Show a helpful message
 			alert(
-				'⚠️ Please enter your invitation token first before using Google OAuth signup. Both email/password and OAuth registration require an invitation from an administrator.'
+				'⚠️ Please enter your invitation token first before using Google OAuth signup. OAuth registration requires an invitation from an administrator.'
 			);
 			return;
 		}
@@ -261,18 +257,14 @@ Features:
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName /></div>
+						<div class="text-xs text-surface-300"><SiteName highlight="CMS" /></div>
 						<div class="break-words lg:-mt-1">
 							{#if isInviteFlow}
 								{m.form_signup()}
 								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
 							{:else}
 								{m.form_signup()}
-								{#if !firstUserExists}
-									<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
-								{:else}
-									<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
-								{/if}
+								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
 							{/if}
 						</div>
 					</h1>
@@ -305,8 +297,9 @@ Features:
 						tabindex={usernameTabIndex}
 						required
 						bind:value={$form.username}
-						label={m.form_username()}
-						{...$constraints.username}
+						label={m.username()}
+						minlength={($constraints.username as { minlength?: number })?.minlength}
+						maxlength={($constraints.username as { maxlength?: number })?.maxlength}
 						icon="mdi:user-circle"
 						iconColor="white"
 						textColor="white"
@@ -326,8 +319,9 @@ Features:
 						autocapitalize="none"
 						spellcheck={false}
 						bind:value={$form.email}
-						label={m.form_emailaddress()}
-						{...$constraints.email}
+						label={m.email()}
+						minlength={($constraints.email as { minlength?: number })?.minlength}
+						maxlength={($constraints.email as { maxlength?: number })?.maxlength}
 						icon="mdi:email"
 						iconColor="white"
 						textColor="white"
@@ -350,13 +344,14 @@ Features:
 						tabindex={passwordTabIndex}
 						required
 						bind:value={$form.password}
-						{showPassword}
+						bind:showPassword
 						label={m.form_password()}
-						{...$constraints.password}
+						minlength={($constraints.password as { minlength?: number })?.minlength}
+						maxlength={($constraints.password as { maxlength?: number })?.maxlength}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
-						showPasswordBackgroundColor="dark"
+						passwordIconColor="white"
 						inputClass="text-white"
 						autocomplete="new-password"
 					/>
@@ -372,13 +367,14 @@ Features:
 						tabindex={confirmPasswordTabIndex}
 						required
 						bind:value={$form.confirm_password}
-						{showPassword}
-						label={m.form_confirmpassword()}
-						{...$constraints.confirm_password}
+						bind:showPassword
+						label={m.confirm_password?.() || m.form_confirmpassword?.()}
+						minlength={($constraints.confirm_password as { minlength?: number })?.minlength}
+						maxlength={($constraints.confirm_password as { maxlength?: number })?.maxlength}
 						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
-						showPasswordBackgroundColor="dark"
+						passwordIconColor="white"
 						inputClass="text-white"
 						autocomplete="new-password"
 					/>
@@ -389,8 +385,8 @@ Features:
 					<!-- Password Strength Indicator -->
 					<PasswordStrength password={$form.password} confirmPassword={$form.confirm_password} />
 
-					{#if firstUserExists == true && !isInviteFlow}
-						<!-- Registration Token (hidden when using invite flow) -->
+					{#if !isInviteFlow}
+						<!-- Registration Token (hidden when using invite flow, always required now since first user uses /setup) -->
 						<FloatingInput
 							id="tokensignUp"
 							name="token"
@@ -398,12 +394,13 @@ Features:
 							tabindex={tokenTabIndex}
 							required
 							bind:value={$form.token}
-							label={m.signup_registrationtoken()}
-							{...$constraints.token}
+							label={m.registration_token?.() || m.signup_registrationtoken?.()}
+							minlength={($constraints.token as { minlength?: number })?.minlength}
+							maxlength={($constraints.token as { maxlength?: number })?.maxlength}
 							icon="mdi:key-chain"
 							iconColor="white"
 							textColor="white"
-							showPasswordBackgroundColor="dark"
+							passwordIconColor="white"
 							inputClass="text-white"
 							autocomplete="one-time-code"
 						/>
@@ -427,7 +424,7 @@ Features:
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !privateEnv.USE_GOOGLE_OAUTH || !showOAuth}
+					{#if !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}

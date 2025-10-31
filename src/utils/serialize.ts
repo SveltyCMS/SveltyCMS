@@ -3,15 +3,17 @@
  * @description Helper functions to serialize and deserialize data.
  */
 
-import type { User } from '@src/auth/types';
+import type { User } from '@src/databases/auth/types';
 import type { Schema } from '@root/src/content/types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Define the Serializable type
+export type SerializableValue = string | number | boolean | null | Date | Serializable | Serializable[];
+
 export type Serializable = {
-	[key: string]: string | number | boolean | null | Serializable | Serializable[];
+	[key: string]: SerializableValue;
 };
 
 // Serializes a single user object by converting non-serializable fields to strings
@@ -25,8 +27,10 @@ export function serializeUser(user: User): Serializable {
 
 	// Serialize other non-serializable fields as needed
 	// Example: Convert Date objects to ISO strings
-	if (serializedUser.createdAt instanceof Date) {
-		serializedUser.createdAt = serializedUser.createdAt.toISOString();
+	for (const key in serializedUser) {
+		if (serializedUser[key] instanceof Date) {
+			serializedUser[key] = serializedUser[key].toISOString();
+		}
 	}
 
 	// Add more serialization logic for other fields if necessary
@@ -86,13 +90,16 @@ export function serializeUsers(users: User[]): Serializable[] {
 	return users.map((user) => serializeUser(user));
 }
 
-export function serializeCollections(collections: { [key: string]: Schema }) {
+export function serializeCollections(collections: { [key: string]: Schema }): Record<string, Schema> {
 	const serializedArray = Object.keys(collections).map((col) => serializeCollection(collections[col]));
-	const response = {};
+	const response: Record<string, Schema> = {};
 	for (let i = 0; i < serializedArray.length; i++) {
-		const serializedCollection = serializedArray[i];
-		if (serializedCollection && serializedCollection.name) {
-			response[serializedCollection.name] = JSON.parse(serializedCollection); // Deserialize here to ensure compatibility
+		const serializedCollectionString = serializedArray[i];
+		if (serializedCollectionString) {
+			const deserializedCollection = JSON.parse(serializedCollectionString) as Schema;
+			if (deserializedCollection && deserializedCollection.name) {
+				response[deserializedCollection.name] = deserializedCollection;
+			}
 		}
 	}
 	return response;

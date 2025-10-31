@@ -1,7 +1,6 @@
-<!-- 
+<!--
 @file src/components/PermissionsSetting.svelte
 @component
-**Enhanced Permissions Setting Component for managing widget field permissions**
 
 @example
 <PermissionsSetting />
@@ -17,16 +16,16 @@ Features:
 -->
 
 <script lang="ts">
-	import type { Role } from '@src/auth/types';
-	import { PermissionAction } from '@src/auth/types';
-
-	// Skeleton
+	import type { Role } from '@src/databases/auth/types';
+	import { PermissionAction } from '@src/databases/auth/types';
+	// SECURITY: Never import privateEnv in .svelte files - it exposes secrets to client!
+	// Use page.data from +page.server.ts instead
 	import { showToast } from '@utils/toast';
 
 	interface Props {
-		permissions?: Record<string, Record<PermissionAction, boolean>>;
+		permissions?: Record<string, Record<string, boolean>>;
 		roles?: Role[];
-		onUpdate?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
+		onUpdate?: (permissions: Record<string, Record<string, boolean>>) => void;
 	}
 
 	let { permissions = {}, roles = [], onUpdate = () => {} }: Props = $props();
@@ -36,8 +35,11 @@ Features:
 	let searchQuery = $state('');
 
 	// Convert permissions object to include all roles with default values
-	function initializePermissions(currentPermissions: Record<string, any>, availableRoles: Role[]) {
-		const initializedPermissions = { ...currentPermissions };
+	function initializePermissions(
+		currentPermissions: Record<string, Record<string, boolean>>,
+		availableRoles: Role[]
+	): Record<string, Record<string, boolean>> {
+		const initializedPermissions: Record<string, Record<string, boolean>> = { ...currentPermissions };
 
 		// Ensure all roles from the prop have entries
 		availableRoles.forEach((role) => {
@@ -58,20 +60,21 @@ Features:
 		return initializedPermissions;
 	}
 
-	let permissionsState = $state(initializePermissions(permissions, roles));
+	let permissionsState: Record<string, Record<string, boolean>> = $state(initializePermissions(permissions, roles));
 
 	// Re-initialize when props change
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	$effect(() => {
 		permissionsState = initializePermissions(permissions, roles);
 	}); // Function to toggle permission
 
 	function togglePermission(roleId: string, action: PermissionAction) {
 		if (!permissionsState[roleId]) {
-			permissionsState[roleId] = {} as Record<PermissionAction, boolean>;
+			permissionsState[roleId] = {} as Record<string, boolean>;
 		}
 
 		// Don't allow modifying admin permissions
-		const role = roles.find((r) => r._id === roleId);
+		const role = roles.find((r: Role) => r._id === roleId);
 		if (role?.isAdmin) {
 			showToast('Cannot modify permissions for admin role', 'warning');
 			return;
@@ -92,7 +95,7 @@ Features:
 				}
 				return acc;
 			},
-			{} as Record<string, Record<PermissionAction, boolean>>
+			{} as Record<string, Record<string, boolean>>
 		);
 
 		onUpdate(cleanedPermissions);
@@ -105,6 +108,7 @@ Features:
 	const actionIcons: Record<PermissionAction, string> = {
 		[PermissionAction.CREATE]: 'bi:plus-circle-fill',
 		[PermissionAction.READ]: 'bi:eye-fill',
+		[PermissionAction.WRITE]: 'bi:pencil-square',
 		[PermissionAction.UPDATE]: 'bi:pencil-fill',
 		[PermissionAction.DELETE]: 'bi:trash-fill',
 		[PermissionAction.MANAGE]: 'bi:gear-fill',
@@ -130,7 +134,7 @@ Features:
 				<thead>
 					<tr>
 						<th scope="col" class="px-4 py-2">Role</th>
-						{#each Object.values(PermissionAction) as action}
+						{#each Object.values(PermissionAction) as action (action)}
 							<th scope="col" class="px-4 py-2">
 								<div class="flex items-center justify-center gap-2">
 									<iconify-icon icon={actionIcons[action]} width="18"></iconify-icon>
@@ -154,7 +158,7 @@ Features:
 									<div class="text-sm text-gray-500">{role.description}</div>
 								{/if}
 							</th>
-							{#each Object.values(PermissionAction) as action}
+							{#each Object.values(PermissionAction) as action (action)}
 								<td class="px-4 py-2">
 									<button
 										onclick={() => togglePermission(role._id, action)}
@@ -177,9 +181,3 @@ Features:
 		{/if}
 	</div>
 {/if}
-
-<style lang="postcss">
-	.badge {
-		@apply rounded px-2 py-1 text-xs;
-	}
-</style>

@@ -24,97 +24,144 @@ This component provides a streamlined interface for managing collection entries 
 -->
 
 <script lang="ts">
-	// Correctly import the new, direct action handlers
-	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
+	// SvelteKit imports
+	import { page } from '$app/stores'; // Use $app/stores
+	import { getLocale } from '@src/paraglide/runtime';
 
-	// Import StatusTypes for centralized status management
+	// Actions and Utils
+	import { cloneCurrentEntry, deleteCurrentEntry, saveEntry } from '../utils/entryActions';
+	import { showScheduleModal } from '@utils/modalUtils';
+	import { showToast } from '@utils/toast';
+	import * as m from '@src/paraglide/messages';
+
+	// Types
+	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 
 	// Stores
-	import { page } from '$app/state';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@stores/collectionStore.svelte';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
-	// Subscribe to shouldShowNextButton store for use in markup (runes mode)
-	let shouldShowNextButtonValue = $derived(shouldShowNextButton);
-	import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
 	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-
-	// Utils & Components
-	import Toggles from './system/inputs/Toggles.svelte';
-	import ScheduleModal from './collectionDisplay/ScheduleModal.svelte';
-	import { showScheduleModal } from '@utils/modalUtils';
-	import * as m from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
 
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { showToast } from '@utils/toast';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+
+	// Components
+	import Toggles from './system/inputs/Toggles.svelte';
+
+	// Define a clearer type for the entry data
+	type EntryData = Record<string, unknown>;
+
 	const modalStore = getModalStore();
 
-	const { user } = page.data;
-	const isAdmin = page.data.isAdmin || false;
+	// --- Derived State from Page Data ---
+	let user = $derived($page.data.user);
+	let isAdmin = $derived(($page.data.isAdmin || false) as boolean);
 
-	// --- Wrapper functions for event handlers ---
+	// --- Local State ---
+	let isLoading = $state(false);
+
+	// --- Derived State from Stores and Props ---
+	let currentMode = $derived(mode.value);
+	let currentCollection = $derived(collection.value);
+	let currentEntry = $derived(collectionValue.value as EntryData | null); // Use EntryData type
+	let isRightSidebarVisible = $derived(uiStateManager.isRightSidebarVisible.value);
+	let currentScreenSize = $derived(screenSize.value);
+	let isFormValid = $derived(validationStore.isValid);
+
+	// Derive schedule timestamp directly from currentEntry for display
+	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+
+	// Permissions derived from collection schema
+	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
+	let canCreate = $derived(currentCollection?.permissions?.[user?.role]?.create !== false);
+	let canDelete = $derived(currentCollection?.permissions?.[user?.role]?.delete !== false);
+
+	// Determine current status (local state or collection default)
+	let currentStatus = $derived(currentEntry?.status ?? currentCollection?.status ?? StatusTypes.unpublish);
+	let isPublished = $derived(currentStatus === StatusTypes.publish);
+	// Removed unused isScheduled
+
+	// Disable status toggle logic
+	let shouldDisableStatusToggle = $derived(
+		(currentMode === 'create' && !isRightSidebarVisible) ||
+			(currentMode === 'edit' && !isRightSidebarVisible && currentScreenSize !== 'LG') ||
+			isLoading
+	);
+
+	// Formatted dates
+	const formatDate = (dateString: string | undefined | null): string => {
+		if (!dateString) return '-';
+		try {
+			return new Date(dateString).toLocaleString(getLocale(), {
+				// Use toLocaleString for better format
+				year: 'numeric',
+				month: 'short',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return '-';
+		}
+	};
+	let dates = $derived({
+		created: formatDate(currentEntry?.createdAt as string | undefined),
+		updated: formatDate(currentEntry?.updatedAt as string | undefined)
+	});
+
+	// Visibility of the sidebar itself
+	let showSidebar = $derived(['edit', 'create'].includes(currentMode) || canWrite);
+
+	// --- Effects ---
+
+	// Subscribe to saveLayerStore for potential 'next' actions
+	let nextAction = $state<(() => void) | null>(null);
+	$effect(() => {
+		const unsubscribe = saveLayerStore.subscribe((value) => {
+			nextAction = value; // Store the function directly
+			shouldShowNextButton.set(!!value); // Show button if action exists
+		});
+		return unsubscribe;
+	});
+
+	// --- Event Handlers ---
+
 	const handleCloneEntry = () => cloneCurrentEntry();
 	const handleDeleteEntry = () => deleteCurrentEntry(modalStore, isAdmin);
 
-	// --- Status Management using collection status directly  ---
-	const isPublish = $derived(() => {
-		const status = collectionValue.value?.status ?? collection.value?.status ?? StatusTypes.unpublish;
-		return status === StatusTypes.publish;
-	});
-	let isLoading = $state(false);
-
-	// Handle toggle changes - update collection status directly
-	async function handleStatusToggle(newValue: boolean) {
-		if (newValue === isPublish || isLoading) {
-			if (process.env.NODE_ENV !== 'production') {
-				console.log('[RightSidebar] Toggle skipped', { newValue, isPublish, isLoading });
-			}
-			return false;
+	async function handleStatusToggle(newValue: boolean): Promise<boolean> {
+		if (newValue === isPublished || isLoading) {
+			return false; // No change or already processing
 		}
 
 		isLoading = true;
-		const newStatus = newValue ? StatusTypes.publish : StatusTypes.unpublish;
-		if (process.env.NODE_ENV !== 'production') {
-			console.log('[RightSidebar] Status toggle clicked - updating to:', newStatus);
-		}
+		const newStatus: StatusType = newValue ? StatusTypes.publish : StatusTypes.unpublish;
 
 		try {
-			// If entry exists, update via API
-			if (collectionValue.value?._id && collection.value?._id) {
-				const { updateEntryStatus } = await import('@src/utils/apiClient');
-				const result = await updateEntryStatus(String(collection.value._id), String(collectionValue.value._id), newStatus);
+			// If entry exists (has _id), update via API
+			if (currentEntry?._id && currentCollection?._id) {
+				const { updateEntryStatus } = await import('@src/utils/apiClient'); // Dynamic import
+				const result = await updateEntryStatus(String(currentCollection._id), String(currentEntry._id), newStatus);
 
 				if (result.success) {
-					// Update the collection value store
-					collectionValue.update((current) => ({ ...current, status: newStatus }));
-
-					showToast(newValue ? 'Entry published successfully.' : 'Entry unpublished successfully.', 'success');
-
-					if (process.env.NODE_ENV !== 'production') {
-						console.log('[RightSidebar] API update successful');
-					}
+					// Update store, clear schedule info if publishing/unpublishing manually
+					setCollectionValue({ ...currentEntry, status: newStatus, _scheduled: null });
+					showToast(newValue ? 'Entry published.' : 'Entry unpublished.', 'success');
 					return true;
 				} else {
-					showToast(result.error || `Failed to ${newValue ? 'publish' : 'unpublish'} entry`, 'error');
-
-					console.error('[RightSidebar] API update failed:', result.error);
+					showToast(result.error || `Failed to ${newStatus} entry`, 'error');
 					return false;
 				}
 			} else {
-				// New entry - just update local state
-				collectionValue.update((current) => ({ ...current, status: newStatus }));
-				if (process.env.NODE_ENV !== 'production') {
-					console.log('[RightSidebar] Local update for new entry');
-				}
+				// New entry: just update local store state
+				setCollectionValue({ ...currentEntry, status: newStatus, _scheduled: null });
 				return true;
 			}
 		} catch (e) {
-			const errorMessage = `Error ${newValue ? 'publishing' : 'unpublishing'} entry: ${(e as Error).message}`;
-			showToast(errorMessage, 'error');
-
+			const error = e as Error;
+			showToast(`Error ${newStatus} entry: ${error.message}`, 'error');
 			console.error('[RightSidebar] Toggle error:', e);
 			return false;
 		} finally {
@@ -122,126 +169,77 @@ This component provides a streamlined interface for managing collection entries 
 		}
 	}
 
-	const shouldDisableStatusToggle = $derived(
-		(mode.value === 'create' && !uiStateManager.isRightSidebarVisible.value) ||
-			(mode.value === 'edit' && !uiStateManager.isRightSidebarVisible.value && screenSize.value !== 'LG') ||
-			isLoading
-	);
-
-	let schedule = $state('');
-
-	// Handle schedule updates
-	$effect(() => {
-		const cv = collectionValue.value;
-		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
-	});
-	let dates = $derived({
-		created: collectionValue.value?.createdAt
-			? new Date(String(collectionValue.value.createdAt)).toLocaleDateString(getLocale(), {
-					year: 'numeric',
-					month: '2-digit',
-					day: '2-digit',
-					hour: '2-digit',
-					minute: '2-digit'
-				})
-			: '-',
-		updated: collectionValue.value?.updatedAt
-			? new Date(String(collectionValue.value.updatedAt)).toLocaleDateString(getLocale(), {
-					year: 'numeric',
-					month: '2-digit',
-					day: '2-digit',
-					hour: '2-digit',
-					minute: '2-digit'
-				})
-			: '-'
-	});
-
-	let next = $state(() => {});
-	$effect(() => {
-		const unsub = saveLayerStore.subscribe((value) => {
-			next = value;
-			shouldShowNextButton.set(false);
-		});
-		return unsub;
-	});
-
 	function openScheduleModal(): void {
 		showScheduleModal({
+			initialAction: currentEntry?.status === StatusTypes.publish ? 'publish' : 'unpublish',
 			onSchedule: (date: Date, action: string) => {
-				schedule = date.toISOString();
-				if (action === 'schedule') {
-					collectionValue.update((cv) => ({
-						...cv,
-						status: StatusTypes.schedule,
-						_scheduled: date.getTime()
-					}));
-					if (process.env.NODE_ENV !== 'production') {
-						console.log('[RightSidebar] Entry scheduled');
-					}
-				}
+				const timestamp = date.getTime();
+				setCollectionValue({
+					...currentEntry,
+					status: StatusTypes.schedule,
+					_scheduled: timestamp
+				});
+				showToast(`Entry scheduled for ${action}.`, 'success');
 			}
 		});
 	}
 
-	// Shared save logic for HeaderEdit and RightSidebar
-	function prepareAndSaveEntry() {
-		if (!validationStore.isValid) {
-			console.warn('[RightSidebar] Save blocked due to validation errors.');
-			showToast(m.validation_fix_before_save(), 'error');
+	async function prepareAndSaveEntry() {
+		if (!isFormValid) {
+			showToast(m.validation_fix_before_save(), 'warning');
 			return;
 		}
-		const dataToSave = { ...collectionValue.value };
 
-		// Status rules: Schedule takes precedence, otherwise use current collection status
-		if (schedule && schedule.trim() !== '') {
+		// Get a fresh snapshot of collectionValue to ensure we have the latest widget data
+		const dataToSave: EntryData = { ...(currentEntry as EntryData) };
+
+		// Status rules: Schedule takes precedence, otherwise use current toggle state
+		if (scheduleTimestamp) {
 			dataToSave.status = StatusTypes.schedule;
-			dataToSave._scheduled = new Date(schedule).getTime();
+			dataToSave._scheduled = scheduleTimestamp;
 		} else {
-			dataToSave.status = collectionValue.value?.status || collection.value?.status || StatusTypes.unpublish;
+			dataToSave.status = currentStatus;
 			delete dataToSave._scheduled;
 		}
 
-		// Set metadata for all saves
-		if (mode.value === 'create') {
+		// Set metadata
+		if (currentMode === 'create') {
 			dataToSave.createdBy = user?.username ?? 'system';
 		}
 		dataToSave.updatedBy = user?.username ?? 'system';
+
 		if (process.env.NODE_ENV !== 'production') {
-			console.log('[RightSidebar] Saving with status:', dataToSave.status, 'collectionValue.status:', collectionValue.value?.status);
+			console.log('[RightSidebar] Data to save:', dataToSave);
 		}
-		saveEntry(dataToSave);
+
+		await saveEntry(dataToSave);
 		handleUILayoutToggle();
 	}
 
-	async function saveData() {
+	function saveData() {
 		prepareAndSaveEntry();
 	}
-
-	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
-	const canCreate = $derived(collection.value?.permissions?.[user.role]?.create !== false);
-	const canDelete = $derived(collection.value?.permissions?.[user.role]?.delete !== false);
-	const showSidebar = $derived(['edit', 'create'].includes(mode.value) || canWrite);
 </script>
 
 {#if showSidebar}
 	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
-		{#if shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu')}
-			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
+		{#if $shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu')}
+			<button type="button" onclick={nextAction} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
 		{/if}
-		{#if !(shouldShowNextButtonValue && mode.value === 'create' && (collection.value?.name === 'Menu' || collection.value?.slug === 'menu'))}
+		{#if !($shouldShowNextButton && currentMode === 'create' && (currentCollection?.name === 'Menu' || currentCollection?.slug === 'menu'))}
 			<header class="flex flex-col items-center justify-center gap-3">
 				<button
 					type="button"
 					onclick={saveData}
-					disabled={!validationStore.isValid || !canWrite}
+					disabled={!isFormValid || !canWrite}
 					class="variant-filled-primary btn w-full gap-2 shadow-lg transition-all duration-200"
-					class:opacity-50={!validationStore.isValid || !canWrite}
-					class:cursor-not-allowed={!validationStore.isValid || !canWrite}
+					class:opacity-50={!isFormValid || !canWrite}
+					class:cursor-not-allowed={!isFormValid || !canWrite}
 					aria-label="Save entry"
-					title={validationStore.isValid ? 'Save changes' : 'Please fix validation errors before saving'}
+					title={isFormValid ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
 					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
@@ -249,18 +247,18 @@ This component provides a streamlined interface for managing collection entries 
 
 				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
-						value={isPublish}
-						label={isPublish ? m.status_publish() : m.status_unpublish()}
-						labelColor={isPublish ? 'text-primary-500' : 'text-error-500'}
+						value={isPublished}
+						label={isPublished ? m.status_publish() : m.status_unpublish()}
+						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						disabled={shouldDisableStatusToggle || isLoading}
-						on:change={(e) => handleStatusToggle(e.detail)}
-						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : isPublish ? m.status_publish() : m.status_unpublish()}
+						onChange={handleStatusToggle}
+						title={shouldDisableStatusToggle ? 'Status managed by header in mobile view' : isPublished ? m.status_publish() : m.status_unpublish()}
 					/>
 				</div>
 
-				{#if mode.value === 'edit'}
+				{#if currentMode === 'edit'}
 					<div class="flex w-full flex-col gap-2">
 						<button
 							type="button"
@@ -270,7 +268,7 @@ This component provides a streamlined interface for managing collection entries 
 							aria-label="Clone entry"
 						>
 							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
-							Clone <span class="font-semibold text-primary-500">{collection.value?.name}</span>
+							Clone <span class="font-semibold text-primary-500">{currentCollection?.name}</span>
 						</button>
 
 						<button
@@ -295,7 +293,7 @@ This component provides a streamlined interface for managing collection entries 
 				</div>
 
 				<div class="space-y-2">
-					{#if schedule}
+					{#if scheduleTimestamp}
 						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">{m.sidebar_will_publish_on()}</p>
 					{/if}
 					<button
@@ -305,7 +303,7 @@ This component provides a streamlined interface for managing collection entries 
 					>
 						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 						<span class="text-sm text-tertiary-500 dark:text-primary-500">
-							{schedule ? new Date(schedule).toLocaleString(getLocale()) : 'Schedule publication...'}
+							{scheduleTimestamp ? new Date(scheduleTimestamp).toLocaleString(getLocale()) : 'Schedule publication...'}
 						</span>
 					</button>
 				</div>
@@ -315,17 +313,17 @@ This component provides a streamlined interface for managing collection entries 
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{collectionValue.value?.createdBy || user?.username || 'system'}
+								{currentEntry?.createdBy || user?.username || 'system'}
 							</span>
 						</div>
 					</div>
 
-					{#if collectionValue.value?.updatedBy}
+					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{collectionValue.value.updatedBy || user?.username || 'system'}
+									{currentEntry?.updatedBy || user?.username || 'system'}
 								</span>
 							</div>
 						</div>
@@ -345,9 +343,9 @@ This component provides a streamlined interface for managing collection entries 
 					</div>
 				</div>
 
-				{#if mode.value === 'create'}
+				{#if currentMode === 'create'}
 					<div class="mt-3 text-center">
-						<p class="text-xs text-surface-500">
+						<p class="text-xs text-tertiary-500 dark:text-primary-500">
 							{new Date().toLocaleString(getLocale(), {
 								year: 'numeric',
 								month: 'short',

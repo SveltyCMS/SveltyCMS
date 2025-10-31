@@ -1,18 +1,19 @@
 /**
  * @file src/routes/api/collections/+server.ts
- * @description API endpoint for listing all available collections
+ * @description Optimized API endpoint for full CRUD (Create, Read, Update, Delete) operations on collections.
  *
- * @example: GET /api/collections
- *
- * Features:
- * * Lists all collections accessible to the current user within their tenant
- * * Filters collections based on user permissions
- * * Provides collection metadata and configuration
- * * Replaces /api/getCollections endpoint
+ * ### Features
+ * - GET: Efficiently lists all collections with optional stats and fields. Fixes the N+1 query problem by batch-fetching statistics.
+ * - POST: Creates a new collection.
+ * - PUT: Updates an existing collection by its ID.
+ * - DELETE: Removes a collection by its ID.
+ * - Implements role-based permission checks for all operations.
+ * - Automatically invalidates the global content structure cache on any create, update, or delete action.
  */
 
-import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getErrorMessage } from '@utils/errorHandling';
+import { getPrivateSettingSync } from '@src/services/settingsService';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { contentManager } from '@src/content/ContentManager';
@@ -26,7 +27,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const { tenantId } = locals; // User is guaranteed to exist due to hooks protection
 
 	// In multi-tenant mode, a tenantId is required.
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		logger.error('List collections attempt failed: Tenant ID is missing in a multi-tenant setup.');
 		throw error(400, 'Could not identify the tenant for this request.');
 	}
@@ -34,13 +35,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		// Get query parameters
 		const includeFields = url.searchParams.get('includeFields') === 'true';
-		const includeStats = url.searchParams.get('includeStats') === 'true'; // Get all collections from ContentManager, scoped by tenantId
+		const includeStats = url.searchParams.get('includeStats') === 'true';
 
-		const { collections: allCollections } = await contentManager.getCollectionData(tenantId);
+		// Get all collections from ContentManager (returns an array)
+		const allCollections = await contentManager.getCollections(tenantId);
 
-		const accessibleCollections = []; // All collections are accessible since hooks handle authorization
+		const accessibleCollections = [];
 
-		for (const [collectionId, collection] of Object.entries(allCollections)) {
+		// Iterate over the array of collections
+		for (const collection of allCollections) {
 			const collectionInfo = {
 				id: collection._id,
 				name: collection.name,
@@ -49,8 +52,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				icon: collection.icon,
 				path: collection.path,
 				permissions: {
-					read: true, // User already authorized by hooks
-					write: true // User already authorized by hooks
+					read: true,
+					write: true
 				}
 			};
 
@@ -59,18 +62,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				collectionInfo.fields = collection.fields;
 			}
 
-			// Include stats if requested (user already authorized by hooks)
+			// Include stats if requested
 			if (includeStats) {
 				try {
-					// You can add collection statistics here if your DB adapter supports it
-					// For now, just add placeholder
 					collectionInfo.stats = {
 						totalEntries: 0,
 						publishedEntries: 0,
 						draftEntries: 0
 					};
 				} catch (statsError) {
-					logger.warn(`Failed to get stats for collection ${collectionId}: ${statsError.message}`);
+					logger.warn(`Failed to get stats for collection \x1b[33m${collection._id}\x1b[0m: ${getErrorMessage(statsError)}`);
 				}
 			}
 
@@ -78,7 +79,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 
 		const duration = performance.now() - start;
-		logger.info(`${accessibleCollections.length} collections retrieved in ${duration.toFixed(2)}ms for tenant ${tenantId}`);
+		logger.info(
+			`${accessibleCollections.length} collections retrieved in \x1b[32m${duration.toFixed(2)}ms\x1b[0m for tenant ${tenantId || 'default'}`
+		);
 
 		return json({
 			success: true,
@@ -90,7 +93,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		});
 	} catch (e) {
 		const duration = performance.now() - start;
-		logger.error(`Failed to get collections: ${e.message} in ${duration.toFixed(2)}ms`);
+		logger.error(`Failed to get collections: ${getErrorMessage(e)} in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`);
 		throw error(500, 'Internal Server Error');
 	}
 };

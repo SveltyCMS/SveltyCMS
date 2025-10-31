@@ -21,22 +21,22 @@
 
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { onMount } from 'svelte';
+	import { getRevisionDiff, getRevisions } from '@utils/apiClient';
 	import { getFieldName } from '@utils/utils';
-	import { getRevisions, getRevisionDiff } from '@utils/apiClient'; // Improved API client
 
 	// Auth & Page data
-
 	import { page } from '$app/state';
 	const user = $derived(page.data?.user);
 	const tenantId = $derived(page.data?.tenantId); // Get tenantId for multi-tenancy
 	const collectionName = $derived(page.params?.collection);
 
 	// Stores
-	import { collection, collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collectionStore.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 
 	// Config
-	import { publicEnv } from '@root/config/public';
 	import type { Locale } from '@src/paraglide/runtime';
 
 	// Content processing
@@ -46,35 +46,51 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	import { showToast } from '@utils/toast';
+	import { CodeBlock, Tab, TabGroup, clipboard } from '@skeletonlabs/skeleton';
 	import { showConfirm } from '@utils/modalUtils';
-	const modalStore = getModalStore();
+	import { showToast } from '@utils/toast';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { widgetFunctions, ensureWidgetsInitialized } from '@src/widgets';
-	import { onMount } from 'svelte';
-	import { validationStore } from '@stores/store.svelte';
+	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 
-	// Dynamic import of all widget components using Vite's glob import
+	// Eager load all widget components for immediate use in Fields
 	const modules: Record<string, { default: any }> = import.meta.glob('/src/widgets/**/*.svelte', {
 		eager: true
 	});
 
-	// Initialize widgets on mount
-	onMount(async () => {
-		await ensureWidgetsInitialized();
+	// Subscribe to the widget functions store
+	let widgetFunctions = $state<Record<string, any>>({});
+	$effect(() => {
+		widgetFunctionsStore.subscribe((value) => {
+			widgetFunctions = value;
+		})();
 	});
 
 	let { fields = undefined } = $props<{
-		fields?: NonNullable<typeof collection.value>['fields'];
+		fields?: NonNullable<(typeof collection)['value']>['fields'];
 	}>();
 
 	// Component State
 	let apiUrl = $state('');
 	let isLoading = $state(true);
+	let widgetsReady = $state(false);
 	let localTabSet = $state(0);
+
+	// Initialize widgets when Fields component mounts (only needed for edit/create mode)
+	onMount(async () => {
+		try {
+			// Force widget reload to bypass cache and apply normalization
+			await widgetStoreActions.initializeWidgets(tenantId);
+			widgetsReady = true;
+		} catch (error) {
+			console.error('[Fields] Failed to initialize widgets:', error);
+			showToast('Failed to load widgets', 'error');
+			// Set to true anyway to unblock UI
+			widgetsReady = true;
+		}
+	});
+
 	// Revisions State
 	let revisionsMeta = $state<any[]>([]);
 	let isRevisionsLoading = $state(false);
@@ -90,40 +106,44 @@
 	// --- Let widgets handle their own validation - no duplicate validation here ---
 
 	$effect(() => {
-		if (collection.value && (collection.value as any)?.module && !processedCollection) {
+		if (widgetsReady && collection && (collection as any)?.module && !processedCollection) {
 			untrack(async () => {
 				try {
-					const processed = await processModule((collection.value as any).module);
+					const processed = await processModule((collection as any).module);
 					if (processed?.schema?.fields) {
 						processedCollection = processed.schema;
 						fieldsFromModule = processed.schema.fields;
+					} else {
+						console.warn('[Fields] No fields in processed schema');
 					}
 				} catch (error) {
-					console.error('Failed to process collection module:', error);
+					console.error('[Fields] Failed to process collection module:', error);
 				}
 			});
 		}
 	});
 	// Derived state for fields - combines all possible field sources
 
-	let derivedFields = $derived(fields || fieldsFromModule || collection.value?.fields || []);
+	let derivedFields = $derived(fields || fieldsFromModule || collection?.value?.fields || []);
 	// Persistent form data that survives tab switches (from old working code)
 
 	let formDataSnapshot = $state<Record<string, any>>({});
 	let isFormDataInitialized = $state(false);
+	let lastEntryId = $state<string | undefined>(undefined);
 	// Use a single local state for form data, initialized from the global store
 
 	let currentCollectionValue = $state<Record<string, any>>({});
 	// Reactive function to get default collection value
 
 	let defaultCollectionValue = $derived.by(() => {
-		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
+		const tempCollectionValue: Record<string, any> = collectionValue ? { ...(collectionValue as any) } : {};
 		for (const field of derivedFields) {
 			const safeField = ensureFieldProperties(field);
 			const fieldName = getFieldName(safeField, false);
 			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
 				// Initialize with proper default value based on field type
-				tempCollectionValue[fieldName] = field.translated ? {} : '';
+				const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+				tempCollectionValue[fieldName] = isTranslated ? {} : '';
 			}
 		}
 		return tempCollectionValue;
@@ -159,10 +179,10 @@
 	); // Update translation progress when data changes
 
 	$effect(() => {
-		const currentCollectionValue = collectionValue.value;
+		const currentCollectionValue = collectionValue;
 		const fields = collection.value?.fields;
 
-		if (!fields || !currentCollectionValue) return;
+		if (!fields || !currentCollectionValue || !collection.value?.name) return;
 
 		// This is the logic from the deleted `updateTranslationProgress` function,
 		// now correctly placed within a component's effect.
@@ -170,17 +190,28 @@
 		let hasUpdates = false;
 
 		for (const field of fields) {
-			if (field.translated) {
-				const fieldName = `${collection.value.name}.${getFieldName(field)}`;
-				const dbFieldName = getFieldName(field, false);
-				const fieldValue = currentCollectionValue[dbFieldName];
+			if (!field) continue; // Skip null/undefined fields
 
-				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
+			// Check if field has translated property (for widget-based fields)
+			const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+
+			if (isTranslated && collection.value?.name) {
+				const fieldName = `${collection.value.name}.${getFieldName(field as any)}`;
+				const dbFieldName = getFieldName(field as any, false);
+				const fieldValue = (currentCollectionValue as Record<string, unknown>)[dbFieldName];
+
+				// Safely get available languages with fallback
+				const availableLanguages = (
+					publicEnv?.AVAILABLE_CONTENT_LANGUAGES && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)
+						? publicEnv.AVAILABLE_CONTENT_LANGUAGES
+						: ['en']
+				) as Locale[];
+
+				for (const lang of availableLanguages) {
 					if (!progress[lang]) continue;
-					const langValue = fieldValue?.[lang];
+					const langValue = (fieldValue as Record<string, any>)?.[lang];
 					const isTranslated =
 						langValue !== null && langValue !== undefined && (typeof langValue === 'string' ? langValue.trim() !== '' : Boolean(langValue));
-
 					const wasTranslated = progress[lang]!.translated.has(fieldName);
 
 					if (isTranslated && !wasTranslated) {
@@ -200,28 +231,65 @@
 		}
 	});
 
-	// Update the main collection value store when form data changes (debounced)
-	let updateTimeout: ReturnType<typeof setTimeout> | undefined;
+	// Update the main collection value store when form data changes (immediate sync for save reliability)
+	// Use untrack to avoid circular dependencies and ensure one-way sync from currentCollectionValue -> collectionValue
+	let lastSyncedData = $state<string>('');
 	$effect(() => {
-		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
-			if (updateTimeout) clearTimeout(updateTimeout);
-			updateTimeout = setTimeout(() => {
-				collectionValue.update((current) => ({
-					...current,
-					...currentCollectionValue
-				}));
-			}, 300);
+		// Track only the things we WANT to react to: currentCollectionValue changes
+		const currentMode = mode.value;
+		const initialized = isFormDataInitialized;
+
+		// ONLY sync if form is initialized - this prevents sync during initial setup
+		if (!initialized) {
+			return;
+		}
+
+		// Stringify to detect actual changes
+		const currentDataStr = JSON.stringify(currentCollectionValue);
+
+		if (currentDataStr === lastSyncedData) {
+			// No changes, skip
+			return;
+		}
+
+		if (localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
+			// Read collectionValue inside untrack to avoid making it a reactive dependency
+			untrack(() => {
+				const currentEntryId = (collectionValue as any)?._id;
+				const localEntryId = (currentCollectionValue as any)?._id;
+
+				// Only sync during create OR when editing the same entry
+				if (currentMode === 'create' || currentEntryId === localEntryId) {
+					// Merge currentCollectionValue into the global store
+					const merged = {
+						...(collectionValue as Record<string, unknown>),
+						...currentCollectionValue
+					};
+
+					// Only update if there are actual changes to avoid infinite loops
+					const hasChanges = Object.keys(currentCollectionValue).some(
+						(key) => JSON.stringify(merged[key]) !== JSON.stringify((collectionValue as Record<string, unknown>)[key])
+					);
+
+					if (hasChanges) {
+						setCollectionValue(merged);
+						lastSyncedData = currentDataStr;
+					} else {
+						lastSyncedData = currentDataStr;
+					}
+				}
+			});
 		}
 	});
 
 	// --- Revision Logic ---
 
 	async function fetchRevisionsMeta() {
-		if (!collection.value?._id || !collectionValue.value?._id) return;
+		if (!collection.value?._id || !(collectionValue as any)?._id) return;
 		isRevisionsLoading = true;
 		try {
 			const collectionId = String(collection.value._id);
-			const entryId = String(collectionValue.value._id);
+			const entryId = String((collectionValue as any)._id);
 			const result = await getRevisions(collectionId, entryId, { metaOnly: true });
 			if (result.success) {
 				revisionsMeta = result.data || [];
@@ -234,18 +302,18 @@
 	}
 
 	async function fetchAndCompareRevision(revisionId: string) {
-		if (!revisionId || !collection.value?._id || !collectionValue.value?._id) return;
+		if (!revisionId || !collection.value?._id || !(collectionValue as any)?._id) return;
 		isRevisionDetailLoading = true;
 		diffObject = null;
 		selectedRevisionData = null;
 		try {
 			const collectionId = String(collection.value._id);
-			const entryId = String(collectionValue.value._id);
+			const entryId = String((collectionValue as any)._id);
 			const result = await getRevisionDiff({
 				collectionId: collectionId,
 				entryId: entryId,
 				revisionId: revisionId,
-				currentData: collectionValue.value
+				currentData: collectionValue as Record<string, unknown>
 			});
 
 			if (result.success && result.data) {
@@ -269,8 +337,8 @@
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
 			confirmText: 'Revert',
 			onConfirm: () => {
-				const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
-				collectionValue.set(revertData);
+				const revertData = { ...selectedRevisionData, _id: (collectionValue as any)._id };
+				setCollectionValue(revertData);
 				showToast('Content reverted. Please save your changes.', 'info');
 				localTabSet = 0;
 			}
@@ -282,22 +350,47 @@
 		isLoading = false;
 	});
 
+	// Reset initialization when mode changes to create (allows fresh initialization)
+	let previousModeRef = { value: mode.value }; // Use object reference to avoid reactivity
+	$effect(() => {
+		const currentMode = mode.value;
+
+		if (currentMode === 'create' && previousModeRef.value !== 'create') {
+			// Reset initialization flag to allow fresh setup for new entry
+			untrack(() => {
+				isFormDataInitialized = false;
+				lastEntryId = undefined;
+			});
+			previousModeRef.value = currentMode;
+		} else if (currentMode !== 'create' && currentMode !== previousModeRef.value) {
+			previousModeRef.value = currentMode;
+		}
+	});
+
 	// Initialize form data when the entry changes or fields become available
 	$effect(() => {
-		if (!isFormDataInitialized && collectionValue.value && derivedFields.length > 0) {
-			formDataSnapshot = { ...collectionValue.value };
-			// Ensure all fields have proper initial values
-			const initialValue = { ...defaultCollectionValue };
-			// Double-check that all derived fields have values
-			for (const field of derivedFields) {
-				const safeField = ensureFieldProperties(field);
-				const fieldName = getFieldName(safeField, false);
-				if (initialValue[fieldName] === undefined) {
-					initialValue[fieldName] = field.translated ? {} : '';
+		const globalData = collectionValue as any;
+		const currentEntryId = globalData?._id;
+
+		// Only initialize if not yet initialized OR if we're switching to a completely different entry
+		if (!isFormDataInitialized && globalData && derivedFields.length > 0) {
+			untrack(() => {
+				formDataSnapshot = { ...globalData };
+				// Ensure all fields have proper initial values
+				const initialValue = { ...defaultCollectionValue };
+				// Double-check that all derived fields have values
+				for (const field of derivedFields) {
+					const safeField = ensureFieldProperties(field);
+					const fieldName = getFieldName(safeField, false);
+					if (initialValue[fieldName] === undefined) {
+						const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
+						initialValue[fieldName] = isTranslated ? {} : '';
+					}
 				}
-			}
-			currentCollectionValue = initialValue;
-			isFormDataInitialized = true;
+				currentCollectionValue = initialValue;
+				lastEntryId = currentEntryId; // Track the current entry ID
+				isFormDataInitialized = true;
+			});
 		}
 	}); // Form data persistence across tab switches
 
@@ -305,32 +398,42 @@
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue) {
 			// Only sync when on edit tab to avoid unnecessary updates
-			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
+			untrack(() => {
+				formDataSnapshot = { ...formDataSnapshot, ...currentCollectionValue };
+			});
 		} else if (localTabSet !== 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
 			// Merge snapshot data back into currentCollectionValue when returning to edit tab
-			const updatedValue = { ...currentCollectionValue };
-			for (const field of derivedFields) {
-				const safeField = ensureFieldProperties(field);
-				const fieldName = getFieldName(safeField, false);
-				if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
-					updatedValue[fieldName] = formDataSnapshot[fieldName];
+			untrack(() => {
+				const updatedValue = { ...currentCollectionValue };
+				for (const field of derivedFields) {
+					const safeField = ensureFieldProperties(field);
+					const fieldName = getFieldName(safeField, false);
+					if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
+						updatedValue[fieldName] = formDataSnapshot[fieldName];
+					}
 				}
-			}
-			currentCollectionValue = updatedValue;
+				currentCollectionValue = updatedValue;
+			});
 		}
 	});
 
-	// Initialize local state from global store when it changes
+	// Initialize local state from global store ONLY when switching to a different entry
 	$effect(() => {
-		const globalData = collectionValue.value;
-		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized) {
-			currentCollectionValue = { ...globalData };
+		const globalData = collectionValue as any;
+		const currentEntryId = globalData?._id;
+
+		// Only reinitialize if we're switching to a different entry (with valid ID) AND form was already initialized
+		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized && currentEntryId && currentEntryId !== lastEntryId) {
+			untrack(() => {
+				currentCollectionValue = { ...globalData };
+				lastEntryId = currentEntryId;
+			});
 		}
 	});
 
 	$effect(() => {
-		if (collectionValue.value?._id) {
-			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${collectionValue.value._id}`;
+		if ((collectionValue as any)?._id) {
+			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any)._id}`;
 		}
 	});
 
@@ -364,7 +467,7 @@
 		<Tab bind:group={localTabSet} name="edit" value={0}>
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				{m.fields_edit()}
+				{m.button_edit()}
 			</div>
 		</Tab>
 
@@ -390,20 +493,27 @@
 			<Tab bind:group={localTabSet} name="api" value={3}>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					                    API
+					API
 				</div>
 			</Tab>
 		{/if}
 
 		<svelte:fragment slot="panel">
 			{#if localTabSet === 0}
-				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
+				<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-					{#if isFormDataInitialized}
+					{#if !widgetsReady}
+						<div class="flex h-48 items-center justify-center">
+							<Loading />
+							<p class="ml-2 text-surface-500">Loading widgets...</p>
+						</div>
+					{:else if isFormDataInitialized}
 						<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
 							{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
 								{#if rawField.widget}
 									{@const field = ensureFieldProperties(rawField)}
+									{@const isTranslated =
+										(field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated)}
 									<div
 										class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 										style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
@@ -416,7 +526,7 @@
 											</p>
 
 											<div class="flex gap-2">
-												{#if field.translated}
+												{#if isTranslated}
 													<div class="flex items-center gap-1 px-2">
 														<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"></iconify-icon>
 														<div class="text-xs font-normal text-error-500">
@@ -444,7 +554,10 @@
 										<!-- Widget Input -->
 										{#if field.widget}
 											{@const widgetName = field.widget.Name}
-											{@const widgetPath = widgetFunctions().get(widgetName)?.componentPath}
+											{@const widgetPath =
+												widgetFunctions[widgetName]?.componentPath ||
+												widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
+												widgetFunctions[widgetName.toLowerCase()]?.componentPath}
 											{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
 
 											{#if WidgetComponent}
@@ -542,7 +655,7 @@
 						<input type="text" class="input flex-grow" readonly value={apiUrl} />
 						<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
 					</div>
-					<CodeBlock language="json" code={JSON.stringify(collectionValue.value, null, 2)} />
+					<CodeBlock language="json" code={JSON.stringify(collectionValue as any, null, 2)} />
 				</div>
 			{/if}
 		</svelte:fragment>

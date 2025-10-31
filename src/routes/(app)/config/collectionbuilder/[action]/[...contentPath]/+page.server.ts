@@ -31,13 +31,13 @@ import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/utils/compilation/compile';
 
 // Widgets
-import widgets from '@widgets';
+import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Auth
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { permissionConfigs } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/databases/auth/permissions';
+import { permissionConfigs } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
-import { permissions } from '@src/auth/permissions';
+import { permissions } from '@src/databases/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -65,12 +65,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
+		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection management
 		const collectionManagementConfig = permissionConfigs.collectionManagement;
 		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
-		if (!permissionCheck.hasPermission) {
+		// Find user role and check admin status
+		const userRole = roles.find((r) => r._id === user.role);
+		const isAdmin = userRole?.isAdmin;
+		if (!permissionCheck.hasPermission && !isAdmin) {
 			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection management`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');
@@ -88,25 +91,48 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			};
 		}
 
-		await contentManager.initialize();
+		await contentManager.refresh(); // Force a refresh to bypass any stale cache
+		const navStructure = await contentManager.getNavigationStructure();
+		logger.trace('navStructure:', JSON.stringify(navStructure, null, 2));
 		const collection = params.contentPath;
 
 		const currentCollection = await contentManager.getCollection(`/${collection}`);
+
+		logger.trace('currentCollection in server load (after refresh):', currentCollection);
+
+		function deepCloneAndRemoveFunctions(obj: any): any {
+			if (obj === null || typeof obj !== 'object') {
+				return obj;
+			}
+
+			if (obj instanceof Date) {
+				return new Date(obj.getTime());
+			}
+
+			if (Array.isArray(obj)) {
+				return obj.map((item) => deepCloneAndRemoveFunctions(item));
+			}
+
+			const newObj = {};
+			for (const key in obj) {
+				if (Object.prototype.hasOwnProperty.call(obj, key)) {
+					if (typeof obj[key] === 'function') {
+						continue; // Skip functions
+					}
+					newObj[key] = deepCloneAndRemoveFunctions(obj[key]);
+				}
+			}
+			return newObj;
+		}
+
+		const serializableCollection = currentCollection ? deepCloneAndRemoveFunctions(currentCollection) : null;
 
 		return {
 			user: { ...rest, id: _id.toString() },
 			roles, // Add roles data
 			permissions, // Add permissions data
 			permissionConfigs, // Add permission configs
-			collection: {
-				module: currentCollection?.module,
-				name: currentCollection?.name,
-				_id: currentCollection?._id,
-				path: currentCollection?.path,
-				icon: currentCollection?.icon,
-				label: currentCollection?.label,
-				description: currentCollection?.description
-			}
+			collection: serializableCollection
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
@@ -204,7 +230,7 @@ export const actions: Actions = {
 			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
 			fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
 			await compile();
-			await contentManager.updateCollections(true);
+			await contentManager.refresh();
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;

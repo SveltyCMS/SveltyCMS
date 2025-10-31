@@ -13,12 +13,12 @@
 	<ContentToProtect />
 </PermissionGuard>
 
-#### Props:
+### Props:
 - `config`: Permission configuration object
 - `messages`: Custom messages for different scenarios
 - `silent`: If true, don't show error messages when permission is denied (default: false)
 
-Features:
+### Features:
 - Checks user permissions based on provided configuration
 - Handles admin roles, regular permissions, and rate limiting
 - Provides fallback content for missing configurations or insufficient permissions
@@ -27,25 +27,24 @@ Features:
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
+	// FIX: Use $app/stores for page store
+	import { page } from '$app/stores';
 
 	// Auth types
-	import type { PermissionConfig } from '@src/auth/permissions';
-	import type { User } from '@src/auth/types';
+	import type { PermissionConfig } from '@src/databases/auth/permissions';
+	import type { Snippet } from 'svelte'; // Import Snippet type directly
 
 	interface Props {
-		// Prop to receive permission configuration
 		config: PermissionConfig | undefined;
 		messages?: {
 			rateLimited?: string;
 			missingConfig?: string;
 			insufficientPermissions?: string;
 		};
-		silent?: boolean; // If true, don't show error messages when permission is denied
-		children?: import('svelte').Snippet;
+		silent?: boolean;
+		children?: Snippet; // Use imported Snippet type
 	}
 
-	// Destructure props using $props()
 	let {
 		config,
 		messages = {
@@ -57,21 +56,25 @@ Features:
 		children
 	}: Props = $props();
 
-	// Reactive states
-	let loading = $state(false);
-	let user = $derived(page.data.user as User | undefined);
-	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
-	let isAdmin = $derived(page.data.isAdmin as boolean | undefined);
+	// --- REMOVED unused `loading` state ---
+
+	// Reactive states derived from page data and config
+	let permissions = $derived(($page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
+	let isAdmin = $derived(($page.data.isAdmin || false) as boolean); // Default to false if undefined
+
+	// Derive specific permission data based on config contextId
 	let permissionData = $derived(
 		config?.contextId
-			? permissions[config.contextId] || { hasPermission: false, isRateLimited: false }
+			? (permissions[config.contextId] ?? { hasPermission: false, isRateLimited: false }) // Use nullish coalescing
 			: { hasPermission: false, isRateLimited: false }
 	);
-	let hasPermission = $derived(!!isAdmin || permissionData.hasPermission);
+
+	// Derive permission status, considering admin override
+	let hasPermission = $derived(isAdmin || permissionData.hasPermission);
 	let isRateLimited = $derived(permissionData.isRateLimited);
 
-	// Final determination if content should be shown
-	let shouldShowContent = $derived(!!config && hasPermission && !isRateLimited && !loading);
+	// Final determination if content should be shown (simplified)
+	let shouldShowContent = $derived(!!config && hasPermission && !isRateLimited);
 </script>
 
 {#if shouldShowContent}

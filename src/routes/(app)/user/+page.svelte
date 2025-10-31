@@ -15,16 +15,13 @@
 -->
 
 <script lang="ts">
-	import { privateEnv } from '@root/config/private';
 	import { invalidateAll } from '$app/navigation';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
-
 	// Auth
-	import type { User } from '@src/auth/types';
+	import type { User } from '@src/databases/auth/types';
 	import TwoFactorAuth from './components/TwoFactorAuth.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -32,24 +29,22 @@
 	import '@stores/store.svelte';
 	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
-
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-
 	// Skeleton
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { showModal, showConfirm } from '@utils/modalUtils';
+	import { setCollection } from '@src/stores/collectionStore.svelte';
+	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import { collection } from '@src/stores/collectionStore.svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
-	let { user: serverUser, isFirstUser, isMultiTenant } = $derived(data);
+	let { user: serverUser, isFirstUser, isMultiTenant, is2FAEnabledGlobal } = $derived(data);
 
 	// Make user data reactive
 	let user = $derived<User>({
@@ -64,6 +59,9 @@
 
 	// Define password as state
 	let password = $state('hash-password');
+
+	// Two-Factor Auth modal state
+	let show2FAModal = $state(false);
 
 	// Function to execute actions
 	function executeActions() {
@@ -83,7 +81,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collection.set(null);
+		setCollection(null);
 
 		// Note: Avatar initialization is handled by the layout component
 		// to ensure consistent avatar state across the application
@@ -178,15 +176,31 @@
 				/>
 
 				<!-- Edit button -->
-				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute -top-44 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
+					{m.role()}<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
+				<!-- Two-Factor Authentication Status -->
+				{#if is2FAEnabledGlobal}
+					<button onclick={() => (show2FAModal = !show2FAModal)} class="variant-ghost-surface btn-sm w-full max-w-xs">
+						<div class="flex w-full items-center justify-between">
+							<span>Two-Factor Auth</span>
+							<div class="flex items-center gap-1">
+								<iconify-icon
+									icon="mdi:{user?.is2FAEnabled ? 'shield-check' : 'shield-off'}"
+									width="20"
+									class={user?.is2FAEnabled ? 'text-primary-500' : 'text-error-500'}
+								></iconify-icon>
+								<span class="text-xs">{user?.is2FAEnabled ? 'Enabled' : 'Disabled'}</span>
+							</div>
+						</div>
+					</button>
+				{/if}
 				<!-- Tenant ID -->
 				{#if isMultiTenant}
 					<div class="gradient-primary badge w-full max-w-xs text-white">
@@ -205,11 +219,11 @@
 			{#if user}
 				<form>
 					<label>
-						{m.form_username()}:
+						{m.username()}:
 						<input value={user.username} name="username" type="text" autocomplete="username" disabled class="input" />
 					</label>
 					<label>
-						{m.form_email()}:
+						{m.email()}:
 						<input value={user.email} name="email" type="email" autocomplete="email" disabled class="input" />
 					</label>
 					<label>
@@ -240,8 +254,8 @@
 		</div>
 	</div>
 
-	{#if privateEnv.USE_2FA}
-		<!-- Two-Factor Authentication Section -->
+	<!-- Two-Factor Authentication Section -->
+	{#if is2FAEnabledGlobal && show2FAModal}
 		<div class="wrapper2 mb-4">
 			<TwoFactorAuth {user} />
 		</div>
@@ -259,7 +273,7 @@
 		silent={true}
 	>
 		<div class="wrapper2">
-			<AdminArea adminData={data.adminData} currentUser={user} />
+			<AdminArea currentUser={{ ...user }} {isMultiTenant} roles={data.roles} />
 		</div>
 	</PermissionGuard>
 </div>

@@ -1,0 +1,56 @@
+[
+  {
+    "timestamp": "2025-10-05T18:31:16.999Z",
+    "stats": {
+      "totalSize": 1889550,
+      "totalGzipSize": 602528,
+      "chunkCount": 23,
+      "largestChunk": 645939
+    }
+  },
+  {
+    "timestamp": "2025-10-05T18:36:56.796Z",
+    "stats": {
+      "totalSize": 1889550,
+      "totalGzipSize": 602510,
+      "chunkCount": 23,
+      "largestChunk": 645939
+    }
+  },
+  {
+    "timestamp": "2025-10-14T11:41:43.865Z",
+    "stats": {
+      "totalSize": 1950496,
+      "totalGzipSize": 620495,
+      "chunkCount": 24,
+      "largestChunk": 645516
+    }
+  },
+  {
+    "timestamp": "2025-10-14T13:19:27.791Z",
+    "stats": {
+      "totalSize": 1946262,
+      "totalGzipSize": 618278,
+      "chunkCount": 22,
+      "largestChunk": 678031
+    }
+  },
+  {
+    "timestamp": "2025-10-14T13:33:35.214Z",
+    "stats": {
+      "totalSize": 1946262,
+      "totalGzipSize": 618304,
+      "chunkCount": 22,
+      "largestChunk": 678031
+    }
+  },
+  {
+    "timestamp": "2025-10-14T13:35:38.184Z",
+    "stats": {
+      "totalSize": 1946262,
+      "totalGzipSize": 618304,
+      "chunkCount": 22,
+      "largestChunk": 678031
+    }
+  }
+]

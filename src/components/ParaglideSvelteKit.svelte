@@ -41,8 +41,7 @@
 
 		if (desiredLang) {
 			// Ensure the desired language is one of the available locales and is different from the current
-			if (availableLocales.includes(desiredLang as any) && locale !== desiredLang) {
-				console.log(`System language changed to: ${desiredLang}. Setting Paraglide locale.`);
+			if (availableLocales.includes(desiredLang) && locale !== desiredLang) {
 				setLocale(desiredLang as LanguageCode, { reload: false });
 				// Persisting to localStorage ensures the preference is remembered across sessions/reloads.
 				if (browser) {

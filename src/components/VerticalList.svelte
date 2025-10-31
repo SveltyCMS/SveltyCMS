@@ -21,8 +21,8 @@
 	import type { DndEvent } from 'svelte-dnd-action';
 
 	interface Props {
-		items: any;
-		headers?: any[];
+		items: Record<string, unknown>[];
+		headers?: string[];
 		flipDurationMs: number;
 		handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 		handleDndFinalize: (e: CustomEvent<DndEvent>) => void;

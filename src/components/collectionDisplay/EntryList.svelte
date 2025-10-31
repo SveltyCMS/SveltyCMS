@@ -25,44 +25,43 @@ Features:
 </script>
 
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { getData, invalidateCollectionCache, createEntry, updateEntryStatus, deleteEntry, batchDeleteEntries } from '@utils/apiClient';
-	import { getCachedCollectionData } from '@utils/collections-prefetch';
+	import { batchDeleteEntries, deleteEntry, getData, invalidateCollectionCache, updateEntryStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
-	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
-	import { cloneEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
+	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
+	import { debounce, getFieldName, meta_data } from '@utils/utils';
+	// Import centralized actions
 	// Config
-	import { publicEnv } from '@root/config/public';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
+	import type { StatusType } from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// Stores
+	import { collection, collectionValue, mode, setCollectionValue, setMode, setModifyEntry, statusMap } from '@stores/collectionStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
-	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
+	import Loading from '@components/Loading.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Status from '@components/system/table/Status.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	import TranslationStatus from './TranslationStatus.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import Loading from '@components/Loading.svelte';
+	import TranslationStatus from './TranslationStatus.svelte';
 	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import { showStatusChangeConfirm, showDeleteConfirm } from '@utils/modalUtils';
-
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -127,10 +126,6 @@ Features:
 			totalItems = 0;
 			rawData = undefined;
 			data = undefined;
-			// console.log('[EntryList] Cleared cache due to collection change', {
-			// 	from: lastCollectionId,
-			// 	to: currentCollId
-			// });
 		}
 
 		// Set flags to prevent pagination effect from triggering during collection change
@@ -184,10 +179,6 @@ Features:
 				// Don't set loading state here - let refreshTableData handle it
 				// Clear client cache for new collection - do this FIRST
 				clientCache.clear();
-				// console.log('[EntryList] Cleared client cache during collection switch', {
-				// 	newCollectionId: currentCollId,
-				// 	cacheSize: clientCache.size
-				// });
 				// Immediately clear table data and related state to prevent showing old data
 				tableData = [];
 				pagesCount = 1;
@@ -264,7 +255,6 @@ Features:
 
 	// Destructure for easier access
 	const currentLanguage = $derived(currentStates.language);
-	const currentSystemLanguage = $derived(currentStates.systemLanguage);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
 
@@ -383,6 +373,7 @@ Features:
 
 	// Add client-side caching with size limits to reduce API calls
 	let clientCache = $state<Map<string, { items: any[]; totalPages: number; total: number; timestamp: number }>>(new Map());
+	let retryCache = $state<Map<string, number>>(new Map()); // Separate cache for retry timestamps
 	const MAX_CACHE_SIZE = 50; // Limit cache entries
 	const CACHE_TTL = 5 * 60 * 1000; // 5 minutes TTL
 
@@ -390,7 +381,6 @@ Features:
 	let lastFetchParams = $state<string | null>(null);
 	let lastFetchTime = $state<number>(0);
 	let currentRequestId = $state<string | null>(null);
-	const MIN_REFRESH_INTERVAL = 1000; // Minimum 1 second between refreshes
 
 	// Generate a cache key for current fetch parameters
 	function getCurrentFetchKey(): string {
@@ -465,7 +455,6 @@ Features:
 			const canUseCache = !isCollectionSwitch && collectionState.stableDataExists && clientCache.has(currentFetchKey);
 
 			if (canUseCache) {
-				// console.log('[EntryList] Using client cache', { currentFetchKey });
 				const cached = clientCache.get(currentFetchKey)!;
 
 				// Check cache TTL
@@ -564,9 +553,8 @@ Features:
 					filter: JSON.stringify(activeFilters),
 					sort: JSON.stringify(sortParam),
 					// Add timestamp when language changed to force cache miss
-					_langChange: lastLanguage !== currentLanguage ? languageChangeTimestamp : undefined,
-					// Add cache busting parameter to ensure fresh data
-					_cacheBust: Date.now()
+					_langChange: lastLanguage !== currentLanguage ? languageChangeTimestamp : undefined
+					// Removed _cacheBust - let browser & server caching work for performance
 				};
 
 				const result = await getData(queryParams);
@@ -595,7 +583,7 @@ Features:
 					return;
 				}
 
-				if (result.success) {
+				if (result.success && result.data) {
 					data = result.data;
 					rawData = data;
 					tableData = data.items || [];
@@ -640,12 +628,11 @@ Features:
 					}
 					// Smart retry for empty data with rate limiting
 					if (tableData.length === 0 && !lastFetchParams) {
-						const retryKey = `retry_${currentCollId}_${now}`;
-						const lastRetry = clientCache.get('lastRetryTime');
+						const lastRetry = retryCache.get('lastRetryTime') ?? 0;
 						const retryInterval = 5000; // 5 seconds between retries
 
-						if (!lastRetry || now - lastRetry > retryInterval) {
-							clientCache.set('lastRetryTime', now);
+						if (now - lastRetry > retryInterval) {
+							retryCache.set('lastRetryTime', now);
 							setTimeout(() => {
 								if (currentCollection?._id === currentCollId && tableData.length === 0) {
 									refreshTableData(true);
@@ -748,21 +735,26 @@ Features:
 	});
 
 	// Debounce utility for filter and refresh with smart timing
-	const filterDebounce = debounceUtil(300);
-	const refreshDebounce = debounceUtil(100); // Reduced debounce for better responsiveness
+	const filterDebounce = debounce(300);
+	const refreshDebounce = debounce(100); // Reduced debounce for better responsiveness
 
 	// Consolidated effect that handles all refresh scenarios efficiently
 	$effect(() => {
 		// Track all dependencies that should trigger a refresh
 		const currentCollId = currentCollection?._id;
-		const { currentPage, rowsPerPage, filters, sorting } = entryListPaginationSettings;
-		const language = currentLanguage;
+		const { currentPage, rowsPerPage, filters, sorting } = entryListPaginationSettings; // Used by getCurrentFetchKey
+		const language = currentLanguage; // Used by getCurrentFetchKey
 		const mode = currentMode;
 		const currentFetchKey = getCurrentFetchKey();
 
+		// Explicitly reference tracked variables to prevent unused warnings
+		// These variables are used indirectly by getCurrentFetchKey()
+		void [currentPage, rowsPerPage, filters, sorting, language, mode];
+
 		// Determine what type of refresh is needed
 		const isCollectionSwitch = lastCollectionId !== currentCollId;
-		const isValidForRefresh = currentCollId && !collectionState.isChanging && !collectionState.isInitializing && mode !== 'create' && mode !== 'edit';
+		const isValidForRefresh =
+			currentCollId && !collectionState.isChanging && !collectionState.isInitializing && currentMode !== 'create' && currentMode !== 'edit';
 
 		// Only proceed if we have a valid state for refresh
 		if (isValidForRefresh) {
@@ -789,9 +781,6 @@ Features:
 			}
 		}
 	}); // Simplified debug effect to track only significant loading changes
-	$effect(() => {
-		const isLoading = globalLoadingStore.isLoadingReason(loadingOperations.dataFetch);
-	});
 
 	// Handle language changes specifically for cache invalidation
 	let lastLanguage = $state<string | null>(null);
@@ -803,7 +792,6 @@ Features:
 
 		// Only invalidate cache if language actually changed and we have a collection
 		if (collectionId && lastLanguage !== null && lastLanguage !== language) {
-			// console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
 			invalidateCollectionCache(collectionId);
 			// Clear client cache on language change to ensure fresh data
 			clientCache.clear();
@@ -820,9 +808,9 @@ Features:
 			untrack(() => {
 				meta_data.clear();
 				// Only clear the collection value, do not auto-save draft
-				const currentValue = collectionValue.value;
+				const currentValue = collectionValue;
 				if (currentValue && Object.keys(currentValue).length > 0) {
-					collectionValue.set({});
+					setCollectionValue({});
 				}
 				// Refresh data when returning to view mode (after save/edit)
 				const currentCollId = collection.value?._id;
@@ -867,22 +855,8 @@ Features:
 		return Object.values(selectedMap).some((isSelected) => isSelected);
 	});
 
-	// Get the statuses of currently selected entries with better performance
-	let selectedEntriesStatuses = $derived.by(() => {
-		const statuses: string[] = [];
-		const selectedEntries = Object.entries(selectedMap).filter(([, isSelected]) => isSelected);
-
-		for (const [index] of selectedEntries) {
-			const entry = tableData[Number(index)];
-			if (entry?.status) {
-				statuses.push(entry.status.toLowerCase());
-			}
-		}
-		return statuses;
-	});
-
 	// Tick Row - modify STATUS of an Entry
-	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
+	setModifyEntry(async (status?: keyof typeof statusMap): Promise<void> => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
 			showToast('No entries selected', 'warning');
@@ -898,13 +872,15 @@ Features:
 		});
 	});
 
-	let pathSegments = $derived($page.url.pathname.split('/').filter(Boolean));
+	let pathSegments = $derived(page.url.pathname.split('/').filter(Boolean));
 	let categoryName = $derived.by(() => {
-		// Remove the first segment if it matches the current system language
+		// Remove the first segment (language code) from the path
 		const segments = pathSegments?.slice() ?? [];
-		if (segments.length > 0 && segments[0].toLowerCase() === currentSystemLanguage?.toLowerCase()) {
+		if (segments.length > 0) {
+			// First segment is always the language code in /[language]/[...collection] routes
 			segments.shift();
 		}
+		// Join remaining segments (excluding the last one which is the current page)
 		return segments.slice(0, -1).join('>') || '';
 	});
 
@@ -958,9 +934,14 @@ Features:
 		const newEntry: Record<string, any> = {};
 		if (currentCollection?.fields) {
 			for (const field of currentCollection.fields) {
-				const fieldName = getFieldName(field, false);
-				// Set a default value based on the field type or widget
-				newEntry[fieldName] = field.translated ? { [currentLanguage]: null } : null;
+				// Type guard to ensure field is an object and not unknown
+				if (typeof field === 'object' && field !== null && 'label' in field && 'type' in field) {
+					const fieldName = getFieldName(field as any, false);
+					// Set a default value based on the field type or widget
+					// Note: We can't determine if field is translatable from type definition,
+					// so we'll set simple null value. Translation initialization handled elsewhere.
+					newEntry[fieldName] = null;
+				}
 			}
 		}
 		// Set the default status from collection schema for new entries
@@ -969,11 +950,12 @@ Features:
 			newEntry.status = collection.value.status;
 		}
 
-		// Set the new entry data FIRST
-		collectionValue.set(newEntry);
+		// IMPORTANT: Switch mode to 'create' FIRST
+		// This allows Fields.svelte to reset initialization before collectionValue changes
+		setMode('create');
 
-		// THEN switch the mode
-		mode.set('create');
+		// THEN set the new entry data
+		setCollectionValue(newEntry);
 
 		// Use a microtask to allow the UI to update before other actions
 		await Promise.resolve();
@@ -983,7 +965,7 @@ Features:
 	// Handlers that call the centralized action functions
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
 	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess);
+	const onTest = () => setEntriesStatus(getSelectedIds(), StatusTypes.test, onActionSuccess);
 	const onDelete = (isPermanent = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
@@ -991,13 +973,11 @@ Features:
 			return;
 		}
 
-		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
+		const useArchiving = publicEnv?.USE_ARCHIVE_ON_DELETE ?? false;
 		const isForArchived = showDeleted || isPermanent;
 		const willDelete = !useArchiving || isForArchived;
 
-		const actionName = willDelete ? 'Delete' : 'Archive';
 		const actionVerb = willDelete ? 'delete' : 'archive';
-		const actionColor = willDelete ? 'error' : 'warning';
 
 		showDeleteConfirm({
 			isArchive: !willDelete,
@@ -1044,89 +1024,12 @@ Features:
 	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess);
 
 	// FIX: Schedule handler now correctly processes date and calls the action
-	const onSchedule = (date: string, action: string) => {
+	const onSchedule = (date: string) => {
 		const payload = { _scheduled: new Date(date).getTime() };
 		// The `action` variable from the modal can be used here if your backend
 		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
-		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, payload);
+		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
 	};
-
-	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
-	function legacyOnPublish() {
-		console.log('onPublish called - will show modal');
-		modifyEntry.value(StatusTypes.publish);
-	}
-	function legacyOnUnpublish() {
-		console.log('onUnpublish called - will show modal');
-		modifyEntry.value(StatusTypes.unpublish);
-	}
-	function legacyOnSchedule() {
-		console.log('onSchedule called - will show modal');
-		modifyEntry.value(StatusTypes.schedule);
-	}
-
-	// Direct action functions for MultiButton (bypass modals)
-	async function executePublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
-	}
-	async function executeUnpublish() {
-		await setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
-	}
-	async function executeSchedule() {
-		// This needs a modal to select a date, so direct execution is not simple.
-		// For now, it will open the schedule modal.
-		legacyOnSchedule();
-	}
-	async function executeTest() {
-		await setEntriesStatus(getSelectedIds(), 'test' as StatusType, onActionSuccess);
-	}
-
-	// Helper function to execute status changes without modals
-	async function executeDelete() {
-		const selectedIds = getSelectedIds();
-		if (!selectedIds.length) return;
-
-		const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
-		const isForArchived = showDeleted;
-		const willDelete = !useArchiving || isForArchived;
-
-		try {
-			if (willDelete) {
-				// Use batch delete API with fallback to individual deletes
-				try {
-					const collId = collection.value?._id;
-					if (collId) {
-						const result = await batchDeleteEntries(collId, selectedIds);
-						if (!result.success) {
-							throw new Error('Batch delete failed');
-						}
-					}
-				} catch (batchError) {
-					// Fallback to individual deletes
-					console.warn('Batch delete failed, using individual deletes:', batchError);
-					await Promise.all(
-						selectedIds.map((entryId) => {
-							const collId = collection.value?._id;
-							if (collId) {
-								return deleteEntry(collId, entryId);
-							}
-							return Promise.resolve();
-						})
-					);
-				}
-			} else {
-				// Archive entries
-				await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
-			}
-			onActionSuccess();
-		} catch (error) {
-			showToast(`Failed to ${willDelete ? 'delete' : 'archive'} entries: ${(error as Error).message}`, 'error');
-		}
-	}
-	// Legacy onClone function - now calls centralized action
-	function legacyOnClone() {
-		onClone();
-	}
 
 	// Show content as soon as we have a collection, with improved logic to prevent flicker
 	let shouldShowContent = $derived(
@@ -1170,9 +1073,6 @@ Features:
 			lastFetchParams !== getCurrentFetchKey() // Only show when fetch parameters changed
 	);
 
-	// Use regular visibleTableHeaders - no need for complex transition logic
-	let tableColspan = $derived((renderHeaders?.length ?? 0) + 1);
-
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
 		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
 	}
@@ -1191,7 +1091,7 @@ Features:
 		}
 		// By re-assigning the settings to a fresh default object, we trigger the reactive effects
 		// that will reset the column order, filters, sorting, and pagination.
-		entryListPaginationSettings = defaultPaginationSettings(currentCollId);
+		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
 	}
 </script>
 
@@ -1266,7 +1166,6 @@ Features:
 					isCollectionEmpty={tableData?.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
-					selectedStatuses={selectedEntriesStatuses}
 					bind:showDeleted
 					publish={onPublish}
 					unpublish={onUnpublish}
@@ -1457,21 +1356,17 @@ Features:
 													const currentStatus = entry.status || entry.raw_status || 'draft';
 													let nextStatus;
 
-													// Define status progression logic
+													// Define status progression logic using StatusTypes
 													switch (currentStatus) {
-														case 'draft':
 														case StatusTypes.draft:
 															nextStatus = StatusTypes.publish;
 															break;
-														case 'publish':
 														case StatusTypes.publish:
 															nextStatus = StatusTypes.unpublish;
 															break;
-														case 'unpublish':
 														case StatusTypes.unpublish:
 															nextStatus = StatusTypes.publish;
 															break;
-														case 'schedule':
 														case StatusTypes.schedule:
 															nextStatus = StatusTypes.publish;
 															break;
@@ -1481,20 +1376,6 @@ Features:
 													}
 
 													// Create modal with same styling as multibutton modals
-													const getStatusColor = (status: string) => {
-														switch (status) {
-															case StatusTypes.publish:
-																return { color: 'primary', name: 'Publication' };
-															case StatusTypes.unpublish:
-																return { color: 'yellow', name: 'Unpublication' };
-															case StatusTypes.draft:
-																return { color: 'surface', name: 'Draft' };
-															default:
-																return { color: 'primary', name: 'Status Change' };
-														}
-													};
-
-													const statusInfo = getStatusColor(nextStatus);
 													showStatusChangeConfirm({
 														status: String(nextStatus),
 														count: 1,
@@ -1520,20 +1401,20 @@ Features:
 													const originalEntry = entryList.find((e) => e._id === entry._id);
 													if (originalEntry) {
 														// Load the entry data into collectionValue
-														collectionValue.set(originalEntry);
+														setCollectionValue(originalEntry);
 
 														// Set mode to edit
-														mode.set('edit');
+														setMode('edit');
 
 														// If the entry is publish, automatically set it to unpublish
 														// This follows CMS best practices where editing publish content
 														// creates a draft that needs to be republish
-														if (originalEntry.status === StatusTypes.publish) {
+														if (originalEntry.status === 'publish') {
 															// Update the local collectionValue to unpublish status
-															collectionValue.update((current) => ({
-																...current,
-																status: StatusTypes.unpublish
-															})); // Show user feedback about the status change
+															setCollectionValue({
+																...collectionValue,
+																status: 'unpublish'
+															}); // Show user feedback about the status change
 															showToast('Entry moved to draft mode for editing. Republish when ready.', 'warning');
 														}
 

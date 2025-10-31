@@ -2,7 +2,7 @@
  * Test Public Config for CI
  * Copy this file to config/public.ts in CI before build.
  */
-import { createPublicConfig } from '../../config/types.ts';
+import { createPublicConfig } from '../../src/databases/schemas.ts';
 
 export const publicEnv = createPublicConfig({
 	// --- Host Configuration ---

@@ -14,10 +14,11 @@
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { mode, collection } from '@root/src/stores/collectionStore.svelte';
+	import { collection, setCollection } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -73,43 +74,68 @@
 	let description = $state(props.data?.description ?? '');
 	let status = $state(props.data?.status ?? 'unpublished');
 
+	// Update form fields when props.data changes (for async loading)
+	$effect(() => {
+		if (props.data) {
+			name = props.data.name ?? '';
+			slug = props.data.slug ?? '';
+			description = props.data.description ?? '';
+			status = props.data.status ?? 'unpublished';
+			selectedIcon = props.data.icon ?? '';
+		}
+	});
+
 	// Derived values
 	let DBName = $derived(name ? name.toLowerCase().replace(/ /g, '_') : '');
 
 	// Update collection value when icon changes
 	$effect(() => {
-		if (!collection.value) return;
-		if (selectedIcon !== collection.value?.icon) {
-			collection.set({
-				...collection.value,
-				icon: selectedIcon
-			});
-		}
+		// Only track the selectedIcon, not the collection
+		const currentIcon = selectedIcon;
+
+		untrack(() => {
+			if (collection.value && currentIcon !== collection.value.icon) {
+				setCollection({
+					...collection.value,
+					icon: currentIcon
+				});
+			}
+		});
 	});
 
 	// Update collection value when form fields change (only if editing an existing collection)
 	$effect(() => {
-		if (collection.value?._id) {
-			// Check if values have actually changed to avoid unnecessary updates
-			if (
-				collection.value.name === name &&
-				collection.value.slug === slug &&
-				collection.value.description === description &&
-				collection.value.status === status &&
-				collection.value.icon === selectedIcon
-			) {
-				return;
-			}
+		// Only track the form field changes, not the collection itself
+		const currentName = name;
+		const currentSlug = slug;
+		const currentDescription = description;
+		const currentStatus = status;
+		const currentIcon = selectedIcon;
 
-			collection.set({
-				...collection.value, // Spread existing values (including _id)
-				name,
-				slug,
-				description,
-				status,
-				icon: selectedIcon // Ensure icon is updated
-			});
-		}
+		// Use untrack to prevent reading collection.value from triggering this effect again
+		untrack(() => {
+			if (collection.value?._id) {
+				// Check if values have actually changed to avoid unnecessary updates
+				if (
+					collection.value.name === currentName &&
+					collection.value.slug === currentSlug &&
+					collection.value.description === currentDescription &&
+					collection.value.status === currentStatus &&
+					collection.value.icon === currentIcon
+				) {
+					return;
+				}
+
+				setCollection({
+					...collection.value, // Spread existing values (including _id)
+					name: currentName,
+					slug: currentSlug,
+					description: currentDescription,
+					status: currentStatus,
+					icon: currentIcon // Ensure icon is updated
+				});
+			}
+		});
 	});
 
 	function handleNameInput() {
@@ -138,26 +164,30 @@
 		autoUpdateSlug = false;
 	}
 
-	// Update slug and page title when collection value changes
+	// Update slug and page title when name changes
 	$effect(() => {
-		if (collection.value) {
-			// Automatically update slug when name changes
-			if (autoUpdateSlug) {
-				slug = name ? name.toLowerCase().replace(/ /g, '_') : '';
-			}
+		// Only track the name and autoUpdateSlug, not the collection
+		const currentName = name;
+		const shouldAutoUpdate = autoUpdateSlug;
 
-			// Update page title based on mode and collection name
-			if (mode.value === 'edit') {
-				props.handlePageTitleUpdate(name);
-			} else if (name) {
-				props.handlePageTitleUpdate(name);
-			} else {
-				props.handlePageTitleUpdate(`new`);
-			}
+		// Automatically update slug when name changes
+		if (shouldAutoUpdate && currentName) {
+			slug = currentName.toLowerCase().replace(/ /g, '_');
+		}
+
+		// Update page title based on action and collection name
+		if (action === 'edit') {
+			props.handlePageTitleUpdate(currentName);
+		} else if (currentName) {
+			props.handlePageTitleUpdate(currentName);
+		} else {
+			props.handlePageTitleUpdate(`new`);
 		}
 	});
 
-	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
+	// Import status types from the content types
+	import { StatusTypes } from '@src/content/types';
+	const statuses = Object.values(StatusTypes);
 
 	function handleNextClick() {
 		tabSet.set(1);

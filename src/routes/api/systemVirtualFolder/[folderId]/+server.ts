@@ -3,9 +3,9 @@
  * @description API endpoint for specific system virtual folder operations
  */
 
-import { json, error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -18,6 +18,14 @@ import { constructMediaUrl } from '@utils/media/mediaUtils';
 
 // Types
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+type MediaDoc = {
+	_id?: string;
+	filename?: string;
+	virtualFolderId?: string | null;
+	thumbnailWidth?: number;
+	thumbnailHeight?: number;
+	[key: string]: unknown;
+};
 
 // GET /api/systemVirtualFolder/[folderId] - Fetches contents of a specific virtual folder
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -28,7 +36,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			throw error(401, 'Authentication required');
 		}
 
-		if (privateEnv.MULTI_TENANT && !tenantId) {
+		if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
@@ -36,9 +44,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		let currentFolder: SystemVirtualFolder | null = null;
 		let folders: SystemVirtualFolder[] = [];
-		let files: any[] = [];
+		let files: MediaDoc[] = [];
 
-		const tenantFilter = privateEnv.MULTI_TENANT ? { tenantId } : {};
+		const tenantFilter = getPrivateSettingSync('MULTI_TENANT') ? { tenantId } : {};
 
 		if (folderId === 'root') {
 			// Root folder - get top-level folders and files, scoped by tenant

@@ -1,6 +1,15 @@
 /**
  * @file src/utils/logger.svelte.ts
- * @description System Logger for SveltyCMS
+ * @description System Logger for SveltyCMS (Performance Optimized)
+ *
+ * Log Levels:
+ * - none: Maximum performance, zero overhead
+ * - fatal: System failures
+ * - error: Errors only (for production)
+ * - warn: Warnings
+ * - info: Default level for general information
+ * - debug: Development debugging (request timing, performance metrics)
+ * - trace: Very detailed trace information (content structure, widget state)
  *
  * Features:
  * - Performance optimization with batch logging and optimized file I/O
@@ -15,13 +24,23 @@
  */
 
 import { browser, building } from '$app/environment';
-import { publicEnv } from '@root/config/public';
+import { publicEnv } from '@src/stores/globalSettings.svelte';
+
+// Helper to safely access publicEnv properties with a default value
+const getEnv = <T>(key: keyof typeof publicEnv, defaultValue: T): T => {
+	try {
+		const value = publicEnv[key];
+		return value !== undefined ? (value as T) : defaultValue;
+	} catch {
+		return defaultValue;
+	}
+};
 
 // Check if running on the server
 const isServer = !browser;
 
 // Type Definitions
-type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
+type LogLevel = 'none' | 'info' | 'error' | 'warn' | 'fatal' | 'debug' | 'trace';
 
 // Define a type for loggable values
 export type LoggableValue = string | number | boolean | null | unknown | undefined | Date | RegExp | object | Error;
@@ -40,6 +59,15 @@ type MaskingConfig = {
 	sensitiveKeys: string[];
 	emailKeys: string[];
 	customMasks: Record<string, (value: string) => string>;
+};
+
+// Type for dynamically imported server modules for type safety
+type ServerModules = {
+	fsPromises: typeof import('node:fs/promises');
+	path: typeof import('node:path');
+	zlib: typeof import('node:zlib');
+	fs: typeof import('node:fs');
+	stream: typeof import('node:stream/promises');
 };
 
 // Color codes for terminal output
@@ -65,11 +93,9 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 	trace: { priority: 6, color: 'cyan' } // Least restrictive: all log levels
 };
 
-// Configuration with defaults using $state
-// Defaults are aligned with publicEnv for consistency, but can be overridden
-const config = $state({
-	logRotationSize: publicEnv.LOG_ROTATION_SIZE || 5 * 1024 * 1024, // 5MB
-	logRetentionDays: publicEnv.LOG_RETENTION_DAYS || 2, // Default to 2 days
+// --- Use plain objects instead of $state for config and state ---
+const config = {
+	logRotationInterval: 60 * 60 * 1000, // 1 hour in milliseconds
 	logDirectory: 'logs',
 	logFileName: 'app.log',
 	errorTrackingEnabled: false,
@@ -84,23 +110,33 @@ const config = $state({
 		emailKeys: ['email', 'mail', 'createdby', 'updatedby', 'user'],
 		customMasks: {} as Record<string, (value: string) => string>
 	} as MaskingConfig
-});
+};
 
 // Batch logging state
-const state = $state({
+const state = {
 	queue: [] as LogEntry[],
-	batchTimeout: null as NodeJS.Timeout | null,
-	abortTimeout: null as NodeJS.Timeout | null
-});
-
-// Helper Functions
-const isLogLevelEnabled = (level: LogLevel): boolean => {
-	// Ensure publicEnv.LOG_LEVELS is properly initialized and includes the level
-	if (!publicEnv.LOG_LEVELS || !Array.isArray(publicEnv.LOG_LEVELS)) {
-		return false; // Or handle as an error/default to a safe level
-	}
-	return publicEnv.LOG_LEVELS.includes(level);
+	batchTimeout: null as NodeJS.Timeout | null
 };
+
+// --- Cache the max enabled log level priority ---
+let maxEnabledPriority: number = 0;
+
+function updateMaxEnabledPriority() {
+	// --- If building, disable all logs by setting priority to 0 ---
+	if (building) {
+		maxEnabledPriority = 0;
+		return;
+	}
+	const enabledLevels = getEnv('LOG_LEVELS', ['fatal', 'error', 'warn', 'info', 'debug', 'trace']);
+	if (!Array.isArray(enabledLevels) || enabledLevels.includes('none')) {
+		maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
+		return;
+	}
+	maxEnabledPriority = Math.max(0, ...enabledLevels.map((level) => LOG_LEVEL_MAP[level as LogLevel]?.priority ?? 0));
+}
+
+// Initialize the cache
+updateMaxEnabledPriority();
 
 // Format timestamp in gray color
 const getTimestamp = (): string => {
@@ -220,6 +256,10 @@ const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 
 // Batch processing utilities
 const processBatch = async (): Promise<void> => {
+	// --- Clear any pending timeout to prevent a redundant flush ---
+	if (state.batchTimeout) clearTimeout(state.batchTimeout);
+	state.batchTimeout = null;
+
 	if (state.queue.length === 0) return;
 	const currentBatch = [...state.queue];
 	state.queue = [];
@@ -247,16 +287,19 @@ const scheduleBatchProcessing = (): void => {
 // Server-Side Operations
 const serverFileOps = isServer
 	? {
-			_logStream: null as unknown, // Store the write stream instance
-			async _getModules() {
+			_logStream: null as import('node:fs').WriteStream | null, // Store the write stream instance
+			_modules: null as ServerModules | null,
+			async _getModules(): Promise<ServerModules> {
+				if (this._modules) return this._modules;
 				const fsPromises = await import('node:fs/promises');
 				const path = await import('node:path');
 				const zlib = await import('node:zlib');
 				const fs = await import('node:fs');
 				const stream = await import('node:stream/promises');
-				return { fsPromises, path, zlib, fs, stream };
+				this._modules = { fsPromises, path, zlib, fs, stream };
+				return this._modules;
 			},
-			async getLogStream(): Promise<unknown> {
+			async getLogStream(): Promise<import('node:fs').WriteStream> {
 				const { path, fs } = await this._getModules();
 				if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
 					const logFilePath = path.join(config.logDirectory, config.logFileName);
@@ -285,22 +328,14 @@ const serverFileOps = isServer
 
 				while (retryCount < maxRetries) {
 					try {
-						// Check if directory exists and is accessible
-						try {
-							await fsPromises.access(config.logDirectory);
-						} catch {
-							// Directory doesn't exist or isn't accessible - try to create it
-							await fsPromises.mkdir(config.logDirectory, {
-								recursive: true,
-								mode: 0o755 // rwxr-xr-x
-							});
-						}
-
+						// Directory doesn't exist or isn't accessible - try to create it
+						await fsPromises.mkdir(config.logDirectory, {
+							recursive: true,
+							mode: 0o755 // rwxr-xr-x
+						});
 						// Verify directory permissions
 						const stats = await fsPromises.stat(config.logDirectory);
-						if (!stats.isDirectory()) {
-							throw new Error('Log path is not a directory');
-						}
+						if (!stats.isDirectory()) throw new Error('Log path is not a directory');
 
 						// Initialize log file (ensure it exists)
 						const logFilePath = path.join(config.logDirectory, config.logFileName);
@@ -324,9 +359,11 @@ const serverFileOps = isServer
 			async checkAndRotateLogFile(): Promise<void> {
 				const { fsPromises, path, zlib, fs, stream } = await this._getModules();
 				const logFilePath = path.join(config.logDirectory, config.logFileName);
+				const logRotationSize = getEnv('LOG_ROTATION_SIZE', 5 * 1024 * 1024); // JIT retrieval
+
 				try {
 					const stats = await fsPromises.stat(logFilePath);
-					if (stats.size < config.logRotationSize) return;
+					if (stats.size < logRotationSize) return;
 
 					// Close the current log stream before rotation
 					if (this._logStream) {
@@ -354,9 +391,10 @@ const serverFileOps = isServer
 			},
 			async cleanOldLogFiles(): Promise<void> {
 				const { fsPromises, path } = await this._getModules();
+				const logRetentionDays = getEnv('LOG_RETENTION_DAYS', 2); // JIT retrieval of log retention
 				const files = await fsPromises.readdir(config.logDirectory);
 				const now = Date.now();
-				const cutoff = now - config.logRetentionDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+				const cutoff = now - logRetentionDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
 
 				for (const file of files) {
 					const filePath = path.join(config.logDirectory, file);
@@ -368,10 +406,9 @@ const serverFileOps = isServer
 							// Basic check to ensure it's a rotated log (e.g., app.log.2023-10-26T...)
 							// This regex checks for files named like 'app.log.YYYY-MM-DDTHH-MM-SS-msZ' or 'app.log.YYYY-MM-DDTHH-MM-SS-msZ.gz'
 							const rotatedLogPattern = new RegExp(
-								`^${config.logFileName.replace(/[.*+?^${}()|[\\\]]/g, '\\$&')}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z(\\.gz)?$`
+								`^${config.logFileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z(\\.gz)?$`
 							);
 							if (rotatedLogPattern.test(file)) {
-								console.log(`Deleting old log file: ${filePath}`);
 								await fsPromises.unlink(filePath);
 							}
 						}
@@ -395,24 +432,20 @@ const serverFileOps = isServer
 					const logStream = await this.getLogStream();
 					// Use a promise-based approach for stream writes for better error handling
 					await new Promise<void>((resolve, reject) => {
-						logStream.write(logString, (err: Error | null | undefined) => {
-							if (err) return reject(err);
-							resolve();
-						});
+						logStream.write(logString, (err) => (err ? reject(err) : resolve()));
 					});
 				} catch (fileError) {
 					console.error('Failed to write to log file, attempting recovery:', fileError);
-					this._logStream = null; // Invalidate stream on error to force re-initialization
-
+					if (this._logStream) {
+						this._logStream.destroy();
+						this._logStream = null; // Invalidate stream on error to force re-initialization
+					}
 					try {
 						// Try recreating directory and file, then re-get stream and write
 						await this.initializeLogFile();
 						const logStream = await this.getLogStream();
 						await new Promise<void>((resolve, reject) => {
-							logStream.write(logString, (err: Error | null | undefined) => {
-								if (err) return reject(err);
-								resolve();
-							});
+							logStream.write(logString, (err) => (err ? reject(err) : resolve()));
 						});
 					} catch (recoveryError) {
 						// Fallback to console logging if all else fails
@@ -421,7 +454,7 @@ const serverFileOps = isServer
 							const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
 							const formattedArgs = entry.args.map(formatValue).join(' ');
 							console.log(
-								`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`
+								`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset} ${entry.message} ${formattedArgs}`
 							);
 						}
 					}
@@ -431,7 +464,8 @@ const serverFileOps = isServer
 	: {
 			// Client-side stubs
 			_logStream: null,
-			async _getModules(): Promise<unknown> {
+			_modules: null,
+			async _getModules(): Promise<ServerModules | object> {
 				return {};
 			},
 			async getLogStream(): Promise<unknown> {
@@ -456,7 +490,7 @@ if (isServer && !building) {
 
 	// Set up recurring tasks with better error handling
 	const rotationInterval = setInterval(() => safeExecute(boundCheckAndRotateLogFile), config.logRotationInterval);
-	const dailyCleanupInterval = setInterval(() => safeExecute(boundCleanOldLogFiles), 24 * 60 * 60 * 1000); // Every 24 hours
+	const dailyCleanupInterval = setInterval(() => safeExecute(boundCleanOldLogFiles), 24 * 60 * 60 * 1000);
 
 	// Store intervals globally for cleanup during HMR
 	if (typeof globalThis !== 'undefined') {
@@ -477,13 +511,13 @@ if (isServer && !building) {
 		}
 	};
 
-	// Enhanced signal handling to prevent TTY/readline issues
+	// Signal handling to prevent TTY/readline issues
 	const handleSignal = (signal: string) => {
 		try {
 			cleanup();
 		} catch (error) {
 			// Silently ignore TTY-related errors during cleanup
-			if (error instanceof Error && error.code !== 'EIO') {
+			if (error instanceof Error && 'code' in error && error.code !== 'EIO') {
 				console.error(`Logger cleanup error on ${signal}:`, error);
 			}
 		}
@@ -493,25 +527,23 @@ if (isServer && !building) {
 	process.on('SIGINT', () => handleSignal('SIGINT'));
 	process.on('SIGTERM', () => handleSignal('SIGTERM'));
 
+	const isSystemError = (error: unknown): error is NodeJS.ErrnoException => {
+		return error instanceof Error && 'code' in error;
+	};
+
 	// Handle uncaught exceptions to prevent TTY errors
 	process.on('uncaughtException', (error) => {
 		// Ignore TTY/readline EIO errors that commonly occur when stopping dev servers
-		if (error.code === 'EIO' && error.syscall === 'read') {
-			return;
-		}
+		if (isSystemError(error) && error.code === 'EIO' && error.syscall === 'read') return;
 		// Also ignore Interface/ReadStream errors
-		if (error.message && error.message.includes('Interface instance')) {
-			return;
-		}
+		if (error.message?.includes('Interface instance')) return;
 		console.error('Uncaught exception in logger:', error);
 	});
 
 	// Handle unhandled promise rejections
 	process.on('unhandledRejection', (reason) => {
 		// Ignore TTY-related promise rejections
-		if (reason instanceof Error && reason.code === 'EIO') {
-			return;
-		}
+		if (isSystemError(reason) && reason.code === 'EIO') return;
 		console.error('Unhandled promise rejection in logger:', reason);
 	});
 
@@ -524,21 +556,17 @@ if (isServer && !building) {
 }
 
 // Core Logger Function
-const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void => {
-	if (building) return; // Do not log anything during the build process
-
-	// Only proceed if the log level is enabled
-	if (!isLogLevelEnabled(level)) return;
-
+const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
+	// The initial check is now done in the public interface, so we assume the level is enabled here.
 	const timestamp = getTimestamp();
 	const maskedArgs = args.map(maskSensitiveData);
 	let sourceFile = '';
 
-	// OPTIMIZATION: Only get the stack trace if the level requires it.
+	// Only get the stack trace if the level requires it.
 	if (isServer && config.sourceFileTracking.includes(level)) {
 		try {
 			const stack = new Error().stack || '';
-			const callerLine = stack.split('\n')[3] || ''; // Adjust index based on environment/stack format
+			const callerLine = stack.split('\n')[4] || ''; // Adjusted index because of the new wrapper
 			const match = callerLine.match(/\(([^)]+)\)/) || callerLine.match(/at ([^\s]+)/);
 			if (match && match[1]) {
 				sourceFile = match[1].split('/').pop()?.replace(/[()]/g, '') || '';
@@ -553,23 +581,45 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 		const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
 		const sourceInfo = sourceFile ? `${sourceFile} ` : '';
 		const formattedArgs = maskedArgs.map(formatValue).join(' ');
-		process.stdout.write(`${timestamp} ${sourceInfo}${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${formattedArgs}\n`);
+		process.stdout.write(`${timestamp} ${sourceInfo}${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset} ${message} ${formattedArgs}\n`);
 	}
 
-	state.queue = [...state.queue, { level, message, args: maskedArgs, timestamp: new Date() }];
-	scheduleBatchProcessing();
+	// Batching logic
+	state.queue.push({ level, message, args: maskedArgs, timestamp: new Date() });
+	if (state.queue.length >= config.batchSize) {
+		safeExecute(processBatch);
+	} else {
+		scheduleBatchProcessing();
+	}
 };
 
 // Public Logger Interface
 export const logger = {
-	fatal: (message: string, ...args: LoggableValue[]) => log('fatal', message, ...args),
-	error: (message: string, ...args: LoggableValue[]) => log('error', message, ...args),
-	warn: (message: string, ...args: LoggableValue[]) => log('warn', message, ...args),
-	info: (message: string, ...args: LoggableValue[]) => log('info', message, ...args),
-	debug: (message: string, ...args: LoggableValue[]) => log('debug', message, ...args),
-	trace: (message: string, ...args: LoggableValue[]) => log('trace', message, ...args),
+	// --- Check level *before* calling the internal log function and spreading args ---
+	// Note: building check is now centralized in updateMaxEnabledPriority()
+	fatal: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.fatal.priority <= maxEnabledPriority) log('fatal', message, args);
+	},
+	error: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.error.priority <= maxEnabledPriority) log('error', message, args);
+	},
+	warn: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.warn.priority <= maxEnabledPriority) log('warn', message, args);
+	},
+	info: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.info.priority <= maxEnabledPriority) log('info', message, args);
+	},
+	debug: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.debug.priority <= maxEnabledPriority) log('debug', message, args);
+	},
+	trace: (message: string, ...args: LoggableValue[]) => {
+		if (LOG_LEVEL_MAP.trace.priority <= maxEnabledPriority) log('trace', message, args);
+	},
 
 	// Configuration Methods
+	refreshLogLevels: () => {
+		updateMaxEnabledPriority();
+	},
 	setCustomLogTarget: (target: (level: LogLevel, message: string, args: LoggableValue[]) => void) => {
 		config.customLogTarget = target;
 	},
@@ -592,6 +642,9 @@ export const logger = {
 	setCompressionEnabled: (enabled: boolean) => {
 		config.compressionEnabled = enabled;
 	},
+	setLogRotationInterval: (ms: number) => {
+		config.logRotationInterval = ms;
+	},
 	addLogFilter: (filter: (entry: LogEntry) => boolean) => {
 		config.filters.push(filter);
 	},
@@ -612,13 +665,5 @@ export const logger = {
 	},
 	setSourceFileTracking: (levels: LogLevel[]) => {
 		config.sourceFileTracking = levels;
-	},
-	// New: Set log rotation size
-	setLogRotationSize: (size: number) => {
-		config.logRotationSize = size;
-	},
-	// New: Set log retention days
-	setLogRetentionDays: (days: number) => {
-		config.logRetentionDays = days;
 	}
 };

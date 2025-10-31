@@ -17,7 +17,7 @@ import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
 import type { Theme } from '@src/databases/dbInterface';
 import { json, error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
+import { getPrivateSettingSync } from '@src/services/settingsService';
 
 // Permission checking
 
@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
 	}
 
-	if (privateEnv.MULTI_TENANT && !tenantId) {
+	if (getPrivateSettingSync('MULTI_TENANT') && !tenantId) {
 		throw error(400, 'Tenant could not be identified for this operation.');
 	} // Parse the request body
 
@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// --- MULTI-TENANCY: Scope the query by tenantId ---
 		const query: { name: string; tenantId?: string } = { name: themeName };
-		if (privateEnv.MULTI_TENANT) {
+		if (getPrivateSettingSync('MULTI_TENANT')) {
 			query.tenantId = tenantId;
 		} // Fetch the theme from the database to ensure it exists for the current tenant
 

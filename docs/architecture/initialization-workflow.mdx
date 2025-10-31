@@ -1,0 +1,1923 @@
+---
+path: 'docs/architecture/initialization-workflow.mdx'
+title: 'SveltyCMS Complete Workflow Guide'
+description: 'Comprehensive guide covering installation, initialization, testing, and CI/CD workflows for SveltyCMS'
+order: 10
+icon: 'mdi:workflow'
+author: 'admin'
+created: '2025-10-14'
+updated: '2025-10-25'
+tags:
+  - 'architecture'
+  - 'initialization'
+  - 'setup'
+  - 'workflow'
+  - 'collections'
+  - 'installation'
+  - 'testing'
+  - 'ci-cd'
+---
+
+# SveltyCMS Complete Workflow Guide
+
+This comprehensive guide covers the entire SveltyCMS lifecycle: installation, first-time setup, server restart workflows, testing strategies, and automated CI/CD deployment. The system is designed to be intelligent, avoiding unnecessary recompilation while maintaining UUID consistency for collections.
+
+> **📚 This unified guide replaces:** `installation.mdx`, `testing.mdx`, and `TESTING_GUIDE.md.old`
+
+---
+
+## Table of Contents
+
+### Part I: Installation & Setup
+
+1. [Prerequisites](#prerequisites)
+2. [Quick Installation](#quick-installation)
+3. [Manual Installation](#manual-installation)
+4. [First-Time Setup Flow](#first-time-setup-flow)
+5. [Post-Installation Configuration](#post-installation-configuration)
+
+### Part II: System Architecture
+
+6. [Visual Overview](#visual-overview)
+7. [Server Restart Flow](#server-restart-flow)
+8. [Collection UUID Management](#collection-uuid-management)
+9. [Key Components](#key-components)
+10. [State Machine](#state-machine)
+
+### Part III: Testing & CI/CD
+
+11. [Testing Overview](#testing-overview)
+12. [Unit Testing with Bun](#unit-testing-with-bun)
+13. [E2E Testing with Playwright](#e2e-testing-with-playwright)
+14. [GitHub Actions CI/CD](#github-actions-cicd)
+15. [Automated Setup Scripts](#automated-setup-scripts)
+
+### Part IV: Troubleshooting & Reference
+
+16. [Known Issues](#known-issues)
+17. [Troubleshooting](#troubleshooting)
+18. [Best Practices](#best-practices)
+19. [Quick Reference](#quick-reference)
+
+---
+
+# Part I: Installation & Setup
+
+## Prerequisites
+
+Before installing SveltyCMS, ensure you have the following installed:
+
+### Required Software
+
+#### 1. Node.js (v20.10.0 or higher recommended)
+
+- **Download:** [https://nodejs.org/](https://nodejs.org/)
+- **Check version:** `node --version`
+- **Why:** Runtime environment for JavaScript
+
+#### 2. Package Manager
+
+Choose one of the following:
+
+- **Bun** (recommended for speed)
+  ```bash
+  curl -fsSL https://bun.sh/install | bash
+  ```
+- **npm** (comes with Node.js)
+  ```bash
+  npm --version
+  ```
+- **Yarn**
+  ```bash
+  npm install -g yarn
+  ```
+- **pnpm**
+  ```bash
+  npm install -g pnpm
+  ```
+
+#### 3. Git
+
+- **Download:** [https://git-scm.com/](https://git-scm.com/)
+- **Check version:** `git --version`
+- **Why:** Version control and repository cloning
+
+#### 4. Database
+
+**MongoDB** (recommended for first install)
+
+- **MongoDB Atlas** (cloud): [https://www.mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+- **Local MongoDB**: [https://www.mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+- **Connection string format:**
+  - Local: `mongodb://localhost:27017/sveltycms`
+  - Atlas: `mongodb+srv://username:password@cluster.mongodb.net/dbname`
+
+**MariaDB/MySQL** (alternative)
+
+- **Download:** [https://mariadb.org/download/](https://mariadb.org/download/)
+- **Connection format:** `host:port` (e.g., `localhost:3306`)
+
+---
+
+## Quick Installation
+
+The fastest way to get started with SveltyCMS.
+
+### Step 1: Clone Repository
+
+```bash
+git clone https://github.com/SveltyCMS/SveltyCMS.git
+cd SveltyCMS
+```
+
+### Step 2: Install Dependencies
+
+Choose your package manager:
+
+<details open>
+<summary><b>Bun (fastest)</b></summary>
+
+```bash
+bun install
+bun run dev
+```
+
+</details>
+
+<details>
+<summary><b>npm</b></summary>
+
+```bash
+npm install
+npm run dev
+```
+
+</details>
+
+<details>
+<summary><b>Yarn</b></summary>
+
+```bash
+yarn install
+yarn dev
+```
+
+</details>
+
+<details>
+<summary><b>pnpm</b></summary>
+
+```bash
+pnpm install
+pnpm dev
+```
+
+</details>
+
+### Step 3: Setup Wizard
+
+The setup wizard launches automatically on first run at `http://localhost:5173/setup`:
+
+1. **Database Configuration**
+   - Choose: MongoDB, MariaDB, or PostgreSQL
+   - Enter connection details
+   - Test connection automatically
+
+2. **Database Driver Installation**
+   - Automatically installs required drivers
+   - Detects your package manager
+   - Handles dependencies
+
+3. **System Language Selection**
+   - Choose default language
+   - Configures internationalization
+
+4. **Initial Data Seeding**
+   - Seeds system settings (53 keys)
+   - Creates default theme
+   - Sets up base configuration
+
+5. **Admin User Creation**
+   - Set admin email
+   - Create secure password
+   - Generate session secrets
+
+6. **Completion**
+   - Builds and starts development server
+   - Opens CMS dashboard automatically
+   - No server restart required! ✨
+
+---
+
+## Manual Installation
+
+For advanced users who need more control over the installation process.
+
+### Step 1: Clone and Install
+
+```bash
+git clone https://github.com/SveltyCMS/SveltyCMS.git
+cd SveltyCMS
+bun install  # or npm/yarn/pnpm
+```
+
+### Step 2: Install Database Driver
+
+Install the driver for your chosen database:
+
+```bash
+# MongoDB
+bun add mongoose
+
+# MariaDB/MySQL
+bun add mariadb
+
+# PostgreSQL (when available)
+bun add pg
+```
+
+### Step 3: Create Environment File
+
+Create `config/private.ts` in the project root:
+
+```typescript
+import { createPrivateConfig } from '../src/utils/config';
+
+export const privateEnv = createPrivateConfig({
+	// Database Configuration
+	DB_TYPE: 'mongodb',
+	DB_HOST: 'localhost',
+	DB_PORT: 27017,
+	DB_NAME: 'sveltycms',
+	DB_USER: 'admin',
+	DB_PASSWORD: 'your_secure_password',
+
+	// Security (generate with: openssl rand -hex 32)
+	JWT_SECRET_KEY: 'your_generated_secret_here',
+	ENCRYPTION_KEY: 'your_encryption_key_here',
+
+	// Multi-Tenancy (optional)
+	MULTI_TENANT: false
+});
+```
+
+**Generate Secure Secrets:**
+
+```bash
+# Using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Using OpenSSL
+openssl rand -base64 32
+```
+
+### Step 4: Test Database Connection
+
+Start the development server and test the connection:
+
+```bash
+bun run dev
+```
+
+Visit `http://localhost:5173/setup` or use the API directly:
+
+```bash
+curl -X POST http://localhost:5173/api/setup/test-database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "mongodb",
+    "host": "localhost",
+    "port": 27017,
+    "name": "sveltycms",
+    "user": "admin",
+    "password": "your_password"
+  }'
+```
+
+### Step 5: Seed Initial Data
+
+Run the seed script or use the API:
+
+```bash
+# Using seed script (recommended for CI/CD)
+bun run scripts/seed-cms.js
+
+# Or through the setup wizard at /setup
+```
+
+### Step 6: Create Admin User
+
+```bash
+# Using create-admin script (recommended for CI/CD)
+bun run scripts/create-admin.js
+
+# Or through the setup wizard at /setup
+```
+
+---
+
+## Post-Installation Configuration
+
+After completing installation, configure your SveltyCMS instance:
+
+### 1. Login to Admin Panel
+
+Visit `http://localhost:5173/admin` (or your custom URL) and login with your admin credentials.
+
+### 2. Configure System Settings
+
+Navigate to **Settings** and configure:
+
+- **Site Information**: Name, description, URL
+- **Default Language**: Choose primary language
+- **Theme Preferences**: Light/dark mode, accent colors
+- **Email Settings**: SMTP configuration for notifications
+- **Cache Settings**: Enable/disable caching, Redis configuration
+
+### 3. Create Collections
+
+Navigate to **Collections** to:
+
+- Create content collections (Posts, Pages, etc.)
+- Define field schemas
+- Set up relationships between collections
+- Configure permissions
+
+### 4. Set Up Users
+
+Navigate to **Users** to:
+
+- Create additional user accounts
+- Assign roles (admin, editor, viewer)
+- Configure permissions
+- Manage user sessions
+
+### 5. Install Widgets
+
+Navigate to **Widgets** to:
+
+- Browse available widgets
+- Install additional functionality
+- Activate required widgets
+- Configure widget settings
+
+---
+
+## Development & Production
+
+### Development Server
+
+Start the development server with hot module reload:
+
+```bash
+# Using Bun (recommended)
+bun run dev
+
+# Using npm
+npm run dev
+
+# Using Yarn
+yarn dev
+
+# Using pnpm
+pnpm dev
+```
+
+The server will start at:
+
+- **Frontend:** `http://localhost:5173`
+- **Admin Panel:** `http://localhost:5173/admin`
+- **API:** `http://localhost:5173/api`
+- **GraphQL:** `http://localhost:5173/api/graphql`
+
+### Production Build
+
+Build for production:
+
+```bash
+# Build
+bun run build
+
+# Preview production build
+bun run preview
+```
+
+### Deployment Options
+
+#### Vercel
+
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+#### Netlify
+
+```bash
+npm install -g netlify-cli
+netlify deploy --prod
+```
+
+#### Docker
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["node", "build"]
+```
+
+```bash
+docker build -t sveltycms .
+docker run -p 3000:3000 --env-file .env sveltycms
+```
+
+#### Traditional Server (PM2)
+
+```bash
+npm install -g pm2
+npm run build
+pm2 start build/index.js --name sveltycms
+pm2 save
+pm2 startup
+```
+
+### Production Environment Variables
+
+Ensure these are set in production:
+
+```bash
+NODE_ENV=production
+SITE_URL=https://your-domain.com
+PUBLIC_URL=https://your-domain.com
+
+# Use strong secrets!
+JWT_SECRET_KEY=<generate-with-openssl-rand-base64-32>
+ENCRYPTION_KEY=<generate-with-openssl-rand-base64-32>
+```
+
+---
+
+## Directory Structure
+
+After installation, your project structure:
+
+```
+SveltyCMS/
+├── build/                      # Production build output
+├── config/                     # Configuration files
+│   ├── private.ts             # Database credentials (auto-generated)
+│   ├── roles.ts               # Role definitions
+│   └── collections/           # Collection schemas (user-created)
+├── compiledCollections/        # Compiled collections (auto-generated)
+│   ├── Collections/
+│   └── Menu/
+├── docs/                       # Documentation
+├── scripts/                    # Automation scripts
+│   ├── seed-cms.js            # Database seeding script
+│   └── create-admin.js        # Admin user creation script
+├── src/
+│   ├── routes/                # SvelteKit routes
+│   │   ├── admin/            # Admin panel
+│   │   ├── api/              # API endpoints
+│   │   └── setup/            # Setup wizard
+│   ├── databases/             # Database adapters
+│   ├── widgets/               # Widget system
+│   ├── components/            # Svelte components
+│   ├── stores/                # Svelte stores
+│   └── utils/                 # Utility functions
+├── static/                     # Static assets
+├── tests/                      # Test files
+│   ├── bun/                   # Unit tests
+│   └── playwright/            # E2E tests
+├── .github/
+│   └── workflows/             # GitHub Actions
+│       ├── playwright.yml     # Test workflow
+│       └── auto-release.yaml  # Release workflow
+├── package.json
+├── svelte.config.js
+├── tailwind.config.ts
+├── playwright.config.ts
+├── bunfig.toml
+└── tsconfig.json
+```
+
+---
+
+---
+
+# Part II: System Architecture
+
+## Visual Overview
+
+### Complete System Lifecycle
+
+```mermaid
+graph TB
+    subgraph "First-Time Setup"
+        A1[Fresh Install] -->|No private.ts| A2[Vite: Setup Mode]
+        A2 --> A3[Create Blank Config]
+        A3 --> A4[Open /setup Wizard]
+        A4 --> A5[User: Enter DB Config]
+        A5 --> A6[API: test-database]
+        A6 -->|✓ Valid| A7[User: Select Language]
+        A7 --> A8[API: seed]
+        A8 --> A9[Write Credentials]
+        A8 --> A10[Seed Settings/Themes]
+        A8 --> A11[Create Collections]
+        A11 --> A12[User: Admin Form]
+        A12 --> A13[API: complete]
+        A13 --> A14[Create Admin + Session]
+        A13 --> A15[Init Global System]
+        A13 --> A16[ContentManager Init]
+        A16 --> A17[READY State]
+    end
+
+    subgraph "Server Restart"
+        B1[Server Start] -->|private.ts exists| B2[Vite: Normal Mode]
+        B2 --> B3[Scan Compiled Collections]
+        B3 --> B4{For Each Collection}
+        B4 --> B5{Hash Changed?}
+        B5 -->|No| B6[Skip - Preserve UUID]
+        B5 -->|Yes| B7[Recompile - Keep UUID]
+        B6 --> B8[First Request]
+        B7 --> B8
+        B8 --> B9[handleSystemState]
+        B9 --> B10[dbInitPromise]
+        B10 --> B11[Connect Database]
+        B11 --> B12[Load Settings]
+        B12 --> B13[Init Services]
+        B13 --> B14[READY State]
+    end
+
+    A17 -.->|Restart Server| B1
+
+    style A1 fill:#f0f0f0,stroke:#333,stroke-width:3px
+    style A4 fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style A8 fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style A13 fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style A17 fill:#d0d0d0,stroke:#333,stroke-width:4px
+    style B1 fill:#f0f0f0,stroke:#333,stroke-width:3px
+    style B7 fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style B14 fill:#d0d0d0,stroke:#333,stroke-width:4px
+```
+
+### First-Time Setup Architecture
+
+```mermaid
+graph TB
+    A[Vite Startup] -->|No private.ts| B[setupWizardPlugin]
+    B --> C[Create Blank private.ts]
+    B --> D[Compile Collections]
+    B --> E[Open /setup in Browser]
+
+    E --> F[User: DB Config]
+    F --> G[API: test-database]
+    G -->|Success| H[User: System Language]
+
+    H --> I[API: seed]
+    I --> J[Write private.ts]
+    I --> K[Seed Settings]
+    I --> L[Seed Themes]
+    I --> M[Seed Collections]
+
+    M --> N[User: Admin Form]
+    N --> O[API: complete]
+    O --> P[Create Admin User]
+    O --> Q[Initialize Global System]
+    O --> R[Initialize ContentManager]
+    O --> S[Set Session Cookie]
+
+    S --> T[Redirect to CMS]
+
+    style A fill:#f0f0f0,stroke:#333,stroke-width:3px
+    style E fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style I fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style O fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style T fill:#d0d0d0,stroke:#333,stroke-width:4px
+```
+
+### Server Restart Architecture
+
+```mermaid
+graph TB
+    A[Vite Startup] -->|private.ts exists| B[cmsWatcherPlugin]
+    B --> C[Scan Compiled Collections]
+    C --> D{For Each Collection}
+
+    D --> E{Hash Changed?}
+    E -->|No| F[Skip Compilation]
+    E -->|Yes| G[Recompile]
+
+    F --> H[Preserve UUID]
+    G --> H
+
+    H --> I[First HTTP Request]
+    I --> J[handleSystemState]
+    J --> K[dbInitPromise]
+    K --> L[Load private.ts]
+    K --> M[Connect to Database]
+    K --> N[Load Settings]
+    K --> O[Initialize Services]
+
+    O --> P[READY State]
+    P --> Q[ContentManager Auto-Init]
+    Q --> R[Register Collections]
+
+    style A fill:#f0f0f0,stroke:#333,stroke-width:3px
+    style B fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style G fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style H fill:#d0d0d0,stroke:#333,stroke-width:3px
+    style P fill:#d0d0d0,stroke:#333,stroke-width:4px
+```
+
+---
+
+## First-Time Setup Flow
+
+### Phase 1: Vite Startup (Build Time)
+
+**File: `vite.config.ts`**
+
+```mermaid
+sequenceDiagram
+    participant Vite
+    participant FS as Filesystem
+    participant Browser
+
+    Note over Vite: Startup Check
+    Vite->>FS: Check config/private.ts exists?
+    FS-->>Vite: ❌ Not found
+
+    Note over Vite: Setup Mode Activated
+    Vite->>FS: Create blank private.ts
+    Vite->>FS: Create placeholder collections
+    Vite->>FS: Compile any existing collections
+
+    Note over Vite: Open Setup Wizard
+    Vite->>Browser: Open http://localhost:5173/setup
+
+    Note over Browser: User sees setup wizard
+```
+
+**Created `config/private.ts`:**
+
+```typescript
+export const privateEnv = createPrivateConfig({
+	DB_TYPE: 'mongodb',
+	DB_HOST: '', // ← Empty values
+	DB_PORT: 27017,
+	DB_NAME: '', // ← Empty values
+	DB_USER: '',
+	DB_PASSWORD: '',
+	JWT_SECRET_KEY: '', // ← Empty
+	ENCRYPTION_KEY: '', // ← Empty
+	MULTI_TENANT: false
+});
+```
+
+### Phase 2: Server Hooks (Runtime)
+
+**File: `src/hooks.server.ts`**
+
+> **📚 For detailed middleware architecture, see [Server Hooks & Middleware](./server-hooks.mdx)**
+
+```mermaid
+flowchart TB
+    A[Incoming Request] --> B{handleSystemState}
+    B -->|System: IDLE| C{handleSetup}
+
+    C -->|Check Config| D{private.ts valid?}
+    D -->|No DB creds| E[isSetupComplete = false]
+
+    E --> F{Path check}
+    F -->|/setup or /api/setup| G[Allow Request]
+    F -->|Other paths| H[Redirect to /setup]
+
+    C -->|Check Database| I{hasAdminUsers?}
+    I -->|No| E
+    I -->|Yes| J[Allow Request - Setup Complete]
+
+    style E fill:#d0d0d0,stroke:#333,stroke-width:3px
+    style G fill:#e0e0e0,stroke:#333,stroke-width:2px
+    style J fill:#e0e0e0,stroke:#333,stroke-width:2px
+```
+
+### Phase 3: Setup GUI Interaction
+
+**File: `src/routes/setup/+page.svelte`**
+
+```mermaid
+stateDiagram-v2
+    [*] --> DatabaseConfig: Step 1
+    DatabaseConfig --> DatabaseTest: User fills DB form
+    DatabaseTest --> SystemLanguage: Test passed ✓
+    SystemLanguage --> SeedData: Language selected
+    SeedData --> AdminUser: Database seeded ✓
+    AdminUser --> Complete: Admin form submitted
+    Complete --> [*]: Redirect to CMS
+
+    DatabaseTest --> DatabaseConfig: Test failed ✗
+
+    note right of DatabaseTest
+        POST /api/setup/test-database
+        - Validates connection
+        - Installs drivers if needed
+    end note
+
+    note right of SeedData
+        POST /api/setup/seed
+        - Writes private.ts
+        - Seeds settings/themes
+        - Creates collections
+    end note
+
+    note right of Complete
+        POST /api/setup/complete
+        - Creates admin user
+        - Initializes system
+        - Sets session cookie
+    end note
+```
+
+User completes setup wizard:
+
+```
+Step 1: Database Configuration
+  ↓
+Step 2: Database Test → /api/setup/test-database
+  ↓
+Step 3: System Language Selection
+  ↓
+Step 4: Seed Data → /api/setup/seed
+  ↓
+Step 5: Admin User Creation → /api/setup/complete
+```
+
+---
+
+### Phase 4: Database Test
+
+**Endpoint: `/api/setup/test-database/+server.ts`**
+
+```mermaid
+sequenceDiagram
+    participant Client as Browser
+    participant API as /api/setup/test-database
+    participant PM as Package Manager
+    participant Mongoose
+    participant DB as MongoDB
+
+    Client->>API: POST {host, port, name, user, pass}
+
+    Note over API: Check Driver
+    API->>Mongoose: Try import mongoose
+
+    alt Driver Missing
+        API->>PM: Detect package manager (bun/npm/pnpm/yarn)
+        API->>PM: Install mongoose
+        PM-->>API: Installation complete
+    end
+
+    Note over API: Build Connection
+    API->>API: buildConnectionString()
+
+    Note over API: Test Connection
+    API->>DB: Connect with 15s timeout
+
+    alt Success
+        DB-->>API: Connected ✓
+        API->>DB: Authenticate
+        DB-->>API: Auth OK ✓
+        API->>DB: Get database stats
+        DB-->>API: {collections: 0, dataSize: 0}
+        API-->>Client: {success: true, details: {...}}
+    else Failure
+        DB-->>API: Connection error
+        API-->>Client: {success: false, error: "..."}
+    end
+```
+
+```typescript
+POST /api/setup/test-database
+Body: {
+  type: "mongodb",
+  host: "localhost",
+  port: 27017,
+  name: "sveltycms",
+  user: "admin",
+  password: "secret123"
+}
+```
+
+**Process:**
+
+1. Detects package manager (bun/npm/pnpm/yarn)
+2. Installs MongoDB driver if missing (`mongoose`)
+3. Builds connection string
+4. Tests connection with 15s timeout
+5. Returns detailed validation results
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"message": "Connection successful",
+	"details": {
+		"authenticated": true,
+		"dbStats": { "collections": 0, "dataSize": 0 },
+		"warnings": []
+	}
+}
+```
+
+---
+
+### Phase 5: Seed Database
+
+**Endpoint: `/api/setup/seed/+server.ts`**
+
+Called when user clicks "Next" after successful DB test.
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 1. Write config/private.ts                         │
+│    - Writes DB credentials from test step          │
+│    - Generates JWT_SECRET_KEY (32 bytes base64)    │
+│    - Generates ENCRYPTION_KEY (32 bytes base64)    │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 2. Initialize database adapter (setup mode)        │
+│    - getSetupDatabaseAdapter(dbConfig)             │
+│    - Creates MongoDBAdapter                        │
+│    - Connects to database                          │
+│    - Calls setupAuthModels()                       │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 3. Seed default data (seed.ts)                     │
+│    A. seedSettings(adapter)                        │
+│       - Creates system_settings collection         │
+│       - Seeds defaultPublicSettings (53 keys)      │
+│       - Seeds defaultPrivateSettings (23 keys)     │
+│    B. seedDefaultTheme(adapter)                    │
+│       - Creates system_themes collection           │
+│       - Seeds SveltyCMSTheme                       │
+│    C. seedCollectionsForSetup(adapter) ⚠️          │
+│       - Scans compiledCollections folder           │
+│       - Creates collection models in MongoDB       │
+│       - Returns firstCollection info               │
+└─────────────────────────────────────────────────────┘
+```
+
+**Key Function: `seedCollectionsForSetup()`**
+
+```typescript
+// File: src/routes/api/setup/seed.ts
+
+export async function seedCollectionsForSetup(dbAdapter) {
+	// 1. Scan filesystem for compiled collections
+	const { scanCompiledCollections } = await import('@src/content/collectionScanner');
+	const collections = await scanCompiledCollections();
+
+	// 2. Register each collection as a model
+	for (const schema of collections) {
+		await dbAdapter.collection.createModel(schema);
+		// ⚠️ Creates MongoDB collection: collection_<uuid>
+	}
+
+	// 3. Return first collection for fast redirect
+	return { firstCollection: { name: 'Posts', path: '/Collections/Posts' } };
+}
+```
+
+**Database Collections Created:**
+
+```
+system_settings          ← Public/private settings
+system_themes            ← Theme configurations
+system_content_structure ← Navigation/hierarchy (empty for now)
+collection_<uuid_1>      ← First collection (e.g., Posts)
+collection_<uuid_2>      ← Second collection (e.g., Names)
+```
+
+⚠️ **KNOWN ISSUE:** Only one `collection_<uuid>` table gets created instead of one per collection. This may be due to async race conditions in the `createModel()` method.
+
+---
+
+### Phase 6: Complete Setup
+
+**Endpoint: `/api/setup/complete/+server.ts`**
+
+Called when user submits admin user form.
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 1. Parse private.ts from filesystem                 │
+│    - Bypasses Vite's import cache                  │
+│    - Uses regex to extract config values           │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 2. Create setup database adapter                   │
+│    - getSetupDatabaseAdapter(dbConfig)             │
+│    - Creates Auth instance                         │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 3. Create admin user + session (single transaction)│
+│    - setupAuth.createUserAndSession({              │
+│        username, email, password,                  │
+│        role: 'admin', isRegistered: true           │
+│      })                                            │
+│    - Inserts into auth_users collection           │
+│    - Creates session in auth_sessions collection  │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 4. Initialize global system (db.ts)               │
+│    - initializeWithFreshConfig()                   │
+│    - Reloads private.ts from filesystem            │
+│    - Connects global dbAdapter                     │
+│    - Loads settings from database                  │
+│    - Initializes ThemeManager                      │
+│    - Initializes MediaFolder                       │
+│    - State: IDLE → INITIALIZING → READY           │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 5. Initialize ContentManager                       │
+│    - contentManager.initialize(undefined, true)    │
+│    - Loads collections from database               │
+│    - Builds content structure cache                │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 6. Invalidate caches                               │
+│    - invalidateSettingsCache()                     │
+│    - invalidateSetupCache()                        │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 7. Send welcome email (optional, non-fatal)       │
+│    - POST /api/sendMail                            │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 8. Set session cookie                              │
+│    - Creates httpOnly session cookie               │
+│    - Sets theme cookies                            │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 9. Return redirect path                            │
+│    - Uses firstCollection from seed step (fast!)  │
+│    - Redirects to /{lang}/{firstCollection.path}  │
+│    - NO SERVER RESTART REQUIRED! ✨                │
+└─────────────────────────────────────────────────────┘
+```
+
+**Response:**
+
+```json
+{
+	"success": true,
+	"message": "Setup complete! Welcome to SveltyCMS! 🎉",
+	"redirectPath": "/en/Collections/Posts",
+	"loggedIn": true,
+	"requiresHardReload": false,
+	"requiresServerRestart": false
+}
+```
+
+---
+
+## Server Restart Flow
+
+### Phase 1: Vite Startup (Build Time)
+
+**File: `vite.config.ts`**
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 1. Vite starts                                      │
+│    - Checks if config/private.ts exists            │
+│    - isSetupComplete() → true (config exists +     │
+│      has valid DB credentials)                     │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 2. cmsWatcherPlugin() activates                     │
+│    - Initializes collection structure              │
+│    - Compiles collections intelligently            │
+│    - Sets up file watchers                         │
+└─────────────────────────────────────────────────────┘
+```
+
+### Phase 2: Intelligent Collection Compilation
+
+**File: `src/utils/compilation/compile.ts`**
+
+The compilation system uses **content hashing** and **UUID preservation** to avoid unnecessary recompilation:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 1. Scan existing compiled collections              │
+│    - Builds map: path → { jsPath, uuid, hash }    │
+│    - Extracts UUID and hash from JS files          │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 2. Scan source collections (config/collections)    │
+│    - Gets list of .ts files                        │
+│    - Calculates content hash for each              │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 3. Smart recompilation decision                    │
+│    For each collection:                            │
+│    IF hash matches existing compiled file          │
+│      → SKIP (no changes detected)                  │
+│      → PRESERVE existing UUID                      │
+│    ELSE                                            │
+│      → RECOMPILE                                   │
+│      → PRESERVE existing UUID (if found)           │
+│      → GENERATE new UUID (if new file)             │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 4. AST transformation                              │
+│    - Converts TypeScript to JavaScript             │
+│    - Adds .js extensions to imports                │
+│    - Injects _id (UUID) into schema                │
+│    - Injects __HASH__ comment                      │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 5. Cleanup orphaned files                          │
+│    - Removes .js files without .ts source          │
+│    - Removes empty directories                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Example Compiled Collection:**
+
+```javascript
+// compiledCollections/Collections/Posts.js
+// __HASH__:a7f3e9c2d8b1f4a6e3c9d2b8f1a4e6c3
+
+export const schema = {
+	_id: '550e8400-e29b-41d4-a716-446655440000', // ← UUID preserved!
+	name: 'Posts',
+	icon: 'bi:file-text',
+	fields: [
+		{ label: 'Title', db_fieldName: 'title', widget: 'text' },
+		{ label: 'Content', db_fieldName: 'content', widget: 'richtext' }
+	]
+};
+```
+
+### Phase 3: Server Initialization
+
+**File: `src/hooks.server.ts` + `src/databases/db.ts`**
+
+```
+┌─────────────────────────────────────────────────────┐
+│ handleSystemState                                   │
+│  - System state: IDLE                              │
+│  - First request triggers: await dbInitPromise     │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ initializeOnRequest() (db.ts)                       │
+│  1. Load private config (privateEnv)               │
+│  2. Connect to database                            │
+│  3. Load adapters (MongoDBAdapter)                 │
+│  4. Setup auth models                              │
+│  5. Load settings from database                    │
+│  6. Initialize default theme                       │
+│  7. Initialize theme manager                       │
+│  8. Initialize media folder                        │
+│  9. Initialize virtual folders                     │
+│  State: IDLE → INITIALIZING → READY               │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ ContentManager auto-initializes on first access    │
+│  - Scans compiledCollections                       │
+│  - Registers collection models in database         │
+│  - Builds content structure cache                  │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Collection UUID Management
+
+### UUID Assignment Strategy
+
+**The Problem:**
+Collections need stable, persistent IDs for:
+
+- Database table names (`collection_<uuid>`)
+- Content references (foreign keys)
+- API routes
+- Permissions/roles
+
+**The Solution:**
+UUIDs are assigned **once** at compilation and **preserved** across restarts.
+
+### UUID Lifecycle
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 1. New Collection Created                          │
+│    config/collections/Posts.ts                     │
+│    export const schema = { name: "Posts", ... }    │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 2. First Compilation                               │
+│    - Generates new UUID                            │
+│    - Injects into schema._id                       │
+│    - Saves to compiledCollections/Collections/     │
+│      Posts.js                                      │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 3. Collection Modified                             │
+│    config/collections/Posts.ts changed             │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 4. Smart Recompilation                             │
+│    - Detects hash change                           │
+│    - PRESERVES existing UUID from compiled file    │
+│    - Recompiles with same UUID                     │
+└─────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────┐
+│ 5. Server Restart                                  │
+│    - Reads compiled collections                    │
+│    - UUIDs remain stable                           │
+│    - Database tables remain consistent             │
+└─────────────────────────────────────────────────────┘
+```
+
+### UUID Extraction Logic
+
+**File: `src/utils/compilation/compile.ts`**
+
+```typescript
+// Extract UUID from compiled JS file
+function extractUUIDFromJs(content: string): string | null {
+	const match = content.match(/_id:\s*["']([^"']+)["']/);
+	return match ? match[1] : null;
+}
+
+// Extract hash from compiled JS file
+function extractHashFromJs(content: string): string | null {
+	const match = content.match(/__HASH__:(\w+)/);
+	return match ? match[1] : null;
+}
+```
+
+**AST Transformation:**
+
+```typescript
+// Injects UUID into schema during compilation
+const schemaUuidTransformer =
+	(uuid: string): ts.TransformerFactory<ts.SourceFile> =>
+	(context) =>
+	(sourceFile) => {
+		// Finds: export const schema = { ... }
+		// Injects: _id: "uuid-here"
+		// Result: export const schema = { _id: "uuid-here", ... }
+	};
+```
+
+---
+
+## Key Components
+
+### 1. Configuration Files
+
+| File                          | Purpose                                  | Created When                                 |
+| ----------------------------- | ---------------------------------------- | -------------------------------------------- |
+| `config/private.ts`           | Database credentials, security keys      | Vite startup (empty) → Seed step (populated) |
+| `config/collections/*.ts`     | Collection definitions (TypeScript)      | User-created                                 |
+| `compiledCollections/**/*.js` | Compiled collections (JavaScript + UUID) | Build time                                   |
+
+### 2. API Endpoints
+
+| Endpoint                   | Purpose                                | Called When           |
+| -------------------------- | -------------------------------------- | --------------------- |
+| `/api/setup/test-database` | Validates DB connection                | Setup wizard (Step 2) |
+| `/api/setup/seed`          | Seeds settings, themes, collections    | Setup wizard (Step 4) |
+| `/api/setup/complete`      | Creates admin user, initializes system | Setup wizard (Step 5) |
+
+### 3. Hooks & Middleware
+
+| Hook                   | Purpose                            | Order |
+| ---------------------- | ---------------------------------- | ----- |
+| `handleSystemState`    | Blocks requests if system FAILED   | 1st   |
+| `handleSetup`          | Redirects to /setup if incomplete  | 2nd   |
+| `handleAuthentication` | Validates session, identifies user | 6th   |
+
+### 4. Core Services
+
+| Service           | Purpose                      | File                              |
+| ----------------- | ---------------------------- | --------------------------------- |
+| `dbAdapter`       | Database abstraction layer   | `src/databases/db.ts`             |
+| `ContentManager`  | Collection management        | `src/content/ContentManager.ts`   |
+| `Auth`            | Authentication/authorization | `src/databases/auth/index.ts`     |
+| `SettingsService` | Settings cache management    | `src/services/settingsService.ts` |
+
+---
+
+## State Machine
+
+### System States
+
+```
+IDLE → INITIALIZING → READY → DEGRADED → FAILED
+  ↑                      ↓
+  └──────────────────────┘
+         (reinit)
+```
+
+| State            | Description                           | Allowed Routes                    |
+| ---------------- | ------------------------------------- | --------------------------------- |
+| **IDLE**         | No valid config or not initialized    | `/setup`, `/api/setup`, `/static` |
+| **INITIALIZING** | Loading config, connecting to DB      | `/api/system/health`              |
+| **READY**        | Fully operational                     | All routes                        |
+| **DEGRADED**     | Some services failed, but operational | All routes (with warnings)        |
+| **FAILED**       | Critical failure, unusable            | None (503 errors)                 |
+
+### Transition Triggers
+
+```typescript
+// File: src/stores/system.ts
+
+export function transitionTo(newState: SystemState, reason?: string) {
+	const oldState = state.overallState;
+	state.overallState = newState;
+	state.performanceMetrics.stateTransitions.push({
+		from: oldState,
+		to: newState,
+		timestamp: Date.now(),
+		reason
+	});
+}
+```
+
+---
+
+## Known Issues
+
+### Issue #1: Collection UUID Tables
+
+**Problem:**
+During `seedCollectionsForSetup()`, only one `collection_<uuid>` table gets created in MongoDB instead of one per collection.
+
+**Expected Behavior:**
+
+```
+collection_550e8400-e29b-41d4-a716-446655440000  (Posts)
+collection_7c9e6679-7425-40de-944b-e07fc1f90ae7  (Names)
+collection_a8098c1a-f86e-11da-bd1a-00112444be1e  (WidgetTest)
+```
+
+**Actual Behavior:**
+
+```
+collection_550e8400-e29b-41d4-a716-446655440000  (Only one table)
+```
+
+**Root Cause (Suspected):**
+
+1. **Race Condition:** Multiple `createModel()` calls execute in parallel without proper locking
+2. **Mongoose Model Registry:** Mongoose may be caching models by name, causing conflicts
+3. **MongoDB Collection Creation:** MongoDB creates collections lazily on first insert, but the model registration may be conflicting
+
+**Location:**
+
+```typescript
+// File: src/routes/api/setup/seed.ts
+
+for (const schema of collections) {
+	await dbAdapter.collection.createModel(schema);
+	// ⚠️ Potential race condition here
+}
+```
+
+**Suggested Fix:**
+
+```typescript
+// Add mutex or serial execution
+const results = [];
+for (const schema of collections) {
+	const result = await dbAdapter.collection.createModel(schema);
+	results.push(result);
+	// Add small delay to avoid race conditions
+	await new Promise((resolve) => setTimeout(resolve, 100));
+}
+```
+
+**Alternative Fix (Better):**
+
+```typescript
+// Use batch operation with proper transaction
+await dbAdapter.collection.createModels(collections);
+// Implement atomic batch creation in MongoCollectionMethods
+```
+
+### Issue #2: Vite Cache Invalidation
+
+**Problem:**
+After `writePrivateConfig()` creates/updates `config/private.ts`, Vite's import cache may serve the old version.
+
+**Current Workaround:**
+
+- `/api/setup/complete` reads private.ts directly from filesystem using `fs.readFile()`
+- Bypasses Vite's import cache with regex parsing
+- `initializeWithFreshConfig()` forces fresh import with dynamic import
+
+**Better Solution:**
+
+- Implement proper Vite HMR invalidation for config files
+- Use Vite's `server.moduleGraph.invalidateModule()` API
+
+---
+
+## Flow Diagrams
+
+### First-Time Setup (Complete Flow)
+
+```mermaid
+sequenceDiagram
+    participant V as Vite
+    participant H as Hooks
+    participant U as User (Browser)
+    participant API as Setup API
+    participant DB as Database
+    participant CM as ContentManager
+
+    V->>V: Check private.ts (missing)
+    V->>V: Create blank private.ts
+    V->>V: Compile collections
+    V->>U: Open /setup in browser
+
+    U->>API: POST /api/setup/test-database
+    API->>DB: Test connection
+    DB-->>API: Success
+    API-->>U: Connection valid
+
+    U->>API: POST /api/setup/seed
+    API->>API: Write private.ts (with credentials)
+    API->>DB: Seed settings
+    API->>DB: Seed themes
+    API->>DB: Seed collections (create models)
+    API-->>U: Seed complete + firstCollection
+
+    U->>API: POST /api/setup/complete
+    API->>DB: Create admin user + session
+    API->>API: initializeWithFreshConfig()
+    API->>CM: Initialize ContentManager
+    API->>API: Invalidate caches
+    API-->>U: Setup complete + redirect + session cookie
+
+    U->>H: GET /en/Collections/Posts
+    H->>H: handleSetup: isSetupComplete() → true
+    H->>CM: Load collection
+    CM-->>U: Render collection view
+```
+
+### Server Restart (Smart Compilation)
+
+```mermaid
+sequenceDiagram
+    participant V as Vite
+    participant FS as Filesystem
+    participant CM as Compilation
+    participant DB as Database
+
+    V->>V: Check private.ts (exists + valid)
+    V->>CM: Trigger intelligent compilation
+
+    CM->>FS: Scan compiledCollections/
+    FS-->>CM: {path → {jsPath, uuid, hash}}
+
+    CM->>FS: Scan config/collections/
+    FS-->>CM: List of .ts files
+
+    loop For each collection
+        CM->>CM: Calculate content hash
+        alt Hash matches
+            CM->>CM: SKIP (no changes)
+        else Hash differs
+            CM->>CM: RECOMPILE
+            CM->>CM: PRESERVE UUID
+            CM->>FS: Write updated .js file
+        end
+    end
+
+    CM->>V: Compilation complete
+    V->>DB: Initialize database connection
+    V->>CM: Initialize ContentManager
+    CM->>DB: Register collection models
+```
+
+---
+
+## Best Practices
+
+### For Developers
+
+1. **Never manually edit compiled collections** (`compiledCollections/`)
+   - Always edit source files (`config/collections/`)
+   - Let the compilation system handle UUID preservation
+
+2. **Don't delete compiled collections during development**
+   - UUIDs would be regenerated, breaking database references
+   - Use `git clean` carefully
+
+3. **Use content hashing for change detection**
+   - The system automatically detects changes via SHA-256 hash
+   - No manual intervention needed
+
+### For System Administrators
+
+1. **Backup compiled collections before migrations**
+
+   ```bash
+   tar -czf compiledCollections.backup.tar.gz compiledCollections/
+   ```
+
+2. **Database migrations preserve UUIDs**
+   - Collection IDs are stored in `_id` field
+   - Never modify `_id` in database or compiled files
+
+3. **Setup completion is atomic**
+   - If setup fails, system reverts to setup mode
+   - No partial state left behind
+
+---
+
+# Part III: Testing & CI/CD
+
+## Testing Overview
+
+SveltyCMS uses a comprehensive testing strategy to ensure code quality across all environments.
+
+### Testing Layers
+
+- ✅ **E2E Tests (Playwright)** - Full user workflows, browser automation
+- ✅ **Integration Tests** - API endpoints, database operations
+- ✅ **Unit Tests (Bun)** - Components, utilities, functions
+- ✅ **CI/CD Automation** - GitHub Actions for testing and releases
+
+### Test Coverage
+
+- ✅ Authentication flows (Email, OAuth, 2FA)
+- ✅ User management (CRUD, permissions, roles)
+- ✅ Collection management (Builder, CRUD, relationships)
+- ✅ All 95+ API endpoints tested
+- ✅ UI components and stores
+- ✅ Database operations
+
+---
+
+## Unit Testing with Bun
+
+### Running Bun Tests
+
+```bash
+# Run all tests
+bun test
+
+# Run specific test
+bun test tests/bun/api/auth.test.ts
+
+# Watch mode
+bun test --watch
+
+# With coverage
+bun test --coverage
+```
+
+### Test Structure
+
+```
+tests/bun/
+├── api/                # API endpoint tests
+├── auth/               # Authentication tests
+├── widgets/            # Widget tests
+├── mocks/
+│   └── setup.ts       # Preload file (mocks SvelteKit)
+└── *.test.ts          # Various unit tests
+```
+
+### Writing Tests
+
+```typescript
+import { describe, it, expect } from 'bun:test';
+
+describe('ContentService', () => {
+	it('should create content', async () => {
+		const content = await service.create({
+			title: 'Test Post'
+		});
+		expect(content.title).toBe('Test Post');
+	});
+});
+```
+
+---
+
+## E2E Testing with Playwright
+
+### Running Playwright Tests
+
+```bash
+# Run all tests
+npx playwright test
+
+# Specific test
+npx playwright test signupfirstuser.spec.ts
+
+# Debug mode
+npx playwright test --debug
+
+# UI mode
+npx playwright test --ui
+```
+
+### Test Files
+
+```
+tests/playwright/
+├── signupfirstuser.spec.ts
+├── oauth-signup-firstuser.spec.ts
+├── login.spec.ts
+├── user-crud.spec.ts
+├── collection-builder.spec.ts
+└── permission-change.spec.ts
+```
+
+---
+
+## GitHub Actions CI/CD
+
+### Workflow: Playwright Tests
+
+**File:** `.github/workflows/playwright.yml`
+
+Runs comprehensive tests on every push and PR:
+
+```yaml
+name: Playwright and Bun Tests
+
+on:
+  push:
+    branches: [main, next]
+  pull_request:
+    branches: [main]
+  workflow_call: {} # Can be called by auto-release
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        mode: [dev, preview] # Test both modes
+
+    steps:
+      # Start MongoDB service container
+      - uses: supercharge/mongodb-github-action@1.10.0
+        with:
+          mongodb-version: latest
+          mongodb-username: admin
+          mongodb-password: admin
+
+      # Seed database BEFORE starting server
+      - run: bun run scripts/seed-cms.js
+        env:
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB: SveltyCMS
+
+      # Create admin user BEFORE starting server
+      - run: bun run scripts/create-admin.js
+        env:
+          ADMIN_USER: admin
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASS: Admin123!
+
+      # Start server (dev or preview)
+      - run: bunx vite dev --port 5173 &
+        if: matrix.mode == 'dev'
+
+      # Run tests
+      - run: bunx playwright test
+```
+
+### Workflow: Auto-Release
+
+**File:** `.github/workflows/auto-release.yaml`
+
+Automatically releases new versions after tests pass:
+
+```yaml
+name: Semantic Release
+
+on:
+  push:
+    branches: [main] # Only release from main
+
+jobs:
+  test:
+    uses: ./.github/workflows/playwright.yml # Run tests first
+
+  release:
+    needs: [test] # Only release if tests pass
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for semantic-release
+
+      - run: bunx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### CI/CD Features
+
+✅ **MongoDB Service** - Isolated database for testing  
+✅ **Matrix Testing** - Tests both dev and preview modes  
+✅ **Automated Setup** - Seeds DB + creates admin automatically  
+✅ **Test Gating** - Releases only if tests pass  
+✅ **Semantic Versioning** - Automatic version bumps based on commits  
+✅ **Artifact Upload** - Test reports and videos on failure
+
+---
+
+## Automated Setup Scripts
+
+For CI/CD environments, SveltyCMS provides scripts that replicate the setup wizard.
+
+### Script: Seed Database
+
+**File:** `scripts/seed-cms.js`
+
+Mimics `/api/setup/seed` endpoint:
+
+```javascript
+import { writePrivateConfig } from '../src/routes/api/setup/writePrivateConfig.js';
+import { initSystemFromSetup } from '../src/routes/api/setup/seed.js';
+import { getSetupDatabaseAdapter } from '../src/routes/api/setup/utils.js';
+
+async function main() {
+	const dbConfig = {
+		type: 'mongodb',
+		host: process.env.MONGO_HOST || 'localhost',
+		port: parseInt(process.env.MONGO_PORT || '27017'),
+		name: process.env.MONGO_DB || 'SveltyCMS',
+		user: process.env.MONGO_USER || '',
+		password: process.env.MONGO_PASS || ''
+	};
+
+	// Write config/private.ts
+	await writePrivateConfig(dbConfig);
+
+	// Connect and seed
+	const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+	await initSystemFromSetup(dbAdapter);
+
+	await dbAdapter.disconnect();
+}
+
+main().catch((err) => {
+	console.error('❌ Seeding failed:', err);
+	process.exit(1);
+});
+```
+
+**Usage:**
+
+```bash
+# Local
+bun run scripts/seed-cms.js
+
+# CI/CD with environment variables
+MONGO_HOST=localhost MONGO_PORT=27017 bun run scripts/seed-cms.js
+```
+
+### Script: Create Admin User
+
+**File:** `scripts/create-admin.js`
+
+Mimics `/api/setup/complete` endpoint:
+
+```javascript
+import { Auth } from '../src/databases/auth/index.js';
+import { getSetupDatabaseAdapter } from '../src/routes/api/setup/utils.js';
+
+async function main() {
+	const dbConfig = {
+		/* same as seed-cms.js */
+	};
+	const admin = {
+		username: process.env.ADMIN_USER || 'admin',
+		email: process.env.ADMIN_EMAIL || 'admin@example.com',
+		password: process.env.ADMIN_PASS || 'Admin123!'
+	};
+
+	const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig);
+	const auth = new Auth(dbAdapter);
+
+	try {
+		await auth.createUser({
+			...admin,
+			role: 'admin',
+			isActive: true
+		});
+		console.log('✅ Admin user created!');
+	} catch (error) {
+		if (error.message?.includes('duplicate')) {
+			console.log('ℹ️  Admin user already exists');
+		} else {
+			throw error;
+		}
+	}
+
+	await dbAdapter.disconnect();
+}
+
+main().catch((err) => {
+	console.error('❌ Admin creation failed:', err);
+	process.exit(1);
+});
+```
+
+**Usage:**
+
+```bash
+# Local
+bun run scripts/create-admin.js
+
+# CI/CD with custom credentials
+ADMIN_USER=admin \
+ADMIN_EMAIL=admin@example.com \
+ADMIN_PASS=SecurePass123! \
+bun run scripts/create-admin.js
+```
+
+### Script Benefits
+
+✅ **No UI required** - Perfect for CI/CD  
+✅ **Idempotent** - Safe to run multiple times  
+✅ **Environment-driven** - Uses environment variables  
+✅ **Reuses setup logic** - Imports from actual setup endpoints  
+✅ **Error handling** - Graceful failure with exit codes
+
+---
+
+# Part IV: Troubleshooting & Reference
+
+## Troubleshooting
+
+### Setup wizard loops infinitely
+
+**Cause:** `isSetupCompleteAsync()` returns false due to missing users
+
+**Fix:**
+
+```bash
+# Check if admin users exist
+mongo sveltycms --eval "db.auth_users.find().pretty()"
+
+# If empty, complete setup wizard again
+# or manually create admin user via MongoDB shell
+```
+
+### Collections not appearing after setup
+
+**Cause:** `seedCollectionsForSetup()` failed silently
+
+**Fix:**
+
+```bash
+# Check logs for collection seeding errors
+tail -f logs/app.log | grep "seedCollections"
+
+# Manually trigger collection initialization
+# Restart server with DEBUG=true
+```
+
+### UUID changed after recompilation
+
+**Cause:** Compiled collection was deleted or corrupted
+
+**Fix:**
+
+```bash
+# Restore from backup
+tar -xzf compiledCollections.backup.tar.gz
+
+# Or manually restore UUID in MongoDB
+mongo sveltycms --eval 'db.system_content_structure.find({name: "Posts"})'
+# Copy _id, then update compiled file
+```
+
+---
+
+## Summary
+
+This comprehensive guide covers the complete SveltyCMS lifecycle:
+
+✅ **Installation** - Quick and manual installation methods  
+✅ **First-Time Setup** - Wizard-based and automated setup flows  
+✅ **Server Restart** - Intelligent recompilation and UUID preservation  
+✅ **Collection Management** - UUID assignment and lifecycle  
+✅ **Testing** - Unit tests (Bun) and E2E tests (Playwright)  
+✅ **CI/CD** - Automated testing and semantic releases  
+✅ **Troubleshooting** - Common issues and solutions
+
+### Key Highlights
+
+🚀 **Zero-Restart Setup** - System becomes operational without server restart  
+🔑 **UUID Preservation** - Collections maintain stable IDs across restarts  
+⚡ **Smart Compilation** - Only recompiles changed collections using content hashing  
+🧪 **Comprehensive Testing** - 95+ API endpoints, full user workflows  
+🤖 **Automated CI/CD** - GitHub Actions for testing and releases  
+📝 **Automated Scripts** - `seed-cms.js` and `create-admin.js` for CI/CD
+
+⚠️ **Known Issue:** Collection UUID table creation may have race conditions during `seedCollectionsForSetup()`
+
+The system is production-ready and fully automated for both local development and CI/CD environments.
+
+---
+
+## Related Documentation
+
+### Architecture
+
+- [Collection Store Data Flow](/docs/architecture/collection-store-dataflow.mdx) - How data flows through the collection store
+- [State Management](/docs/architecture/state-management.mdx) - System state machine details
+- [Cache System](/docs/architecture/cache-system.mdx) - Caching strategy and TTLs
+
+### API References
+
+- [Setup API](/docs/api/Setup_API.mdx) - Complete setup API reference
+- [Collection API](/docs/api/Collection_API.mdx) - Collection CRUD operations
+- [Authentication API](/docs/api/Authentication_2FA_API.mdx) - User authentication
+
+### Database
+
+- [Core Infrastructure](/docs/database/Core_Infrastructure.mdx) - Database adapter system
+- [MongoDB Methods](/docs/database/MongoDB_Methods.mdx) - MongoDB-specific implementation
+
+### Guides
+
+- [Complete Workflow Guide](/docs/architecture/initialization-workflow.mdx) - This document (installation, setup, testing, CI/CD)
+- [Troubleshooting](/docs/troubleshooting.mdx) - Common issues and solutions
+
+---
+
+## Quick Reference
+
+### Key Files
+
+| File                               | Purpose                    | When Modified                   |
+| ---------------------------------- | -------------------------- | ------------------------------- |
+| `vite.config.ts`                   | Build-time setup detection | Rarely                          |
+| `src/hooks.server.ts`              | Runtime request gatekeeper | When adding middleware          |
+| `src/databases/db.ts`              | Database initialization    | When adding adapters            |
+| `src/content/ContentManager.ts`    | Collection management      | When changing collection logic  |
+| `src/utils/compilation/compile.ts` | Smart compilation          | When changing collection format |
+
+### Key Concepts
+
+- **Setup Mode**: System state when no admin users exist
+- **UUID Preservation**: Collections keep the same ID across restarts
+- **Smart Compilation**: Only recompiles changed collections using content hashing
+- **Zero-Restart Setup**: System becomes operational without server restart
+- **State Machine**: IDLE → INITIALIZING → READY → DEGRADED → FAILED
+
+### Performance Benchmarks
+
+| Operation          | Expected Time     | Notes                           |
+| ------------------ | ----------------- | ------------------------------- |
+| Vite Startup       | 2-5 seconds       | Includes TypeScript compilation |
+| Database Test      | 1-3 seconds       | May include driver installation |
+| Seed Database      | 3-8 seconds       | Depends on collection count     |
+| Complete Setup     | 4-6 seconds       | Includes full system init       |
+| **Total Setup**    | **10-25 seconds** | Excluding user input            |
+| Collection Compile | 50-200ms per file | With UUID preservation          |
+| Server Restart     | 3-5 seconds       | To READY state                  |

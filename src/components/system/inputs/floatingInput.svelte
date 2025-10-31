@@ -27,7 +27,60 @@
 -->
 
 <script lang="ts">
+	// Define the specific, allowed values for the HTML autocomplete attribute.
+	// This is a selection of common values. For a full list, see the MDN Web Docs.
+	type FullAutoFill =
+		| 'on'
+		| 'off'
+		| 'name'
+		| 'honorific-prefix'
+		| 'given-name'
+		| 'additional-name'
+		| 'family-name'
+		| 'honorific-suffix'
+		| 'nickname'
+		| 'email'
+		| 'username'
+		| 'new-password'
+		| 'current-password'
+		| 'one-time-code'
+		| 'organization-title'
+		| 'organization'
+		| 'street-address'
+		| 'address-line1'
+		| 'address-line2'
+		| 'address-line3'
+		| 'address-level1'
+		| 'address-level2'
+		| 'address-level3'
+		| 'country'
+		| 'country-name'
+		| 'postal-code'
+		| 'cc-name'
+		| 'cc-given-name'
+		| 'cc-additional-name'
+		| 'cc-family-name'
+		| 'cc-number'
+		| 'cc-exp'
+		| 'cc-exp-month'
+		| 'cc-exp-year'
+		| 'cc-csc'
+		| 'cc-type'
+		| 'transaction-currency'
+		| 'transaction-amount'
+		| 'language'
+		| 'bday'
+		| 'bday-day'
+		| 'bday-month'
+		| 'bday-year'
+		| 'sex'
+		| 'tel'
+		| 'url'
+		| 'photo';
+
 	type InputType = 'text' | 'email' | 'password';
+
+	type AutoCapitalize = 'off' | 'none' | 'on' | 'sentences' | 'words' | 'characters';
 
 	interface Props {
 		value?: string;
@@ -47,7 +100,9 @@
 		type?: InputType;
 		tabindex?: number;
 		id?: string;
-		autocomplete?: string;
+		autocomplete?: FullAutoFill;
+		autocapitalize?: AutoCapitalize;
+		spellcheck?: boolean;
 		autofocus?: boolean;
 		invalid?: boolean; // New: For validation state
 		errorMessage?: string; // New: For accessibility
@@ -76,6 +131,8 @@
 		tabindex = 0,
 		id = '',
 		autocomplete,
+		autocapitalize = 'none',
+		spellcheck = false,
 		autofocus = false,
 		invalid = false,
 		errorMessage = '',
@@ -120,6 +177,8 @@
 			{disabled}
 			{tabindex}
 			autocomplete={autocomplete ?? undefined}
+			{autocapitalize}
+			{spellcheck}
 			aria-required={required}
 			aria-invalid={invalid}
 			aria-describedby={errorId}
@@ -178,7 +237,3 @@
 		</p>
 	{/if}
 </div>
-
-<style>
-	/* Intentionally left blank: previously had component-specific styles. */
-</style>

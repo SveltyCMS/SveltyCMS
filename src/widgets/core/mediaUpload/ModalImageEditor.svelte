@@ -17,8 +17,8 @@
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
 
-	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Stores (getModalStore commented for future use)
+	// import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Props
 
@@ -32,9 +32,11 @@
 		mediaOnSelect: any;
 	}
 
-	let { parent, _data, field, updated, value, mediaOnSelect }: Props = $props();
+	// Props are destructured but may be used in commented-out code below
+	let { parent: _parent, _data: _dataUnused, field: _field, updated: _updated, value: _value, mediaOnSelect: _mediaOnSelect }: Props = $props();
 
-	const modalStore = getModalStore();
+	// Modal store for future implementation
+	// const modalStore = getModalStore();
 
 	// // Notes: Use `w-screen h-screen` to fit the visible canvas size.
 	// const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';

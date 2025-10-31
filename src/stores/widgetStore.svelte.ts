@@ -4,24 +4,11 @@
  * Handles core widgets (always enabled) and custom widgets (optional)
  */
 import { writable, derived } from 'svelte/store';
-import type { Widget, WidgetModule } from '@widgets/types';
+import type { Widget, WidgetModule, WidgetFunction } from '@widgets/types';
 import { logger } from '@utils/logger.svelte';
 
 export type WidgetStatus = 'active' | 'inactive';
 export type WidgetType = 'core' | 'custom';
-
-export interface WidgetFunction {
-	(config: Record<string, unknown>): Widget;
-	__widgetId?: string;
-	Name: string;
-	GuiSchema?: unknown;
-	GraphqlSchema?: unknown;
-	Icon?: string;
-	Description?: string;
-	aggregations?: unknown;
-	__widgetType?: WidgetType; // Track if core or custom
-	__dependencies?: string[]; // Track widget dependencies
-}
 
 interface WidgetStoreState {
 	widgets: Record<string, Widget>;
@@ -135,7 +122,7 @@ export const widgetStoreActions = {
 		widgetStore.update((state) => ({ ...state, isLoading: true, tenantId }));
 
 		try {
-			logger.debug('Initializing widgets from file system...', { tenantId });
+			logger.trace('Initializing widgets from file system...', { tenantId });
 
 			// Load widget modules from both core and custom directories
 			const coreModules = import.meta.glob<WidgetModule>('../widgets/core/*/index.ts', {
@@ -179,8 +166,47 @@ export const widgetStoreActions = {
 			// Load active widgets from database (tenant-aware)
 			const activeWidgetNames = await loadActiveWidgetsFromDatabase(tenantId);
 
-			// Core widgets are always active, merge with database active widgets
-			const uniqueActiveWidgets = newCoreWidgets.concat(activeWidgetNames.filter((name) => !newCoreWidgets.includes(name)));
+			// Normalize widget names from database to match file system (folder names are lowercase/camelCase)
+			// Database might have "Input" but folder is "input", "RemoteVideo" → "remoteVideo"
+			const normalizedActiveWidgets = activeWidgetNames.map((name) => {
+				// Try exact match first
+				if (newWidgetFunctions[name]) {
+					return name;
+				}
+				// Try camelCase (Input → input, RemoteVideo → remoteVideo)
+				const camelCase = name.charAt(0).toLowerCase() + name.slice(1);
+				if (newWidgetFunctions[camelCase]) {
+					return camelCase;
+				}
+				// Try full lowercase as fallback
+				const lowerCase = name.toLowerCase();
+				if (newWidgetFunctions[lowerCase]) {
+					return lowerCase;
+				}
+				// Return original if no match found (will be filtered out below)
+				logger.warn(`[widgetStore] Widget from database not found in file system: ${name}`);
+				return name;
+			});
+
+			// Use database as source of truth for active widgets
+			// If database query failed or returned empty (server-side), don't default to core-only
+			let uniqueActiveWidgets: string[];
+			if (normalizedActiveWidgets.length === 0 && typeof window === 'undefined') {
+				// Server-side and no database result: use empty array (will be populated client-side)
+				logger.debug('[widgetStore] Server-side initialization - no active widgets loaded yet');
+				uniqueActiveWidgets = [];
+			} else {
+				// Client-side or database returned results: use database as source of truth
+				// Remove duplicates and filter out widgets that don't exist in file system
+				uniqueActiveWidgets = normalizedActiveWidgets
+					.filter((name, index, self) => self.indexOf(name) === index) // Remove duplicates
+					.filter((name) => newWidgetFunctions[name]); // Only include widgets that exist
+				logger.debug('[widgetStore] Active widgets from database (normalized)', {
+					count: uniqueActiveWidgets.length,
+					widgets: uniqueActiveWidgets,
+					original: activeWidgetNames
+				});
+			}
 
 			// Create widget instances
 			const newWidgets: Record<string, Widget> = {};
@@ -201,7 +227,7 @@ export const widgetStoreActions = {
 				tenantId
 			}));
 
-			logger.info(`${Object.keys(newWidgetFunctions).length} widgets initialized successfully`, {
+			logger.info(`\x1b[34m${Object.keys(newWidgetFunctions).length}\x1b[0m widgets initialized successfully`, {
 				tenantId,
 				core: newCoreWidgets.length,
 				custom: newCustomWidgets.length,
@@ -238,10 +264,16 @@ export const widgetStoreActions = {
 
 			const originalFn = module.default;
 			const widgetName = originalFn.Name || name;
-			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+			// IMPORTANT: Use folder name as-is for widget identifier (e.g., 'seo', 'richText', 'mediaUpload')
+			// This ensures consistency between filesystem, database, and runtime
+			// Display name (widgetName) is for UI purposes only
 
 			// Extract dependencies from widget metadata
-			const dependencies = originalFn.dependencies || [];
+			const dependencies = originalFn.__dependencies || [];
+
+			// Extract component paths for 3-pillar architecture
+			const inputComponentPath = originalFn.__inputComponentPath || '';
+			const displayComponentPath = originalFn.__displayComponentPath || '';
 
 			const widgetFn: WidgetFunction = Object.assign((config: Record<string, unknown>) => originalFn(config), {
 				Name: widgetName,
@@ -251,11 +283,14 @@ export const widgetStoreActions = {
 				Description: originalFn.Description,
 				aggregations: originalFn.aggregations,
 				__widgetType: type,
-				__dependencies: dependencies
+				__dependencies: dependencies,
+				__inputComponentPath: inputComponentPath,
+				__displayComponentPath: displayComponentPath,
+				componentPath: inputComponentPath // Add this for Fields.svelte compatibility
 			});
 
 			return {
-				name: capitalizedName,
+				name: name, // Use folder name as-is (e.g., 'seo', not 'Seo')
 				widgetFn,
 				dependencies
 			};
@@ -321,10 +356,10 @@ export const widgetStoreActions = {
 		if (!currentWidgetFn) return;
 
 		const updatedWidget: WidgetFunction = Object.assign(
-			(cfg: Record<string, unknown>) => ({
-				...currentWidgetFn(cfg),
-				config: { ...currentWidgetFn(cfg).config, ...config }
-			}),
+			(cfg: Record<string, unknown>) => {
+				const newConfig = { ...config, ...cfg };
+				return currentWidgetFn(newConfig);
+			},
 			{
 				Name: currentWidgetFn.Name,
 				GuiSchema: currentWidgetFn.GuiSchema,
@@ -397,7 +432,7 @@ export const widgetStoreActions = {
 			// Check if we're on the client side
 			if (typeof window !== 'undefined') {
 				// Client-side: use API call
-				const response = await fetch('/api/collections/widgets/required', {
+				const response = await fetch('/api/widgets/required', {
 					method: 'GET',
 					headers: {
 						'Content-Type': 'application/json',
@@ -414,7 +449,7 @@ export const widgetStoreActions = {
 				}
 			} else {
 				// Server-side: return empty for now
-				logger.debug('Server-side collection analysis - returning empty array');
+				logger.trace('Server-side collection analysis - returning empty array');
 				return [];
 			}
 		} catch (error) {
@@ -440,7 +475,7 @@ export const widgetStoreActions = {
 
 				// Client-side: use API call with active widgets as query param
 				const activeWidgetsParam = currentActiveWidgets.join(',');
-				const url = `/api/collections/widgets/validate?activeWidgets=${encodeURIComponent(activeWidgetsParam)}`;
+				const url = `/api/widgets/validate?activeWidgets=${encodeURIComponent(activeWidgetsParam)}`;
 
 				const response = await fetch(url, {
 					method: 'GET',
@@ -474,12 +509,21 @@ export const widgetStoreActions = {
 // Database functions with tenant support - use API calls on client side
 async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[]> {
 	try {
-		logger.debug('Loading active widgets from database...', { tenantId });
+		logger.debug('[widgetStore] Loading active widgets from database...', { tenantId });
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {
-			// Client-side: use API call
-			const response = await fetch('/api/widgets/active', {
+			// Client-side: use API call with cache bypass on first load to ensure fresh data after normalization updates
+			// Check if this is first load by seeing if store is empty
+			let needsRefresh = false;
+			widgetStore.subscribe(($store) => {
+				needsRefresh = Object.keys($store.widgetFunctions).length === 0;
+			})();
+
+			const url = `/api/widgets/active${needsRefresh ? '?refresh=true' : ''}`;
+			logger.debug(`[widgetStore] Client-side: Fetching from ${url}`, { tenantId, needsRefresh });
+
+			const response = await fetch(url, {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json',
@@ -489,25 +533,36 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[
 
 			if (response.ok) {
 				const data = await response.json();
-				return data.widgets || [];
+				const widgetNames = (data.widgets || []).map((w: { name: string }) => w.name);
+
+				logger.debug('[widgetStore] Active widgets received from API', {
+					tenantId,
+					count: widgetNames.length,
+					widgets: widgetNames
+				});
+
+				return widgetNames;
 			} else {
-				logger.warn('Failed to fetch active widgets from API');
+				logger.warn('[widgetStore] Failed to fetch active widgets from API', {
+					status: response.status,
+					statusText: response.statusText
+				});
 				return [];
 			}
 		} else {
 			// Server-side: return empty for now, will be loaded by server initialization
-			logger.debug('Server-side widget loading - returning empty array');
+			logger.debug('[widgetStore] Server-side widget loading - returning empty array');
 			return [];
 		}
 	} catch (error) {
-		logger.error('Failed to load active widgets from database:', error);
+		logger.error('[widgetStore] Failed to load active widgets from database:', error);
 		return []; // Return empty array on error, don't fail initialization
 	}
 }
 
 async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolean, tenantId?: string): Promise<void> {
 	try {
-		logger.debug(`Updating ${widgetName} to ${isActive ? 'active' : 'inactive'} in database`, { tenantId });
+		logger.trace(`Updating ${widgetName} to ${isActive ? 'active' : 'inactive'} in database`, { tenantId });
 
 		// Check if we're on the client side
 		if (typeof window !== 'undefined') {

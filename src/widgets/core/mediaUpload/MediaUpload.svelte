@@ -26,17 +26,19 @@
 	import { mode, collectionValue } from '@stores/collectionStore.svelte';
 
 	// Components
-	import type { MediaImage, Thumbnail } from '@utils/media/mediaModels';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
+	import ModalImageEditor from './ModalImageEditor.svelte';
 
 	// Define reactive state
 	let isFlipped = $state(false);
 	let _data = $state<File | MediaImage | undefined>(undefined); // Initialize with `undefined`
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
+	let showImageEditor = $state(false);
 
 	// Define props
-	let { field, value = collectionValue.value[getFieldName(field)] } = $props<{
+	let { field, value = (collectionValue as any)[getFieldName(field)] } = $props<{
 		field: FieldType & { path: string };
 		value?: File | MediaImage;
 	}>();
@@ -95,9 +97,6 @@
 		}, 300);
 	}
 
-	// Computed value for updated state
-	let updated = $derived(_data !== value);
-
 	// WidgetData function
 	export const WidgetData = async () => {
 		if (_data) {
@@ -125,7 +124,7 @@
 	{#if !_data}
 		<!-- File Input -->
 		<div class:error={!!validationError}>
-			<FileInput bind:value={_data} bind:multiple={field.multiupload} on:change={validateInput} />
+			<FileInput bind:value={_data} bind:multiple={field.multiupload} onChange={validateInput} />
 		</div>
 	{:else}
 		<div
@@ -138,7 +137,7 @@
 				<div class="flex items-center justify-between gap-2">
 					<p class="text-left">
 						{m.widget_ImageUpload_Name()}
-						<span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span>
+						<span class="text-tertiary-500 dark:text-primary-500">{_data instanceof File ? _data.name : (_data as MediaImage).path}</span>
 					</p>
 
 					<p class="text-left">
@@ -173,8 +172,13 @@
 
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
+						<!-- Edit -->
+						<button onclick={() => (showImageEditor = true)} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
+							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
+						</button>
+
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon" title="Flip details">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
@@ -183,7 +187,7 @@
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon">
+						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon" title="Delete image">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>
@@ -199,6 +203,21 @@
 		</p>
 	{/if}
 </div>
+
+<!-- Image Editor Modal -->
+{#if showImageEditor}
+	<ModalImageEditor
+		parent={undefined}
+		{_data}
+		{field}
+		{value}
+		mediaOnSelect={(file: File | MediaImage) => {
+			_data = file;
+			showImageEditor = false;
+			validateInput();
+		}}
+	/>
+{/if}
 
 <style lang="postcss">
 	.error {

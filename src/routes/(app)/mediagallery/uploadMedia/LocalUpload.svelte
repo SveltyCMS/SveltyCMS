@@ -56,13 +56,11 @@
 	function handleFileDrop(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
-		console.log('Files dropped');
 
 		const droppedFiles = e.dataTransfer?.files;
 		if (droppedFiles) {
 			for (const file of droppedFiles) {
 				files = [...files, file];
-				console.log('Added file:', file.name);
 			}
 		}
 
@@ -73,7 +71,6 @@
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
-		console.log('Dragging over dropzone');
 		if (dropZone) {
 			dropZone.style.borderColor = '#5fd317';
 		}
@@ -82,17 +79,14 @@
 	function handleDragLeave(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
-		console.log('Dragging left dropzone');
 		dropZone?.style.removeProperty('border-color');
 	}
 
 	function onChange() {
 		if (input?.files) {
-			console.log('Files selected from input');
 			for (let i = 0; i < input.files.length; i++) {
 				const file = input.files[i];
 				files = [...files, file];
-				console.log('Added file:', file.name);
 			}
 			modalAddMedia(); // Trigger the modal after files are selected
 		}
@@ -114,15 +108,9 @@
 		files.forEach((file) => {
 			formData.append('files', file);
 		});
-		// Add the required processType for the backend endpoint
-		formData.append('processType', 'save');
-
-		// Assuming '/api/media/process' handles the actual saving based on FormData
-		// You might need to add folder context here if uploads should go into specific virtual folders
-		// formData.append('folderId', currentFolder?._id || ''); // Example if needed
 
 		try {
-			const response = await fetch('/api/media/process', {
+			const response = await fetch('?/default', {
 				method: 'POST',
 				body: formData
 			});

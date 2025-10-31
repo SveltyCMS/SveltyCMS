@@ -1,7 +1,7 @@
 <!--
 @file src/widgets/core/input/Input.svelte
 @component
-**Enhanced Input Widget Component with improved validation integration**
+**Text Input Widget Component**
 
 @example
 <Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
@@ -16,20 +16,32 @@
 - **Touch State Management**: Proper error display based on interaction
 - **Async Validation**: Support for server-side validation
 - **Performance Optimized**: Debounced validation with cleanup
+- **Character Counting**: Visual feedback for length constraints
+- **Accessibility**: Full ARIA support and semantic HTML
+- **Visual Indicators**: Real-time validation feedback
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
 	import type { FieldType } from '.';
 
 	// Utils
-	import { track } from '@src/utils/reactivity.svelte';
 	import { getFieldName } from '@src/utils/utils';
 	import { untrack } from 'svelte';
 
 	// Valibot validation
-	import { string, pipe, parse, type ValiError, nonEmpty, nullable, transform } from 'valibot';
-	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
+	import {
+		string,
+		pipe,
+		parse,
+		type ValiError,
+		nonEmpty,
+		nullable,
+		transform,
+		minLength as valibotMinLength,
+		maxLength as valibotMaxLength
+	} from 'valibot';
+	import { validationStore } from '@root/src/stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
 	// Props
 	interface Props {
@@ -43,23 +55,10 @@
 
 	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
 
+	// Get default language from environment with safe fallback
+	const _language = ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase();
+
 	// Initialize value if null/undefined
-	$effect(() => {
-		if (!value) {
-			if (field?.translated) {
-				value = { [contentLanguage.value.toLowerCase()]: '' };
-			} else {
-				value = { [(publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase()]: '' };
-			}
-		}
-	});
-
-	// Field name for validation
-	const fieldName = getFieldName(field);
-
-	// Language handling - with safe fallback
-	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
-
 	// Safe value access with fallback
 	let safeValue = $derived(value?.[_language] ?? '');
 
@@ -67,11 +66,12 @@
 	let count = $derived(safeValue?.length ?? 0);
 
 	// Validation state - now using the enhanced validation store
-	let inputElement: HTMLInputElement | null = null;
 	let debounceTimeout: number | undefined;
 	let hasValidatedOnMount = $state(false);
 
 	// Get validation state from store
+	// Define fieldName using getFieldName utility
+	let fieldName = getFieldName(field);
 	let validationError = $derived(validationStore.getError(fieldName));
 	let isValidating = $state(false);
 	let isTouched = $state(false);
@@ -79,15 +79,15 @@
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
 	const getBadgeClass = (length: number) => {
-		const key = `${length}-${field?.minlength}-${field?.maxlength}-${field?.count}`;
+		const key = `${length}-${field?.minLength}-${field?.maxLength}-${field?.count}`;
 		if (badgeClassCache.has(key)) return badgeClassCache.get(key)!;
 
 		let result: string;
-		if (field?.minlength && length < field?.minlength) result = 'bg-red-600';
-		else if (field?.maxlength && length > field?.maxlength) result = 'bg-red-600';
-		else if (field?.count && length === field?.count) result = 'bg-green-600';
-		else if (field?.count && length > field?.count) result = 'bg-orange-600';
-		else if (field?.minlength) result = '!variant-filled-surface';
+		if (field?.minLength && length < (field?.minLength as number)) result = 'bg-red-600';
+		else if (field?.maxLength && length > (field?.maxLength as number)) result = 'bg-red-600';
+		else if (field?.count && length === (field?.count as number)) result = 'bg-green-600';
+		else if (field?.count && length > (field?.count as number)) result = 'bg-orange-600';
+		else if (field?.minLength) result = '!variant-filled-surface';
 		else result = '!variant-ghost-surface';
 
 		badgeClassCache.set(key, result);
@@ -95,15 +95,23 @@
 	};
 
 	// Create validation schema
-	let validationSchema = $derived(
-		field?.required
-			? pipe(
-					string(),
-					nonEmpty(),
-					transform((val) => (inputElement?.type === 'number' ? Number(val) : val))
-				)
-			: nullable(string())
-	);
+	let validationSchema = $derived.by(() => {
+		const rules: Array<unknown> = [transform((val: string) => (typeof val === 'string' ? val.trim() : val))];
+
+		if (field?.required) {
+			rules.push(nonEmpty('This field is required'));
+		}
+
+		if (typeof field?.minLength === 'number') {
+			rules.push(valibotMinLength(field.minLength, `Minimum length is ${field.minLength}`));
+		}
+
+		if (typeof field?.maxLength === 'number') {
+			rules.push(valibotMaxLength(field.maxLength, `Maximum length is ${field.maxLength}`));
+		}
+
+		return field?.required ? pipe(string(), ...(rules as [])) : nullable(pipe(string(), ...(rules as [])));
+	});
 
 	// Enhanced validation function
 	async function validateInput(immediate = false): Promise<string | null> {
@@ -131,36 +139,16 @@
 				}
 
 				// Length validations
-				if (currentValue !== null && currentValue !== undefined) {
-					if (field?.minlength && currentValue.length < field.minlength) {
-						const error = `Minimum length is ${field.minlength}`;
+				if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
+					if (field?.minLength && currentValue.length < field.minLength) {
+						const error = `Minimum length is ${field.minLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
 					}
-					if (field?.maxlength && currentValue.length > field.maxlength) {
-						const error = `Maximum length is ${field.maxlength}`;
+					if (field?.maxLength && currentValue.length > field.maxLength) {
+						const error = `Maximum length is ${field.maxLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
-					}
-
-					// Number validation for number inputs
-					if (inputElement?.type === 'number') {
-						const num = Number(currentValue);
-						if (isNaN(num)) {
-							const error = 'Invalid number format';
-							validationStore.setError(fieldName, error);
-							return error;
-						}
-						if (inputElement.min && num < Number(inputElement.min)) {
-							const error = `Value must be at least ${inputElement.min}`;
-							validationStore.setError(fieldName, error);
-							return error;
-						}
-						if (inputElement.max && num > Number(inputElement.max)) {
-							const error = `Value must not exceed ${inputElement.max}`;
-							validationStore.setError(fieldName, error);
-							return error;
-						}
 					}
 				}
 
@@ -242,19 +230,9 @@
 	$effect(() => {
 		if (validateOnMount && !hasValidatedOnMount) {
 			hasValidatedOnMount = true;
-			if (process.env.NODE_ENV !== 'production') {
-				console.log(
-					`[Input Widget] Validating on mount for field: ${fieldName}, required: ${field?.required}, value:`,
-					safeValue,
-					'widget instance:',
-					Math.random().toString(36).substr(2, 5)
-				);
-			}
+			// Validation happens silently - logs only in dev mode for debugging
 			// Use untrack to prevent circular dependencies and run validation immediately
 			untrack(() => {
-				if (process.env.NODE_ENV !== 'production') {
-					console.log(`[Input Widget] About to validate ${fieldName}, current errors:`, $state.snapshot(validationStore.errors));
-				}
 				validateInput(true);
 			});
 		}
@@ -267,12 +245,15 @@
 			validateInput(false);
 		}
 	});
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => value;
 </script>
 
 <div class="input-container relative mb-4">
 	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
-			<button class="!px-2" aria-label={`${field.prefix} prefix`}>
+			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
 			</button>
 		{/if}
@@ -288,13 +269,12 @@
 			onfocus={handleFocus}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
-			bind:this={inputElement}
-			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
-			required={field?.required}
-			disabled={field?.disabled}
-			readonly={field?.readonly}
-			minlength={field?.minlength}
-			maxlength={field?.maxlength}
+			placeholder={(field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName) as string | undefined}
+			required={field?.required as boolean | undefined}
+			disabled={field?.disabled as boolean | undefined}
+			readonly={field?.readonly as boolean | undefined}
+			minlength={field?.minLength as number | undefined}
+			maxlength={field?.maxLength as number | undefined}
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:error={!!validationError}
 			class:validating={isValidating}
@@ -305,24 +285,24 @@
 		/>
 
 		<!-- suffix and count -->
-		{#if field?.suffix || field?.count || field?.minlength || field?.maxlength}
+		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
 			<div class="flex items-center" role="status" aria-live="polite">
-				{#if field?.count || field?.minlength || field?.maxlength}
+				{#if field?.count || field?.minLength || field?.maxLength}
 					<span class="badge mr-1 rounded-full {getBadgeClass(count)}" aria-label="Character count">
-						{#if field?.count && field?.minlength && field?.maxlength}
-							{count}/{field?.maxlength}
-						{:else if field?.count && field?.maxlength}
-							{count}/{field?.maxlength}
-						{:else if field?.count && field?.minlength}
-							{count} => {field?.minlength}
-						{:else if field?.minlength && field?.maxlength}
-							{count} => {field?.minlength}/{field?.maxlength}
+						{#if field?.count && field?.minLength && field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.count && field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.count && field?.minLength}
+							{count} => {field?.minLength}
+						{:else if field?.minLength && field?.maxLength}
+							{count} => {field?.minLength}/{field?.maxLength}
 						{:else if field?.count}
 							{count}/{field?.count}
-						{:else if field?.maxlength}
-							{count}/{field?.maxlength}
-						{:else if field?.minlength}
-							min {field?.minlength}
+						{:else if field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.minLength}
+							min {field?.minLength}
 						{/if}
 					</span>
 				{/if}
@@ -351,6 +331,23 @@
 <style lang="postcss">
 	.input-container {
 		min-height: 2.5rem;
+		position: relative;
+		padding-bottom: 1.5rem;
+		width: 100%;
+	}
+
+	.input-wrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.input {
+		flex-grow: 1;
+	}
+
+	.input.invalid {
+		border-color: #ef4444;
 	}
 
 	.error {
@@ -361,6 +358,27 @@
 	.validating {
 		border-color: rgb(59 130 246);
 		box-shadow: 0 0 0 1px rgb(59 130 246);
+	}
+
+	.counter {
+		position: absolute;
+		right: 0.75rem;
+		font-size: 0.75rem;
+		color: #9ca3af;
+	}
+
+	.counter.error {
+		color: #ef4444;
+	}
+
+	.error-message {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: 100%;
+		text-align: center;
+		font-size: 0.75rem;
+		color: #ef4444;
 	}
 
 	@keyframes spin {
