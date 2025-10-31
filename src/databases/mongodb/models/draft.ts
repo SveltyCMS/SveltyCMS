@@ -13,7 +13,7 @@ import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import type { DatabaseId } from '@src/content/types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Define the Draft schema
 export const draftSchema = new Schema<ContentDraft>(

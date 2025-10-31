@@ -4,6 +4,21 @@
  *
  * This module defines a schema and model for virtual folders in the system.
  * Virtual folders are used to organize content in a hierarchical structure.
+ *
+ * ### Features
+ * - Schema definition with fields for folder properties
+ * - Indexes for efficient querying
+ * - Static methods for common operations:
+ *   - createVirtualFolder: Create a new virtual folder
+ *   - getAllVirtualFolders: Retrieve all virtual folders
+ *   - getVirtualFolderByPath: Fetch a folder by its path
+ *   - getVirtualFolderChildren: Get children of a virtual folder
+ *   - bulkUpdateFolderOrder: Update the order of multiple folders
+ *   - exists: Check if a folder with a given path exists
+ *   - updateVirtualFolder: Update properties of a virtual folder
+ *   - deleteVirtualFolder: Delete a virtual folder and its children
+ *
+ * The model ensures data integrity and provides utility methods for managing virtual folders.
  */
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
@@ -14,7 +29,7 @@ import { nowISODateString } from '@utils/dateUtils';
 import { getErrorMessage } from '@utils/errorHandling';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // System virtual folder schema
 export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(

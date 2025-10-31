@@ -40,7 +40,7 @@ import { roles } from '@root/config/roles';
 import { permissions } from '@src/databases/auth/permissions';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Load Prettier config
 async function getPrettierConfig() {

@@ -20,7 +20,7 @@ import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 interface WidgetInfo {
 	componentName: string;

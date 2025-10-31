@@ -12,7 +12,7 @@
 
 import { cacheService, REDIS_TTL_S as REDIS_TTL } from '@src/databases/CacheService';
 import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 import { dateToISODateString } from '@utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { generateCategoryNodesFromPaths, processModule } from './utils';

@@ -6,7 +6,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 export function getLanguageName(tag: string, displayLocale?: string): string {
 	try {

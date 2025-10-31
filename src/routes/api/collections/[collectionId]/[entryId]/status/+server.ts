@@ -26,7 +26,7 @@ const normalizeCollectionName = (collectionId: string): string => {
 };
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // PATCH: Updates entry status
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {

@@ -4,7 +4,7 @@
  */
 import { contentManager } from '@src/content/ContentManager';
 import { error, json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {

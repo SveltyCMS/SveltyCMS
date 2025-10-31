@@ -7,7 +7,7 @@
  */
 
 import { cacheService, CacheCategory } from './CacheService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * Initialize cache warming for critical application paths

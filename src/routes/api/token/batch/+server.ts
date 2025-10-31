@@ -33,7 +33,7 @@ import { array, minLength, object, parse, picklist, string, type ValiError } fro
 import { cacheService } from '@src/databases/CacheService';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 const batchTokenActionSchema = object({
 	tokenIds: array(string([minLength(1, 'Token ID cannot be empty.')])),

@@ -29,7 +29,7 @@ import mime from 'mime-types';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger.svelte';
+import { logger, type LoggableValue } from '@utils/logger.server';
 
 interface StackItem {
 	parent: Record<string, unknown> | Array<unknown> | null;

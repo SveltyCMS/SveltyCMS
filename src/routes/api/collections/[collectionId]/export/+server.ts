@@ -22,7 +22,7 @@ import { dbAdapter } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const startTime = performance.now();

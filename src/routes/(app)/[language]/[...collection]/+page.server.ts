@@ -15,13 +15,22 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
 import { contentManager } from '@root/src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	// Destructure data already provided by hooks.server.ts
 	const { user, theme, isAdmin, hasManageUsersPermission, roles: tenantRoles, tenantId } = locals;
 	const { language, collection } = params;
+
+	// Extract the actual collection name from the path
+	const collectionName = collection?.split('/').pop();
+
+	// Redirect system pages to their language-independent URLs
+	const systemPages = ['config', 'user', 'dashboard', 'imageEditor', 'email-previews'];
+	if (collectionName && systemPages.includes(collectionName)) {
+		throw redirect(302, `/${collectionName}${url.search}`);
+	}
 
 	// Basic validation - most auth is handled by hooks.server.ts
 	if (!user) {
@@ -64,6 +73,16 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
 	let currentCollection = null;
 	let collectionIdentifier = collection;
+
+	// If the collectionName is 'Collections', it means we are trying to access the collections overview page.
+	// In this case, we should redirect to the first collection or to the dashboard if no collections exist.
+	if (collectionName === 'Collections') {
+		if (collections.length > 0) {
+			throw redirect(302, `/${language}/Collections/${collections[0].name}`);
+		} else {
+			throw redirect(302, '/dashboard');
+		}
+	}
 
 	// Check if the collection parameter is a UUID (with or without dashes)
 	// Matches: 69ccfaf4cc4b4f27a825a6b3c16c20b5 or 69ccfaf4-cc4b-4f27-a825-a6b3c16c20b5

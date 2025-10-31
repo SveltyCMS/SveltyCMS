@@ -5,7 +5,7 @@
 
 import type { DatabaseConfig } from '@src/databases/schemas';
 import type { IDBAdapter } from '@src/databases/dbInterface';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * Database connection string builder for supported database types.

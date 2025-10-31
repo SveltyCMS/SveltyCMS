@@ -15,7 +15,7 @@ import { collection, collectionValue, mode, setCollectionValue } from '@src/stor
 import { updateEntryStatus } from '@src/utils/apiClient';
 import { showToast } from '@utils/toast';
 
-import { logger } from '../utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // Status state management
 const statusState = $state<{

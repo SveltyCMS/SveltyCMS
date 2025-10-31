@@ -31,7 +31,7 @@ import type { Permission, Role, User } from '@src/databases/auth';
 import type { DatabaseResult, PaginationOption } from '@src/databases/dbInterface';
 
 // System Logging
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Define the User schema
 export const UserSchema = new Schema(

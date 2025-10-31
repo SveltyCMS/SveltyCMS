@@ -21,7 +21,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
-	import { logger } from '@utils/logger.svelte';
+	import { logger } from '@utils/logger';
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import EntryList from '@components/collectionDisplay/EntryList.svelte';

@@ -23,7 +23,7 @@
 
 import { redirect, type Handle } from '@sveltejs/kit';
 import { isSetupComplete } from '@utils/setupCheck';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

@@ -30,7 +30,7 @@ import { contentLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger.svelte';
+import { logger, type LoggableValue } from '@utils/logger';
 
 // Validation
 import * as v from 'valibot';

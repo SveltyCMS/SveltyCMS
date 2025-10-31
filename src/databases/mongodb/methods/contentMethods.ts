@@ -16,7 +16,7 @@
  */
 
 import type { ContentNode, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { FilterQuery } from 'mongoose';
 import type {
 	BaseEntity,

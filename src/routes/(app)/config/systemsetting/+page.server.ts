@@ -20,7 +20,7 @@ import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logs
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

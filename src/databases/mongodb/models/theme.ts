@@ -3,6 +3,17 @@
  * @description Mongoose schema and model definition for themes in the CMS.
  *
  * This module defines the `themeSchema` and `ThemeModel` for managing themes in the CMS
+ *
+ * ### Features
+ * - Schema definition with fields for theme properties
+ * - Indexes for efficient querying
+ * - Static methods for common operations:
+ *   - getActiveTheme: Retrieve the currently active theme
+ *   - getThemeByName: Fetch a theme by its name
+ *   - storeThemes: Bulk upsert themes with optimized performance
+ *   - getAllThemes: Retrieve all themes from the database
+ *
+ * The model ensures data integrity and provides utility methods for theme management.
  */
 
 import type { Theme } from '@src/databases/dbInterface';
@@ -11,7 +22,7 @@ import mongoose, { Schema } from 'mongoose';
 import { nowISODateString, toISOString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Theme schema
 export const themeSchema = new Schema<Theme>(

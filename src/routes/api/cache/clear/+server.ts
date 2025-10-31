@@ -6,7 +6,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { cacheService } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * POST - Clear all cache entries

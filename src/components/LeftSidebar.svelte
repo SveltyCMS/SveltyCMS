@@ -25,10 +25,11 @@
 
 	// Import necessary utilities and types
 	import { page } from '$app/stores';
+	import type { Collection } from '@src/content/types'; // Import Collection type
 	import { getLanguageName } from '@utils/languageUtils';
 
 	// Stores
-	import { contentStructure, setMode } from '@stores/collectionStore.svelte';
+	import { setMode } from '@stores/collectionStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
 	import { publicEnv } from '@stores/globalSettings.svelte';
@@ -36,7 +37,7 @@
 	// Import components
 	import VersionCheck from '@components/VersionCheck.svelte';
 	import Collections from '@components/Collections.svelte';
-	import type { CollectionTreeNode } from '@components/Collections.svelte';
+	import MediaFolders from '@components/MediaFolders.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -47,7 +48,6 @@
 	// Language and messaging
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
-	import type { ContentNode } from '@src/content/types';
 
 	// Constants
 	const MOBILE_BREAKPOINT = 768;
@@ -61,25 +61,9 @@
 	// Reactive user data
 	let user = $derived($page.data.user);
 	let currentPath = $derived($page.url.pathname);
-
-	// Collection tree nodes mapping
-	let collectionTreeNodes = $derived.by(() => {
-		const mapNodes = (nodes: ContentNode[]): CollectionTreeNode[] => {
-			return nodes.map((node) => ({
-				id: node._id,
-				name: node.name,
-				isExpanded: false,
-				onClick: () => {
-					if (node.path) {
-						navigateTo(node.path);
-					}
-				},
-				icon: node.icon,
-				children: node.children ? mapNodes(node.children) : undefined
-			}));
-		};
-		return mapNodes(contentStructure.value || []);
-	});
+	let collections: Collection[] = $derived($page.data.collections);
+	// Check if we're in media mode
+	let isMediaMode = $derived(currentPath.includes('/mediagallery'));
 
 	// Language state
 	let languageTag = $state(getLocale() as AvailableLanguage);
@@ -90,6 +74,8 @@
 	// Derived values
 	let isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
 	let isSidebarCollapsed = $derived(uiStateManager.uiState.value.leftSidebar === 'collapsed');
+
+	let firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
 
 	let availableLanguages = $derived(
 		[...(publicEnv?.LOCALES || $page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
@@ -138,7 +124,13 @@
 
 		setMode('view');
 
-		// Ensure path includes language prefix
+		// Special handling: mediagallery doesn't use language prefix
+		if (path === '/mediagallery' || path.startsWith('/mediagallery')) {
+			await goto(path, { replaceState: false });
+			return;
+		}
+
+		// Ensure path includes language prefix for collection routes
 		const currentLocale = getLocale();
 		const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
 
@@ -263,8 +255,49 @@
 		></iconify-icon>
 	</button>
 
-	<!-- Collections Navigation -->
-	<Collections systemVirtualFolders={collectionTreeNodes} />
+	<!-- Navigation: Collections or Media Folders -->
+	{#if isMediaMode}
+		<MediaFolders />
+
+		<!-- Toggle to Collections Button -->
+		<button
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-2 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			onclick={() => {
+				setMode('view');
+				navigateTo(firstCollectionPath);
+			}}
+			aria-label="Switch to Collections"
+		>
+			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
+			{#if isSidebarFull}
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
+				<span class="text-sm">Collections</span>
+			{:else}
+				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
+			{/if}
+		</button>
+	{:else}
+		<Collections {collections} />
+
+		<!-- Toggle to Media Gallery Button -->
+		<button
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-3 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			onclick={() => {
+				setMode('media');
+				navigateTo('/mediagallery');
+			}}
+			aria-label="Switch to Media Gallery"
+		>
+			{#if isSidebarFull}
+				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<span class="text-sm">{m.Collections_MediaGallery()}</span>
+				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			{:else}
+				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<span class="text-sm">{m.collections_media()}</span>
+			{/if}
+		</button>
+	{/if}
 
 	<!-- Footer -->
 	<div class="mb-2 mt-auto">

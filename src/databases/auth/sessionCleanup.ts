@@ -22,7 +22,7 @@ import { auth, dbAdapter } from '@src/databases/db';
 import { cleanupSessionMetrics } from '@src/hooks/handleSessionAuth';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Cleanup configuration
 const CLEANUP_INTERVAL = 15 * 60 * 1000; // 15 minutes

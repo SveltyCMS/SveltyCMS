@@ -21,7 +21,7 @@ import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
 // System Logger
 import { contentManager } from '@root/src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

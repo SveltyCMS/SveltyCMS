@@ -25,7 +25,7 @@ import { modifyRequest } from '@api/collections/modifyRequest';
 import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Lists entries in a collection with pagination, filtering, and sorting
 export const GET: RequestHandler = async ({ locals, params, url }) => {

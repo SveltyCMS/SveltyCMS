@@ -19,7 +19,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Types
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
@@ -91,11 +91,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (!name || typeof name !== 'string') {
 			throw error(400, 'Name is required and must be a string');
-		} // Create folder data, including tenantId if in multi-tenant mode
+		}
 
+		// Build the path based on parent folder
+		let folderPath = '';
+		if (parentId) {
+			const parentResult = await dbAdapter.systemVirtualFolder.getById(parentId);
+			if (parentResult.success && parentResult.data) {
+				folderPath = `${parentResult.data.path}/${name.trim()}`;
+			} else {
+				throw error(400, 'Parent folder not found');
+			}
+		} else {
+			// Root level folder
+			folderPath = `/${name.trim()}`;
+		}
+
+		// Create folder data, including tenantId if in multi-tenant mode
 		const folderData: Partial<SystemVirtualFolder> = {
 			name: name.trim(),
+			path: folderPath,
+			type: 'folder',
 			parentId: parentId || null,
+			order: 0,
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }),
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
@@ -138,7 +156,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const body = await request.json();
-		const { action, parentId, orderUpdates } = body;
+		const { action, orderUpdates } = body;
 
 		if (action !== 'reorder') {
 			throw error(400, 'Invalid action');
@@ -152,10 +170,35 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 		const results = await Promise.all(
 			orderUpdates.map(async (update: { folderId: string; order: number; parentId?: string | null }) => {
 				const { folderId, order, parentId: newParentId } = update;
+
+				// Get current folder to access its name
+				const currentFolder = await dbAdapter.systemVirtualFolder.getById(folderId);
+				if (!currentFolder.success || !currentFolder.data) {
+					logger.error('Folder not found for reordering', { folderId });
+					return { success: false, error: { message: 'Folder not found' } };
+				}
+
 				const updateData: Partial<SystemVirtualFolder> = { order };
+
+				// If parentId changed, rebuild path
 				if (newParentId !== undefined) {
 					updateData.parentId = newParentId;
+
+					// Build new path based on new parent
+					if (newParentId) {
+						const parentResult = await dbAdapter.systemVirtualFolder.getById(newParentId);
+						if (parentResult.success && parentResult.data) {
+							updateData.path = `${parentResult.data.path}/${currentFolder.data.name}`;
+						} else {
+							logger.warn('Parent folder not found, using root path', { parentId: newParentId });
+							updateData.path = `/${currentFolder.data.name}`;
+						}
+					} else {
+						// Moving to root
+						updateData.path = `/${currentFolder.data.name}`;
+					}
 				}
+
 				return dbAdapter.systemVirtualFolder.update(folderId, updateData);
 			})
 		);

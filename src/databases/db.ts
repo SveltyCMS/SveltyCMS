@@ -75,7 +75,7 @@ import { safeParse } from 'valibot';
 import { DEFAULT_THEME, ThemeManager } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // System State Management
 import { setSystemState, updateServiceHealth, waitForServiceHealthy } from '@src/stores/system';

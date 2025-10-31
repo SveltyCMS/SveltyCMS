@@ -27,7 +27,7 @@ import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
 import { Permission } from '@utils/media/mediaModels';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Response types
 interface ProcessResult {

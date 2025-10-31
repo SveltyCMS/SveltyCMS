@@ -37,7 +37,7 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { metricsService } from '@src/services/MetricsService';
 import { cacheService } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // --- RATE LIMITER CONFIGURATION ---
 
@@ -59,6 +59,18 @@ const distributedStore = {
 		} catch (err) {
 			logger.warn(`Distributed rate limit store GET failed: ${err instanceof Error ? err.message : String(err)}`);
 			return undefined;
+		}
+	},
+
+	/**
+	 * Adds/sets a value in the store (required by sveltekit-rate-limiter)
+	 */
+	async add(key: string, value: number, ttlSeconds: number): Promise<void> {
+		try {
+			const expires = Date.now() + ttlSeconds * 1000;
+			await cacheService.set(`ratelimit:${key}`, { count: value, expires }, ttlSeconds);
+		} catch (err) {
+			logger.error(`Distributed rate limit store ADD failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	},
 

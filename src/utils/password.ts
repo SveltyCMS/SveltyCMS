@@ -7,7 +7,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // Secure argon2 configuration
 const ARGON2_CONFIG = {

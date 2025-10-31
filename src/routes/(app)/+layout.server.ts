@@ -29,7 +29,7 @@ import type { LayoutServerLoad } from './$types';
 import type { User } from '@src/databases/auth/types';
 
 // System Logger (ensure server-safe implementation)
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * Error type for structured error handling

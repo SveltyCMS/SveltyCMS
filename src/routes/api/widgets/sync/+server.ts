@@ -4,7 +4,7 @@
  * This ensures all widgets found in the file system are registered in the database
  */
 import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { roles } from '@root/config/roles';

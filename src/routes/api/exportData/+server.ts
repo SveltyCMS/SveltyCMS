@@ -35,7 +35,7 @@ import { collections } from '@stores/collectionStore.svelte';
 // Permissions
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 interface DatabaseCollection {
 	name: string;

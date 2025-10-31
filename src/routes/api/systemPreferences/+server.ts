@@ -20,7 +20,7 @@
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
 // Validation Schemas

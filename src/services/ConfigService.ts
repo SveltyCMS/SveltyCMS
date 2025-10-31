@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { dbAdapter } from '@src/databases/db';
 import { createChecksum } from '@utils/crypto';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 type ConfigEntity = {
 	uuid: string;

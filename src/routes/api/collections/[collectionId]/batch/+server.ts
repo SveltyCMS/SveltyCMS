@@ -24,7 +24,7 @@ import type { StatusType } from '@src/content/types';
 import { array, minLength, object, optional, parse, picklist, string } from 'valibot';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Validation schema for batch operations
 const batchOperationSchema = object({

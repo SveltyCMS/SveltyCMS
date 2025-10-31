@@ -11,7 +11,7 @@ import { MediaTypeEnum } from './mediaModels';
 import type { ImageMetadata, MediaImage, MediaAccess, Thumbnail } from './mediaModels';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Get fs instance for server-side operations
 async function getFs() {

@@ -19,7 +19,7 @@ import { Auth } from '@src/databases/auth';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setupAdminSchema } from '@src/utils/formSchemas';
 import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { randomBytes } from 'crypto';
 import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';

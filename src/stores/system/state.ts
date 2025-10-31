@@ -5,7 +5,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import type { Writable, Readable } from 'svelte/store';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 import type { SystemStateStore, SystemState, ServiceHealth, ServiceStatus, ServicePerformanceMetrics, ServiceName } from './types';
 import { initialState } from './config';
 import { updateUptimeMetrics, trackStateTransition, calibrateAnomalyThresholds, detectAnomalies } from './metrics';

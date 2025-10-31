@@ -15,7 +15,7 @@ import type { ContentNode } from '../content/types';
 
 import { contentManager } from '@src/content/ContentManager';
 import type { Locale } from '@src/paraglide/runtime';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 /**
  * Constructs a redirect URL to the first available collection, prefixed with the given language.

@@ -21,7 +21,7 @@ import type { User } from '@src/databases/auth/types';
 import { roles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Create a global variable to store the fetch function for actions
 let eventFetch: typeof globalThis.fetch;

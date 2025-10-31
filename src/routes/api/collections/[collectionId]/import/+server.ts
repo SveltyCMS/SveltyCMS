@@ -24,7 +24,7 @@ import { dbAdapter } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 interface ImportOptions {
 	overwrite?: boolean;

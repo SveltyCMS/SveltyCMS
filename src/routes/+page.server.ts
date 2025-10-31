@@ -17,7 +17,7 @@ import type { PageServerLoad } from './$types';
 import { roles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { user, tenantId, roles: tenantRoles } = locals;

@@ -26,7 +26,7 @@ Provides clear information about the issue and actionable steps to resolve it.
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger.svelte';
+	import { logger } from '@utils/logger';
 	import Icon from '@iconify/svelte';
 
 	let {

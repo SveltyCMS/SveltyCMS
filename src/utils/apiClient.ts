@@ -12,7 +12,7 @@
  *    * Error tracking service integration
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // --- Type Definitions ---
 export interface ApiResponse<T = unknown> {

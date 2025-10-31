@@ -22,7 +22,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 // Permissions
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 interface TokenStatus {
 	google: boolean;

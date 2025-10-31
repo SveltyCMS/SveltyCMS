@@ -10,7 +10,7 @@
  * - SHA256 checksum generation for data integrity
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Import argon2 and crypto (server-side only)
 let argon2: typeof import('argon2') | null = null;

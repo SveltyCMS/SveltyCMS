@@ -29,7 +29,7 @@ import { superValidate } from 'sveltekit-superforms/server';
 
 // System Logger
 import { getUntypedSetting } from '@src/services/settingsService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async (event) => {
 	try {

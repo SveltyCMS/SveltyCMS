@@ -18,7 +18,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Retrieves revision history for an entry
 export const GET: RequestHandler = async ({ locals, params, url }) => {

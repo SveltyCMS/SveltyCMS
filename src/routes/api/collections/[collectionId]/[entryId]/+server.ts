@@ -30,7 +30,7 @@ const normalizeCollectionName = (collectionId: string): string => {
 };
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Retrieves a single entry by its ID
 export const GET: RequestHandler = async ({ locals, params }) => {

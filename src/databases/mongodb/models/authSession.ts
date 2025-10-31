@@ -29,7 +29,7 @@ import type { Session, User } from '@src/databases/auth/types';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logging
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Define the Session schema
 export const SessionSchema = new Schema(

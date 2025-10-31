@@ -5,7 +5,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { error } from '@sveltejs/kit';
 
 // BATCH DELETE: Removes multiple entries from a collection

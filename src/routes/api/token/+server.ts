@@ -32,7 +32,7 @@ import { cacheService } from '@src/databases/CacheService';
 import { minLength, number, object, parse, string } from 'valibot';
 
 // System logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 const createTokenSchema = object({
 	email: string([minLength(1, 'Email is required.')]),

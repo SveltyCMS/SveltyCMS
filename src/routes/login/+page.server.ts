@@ -46,7 +46,7 @@ import { initializeRoles, roles } from '@root/config/roles';
 await initializeRoles();
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';

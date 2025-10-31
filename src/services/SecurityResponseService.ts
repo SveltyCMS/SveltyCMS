@@ -19,7 +19,7 @@
  * @enterprise Advanced threat detection for production environments
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { metricsService } from './MetricsService';
 import { building } from '$app/environment';
 

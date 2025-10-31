@@ -11,7 +11,7 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { DatabaseConfig } from '@src/databases/schemas';
 
 export const POST: RequestHandler = async ({ request }) => {

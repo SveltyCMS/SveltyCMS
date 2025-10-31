@@ -5,7 +5,7 @@
  */
 import { writable, derived } from 'svelte/store';
 import type { Widget, WidgetModule, WidgetFunction } from '@widgets/types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 export type WidgetStatus = 'active' | 'inactive';
 export type WidgetType = 'core' | 'custom';

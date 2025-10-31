@@ -11,7 +11,7 @@
  */
 
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { safeParse } from 'valibot';

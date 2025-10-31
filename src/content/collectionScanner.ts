@@ -6,7 +6,7 @@
  * during system setup without requiring the full ContentManager or global dbAdapter.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import * as fs from 'node:fs/promises';
 import { processModule } from './utils';
 import type { Schema } from './types';

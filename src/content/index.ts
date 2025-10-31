@@ -26,7 +26,7 @@ import type { Category, CategoryNode, ContentTypes, ProcessedModule, Schema } fr
 import type { DatabaseId, ISODateString } from './types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // Constants for batch processing
 const BATCH_SIZE = 50; // Number of collections to process per batch

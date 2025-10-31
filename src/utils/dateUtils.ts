@@ -9,7 +9,7 @@
  * - Database-agnostic date conversion helpers
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 import type { ISODateString } from '../content/types';
 
 // Type guard for ISODateString

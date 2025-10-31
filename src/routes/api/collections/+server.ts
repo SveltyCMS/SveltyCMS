@@ -19,7 +19,7 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Lists all collections accessible to the user
 export const GET: RequestHandler = async ({ locals, url }) => {

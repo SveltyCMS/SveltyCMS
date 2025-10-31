@@ -19,7 +19,7 @@
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Permissions
 

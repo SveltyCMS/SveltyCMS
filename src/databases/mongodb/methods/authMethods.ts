@@ -4,7 +4,7 @@
  * This class is responsible for idempotently registering auth-related Mongoose models.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type Mongoose from 'mongoose';
 import { createDatabaseError } from './mongoDBUtils';
 import { UserSchema } from '../models/authUser';

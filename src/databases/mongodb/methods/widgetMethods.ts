@@ -5,7 +5,7 @@
  * as well as activate/deactivate them.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Widget } from '../../dbInterface';
 import type { Widget as IWidget } from '../../dbInterface'; // Assuming you have a document interface
