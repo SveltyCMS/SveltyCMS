@@ -22,6 +22,7 @@ import { dbAdapter } from '@src/databases/db';
 
 // Content Management
 import { contentManager } from '@src/content/ContentManager';
+import type { CollectionEntry, Schema } from '@src/content/types';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -70,7 +71,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 			csvDelimiter: options.csvDelimiter ?? ','
 		};
 
-		logger.info(`Starting import into collection ${collectionId}`, {
+		logger.info(`Starting import into collection \x1b[33m${collectionId}\x1b[0m`, {
 			userId: locals.user._id,
 			format,
 			dataLength: Array.isArray(data) ? data.length : 'unknown',
@@ -78,7 +79,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		});
 
 		// Process data based on format
-		let entries: any[];
+		let entries: Record<string, unknown>[];
 
 		if (format === 'csv') {
 			entries = parseCSVData(data, importOptions);
@@ -91,7 +92,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
 		const duration = performance.now() - startTime;
 
-		logger.info(`Collection import completed for ${collectionId}`, {
+		logger.info(`Collection import completed for \x1b[33m${collectionId}\x1b[0m`, {
 			userId: locals.user._id,
 			imported: result.imported,
 			skipped: result.skipped,
@@ -113,7 +114,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 		});
 	} catch (err) {
 		const duration = performance.now() - startTime;
-		logger.error(`Collection import failed for ${collectionId}`, {
+		logger.error(`Collection import failed for \x1b[33m${collectionId}\x1b[0m`, {
 			userId: locals.user?._id,
 			error: err.message,
 			duration: `${duration.toFixed(2)}ms`
@@ -130,7 +131,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 /**
  * Parse CSV data into array of objects
  */
-function parseCSVData(csvData: string, options: ImportOptions): any[] {
+function parseCSVData(csvData: string, options: ImportOptions): CollectionEntry[] {
 	const lines = csvData.split('\n').filter((line) => line.trim());
 
 	if (lines.length === 0) {
@@ -147,7 +148,7 @@ function parseCSVData(csvData: string, options: ImportOptions): any[] {
 		const values = parseCSVLine(lines[i], options.csvDelimiter);
 
 		if (values.length !== headers.length) {
-			logger.warn(`CSV line ${i + 1} has ${values.length} values but expected ${headers.length}`);
+			logger.warn(`CSV line ${i + 1} has \x1b[33m${values.length}\x1b[0m values but expected \x1b[33m${headers.length}\x1b[0m`);
 			continue;
 		}
 
@@ -197,10 +198,7 @@ function parseCSVLine(line: string, delimiter: string = ','): string[] {
 	return values;
 }
 
-/**
- * Import entries into collection
- */
-async function importEntries(collectionName: string, entries: any[], schema: any, options: ImportOptions) {
+async function importEntries(collectionName: string, entries: CollectionEntry[], schema: Schema, options: ImportOptions) {
 	const result = {
 		imported: 0,
 		skipped: 0,
@@ -311,7 +309,7 @@ async function importEntries(collectionName: string, entries: any[], schema: any
 /**
  * Validate entry against schema
  */
-function validateEntry(entry: any, schema: any): { isValid: boolean; errors: string[] } {
+function validateEntry(entry: CollectionEntry, schema: Schema): { isValid: boolean; errors: string[] } {
 	const errors: string[] = [];
 
 	if (!entry || typeof entry !== 'object') {
@@ -322,8 +320,10 @@ function validateEntry(entry: any, schema: any): { isValid: boolean; errors: str
 	// Check required fields
 	if (schema.fields) {
 		for (const field of schema.fields) {
-			if (field.required && !entry[field.db_fieldName || field.name]) {
-				errors.push(`Required field '${field.label || field.name}' is missing`);
+			// Handle both FieldInstance and WidgetPlaceholder types
+			const fieldDef = typeof field === 'object' && field !== null && 'db_fieldName' in field ? field : null;
+			if (fieldDef && fieldDef.required && !entry[fieldDef.db_fieldName]) {
+				errors.push(`Required field '${fieldDef.label || fieldDef.db_fieldName}' is missing`);
 			}
 		}
 	}

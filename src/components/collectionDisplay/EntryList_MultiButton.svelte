@@ -379,19 +379,23 @@
 			{#each availableActions as [actionType, config] (actionType)}
 				{@const disabled = isActionDisabled(actionType)}
 
-				<li class="hover:text-white {disabled ? 'opacity-50' : ''}">
+				<li class={disabled ? 'opacity-50' : ''}>
 					<button
 						type="button"
 						onclick={(e) => handleOptionClick(e, actionType as ActionType)}
 						{disabled}
 						role="menuitem"
 						aria-label={config.label}
-						class="btn flex w-full justify-between gap-2 bg-surface-400 hover:{config.gradient} dark:bg-surface-700 dark:hover:{config.gradient} {disabled
+						class="btn relative flex w-full justify-between gap-2 overflow-hidden bg-surface-400 text-white dark:bg-surface-700 {disabled
 							? 'cursor-not-allowed'
 							: ''}"
 					>
-						<iconify-icon icon={config.icon} width="24" aria-hidden="true"></iconify-icon>
-						<span class="w-full text-left">{config.label}</span>
+						<!-- Gradient overlay that appears on hover -->
+						{#if !disabled}
+							<div class="absolute inset-0 {config.gradient} opacity-0 transition-opacity duration-200 hover:opacity-100"></div>
+						{/if}
+						<iconify-icon icon={config.icon} width="24" aria-hidden="true" class="relative z-10"></iconify-icon>
+						<span class="relative z-10 w-full text-left">{config.label}</span>
 					</button>
 				</li>
 			{/each}

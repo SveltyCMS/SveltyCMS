@@ -11,9 +11,7 @@ import * as fs from 'node:fs/promises';
 import { processModule } from './utils';
 import type { Schema } from './types';
 
-/**
- * Recursively scans a directory for .js files
- */
+// Recursively scans a directory for .js files
 async function recursivelyGetFiles(dir: string): Promise<string[]> {
 	const entries = await fs.readdir(dir, { withFileTypes: true });
 	const files = await Promise.all(
@@ -29,9 +27,7 @@ async function recursivelyGetFiles(dir: string): Promise<string[]> {
 	return files.flat();
 }
 
-/**
- * Extracts a clean path from a file path for content structure
- */
+// Extracts a clean path from a file path for content structure
 function extractPathFromFilePath(filePath: string): string {
 	const compiledDir = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 	const withoutCompiledDir = filePath.replace(new RegExp(`^${compiledDir}/?`), '');

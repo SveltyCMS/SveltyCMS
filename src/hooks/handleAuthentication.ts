@@ -11,12 +11,12 @@
  * - **Metrics Integration**: Comprehensive tracking via MetricsService
  *
  * ### Features
- * - ✅ Session rotation every 15 minutes for active users
- * - ✅ WeakRef cache with LRU eviction (top 100 hot sessions)
- * - ✅ Tenant isolation enforcement (prevents cross-tenant access)
- * - ✅ Rate-limited refresh attempts (100/min per IP)
- * - ✅ Automatic cleanup of expired sessions
- * - ✅ Zero-downtime session validation
+ * - Session rotation every 15 minutes for active users
+ * - WeakRef cache with LRU eviction (top 100 hot sessions)
+ * - Tenant isolation enforcement (prevents cross-tenant access)
+ * - Rate-limited refresh attempts (100/min per IP)
+ * - Automatic cleanup of expired sessions
+ * - Zero-downtime session validation
  *
  * @prerequisite handleSystemState and handleSetup have already confirmed readiness
  */
@@ -192,7 +192,7 @@ if (typeof setInterval !== 'undefined') {
 				}
 			}
 
-			logger.trace(`Session cache cleanup: ${strongRefs.size} strong refs, ${sessionCache.size} weak refs`);
+			logger.trace(`Session cache cleanup: \x1b[34m${strongRefs.size}\x1b[0m strong refs, \x1b[34m${sessionCache.size}\x1b[0m weak refs`);
 		},
 		5 * 60 * 1000
 	);
@@ -289,7 +289,7 @@ async function handleSessionRotation(event: RequestEvent, user: User, oldSession
 
 	// Rate limit check
 	if (await rotationRateLimiter.isLimited(event)) {
-		logger.debug(`Session rotation rate limited for session ${oldSessionId.substring(0, 8)}...`);
+		logger.debug(`Session rotation rate limited for session \x1b[33m${oldSessionId.substring(0, 8)}...\x1b[0m`);
 		return;
 	}
 

@@ -233,6 +233,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		const duration = performance.now() - startTime;
 		const responseData = { success: true, data: result.data, performance: { duration } };
 
+		// Invalidate server-side page cache for this collection
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		const cachePattern = `collection:${schema._id}:*`;
+		await cacheService.clearByPattern(cachePattern).catch((err) => {
+			logger.warn('Failed to invalidate page cache after PATCH', { pattern: cachePattern, error: err });
+		});
+
 		logger.info(`${endpoint} - Entry updated successfully`, { duration: `${duration.toFixed(2)}ms` });
 
 		return json(responseData);
@@ -293,6 +300,13 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			}
 			throw error(500, 'Failed to delete entry');
 		}
+
+		// Invalidate server-side page cache for this collection
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		const cachePattern = `collection:${schema._id}:*`;
+		await cacheService.clearByPattern(cachePattern).catch((err) => {
+			logger.warn('Failed to invalidate page cache after DELETE', { pattern: cachePattern, error: err });
+		});
 
 		const duration = performance.now() - startTime;
 		logger.info(`${endpoint} - Entry deleted successfully`, { duration: `${duration.toFixed(2)}ms` });

@@ -329,6 +329,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			performance: { duration }
 		};
 
+		// Invalidate server-side page cache for this collection
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		const cachePattern = `collection:${schema._id}:*`;
+		await cacheService.clearByPattern(cachePattern).catch((err) => {
+			logger.warn('Failed to invalidate page cache after POST', { pattern: cachePattern, error: err });
+		});
+
 		logger.info(`${endpoint} - Entry created successfully`, {
 			collection: schema._id,
 			userId: user._id,

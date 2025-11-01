@@ -1,18 +1,23 @@
 /**
  * @file src/content/ContentManager.ts
- * @description Refactored content management system core.
+ * @description Content management system core.
  *
- * Improvements:
- * - Robust Singleton Initialization: Prevents race conditions during initial server startup.
- * - Unified State Management: Uses a single Map as the source of truth for all content nodes, reducing complexity and memory overhead.
- * - Decoupled & Cohesive Methods: Long methods are broken down into smaller, focused, and more testable private functions.
- * - Optimized Lookups: A secondary path-to-ID lookup map provides fast access to content nodes by their URL path.
- * - Enhanced Caching Strategy and better integrated into the initialization flow.
+ * Features:
+ * - Singleton pattern for global access
+ * - Lazy initialization with race condition handling
+ * - In-memory caching with distributed cache (Redis) support
+ * - Robust reconciliation between filesystem and database
+ * - Optimized first collection retrieval with intelligent caching
+ * - Comprehensive content structure retrieval (flat and nested)
+ * - Bulk content node operations with database sync
+ * - Detailed logging for monitoring and debugging
+ * - TypeScript types for strong typing and IDE support
+
  */
 
 import { cacheService, REDIS_TTL_S as REDIS_TTL } from '@src/databases/CacheService';
 import type { ContentNode, Schema, ContentNodeOperation, DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.server';
 import { dateToISODateString } from '@utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { generateCategoryNodesFromPaths, processModule } from './utils';
@@ -479,7 +484,7 @@ class ContentManager {
 			});
 
 		const schemas = (await Promise.all(schemaPromises)).filter((s): s is NonNullable<typeof s> => !!s);
-		logger.trace(`Processed \x1b[33m${schemas.length}\x1b[0m collection schemas from filesystem.`);
+		logger.trace(`Processed \x1b[34m${schemas.length}\x1b[0m collection schemas from filesystem.`);
 		return schemas;
 	}
 
@@ -575,7 +580,7 @@ class ContentManager {
 			pathToIdMap.set(op.path, op._id);
 		}
 
-		logger.debug(`[ContentManager] Starting three-phase sync with ${operations.length} operations`);
+		logger.debug(`[ContentManager] Starting three-phase sync with \x1b[34m${operations.length}\x1b[0m operations`);
 
 		// Phase 1: Batch upsert to DB WITHOUT parentId
 		// This ensures all nodes get MongoDB-assigned _ids first
@@ -606,7 +611,7 @@ class ContentManager {
 				};
 			});
 
-			logger.debug(`[ContentManager] Phase 1: Upserting ${minimalOperations.length} nodes`);
+			logger.debug(`[ContentManager] Phase 1: Upserting \x1b[34m${minimalOperations.length}\x1b[0m nodes`);
 			await dbAdapter.content.nodes.bulkUpdate(minimalOperations);
 
 			// CRITICAL: Invalidate cache IMMEDIATELY after Phase 1 so Phase 2 gets fresh data
@@ -624,7 +629,7 @@ class ContentManager {
 			const insertedNodes = insertedNodesResult.data;
 			const pathToDbIdMap = new Map<string, DatabaseId>();
 
-			logger.debug(`[ContentManager] Phase 2: Retrieved ${insertedNodes.length} nodes`);
+			logger.debug(`[ContentManager] Phase 2: Retrieved \x1b[34m${insertedNodes.length}\x1b[0m nodes`);
 
 			try {
 				for (const node of insertedNodes) {
@@ -634,7 +639,7 @@ class ContentManager {
 						if (normalizedId) {
 							pathToDbIdMap.set(node.path, normalizedId as DatabaseId);
 						} else {
-							logger.warn(`[ContentManager] Phase 2: Could not normalize _id for node ${node.path}`);
+							logger.warn(`[ContentManager] Phase 2: Could not normalize _id for node \x1b[32m${node.path}\x1b[0m`);
 						}
 					}
 				}
@@ -662,14 +667,14 @@ class ContentManager {
 								changes: { parentId: parentDbId }
 							});
 						} else {
-							logger.warn(`[ContentManager] Missing parent for ${op.path} (expected: ${parentPath})`);
+							logger.warn(`[ContentManager] Missing parent for \x1b[34m${op.path}\x1b[0m (expected: \x1b[32m${parentPath}\x1b[0m)`);
 						}
 					}
 				}
 
 				// Batch update parentIds
 				if (parentIdUpdates.length > 0) {
-					logger.debug(`[ContentManager] Phase 3: Updating ${parentIdUpdates.length} parent relationships`);
+					logger.debug(`[ContentManager] Phase 3: Updating \x1b[34m${parentIdUpdates.length}\x1b[0m parent relationships`);
 					await dbAdapter.content.nodes.bulkUpdate(parentIdUpdates);
 
 					// Update the operations array with the new parentIds so they're reflected in memory
@@ -703,7 +708,7 @@ class ContentManager {
 		}
 
 		const finalNodes = finalStructureResult.data;
-		logger.debug(`[ContentManager] Final structure: ${finalNodes.length} nodes retrieved`);
+		logger.debug(`[ContentManager] Final structure: \x1b[34m${finalNodes.length}\x1b[0m nodes retrieved`);
 
 		// Clear and rebuild local maps with the complete database structure
 		this.contentNodeMap.clear();
@@ -714,7 +719,7 @@ class ContentManager {
 			// Ensure we normalize the _id
 			const normalizedId = normalizeId(node._id);
 			if (!normalizedId) {
-				logger.warn(`[ContentManager] Could not normalize _id for node ${node.path}`);
+				logger.warn(`[ContentManager] Could not normalize _id for node \x1b[32m${node.path}\x1b[0m`);
 				continue;
 			}
 
@@ -733,7 +738,9 @@ class ContentManager {
 			}
 		}
 
-		logger.debug(`[ContentManager] Maps rebuilt: contentNodeMap=${this.contentNodeMap.size}, pathLookupMap=${this.pathLookupMap.size}`);
+		logger.debug(
+			`[ContentManager] Maps rebuilt: contentNodeMap=\x1b[34m${this.contentNodeMap.size}\x1b[0m, pathLookupMap=\x1b[32m${this.pathLookupMap.size}\x1b[0m`
+		);
 	}
 
 	// Populates the distributed cache (e.g., Redis) with the current state
@@ -754,7 +761,7 @@ class ContentManager {
 				return false;
 			}
 
-			logger.debug(`[ContentManager] Cache hit - loading ${state.nodes.length} nodes from cache`);
+			logger.debug(`[ContentManager] Cache hit - loading \x1b[34m${state.nodes.length}\x1b[0m nodes from cache`);
 			this.contentNodeMap.clear();
 			this.pathLookupMap.clear();
 			for (const node of state.nodes) {

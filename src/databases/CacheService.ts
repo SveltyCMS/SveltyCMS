@@ -22,7 +22,7 @@ try {
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import type { RedisClientType } from 'redis';
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.server';
 
 // Cache config will be loaded lazily when cache is initialized
 let CACHE_CONFIG: {

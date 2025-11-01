@@ -118,7 +118,7 @@ async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
 	return false;
 }
 
-import { getCachedFirstCollectionPath } from '@stores/collectionStore.svelte';
+import { getCachedFirstCollectionPath } from '@utils/server/collection-utils.server';
 
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {

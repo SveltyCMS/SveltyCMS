@@ -201,10 +201,10 @@ export class MongoContentMethods {
 					}
 				};
 			});
-			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with ${operations.length} operations`);
+			logger.trace(`[bulkUpdateNodes] Executing bulkWrite with \x1b[34m${operations.length}\x1b[0m operations`);
 			const result = await this.nodesRepo.model.bulkWrite(operations);
 			logger.info(
-				`[bulkUpdateNodes] Result: modified=${result.modifiedCount}, upserted=${result.upsertedCount}, total=${result.modifiedCount + result.upsertedCount}`
+				`[bulkUpdateNodes] Result: modified=\x1b[34m${result.modifiedCount}\x1b[0m, upserted=\x1b[34m${result.upsertedCount}\x1b[0m, total=\x1b[34m${result.modifiedCount + result.upsertedCount}\x1b[0m`
 			);
 
 			// Invalidate content structure caches

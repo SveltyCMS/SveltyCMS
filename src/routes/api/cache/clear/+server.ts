@@ -1,6 +1,9 @@
 /**
  * @file src/routes/api/cache/clear/+server.ts
  * @description API endpoint for clearing all cache entries
+ *
+ * Features:
+ * - Clear all cache entries
  */
 
 import { json } from '@sveltejs/kit';

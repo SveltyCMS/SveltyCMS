@@ -52,7 +52,7 @@ Features:
 	import { StatusTypes } from '@src/content/types';
 
 	// Stores
-	import { collection, contentStructure, mode, setCollection, setMode } from '@stores/collectionStore.svelte';
+	import { collection, contentStructure, mode, setMode } from '@stores/collectionStore.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 
@@ -231,15 +231,20 @@ Features:
 					return; // Already selected
 				}
 
+				// Set mode to view for collection display
 				setMode('view');
-				setCollection(null);
+				
+				// Don't clear collection - let the server load set the new one
+				// This prevents the Loading flash
 				shouldShowNextButton.set(true);
 
+				// Clear cached entry list data
 				const cacheEvent = new CustomEvent('clearEntryListCache', {
 					detail: { resetState: true, reason: 'collection-switch' }
 				});
 				document.dispatchEvent(cacheEvent);
 
+				// Navigate to the collection path
 				navigateTo(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
 			} else if (selectedCollection.nodeType === 'category') {
 				toggleNodeExpansion(selectedCollection._id);

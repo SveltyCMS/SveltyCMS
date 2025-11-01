@@ -265,7 +265,7 @@ export function showActionToast(action: string, itemType: string, count = 1, suc
 
 // Validates if an action is available for current user permissions
 export function isActionAllowed(action: string, userRole: string, isAdmin: boolean): boolean {
-	const adminOnlyActions = ['delete', 'batch-delete'];
+	const adminOnlyActions = ['delete'];
 	const editorActions = ['publish', 'unpublish', 'archive', 'schedule'];
 
 	if (adminOnlyActions.includes(action) && !isAdmin) {

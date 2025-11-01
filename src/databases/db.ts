@@ -562,12 +562,12 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 
 		const parallelTime = performance.now() - parallelStartTime;
 		logger.info(
-			`ThemeManager initialized successfully. Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: ${revisionsTime.toFixed(2)}ms, Virtual Folders: ${virtualFoldersTime.toFixed(2)}ms, Themes: ${themesTime.toFixed(2)}ms)`
+			`ThemeManager initialized successfully. Parallel I/O completed in \x1b[32m${parallelTime.toFixed(2)}ms\x1b[0m (Media: ${mediaTime.toFixed(2)}ms, Revisions: \x1b[32m${revisionsTime.toFixed(2)}ms\x1b[0m, Virtual Folders: \x1b[32m${virtualFoldersTime.toFixed(2)}ms\x1b[0m, Themes: \x1b[32m${themesTime.toFixed(2)}ms\x1b[0m)`
 		);
 
 		const step5Time = performance.now() - step5StartTime;
 		logger.info(
-			`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m (Auth: ${authTime.toFixed(2)}ms, Settings: ${settingsTime.toFixed(2)}ms)`
+			`\x1b[32mStep 5:\x1b[0m Critical components initialized in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m (Auth: \x1b[32m${authTime.toFixed(2)}ms\x1b[0, Settings: \x1b[32m${settingsTime.toFixed(2)}ms\x1b[0)`
 		);
 		isInitialized = true;
 

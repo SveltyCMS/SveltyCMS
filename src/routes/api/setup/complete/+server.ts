@@ -37,7 +37,7 @@ interface AdminConfig {
 	confirmPassword: string;
 }
 
-import { getCachedFirstCollectionPath } from '@src/stores/collectionStore.svelte';
+import { getCachedFirstCollectionPath } from '@utils/server/collection-utils.server';
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');

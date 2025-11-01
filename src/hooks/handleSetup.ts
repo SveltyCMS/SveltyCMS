@@ -34,7 +34,7 @@ import { join } from 'node:path';
  * These are essential for the setup page UI to render properly.
  */
 const ASSET_REGEX =
-	/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map))/;
+	/^\/(?:@vite\/client|@fs\/|src\/|node_modules\/|vite\/|_app|static|favicon\.ico|\.svelte-kit\/generated\/client\/nodes|.*\.(svg|png|jpg|jpeg|gif|css|js|woff|woff2|ttf|eot|map))/;
 
 // --- UTILITY FUNCTIONS ---
 

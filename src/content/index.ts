@@ -16,17 +16,19 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Stores
 import { collections, contentStructure, setCollection, setCollectionValue, setMode, unAssigned } from '@root/src/stores/collectionStore.svelte';
-import type { Unsubscriber } from 'svelte/store';
 
 // Components
 import { widgetStoreActions } from '@stores/widgetStore.svelte';
 
 // Types
-import type { Category, CategoryNode, ContentTypes, ProcessedModule, Schema } from './types';
+import type { Category, ContentTypes, Schema } from './types';
 import type { DatabaseId, ISODateString } from './types';
 
 // System Logger
 import { logger } from '@utils/logger';
+
+// Database
+import { dbAdapter } from '@src/databases/db';
 
 // Constants for batch processing
 const BATCH_SIZE = 50; // Number of collections to process per batch
@@ -34,12 +36,25 @@ const CONCURRENT_BATCHES = 5; // Number of concurrent batches
 
 // Cache and efficient data structures
 let importsCache: Record<ContentTypes, Schema> = {} as Record<ContentTypes, Schema>;
-let unsubscribe: Unsubscriber | undefined;
 let collectionModelsCache: Partial<Record<ContentTypes, Schema>> | null = null;
+
+// Define missing types locally to avoid circular dependencies
+interface CategoryNode {
+	id: number;
+	name: string;
+	icon: string;
+	order: number;
+	collections: Schema[];
+	subcategories: Map<string, CategoryNode>;
+}
+
+interface ProcessedModule {
+	schema?: Schema;
+	default?: Schema;
+}
+
 const categoryLookup: Map<string, CategoryNode> = new Map();
 const collectionsByCategory: Map<string, Set<Schema>> = new Map();
-
-// ...existing code...
 
 interface CollectionData {
 	id: string;
@@ -49,34 +64,55 @@ interface CollectionData {
 	subcategories: Record<string, CollectionData>;
 }
 
-// Function to create categories from folder structure
-// Fix createCategoriesFromPath to return Category[]
-async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
-	categoryLookup.clear();
-	collectionsByCategory.clear();
-
-	const batches = chunks(collections, BATCH_SIZE);
-	for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
-		const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
-		await Promise.all(currentBatches.map(processBatch));
-	}
-
-	const categoriesObject = flattenAndSortCategories();
-	const result: Category[] = Object.values(categoriesObject).map((cat) => ({
-		id: parseInt(cat.id),
-		name: cat.name,
-		icon: cat.icon,
-		order: 0, // Default order, update if needed
-		collections: cat.collections,
-		subcategories: undefined
-	}));
-	logger.trace('Created categories:', result);
-	return result;
-}
-
 // Helper function to create chunks
 function chunks<T>(arr: T[], size: number): T[][] {
 	return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+}
+
+async function getCurrentPath() {
+	// Ensure dbAdapter is available
+	if (!dbAdapter) {
+		logger.warn('dbAdapter is not available in getCurrentPath');
+		return {
+			config: {
+				fields: {},
+				isCollection: false,
+				name: '',
+				icon: '',
+				path: typeof window !== 'undefined' ? window.location.pathname : '',
+				order: 0
+			},
+			currentPath: typeof window !== 'undefined' ? window.location.pathname : ''
+		};
+	}
+
+	const result = await dbAdapter.content.nodes.getStructure('flat');
+	if (!result.success || !result.data) {
+		logger.warn('Failed to get content nodes from database');
+		return {
+			config: {
+				fields: {},
+				isCollection: false,
+				name: '',
+				icon: '',
+				path: typeof window !== 'undefined' ? window.location.pathname : '',
+				order: 0
+			},
+			currentPath: typeof window !== 'undefined' ? window.location.pathname : ''
+		};
+	}
+
+	const contentNodes = result.data;
+	const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+	const config = contentNodes.find((node) => node.path === currentPath) || {
+		fields: {},
+		isCollection: false,
+		name: '',
+		icon: '',
+		path: currentPath,
+		order: 0
+	};
+	return { config, currentPath };
 }
 
 // Process a batch of collections
@@ -159,9 +195,29 @@ function flattenAndSortCategories(): Record<string, CollectionData> {
 	return result;
 }
 
-import { dbAdapter } from '@src/databases/db';
+// Function to create categories from folder structure
+async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
+	categoryLookup.clear();
+	collectionsByCategory.clear();
 
-// ...existing code...
+	const batches = chunks(collections, BATCH_SIZE);
+	for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
+		const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
+		await Promise.all(currentBatches.map(processBatch));
+	}
+
+	const categoriesObject = flattenAndSortCategories();
+	const result: Category[] = Object.values(categoriesObject).map((cat) => ({
+		id: parseInt(cat.id),
+		name: cat.name,
+		icon: cat.icon,
+		order: 0,
+		collections: cat.collections.map((col) => col.name || '').filter(Boolean),
+		subcategories: undefined
+	}));
+	logger.trace('Created categories:', result);
+	return result;
+}
 
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<ContentTypes, Schema>>> {
@@ -196,18 +252,17 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 		const _collections: Partial<Record<ContentTypes, Schema>> = {};
 		for (const category of _categories) {
-			for (const col of category.collections) {
-				if (col.name) {
+			for (const collectionName of category.collections) {
+				const col = imports[collectionName as ContentTypes];
+				if (col && col.name) {
 					_collections[col.name as ContentTypes] = col;
 				}
 			}
 		}
-
 		logger.trace(`Collections processed. Count: ${Object.keys(_collections).length}`);
 		logger.trace('Setting categories:', _categories);
 
 		// Set the stores
-		// Map Category[] to ContentNode[] for store, fix _id type
 		contentStructure.value = _categories.map((cat) => ({
 			_id: cat.id.toString() as DatabaseId,
 			name: cat.name,
@@ -222,12 +277,14 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			createdAt: new Date().toISOString() as ISODateString,
 			updatedAt: new Date().toISOString() as ISODateString
 		}));
-		collections.value = _collections;
-		// Fix unAssigned.value to pass a valid Schema or empty default
-		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
-		unAssigned.value = unassigned.length > 0 ? unassigned[0] : { fields: [] };
 
-		// Only try to fetch collection models if we're server-side and not in development mode
+		// Mutate collections object (can't reassign const $state)
+		Object.keys(collections).forEach((key) => delete collections[key]);
+		Object.assign(collections, _collections);
+
+		// Fix unAssigned to pass a valid Schema or empty default
+		const unassigned = Object.values(imports).filter((x) => !Object.values(_collections).includes(x));
+		Object.assign(unAssigned, unassigned.length > 0 ? unassigned[0] : { fields: [] });
 
 		setCollection({} as Schema);
 		setCollectionValue({});
@@ -237,19 +294,8 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 	} catch (err) {
 		logger.error(`Error in updateCollections: ${err}`);
 		// Don't throw error here, just log it and continue
-		// This allows the collections to still be loaded even if DB isn't ready
 	}
 };
-
-// Initialize collections
-//(async () => {
-//  try {
-//    await updateCollections();
-//    logger.info('Collections initialized successfully');
-//  } catch (err) {
-//    logger.warn(`Note: Initialization encountered an issue: ${err}. This is expected during initial setup.`);
-//  }
-//})();
 
 // Function to get imports based on environment
 async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
@@ -263,6 +309,31 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 	if (!recompile && Object.keys(importsCache).length > 0) {
 		logger.trace('Returning from cache');
 		return importsCache;
+	}
+
+	// Production mode optimization: Use direct filesystem scanning for better performance
+	if (!dev && !building) {
+		logger.trace('Running in production mode - using scanCompiledCollections for optimal performance');
+		try {
+			const { scanCompiledCollections } = await import('./collectionScanner');
+			const compiledCollections = await scanCompiledCollections();
+
+			// Convert to the existing type structure (maintaining backwards compatibility)
+			const imports: Record<string, Schema> = {};
+			for (const collection of compiledCollections) {
+				if (collection._id && collection.name) {
+					imports[collection.name] = collection;
+				}
+			}
+
+			// Cast to ContentTypes to maintain type safety with existing codebase
+			importsCache = imports as Record<ContentTypes, Schema>;
+			logger.info(`✅ Loaded ${Object.keys(imports).length} collections via filesystem scanning`);
+			return importsCache;
+		} catch (error) {
+			logger.warn('Failed to scan compiled collections, falling back to legacy import method:', error);
+			// Fall through to legacy method below
+		}
 	}
 
 	try {
@@ -289,14 +360,14 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 
 		// Development/Building mode
 		if (dev || building) {
-			logger.trace(`Running in {${dev ? 'dev' : 'building'}} mode`);
+			logger.trace(`Running in ${dev ? 'dev' : 'building'} mode`);
 			// Look for TypeScript files in config/collections directory
 			const modules = import.meta.glob(
 				[
 					'../../config/collections/**/*.ts',
-					'!../../config/collections/**/index.ts', // Exclude any index files
-					'!../../config/collections/**/types.ts', // Exclude type definitions
-					'!../../config/collections/**/utils/**/*.ts' // Exclude utility files
+					'!../../config/collections/**/index.ts',
+					'!../../config/collections/**/types.ts',
+					'!../../config/collections/**/utils/**/*.ts'
 				],
 				{
 					eager: false,
@@ -316,7 +387,6 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 							batch.map(async ([modulePath, moduleImport]) => {
 								const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
 								const module = await moduleImport();
-								// Cast module import as ProcessedModule
 								await processModule(name, module as ProcessedModule, modulePath);
 							})
 						);
@@ -331,7 +401,6 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 				// Use new collections endpoint
 				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollections();
 				if (collectionsResponse.success && Array.isArray(collectionsResponse.data.collections)) {
-					// Fix type for collectionsResponse.data.collections.map
 					files = collectionsResponse.data.collections.map((c: { name: string }) => `${c.name}.js`);
 				} else if (Array.isArray(collectionsResponse)) {
 					// Fallback for old format
@@ -363,9 +432,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 
 									await processModule(name, collectionModule, file);
 								} catch (moduleError: unknown) {
-									logger.error(
-										`Error processing module ${name}: ${moduleError instanceof Error ? (moduleError as Error).message : String(moduleError)}`
-									);
+									logger.error(`Error processing module ${name}: ${moduleError instanceof Error ? moduleError.message : String(moduleError)}`);
 								}
 							})
 						);
@@ -383,18 +450,3 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 }
 
 export { contentStructure as categories };
-
-async function getCurrentPath() {
-	const contentNodes = await dbAdapter.getContentNodes();
-	const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-	// Fix type for node in find
-	const config = contentNodes.find((node: { path?: string }) => node.path === currentPath) || {
-		fields: {},
-		isCollection: false,
-		name: '',
-		icon: '',
-		path: currentPath,
-		order: 0
-	};
-	return { config, currentPath };
-}

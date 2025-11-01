@@ -1,144 +1,64 @@
 <!--
-@file src/routes/(app)/[language]/[collection]/+page.svelte
+@file src/routes/(app)/[language]/[...collection]/+page.svelte
 @component
-**This component handles the content and logic for a specific page within the application**
+**This component acts as a layout and data router for the collection view.**
 
 ## Features:
-It dynamically fetches and displays data based on the current language and collection route parameters.
-It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
+- Receives all page data (schema, entries, pagination) from the server-side `load` function.
+- Passes server-loaded data as props to the `EntryList` or `Fields` components.
+- Does not perform any client-side data fetching.
 -->
-
 <script lang="ts">
-	// Types
-	import type { User } from '@src/databases/auth/types';
+	import { collection, mode, setCollection } from '@src/stores/collectionStore.svelte';
+	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
+	import Fields from '@src/components/collectionDisplay/Fields.svelte';
+	import Loading from '@src/components/Loading.svelte';
 	import type { Schema } from '@src/content/types';
-	// ParaglideJS
-	import type { Locale } from '@src/paraglide/runtime';
 
-	// Stores
-	import { page } from '$app/state';
-	import { collection, collectionValue, mode, setCollection, setCollectionValue, setMode } from '@root/src/stores/collectionStore.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
-	import { contentLanguage } from '@stores/store.svelte';
-	import { logger } from '@utils/logger';
-	// Components
-	import Loading from '@components/Loading.svelte';
-	import EntryList from '@components/collectionDisplay/EntryList.svelte';
-	import Fields from '@components/collectionDisplay/Fields.svelte';
-
-	interface Props {
-		data: {
-			collection: Schema & { module: string | undefined };
-			contentLanguage: string;
-			user: User;
-			siteName: string;
+	interface PageData {
+		collectionSchema: Schema;
+		entries: any[];
+		pagination: {
+			totalItems: number;
+			pagesCount: number;
+			currentPage: number;
+			pageSize: number;
 		};
+		revisions: any[];
 	}
 
-	const { data }: Props = $props();
+	let { data }: { data: PageData } = $props();
 
-	// Track last language from URL and user-initiated language changes
-	let lastUrlLanguage = data?.contentLanguage ?? 'en';
-	let userInitiatedLanguageChange = false;
+	// Use $derived for reactivity from server-loaded data
+	let collectionSchema = $derived(data?.collectionSchema);
+	let entries = $derived(data?.entries || []);
+	let pagination = $derived(data?.pagination || { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 });
+	let revisions = $derived(data?.revisions || []);
 
-	const shouldFetchData = data.collection.name && (!collection.value || data.collection.path !== collection.value.path);
-
-	let isLoading = $state(shouldFetchData);
-
-	async function loadCollection() {
-		globalLoadingStore.startLoading(loadingOperations.navigation);
-		isLoading = true;
-		if (!page.params.collection) {
-			globalLoadingStore.stopLoading(loadingOperations.navigation);
-			return;
-		}
-
-		setCollection(data.collection);
-
-		// Initialize collectionValue with language keys
-		const initialValue: Record<string, any> = {
-			_id: (collectionValue as any)?._id,
-			slug: (collectionValue as any)?.slug
-		};
-		setCollectionValue(initialValue);
-
-		setMode('view'); // Set mode to view to render EntryList
-		isLoading = false;
-		globalLoadingStore.stopLoading(loadingOperations.navigation);
-	}
-
+	// This effect runs when SvelteKit provides new data from the `load` function
 	$effect(() => {
-		// Correctly using $effect here
-		if (data.collection.name && (!collection.value || data.collection.path !== collection.value.path)) {
-			loadCollection();
-		} else if (data.collection.name && collection.value) {
-			// Collection already loaded - ensure mode is correct for collection view
-			if (mode.value === 'media' || mode.value === 'modify') {
-				logger.debug(`Collection already loaded, but mode is ${mode.value}, setting to view`);
-				setMode('view');
-			}
+		if (collectionSchema) {
+			// Set the global store with the fresh data loaded from the server
+			setCollection(collectionSchema);
 		}
 	});
-
-	$effect(() => {
-		const handleLanguageChange = (_event: CustomEvent) => {
-			userInitiatedLanguageChange = true;
-		};
-
-		if (typeof window !== 'undefined') {
-			window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-			return () => {
-				window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-			};
-		}
-	});
-
-	$effect(() => {
-		// Reset the flag if the URL language has actually changed (navigation)
-		if (data.contentLanguage !== lastUrlLanguage) {
-			userInitiatedLanguageChange = false;
-			lastUrlLanguage = data.contentLanguage;
-		}
-
-		// Only set language from URL if user hasn't initiated a language change
-		if (!userInitiatedLanguageChange) {
-			const availableContentLanguages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES || ['en'];
-			if (!(availableContentLanguages as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
-				// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
-				if (!contentLanguage.value || !(availableContentLanguages as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
-					contentLanguage.set('en');
-				}
-			} else {
-				contentLanguage.set(data.contentLanguage as Locale);
-			}
-		}
-	});
-	$effect(() => {
-		if (mode.value === 'media') {
-			setMode('view');
-		}
-	});
-
-	// Handle browser history navigation
 </script>
 
 <svelte:head>
-	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - {data.siteName}</title>
-	<meta name="description" content={`View and manage entries for ${collection.value?.name?.toString()}.`} />
+	<title>{collectionSchema?.name ?? 'Collection'} - SveltyCMS</title>
 </svelte:head>
+
 <div class="content h-full">
-	{#if isLoading}
+	{#if !collection.value}
+		<!-- This should only flash briefly on first load -->
 		<Loading />
-	{:else if collection.value}
-		{#if mode.value === 'view' || mode.value === 'modify'}
-			<EntryList />
-		{:else if ['edit', 'create'].includes(mode.value)}
-			<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields fields={collection.value.fields} />
-			</div>
-		{/if}
-	{:else}
-		<div class="error text-error-500" role="alert">Error: Collection data not available.</div>
+	{:else if mode.value === 'view' || mode.value === 'modify'}
+		<!-- Pass the server-loaded data directly as props -->
+		<EntryList {entries} {pagination} />
+	{:else if ['edit', 'create'].includes(mode.value)}
+		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
+			<!-- Pass the server-loaded data directly as props -->
+			<Fields fields={collection.value.fields} {revisions} />
+		</div>
 	{/if}
 </div>
