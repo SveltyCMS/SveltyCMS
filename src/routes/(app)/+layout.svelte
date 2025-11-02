@@ -378,13 +378,17 @@
 				<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
-						<header class="sticky top-0 w-full">
+						<header class="sticky top-0 z-20 w-full">
 							<HeaderEdit />
 						</header>
 					{/if}
 
 					<!-- Router Slot with Loading Overlay -->
-					<div class="relative flex-1 {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value ? 'mb-2' : 'mb-16'}">
+					<div
+						class="relative flex-1 overflow-visible {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {isDesktop.value
+							? 'mb-2'
+							: 'mb-16'}"
+					>
 						<!-- Loading Overlay -->
 						{#if shouldShowLoading}
 							<div

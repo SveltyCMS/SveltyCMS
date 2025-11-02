@@ -46,6 +46,7 @@ Features:
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { invalidateAll } from '$app/navigation';
 
 	// Types
 	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
@@ -84,7 +85,6 @@ Features:
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
-	let navigationTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	// Debounce function
 	const debouncedSearchUpdate = debounce.create(
@@ -180,7 +180,10 @@ Features:
 				name: label,
 				id: nodeId,
 				isExpanded,
-				onClick: () => handleCollectionSelect(node),
+				onClick: () => {
+					console.log('[Collections] onClick fired for node:', label, nodeId);
+					handleCollectionSelect(node);
+				},
 				children,
 				badge,
 				depth,
@@ -194,15 +197,26 @@ Features:
 	});
 
 	// Helper function for navigation
-	async function navigateTo(path: string, options: { replaceState?: boolean } = {}): Promise<void> {
-		if (navigationTimeout) {
-			clearTimeout(navigationTimeout);
+	async function navigateTo(path: string, options: { replaceState?: boolean; forceReload?: boolean } = {}): Promise<void> {
+		console.log('[navigateTo] Starting navigation', {
+			targetPath: path,
+			currentPath: page.url.pathname,
+			forceReload: options.forceReload,
+			willInvalidate: options.forceReload || page.url.pathname === path
+		});
+
+		// If forcing reload or path is same but we need fresh data
+		if (options.forceReload || page.url.pathname === path) {
+			console.log('[navigateTo] Calling invalidateAll before navigation');
+			await invalidateAll(); // Force SSR to re-run
 		}
-		navigationTimeout = setTimeout(async () => {
-			if (page.url.pathname === path) return;
-			// eslint-disable-next-line svelte/no-navigation-without-resolve
-			await goto(path, { replaceState: options.replaceState });
-		}, 50);
+
+		console.log('[navigateTo] Calling goto with invalidateAll: true');
+		await goto(path, {
+			replaceState: options.replaceState,
+			invalidateAll: true // Force data reload
+		});
+		console.log('[navigateTo] Navigation completed');
 	}
 
 	// Get status color for badges
@@ -227,13 +241,21 @@ Features:
 		if (isExtendedContentNode(selectedCollection)) {
 			if (selectedCollection.nodeType === 'collection') {
 				const currentCollectionId = collection.value?._id;
-				if (currentCollectionId === selectedCollection._id) {
-					return; // Already selected
-				}
+
+				console.log('[handleCollectionSelect] Collection selected', {
+					selectedId: selectedCollection._id,
+					selectedName: selectedCollection.name,
+					selectedPath: selectedCollection.path,
+					currentCollectionId,
+					isSameCollection: currentCollectionId === selectedCollection._id
+				});
+
+				// Always navigate to trigger SSR, even if same collection
+				// The path might be the same but we need fresh data
 
 				// Set mode to view for collection display
 				setMode('view');
-				
+
 				// Don't clear collection - let the server load set the new one
 				// This prevents the Loading flash
 				shouldShowNextButton.set(true);
@@ -244,8 +266,11 @@ Features:
 				});
 				document.dispatchEvent(cacheEvent);
 
-				// Navigate to the collection path
-				navigateTo(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
+				// Navigate to the collection using UUID
+				// The server will handle UUID lookup and the browser will show the path
+				const targetPath = `/${contentLanguage.value}/${selectedCollection._id}`;
+				console.log('[handleCollectionSelect] About to navigate to UUID:', targetPath);
+				navigateTo(targetPath, { forceReload: currentCollectionId === selectedCollection._id });
 			} else if (selectedCollection.nodeType === 'category') {
 				toggleNodeExpansion(selectedCollection._id);
 			}
@@ -279,15 +304,6 @@ Features:
 		if (!pathname.includes('/mediagallery') && currentMode === 'media') {
 			setMode('view');
 		}
-	});
-
-	// Cleanup for navigation timeout
-	$effect(() => {
-		return () => {
-			if (navigationTimeout) {
-				clearTimeout(navigationTimeout);
-			}
-		};
 	});
 </script>
 

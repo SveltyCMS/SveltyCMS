@@ -25,7 +25,7 @@
 
 	// Import necessary utilities and types
 	import { page } from '$app/stores';
-	import type { Collection } from '@src/content/types'; // Import Collection type
+	import type { Schema } from '@src/content/types'; // Import Schema type (collection definition)
 	import { getLanguageName } from '@utils/languageUtils';
 
 	// Stores
@@ -61,7 +61,7 @@
 	// Reactive user data
 	let user = $derived($page.data.user);
 	let currentPath = $derived($page.url.pathname);
-	let collections: Collection[] = $derived($page.data.collections);
+	let collections: Schema[] = $derived($page.data.collections);
 	// Check if we're in media mode
 	let isMediaMode = $derived(currentPath.includes('/mediagallery'));
 
@@ -277,7 +277,7 @@
 			{/if}
 		</button>
 	{:else}
-		<Collections {collections} />
+		<Collections />
 
 		<!-- Toggle to Media Gallery Button -->
 		<button

@@ -1,18 +1,20 @@
 ---
 path: 'docs/widgets/widget-system-overview.mdx'
 title: 'Widget System Overview'
-description: 'Complete overview of SveltyCMS widget system with 3-pillar architecture, management, and marketplace capabilities'
+description: 'Complete overview of SveltyCMS widget system with 3-pillar architecture, multilingual support, management, and marketplace capabilities'
 order: 1
 icon: 'mdi:widgets'
 author: 'admin'
 created: '2025-10-17'
-updated: '2025-10-17'
+updated: '2025-11-02'
 tags:
   - 'widgets'
   - 'overview'
   - 'architecture'
   - '3-pillar'
   - 'system'
+  - 'i18n'
+  - 'multilingual'
 ---
 
 # Widget System Overview
@@ -123,6 +125,66 @@ flowchart TD
 - **🔒 Security**: Permission-based access control
 - **📚 Self-Documenting**: MDX documentation per widget
 - **✅ Validation**: Valibot schemas for type safety
+- **🌍 Multilingual**: Built-in support for translated content with contentLanguage integration
+
+### Multilingual Support
+
+All text-based widgets support multilingual content through the `translated` field property:
+
+```typescript
+// Field configuration
+{
+  widget: 'input',
+  label: 'Title',
+  db_fieldName: 'title',
+  translated: true,  // ← Enables multilingual support
+  required: true
+}
+```
+
+**Data Storage:**
+
+```typescript
+// Translated field stores language-keyed values
+{
+  "title": {
+    "en": "Hello World",
+    "de": "Hallo Welt",
+    "fr": "Bonjour le monde"
+  }
+}
+
+// Non-translated field stores single value
+{
+  "slug": "hello-world"
+}
+```
+
+**Widget Behavior:**
+
+- Widgets automatically read from `contentLanguage` store
+- Display and edit values for current language only
+- Preserve translations when updating
+- Support validation per language
+- Database-agnostic storage format
+
+**Supported Widgets:**
+
+| Widget      | Multilingual   | Notes                         |
+| ----------- | -------------- | ----------------------------- |
+| input       | ✅ Yes         | Text content per language     |
+| richText    | ✅ Yes         | Rich content per language     |
+| email       | ✅ Yes         | Localized email text          |
+| phoneNumber | ✅ Yes         | Localized labels              |
+| number      | ✅ Yes         | Localized formatting          |
+| seo         | ✅ Yes         | SEO meta per language         |
+| relation    | ✅ Conditional | Display fields translated     |
+| megaMenu    | ✅ Yes         | Menu items per language       |
+| checkbox    | ❌ No          | Boolean, language-independent |
+| date        | ❌ No          | ISO format, display localized |
+| mediaUpload | ❌ No          | File reference only           |
+
+---
 
 ## 📁 Directory Structure
 

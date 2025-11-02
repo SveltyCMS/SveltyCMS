@@ -4,17 +4,23 @@
 **Fields is a \"dumb\" component that renders collection fields for data entry and provides revision history.**
 
 @example
-<Fields {fields} {revisions} />
+<Fields {fields} {revisions} contentLanguage="en" />
 
 ### Props
 - `fields` - The array of field objects from the collection schema.
 - `revisions` - An array of revision metadata for the current entry.
+- `contentLanguage` - The current content language for editing multilingual field data.
 
 ### Features
 - Renders appropriate widgets for each field in the schema.
 - Binds form data to the `collectionValue` store.
 - Displays revision history and allows comparing/reverting to previous versions.
 - Does not perform any data fetching; all data is received as props.
+
+### Dual-Language Architecture
+- **GUI (systemLanguage)**: All UI text uses ParaglideJS (compile-time) for interface labels, buttons, messages
+- **Data (contentLanguage)**: Content data uses dynamic contentLanguage passed to widgets for translated fields
+- **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -53,9 +59,14 @@
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
-	let { fields, revisions = [] } = $props<{
+	let {
+		fields,
+		revisions = []
+		// contentLanguage prop received but not directly used - widgets access contentLanguage store
+	} = $props<{
 		fields?: NonNullable<(typeof collection)['value']>['fields'];
 		revisions?: any[];
+		contentLanguage?: string; // Passed for documentation, widgets use store directly
 	}>();
 
 	// --- 2. SIMPLIFIED STATE ---
@@ -64,10 +75,13 @@
 	let widgetsReady = $state(false);
 
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue = $state({ ...collectionValue.value });
+	let currentCollectionValue = $state<Record<string, any>>({});
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
+
+	// Track the last entry ID to detect when switching entries
+	let lastEntryId = $state<string | undefined>(undefined);
 
 	// --- 3. DERIVED STATE FROM PROPS ---
 	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
@@ -107,27 +121,36 @@
 			})
 	);
 
-	// Sync local form state with global store, but don't clobber local edits
-	// 1) If the entry switched (different _id), pull from global -> local
-	// 2) Otherwise, push local -> global on change
+	// Sync local form state with global store
+	// When collectionValue changes (new entry loaded), update local state
+	// When local state changes (user editing), update global state
 	$effect(() => {
 		const global = collectionValue.value as Record<string, unknown> | undefined;
-		const local = currentCollectionValue as Record<string, unknown> | undefined;
-
 		const globalId = (global as any)?._id;
-		const localId = (local as any)?._id;
 
-		// If switching to a different entry or global was externally updated, copy down
-		if (global && globalId && globalId !== localId) {
+		// When a new entry is loaded (different ID), pull from global -> local
+		if (globalId && globalId !== lastEntryId) {
+			console.log('[Fields] Loading entry data:', globalId);
+			currentCollectionValue = { ...global } as any;
+			lastEntryId = globalId;
+			return;
+		}
+
+		// If creating new entry (no ID), initialize with global state
+		if (!globalId && !lastEntryId && global && Object.keys(global).length > 0) {
+			console.log('[Fields] Initializing new entry');
 			currentCollectionValue = { ...global } as any;
 			return;
 		}
 
-		// Otherwise, keep global in sync with local edits
-		const currentDataStr = JSON.stringify(local ?? {});
-		const globalDataStr = JSON.stringify(global ?? {});
-		if (currentDataStr !== globalDataStr) {
-			setCollectionValue({ ...(global ?? {}), ...(local ?? {}) });
+		// Otherwise, push local changes to global (user is editing)
+		const local = currentCollectionValue as Record<string, unknown> | undefined;
+		if (local && Object.keys(local).length > 0) {
+			const currentDataStr = JSON.stringify(local);
+			const globalDataStr = JSON.stringify(global ?? {});
+			if (currentDataStr !== globalDataStr) {
+				setCollectionValue({ ...local });
+			}
 		}
 	});
 

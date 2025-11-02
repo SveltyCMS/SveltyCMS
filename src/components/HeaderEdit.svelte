@@ -243,6 +243,13 @@
 
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
+		// Dispatch cancel event to prevent auto-save draft
+		const cancelEvent = new CustomEvent('cancelEdit', {
+			bubbles: true,
+			detail: { cancelledAt: new Date().toISOString() }
+		});
+		document.dispatchEvent(cancelEvent);
+
 		// Clear collectionValue before setting mode to 'view' to prevent auto-draft save
 		if (mode.value === 'create') {
 			setCollectionValue({});
@@ -307,7 +314,7 @@
 </script>
 
 <header
-	class="border-secondary-600-300-token sticky top-0 z-10 flex w-full items-center justify-between bg-white p-2 dark:bg-surface-700"
+	class="border-secondary-600-300-token sticky top-0 z-20 flex w-full items-center justify-between overflow-visible bg-white p-2 shadow-sm dark:bg-surface-700"
 	class:border-b={!showMore}
 >
 	<div class="flex items-center justify-start">

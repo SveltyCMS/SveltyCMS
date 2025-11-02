@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		const setupData = await request.json();
 		const { admin, firstCollection, skipWelcomeEmail } = setupData as {
 			admin: AdminConfig;
-			firstCollection?: { name: string; path: string } | null;
+			firstCollection?: { name: string; path: string; _id?: string } | null;
 			skipWelcomeEmail?: boolean;
 		};
 
@@ -201,21 +201,29 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
 				logger.debug('Updated user retrieved, creating session...', { correlationId, userId: adminUser._id });
 
-				// Create session for updated user
-				const sessionResult = await setupAuth.createSession({ user_id: adminUser._id, expires });
+				// Create session for updated user (returns Session directly, not DatabaseResult)
+				try {
+					session = await setupAuth.createSession({ user_id: adminUser._id, expires });
 
-				logger.debug('Session creation result:', {
-					correlationId,
-					success: sessionResult.success,
-					hasData: !!sessionResult.data,
-					message: sessionResult.message,
-					dataType: typeof sessionResult.data
-				});
+					logger.debug('Session creation result:', {
+						correlationId,
+						hasSession: !!session,
+						sessionId: session?._id,
+						sessionType: typeof session,
+						sessionKeys: session ? Object.keys(session) : []
+					});
 
-				if (!sessionResult.success || !sessionResult.data) {
-					throw new Error(sessionResult.message || 'Failed to create session');
+					if (!session || !session._id) {
+						throw new Error('Failed to create session - session object invalid');
+					}
+				} catch (sessionError) {
+					logger.error('Session creation error:', {
+						correlationId,
+						error: sessionError instanceof Error ? sessionError.message : String(sessionError),
+						stack: sessionError instanceof Error ? sessionError.stack : undefined
+					});
+					throw new Error(`Failed to create session: ${sessionError instanceof Error ? sessionError.message : String(sessionError)}`);
 				}
-				session = sessionResult.data;
 
 				logger.info('✅ Admin user updated and session created', { correlationId, userId: adminUser._id, sessionId: session._id });
 			} else {
@@ -441,14 +449,21 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
 			// Check if collections exist in the database (runtime-created collections)
 			// First try the firstCollection passed from setup wizard (if available)
-			if (firstCollection?.path) {
-				redirectPath = firstCollection.path;
-				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${redirectPath}`, { correlationId });
+			if (firstCollection?._id) {
+				// Use UUID for internal redirect, browser will convert to friendly name
+				redirectPath = `/${userLanguage}/${firstCollection._id}`;
+				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${firstCollection.name} (ID: ${firstCollection._id})`, { correlationId });
+			} else if (firstCollection?.path) {
+				// Fallback to path if _id not available (shouldn't happen but safety first)
+				redirectPath = `/${userLanguage}${firstCollection.path}`;
+				logger.warn(`Setup complete: Using path-based redirect (missing _id): ${redirectPath}`, { correlationId });
 			} else {
 				// Fallback: Query database for available collections
-				redirectPath = await getCachedFirstCollectionPath(userLanguage);
+				const collectionPath = await getCachedFirstCollectionPath(userLanguage);
 
-				if (redirectPath) {
+				if (collectionPath) {
+					// Add language prefix if not already present
+					redirectPath = collectionPath.startsWith(`/${userLanguage}`) ? collectionPath : `/${userLanguage}${collectionPath}`;
 					logger.info(`Setup complete: Redirecting to collection from database: ${redirectPath}`, { correlationId });
 				} else {
 					// No collections available - redirect to collection builder

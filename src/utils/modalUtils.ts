@@ -2,6 +2,10 @@
  * @file src/utils/modalUtils.ts
  * @description Centralized utility functions for creating consistent modal configurations
  *
+ * Features:
+ * - Standardized confirmation modals (confirm, delete, status change, clone)
+ * - Schedule modal configuration
+ * - Global modal store management
  */
 
 import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';

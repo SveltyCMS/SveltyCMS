@@ -1,18 +1,20 @@
 ---
 path: 'docs/Widgets/Widget_Marketplace_System.mdx'
 title: 'Widget Marketplace System'
-description: 'Complete guide to the widget marketplace - installation, development, and publishing with 3-pillar architecture support'
+description: 'Complete guide to the widget marketplace - installation, development, and publishing with 3-pillar architecture and multilingual support'
 order: 75
 icon: 'mdi:store'
 author: 'admin'
 created: '2025-08-05'
-updated: '2025-10-04'
+updated: '2025-11-02'
 tags:
   - 'developer'
   - 'widgets'
   - 'marketplace'
   - 'extensions'
   - '3-pillar'
+  - 'i18n'
+  - 'multilingual'
 ---
 
 # Widget Marketplace System
@@ -77,6 +79,47 @@ Note: The core `date` widget supports `timePicker` to provide DateTime behaviour
 - **🔧 Productivity** - Calendar, Tasks, Notes
 - **🎯 Marketing** - SEO, Analytics, Campaigns
 - **🏢 Business** - CRM, Invoicing, Reports
+- **🌍 Internationalization** - Translation-enabled widgets, multilingual components
+
+### Multilingual Widget Discovery
+
+Marketplace widgets can be tagged with multilingual support:
+
+```typescript
+// Marketplace widget metadata
+interface MarketplaceWidget {
+	id: string;
+	name: string;
+	features: {
+		multilingual: boolean; // ✅ Supports translated fields
+		contentLanguages: string[]; // Supported languages ["en", "de", "fr"]
+		uiTranslations: string[]; // UI language support
+		translationStrategy: 'field' | 'full'; // Per-field or entire widget
+	};
+	// ... other metadata
+}
+```
+
+**Filter by Multilingual Support:**
+
+```typescript
+// Search for i18n-ready widgets
+GET /api/marketplace/widgets?multilingual=true&languages=de,fr
+
+Response: {
+  "widgets": [
+    {
+      "id": "advanced-seo",
+      "name": "Advanced SEO",
+      "features": {
+        "multilingual": true,
+        "contentLanguages": ["en", "de", "fr", "es", "it"],
+        "translationStrategy": "field"
+      }
+    }
+  ]
+}
+```
 
 ## 🛠️ Widget Management Interface
 

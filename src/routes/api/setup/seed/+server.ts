@@ -34,8 +34,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('Pre-scanning collections for faster redirect...');
 		const { scanCompiledCollections } = await import('@src/content/collectionScanner');
 		const collections = await scanCompiledCollections();
-		const firstCollection = collections.length > 0 ? { name: collections[0].name, path: collections[0].path } : null;
-		logger.info(`Found ${collections.length} collections. First collection for redirect: ${firstCollection?.name}`);
+		const firstCollection = collections.length > 0 ? { name: collections[0].name, path: collections[0].path, _id: collections[0]._id } : null;
+		logger.info(`Found ${collections.length} collections. First collection for redirect: ${firstCollection?.name} (ID: ${firstCollection?._id})`);
 
 		// Run the full seeding process in the background
 		const { initSystemFromSetup } = await import('../seed');

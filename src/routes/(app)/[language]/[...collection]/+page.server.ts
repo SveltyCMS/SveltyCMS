@@ -52,8 +52,20 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		// =================================================================
 		// 2. GET COLLECTION SCHEMA
 		// =================================================================
-		const collectionPath = `/${collection}`;
-		const currentCollection = contentManager.getCollection(collectionPath, tenantId);
+		// Check if collection param is a UUID (32 char hex) or a path
+		const isUUID = /^[a-f0-9]{32}$/i.test(collection || '');
+
+		let currentCollection;
+		if (isUUID) {
+			// Direct UUID lookup
+			logger.debug(`Loading collection by UUID: ${collection}`);
+			currentCollection = contentManager.getCollectionById(collection!, tenantId);
+		} else {
+			// Path-based lookup (backward compatibility)
+			const collectionPath = `/${collection}`;
+			logger.debug(`Loading collection by path: ${collectionPath}`);
+			currentCollection = contentManager.getCollection(collectionPath, tenantId);
+		}
 
 		if (!currentCollection) {
 			if (collectionNameOnly === 'Collections') {
@@ -64,8 +76,15 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 					throw redirect(302, '/dashboard');
 				}
 			}
-			logger.warn(`Collection not found by path: ${collectionPath}`, { tenantId });
+			logger.warn(`Collection not found: ${collection}`, { tenantId, isUUID });
 			throw error(404, `Collection not found: ${collection}`);
+		}
+
+		// If accessed via UUID, redirect to clean path URL
+		if (isUUID && currentCollection.path) {
+			const cleanPath = `/${language}${currentCollection.path}${url.search}`;
+			logger.debug(`Redirecting from UUID to path: ${cleanPath}`);
+			throw redirect(302, cleanPath);
 		}
 
 		// =================================================================
@@ -88,7 +107,7 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 
 		const cacheKey = `collection:${currentCollection._id}:page:${page}:size:${pageSize}:filter:${JSON.stringify(
 			filterParams
-		)}:sort:${JSON.stringify(sortParams)}:mode:${mode}:tenant:${tenantId}`;
+		)}:sort:${JSON.stringify(sortParams)}:mode:${mode}:lang:${language}:tenant:${tenantId}`;
 
 		const cachedData = await cacheService.get(cacheKey);
 		if (cachedData) {

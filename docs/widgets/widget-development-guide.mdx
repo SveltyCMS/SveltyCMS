@@ -1,18 +1,20 @@
 ---
 path: 'docs/widgets/widget-development-guide.mdx'
 title: 'Widget Development Guide'
-description: 'Practical guide for creating, customizing, and managing widgets in SveltyCMS'
+description: 'Practical guide for creating, customizing, and managing multilingual widgets in SveltyCMS'
 order: 3
 icon: 'mdi:code-tags'
 author: 'admin'
 created: '2025-10-17'
-updated: '2025-10-17'
+updated: '2025-11-02'
 tags:
   - 'widgets'
   - 'development'
   - 'guide'
   - 'tutorial'
   - 'custom'
+  - 'i18n'
+  - 'multilingual'
 ---
 
 # Widget Development Guide
@@ -401,15 +403,447 @@ The widget validates input based on configuration:
 
 ## Translation Support
 
-When `translated: true`, the widget stores values as language objects:
+### Understanding Multilingual Data
+
+SveltyCMS supports multilingual content through the `translated` field property. When enabled, widgets store values as language-keyed objects instead of simple strings:
+
+**Untranslated Field (`translated: false`):**
 
 ```typescript
 {
-  "en": "English value",
-  "de": "German value",
-  "fr": "French value"
+  "slug": "hello-world"  // Single value across all languages
 }
 ```
+
+**Translated Field (`translated: true`):**
+
+```typescript
+{
+  "title": {
+    "en": "Hello World",
+    "de": "Hallo Welt",
+    "fr": "Bonjour le monde",
+    "es": "Hola Mundo"
+  }
+}
+```
+
+### Implementing Multilingual Support
+
+**Step 1: Import the contentLanguage store**
+
+```typescript
+import { contentLanguage } from '@stores/store.svelte';
+import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+```
+
+**Step 2: Derive the current language**
+
+```typescript
+// Use contentLanguage for translated fields, default language otherwise
+const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+```
+
+**Step 3: Extract language-specific value**
+
+```typescript
+const safeValue = $derived(
+	field.translated && typeof value === 'object' && value !== null ? (value[_language] ?? '') : typeof value === 'string' ? value : ''
+);
+```
+
+**Step 4: Update values correctly**
+
+```typescript
+function updateValue(newValue: string) {
+	if (field.translated) {
+		// Preserve other language translations
+		value = { ...(value as object), [_language]: newValue };
+	} else {
+		// Replace entire value
+		value = newValue;
+	}
+}
+```
+
+### Complete Multilingual Input Example
+
+```svelte
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+	import type { FieldInstance } from '@src/content/types';
+
+	interface Props {
+		field: FieldInstance;
+		value: Record<string, string> | string;
+		error?: string | null;
+	}
+
+	let { field, value = $bindable(), error }: Props = $props();
+
+	// Reactive language selection
+	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+
+	// Safe value extraction with fallback
+	const safeValue = $derived(
+		field.translated && typeof value === 'object' && value !== null ? (value[_language] ?? '') : typeof value === 'string' ? value : ''
+	);
+
+	// Update handler that preserves translations
+	function handleInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const newValue = target.value;
+
+		if (field.translated) {
+			// Merge with existing translations
+			value = {
+				...(typeof value === 'object' ? value : {}),
+				[_language]: newValue
+			};
+		} else {
+			value = newValue;
+		}
+	}
+
+	// Optional: Show translation status
+	const translationCount = $derived(field.translated && typeof value === 'object' && value !== null ? Object.keys(value).length : 0);
+</script>
+
+<div class="input-wrapper">
+	<label>
+		{field.label}
+		{#if field.required}
+			<span class="required">*</span>
+		{/if}
+
+		{#if field.translated && translationCount > 0}
+			<span class="translation-badge">
+				{translationCount} language{translationCount !== 1 ? 's' : ''}
+			</span>
+		{/if}
+	</label>
+
+	<input type="text" value={safeValue} oninput={handleInput} placeholder={field.placeholder} required={field.required} />
+
+	{#if error}
+		<div class="error">{error}</div>
+	{/if}
+</div>
+
+<style>
+	.translation-badge {
+		font-size: 0.75rem;
+		color: #666;
+		margin-left: 0.5rem;
+	}
+
+	.required {
+		color: red;
+	}
+</style>
+```
+
+### Complete Multilingual Display Example
+
+```svelte
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+	import type { FieldInstance } from '@src/content/types';
+
+	interface Props {
+		field: FieldInstance;
+		value: Record<string, string> | string;
+	}
+
+	let { field, value }: Props = $props();
+
+	// Derive current language
+	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+
+	// Extract display value with fallbacks
+	const displayValue = $derived(
+		field.translated && typeof value === 'object' && value !== null
+			? value[_language] || value[DEFAULT_CONTENT_LANGUAGE] || Object.values(value)[0] || '-'
+			: value || '-'
+	);
+
+	// Check if translation exists for current language
+	const hasTranslation = $derived(field.translated && typeof value === 'object' && value !== null && _language in value);
+</script>
+
+<div class="display-wrapper">
+	<span class="value" class:missing-translation={field.translated && !hasTranslation}>
+		{displayValue}
+	</span>
+
+	{#if field.translated && !hasTranslation}
+		<span class="warning-badge" title="No translation for {_language}"> ⚠️ </span>
+	{/if}
+</div>
+
+<style>
+	.missing-translation {
+		font-style: italic;
+		opacity: 0.6;
+	}
+
+	.warning-badge {
+		margin-left: 0.25rem;
+		font-size: 0.875rem;
+	}
+</style>
+```
+
+### Validation for Multilingual Data
+
+Validation schemas must handle both translated and untranslated data:
+
+```typescript
+import * as v from 'valibot';
+
+const createValidationSchema = (field: FieldInstance) => {
+	// Base validation rules
+	const stringRules = [v.string()];
+
+	if (field.required) {
+		stringRules.push(v.minLength(1, 'This field is required'));
+	}
+
+	if (field.maxLength) {
+		stringRules.push(v.maxLength(field.maxLength as number, `Maximum ${field.maxLength} characters`));
+	}
+
+	const stringSchema = v.pipe(...stringRules);
+
+	// Handle multilingual fields
+	if (field.translated) {
+		// Accept object with language keys
+		const translatedSchema = v.record(
+			v.string(), // Language code key (en, de, fr, etc.)
+			stringSchema // Validated string value
+		);
+
+		// Make optional if not required
+		return field.required ? translatedSchema : v.optional(translatedSchema);
+	}
+
+	// Handle non-translated fields
+	return field.required ? stringSchema : v.optional(stringSchema, '');
+};
+```
+
+### Language-Aware Aggregations
+
+When implementing database queries, account for translated fields:
+
+```typescript
+const MyWidget = createWidget({
+	// ... other config
+
+	aggregations: {
+		filters: async ({ field, filter, contentLanguage }) => {
+			// Build field path based on translation status
+			const fieldPath = field.translated ? `${field.db_fieldName}.${contentLanguage}` : field.db_fieldName;
+
+			return [
+				{
+					$match: {
+						[fieldPath]: {
+							$regex: filter,
+							$options: 'i'
+						}
+					}
+				}
+			];
+		},
+
+		sorts: async ({ field, sortDirection, contentLanguage }) => {
+			// Build field path for sorting
+			const fieldPath = field.translated ? `${field.db_fieldName}.${contentLanguage}` : field.db_fieldName;
+
+			return {
+				[fieldPath]: sortDirection === 'asc' ? 1 : -1
+			};
+		}
+	}
+});
+```
+
+### Common Pitfalls to Avoid
+
+**❌ WRONG: Hardcoding language**
+
+```typescript
+// Bad - always shows English
+const value = data.en;
+```
+
+**✅ CORRECT: Using reactive language**
+
+```typescript
+// Good - responds to language changes
+const value = data[contentLanguage.value];
+```
+
+**❌ WRONG: Not checking field.translated**
+
+```typescript
+// Bad - crashes on untranslated fields
+const value = data[contentLanguage.value];
+```
+
+**✅ CORRECT: Conditional access**
+
+```typescript
+// Good - handles both translated and untranslated
+const value = field.translated ? data[contentLanguage.value] : data;
+```
+
+**❌ WRONG: Replacing entire object**
+
+```typescript
+// Bad - deletes other translations
+value = { [contentLanguage.value]: newValue };
+```
+
+**✅ CORRECT: Preserving translations**
+
+```typescript
+// Good - keeps all translations
+value = { ...value, [contentLanguage.value]: newValue };
+```
+
+**❌ WRONG: Using systemLanguage for content**
+
+```typescript
+// Bad - mixes UI language with content language
+import { systemLanguage } from '@stores/store.svelte';
+const value = data[systemLanguage.value]; // Wrong store!
+```
+
+**✅ CORRECT: Using contentLanguage for content**
+
+```typescript
+// Good - correct store for content data
+import { contentLanguage } from '@stores/store.svelte';
+const value = data[contentLanguage.value];
+```
+
+### Testing Multilingual Widgets
+
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, fireEvent } from '@testing-library/svelte';
+import { contentLanguage } from '@stores/store.svelte';
+import MyWidget from './Input.svelte';
+
+describe('MyWidget - Multilingual', () => {
+	beforeEach(() => {
+		// Reset to default language
+		contentLanguage.set('en');
+	});
+
+	it('displays English value when language is "en"', () => {
+		const { getByRole } = render(MyWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value: { en: 'English', de: 'Deutsch' }
+			}
+		});
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue('English');
+	});
+
+	it('displays German value when language switches to "de"', async () => {
+		const { getByRole } = render(MyWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value: { en: 'English', de: 'Deutsch' }
+			}
+		});
+
+		// Switch language
+		contentLanguage.set('de');
+
+		// Wait for reactivity
+		await tick();
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue('Deutsch');
+	});
+
+	it('updates only current language on input', async () => {
+		let value = { en: 'English', de: 'Deutsch' };
+
+		contentLanguage.set('de');
+
+		const { getByRole } = render(MyWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value
+			}
+		});
+
+		const input = getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'Neu' } });
+
+		expect(value).toEqual({
+			en: 'English', // Unchanged
+			de: 'Neu' // Updated
+		});
+	});
+
+	it('handles untranslated fields correctly', () => {
+		const { getByRole } = render(MyWidget, {
+			props: {
+				field: { translated: false, label: 'Slug' },
+				value: 'hello-world'
+			}
+		});
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue('hello-world');
+
+		// Language change should not affect untranslated fields
+		contentLanguage.set('de');
+		expect(input).toHaveValue('hello-world');
+	});
+
+	it('handles empty translations gracefully', () => {
+		const { getByRole } = render(MyWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value: { en: 'English' } // No German translation
+			}
+		});
+
+		contentLanguage.set('de');
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue(''); // Empty, not undefined or crash
+	});
+});
+```
+
+### Migration Checklist
+
+When adding multilingual support to an existing widget:
+
+- [ ] Import `contentLanguage` from `@stores/store.svelte`
+- [ ] Import `DEFAULT_CONTENT_LANGUAGE` from `@src/utils/constants`
+- [ ] Add `const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE)`
+- [ ] Update value access to check `field.translated`
+- [ ] Update value mutations to preserve existing translations
+- [ ] Update type definitions to support `Record<string, string> | string`
+- [ ] Update validation schema to handle multilingual structure
+- [ ] Update aggregations to use language-specific field paths
+- [ ] Add tests for multilingual behavior
+- [ ] Update widget documentation with translation examples
+
+---
 
 ````
 

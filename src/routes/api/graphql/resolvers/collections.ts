@@ -293,7 +293,6 @@ export async function registerCollections(tenantId?: string) {
 export async function collectionsResolvers(
 	dbAdapter: DatabaseAdapter,
 	cacheClient: CacheClient | null,
-	_privateEnv: { USE_REDIS?: boolean },
 	pubSub: ReturnType<typeof createPubSub>,
 	tenantId?: string
 ) {

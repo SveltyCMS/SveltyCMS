@@ -761,16 +761,14 @@ Features:
 														// Set mode to edit
 														setMode('edit');
 
-														// If the entry is publish, automatically set it to unpublish
-														// This follows CMS best practices where editing publish content
-														// creates a draft that needs to be republish
+														// If the entry is published, silently change to draft status for editing
+														// The warning toast will only show if user navigates away with unsaved changes
 														if (originalEntry.status === 'publish') {
-															// Update the local collectionValue to unpublish status
+															// Update the local collectionValue to draft/unpublish status
 															setCollectionValue({
-																...collectionValue,
-																status: 'unpublish'
-															}); // Show user feedback about the status change
-															showToast('Entry moved to draft mode for editing. Republish when ready.', 'warning');
+																...originalEntry,
+																status: 'draft'
+															});
 														}
 
 														// Trigger UI layout change to show edit interface

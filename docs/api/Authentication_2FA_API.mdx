@@ -21,6 +21,18 @@ tags:
 
 This document provides a complete reference for all Two-Factor Authentication (2FA) API endpoints in SveltyCMS. The 2FA system uses Time-based One-Time Passwords (TOTP) compatible with authenticator apps like Google Authenticator, Authy, and 1Password.
 
+### Quantum Computing Security
+
+The 2FA implementation uses **quantum-resistant cryptography**:
+
+- **Backup codes**: Hashed with Argon2id (memory-hard, quantum-resistant)
+- **TOTP secrets**: Stored with AES-256-GCM encryption (128-bit quantum security)
+- **SHA-256 hashing**: Maintains security even with Grover's algorithm
+- **No RSA/ECC**: Avoids public-key crypto vulnerable to Shor's algorithm
+- **Security timeline**: Secure against quantum computers for 15-30+ years
+
+While TOTP itself uses SHA-1 (TOTP standard), the secret storage and backup code hashing use quantum-resistant algorithms. See [Quantum Security Guide](/docs/architecture/quantum-security.mdx) for details.
+
 ## Authentication
 
 All 2FA endpoints require the user to be authenticated via session cookie:
@@ -506,9 +518,10 @@ sequenceDiagram
 ### Backup Codes
 
 - **Format:** 8 alphanumeric characters
-- **Storage:** Securely hashed using Argon2
+- **Storage:** Quantum-resistant hashing using Argon2id (64 MB memory-hard)
 - **Single-use:** Automatically removed after use
 - **Count:** 10 codes per user
+- **Quantum security:** Memory-hard hashing resists quantum speedup
 
 ### Best Practices
 

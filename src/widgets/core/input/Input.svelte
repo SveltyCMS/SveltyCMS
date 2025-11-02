@@ -42,6 +42,7 @@
 	} from 'valibot';
 	import { validationStore } from '@root/src/stores/store.svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { contentLanguage } from '@src/stores/store.svelte';
 
 	// Props
 	interface Props {
@@ -55,8 +56,8 @@
 
 	let { field, value = $bindable(), validateOnMount = false, validateOnChange = true, validateOnBlur = true, debounceMs = 300 }: Props = $props();
 
-	// Get default language from environment with safe fallback
-	const _language = ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase();
+	// Use current content language for translated fields, default for non-translated
+	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value if null/undefined
 	// Safe value access with fallback

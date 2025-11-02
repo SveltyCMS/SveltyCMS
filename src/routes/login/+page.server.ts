@@ -579,18 +579,10 @@ export const actions: Actions = {
 			return fail(503, { message: 'Database system is not ready.' });
 		}
 
-		// Check if auth service is ready
-		if (!auth) {
-			logger.error('Authentication system is not ready for signUp action - auth is null/undefined');
-			return fail(503, { message: 'Authentication system is not ready.' });
-		}
-
-		// Check if auth service has essential methods
-		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
-		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
-
-		if (missingMethods.length > 0) {
-			logger.error(`Authentication system is not ready for signUp action - missing methods: ${missingMethods.join(', ')}`);
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService(10000);
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for signUp action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
 
@@ -756,40 +748,19 @@ export const actions: Actions = {
 		// Wait for database initialization first
 		try {
 			await dbInitPromise;
-			logger.debug('Database initialization completed');
+			logger.debug('Database initialization completed for signIn');
 		} catch (error) {
-			logger.error('Database initialization failed:', error);
+			logger.error('Database initialization failed for signIn:', error);
 			return fail(503, { message: 'Database system is not ready.' });
 		}
 
-		// Check if auth service is ready
-		if (!auth) {
-			logger.error('Authentication system is not ready for signIn action - auth is null/undefined');
-			logger.debug('System state:', {
-				dbInitPromise: !!dbInitPromise,
-				dbInitPromiseState: dbInitPromise ? 'pending' : 'resolved',
-				auth: null,
-				authType: typeof auth
+		// Wait for auth service to be ready (with timeout)
+		const authReady = await waitForAuthService(10000); // 10 second timeout for sign-in
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for signIn action after waiting');
+			return fail(503, {
+				message: 'Authentication system is not ready. Please wait a moment and try again.'
 			});
-			return fail(503, { message: 'Authentication system is not ready.' });
-		}
-
-		// Check if auth service has essential methods
-		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
-		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
-
-		if (missingMethods.length > 0) {
-			logger.error(`Authentication system is not ready for signIn action - missing methods: ${missingMethods.join(', ')}`);
-			logger.debug('Auth service state:', {
-				authType: typeof auth,
-				authKeys: Object.keys(auth),
-				hasValidateSession: typeof auth.validateSession === 'function',
-				hasCreateUser: typeof auth.createUser === 'function',
-				hasGetUserByEmail: typeof auth.getUserByEmail === 'function',
-				hasCreateSession: typeof auth.createSession === 'function',
-				availableMethods: Object.keys(auth).filter((key) => typeof auth[key] === 'function')
-			});
-			return fail(503, { message: 'Authentication system is not ready.' });
 		}
 
 		logger.debug('Auth service is ready for signIn action');
@@ -878,18 +849,10 @@ export const actions: Actions = {
 			return fail(503, { message: 'Database system is not ready.' });
 		}
 
-		// Check if auth service is ready
-		if (!auth) {
-			logger.error('Authentication system is not ready for verify2FA action - auth is null/undefined');
-			return fail(503, { message: 'Authentication system is not ready.' });
-		}
-
-		// Check if auth service has essential methods
-		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
-		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
-
-		if (missingMethods.length > 0) {
-			logger.error(`Authentication system is not ready for verify2FA action - missing methods: ${missingMethods.join(', ')}`);
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService(10000);
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for verify2FA action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
 
@@ -984,18 +947,10 @@ export const actions: Actions = {
 			return fail(503, { message: 'Database system is not ready.' });
 		}
 
-		// Check if auth service is ready
-		if (!auth) {
-			logger.error('Authentication system is not ready for forgotPW action - auth is null/undefined');
-			return fail(503, { message: 'Authentication system is not ready.' });
-		}
-
-		// Check if auth service has essential methods
-		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
-		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
-
-		if (missingMethods.length > 0) {
-			logger.error(`Authentication system is not ready for forgotPW action - missing methods: ${missingMethods.join(', ')}`);
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService(10000);
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for forgotPW action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
 
@@ -1079,18 +1034,10 @@ export const actions: Actions = {
 			return fail(503, { message: 'Database system is not ready.' });
 		}
 
-		// Check if auth service is ready
-		if (!auth) {
-			logger.error('Authentication system is not ready for resetPW action - auth is null/undefined');
-			return fail(503, { message: 'Authentication system is not ready.' });
-		}
-
-		// Check if auth service has essential methods
-		const requiredMethods = ['validateSession', 'createUser', 'getUserByEmail', 'createSession'];
-		const missingMethods = requiredMethods.filter((method) => typeof auth[method] !== 'function');
-
-		if (missingMethods.length > 0) {
-			logger.error(`Authentication system is not ready for resetPW action - missing methods: ${missingMethods.join(', ')}`);
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService(10000);
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for resetPW action');
 			return fail(503, { message: 'Authentication system is not ready.' });
 		}
 
