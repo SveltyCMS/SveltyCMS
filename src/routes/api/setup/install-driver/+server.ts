@@ -5,7 +5,7 @@
 
 import * as m from '@src/paraglide/messages';
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { exec } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';

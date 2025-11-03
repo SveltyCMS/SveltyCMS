@@ -21,7 +21,7 @@ import { validateMediaFile } from '@src/utils/media/mediaUtils';
 // Permission Management
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Media Cache
 import { cacheService } from '@src/databases/CacheService';

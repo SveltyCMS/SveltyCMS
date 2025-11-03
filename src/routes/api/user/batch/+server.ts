@@ -30,7 +30,7 @@ import { auth } from '@src/databases/db';
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 const batchUserActionSchema = object({
 	userIds: array(string([minLength(1, 'User ID cannot be empty.')])),

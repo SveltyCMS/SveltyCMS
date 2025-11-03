@@ -14,7 +14,7 @@ import { mode } from './collectionStore.svelte';
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // Types for UI visibility states
 export type UIVisibility = 'hidden' | 'collapsed' | 'full';

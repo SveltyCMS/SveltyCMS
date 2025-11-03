@@ -19,7 +19,7 @@ import { initializeRoles, roles } from '@root/config/roles';
 import { auth, dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Cache invalidation
 import { cacheService } from '@src/databases/CacheService';

@@ -1,17 +1,19 @@
 ---
 path: 'docs/architecture/code-structure'
 title: 'Code Structure & Organization'
-description: 'Comprehensive overview of SveltyCMS codebase organization, architecture, and design patterns'
+description: 'Comprehensive overview of SveltyCMS codebase organization, architecture, and design patterns including multilingual content management'
 order: 1
 icon: 'mdi:folder-tree'
 author: 'SveltyCMS Team'
 created: '2025-10-05'
-updated: '2025-10-05'
+updated: '2025-11-02'
 tags:
   - 'architecture'
   - 'structure'
   - 'patterns'
   - 'organization'
+  - 'multilingual'
+  - 'i18n'
 ---
 
 # SveltyCMS Code Structure & Organization
@@ -76,27 +78,128 @@ The database layer provides a **unified interface** for different database backe
 
 **Key Files:**
 
-- `dbInterface.ts` - Database adapter interface definition
+- `dbInterface.ts` - Database adapter interface definition (IDBAdapter)
 - `index.ts` - Database initialization and adapter selection
-- Database adapters implement the same interface for consistency
+- Database adapters implement the IDBAdapter interface for consistency
 
-**Interface Example:**
+**IDBAdapter Interface Structure:**
 
 ```typescript
-interface DatabaseAdapter {
-	// Connection
-	connect(): Promise<DatabaseResult<void>>;
-	disconnect(): Promise<void>;
+interface IDBAdapter {
+	// Connection Management
+	connect(connectionString: string, options?: unknown): Promise<DatabaseResult<void>>;
+	disconnect(): Promise<DatabaseResult<void>>;
+	isConnected(): boolean;
 
-	// Collections
-	find(collection: string, query: object): Promise<any[]>;
-	findOne(collection: string, query: object): Promise<any>;
-	create(collection: string, data: object): Promise<any>;
-	update(collection: string, id: string, data: object): Promise<any>;
-	delete(collection: string, id: string): Promise<boolean>;
+	// Authentication & User Management
+	auth: {
+		setupAuthModels(): Promise<void>;
+		createUser(userData: Partial<User>): Promise<DatabaseResult<User>>;
+		getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<DatabaseResult<User | null>>;
+		createSession(sessionData: { user_id: string; expires: Date }): Promise<DatabaseResult<Session>>;
+		validateSession(session_id: string): Promise<DatabaseResult<User | null>>;
+		// ... 20+ more auth methods
+	};
 
-	// ... More methods for media, widgets, settings, etc.
+	// CRUD Operations
+	crud: {
+		findOne<T>(collection: string, query: Partial<T>): Promise<DatabaseResult<T | null>>;
+		findMany<T>(collection: string, query: Partial<T>): Promise<DatabaseResult<T[]>>;
+		insert<T>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
+		update<T>(collection: string, id: DatabaseId, data: Partial<T>): Promise<DatabaseResult<T>>;
+		delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>;
+		// ... batch operations, upsert, aggregate, etc.
+	};
+
+	// Content Management
+	content: {
+		nodes: {
+			getStructure(mode: 'flat' | 'nested'): Promise<DatabaseResult<ContentNode[]>>;
+			create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
+			update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
+			// ... more node operations
+		};
+		drafts: {
+			/* draft operations */
+		};
+		revisions: {
+			/* revision operations */
+		};
+	};
+
+	// Media Management
+	media: {
+		files: {
+			upload(file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>>;
+			uploadMany(files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>>;
+			getByFolder(folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+			// ... more file operations
+		};
+		folders: {
+			/* folder operations */
+		};
+	};
+
+	// Theme & Widget Management
+	themes: {
+		getActive(): Promise<DatabaseResult<Theme>>;
+		setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>;
+		install(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>>;
+		// ... more theme operations
+	};
+
+	widgets: {
+		register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>>;
+		findAll(): Promise<DatabaseResult<Widget[]>>;
+		activate(widgetId: DatabaseId): Promise<DatabaseResult<void>>;
+		// ... more widget operations
+	};
+
+	// Collection Schema Management
+	collection: {
+		getModel(id: string): Promise<CollectionModel>;
+		createModel(schema: Schema): Promise<void>;
+		updateModel(schema: Schema): Promise<void>;
+		deleteModel(id: string): Promise<void>;
+	};
+
+	// System Preferences
+	systemPreferences: {
+		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
+		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		// ... more preference operations
+	};
+
+	// Performance & Caching
+	performance: {
+		getMetrics(): Promise<DatabaseResult<PerformanceMetrics>>;
+		clearMetrics(): Promise<DatabaseResult<void>>;
+	};
+
+	cache: {
+		get<T>(key: string): Promise<DatabaseResult<T | null>>;
+		set<T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>>;
+		invalidateCollection(collection: string): Promise<DatabaseResult<void>>;
+	};
+
+	// Batch Operations
+	batch: {
+		execute<T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>>;
+		bulkInsert<T>(collection: string, items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
+		bulkUpdate<T>(collection: string, updates: Array<{ id: DatabaseId; data: Partial<T> }>): Promise<DatabaseResult<{ modifiedCount: number }>>;
+		// ... more batch operations
+	};
+
+	// Utility Methods
+	utils: {
+		generateId(): DatabaseId;
+		normalizePath(path: string): string;
+		validateId(id: string): boolean;
+	};
 }
+
+// DatabaseResult type for consistent error handling
+type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | { success: false; error: DatabaseError; message: string };
 ```
 
 **Supported Adapters:**
@@ -289,6 +392,77 @@ interface Widget {
 }
 ```
 
+**Multilingual Widget Pattern:**
+
+Widgets automatically handle translated content by reading the current language from the `contentLanguage` store:
+
+```svelte
+<!-- src/widgets/core/input/Input.svelte -->
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+
+	interface Props {
+		field: FieldInstance;
+		value: Record<string, string> | string; // Translated or plain value
+	}
+
+	let { field, value = $bindable() }: Props = $props();
+
+	// Reactive language selection - uses contentLanguage for translated fields
+	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+
+	// Reactive value access for current language
+	const safeValue = $derived(
+		field.translated && typeof value === 'object' && value !== null ? (value[_language] ?? '') : typeof value === 'string' ? value : ''
+	);
+
+	function updateValue(newValue: string) {
+		if (field.translated) {
+			// Update language-specific key: { en: "English", de: "Deutsch" }
+			value = { ...(value as object), [_language]: newValue };
+		} else {
+			// Update plain string value
+			value = newValue;
+		}
+	}
+</script>
+
+<input type="text" value={safeValue} oninput={(e) => updateValue(e.currentTarget.value)} />
+```
+
+**Database-Agnostic Multilingual Data:**
+
+The widget layer works with a normalized data structure, while the database adapter handles storage:
+
+```typescript
+// Widget layer (database-agnostic)
+const fieldData = {
+	firstName: { en: 'John', de: 'Johann' },
+	lastName: { en: 'Smith', de: 'Schmidt' }
+};
+
+// MongoDB stores directly as nested object
+db.insertOne('users', fieldData);
+
+// Future SQL/Drizzle adapter transforms to relational structure
+// users table: id | createdAt | updatedAt
+// translations table: id | entity_id | field | lang | value
+//   1 | user_1 | firstName | en | John
+//   2 | user_1 | firstName | de | Johann
+//   3 | user_1 | lastName  | en | Smith
+//   4 | user_1 | lastName  | de | Schmidt
+
+// Adapter reconstructs: { firstName: { en: "John", de: "Johann" }, ... }
+```
+
+**Widget Language Behavior:**
+
+| Field Setting       | User Views EN    | User Views DE        | Data Structure             |
+| ------------------- | ---------------- | -------------------- | -------------------------- |
+| `translated: true`  | Reads `value.en` | Reads `value.de`     | `{ en: "...", de: "..." }` |
+| `translated: false` | Reads `value`    | Reads `value` (same) | `"single value"`           |
+
 See [Widget System Architecture](../widgets/widget-system-architecture.mdx) for details.
 
 ---
@@ -458,6 +632,65 @@ function createCounter() {
 export const counter = createCounter();
 ```
 
+### Language State Management
+
+SveltyCMS maintains two separate language contexts:
+
+**System Language (`systemLanguage`)** - UI/admin interface language
+**Content Language (`contentLanguage`)** - Language for content viewing/editing
+
+```typescript
+// src/stores/store.svelte.ts
+import { getCookie, setCookie } from '$lib/utils/cookies';
+
+// Initialize from cookies or environment defaults
+let initialContentLanguage = getCookie('contentLanguage') ?? publicEnv.DEFAULT_CONTENT_LANGUAGE ?? 'en';
+
+// Reactive state with Svelte 5 runes
+let _contentLanguage = $state<Locale>(initialContentLanguage);
+
+// Store with cookie persistence
+export const contentLanguage = {
+	get value() {
+		return _contentLanguage;
+	},
+	set(newValue: Locale) {
+		_contentLanguage = newValue;
+		setCookie('contentLanguage', newValue);
+		notifyContentLanguageSubscribers();
+	},
+	subscribe(fn: (value: Locale) => void) {
+		contentLanguageSubscribers.add(fn);
+		fn(_contentLanguage);
+		return () => contentLanguageSubscribers.delete(fn);
+	}
+};
+```
+
+**Language Synchronization Flow:**
+
+1. **Initial Load**: Cookie → Environment Default → `'en'`
+2. **URL Navigation**: Server returns `contentLanguage` → Syncs to store
+3. **User Toggle**: TranslationStatus dropdown → Updates store → Navigates with `invalidateAll: true`
+4. **Widget Display**: Widgets read `contentLanguage.value` reactively
+
+```svelte
+<!-- +page.svelte - Syncs server data to client store -->
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+
+	let { data } = $props();
+	let serverContentLanguage = $derived(data?.contentLanguage);
+
+	// Sync store with server-loaded language
+	$effect(() => {
+		if (serverContentLanguage && contentLanguage.value !== serverContentLanguage) {
+			contentLanguage.set(serverContentLanguage);
+		}
+	});
+</script>
+```
+
 ### 2. Server-Side State (SvelteKit Load Functions)
 
 ```typescript
@@ -468,6 +701,29 @@ export async function load({ locals, params }) {
 
 	return {
 		post
+	};
+}
+```
+
+**Language-Aware Server Loading:**
+
+```typescript
+// src/routes/(app)/[language]/[...collection]/+page.server.ts
+export async function load({ params, url, locals }) {
+	const { language, collection: collectionPath } = params;
+	const db = getDB();
+
+	// Language-specific cache key prevents cross-language data pollution
+	const cacheKey = `collection:${collectionPath}:${page}:${pageSize}:lang:${language}`;
+
+	const collectionData = (await cache.get(cacheKey)) || (await db.findMany('collections', { path: collectionPath }));
+
+	// Return language with data for client sync
+	return {
+		collectionSchema,
+		entries,
+		pagination,
+		contentLanguage: language // Synced to client store
 	};
 }
 ```
@@ -502,31 +758,325 @@ class CacheService {
 
 ---
 
+## 🌍 Multilingual Content Management
+
+SveltyCMS provides comprehensive multilingual support with separation between UI language and content language.
+
+### Language Architecture
+
+**Two-Language System:**
+
+1. **System Language** (`systemLanguage`) - Admin interface language (menus, buttons, labels)
+2. **Content Language** (`contentLanguage`) - Language for viewing/editing content data
+
+**Configuration:**
+
+```typescript
+// config/public.ts
+export const publicConfig = {
+	DEFAULT_CONTENT_LANGUAGE: 'en',
+	AVAILABLE_CONTENT_LANGUAGES: ['en', 'de', 'fr', 'es'],
+	BASE_LOCALE: 'en' // System UI language
+};
+```
+
+### Content Language Flow
+
+```
+User Action → Store Update → Server Request → Cache Lookup → Widget Render
+                    ↓              ↓               ↓              ↓
+             contentLanguage   /:lang/:path   :lang:cache   value[lang]
+```
+
+**1. User Toggles Language:**
+
+```svelte
+<!-- TranslationStatus.svelte -->
+<script lang="ts">
+	import { goto } from '$app/navigation';
+	import { contentLanguage } from '@stores/store.svelte';
+
+	async function switchLanguage(newLang: string) {
+		contentLanguage.set(newLang);
+
+		// Navigate with server data refresh
+		await goto(
+			`/${newLang}/${collectionPath}`,
+			{ invalidateAll: true } // Forces server reload
+		);
+	}
+</script>
+
+<button onclick={() => switchLanguage('de')}> 🇩🇪 Deutsch </button>
+```
+
+**2. Server Returns Language-Specific Data:**
+
+```typescript
+// +page.server.ts
+export async function load({ params }) {
+	const { language } = params; // 'en', 'de', etc.
+
+	// Language-specific cache prevents cross-contamination
+	const cacheKey = `entries:${collectionId}:lang:${language}`;
+
+	return {
+		entries: await getEntries(collectionId),
+		contentLanguage: language // Passed to client
+	};
+}
+```
+
+**3. Client Syncs Store with Server:**
+
+```svelte
+<!-- +page.svelte -->
+<script lang="ts">
+	let { data } = $props();
+	let serverContentLanguage = $derived(data.contentLanguage);
+
+	$effect(() => {
+		// Keep client store in sync with URL/server
+		if (serverContentLanguage !== contentLanguage.value) {
+			contentLanguage.set(serverContentLanguage);
+		}
+	});
+</script>
+```
+
+**4. Widgets Display Current Language:**
+
+```svelte
+<!-- Widget reads from store -->
+<script lang="ts">
+	const _language = $derived(field.translated ? contentLanguage.value : 'en');
+	const displayValue = $derived(value[_language] ?? '');
+</script>
+
+<input bind:value={displayValue} />
+```
+
+### Multilingual Data Model
+
+**Field Schema Definition:**
+
+```typescript
+// config/collections/Posts/fields.ts
+const fields: FieldInstance[] = [
+	{
+		widget: 'input',
+		label: 'Title',
+		db_fieldName: 'title',
+		translated: true, // ← Marks field as multilingual
+		required: true
+	},
+	{
+		widget: 'input',
+		label: 'Slug',
+		db_fieldName: 'slug',
+		translated: false, // ← Single value across all languages
+		required: true
+	}
+];
+```
+
+**Data Storage (Database-Agnostic):**
+
+```typescript
+// Application layer (widgets, components)
+const entry = {
+	_id: 'post_123',
+	title: {
+		en: 'Hello World',
+		de: 'Hallo Welt',
+		fr: 'Bonjour le monde'
+	},
+	slug: 'hello-world', // Not translated
+	status: 'published'
+};
+
+// MongoDB adapter (current)
+db.collection('posts').insertOne(entry);
+// Stores nested object directly: { title: { en: "...", de: "..." } }
+
+// Future SQL/Drizzle adapter (planned)
+// Transforms to relational structure:
+// posts: id='post_123', slug='hello-world', status='published'
+// post_translations:
+//   - post_id='post_123', field='title', lang='en', value='Hello World'
+//   - post_id='post_123', field='title', lang='de', value='Hallo Welt'
+//   - post_id='post_123', field='title', lang='fr', value='Bonjour le monde'
+//
+// Adapter reads from DB and reconstructs: { title: { en: "...", de: "..." } }
+```
+
+**EntryList Display:**
+
+```svelte
+<!-- Shows current language in table view -->
+<td>
+	{#if typeof entry[fieldName] === 'object' && entry[fieldName] !== null}
+		{entry[fieldName][contentLanguage.value] || '-'}
+	{:else}
+		{entry[fieldName] || '-'}
+	{/if}
+</td>
+```
+
+### Translation Workflow
+
+**Creating Multilingual Content:**
+
+1. **Start in Default Language** (usually 'en')
+   - Fields marked `translated: true` accept input in default language
+   - System saves: `{ title: { en: "New Post" } }`
+
+2. **Switch to Secondary Language** (e.g., 'de')
+   - TranslationStatus dropdown shows completion: "EN: 100% | DE: 0%"
+   - Same fields now show empty (no German translation yet)
+   - User enters German text
+   - System saves: `{ title: { en: "New Post", de: "Neuer Beitrag" } }`
+
+3. **Add More Languages**
+   - Repeat process for French, Spanish, etc.
+   - System merges: `{ title: { en: "...", de: "...", fr: "...", es: "..." } }`
+
+**Translation Status Indicator:**
+
+```svelte
+<!-- Shows % complete per language -->
+<TranslationStatus
+	availableLanguages={['en', 'de', 'fr']}
+	currentLanguage={contentLanguage.value}
+	completionStatus={{
+		en: 100, // All translated fields filled
+		de: 66, // 2 of 3 translated fields filled
+		fr: 0 // No translations yet
+	}}
+/>
+```
+
+### Best Practices
+
+**✅ DO:**
+
+- Mark all user-facing content as `translated: true` (titles, descriptions, body text)
+- Keep technical fields as `translated: false` (slugs, IDs, statuses)
+- Use `DEFAULT_CONTENT_LANGUAGE` for initial data entry
+- Provide translation status indicators in the UI
+- Cache data with language-specific keys: `:lang:${language}`
+
+**❌ DON'T:**
+
+- Don't access `value.en` directly in widgets (use `contentLanguage.value`)
+- Don't mix UI language with content language
+- Don't cache multilingual data without language in the cache key
+- Don't assume all fields are translated (check `field.translated`)
+
+### Migration to SQL/Drizzle
+
+When migrating from MongoDB to SQL:
+
+**1. Database Adapter Changes:**
+
+- Implement `IDBAdapter` interface in `src/databases/drizzle/`
+- Transform nested objects ↔ relational tables
+- Widget layer remains unchanged
+
+**2. Data Migration Script:**
+
+```typescript
+// Transform MongoDB documents to SQL rows
+for (const entry of mongoEntries) {
+	// Insert main record
+	await sql.insert('posts', {
+		id: entry._id,
+		slug: entry.slug,
+		status: entry.status
+	});
+
+	// Insert translations
+	for (const [field, translations] of Object.entries(entry)) {
+		if (typeof translations === 'object' && translations !== null) {
+			for (const [lang, value] of Object.entries(translations)) {
+				await sql.insert('post_translations', {
+					post_id: entry._id,
+					field,
+					language: lang,
+					value
+				});
+			}
+		}
+	}
+}
+```
+
+**3. Adapter Read/Write:**
+
+```typescript
+// Drizzle adapter reads from SQL and reconstructs MongoDB format
+async findOne(collection: string, id: string) {
+	const mainRecord = await db.select().from(posts).where(eq(posts.id, id));
+	const translations = await db.select()
+		.from(postTranslations)
+		.where(eq(postTranslations.post_id, id));
+
+	// Reconstruct: { title: { en: "...", de: "..." } }
+	const reconstructed = { ...mainRecord };
+	for (const trans of translations) {
+		if (!reconstructed[trans.field]) reconstructed[trans.field] = {};
+		reconstructed[trans.field][trans.language] = trans.value;
+	}
+
+	return reconstructed;  // Widgets expect this format
+}
+```
+
+---
+
 ## 🚦 Routing Architecture
 
-SvelteKit file-based routing with clear separation:
+SvelteKit file-based routing with clear separation and multilingual support:
 
 ```
 src/routes/
-├── (admin)/                 # Admin panel (grouped route)
-│   ├── +layout.svelte       # Admin layout wrapper
-│   ├── dashboard/           # Dashboard pages
-│   ├── collections/         # Collection management
-│   ├── media/               # Media library
-│   ├── settings/            # Settings pages
-│   └── users/               # User management
+├── (app)/                       # Main application (grouped route)
+│   ├── [language]/              # Language parameter (en, de, fr, etc.)
+│   │   ├── [...collection]/     # Dynamic collection paths
+│   │   │   ├── +page.svelte     # Collection view (EntryList/Fields)
+│   │   │   └── +page.server.ts  # SSR data loading with language context
+│   │   └── +layout.svelte       # Language-aware layout
+│   └── +layout.svelte           # App layout wrapper
 │
-├── api/                     # API endpoints
-│   ├── auth/                # Authentication endpoints
-│   ├── collections/         # Collection CRUD
-│   ├── media/               # Media upload/management
-│   ├── settings/            # Settings API
-│   └── widgets/             # Widget API
+├── (admin)/                     # Admin panel (grouped route)
+│   ├── +layout.svelte           # Admin layout wrapper
+│   ├── dashboard/               # Dashboard pages
+│   ├── collections/             # Collection management
+│   ├── media/                   # Media library
+│   ├── settings/                # Settings pages
+│   └── users/                   # User management
 │
-├── +page.svelte             # Homepage
-├── +layout.svelte           # Root layout
-└── [slug]/                  # Dynamic content pages
-    └── +page.server.ts      # Server-side rendering
+├── api/                         # API endpoints
+│   ├── auth/                    # Authentication endpoints
+│   ├── collections/             # Collection CRUD
+│   ├── media/                   # Media upload/management
+│   ├── settings/                # Settings API
+│   └── widgets/                 # Widget API
+│
+├── +page.svelte                 # Homepage
+├── +layout.svelte               # Root layout
+└── [slug]/                      # Dynamic content pages
+    └── +page.server.ts          # Server-side rendering
+```
+
+**Multilingual Route Examples:**
+
+```
+/en/posts                        → English posts list
+/de/posts                        → German posts list
+/en/posts/create                 → Create post in English context
+/de/6f8a3c2b-1234-5678-90ab     → View collection by UUID in German
+/fr/categories/blog/posts        → French posts under blog category
 ```
 
 **Route Protection:**
@@ -544,6 +1094,29 @@ export async function handle({ event, resolve }) {
 	}
 
 	return resolve(event);
+}
+```
+
+**Language-Aware Server Load:**
+
+```typescript
+// src/routes/(app)/[language]/[...collection]/+page.server.ts
+export async function load({ params, url, locals }) {
+	const { language, collection } = params;
+
+	// Validate language
+	if (!AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
+		throw error(404, `Language '${language}' not available`);
+	}
+
+	// Load data with language context
+	const cacheKey = `collection:${collection}:page:${page}:lang:${language}`;
+
+	return {
+		collectionSchema: await getCollectionSchema(collection),
+		entries: await getEntries(collection),
+		contentLanguage: language // Synced to client store
+	};
 }
 ```
 
@@ -666,9 +1239,33 @@ export default defineConfig({
 ### 4. Caching Strategy
 
 - **In-memory cache** for frequently accessed data
+- **Language-specific cache keys** to prevent cross-language data pollution
+
+  ```typescript
+  // ✅ Correct: Includes language in cache key
+  const cacheKey = `entries:${collectionId}:page:${page}:lang:${language}`;
+
+  // ❌ Wrong: Missing language - will serve wrong language data
+  const cacheKey = `entries:${collectionId}:page:${page}`;
+  ```
+
 - **Redis** for distributed caching (optional)
 - **HTTP caching** headers for static assets
 - **CDN** for media files
+
+**Cache Invalidation for Multilingual Content:**
+
+```typescript
+// When updating translated content, invalidate all language variants
+async function updateEntry(entryId: string, data: any) {
+	await db.update('entries', entryId, data);
+
+	// Clear cache for all languages
+	for (const lang of AVAILABLE_CONTENT_LANGUAGES) {
+		await cache.delete(`entry:${entryId}:lang:${lang}`);
+	}
+}
+```
 
 ---
 
@@ -757,7 +1354,87 @@ npm run preview
 
 ---
 
-## 📚 Additional Resources
+## � Quick Reference
+
+### Multilingual Content Checklist
+
+When working with multilingual content in SveltyCMS:
+
+**For Widget Development:**
+
+```typescript
+// ✅ Read current language from store
+import { contentLanguage } from '@stores/store.svelte';
+const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+
+// ✅ Access language-specific value
+const displayValue = $derived(value[_language] ?? '');
+
+// ✅ Update language-specific value
+function updateValue(newVal: string) {
+	if (field.translated) {
+		value = { ...(value as object), [_language]: newVal };
+	} else {
+		value = newVal;
+	}
+}
+```
+
+**For API Endpoints:**
+
+```typescript
+// ✅ Include language in cache keys
+const cacheKey = `resource:${id}:lang:${language}`;
+
+// ✅ Return contentLanguage to client
+return { data, contentLanguage: params.language };
+
+// ✅ Validate language parameter
+if (!AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
+	throw error(404, 'Language not available');
+}
+```
+
+**For Components:**
+
+```typescript
+// ✅ Display translated values in lists
+{
+	entry[fieldName][contentLanguage.value] || '-';
+}
+
+// ✅ Sync store from server data
+$effect(() => {
+	if (serverContentLanguage !== contentLanguage.value) {
+		contentLanguage.set(serverContentLanguage);
+	}
+});
+
+// ✅ Navigate with language
+await goto(`/${contentLanguage.value}/${path}`, { invalidateAll: true });
+```
+
+**For Collection Schemas:**
+
+```typescript
+// ✅ Mark translatable fields
+{
+	widget: 'input',
+	db_fieldName: 'title',
+	translated: true,  // ← Enables multilingual support
+}
+
+// ✅ Keep technical fields untranslated
+{
+	widget: 'input',
+	db_fieldName: 'slug',
+	translated: false,  // ← Single value across languages
+}
+```
+
+---
+
+## �📚 Additional Resources
 
 - **[API Documentation](../api/)** - Complete API reference
 - **[Widget System](../widgets/)** - Widget architecture

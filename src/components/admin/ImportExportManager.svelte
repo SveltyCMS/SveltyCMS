@@ -20,7 +20,7 @@
 
 	// Utils
 	import { getCollections } from '@utils/apiClient';
-	import { logger } from '@utils/logger.svelte';
+	import { logger } from '@utils/logger';
 
 	// Types
 	interface Collection {

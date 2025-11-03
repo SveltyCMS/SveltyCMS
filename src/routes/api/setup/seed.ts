@@ -17,7 +17,7 @@ import { publicConfigSchema } from '@src/databases/schemas';
 import type { DatabaseId } from '@src/content/types';
 import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
 import { invalidateSettingsCache } from '@src/services/settingsService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
 

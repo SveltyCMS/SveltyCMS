@@ -1,18 +1,20 @@
 ---
 path: 'docs/widgets/widget-architecture.mdx'
 title: 'Widget Architecture'
-description: 'Technical architecture guide for SveltyCMS widget system covering factory pattern, store management, and implementation details'
+description: 'Technical architecture guide for SveltyCMS widget system covering factory pattern, store management, multilingual support, and implementation details'
 order: 2
 icon: 'mdi:cube-outline'
 author: 'admin'
 created: '2025-10-17'
-updated: '2025-10-17'
+updated: '2025-11-02'
 tags:
   - 'widgets'
   - 'architecture'
   - 'factory'
   - 'technical'
   - 'typescript'
+  - 'i18n'
+  - 'multilingual'
 ---
 
 # Widget Architecture
@@ -298,6 +300,531 @@ graph TD
     style B2 fill:#ffcdd2
     style C2 fill:#ffcdd2
 ```
+
+## 🌍 Multilingual Widget Architecture
+
+### Content Language Integration
+
+Widgets in SveltyCMS support multilingual content through the `contentLanguage` store and the `translated` field property. This architecture ensures widgets can handle translated content seamlessly while remaining database-agnostic.
+
+```mermaid
+graph TD
+    subgraph "Language Context"
+        CL[contentLanguage Store<br/>Current Language]
+        URL[URL Parameter<br/>/:lang/:collection]
+        SERVER[Server Load<br/>contentLanguage: 'de']
+    end
+
+    subgraph "Widget Layer"
+        FIELD[Field Definition<br/>translated: true/false]
+        WIDGET[Widget Component<br/>Input/Display]
+        LANG[_language Derivation<br/>$derived()]
+    end
+
+    subgraph "Data Layer"
+        VALUE[Value Object<br/>{en: '...', de: '...'}]
+        DB[(Database<br/>Language-Agnostic)]
+    end
+
+    URL --> SERVER
+    SERVER --> CL
+    CL --> LANG
+    FIELD --> LANG
+    LANG --> WIDGET
+    WIDGET --> VALUE
+    VALUE --> DB
+
+    style CL fill:#03A9F4
+    style FIELD fill:#4CAF50
+    style VALUE fill:#FF9800
+```
+
+### Multilingual Widget Pattern
+
+All text-based widgets follow this standard pattern for multilingual support:
+
+```svelte
+<!-- Example: Input Widget with Multilingual Support -->
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+	import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+
+	interface Props {
+		field: FieldInstance;
+		value: Record<string, string> | string; // Multilingual or plain
+	}
+
+	let { field, value = $bindable() }: Props = $props();
+
+	// 1. Determine which language to use based on field.translated
+	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+
+	// 2. Extract language-specific value
+	const safeValue = $derived(
+		field.translated && typeof value === 'object' && value !== null ? (value[_language] ?? '') : typeof value === 'string' ? value : ''
+	);
+
+	// 3. Update function maintains multilingual structure
+	function updateValue(newValue: string) {
+		if (field.translated) {
+			// Merge with existing translations: { en: "...", de: "...", fr: newValue }
+			value = { ...(value as object), [_language]: newValue };
+		} else {
+			// Replace entire value
+			value = newValue;
+		}
+	}
+</script>
+
+<input type="text" value={safeValue} oninput={(e) => updateValue(e.currentTarget.value)} />
+```
+
+### Widget Categories by Language Support
+
+| Widget Type            | Translated     | Reason                                         |
+| ---------------------- | -------------- | ---------------------------------------------- |
+| **Text-Based Widgets** |                |                                                |
+| `input`                | ✅ Yes         | User-facing text content                       |
+| `richText`             | ✅ Yes         | User-facing rich content                       |
+| `email`                | ✅ Yes         | Can have localized descriptions                |
+| `phoneNumber`          | ✅ Yes         | Can have localized labels                      |
+| `number`               | ✅ Yes         | Can have localized formatting                  |
+| `seo`                  | ✅ Yes         | SEO metadata per language                      |
+| **Structural Widgets** |                |                                                |
+| `checkbox`             | ❌ No          | Boolean value, language-independent            |
+| `radio`                | ❌ No          | Selection value, options translated separately |
+| `date`                 | ❌ No          | ISO date format, display localized by UI       |
+| `mediaUpload`          | ❌ No          | File reference, alt text translated separately |
+| **Relational Widgets** |                |                                                |
+| `relation`             | ✅ Conditional | References can have translated display fields  |
+| `megaMenu`             | ✅ Yes         | Menu items need per-language content           |
+
+### Field Configuration
+
+The `translated` property controls multilingual behavior:
+
+```typescript
+// Collection field definition
+const fields: FieldInstance[] = [
+	{
+		widget: 'input',
+		label: 'Title',
+		db_fieldName: 'title',
+		translated: true, // ← Multilingual field
+		required: true
+	},
+	{
+		widget: 'input',
+		label: 'Slug',
+		db_fieldName: 'slug',
+		translated: false, // ← Single value across all languages
+		unique: true,
+		required: true
+	}
+];
+```
+
+### Data Flow Architecture
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as TranslationStatus
+    participant Store as contentLanguage Store
+    participant Server as +page.server.ts
+    participant Widget as Input Widget
+    participant DB as Database
+
+    User->>UI: Clicks "DE" language
+    UI->>Store: contentLanguage.set('de')
+    UI->>Server: goto('/de/posts', {invalidateAll: true})
+    Server->>DB: Load entries with cache key :lang:de
+    DB-->>Server: Returns data
+    Server->>Widget: data + contentLanguage: 'de'
+    Widget->>Store: Syncs contentLanguage
+    Widget->>Widget: _language = $derived('de')
+    Widget->>Widget: Displays value['de']
+```
+
+### Database-Agnostic Storage
+
+The widget layer works with a normalized data structure, while database adapters handle storage:
+
+```typescript
+// Application layer (widgets always work with this)
+const fieldData = {
+	title: {
+		en: 'Hello World',
+		de: 'Hallo Welt',
+		fr: 'Bonjour le monde'
+	},
+	slug: 'hello-world' // Not translated
+};
+
+// MongoDB adapter (current) - stores nested objects directly
+db.collection('posts').insertOne(fieldData);
+
+// SQL/Drizzle adapter (future) - transforms to relational tables
+// posts: id, slug, created_at, updated_at
+// post_translations:
+//   - post_id, field='title', lang='en', value='Hello World'
+//   - post_id, field='title', lang='de', value='Hallo Welt'
+//   - post_id, field='title', lang='fr', value='Bonjour le monde'
+//
+// Adapter reconstructs: { title: { en: "...", de: "...", fr: "..." } }
+```
+
+### Widget State Reactivity
+
+Widgets use Svelte 5 runes for reactive language handling:
+
+```svelte
+<script lang="ts">
+	// ✅ CORRECT: Reactive language derivation
+	const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+
+	// ✅ CORRECT: Reactive value access
+	const displayValue = $derived(field.translated ? value[_language] : value);
+
+	// ❌ WRONG: Hardcoded language
+	const displayValue = value.en; // Not reactive, only shows English
+
+	// ❌ WRONG: Missing field.translated check
+	const displayValue = value[contentLanguage.value]; // Fails for untranslated fields
+</script>
+
+<!-- Automatically updates when contentLanguage changes -->
+<input value={displayValue} />
+```
+
+### Translation-Aware Widget Features
+
+**1. SEO Widget - Per-Language Optimization:**
+
+```svelte
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+
+	// SEO data structure: { en: {...}, de: {...}, fr: {...} }
+	const lang = $derived(field.translated ? contentLanguage.value : 'default');
+
+	// Each language has complete SEO metadata
+	$effect(() => {
+		if (!value[lang]) {
+			value[lang] = {
+				title: '',
+				description: '',
+				focusKeyword: '',
+				ogTitle: '',
+				ogDescription: ''
+				// ... full SEO config per language
+			};
+		}
+	});
+</script>
+```
+
+**2. RichText Widget - Language-Specific Editors:**
+
+```svelte
+<script lang="ts">
+	const lang = $derived(field.translated ? contentLanguage.value : 'default');
+
+	// Separate TipTap editor instance per language
+	let editors = new Map<string, Editor>();
+
+	$effect(() => {
+		if (!editors.has(lang)) {
+			editors.set(
+				lang,
+				new Editor({
+					content: value[lang] || '',
+					extensions: [
+						/* ... */
+					]
+				})
+			);
+		}
+	});
+</script>
+```
+
+**3. Relation Widget - Display Translated References:**
+
+```svelte
+<script lang="ts">
+	const lang = $derived(contentLanguage.value);
+
+	// Show related entry's title in current language
+	function getDisplayName(relatedEntry: any): string {
+		const titleField = relatedEntry.title;
+		if (typeof titleField === 'object' && titleField !== null) {
+			return titleField[lang] || titleField.en || 'Untitled';
+		}
+		return titleField || 'Untitled';
+	}
+</script>
+
+<select>
+	{#each relatedEntries as entry}
+		<option value={entry._id}>
+			{getDisplayName(entry)}
+		</option>
+	{/each}
+</select>
+```
+
+### Validation with Multilingual Data
+
+Validation schemas must account for multilingual structure:
+
+```typescript
+import * as v from 'valibot';
+
+// For translated fields
+const TranslatedStringSchema = v.record(
+	v.string(), // Language code key
+	v.string() // Translated value
+);
+
+// For non-translated fields
+const PlainStringSchema = v.string();
+
+// Conditional validation based on field.translated
+const InputValidationSchema = v.union([TranslatedStringSchema, PlainStringSchema]);
+
+// Widget validation function
+function validateValue(value: any, field: FieldInstance) {
+	if (field.translated) {
+		// Validate as multilingual object
+		return v.safeParse(TranslatedStringSchema, value);
+	} else {
+		// Validate as plain string
+		return v.safeParse(PlainStringSchema, value);
+	}
+}
+```
+
+### Display Component Considerations
+
+Display widgets show read-only values and must handle multilingual data:
+
+```svelte
+<!-- Display.svelte for any text widget -->
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+
+	interface Props {
+		field: FieldInstance;
+		value: Record<string, string> | string;
+	}
+
+	let { field, value }: Props = $props();
+
+	const lang = $derived(field.translated ? contentLanguage.value : 'en');
+
+	const displayValue = $derived(field.translated && typeof value === 'object' && value !== null ? value[lang] || '-' : value || '-');
+</script>
+
+<span class="display-value">{displayValue}</span>
+```
+
+### Best Practices for Multilingual Widgets
+
+**✅ DO:**
+
+1. **Always check `field.translated` before accessing language keys:**
+
+   ```typescript
+   const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+   ```
+
+2. **Use reactive derivations (`$derived`) for language-dependent values:**
+
+   ```typescript
+   const displayValue = $derived(field.translated ? value[_language] : value);
+   ```
+
+3. **Preserve existing translations when updating:**
+
+   ```typescript
+   value = { ...(value as object), [_language]: newValue };
+   ```
+
+4. **Provide fallbacks for missing translations:**
+
+   ```typescript
+   const text = value[contentLanguage.value] || value.en || value[DEFAULT_CONTENT_LANGUAGE] || '';
+   ```
+
+5. **Import from the store, not from props:**
+   ```typescript
+   import { contentLanguage } from '@stores/store.svelte'; // ✅
+   // NOT: let { contentLanguage } = $props();  // ❌
+   ```
+
+**❌ DON'T:**
+
+1. **Don't hardcode language keys:**
+
+   ```typescript
+   const value = data.en; // ❌ Always shows English
+   ```
+
+2. **Don't assume all fields are translated:**
+
+   ```typescript
+   const value = data[contentLanguage.value]; // ❌ Breaks for untranslated fields
+   ```
+
+3. **Don't mix UI language with content language:**
+
+   ```typescript
+   import { systemLanguage } from '@stores/store.svelte'; // For UI text
+   import { contentLanguage } from '@stores/store.svelte'; // For content data
+   // Don't confuse these!
+   ```
+
+4. **Don't forget to handle null/undefined values:**
+
+   ```typescript
+   // ❌ WRONG: Will crash if value is null
+   const text = value[_language];
+
+   // ✅ CORRECT: Safe access
+   const text = value?.[_language] ?? '';
+   ```
+
+### Migration Guide for Existing Widgets
+
+To add multilingual support to an existing widget:
+
+**Step 1: Import contentLanguage**
+
+```typescript
+import { contentLanguage } from '@stores/store.svelte';
+import { DEFAULT_CONTENT_LANGUAGE } from '@src/utils/constants';
+```
+
+**Step 2: Add language derivation**
+
+```typescript
+const _language = $derived(field.translated ? contentLanguage.value : DEFAULT_CONTENT_LANGUAGE);
+```
+
+**Step 3: Update value access**
+
+```typescript
+// Before:
+let localValue = $state(value);
+
+// After:
+const safeValue = $derived(
+	field.translated && typeof value === 'object' && value !== null ? (value[_language] ?? '') : typeof value === 'string' ? value : ''
+);
+```
+
+**Step 4: Update value mutations**
+
+```typescript
+// Before:
+function update(newValue: string) {
+	value = newValue;
+}
+
+// After:
+function update(newValue: string) {
+	if (field.translated) {
+		value = { ...(value as object), [_language]: newValue };
+	} else {
+		value = newValue;
+	}
+}
+```
+
+**Step 5: Update type definitions**
+
+```typescript
+// types.ts
+export interface Props {
+	field: FieldInstance;
+	value: Record<string, string> | string; // ← Support both formats
+	error?: string | null;
+}
+```
+
+### Testing Multilingual Widgets
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte';
+import { contentLanguage } from '@stores/store.svelte';
+import InputWidget from './Input.svelte';
+
+describe('Input Widget - Multilingual', () => {
+	it('should display English value when language is "en"', () => {
+		contentLanguage.set('en');
+
+		const { getByRole } = render(InputWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value: { en: 'Hello', de: 'Hallo' }
+			}
+		});
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue('Hello');
+	});
+
+	it('should display German value when language is "de"', () => {
+		contentLanguage.set('de');
+
+		const { getByRole } = render(InputWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value: { en: 'Hello', de: 'Hallo' }
+			}
+		});
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue('Hallo');
+	});
+
+	it('should handle untranslated fields', () => {
+		const { getByRole } = render(InputWidget, {
+			props: {
+				field: { translated: false, label: 'Slug' },
+				value: 'hello-world'
+			}
+		});
+
+		const input = getByRole('textbox');
+		expect(input).toHaveValue('hello-world');
+	});
+
+	it('should update only current language', async () => {
+		contentLanguage.set('de');
+		let value = { en: 'Hello', de: 'Hallo' };
+
+		const { getByRole } = render(InputWidget, {
+			props: {
+				field: { translated: true, label: 'Title' },
+				value
+			}
+		});
+
+		const input = getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'Hallo Welt' } });
+
+		expect(value).toEqual({
+			en: 'Hello', // ← Unchanged
+			de: 'Hallo Welt' // ← Updated
+		});
+	});
+});
+```
+
+---
 
 ## 🔧 Runtime Implementation
 

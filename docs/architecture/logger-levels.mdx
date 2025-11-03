@@ -1,27 +1,113 @@
 ---
-path: 'docs/dev-guide/logger-levels.mdx'
+path: 'docs/architecture/logger-levels.mdx'
 title: 'Logger Levels Guide'
-description: 'Comprehensive guide to the SveltyCMS performance-optimized logger system with priority-based levels, configuration, and best practices.'
+description: 'Comprehensive guide to the SveltyCMS dual-logger system with priority-based levels, split architecture, and best practices.'
 order: 8
 icon: 'mdi:math-log'
 author: 'admin'
 created: '2025-10-04'
-updated: '2025-10-05'
+updated: '2025-01-31'
 tags:
   - 'logger'
   - 'debugging'
   - 'performance'
   - 'development'
   - 'best-practices'
+  - 'architecture'
 ---
 
 # Logger Levels Guide
 
 ## Overview
 
-The SveltyCMS logger now uses a performance-optimized priority-based system with the following levels:
+The SveltyCMS logger uses a **dual-logger architecture** with two separate implementations optimized for their respective environments:
 
-## Log Levels (from most to least restrictive)
+- **`logger.server.ts`**: Full-featured server logger with file I/O, batching, rotation, and compression
+- **`logger.ts`**: Universal console-based logger safe for client, server, and shared code
+
+Both loggers share the same API and use a performance-optimized priority-based level system.
+
+Both loggers share the same API and use a performance-optimized priority-based level system.
+
+## Architecture: Split Logger Design
+
+### Why Two Loggers?
+
+The split architecture solves critical bundling and performance issues:
+
+```
+src/utils/
+├── logger.server.ts  # Server-only (Node.js APIs, file I/O)
+└── logger.ts         # Universal (console-based, client-safe)
+```
+
+#### ✅ Benefits:
+
+1. **No Build Errors**: Node.js imports (`fs`, `path`, `zlib`) never reach client bundle
+2. **Optimal Bundle Size**: Client gets ~1KB console wrapper vs ~20KB+ server code
+3. **Type Safety**: Build fails if you import wrong logger in wrong context
+4. **Zero Client Overhead**: No file operations, no batching logic on client
+5. **Security**: Proper masking on both client and server
+
+### When to Use Each Logger
+
+| File Type            | Import             | Features Available                                 |
+| -------------------- | ------------------ | -------------------------------------------------- |
+| `+page.server.ts`    | `logger.server.ts` | File I/O, batching, rotation, compression, masking |
+| `+server.ts`         | `logger.server.ts` | File I/O, batching, rotation, compression, masking |
+| `*.server.ts`        | `logger.server.ts` | File I/O, batching, rotation, compression, masking |
+| `.svelte` components | `logger.ts`        | Console output, masking                            |
+| `.svelte.ts` stores  | `logger.ts`        | Console output, masking                            |
+| `utils.ts` (shared)  | `logger.ts`        | Console output, masking                            |
+
+#### Example Usage:
+
+```typescript
+// ✅ Server routes - use full logger
+// routes/api/content/+server.ts
+import { logger } from '@utils/logger.server';
+
+export async function GET() {
+	logger.info('API request received');
+	// Writes to file with batching
+	return json({ data });
+}
+```
+
+```typescript
+// ✅ Shared utils - use universal logger
+// lib/utils/validation.ts
+import { logger } from '@utils/logger';
+
+export function validateEmail(email: string) {
+	logger.debug('Validating email', { email });
+	// Console output, safe on client and server
+	return isValid;
+}
+```
+
+```typescript
+// ✅ Components - use universal logger
+// lib/components/Form.svelte
+<script lang="ts">
+  import { logger } from '@utils/logger';
+
+  function handleSubmit() {
+    logger.info('Form submitted');
+    // Console output in browser
+  }
+</script>
+```
+
+```typescript
+// ❌ WRONG - Don't import server logger in shared code
+// lib/utils/validation.ts
+import { logger } from '@utils/logger.server'; // ❌ Build error!
+```
+
+## Log Levels (Priority-Based System)
+
+Both loggers use the same priority system (from most to least restrictive):
 
 ### `none` (Priority 0)
 
@@ -29,11 +115,22 @@ The SveltyCMS logger now uses a performance-optimized priority-based system with
 - **Use Case**: Production environments where logging overhead must be eliminated
 - **Performance**: Zero overhead - all log calls are skipped before any processing
 
+**Configuration:**
+
+```typescript
+// .env
+LOG_LEVELS = none;
+```
+
 ### `fatal` (Priority 1)
 
 - **Purpose**: Critical errors that cause system failure
 - **Use Case**: Application crashes, unrecoverable errors
 - **Example**: Database connection failure, critical configuration missing
+
+```typescript
+logger.fatal('Database connection permanently failed', { error });
+```
 
 ### `error` (Priority 2)
 
@@ -41,11 +138,19 @@ The SveltyCMS logger now uses a performance-optimized priority-based system with
 - **Use Case**: Recoverable errors, failed operations
 - **Example**: Failed API calls, validation errors, database query failures
 
+```typescript
+logger.error('Failed to save user data', { userId, error });
+```
+
 ### `warn` (Priority 3)
 
 - **Purpose**: Warning messages about potential issues
 - **Use Case**: Deprecated features, fallback behaviors, potential problems
 - **Example**: Missing optional configuration, performance warnings
+
+```typescript
+logger.warn('Using default theme, custom theme not found', { themeId });
+```
 
 ### `info` (Priority 4) - **Default Level**
 
@@ -53,11 +158,19 @@ The SveltyCMS logger now uses a performance-optimized priority-based system with
 - **Use Case**: Application startup, major state changes, important user actions
 - **Example**: Server started, user logged in, collection created
 
+```typescript
+logger.info('User logged in successfully', { userId, email });
+```
+
 ### `debug` (Priority 5)
 
 - **Purpose**: Detailed debugging information for development
-- **Use Case**: Request/response timing, performance metrics, important state changes
+- **Use Case**: Request/response timing, performance metrics, cache operations
 - **Example**: Request timing, cache hits/misses, session management
+
+```typescript
+logger.debug('Cache hit for collection query', { collectionId, cacheKey });
+```
 
 ### `trace` (Priority 6)
 
@@ -65,77 +178,255 @@ The SveltyCMS logger now uses a performance-optimized priority-based system with
 - **Use Case**: Content structure details, widget initialization, data flow
 - **Example**: ContentManager initialization, tree structure, widget state changes
 
+```typescript
+logger.trace('Processing widget configuration', { widgetName, config });
+```
+
 ## Configuration
 
 ### Setting Log Levels
 
-In your environment configuration, set the `LOG_LEVELS` array:
+#### Server-Side (`logger.server.ts`)
 
-```typescript
-// Only errors and warnings
-LOG_LEVELS: ['error', 'warn'];
+Set via environment variables:
 
-// Default: info and above
-LOG_LEVELS: ['error', 'warn', 'info'];
+```bash
+# .env.development - Verbose logging
+LOG_LEVELS=fatal,error,warn,info,debug,trace
 
-// Development: debug and above
-LOG_LEVELS: ['error', 'warn', 'info', 'debug'];
+# .env.production - Minimal logging
+LOG_LEVELS=fatal,error
 
-// Deep debugging: everything
-LOG_LEVELS: ['error', 'warn', 'info', 'debug', 'trace'];
-
-// Maximum performance: nothing
-LOG_LEVELS: ['none'];
+# .env.production - Maximum performance
+LOG_LEVELS=none
 ```
 
-### Runtime Level Changes
+#### Client-Side (`logger.ts`)
 
-If you need to change log levels at runtime:
+Automatically configured:
+
+- **Development**: Debug level (shows debug, info, warn, error, fatal)
+- **Production**: Error level (shows only error and fatal)
+
+### Runtime Level Changes (Server Only)
 
 ```typescript
-import { logger } from '@src/utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
-// After changing LOG_LEVELS in publicEnv
+// After changing LOG_LEVELS in environment
 logger.refreshLogLevels();
+```
+
+## Advanced Features
+
+### Channel-Based Logging
+
+Create namespaced loggers for better organization:
+
+```typescript
+// Both loggers support channels
+import { logger } from '@utils/logger'; // or logger.server
+
+const dbLog = logger.channel('database');
+const authLog = logger.channel('auth');
+
+dbLog.info('Query executed', { duration: '42ms' });
+authLog.warn('Failed login attempt', { email, ip });
+
+// Output:
+// ℹ️ [INFO] [database] Query executed { duration: '42ms' }
+// ⚠️ [WARN] [auth] Failed login attempt { email: 'us**@ex****le.com', ip: '...' }
+```
+
+### Data Dumping (Trace Level)
+
+Quickly inspect complex data structures:
+
+```typescript
+// Server logger - writes to file
+import { logger } from '@utils/logger.server';
+logger.dump(complexObject, 'widget-config');
+
+// Universal logger - console output
+import { logger } from '@utils/logger';
+logger.dump(userData, 'user-profile');
+// Browser: Expands as console.group with full depth
+// Server: Colorized trace output
+```
+
+### Security: Automatic Data Masking
+
+Both loggers automatically mask sensitive information:
+
+```typescript
+const user = {
+	email: 'user@example.com',
+	password: 'secret123',
+	api_token: 'abc123xyz',
+	profile: { name: 'John' }
+};
+
+logger.info('User data', user);
+
+// Output:
+// {
+//   email: 'us**@ex****le.com',     // Partially masked
+//   password: '[REDACTED]',          // Fully redacted
+//   api_token: '[REDACTED]',         // Fully redacted
+//   profile: { name: 'John' }        // Not sensitive
+// }
+```
+
+**Protected keys:**
+
+- `password`, `passwd`, `pwd`
+- `token`, `access_token`, `refresh_token`
+- `api_key`, `apikey`, `secret`, `client_secret`
+- `authorization`, `auth`
+- `credit_card`, `cvv`, `ssn`
+- `private_key`, `privatekey`
+
+### Protection Against Edge Cases
+
+Both loggers include protection against:
+
+#### Circular References
+
+```typescript
+const obj = { name: 'test' };
+obj.self = obj; // Circular reference
+
+logger.debug('Object with circular ref', obj);
+// Output: { name: 'test', self: '[Circular Reference]' }
+```
+
+#### Deep Nesting (Max Depth: 10)
+
+```typescript
+let deep = { level: 1 };
+let current = deep;
+for (let i = 2; i <= 15; i++) {
+	current.next = { level: i };
+	current = current.next;
+}
+
+logger.debug('Deep object', deep);
+// Stops at depth 10: { level: 1, next: { level: 2, ... '[Max Depth Reached]' } }
+```
+
+#### Special Object Types
+
+```typescript
+logger.debug('Special types', {
+	date: new Date(),
+	regex: /test/gi,
+	error: new Error('Test error')
+});
+
+// Output:
+// {
+//   date: '2025-01-31T10:30:00.000Z',
+//   regex: '/test/gi',
+//   error: { name: 'Error', message: 'Test error', stack: '...' }
+// }
+```
+
+## Server Logger Exclusive Features
+
+These features are only available in `logger.server.ts`:
+
+### File-Based Logging with Batching
+
+```typescript
+import { logger } from '@utils/logger.server';
+
+// Logs are batched and written to logs/app.log
+logger.info('User action', { userId, action });
+
+// Batch is flushed when:
+// - 100 logs accumulated (configurable)
+// - 5 seconds elapsed (configurable)
+// - Process exits
+```
+
+### Log Rotation
+
+Automatic rotation when file reaches size limit (default 5MB):
+
+```
+logs/
+├── app.log                          # Current log file
+├── app.log.2025-01-31T10-30-00.gz  # Rotated and compressed
+└── app.log.2025-01-30T08-15-00.gz  # Older rotation
+```
+
+### Log Retention
+
+Automatically deletes logs older than configured retention period (default 2 days).
+
+### Configuration Methods (Server Only)
+
+```typescript
+import { logger } from '@utils/logger.server';
+
+// Customize behavior
+logger.setLogDirectory('custom-logs');
+logger.setLogFileName('custom.log');
+logger.setBatchSize(50);
+logger.setBatchTimeout(10000); // 10 seconds
+logger.setCompressionEnabled(true);
+logger.setLogRotationInterval(3600000); // 1 hour
+
+// Add custom sensitive keys
+logger.addSensitiveKeys(['custom_secret', 'internal_token']);
+
+// Add custom masking
+logger.addCustomMask('ssn', (value) => {
+	return `***-**-${value.slice(-4)}`;
+});
+
+// Add filters
+logger.addLogFilter((entry) => {
+	// Only log errors from auth system
+	return entry.level === 'error' && entry.message.includes('auth');
+});
 ```
 
 ## Performance Optimizations
 
-### 1. Early Exit with Centralized Building Check
+Both loggers implement these optimizations:
 
-Log calls are checked **before** any argument processing. The `building` check is centralized in the priority calculation for maximum efficiency:
+### 1. Early Exit with Priority Check
 
 ```typescript
-// Building check is handled once in updateMaxEnabledPriority()
-// All logger methods benefit without repetitive checks
+// Check happens BEFORE any argument processing
 logger.trace('Complex data:', expensiveOperation());
-// If trace is disabled OR we're building, expensiveOperation() is never called!
+// If trace is disabled, expensiveOperation() is never called!
 ```
 
-### 2. Priority Caching
-
-The maximum enabled priority is cached and checked with a simple integer comparison instead of array lookups. The building state is also factored into the cached priority:
+### 2. Cached Priority Calculation
 
 ```typescript
-// If building, maxEnabledPriority is set to 0 (disables all logging)
-// Otherwise, it's calculated from LOG_LEVELS configuration
+// Priority calculated once at startup
+const maxPriority = getMaxPriority();
+
+// Every log call uses simple integer comparison
+if (priorities[level] > maxPriority) return;
 ```
 
-### 3. No Reactivity Overhead
+### 3. Lazy Masking
 
-Config and state use plain objects instead of Svelte `$state` for zero reactivity overhead.
+```typescript
+// Masking only happens if log level is enabled
+const masked = args.map(maskSensitive);
+```
 
-### 4. Batch Processing with Timeout Management
+### 4. Batch Processing (Server Only)
 
-Logs are batched and written in groups to reduce I/O operations. The batching system automatically:
-
-- Flushes immediately when batch size is reached
-- Clears pending timeouts to prevent redundant flushes
-- Schedules timed flushes for smaller batches
-
-### 5. DRY Principle Applied
-
-The `building` check is handled once in `updateMaxEnabledPriority()` rather than being repeated in every logger method, following the Don't Repeat Yourself principle.
+```typescript
+// Multiple logs batched into single file write
+// Reduces I/O operations by ~100x
+```
 
 ## Best Practices
 
@@ -165,322 +456,172 @@ logger.trace('Data: ' + JSON.stringify(largeObject));
 logger.trace('Data:', largeObject);
 ```
 
-### Content Structure Logging
-
-Content structure and tree operations use `trace` level:
+### Include Context
 
 ```typescript
-logger.trace('[ContentManager] getContentStructure - contentNodeMap size:', this.contentNodeMap.size);
-logger.trace('[ContentManager] getContentStructure - tree:', tree);
-```
+// ❌ Bad - No context for debugging
+logger.error('Operation failed');
 
-### Request Timing
-
-Request performance metrics use `debug` level:
-
-```typescript
-logger.debug(`Request ${event.url.pathname} ${dt.toFixed(1)}ms ${emoji}`);
-```
-
-## Backend vs Frontend
-
-The logger is optimized for backend use. Frontend logging is minimal to avoid console clutter. Most detailed logging (`trace`, `debug`) only outputs on the server side.
-
----
-
-## Usage Guide for Developers
-
-### Quick Reference: When to Use Each Level
-
-```typescript
-import { logger } from '@utils/logger.svelte';
-
-// ❌ FATAL - System cannot continue (rare)
-logger.fatal('Database connection permanently failed', { error });
-
-// 🔴 ERROR - Operation failures that need investigation
-logger.error('Failed to save user data', { userId, error });
-
-// ⚠️ WARN - Potential issues or fallback behaviors
-logger.warn('Using default theme, custom theme not found', { themeId });
-
-// ℹ️ INFO - Important milestones and user actions
-logger.info('User logged in successfully', { userId, email });
-
-// 🔧 DEBUG - Useful metrics and diagnostics (development)
-logger.debug('Cache hit for collection query', { collectionId, cacheKey });
-
-// 🔍 TRACE - Internal flow details (deep debugging)
-logger.trace('Processing authentication flow', { step, userId });
-```
-
-### Detailed Usage Guidelines
-
-#### Use `trace` for:
-
-- Internal implementation details
-- Step-by-step flow tracking
-- Authentication flow details
-- Data processing stages
-- Field mapping operations
-- Widget initialization steps
-
-**Example:**
-
-```typescript
-logger.trace('Processing field mapping', {
-	fieldName,
-	widgetType,
-	entryIndex
-});
-```
-
-#### Use `debug` for:
-
-- Performance metrics (timing, counts)
-- Cache operations (hits, misses)
-- Security diagnostics (token validation)
-- Configuration details
-- Database query details
-- Useful troubleshooting information
-
-**Example:**
-
-```typescript
-logger.debug('Request completed', {
-	endpoint: '/api/collections',
-	duration: '42ms',
-	cacheHit: true
-});
-```
-
-#### Use `info` for:
-
-- Important user actions (login, logout, create, update)
-- Major system milestones (startup, shutdown)
-- Successful operations
-- State changes that matter to operations
-
-**Example:**
-
-```typescript
-logger.info('Collection created successfully', {
-	collectionId,
-	name,
-	userId
-});
-```
-
-#### Use `warn` for:
-
-- Potential security issues
-- Deprecated feature usage
-- Fallback behaviors
-- Missing optional configuration
-- Validation warnings
-
-**Example:**
-
-```typescript
-logger.warn('Rate limit approaching', {
-	userId,
-	requestCount,
-	limit
-});
-```
-
-#### Use `error` for:
-
-- Operation failures
-- API errors
-- Database errors
-- Validation failures
-- Recoverable errors
-
-**Example:**
-
-```typescript
-logger.error('Failed to update user profile', {
+// ✅ Good - Include actionable context
+logger.error('Failed to create collection', {
+	collectionName,
 	userId,
 	error: error.message,
 	stack: error.stack
 });
 ```
 
-### Performance Best Practices
-
-#### ✅ DO: Pass objects directly
+### Choose the Right Logger
 
 ```typescript
-// Good - Logger handles formatting
-logger.trace('User data:', userData);
-logger.debug('Query result:', { count, items });
-```
+// ✅ Server route - use server logger for file logging
+// routes/api/users/+server.ts
+import { logger } from '@utils/logger.server';
 
-#### ❌ DON'T: Pre-format expensive operations
+export async function POST({ request }) {
+	logger.info('Creating user'); // Written to file
+	// ...
+}
+```
 
 ```typescript
-// Bad - JSON.stringify runs even if trace is disabled
-logger.trace('Data: ' + JSON.stringify(largeObject));
+// ✅ Shared utility - use universal logger
+// lib/utils/validation.ts
+import { logger } from '@utils/logger';
 
-// Good - Let the logger handle it
-logger.trace('Data:', largeObject);
+export function validate(data: unknown) {
+	logger.debug('Validating data'); // Console output
+	// ...
+}
 ```
-
-#### ✅ DO: Use appropriate levels for visibility
 
 ```typescript
-// Cache operations are useful metrics - use debug
-logger.debug('Cache miss, fetching from database', { cacheKey });
+// ✅ Component - use universal logger
+// lib/components/Form.svelte
+import { logger } from '@utils/logger';
 
-// Internal flow details - use trace
-logger.trace('Validating user permissions', { userId, resource });
+function handleSubmit() {
+	logger.info('Form submitted'); // Browser console
+	// ...
+}
 ```
+
+## Quick Reference
 
 ### Common Patterns
 
 #### Authentication & Authorization
 
 ```typescript
+const authLog = logger.channel('auth');
+
 // Internal flow - trace
-logger.trace('User authenticated successfully', { userId });
+authLog.trace('Validating JWT token', { userId });
+
+// Successful auth - info
+authLog.info('User authenticated', { userId, email });
 
 // Security warnings - warn
-logger.warn('Failed login attempt', { email, ip });
+authLog.warn('Failed login attempt', { email, ip });
 
 // Auth failures - error
-logger.error('Invalid JWT token', { error });
+authLog.error('Invalid JWT signature', { error });
 ```
 
 #### API Requests
 
 ```typescript
-// Request completion - debug
-logger.debug('API request completed', {
-	endpoint,
-	method,
-	duration,
-	statusCode
-});
+const apiLog = logger.channel('api');
 
-// Internal processing - trace
-logger.trace('Applying filters to query', { filters });
+// Request start - trace
+apiLog.trace('Processing request', { endpoint, method });
+
+// Request metrics - debug
+apiLog.debug('Request completed', { endpoint, duration, statusCode });
 
 // API errors - error
-logger.error('API request failed', { endpoint, error });
+apiLog.error('API request failed', { endpoint, error, statusCode });
 ```
 
 #### Database Operations
 
 ```typescript
-// Query metrics - debug
-logger.debug('Database query executed', {
-	collection,
-	duration,
-	count
-});
+const dbLog = logger.channel('database');
 
 // Query details - trace
-logger.trace('Building database query', { filters, sort });
+dbLog.trace('Building query', { collection, filters });
+
+// Query metrics - debug
+dbLog.debug('Query executed', { collection, duration, resultCount });
 
 // Database errors - error
-logger.error('Database operation failed', { operation, error });
+dbLog.error('Database operation failed', { operation, error });
 ```
 
-#### Widget System
-
-```typescript
-// Widget loading - info
-logger.info('Widgets initialized', { count, coreWidgets, customWidgets });
-
-// Widget details - trace
-logger.trace('Processing widget configuration', { widgetName, config });
-
-// Widget warnings - warn
-logger.warn('Widget missing dependency', { widgetName, dependency });
-```
-
-### Testing Your Logs
-
-When developing features:
-
-1. **Start with trace** - Add detailed trace logs for your implementation flow
-2. **Promote to debug** - Move useful metrics and diagnostics to debug
-3. **Use info sparingly** - Only for operations users/admins care about
-4. **Test visibility** - Run with different LOG_LEVELS to verify output
+### Testing Log Output
 
 ```bash
-# Test with debug level
-LOG_LEVELS='["error","warn","info","debug"]' bun run dev
+# Development - verbose
+LOG_LEVELS=fatal,error,warn,info,debug,trace npm run dev
 
-# Test with info level (production-like)
-LOG_LEVELS='["error","warn","info"]' bun run dev
+# Production-like - minimal
+LOG_LEVELS=fatal,error,warn,info npm run dev
 
-# Test with trace level (deep debugging)
-LOG_LEVELS='["error","warn","info","debug","trace"]' bun run dev
+# Maximum performance - disabled
+LOG_LEVELS=none npm run dev
 ```
 
-### Anti-Patterns to Avoid
+### Security Checklist
 
-#### ❌ Wrong Level Usage
+- ✅ Never log raw passwords or tokens
+- ✅ Logger automatically masks sensitive keys
+- ✅ Use `trace` level for detailed data (disabled in prod)
+- ✅ Include error context but not full credentials
+- ✅ Be mindful of PII in logs
+
+## Migration from Old Logger
+
+If migrating from a single universal logger:
+
+### Step 1: Identify File Types
+
+```bash
+# Find all .server.ts files (should use logger.server)
+find src -name "*.server.ts"
+
+# Find all shared files (should use logger)
+find src -name "*.ts" ! -name "*.server.ts"
+```
+
+### Step 2: Update Imports
 
 ```typescript
-// Bad - Info is for important events, not internal details
-logger.info('Processing field entry 5/100');
+// Before (in +page.server.ts)
+import { logger } from '@utils/logger.svelte';
 
-// Good - Use trace for internal processing
-logger.trace('Processing field entry 5/100', { fieldName, entryIndex });
+// After
+import { logger } from '@utils/logger.server';
 ```
-
-#### ❌ Verbose Info Logs
 
 ```typescript
-// Bad - Too detailed for info level
-logger.info('Widget state:', complexWidgetState);
+// Before (in shared utils.ts)
+import { logger } from '@utils/logger.svelte';
 
-// Good - Use trace for detailed state
-logger.trace('Widget state:', complexWidgetState);
+// After
+import { logger } from '@utils/logger';
 ```
 
-#### ❌ Missing Context
+### Step 3: Test
 
-```typescript
-// Bad - No context for debugging
-logger.error('Operation failed');
+```bash
+# Build should fail if wrong logger imported
+npm run build
 
-// Good - Include actionable context
-logger.error('Failed to create collection', {
-	collectionName,
-	userId,
-	error: error.message
-});
+# Look for error: "logger.server.ts cannot be imported in browser code"
 ```
-
-### Security Considerations
-
-The logger automatically masks sensitive data:
-
-- Passwords are redacted to `[REDACTED]`
-- Email addresses are partially masked (`jo**@ex****e.com`)
-- Tokens and secrets are redacted
-
-However, be mindful of what you log:
-
-```typescript
-// ✅ Safe - No sensitive data
-logger.debug('User updated profile', { userId, fields: ['name', 'avatar'] });
-
-// ⚠️ Careful - Contains PII
-logger.trace('User profile data:', userData); // Acceptable for trace (disabled in prod)
-
-// ❌ Never log these
-logger.debug('Auth credentials:', { password, apiKey }); // Don't do this!
-```
-
----
 
 ## Related Documentation
 
-- [Logger Quick Reference](./Logger_Quick_Reference.md) - Quick decision guide
 - [Logger Performance Refinements](./Logger_Performance_Refinements.md) - Performance details
 - [Logger Audit Final Report](./Logger_Audit_Final_Report.md) - Audit results
+- [Architecture Overview](./architecture-overview.mdx) - System architecture

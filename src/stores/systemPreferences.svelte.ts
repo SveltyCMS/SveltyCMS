@@ -11,7 +11,7 @@
 
 import type { DashboardWidgetConfig, Layout, SystemPreferences } from '@src/content/types';
 import { writable } from 'svelte/store';
-import { logger } from '../utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // Initial state
 const initialState: SystemPreferences = {

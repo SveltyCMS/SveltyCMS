@@ -34,3 +34,6 @@ export { WidgetModel } from './widget';
 
 // System Virtual Folders
 export { SystemVirtualFolderModel } from './systemVirtualFolder';
+
+// Website Tokens
+export { WebsiteTokenModel } from './websiteToken';

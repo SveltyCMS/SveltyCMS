@@ -33,12 +33,12 @@ Usage
 	// Function to handle breadcrumb item click
 	function handleBreadcrumbClick(index: number) {
 		if (index === 0) {
-			// Click on home/root
+			// Click on home/root - always go to root
 			openFolder(null);
 		} else {
-			// Find the folder matching the current breadcrumb path
-			const pathUpToThisPoint = breadcrumb.slice(1, index + 1).join('/');
-			const folder = folders.find((f) => f.path.join('/') === pathUpToThisPoint);
+			// Find the folder matching the current breadcrumb
+			// Skip index 0 since that's the root
+			const folder = folders[index];
 			openFolder(folder ? folder._id : null);
 		}
 	}

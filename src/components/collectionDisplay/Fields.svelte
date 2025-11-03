@@ -1,46 +1,38 @@
 <!--
 @file src/components/collectionDisplay/Fields.svelte
 @component
-**Fields component that renders collection fields for data entry and provides revision history.**
+**Fields is a \"dumb\" component that renders collection fields for data entry and provides revision history.**
 
 @example
-<Fields />
+<Fields {fields} {revisions} contentLanguage="en" />
 
 ### Props
-- `fields` {NonNullable<typeof collection.value>['fields']} - Collection fields
-- `ariaInvalid` {boolean} - Aria-invalid attribute for accessibility
-- `ariaDescribedby` {string} - Aria-describedby attribute for accessibility
+- `fields` - The array of field objects from the collection schema.
+- `revisions` - An array of revision metadata for the current entry.
+- `contentLanguage` - The current content language for editing multilingual field data.
 
 ### Features
-- Dynamic field rendering based on collection schema
-- Tab-based interface for different views (Edit, Revision, Live Preview, API)
-- Real-time translation progress updates
-- Permission-based field filtering
-- Integration with various widget types
--->
+- Renders appropriate widgets for each field in the schema.
+- Binds form data to the `collectionValue` store.
+- Displays revision history and allows comparing/reverting to previous versions.
+- Does not perform any data fetching; all data is received as props.
 
+### Dual-Language Architecture
+- **GUI (systemLanguage)**: All UI text uses ParaglideJS (compile-time) for interface labels, buttons, messages
+- **Data (contentLanguage)**: Content data uses dynamic contentLanguage passed to widgets for translated fields
+- **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
+-->
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { onMount } from 'svelte';
-	import { getRevisionDiff, getRevisions } from '@utils/apiClient';
 	import { getFieldName } from '@utils/utils';
 
 	// Auth & Page data
 	import { page } from '$app/state';
 	const user = $derived(page.data?.user);
-	const tenantId = $derived(page.data?.tenantId); // Get tenantId for multi-tenancy
-	const collectionName = $derived(page.params?.collection);
+	const tenantId = $derived(page.data?.tenantId);
 
 	// Stores
-	import { collection, collectionValue, mode, setCollectionValue } from '@src/stores/collectionStore.svelte';
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
-	import { contentLanguage, translationProgress } from '@stores/store.svelte';
-
-	// Config
-	import type { Locale } from '@src/paraglide/runtime';
-
-	// Content processing
-	import { processModule } from '@src/content/utils';
+	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -59,7 +51,6 @@
 		eager: true
 	});
 
-	// Subscribe to the widget functions store
 	let widgetFunctions = $state<Record<string, any>>({});
 	$effect(() => {
 		widgetFunctionsStore.subscribe((value) => {
@@ -67,88 +58,47 @@
 		})();
 	});
 
-	let { fields = undefined } = $props<{
+	// --- 1. RECEIVE DATA AS PROPS ---
+	let {
+		fields,
+		revisions = []
+		// contentLanguage prop received but not directly used - widgets access contentLanguage store
+	} = $props<{
 		fields?: NonNullable<(typeof collection)['value']>['fields'];
+		revisions?: any[];
+		contentLanguage?: string; // Passed for documentation, widgets use store directly
 	}>();
 
-	// Component State
-	let apiUrl = $state('');
-	let isLoading = $state(true);
-	let widgetsReady = $state(false);
+	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state(0);
+	let apiUrl = $state('');
+	let widgetsReady = $state(false);
 
-	// Initialize widgets when Fields component mounts (only needed for edit/create mode)
+	// This is form state, not fetched data, so it remains.
+	let currentCollectionValue = $state<Record<string, any>>({});
+
+	// Revisions State (now simpler)
+	let selectedRevisionId = $state('');
+
+	// Track the last entry ID to detect when switching entries
+	let lastEntryId = $state<string | undefined>(undefined);
+
+	// --- 3. DERIVED STATE FROM PROPS ---
+	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
+	let diffObject = $derived(selectedRevision?.diff || null);
+
 	onMount(async () => {
 		try {
-			// Force widget reload to bypass cache and apply normalization
 			await widgetStoreActions.initializeWidgets(tenantId);
 			widgetsReady = true;
 		} catch (error) {
 			console.error('[Fields] Failed to initialize widgets:', error);
-			showToast('Failed to load widgets', 'error');
-			// Set to true anyway to unblock UI
-			widgetsReady = true;
+			widgetsReady = true; // unblock UI
 		}
 	});
 
-	// Revisions State
-	let revisionsMeta = $state<any[]>([]);
-	let isRevisionsLoading = $state(false);
-	let selectedRevisionId = $state('');
-	let selectedRevisionData = $state<Record<string, any> | null>(null);
-	let isRevisionDetailLoading = $state(false);
-	let diffObject = $state<Record<string, any> | null>(null);
-	// Processed collection with evaluated fields (fixes the missing fields issue)
-
-	let processedCollection = $state<any>(null);
-	let fieldsFromModule = $state<any[]>([]);
-
-	// --- Let widgets handle their own validation - no duplicate validation here ---
-
-	$effect(() => {
-		if (widgetsReady && collection && (collection as any)?.module && !processedCollection) {
-			untrack(async () => {
-				try {
-					const processed = await processModule((collection as any).module);
-					if (processed?.schema?.fields) {
-						processedCollection = processed.schema;
-						fieldsFromModule = processed.schema.fields;
-					} else {
-						console.warn('[Fields] No fields in processed schema');
-					}
-				} catch (error) {
-					console.error('[Fields] Failed to process collection module:', error);
-				}
-			});
-		}
-	});
-	// Derived state for fields - combines all possible field sources
-
-	let derivedFields = $derived(fields || fieldsFromModule || collection?.value?.fields || []);
-	// Persistent form data that survives tab switches (from old working code)
-
-	let formDataSnapshot = $state<Record<string, any>>({});
-	let isFormDataInitialized = $state(false);
-	let lastEntryId = $state<string | undefined>(undefined);
-	// Use a single local state for form data, initialized from the global store
-
-	let currentCollectionValue = $state<Record<string, any>>({});
-	// Reactive function to get default collection value
-
-	let defaultCollectionValue = $derived.by(() => {
-		const tempCollectionValue: Record<string, any> = collectionValue ? { ...(collectionValue as any) } : {};
-		for (const field of derivedFields) {
-			const safeField = ensureFieldProperties(field);
-			const fieldName = getFieldName(safeField, false);
-			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
-				// Initialize with proper default value based on field type
-				const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
-				tempCollectionValue[fieldName] = isTranslated ? {} : '';
-			}
-		}
-		return tempCollectionValue;
-	});
-	// Ensure fields have required properties
+	// --- 4. SIMPLIFIED LOGIC ---
+	let derivedFields = $derived(fields || []);
 
 	function ensureFieldProperties(field: any) {
 		if (!field) return null;
@@ -159,505 +109,227 @@
 			permissions: field.permissions || {}
 		};
 	}
-	// Filter fields based on user permissions
 
 	let filteredFields = $derived(
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
 			.filter((field: any) => {
-				// Always show fields if no permissions are set or user is admin
-				if (!field.permissions) return true;
-				if (page.data?.isAdmin) return true; // Check specific role permissions
-
-				const userRole = user?.role;
-				if (!userRole) return true; // Show all fields if no role defined
-
-				const rolePermissions = field.permissions[userRole];
+				if (!field.permissions || page.data?.isAdmin || !user?.role) return true;
+				const rolePermissions = field.permissions[user.role];
 				return !rolePermissions || rolePermissions.read !== false;
 			})
-	); // Update translation progress when data changes
+	);
 
+	// Sync local form state with global store
+	// When collectionValue changes (new entry loaded), update local state
+	// When local state changes (user editing), update global state
 	$effect(() => {
-		const currentCollectionValue = collectionValue;
-		const fields = collection.value?.fields;
+		const global = collectionValue.value as Record<string, unknown> | undefined;
+		const globalId = (global as any)?._id;
 
-		if (!fields || !currentCollectionValue || !collection.value?.name) return;
-
-		// This is the logic from the deleted `updateTranslationProgress` function,
-		// now correctly placed within a component's effect.
-		const progress = { ...translationProgress.value }; // Create a mutable copy
-		let hasUpdates = false;
-
-		for (const field of fields) {
-			if (!field) continue; // Skip null/undefined fields
-
-			// Check if field has translated property (for widget-based fields)
-			const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
-
-			if (isTranslated && collection.value?.name) {
-				const fieldName = `${collection.value.name}.${getFieldName(field as any)}`;
-				const dbFieldName = getFieldName(field as any, false);
-				const fieldValue = (currentCollectionValue as Record<string, unknown>)[dbFieldName];
-
-				// Safely get available languages with fallback
-				const availableLanguages = (
-					publicEnv?.AVAILABLE_CONTENT_LANGUAGES && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)
-						? publicEnv.AVAILABLE_CONTENT_LANGUAGES
-						: ['en']
-				) as Locale[];
-
-				for (const lang of availableLanguages) {
-					if (!progress[lang]) continue;
-					const langValue = (fieldValue as Record<string, any>)?.[lang];
-					const isTranslated =
-						langValue !== null && langValue !== undefined && (typeof langValue === 'string' ? langValue.trim() !== '' : Boolean(langValue));
-					const wasTranslated = progress[lang]!.translated.has(fieldName);
-
-					if (isTranslated && !wasTranslated) {
-						progress[lang]!.translated.add(fieldName);
-						hasUpdates = true;
-					} else if (!isTranslated && wasTranslated) {
-						progress[lang]!.translated.delete(fieldName);
-						hasUpdates = true;
-					}
-				}
-			}
-		}
-
-		if (hasUpdates) {
-			// Correctly update the rune by assigning to its .value
-			translationProgress.value = progress;
-		}
-	});
-
-	// Update the main collection value store when form data changes (immediate sync for save reliability)
-	// Use untrack to avoid circular dependencies and ensure one-way sync from currentCollectionValue -> collectionValue
-	let lastSyncedData = $state<string>('');
-	$effect(() => {
-		// Track only the things we WANT to react to: currentCollectionValue changes
-		const currentMode = mode.value;
-		const initialized = isFormDataInitialized;
-
-		// ONLY sync if form is initialized - this prevents sync during initial setup
-		if (!initialized) {
+		// When a new entry is loaded (different ID), pull from global -> local
+		if (globalId && globalId !== lastEntryId) {
+			console.log('[Fields] Loading entry data:', globalId);
+			currentCollectionValue = { ...global } as any;
+			lastEntryId = globalId;
 			return;
 		}
 
-		// Stringify to detect actual changes
-		const currentDataStr = JSON.stringify(currentCollectionValue);
-
-		if (currentDataStr === lastSyncedData) {
-			// No changes, skip
+		// If creating new entry (no ID), initialize with global state
+		if (!globalId && !lastEntryId && global && Object.keys(global).length > 0) {
+			console.log('[Fields] Initializing new entry');
+			currentCollectionValue = { ...global } as any;
 			return;
 		}
 
-		if (localTabSet === 0 && currentCollectionValue && Object.keys(currentCollectionValue).length > 0) {
-			// Read collectionValue inside untrack to avoid making it a reactive dependency
-			untrack(() => {
-				const currentEntryId = (collectionValue as any)?._id;
-				const localEntryId = (currentCollectionValue as any)?._id;
-
-				// Only sync during create OR when editing the same entry
-				if (currentMode === 'create' || currentEntryId === localEntryId) {
-					// Merge currentCollectionValue into the global store
-					const merged = {
-						...(collectionValue as Record<string, unknown>),
-						...currentCollectionValue
-					};
-
-					// Only update if there are actual changes to avoid infinite loops
-					const hasChanges = Object.keys(currentCollectionValue).some(
-						(key) => JSON.stringify(merged[key]) !== JSON.stringify((collectionValue as Record<string, unknown>)[key])
-					);
-
-					if (hasChanges) {
-						setCollectionValue(merged);
-						lastSyncedData = currentDataStr;
-					} else {
-						lastSyncedData = currentDataStr;
-					}
-				}
-			});
+		// Otherwise, push local changes to global (user is editing)
+		const local = currentCollectionValue as Record<string, unknown> | undefined;
+		if (local && Object.keys(local).length > 0) {
+			const currentDataStr = JSON.stringify(local);
+			const globalDataStr = JSON.stringify(global ?? {});
+			if (currentDataStr !== globalDataStr) {
+				setCollectionValue({ ...local });
+			}
 		}
 	});
 
-	// --- Revision Logic ---
-
-	async function fetchRevisionsMeta() {
-		if (!collection.value?._id || !(collectionValue as any)?._id) return;
-		isRevisionsLoading = true;
-		try {
-			const collectionId = String(collection.value._id);
-			const entryId = String((collectionValue as any)._id);
-			const result = await getRevisions(collectionId, entryId, { metaOnly: true });
-			if (result.success) {
-				revisionsMeta = result.data || [];
-			} else {
-				showToast(`Error: ${result.error}`, 'error');
-			}
-		} finally {
-			isRevisionsLoading = false;
-		}
-	}
-
-	async function fetchAndCompareRevision(revisionId: string) {
-		if (!revisionId || !collection.value?._id || !(collectionValue as any)?._id) return;
-		isRevisionDetailLoading = true;
-		diffObject = null;
-		selectedRevisionData = null;
-		try {
-			const collectionId = String(collection.value._id);
-			const entryId = String((collectionValue as any)._id);
-			const result = await getRevisionDiff({
-				collectionId: collectionId,
-				entryId: entryId,
-				revisionId: revisionId,
-				currentData: collectionValue as Record<string, unknown>
-			});
-
-			if (result.success && result.data) {
-				diffObject = result.data.diff;
-				selectedRevisionData = result.data.revisionData;
-			} else {
-				throw new Error(result.error || 'Failed to fetch revision diff.');
-			}
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-			showToast(`Error loading revision diff: ${errorMessage}`, 'error');
-		} finally {
-			isRevisionDetailLoading = false;
-		}
-	}
-
+	// --- 5. REFACTORED REVISION LOGIC ---
 	function handleRevert() {
-		if (!selectedRevisionData) return;
+		if (!selectedRevision?.data) return;
 		showConfirm({
 			title: 'Confirm Revert',
 			body: 'Are you sure you want to revert to this version? Any unsaved changes will be lost.',
 			confirmText: 'Revert',
 			onConfirm: () => {
-				const revertData = { ...selectedRevisionData, _id: (collectionValue as any)._id };
+				const revertData = { ...selectedRevision.data, _id: (collectionValue as any).value?._id };
 				setCollectionValue(revertData);
+				currentCollectionValue = revertData; // also update local state
 				showToast('Content reverted. Please save your changes.', 'info');
 				localTabSet = 0;
 			}
 		});
 	}
 
-	// --- Effects ---
 	$effect(() => {
-		isLoading = false;
-	});
-
-	// Reset initialization when mode changes to create (allows fresh initialization)
-	let previousModeRef = { value: mode.value }; // Use object reference to avoid reactivity
-	$effect(() => {
-		const currentMode = mode.value;
-
-		if (currentMode === 'create' && previousModeRef.value !== 'create') {
-			// Reset initialization flag to allow fresh setup for new entry
-			untrack(() => {
-				isFormDataInitialized = false;
-				lastEntryId = undefined;
-			});
-			previousModeRef.value = currentMode;
-		} else if (currentMode !== 'create' && currentMode !== previousModeRef.value) {
-			previousModeRef.value = currentMode;
-		}
-	});
-
-	// Initialize form data when the entry changes or fields become available
-	$effect(() => {
-		const globalData = collectionValue as any;
-		const currentEntryId = globalData?._id;
-
-		// Only initialize if not yet initialized OR if we're switching to a completely different entry
-		if (!isFormDataInitialized && globalData && derivedFields.length > 0) {
-			untrack(() => {
-				formDataSnapshot = { ...globalData };
-				// Ensure all fields have proper initial values
-				const initialValue = { ...defaultCollectionValue };
-				// Double-check that all derived fields have values
-				for (const field of derivedFields) {
-					const safeField = ensureFieldProperties(field);
-					const fieldName = getFieldName(safeField, false);
-					if (initialValue[fieldName] === undefined) {
-						const isTranslated = (field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated);
-						initialValue[fieldName] = isTranslated ? {} : '';
-					}
-				}
-				currentCollectionValue = initialValue;
-				lastEntryId = currentEntryId; // Track the current entry ID
-				isFormDataInitialized = true;
-			});
-		}
-	}); // Form data persistence across tab switches
-
-	// Form data persistence across tab switches (from old working code)
-	$effect(() => {
-		if (isFormDataInitialized && localTabSet === 0 && currentCollectionValue) {
-			// Only sync when on edit tab to avoid unnecessary updates
-			untrack(() => {
-				formDataSnapshot = { ...formDataSnapshot, ...currentCollectionValue };
-			});
-		} else if (localTabSet !== 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
-			// Merge snapshot data back into currentCollectionValue when returning to edit tab
-			untrack(() => {
-				const updatedValue = { ...currentCollectionValue };
-				for (const field of derivedFields) {
-					const safeField = ensureFieldProperties(field);
-					const fieldName = getFieldName(safeField, false);
-					if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
-						updatedValue[fieldName] = formDataSnapshot[fieldName];
-					}
-				}
-				currentCollectionValue = updatedValue;
-			});
-		}
-	});
-
-	// Initialize local state from global store ONLY when switching to a different entry
-	$effect(() => {
-		const globalData = collectionValue as any;
-		const currentEntryId = globalData?._id;
-
-		// Only reinitialize if we're switching to a different entry (with valid ID) AND form was already initialized
-		if (globalData && Object.keys(globalData).length > 0 && isFormDataInitialized && currentEntryId && currentEntryId !== lastEntryId) {
-			untrack(() => {
-				currentCollectionValue = { ...globalData };
-				lastEntryId = currentEntryId;
-			});
-		}
-	});
-
-	$effect(() => {
-		if ((collectionValue as any)?._id) {
-			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any)._id}`;
-		}
-	});
-
-	$effect(() => {
-		if (localTabSet === 1 && revisionsMeta.length === 0) {
-			fetchRevisionsMeta();
-		}
-	});
-
-	$effect(() => {
-		if (selectedRevisionId) {
-			fetchAndCompareRevision(selectedRevisionId);
-		} else {
-			diffObject = null;
-			selectedRevisionData = null;
+		if ((collectionValue as any).value?._id) {
+			apiUrl = `${location.origin}/api/collection/${collection.value?._id}/${(collectionValue as any).value._id}`;
 		}
 	});
 </script>
 
-{#if isLoading}
-	<Loading />
-{:else}
-	<TabGroup
-		justify="{collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
-		rounded="rounded-tl-container-token rounded-tr-container-token"
-		flex="flex-1 items-center"
-		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
-		hover="hover:variant-soft-secondary"
-		bind:group={localTabSet}
-	>
-		<Tab bind:group={localTabSet} name="edit" value={0}>
+<TabGroup
+	justify={collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '}
+	rounded="rounded-tl-container-token rounded-tr-container-token"
+	flex="flex-1 items-center"
+	active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
+	hover="hover:variant-soft-secondary"
+	bind:group={localTabSet}
+>
+	<Tab bind:group={localTabSet} name="edit" value={0}>
+		<div class="flex items-center gap-2">
+			<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			{m.button_edit()}
+		</div>
+	</Tab>
+
+	{#if collection.value?.revision}
+		<Tab bind:group={localTabSet} name="revisions" value={1}>
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:pen" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				{m.button_edit()}
+				<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				{m.applayout_version()} <span class="variant-filled-secondary badge">{revisions.length}</span>
 			</div>
 		</Tab>
+	{/if}
 
-		{#if collection.value?.revision}
-			<Tab bind:group={localTabSet} name="revisions" value={1}>
-				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					{m.applayout_version()} <span class="variant-filled-secondary badge">{revisionsMeta.length}</span>
-				</div>
-			</Tab>
-		{/if}
+	{#if collection.value?.livePreview}
+		<Tab bind:group={localTabSet} name="preview" value={2}>
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				{m.Fields_preview()}
+			</div>
+		</Tab>
+	{/if}
 
-		{#if collection.value?.livePreview}
-			<Tab bind:group={localTabSet} name="preview" value={2}>
-				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:eye-outline" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					{m.Fields_preview()}
-				</div>
-			</Tab>
-		{/if}
+	{#if user?.isAdmin}
+		<Tab bind:group={localTabSet} name="api" value={3}>
+			<div class="flex items-center gap-2">
+				<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				API
+			</div>
+		</Tab>
+	{/if}
 
-		{#if user?.isAdmin}
-			<Tab bind:group={localTabSet} name="api" value={3}>
-				<div class="flex items-center gap-2">
-					<iconify-icon icon="mdi:api" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					API
-				</div>
-			</Tab>
-		{/if}
+	<svelte:fragment slot="panel">
+		{#if localTabSet === 0}
+			<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
+			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
+				{#if !widgetsReady}
+					<div class="flex h-48 items-center justify-center">
+						<Loading />
+						<p class="ml-2 text-surface-500">Loading widgets...</p>
+					</div>
+				{:else}
+					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+							{#if rawField.widget}
+								{@const field = ensureFieldProperties(rawField)}
+								<div
+									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
+									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+								>
+									<div class="flex justify-between px-[5px] text-start">
+										<p class="inline-block font-semibold capitalize">
+											{field.label || field.db_fieldName}
+											{#if field.required}<span class="text-error-500">*</span>{/if}
+										</p>
+									</div>
 
-		<svelte:fragment slot="panel">
-			{#if localTabSet === 0}
-				<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
-				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
-					{#if !widgetsReady}
-						<div class="flex h-48 items-center justify-center">
-							<Loading />
-							<p class="ml-2 text-surface-500">Loading widgets...</p>
-						</div>
-					{:else if isFormDataInitialized}
-						<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-							{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
-								{#if rawField.widget}
-									{@const field = ensureFieldProperties(rawField)}
-									{@const isTranslated =
-										(field as any)?.translated || (typeof field === 'object' && 'widget' in field && (field.widget as any)?.translated)}
-									<div
-										class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
-										style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
-									>
-										<!-- Widget label -->
-										<div class="flex justify-between px-[5px] text-start">
-											<p class="inline-block font-semibold capitalize">
-												{field.label || field.db_fieldName}
-												{#if field.required}<span class="text-error-500">*</span>{/if}
-											</p>
+									{#if field.widget}
+										{@const widgetName = field.widget.Name}
+										{@const widgetPath =
+											widgetFunctions[widgetName]?.componentPath ||
+											widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
+											widgetFunctions[widgetName.toLowerCase()]?.componentPath}
+										{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
 
-											<div class="flex gap-2">
-												{#if isTranslated}
-													<div class="flex items-center gap-1 px-2">
-														<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"></iconify-icon>
-														<div class="text-xs font-normal text-error-500">
-															{contentLanguage.value?.toUpperCase() ?? 'EN'}
-														</div>
-														<!-- Display translation progress -->
-														<div class="text-xs font-normal">
-															({Math.round(
-																translationProgress.value[contentLanguage.value]?.translated.has(
-																	`${String(collection.value?.name)}.${getFieldName(field)}`
-																)
-																	? 100
-																	: 0
-															)}%)
-														</div>
-													</div>
-												{/if}
+										{#if WidgetComponent}
+											{@const fieldName = getFieldName(field, false)}
+											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+										{:else}
+											<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
+										{/if}
+									{/if}
+								</div>
+							{/if}
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{:else if localTabSet === 1}
+			<div class="p-4">
+				{#if revisions.length === 0}
+					<p class="p-4 text-center text-surface-500">No revision history found for this entry.</p>
+				{:else}
+					<div class="mb-4 flex items-center justify-between gap-4">
+						<select class="select flex-grow" bind:value={selectedRevisionId}>
+							<option value="" disabled>-- Select a revision to compare --</option>
+							{#each revisions as revision (revision._id)}
+								<option value={revision._id}>
+									{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}...
+								</option>
+							{/each}
+						</select>
+						<button class="variant-filled-primary btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
+							<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon> Revert
+						</button>
+					</div>
 
-												{#if field.icon}
-													<iconify-icon icon={field.icon} color="dark" width="22"></iconify-icon>
-												{/if}
+					<div class="rounded-lg border p-4 dark:border-surface-700">
+						<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
+						{#if diffObject && Object.keys(diffObject).length > 0}
+							<div class="space-y-3 font-mono text-sm">
+								{#each Object.entries(diffObject) as [key, change]}
+									{@const ch = change as any}
+									<div>
+										<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>
+										{#if ch.status === 'modified'}
+											<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
+												<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.old)}</span>
 											</div>
-										</div>
-
-										<!-- Widget Input -->
-										{#if field.widget}
-											{@const widgetName = field.widget.Name}
-											{@const widgetPath =
-												widgetFunctions[widgetName]?.componentPath ||
-												widgetFunctions[widgetName.charAt(0).toLowerCase() + widgetName.slice(1)]?.componentPath ||
-												widgetFunctions[widgetName.toLowerCase()]?.componentPath}
-											{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
-
-											{#if WidgetComponent}
-												{@const fieldName = getFieldName(field, false)}
-												{@const shouldValidateOnMount = field.required && mode.value === 'create'}
-												<!-- Debug validation mount -->
-												<!-- {#if process.env.NODE_ENV !== 'production' && shouldValidateOnMount}
-													<div style="font-size:0.7em;color:#0a0;">
-														Validating on mount: {field.label || fieldName} (required: {field.required}, mode: {mode.value}, fieldName: {fieldName})
-													</div>
-												{/if} -->
-												<WidgetComponent
-													{field}
-													WidgetData={{}}
-													bind:value={currentCollectionValue[fieldName]}
-													{tenantId}
-													validateOnMount={shouldValidateOnMount}
-												/>
-											{:else}
-												<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
-											{/if}
+											<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
+												<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.new)}</span>
+											</div>
+										{:else if ch.status === 'added'}
+											<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
+												<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(ch.value)}</span>
+											</div>
+										{:else if ch.status === 'deleted'}
+											<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
+												<span class="text-error-700 dark:text-error-300">- {JSON.stringify(ch.value)}</span>
+											</div>
 										{/if}
 									</div>
-								{/if}
-							{/each}
-						</div>
-					{:else}
-						<div class="flex justify-center p-4">
-							<Loading />
-						</div>
-					{/if}
-				</div>
-			{:else if localTabSet === 1}
-				<div class="p-4">
-					{#if isRevisionsLoading}
-						<div class="flex justify-center p-4"><Loading /></div>
-					{:else if revisionsMeta.length === 0}
-						<p class="p-4 text-center text-surface-500">No revision history found for this entry.</p>
-					{:else}
-						<div class="mb-4 flex items-center justify-between gap-4">
-							<select class="select flex-grow" bind:value={selectedRevisionId}>
-								<option value="" disabled>-- Select a revision to compare --</option>
-								{#each revisionsMeta as revision (revision._id)}
-									<option value={revision._id}>
-										{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}...
-									</option>
 								{/each}
-							</select>
-							<button class="variant-filled-primary btn" onclick={handleRevert} disabled={!selectedRevisionData || isRevisionDetailLoading}>
-								<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon> Revert
-							</button>
-						</div>
-
-						<div class="rounded-lg border p-4 dark:border-surface-700">
-							<h3 class="mb-3 text-lg font-bold">Changes from Selected Revision</h3>
-							{#if isRevisionDetailLoading}
-								<div class="flex h-48 items-center justify-center"><Loading /></div>
-							{:else if diffObject && Object.keys(diffObject).length > 0}
-								<div class="space-y-3 font-mono text-sm">
-									{#each Object.entries(diffObject) as [key, change]}
-										<div>
-											<strong class="font-bold text-surface-600 dark:text-surface-300">{key}:</strong>
-											{#if change.status === 'modified'}
-												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
-													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(change.old)}</span>
-												</div>
-												<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
-													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(change.new)}</span>
-												</div>
-											{:else if change.status === 'added'}
-												<div class="mt-1 rounded border border-success-500/30 bg-success-500/10 p-2">
-													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(change.value)}</span>
-												</div>
-											{:else if change.status === 'deleted'}
-												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
-													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(change.value)}</span>
-												</div>
-											{/if}
-										</div>
-									{/each}
-								</div>
-							{:else if selectedRevisionId}
-								<p class="text-center text-surface-500">No differences found.</p>
-							{:else}
-								<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
-							{/if}
-						</div>
-					{/if}
-				</div>
-			{:else if localTabSet === 2}
-				<div class="p-4">Live Preview for {collectionName} coming soon!</div>
-			{:else if localTabSet === 3}
-				<div class="space-y-4 p-4">
-					<div class="flex items-center gap-2">
-						<input type="text" class="input flex-grow" readonly value={apiUrl} />
-						<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
+							</div>
+						{:else if selectedRevisionId}
+							<p class="text-center text-surface-500">No differences found.</p>
+						{:else}
+							<p class="text-center text-surface-500">Select a revision to see what's changed.</p>
+						{/if}
 					</div>
-					<CodeBlock language="json" code={JSON.stringify(collectionValue as any, null, 2)} />
+				{/if}
+			</div>
+		{:else if localTabSet === 2}
+			<div class="p-4">Live Preview coming soon!</div>
+		{:else if localTabSet === 3}
+			<div class="space-y-4 p-4">
+				<div class="flex items-center gap-2">
+					<input type="text" class="input flex-grow" readonly value={apiUrl} />
+					<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
 				</div>
-			{/if}
-		</svelte:fragment>
-	</TabGroup>
-{/if}
+				<CodeBlock language="json" code={JSON.stringify((collectionValue as any).value, null, 2)} />
+			</div>
+		{/if}
+	</svelte:fragment>
+</TabGroup>

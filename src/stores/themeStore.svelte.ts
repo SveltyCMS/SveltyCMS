@@ -8,7 +8,7 @@ import { browser } from '$app/environment';
 import type { Theme } from '@src/databases/dbInterface';
 import { nowISODateString } from '@src/utils/dateUtils';
 import type { ISODateString } from '@src/content/types';
-import { logger } from '../utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // --- Theme Preference Type ---
 export type ThemePreference = 'system' | 'light' | 'dark' | 'unknown';

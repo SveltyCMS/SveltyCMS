@@ -21,7 +21,7 @@ import { dbAdapter } from '@src/databases/db';
 // Permissions
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Validation
 import * as v from 'valibot';

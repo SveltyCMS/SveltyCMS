@@ -17,7 +17,7 @@ import { formatBytes, sanitize } from '@utils/utils';
 import { removeExtension } from '../utils';
 
 // System Logger
-import { logger } from '../logger.svelte';
+import { logger } from '@utils/logger';
 
 // Define types for image sizes
 type ImageSizeConfig = { width: number; height: number };

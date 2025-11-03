@@ -31,22 +31,15 @@ import { dbAdapter } from '@src/databases/db';
 
 // Stores
 import { collections } from '@stores/collectionStore.svelte';
+import type { CollectionEntry } from '@src/content/types';
 
 // Permissions
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 interface DatabaseCollection {
 	name: string;
-}
-
-interface CollectionEntry {
-	_id: string;
-	status?: string;
-	createdAt?: string;
-	updatedAt?: string;
-	[key: string]: unknown;
 }
 
 export const GET: RequestHandler = async ({ locals }) => {

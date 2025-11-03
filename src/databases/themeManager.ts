@@ -1,6 +1,13 @@
 /**
  * @file src/databases/themeManager.ts
  * @description Theme manager for the CMS, utilizing a database-agnostic interface and now multi-tenant aware.
+ *
+ * ### Features
+ * - Singleton pattern for global access
+ * - Database-agnostic via IDBAdapter interface
+ * - Caches themes in-memory for performance
+ * - Supports multi-tenant theme management
+ * - Fallback to default theme if database is unavailable
  */
 import { error } from '@sveltejs/kit';
 import type { DatabaseId } from '../content/types';
@@ -8,7 +15,7 @@ import type { IDBAdapter, Theme } from './dbInterface';
 import { dateToISODateString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * Fallback theme for when database is not available

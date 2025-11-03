@@ -4,6 +4,13 @@
  *
  * This module defines a schema and model for Revisions in the MongoDB database.
  * A Revision is a version of a document that is not yet published.
+ *
+ * ### Features
+ * - Schema definition with fields for contentId, data, version, commitMessage, authorId, and timestamps
+ * - Indexes for efficient querying by contentId, version, authorId, and createdAt
+ * - Static methods for common operations:
+ *   - getRevisionHistory: Retrieve revision history for a specific content ID
+ *   - bulkDeleteRevisionsForContent: Bulk delete revisions for a list of content IDs
  */
 
 import mongoose, { Schema } from 'mongoose';
@@ -14,7 +21,7 @@ import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 import { toISOString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Define the Revision schema
 export const revisionSchema = new Schema<ContentRevision>(

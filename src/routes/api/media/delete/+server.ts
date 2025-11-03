@@ -22,7 +22,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { deleteFile } from '@utils/media/mediaStorage';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;

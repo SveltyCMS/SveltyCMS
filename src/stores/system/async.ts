@@ -3,7 +3,7 @@
  * @description Asynchronous utilities for waiting on system state.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 import { getSystemState, systemState } from './state';
 import { SERVICE_BASELINE_TIMES, DEFAULT_SYSTEM_READY_TIMEOUT } from './config';
 import type { ServiceName } from './types';

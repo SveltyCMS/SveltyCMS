@@ -32,7 +32,7 @@ import { modifyRequest } from '@api/collections/modifyRequest';
 import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Permissions
 
@@ -293,7 +293,6 @@ export async function registerCollections(tenantId?: string) {
 export async function collectionsResolvers(
 	dbAdapter: DatabaseAdapter,
 	cacheClient: CacheClient | null,
-	_privateEnv: { USE_REDIS?: boolean },
 	pubSub: ReturnType<typeof createPubSub>,
 	tenantId?: string
 ) {

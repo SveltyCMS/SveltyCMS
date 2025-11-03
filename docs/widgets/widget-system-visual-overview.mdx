@@ -1,18 +1,20 @@
 ---
 path: 'docs/widgets/widget-system-visual-overview.mdx'
 title: 'Widget System Visual Overview'
-description: 'Complete visual guide to the SveltyCMS widget system with Mermaid diagrams'
+description: 'Complete visual guide to the SveltyCMS widget system with Mermaid diagrams including multilingual data flow'
 order: 0
 icon: 'mdi:chart-tree'
 author: 'admin'
 created: '2025-10-17'
-updated: '2025-10-17'
+updated: '2025-11-02'
 tags:
   - 'widgets'
   - 'visual'
   - 'diagrams'
   - 'overview'
   - 'architecture'
+  - 'i18n'
+  - 'multilingual'
 ---
 
 # Widget System Visual Overview
@@ -140,6 +142,43 @@ graph TD
     style IDX fill:#e1f5fe
     style INPUT fill:#f3e5f5
     style DISPLAY fill:#e8f5e8
+```
+
+## 🌍 Multilingual Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Input as Input Component
+    participant Store as contentLanguage Store
+    participant Widget as Widget Logic
+    participant DB as Database (Agnostic)
+
+    User->>Store: Switch language (en → de)
+    Store->>Input: Language change notification
+
+    Note over Input: field.translated = true
+    Input->>Store: Read contentLanguage.value
+    Store-->>Input: "de"
+
+    Input->>Widget: Access value[_language]
+    Widget-->>Input: German translation
+
+    User->>Input: Edit German text
+    Input->>Widget: Update value = {...value, de: newText}
+
+    Widget->>DB: Save multilingual object
+    Note over DB: MongoDB: {en: "...", de: "..."}<br/>SQL: translation_table rows
+
+    User->>Store: Switch to French (fr)
+    Store->>Input: Language = "fr"
+    Input->>Widget: Access value["fr"]
+    Widget-->>Input: null (no translation yet)
+    Input->>Input: Show empty field
+
+    User->>Input: Add French translation
+    Input->>Widget: value = {...value, fr: newText}
+    Widget->>DB: Save with 3 languages
 ```
 
 ## 🔄 Widget Lifecycle & Data Flow

@@ -12,7 +12,7 @@
  *    * Error tracking service integration
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 // --- Type Definitions ---
 export interface ApiResponse<T = unknown> {
@@ -111,9 +111,9 @@ export function deleteEntry(collectionId: string, entryId: string): Promise<ApiR
 }
 
 export function batchDeleteEntries(collectionId: string, entryIds: string[]): Promise<ApiResponse<unknown>> {
-	return fetchApi(`/api/collections/${collectionId}/batch-delete`, {
+	return fetchApi(`/api/collections/${collectionId}/batch`, {
 		method: 'POST',
-		body: JSON.stringify({ entryIds })
+		body: JSON.stringify({ action: 'delete', entryIds })
 	});
 }
 

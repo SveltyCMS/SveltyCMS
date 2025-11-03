@@ -20,7 +20,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Validation
 import * as v from 'valibot';

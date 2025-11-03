@@ -3,7 +3,7 @@
  * @description Performance metrics, anomaly detection, and reporting for the system state.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 import type { Writable } from 'svelte/store';
 import type { SystemStateStore, ServiceHealth, AnomalyDetection, ServiceName } from './types';
 

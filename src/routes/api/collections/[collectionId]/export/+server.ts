@@ -20,9 +20,10 @@ import { dbAdapter } from '@src/databases/db';
 
 // Content Management
 import { contentManager } from '@src/content/ContentManager';
+import type { CollectionEntry } from '@src/content/types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const startTime = performance.now();
@@ -50,7 +51,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		const sortDirection = (url.searchParams.get('sortDirection') as 'asc' | 'desc') || 'desc';
 
 		// Build query options
-		const queryOptions: any = {};
+		const queryOptions: Record<string, unknown> = {};
 
 		if (limit > 0) {
 			queryOptions.limit = Math.min(limit, 10000); // Cap at 10k for safety
@@ -102,7 +103,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
 		// Return data based on format
 		if (format === 'csv') {
-			const csvData = convertToCSV(exportData, schema);
+			const csvData = convertToCSV(exportData);
 			return new Response(csvData, {
 				headers: {
 					'Content-Type': 'text/csv',
@@ -152,7 +153,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 /**
  * Convert array of objects to CSV format
  */
-function convertToCSV(data: any[], schema: any): string {
+function convertToCSV(data: CollectionEntry[]): string {
 	if (!data || data.length === 0) {
 		return '';
 	}

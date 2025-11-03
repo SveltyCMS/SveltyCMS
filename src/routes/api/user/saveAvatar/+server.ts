@@ -28,7 +28,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { auth } from '@src/databases/db';
 
 // System logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Media storage
 import { cacheService } from '@src/databases/CacheService';

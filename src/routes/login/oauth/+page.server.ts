@@ -27,7 +27,7 @@ import { get } from 'svelte/store';
 
 // System Logger
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/googleAuth';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Import roles
 import { roles } from '@root/config/roles';

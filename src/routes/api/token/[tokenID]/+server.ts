@@ -29,7 +29,7 @@ import { any, object, parse, type ValiError } from 'valibot';
 import { cacheService } from '@src/databases/CacheService';
 
 // System logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Minimal shared result type guards (kept local to avoid broad dependencies)
 interface DatabaseResultLike<T> {

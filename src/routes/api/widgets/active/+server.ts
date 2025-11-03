@@ -3,7 +3,7 @@
  * @description API endpoint for getting active widgets with 3-pillar architecture metadata
  */
 import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { widgetStoreActions, getWidgetFunction, isWidgetCore } from '@stores/widgetStore.svelte';
 import { cacheService } from '@src/databases/CacheService';

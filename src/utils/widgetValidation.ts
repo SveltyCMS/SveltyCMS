@@ -14,7 +14,7 @@
  * - Dependency validation (required widgets available)
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 import type { Layout, Schema } from '@src/content/types';
 
 /**

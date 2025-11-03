@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getAllSettings } from '@src/services/settingsService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { encryptData } from '@utils/crypto';
 import { nanoid } from 'nanoid';
 import type { ExportOptions, ExportData, ExportMetadata, CollectionExport } from '@content/types';

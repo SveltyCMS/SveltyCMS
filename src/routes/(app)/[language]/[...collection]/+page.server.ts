@@ -1,141 +1,237 @@
 /**
  * @file src/routes/(app)/[language]/[...collection]/+page.server.ts
- * @description Server-side loading for collection pages
+ * @description Server-side loading for collection pages.
  *
- * This module handles collection loading for specific collection pages.
- * Most authentication and user data is already handled by hooks.server.ts.
+ * This module handles all data loading for collection pages, including the collection schema,
+ * paginated entries, and revision history. It leverages server-side caching to ensure fast
+ * performance. All data is fetched on the server and passed to the page component,
+ * eliminating client-side data fetching for collections.
  */
-
-import { getPublicSettingSync } from '@src/services/settingsService';
+/**
+ * @file src/routes/(app)/[language]/[...collection]/+page.server.ts
+ * @description Server-side loading for collection pages. Refactored for SSR data fetching.
+ */
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Theme
-import { DEFAULT_THEME } from '@src/databases/themeManager';
+// Core SveltyCMS services
+import { contentManager } from '@src/content/ContentManager';
+import { cacheService } from '@src/databases/CacheService';
+import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
+import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
+import { logger } from '@utils/logger.server';
 
-// System Logger
-import { contentManager } from '@root/src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
-
-// Server-side load function for the layout
-export const load: PageServerLoad = async ({ locals, params, url }) => {
-	// Destructure data already provided by hooks.server.ts
-	const { user, theme, isAdmin, hasManageUsersPermission, roles: tenantRoles, tenantId } = locals;
+export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
+	const { user, tenantId, dbAdapter } = locals;
 	const { language, collection } = params;
 
-	// Basic validation - most auth is handled by hooks.server.ts
-	if (!user) {
-		logger.warn('User not authenticated, redirecting to login.');
-		throw redirect(302, '/login');
-	}
+	try {
+		// =================================================================
+		// 1. PRE-FLIGHT CHECKS & REDIRECTS (from original file)
+		// =================================================================
+		if (!user) {
+			throw redirect(302, '/login');
+		}
 
-	// Handle user system language preferences
-	const userSystemLanguage = user?.systemLanguage;
-	const availableLanguages = getPublicSettingSync('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
-	if (userSystemLanguage && userSystemLanguage !== language && availableLanguages.includes(userSystemLanguage)) {
-		const newPath = url.pathname.replace(`/${language}/`, `/${userSystemLanguage}/`);
-		logger.trace(`Redirecting to user's preferred language: from /\x1b[34m${language}\x1b[0m/ to /${userSystemLanguage}/`);
-		throw redirect(302, newPath);
-	}
+		const collectionNameOnly = collection?.split('/').pop();
+		const systemPages = ['config', 'user', 'dashboard', 'imageEditor', 'email-previews'];
+		if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
+			throw redirect(302, `/${collectionNameOnly}${url.search}`);
+		}
 
-	// Validate language and collection parameters
-	if (!language || !availableLanguages.includes(language) || !collection) {
-		const message = 'The language parameter is missing or invalid.';
-		logger.warn(message, { language, collection });
-		throw error(404, message);
-	}
+		const availableLanguages = getPublicSettingSync('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+		if (user?.systemLanguage && user.systemLanguage !== language && availableLanguages.includes(user.systemLanguage)) {
+			const newPath = url.pathname.replace(`/${language}/`, `/${user.systemLanguage}/`);
+			throw redirect(302, newPath);
+		}
 
-	// Handle token-based auth redirect
-	if (user.lastAuthMethod === 'token') {
-		logger.trace('User authenticated with token, redirecting to user page.');
-		throw redirect(302, '/user');
-	}
+		if (user.lastAuthMethod === 'token') {
+			throw redirect(302, '/user');
+		}
 
-	logger.trace(`Collection page load started. Language: \x1b[34m${language}\x1b[0m`, { tenantId });
+		// =================================================================
+		// 2. GET COLLECTION SCHEMA
+		// =================================================================
+		// Check if collection param is a UUID (32 char hex) or a path
+		const isUUID = /^[a-f0-9]{32}$/i.test(collection || '');
 
-	// getCollections() auto-initializes, no need for explicit initialize()
-	const startTime = performance.now();
-	const collections = await contentManager.getCollections(tenantId);
-	const collectionLoadTime = performance.now() - startTime;
-	logger.debug(`Collections loaded in \x1b[32m${collectionLoadTime.toFixed(2)}ms\x1b[0m (count: \x1b[33m${collections.length}\x1b[0m)`);
+		let currentCollection;
+		if (isUUID) {
+			// Direct UUID lookup
+			logger.debug(`Loading collection by UUID: ${collection}`);
+			currentCollection = contentManager.getCollectionById(collection!, tenantId);
+		} else {
+			// Path-based lookup (backward compatibility)
+			const collectionPath = `/${collection}`;
+			logger.debug(`Loading collection by path: ${collectionPath}`);
+			currentCollection = contentManager.getCollection(collectionPath, tenantId);
+		}
 
-	// Build a map for easy lookup
-	const collectionMap = new Map(collections.map((c) => [c._id!, c]));
+		if (!currentCollection) {
+			if (collectionNameOnly === 'Collections') {
+				const allCollections = await contentManager.getCollections(tenantId);
+				if (allCollections.length > 0) {
+					throw redirect(302, `/${language}${allCollections[0].path}`);
+				} else {
+					throw redirect(302, '/dashboard');
+				}
+			}
+			logger.warn(`Collection not found: ${collection}`, { tenantId, isUUID });
+			throw error(404, `Collection not found: ${collection}`);
+		}
 
-	let currentCollection = null;
-	let collectionIdentifier = collection;
+		// If accessed via UUID, redirect to clean path URL
+		if (isUUID && currentCollection.path) {
+			const cleanPath = `/${language}${currentCollection.path}${url.search}`;
+			logger.debug(`Redirecting from UUID to path: ${cleanPath}`);
+			throw redirect(302, cleanPath);
+		}
 
-	// Check if the collection parameter is a UUID (with or without dashes)
-	// Matches: 69ccfaf4cc4b4f27a825a6b3c16c20b5 or 69ccfaf4-cc4b-4f27-a825-a6b3c16c20b5
-	const isUUID = /^[a-f0-9]{32}$|^[a-f0-9]{8}-([a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(collection);
+		// =================================================================
+		// 3. DEFINE CACHE KEY & CHECK CACHE
+		// =================================================================
+		const page = Number(url.searchParams.get('page') ?? 1);
+		const pageSize = Number(url.searchParams.get('pageSize') ?? 10);
+		const sortField = url.searchParams.get('sort') || '_createdAt';
+		const sortOrder = url.searchParams.get('order') || 'desc';
+		const sortParams = { field: sortField, direction: sortOrder as 'asc' | 'desc' };
+		const mode = url.searchParams.get('mode') || 'view';
 
-	if (isUUID) {
-		// Direct UUID lookup from collections map
-		const normalizedUUID = collection.replace(/-/g, ''); // Remove dashes if present
-		currentCollection = collectionMap.get(normalizedUUID) || collectionMap.get(collection);
-		logger.debug(`Collection lookup by UUID: ${collection} -> ${currentCollection ? 'found' : 'not found'}`);
-	} else {
-		// Path-based lookup - find the UUID for this path
-		// The collection param is like "Collections/Names", add leading slash to match stored paths
-		const collectionPath = `/${collection}`;
-		logger.debug(`Looking up collection by path: \x1b[34m${collectionPath}\x1b[0m`);
-
-		for (const [uuid, schemaData] of collectionMap.entries()) {
-			logger.trace(`Comparing path: \x1b[34m${schemaData.path}\x1b[0m with \x1b[33m${collectionPath}\x1b[0m`);
-			if (schemaData.path === collectionPath) {
-				currentCollection = schemaData;
-				collectionIdentifier = uuid;
-				logger.debug(`Collection found by path: \x1b[34m${collectionPath}\x1b[0m -> UUID: \x1b[33m${uuid}\x1b[0m`);
-				break;
+		const filterParams: Record<string, { contains: string }> = {};
+		for (const [key, value] of url.searchParams.entries()) {
+			if (key.startsWith('filter_')) {
+				const filterKey = key.substring(7); // remove "filter_"
+				filterParams[filterKey] = { contains: value }; // Assuming a 'contains' filter strategy
 			}
 		}
+
+		const cacheKey = `collection:${currentCollection._id}:page:${page}:size:${pageSize}:filter:${JSON.stringify(
+			filterParams
+		)}:sort:${JSON.stringify(sortParams)}:mode:${mode}:lang:${language}:tenant:${tenantId}`;
+
+		const cachedData = await cacheService.get(cacheKey);
+		if (cachedData) {
+			logger.debug(`Cache HIT for key: \x1b[33m${cacheKey}\x1b[0m`);
+			return cachedData;
+		}
+		logger.debug(`Cache MISS for key: \x1b[33m${cacheKey}\x1b[0m`);
+
+		// =================================================================
+		// 4. LOAD PAGINATED ENTRIES (DB QUERY)
+		// =================================================================
+		const collectionTableName = `collection_${currentCollection._id}`;
+
+		const finalFilter: Record<string, unknown> = { ...filterParams };
+		if (getPrivateSettingSync('MULTI_TENANT')) {
+			finalFilter.tenantId = tenantId;
+		}
+
+		const query = dbAdapter
+			.queryBuilder(collectionTableName)
+			.where(finalFilter)
+			.sort(sortParams.field, sortParams.direction)
+			.paginate({ page, pageSize });
+
+		const [entriesResult, countResult] = await Promise.all([query.execute(), dbAdapter.queryBuilder(collectionTableName).where(finalFilter).count()]);
+
+		if (!entriesResult.success || !countResult.success) {
+			const dbError = entriesResult.error || countResult.error || 'Unknown database error';
+			logger.error('Failed to load collection entries.', { error: dbError });
+			throw error(500, `Failed to load collection entries: ${dbError}`);
+		}
+
+		const entries = entriesResult.data;
+		const totalItems = countResult.data;
+
+		// =================================================================
+		// 5. RUN MODIFYREQUEST (Enrich entries)
+		// =================================================================
+		if (entries.length > 0) {
+			await modifyRequest({
+				data: entries,
+				fields: currentCollection.fields,
+				collection: currentCollection,
+				user,
+				type: 'GET',
+				tenantId
+			});
+		}
+
+		// =================================================================
+		// 6. LOAD REVISIONS (for Fields.svelte)
+		// =================================================================
+		let revisionsMeta = [];
+		// Only load revisions if we're in edit mode and have an entry ID
+		const entryId = url.searchParams.get('entry');
+		if (mode === 'edit' && entryId && currentCollection.revision) {
+			try {
+				// Call the API endpoint internally using SvelteKit's fetch (auto-handles auth cookies)
+				const revisionsUrl = `/api/collections/${currentCollection._id}/${entryId}/revisions?limit=100`;
+				const response = await fetch(revisionsUrl);
+
+				if (response.ok) {
+					const result = await response.json();
+					if (result.success && result.data) {
+						revisionsMeta = result.data.revisions || [];
+					}
+				} else {
+					logger.warn('Revisions API returned error', { status: response.status, entryId });
+				}
+			} catch (err) {
+				logger.warn('Failed to load revisions', { error: err, entryId });
+				// Don't fail the whole page load if revisions fail
+			}
+		}
+
+		// =================================================================
+		// 7. PREPARE FINAL DATA & SET CACHE
+		// =================================================================
+
+		// Strip all non-serializable data (functions, circular refs, etc.) from collection schema
+		// This is necessary because widgets contain validation schemas with functions
+		const collectionSchemaForClient = JSON.parse(JSON.stringify(currentCollection));
+
+		const returnData = {
+			theme: locals.theme,
+			user: {
+				_id: locals.user?._id,
+				username: locals.user?.username,
+				email: locals.user?.email,
+				role: locals.user?.role,
+				avatar: locals.user?.avatar,
+				systemLanguage: locals.user?.systemLanguage
+			},
+			isAdmin: locals.isAdmin,
+			hasManageUsersPermission: locals.hasManageUsersPermission,
+			roles: locals.roles,
+			siteName: getPublicSettingSync('SITE_NAME') || 'SveltyCMS',
+			contentLanguage: language,
+			collectionSchema: collectionSchemaForClient,
+			entries: entries || [],
+			pagination: {
+				totalItems: totalItems || 0,
+				pagesCount: Math.ceil((totalItems || 0) / pageSize),
+				currentPage: page,
+				pageSize: pageSize
+			},
+			revisions: revisionsMeta || []
+		};
+
+		try {
+			await cacheService.set(cacheKey, returnData, 300);
+		} catch (cacheError) {
+			logger.warn('Failed to cache response', { error: cacheError });
+			// Continue without caching
+		}
+
+		return returnData;
+	} catch (err) {
+		logger.error('Error loading collection page', {
+			error: err,
+			collection,
+			language,
+			url: url.pathname
+		});
+		throw err;
 	}
-
-	// Return 404 if collection not found
-	if (!currentCollection) {
-		const message = `Collection not found: ${collection}`;
-		logger.warn(message, { tenantId, availablePaths: Array.from(collectionMap.values()).map((c) => c.path) });
-		throw error(404, message);
-	}
-
-	// Get site name from server-side settings
-	const siteName = getPublicSettingSync('SITE_NAME') || 'SveltyCMS';
-
-	// Return simplified data - hooks.server.ts already provided most of what we need
-	return {
-		theme: theme || DEFAULT_THEME,
-		contentLanguage: language,
-		siteName,
-		collection: {
-			module: currentCollection?.module,
-			name: currentCollection?.name,
-			_id: currentCollection?._id || collectionIdentifier,
-			path: currentCollection?.path,
-			icon: currentCollection?.icon,
-			label: currentCollection?.label,
-			description: currentCollection?.description,
-			status: currentCollection?.status, // Include the collection status
-			fields:
-				currentCollection?.fields?.map((field) => ({
-					label: field.label,
-					name: field.name,
-					type: field.type,
-					widget: field.widget ? { Name: field.widget.Name } : undefined,
-					db_fieldName: field.db_fieldName,
-					required: field.required,
-					unique: field.unique,
-					translated: field.translated
-				})) || []
-		},
-		// User data already provided by hooks.server.ts
-		user: {
-			username: user.username,
-			role: user.role,
-			avatar: user.avatar
-		},
-		// These are already set by hooks.server.ts, just pass them through
-		isAdmin,
-		hasManageUsersPermission,
-		roles: tenantRoles
-	};
 };

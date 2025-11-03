@@ -24,7 +24,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Advanced search across collections
 export const GET: RequestHandler = async ({ locals, url }) => {

@@ -172,6 +172,15 @@ export const publicConfigSchema = object({
 	USE_GOOGLE_OAUTH: optional(boolean()) // Enable Google OAuth login on the public-facing login page
 });
 
+export const websiteTokenSchema = object({
+	_id: string(),
+	name: pipe(string(), minLength(1, 'Token name is required.')),
+	token: pipe(string(), minLength(32)),
+	createdAt: string(),
+	updatedAt: string(),
+	createdBy: string()
+});
+
 /**
  * Defines the structure for database connection configuration used during setup.
  * Currently supports MongoDB (including Atlas SRV). SQL databases planned for future releases.
@@ -188,6 +197,7 @@ export const databaseConfigSchema = object({
 // ----------------- TYPES & HELPERS -----------------
 export type DatabaseConfig = InferOutput<typeof databaseConfigSchema>;
 export type PrivateConfig = InferOutput<typeof privateConfigSchema>;
+export type WebsiteToken = InferOutput<typeof websiteTokenSchema>;
 
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;
 
@@ -351,7 +361,7 @@ function performConditionalValidation(config: Config): string[] {
  */
 export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<unknown>>, config: unknown, configName: string): unknown {
 	if (!validationLogPrinted) {
-		logger.trace(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
+		console.log(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
 		validationLogPrinted = true;
 	}
 
@@ -362,27 +372,27 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		// Perform secondary, cross-field validation
 		const conditionalErrors = performConditionalValidation(result.output as Config);
 		if (conditionalErrors.length > 0) {
-			logger.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
-			logger.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
-			logger.error('━'.repeat(70));
-			logger.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
+			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
+			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
+			console.error('━'.repeat(70));
+			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
 			conditionalErrors.forEach((error) => {
-				logger.error(`   - ${error}`);
+				console.error(`   - ${error}`);
 			});
-			logger.error('\n' + '━'.repeat(70));
-			logger.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
+			console.error('\n' + '━'.repeat(70));
+			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
 			process.exit(1);
 		}
 		return result.output;
 	} else {
 		// Handle schema validation failures
-		logger.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
-		logger.error('━'.repeat(70));
+		console.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
+		console.error('━'.repeat(70));
 
 		logValidationErrors(result.issues, configFile);
 
-		logger.error('\n' + '━'.repeat(70));
-		logger.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
+		console.error('\n' + '━'.repeat(70));
+		console.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
 		process.exit(1);
 	}
 }

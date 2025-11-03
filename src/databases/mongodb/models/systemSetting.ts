@@ -1,6 +1,13 @@
 /**
  * @file src/databases/mongodb/models/setting.ts
  * @description Mongoose schema and model for system key-value settings.
+ *
+ * ### Features
+ * - Schema definition with fields for key, value, scope, category, and timestamps
+ * - Indexes for efficient querying by key, scope, and category
+ * - UUID primary key generation
+ * - Supports different setting scopes (system, public, private)
+ * - Categorization of settings for security and organization
  */
 
 import mongoose, { Schema } from 'mongoose';

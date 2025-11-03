@@ -20,7 +20,7 @@
  * @enterprise Optimized for high-throughput production environments
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { building } from '$app/environment';
 
 // --- TYPES ---

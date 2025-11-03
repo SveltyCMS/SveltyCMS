@@ -10,7 +10,7 @@
  * - Prometheus-compatible export format
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export interface CacheMetricSnapshot {
 	hits: number;

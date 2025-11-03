@@ -23,7 +23,7 @@
 import { writable } from 'svelte/store';
 
 // System Logs
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 export const isSearchVisible = writable(false);
 export const triggerActionStore = writable<(() => void | Promise<void>)[]>([]);

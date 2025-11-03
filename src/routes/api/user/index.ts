@@ -27,7 +27,7 @@ import { superValidate } from 'sveltekit-superforms/server';
 // Auth and permission helpers
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async () => {
 	// TODO: Implement GET handler logic here, or return a placeholder response

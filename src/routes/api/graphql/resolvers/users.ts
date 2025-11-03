@@ -19,7 +19,7 @@
 
 import { getPrivateSettingSync } from '@src/services/settingsService';
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Permissions
 
@@ -140,6 +140,12 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
 
 	return {
 		users: async (_: unknown, args: { pagination: { page: number; limit: number } }, context: GraphQLContext) =>
-			await fetchWithPagination('auth_users', args.pagination, context)
+			await fetchWithPagination('auth_users', args.pagination, context),
+		me: async (_: unknown, __: unknown, context: GraphQLContext) => {
+			if (!context.user) {
+				throw new Error('Authentication required');
+			}
+			return context.user;
+		}
 	};
 }

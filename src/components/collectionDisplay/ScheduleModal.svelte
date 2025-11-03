@@ -15,7 +15,7 @@ Features:
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

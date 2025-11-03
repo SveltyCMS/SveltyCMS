@@ -17,7 +17,7 @@
  * Returns: JSON object { success: boolean, data?: RemoteVideoData, error?: string }
  */
 import { json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { RemoteVideoProps } from '@widgets/custom/remoteVideo/types';
 import { getRemoteVideoData } from '@widgets/custom/remoteVideo/video';
 

@@ -6,7 +6,7 @@
  */
 
 import type { DatabaseId } from '@src/content/types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabaseError, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { cacheService, CacheCategory } from '@src/databases/CacheService';

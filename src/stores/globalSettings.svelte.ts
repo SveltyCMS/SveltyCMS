@@ -17,6 +17,9 @@ import { browser } from '$app/environment';
 import { publicConfigSchema } from '@src/databases/schemas';
 import { type InferOutput } from 'valibot';
 
+// Universal Logger (safe for client and server)
+import { logger } from '@utils/logger';
+
 type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string };
 
 /**
@@ -34,9 +37,7 @@ export function isInitialized(): boolean {
 	return Object.keys(state).length > 0;
 }
 
-/**
- * Fetches the latest public settings from the server.
- */
+// Fetches the latest public settings from the server
 async function fetchPublicSettings() {
 	try {
 		const response = await fetch('/api/settings/public');
@@ -45,7 +46,7 @@ async function fetchPublicSettings() {
 			Object.assign(state, data);
 		}
 	} catch (error) {
-		console.error('Failed to fetch public settings:', error);
+		logger.error('Failed to fetch public settings:', error);
 	}
 }
 
@@ -64,22 +65,22 @@ function startListening() {
 				const data = JSON.parse(event.data);
 
 				if (data.type === 'connected') {
-					console.log('Connected to settings stream');
+					logger.debug('Connected to settings stream');
 				} else if (data.type === 'update') {
-					console.log('Settings updated, fetching new values...');
+					logger.debug('Settings updated, fetching new values...');
 					await fetchPublicSettings();
 				}
 			} catch (error) {
-				console.error('Failed to process settings update:', error);
+				logger.error('Failed to process settings update:', error);
 			}
 		});
 
 		eventSource.addEventListener('error', (error) => {
-			console.warn('Settings stream connection error, will auto-reconnect...', error);
+			logger.warn('Settings stream connection error, will auto-reconnect...', error);
 			// EventSource automatically reconnects on error
 		});
 	} catch (error) {
-		console.error('Failed to start settings listener:', error);
+		logger.error('Failed to start settings listener:', error);
 	}
 }
 

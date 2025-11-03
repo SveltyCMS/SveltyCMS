@@ -22,7 +22,7 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
 	const { user, session_id, tenantId } = locals;

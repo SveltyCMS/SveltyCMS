@@ -7,13 +7,17 @@
  * and performance with unified metrics collection and automated threat detection.
  *
  * Middleware Sequence:
- * 1. System state validation (gatekeeper)
- * 2. Setup completion enforcement (installation gate)
- * 3. Language preferences (i18n cookie synchronization)
- * 4. Theme management (SSR dark mode support)
- * 5. Authentication & session management (identity)
- * 6. Authorization & access control (security)
- * 7. Security headers with nonce-based CSP (defense in depth)
+ * 1. Static asset caching (performance optimization, skip all processing)
+ * 2. System state validation (gatekeeper)
+ * 3. Rate limiting (abuse prevention)
+ * 4. Application firewall (threat detection)
+ * 5. Setup completion enforcement (installation gate)
+ * 6. Language preferences (i18n cookie synchronization)
+ * 7. Theme management (SSR dark mode support)
+ * 8. Authentication & session management (identity)
+ * 9. Authorization & access control (security)
+ * 10. API request handling (optional, commented out by default)
+ * 11. Security headers with nonce-based CSP (defense in depth)
  *
  * Core Services:
  * - MetricsService: Unified performance & security monitoring
@@ -28,7 +32,7 @@
 import { building } from '$app/environment';
 import { type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { metricsService } from '@src/services/MetricsService';
 
 // --- Import enterprise middleware hooks ---
@@ -39,6 +43,11 @@ import { handleAuthorization } from './hooks/handleAuthorization';
 import { handleLocale } from './hooks/handleLocale';
 import { handleTheme } from './hooks/handleTheme';
 import { addSecurityHeaders } from './hooks/addSecurityHeaders';
+import { handleStaticAssetCaching } from './hooks/handleStaticAssetCaching';
+import { handleRateLimit } from './hooks/handleRateLimit';
+import { handleFirewall } from './hooks/handleFirewall';
+// API middleware for role-based access control and caching
+import { handleApiRequests } from './hooks/handleApiRequests';
 
 // --- Server Startup Logic ---
 if (!building) {
@@ -63,25 +72,37 @@ if (!building) {
 
 // --- Middleware Sequence ---
 const middleware: Handle[] = [
-	// 1. System state validation (enterprise gatekeeper with metrics)
+	// 1. Static assets FIRST (skip all other processing for maximum performance)
+	handleStaticAssetCaching,
+
+	// 2. System state validation (enterprise gatekeeper with metrics)
 	handleSystemState,
 
-	// 2. Setup completion enforcement (installation gate with tracking)
+	// 3. Rate limiting (early protection against abuse)
+	handleRateLimit,
+
+	// 4. Application firewall (detect threats Nginx/CDN can't catch)
+	handleFirewall,
+
+	// 5. Setup completion enforcement (installation gate with tracking)
 	handleSetup,
 
-	// 3. Language preferences (i18n)
+	// 6. Language preferences (i18n cookie synchronization)
 	handleLocale,
 
-	// 4. Theme management
+	// 7. Theme management (SSR dark mode support)
 	handleTheme,
 
-	// 5. Authentication & session management (with security monitoring)
+	// 8. Authentication & session management (identity with security monitoring)
 	handleAuthentication,
 
-	// 6. Authorization & access control (with threat detection)
+	// 9. Authorization & access control (permissions with threat detection)
 	handleAuthorization,
 
-	// 7. Essential security headers (SvelteKit handles CSP automatically)
+	// 10. API request handling (role-based access control & caching)
+	handleApiRequests,
+
+	// 11. Essential security headers (defense in depth)
 	addSecurityHeaders
 ];
 
@@ -90,4 +111,10 @@ export const handle: Handle = sequence(...middleware);
 
 // --- Utility Functions for External Use ---
 export const getHealthMetrics = () => metricsService.getReport();
-export { invalidateSessionCache, clearAllSessionCaches, clearSessionRefreshAttempt } from './hooks/handleAuthentication';
+export {
+	invalidateSessionCache,
+	clearAllSessionCaches,
+	clearSessionRefreshAttempt,
+	forceSessionRotation,
+	getSessionCacheStats
+} from './hooks/handleAuthentication';

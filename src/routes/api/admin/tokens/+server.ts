@@ -13,7 +13,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 import { auth, dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 
 export const GET: RequestHandler = async ({ url, locals }) => {

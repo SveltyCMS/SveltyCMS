@@ -4,7 +4,7 @@
  * This class uses Dependency Injection for the Mongoose model to ensure testability.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { Model } from 'mongoose';
 import type { DatabaseId, Theme } from '../../dbInterface';
 import { createDatabaseError, withCache, CacheCategory, invalidateCategoryCache } from './mongoDBUtils';

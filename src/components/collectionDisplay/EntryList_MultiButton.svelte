@@ -46,12 +46,21 @@
 	// Stores
 	import { page } from '$app/state';
 	import { storeListboxValue } from '@stores/store.svelte';
+
+	// Skeleton
+	import { getModalStore } from '@skeletonlabs/skeleton';
+
 	// Components
 	import { showCloneModal, showScheduleModal, showStatusChangeConfirm } from '@utils/modalUtils';
+import ScheduleModal from './ScheduleModal.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+
+	// Initialize modal store at component level
+	const modalStore = getModalStore();
 
 	// Types
 	type ActionType = 'create' | 'archive' | keyof typeof StatusTypes;
@@ -95,6 +104,7 @@
 	// State
 	let dropdownOpen = $state(false);
 	let dropdownRef = $state<HTMLElement | null>(null);
+	let manualActionSet = $state(false); // Track if user manually selected an action
 
 	// Derived values
 	let isAdmin = $derived(page.data?.isAdmin === true);
@@ -199,65 +209,115 @@
 	}
 
 	function openScheduleModal(): void {
-		showScheduleModal({
-			onSchedule: (date: Date, action: string) => {
-				schedule(date.toISOString(), action);
+		console.log('Opening schedule modal with count:', selectedCount);
+		console.log('Modal store:', modalStore);
+
+		// Use the component-level modalStore directly
+		modalStore.trigger({
+			type: 'component',
+			component: { ref: ScheduleModal },
+			title: 'Schedule Entry',
+			meta: {
+				initialAction: 'publish'
+			},
+			response: (result: { date: Date; action: string } | boolean) => {
+				if (result && typeof result === 'object' && 'date' in result) {
+					console.log('Schedule confirmed:', result.date, result.action);
+					schedule(result.date.toISOString(), result.action);
+				}
 			}
 		});
 	}
 
 	function openPublishModal(): void {
-		showStatusChangeConfirm({
-			status: StatusTypes.publish,
-			count: selectedCount,
-			onConfirm: publish
+		console.log('Opening publish modal with count:', selectedCount);
+
+		modalStore.trigger({
+			type: 'confirm',
+			title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
+			body: `Are you sure you want to <span class="text-primary-500 font-semibold">change</span> ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'} status to <span class="text-primary-500 font-semibold">publish</span>?`,
+			buttonTextConfirm: 'Publish',
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					console.log('Publish confirmed');
+					publish();
+				}
+			}
 		});
 	}
 
 	function openUnpublishModal(): void {
-		showStatusChangeConfirm({
-			status: StatusTypes.unpublish,
-			count: selectedCount,
-			onConfirm: unpublish
+		console.log('Opening unpublish modal with count:', selectedCount);
+
+		modalStore.trigger({
+			type: 'confirm',
+			title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
+			body: `Are you sure you want to <span class="text-yellow-500 font-semibold">change</span> ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'} status to <span class="text-yellow-500 font-semibold">unpublish</span>?`,
+			buttonTextConfirm: 'Unpublish',
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					console.log('Unpublish confirmed');
+					unpublish();
+				}
+			}
 		});
 	}
 
 	function openCloneModal(): void {
-		showCloneModal({
-			count: selectedCount,
-			onConfirm: clone
+		console.log('Opening clone modal with count:', selectedCount);
+
+		modalStore.trigger({
+			type: 'confirm',
+			title: m.entrylist_multibutton_clone(),
+			body: `Are you sure you want to clone ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'}? This will create ${selectedCount === 1 ? 'a duplicate' : 'duplicates'} of the selected ${selectedCount === 1 ? 'entry' : 'entries'}.`,
+			buttonTextConfirm: m.entrylist_multibutton_clone(),
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					console.log('Clone confirmed');
+					clone();
+				}
+			}
 		});
 	}
 
 	// Main button click handler
 	function handleMainButtonClick(event: Event): void {
 		event.preventDefault();
+		event.stopPropagation();
+
+		console.log('Main button clicked, action:', currentAction, 'hasSelections:', hasSelections, 'selectedCount:', selectedCount);
 
 		switch (currentAction) {
 			case 'create':
 				create();
 				break;
+			case 'publish':
 			case StatusTypes.publish:
 				openPublishModal();
 				break;
+			case 'unpublish':
 			case StatusTypes.unpublish:
 				openUnpublishModal();
 				break;
-			case StatusTypes.schedule:
+			case 'schedule':
 				openScheduleModal();
 				break;
-			case StatusTypes.clone:
+			case 'clone':
 				openCloneModal();
 				break;
 			case 'archive':
 				deleteAction(false); // Archive mode
 				break;
+			case 'delete':
 			case StatusTypes.delete:
 				deleteAction(publicEnv?.USE_ARCHIVE_ON_DELETE && !isAdmin ? false : true);
 				break;
+			case 'test':
 			case StatusTypes.test:
 				test();
 				break;
+			default:
+				console.warn('Unknown action:', currentAction);
 		}
 
 		closeDropdown();
@@ -273,6 +333,7 @@
 		}
 
 		storeListboxValue.set(actionType);
+		manualActionSet = true; // Mark as manually set
 		closeDropdown();
 	}
 
@@ -296,6 +357,12 @@
 		// If collection is empty, always show Create
 		if (isCollectionEmpty) {
 			storeListboxValue.set('create');
+			manualActionSet = false;
+			return;
+		}
+
+		// Don't auto-switch if user manually selected an action
+		if (manualActionSet) {
 			return;
 		}
 
@@ -310,6 +377,13 @@
 		// If has selections but current action is 'create', switch to 'publish'
 		if (hasSelections && currentAction === 'create') {
 			storeListboxValue.set('publish');
+		}
+	});
+
+	// Reset manual flag when selections are cleared
+	$effect(() => {
+		if (!hasSelections) {
+			manualActionSet = false;
 		}
 	});
 
@@ -379,19 +453,23 @@
 			{#each availableActions as [actionType, config] (actionType)}
 				{@const disabled = isActionDisabled(actionType)}
 
-				<li class="hover:text-white {disabled ? 'opacity-50' : ''}">
+				<li class={disabled ? 'opacity-50' : ''}>
 					<button
 						type="button"
 						onclick={(e) => handleOptionClick(e, actionType as ActionType)}
 						{disabled}
 						role="menuitem"
 						aria-label={config.label}
-						class="btn flex w-full justify-between gap-2 bg-surface-400 hover:{config.gradient} dark:bg-surface-700 dark:hover:{config.gradient} {disabled
+						class="group btn relative flex w-full justify-between gap-2 overflow-hidden bg-surface-400 text-white dark:bg-surface-700 {disabled
 							? 'cursor-not-allowed'
 							: ''}"
 					>
-						<iconify-icon icon={config.icon} width="24" aria-hidden="true"></iconify-icon>
-						<span class="w-full text-left">{config.label}</span>
+						<!-- Gradient overlay that appears on hover -->
+						{#if !disabled}
+							<div class="absolute inset-0 {config.gradient} opacity-0 transition-opacity duration-200 group-hover:opacity-100"></div>
+						{/if}
+						<iconify-icon icon={config.icon} width="24" aria-hidden="true" class="pointer-events-none relative z-10"></iconify-icon>
+						<span class="pointer-events-none relative z-10 w-full text-left">{config.label}</span>
 					</button>
 				</li>
 			{/each}

@@ -4,6 +4,14 @@
  *
  * This file contains the core permission definitions that can be easily modified
  * without affecting the core authentication logic.
+ *
+ * Features:
+ * - Defines a set of core permissions used throughout the system.
+ * - Each permission has an ID, name, action, type, and optional context.
+ * - Permissions cover system access, dashboard, user management, collections, API access, and more.
+ *
+ * This modular approach allows for easy extension and customization of permissions
+ * as the application evolves.
  */
 
 import { PermissionAction, PermissionType, type Permission } from './types';

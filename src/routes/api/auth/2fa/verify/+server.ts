@@ -5,7 +5,7 @@
 
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { getDefaultTwoFactorAuthService } from '@src/databases/auth/twoFactorAuth';
 import { auth } from '@databases/db';
 import { object, string, parse } from 'valibot';

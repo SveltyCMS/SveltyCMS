@@ -28,6 +28,7 @@
 	import Roles from './Roles.svelte';
 	import Permissions from './Permissions.svelte';
 	import AdminRole from './AdminRole.svelte';
+	import WebsiteTokens from './WebsiteTokens.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -148,13 +149,22 @@
 				</div>
 			</Tab>
 
+			<Tab bind:group={currentTab} name="websites" value={3}>
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:web" width="28" class="text-black dark:text-white"></iconify-icon>
+					<span class={currentTab === 3 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Website Tokens</span>
+				</div>
+			</Tab>
+
 			<svelte:fragment slot="panel">
 				{#if currentTab === 0}
 					<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
 				{:else if currentTab === 1}
 					<Roles roleData={rolesData} {setRoleData} {updateModifiedCount} />
-				{:else}
+				{:else if currentTab === 2}
 					<AdminRole roleData={rolesData} {setRoleData} />
+				{:else}
+					<WebsiteTokens />
 				{/if}
 			</svelte:fragment>
 		</TabGroup>

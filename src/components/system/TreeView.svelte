@@ -131,13 +131,22 @@
 
 	// Toggle expansion state
 	function toggleNode(node: TreeNode) {
-		if (!node.children) return;
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const newSet = new Set(expandedNodeIds);
-		if (newSet.has(node.id)) newSet.delete(node.id);
-		else newSet.add(node.id);
-		expandedNodeIds = newSet;
-		if (node.onClick) node.onClick(node);
+		console.log('[TreeView] toggleNode called for:', node.name, 'hasChildren:', !!node.children, 'hasOnClick:', !!node.onClick);
+
+		// Toggle expansion if node has children
+		if (node.children) {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const newSet = new Set(expandedNodeIds);
+			if (newSet.has(node.id)) newSet.delete(node.id);
+			else newSet.add(node.id);
+			expandedNodeIds = newSet;
+		}
+
+		// Always call onClick if it exists (even for leaf nodes without children)
+		if (node.onClick) {
+			console.log('[TreeView] Calling node.onClick');
+			node.onClick(node);
+		}
 	}
 
 	// Keyboard handling
