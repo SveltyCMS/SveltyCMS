@@ -14,7 +14,7 @@
 
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { metricsService } from '@src/services/MetricsService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/metrics/unified

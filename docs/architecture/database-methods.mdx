@@ -37,9 +37,37 @@ Frontend/API → db.ts → dbInterface → Adapter (MongoDB/SQL) → Methods →
 
 - **Frontend/API** - Never talks directly to MongoDB or SQL
 - **db.ts** - Agnostic entry point, routes to correct adapter
-- **dbInterface** - Abstract interface for database operations
-- **Adapter** - Implements dbInterface for specific database (MongoDB, PostgreSQL, etc.)
+- **dbInterface (IDBAdapter)** - Abstract interface for database operations
+- **Adapter** - Implements IDBAdapter for specific database (MongoDB, PostgreSQL, Drizzle, etc.)
 - **Methods** - Modular, reusable logic organized by responsibility
+
+**Multilingual Data Abstraction:**
+The database adapter handles storage format differences transparently:
+
+```typescript
+// Application layer always works with this format:
+const entry = {
+	title: { en: 'Hello', de: 'Hallo' },
+	description: { en: 'World', de: 'Welt' },
+	slug: 'hello-world' // Not translated
+};
+
+// MongoDB adapter stores nested objects directly:
+db.collection('posts').insertOne(entry);
+// Result: { title: { en: "Hello", de: "Hallo" }, ... }
+
+// Future SQL/Drizzle adapter transforms to relational:
+// posts table: id, slug, createdAt, updatedAt
+// post_translations table:
+//   - post_id, field='title', lang='en', value='Hello'
+//   - post_id, field='title', lang='de', value='Hallo'
+//   - post_id, field='description', lang='en', value='World'
+//   - post_id, field='description', lang='de', value='Welt'
+//
+// On read: Adapter reconstructs { title: { en: "Hello", de: "Hallo" }, ... }
+```
+
+**Key Principle:** Widgets and components never know the underlying storage format—they always receive/send the same multilingual object structure.
 
 ### 2. Separation of Concerns
 
@@ -959,6 +987,39 @@ await postsRepo.upsertMany(
 | Theme      | 300s (5m)   | Active theme config |
 | Widget     | 600s (10m)  | Widget registry     |
 | System     | 900s (15m)  | System settings     |
+
+**Multilingual Caching:**
+
+For multilingual content, cache keys **must** include the language parameter to prevent serving wrong language data:
+
+```typescript
+// ✅ CORRECT: Language-specific cache
+const cacheKey = `entries:${collectionId}:page:${page}:lang:${language}`;
+const entries = await withCache(cacheKey, async () => await db.crud.findMany('posts', { collectionId }), 180, 'CONTENT');
+
+// ❌ WRONG: Missing language - will serve cached EN data when DE is requested
+const cacheKey = `entries:${collectionId}:page:${page}`;
+```
+
+**Cache Invalidation for Translated Content:**
+
+When updating multilingual content, invalidate cache for **all languages**:
+
+```typescript
+async function updateEntry(entryId: string, data: any) {
+	// Update database
+	await db.crud.update('entries', entryId, data);
+
+	// Clear cache for ALL languages
+	const languages = await getAvailableContentLanguages();
+	for (const lang of languages) {
+		await db.cache.delete(`entry:${entryId}:lang:${lang}`);
+	}
+
+	// Or use category invalidation to clear all entry caches
+	invalidateCategoryCache('CONTENT');
+}
+```
 
 ### Query Optimization
 

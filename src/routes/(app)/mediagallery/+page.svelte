@@ -57,7 +57,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// State using runes
 	let files = $state<MediaImage[]>([]);
 	let allSystemVirtualFolders = $state<SystemVirtualFolder[]>([]);
-	let systemVirtualFolders = $state<SystemVirtualFolder[]>([]);
 	let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
 	let breadcrumb = $state<string[]>([]);
 
@@ -94,15 +93,26 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Computed folders for breadcrumb - create a mapping of breadcrumb paths to folder IDs
 	let breadcrumbFolders = $derived.by(() => {
-		if (!currentSystemVirtualFolder) return [];
-
 		const folders: { _id: string; name: string; path: string[] }[] = [];
+
+		// Always add root as first folder
+		folders.push({
+			_id: 'root',
+			name: 'Media Root',
+			path: []
+		});
+
+		if (!currentSystemVirtualFolder) {
+			return folders;
+		}
+
 		let current: SystemVirtualFolder | null = currentSystemVirtualFolder;
 		const pathSegments: string[] = [];
 
+		const tempFolders: { _id: string; name: string; path: string[] }[] = [];
 		while (current) {
 			pathSegments.unshift(current.name);
-			folders.unshift({
+			tempFolders.unshift({
 				_id: current._id,
 				name: current.name,
 				path: [...pathSegments] // Copy the current path
@@ -111,7 +121,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
 		}
 
-		return folders;
+		return [...folders, ...tempFolders];
 	});
 
 	// Handle user preferences
@@ -139,32 +149,19 @@ Displays a collection of media files (images, documents, audio, video) with:
 	let safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
 
 	// Initialize component with runes
+	// Run once on mount to set up initial data
 	$effect(() => {
-		// Note: Mode is now managed by Collections component based on route
-
+		// Load initial data from server
 		if (data && data.systemVirtualFolders) {
-			// Process initial folder data from server
 			allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
 		}
 
-		// Fetch all folders for navigation and breadcrumbs
-		fetchUpdatedSystemVirtualFolders()
-			.then((all) => {
-				allSystemVirtualFolders = all;
-			})
-			.catch((error) => {
-				console.error('Failed to load virtual folders in effect:', error);
-				// Use fallback data from server load if available
-				if (data && data.systemVirtualFolders) {
-					allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
-						...folder,
-						path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
-					}));
-				}
-			});
+		if (data && data.currentFolder) {
+			currentSystemVirtualFolder = data.currentFolder;
+		}
 
 		if (data && data.media) {
 			files = data.media;
@@ -179,7 +176,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			tableSize = preferredTableSize as 'tiny' | 'small' | 'medium' | 'large';
 		}
 
-		// Listen for folder selection events from the Collections sidebar
+		// Listen for folder selection events
 		const handleSystemVirtualFolderSelected = (event: CustomEvent) => {
 			const { folderId } = event.detail;
 			openSystemVirtualFolder(folderId && folderId !== 'root' ? folderId : null);
@@ -191,25 +188,33 @@ Displays a collection of media files (images, documents, audio, video) with:
 			document.removeEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
 		};
 	});
+
+	// Update breadcrumb when current folder changes
+	$effect(() => {
+		// This effect only runs when currentSystemVirtualFolder or allSystemVirtualFolders changes
+		updateBreadcrumb();
+	});
 	// Function to update breadcrumb based on current folder
 	function updateBreadcrumb() {
 		if (!currentSystemVirtualFolder) {
-			breadcrumb = [];
+			// At root level - show Media Root
+			breadcrumb = ['Media Root'];
 			return;
 		}
 
 		// Build breadcrumb by traversing up the parent hierarchy
 		const buildBreadcrumb = (folder: SystemVirtualFolder): string[] => {
-			const path: string[] = [];
+			const path: string[] = ['Media Root']; // Always start with root
 			let current: SystemVirtualFolder | null = folder;
 
+			const folderPath: string[] = [];
 			while (current) {
-				path.unshift(current.name); // Add folder name to the beginning
+				folderPath.unshift(current.name); // Add folder name to the beginning
 				// Find the parent folder
 				current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
 			}
 
-			return path;
+			return [...path, ...folderPath];
 		};
 
 		breadcrumb = buildBreadcrumb(currentSystemVirtualFolder);
@@ -255,7 +260,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 			if (result.success) {
 				// Refetch all folders and update current view
 				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parentId);
 
 				// Notify Collections component
 				document.dispatchEvent(

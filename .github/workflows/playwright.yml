@@ -65,7 +65,7 @@ jobs:
 
       # Prepare .svelte-kit
       - name: Sync SvelteKit build internals
-        run: bunx svelte-kit sync.
+        run: bunx svelte-kit sync
 
       - name: Run Playwright tests
         # We pass all secrets and configs as environment variables

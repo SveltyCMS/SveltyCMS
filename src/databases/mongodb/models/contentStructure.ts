@@ -10,7 +10,7 @@ import type { ContentNode, Translation } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
 import type { DatabaseError, DatabaseResult } from '@src/databases/dbInterface';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { Model, Document as MongooseDocument } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 

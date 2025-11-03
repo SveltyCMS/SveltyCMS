@@ -10,7 +10,7 @@ import { json } from '@sveltejs/kit';
 // Permission checking
 
 // System Logs
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Get the singleton ThemeManager instance
 const themeManager = ThemeManager.getInstance();

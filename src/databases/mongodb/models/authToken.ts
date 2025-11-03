@@ -22,7 +22,7 @@ import type { DatabaseResult } from '@src/databases/dbInterface';
 import type { Token } from '@src/databases/auth/types';
 
 // System Logging
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // Define the Token schema

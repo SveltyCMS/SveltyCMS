@@ -13,7 +13,7 @@
 -->
 
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { untrack, onMount, onDestroy } from 'svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -29,6 +29,28 @@
 	import type { Locale } from '@src/paraglide/runtime';
 	import { scale, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+
+	// Portal container for dropdown
+	let portalTarget = $state<HTMLElement | null>(null);
+
+	onMount(() => {
+		// Create portal container at body level for dropdown
+		if (typeof document !== 'undefined') {
+			portalTarget = document.createElement('div');
+			portalTarget.id = 'translation-dropdown-portal';
+			portalTarget.style.position = 'fixed';
+			portalTarget.style.zIndex = '99999';
+			portalTarget.style.pointerEvents = 'none'; // Allow clicks to pass through container
+			document.body.appendChild(portalTarget);
+		}
+	});
+
+	onDestroy(() => {
+		// Clean up portal container
+		if (portalTarget && portalTarget.parentNode) {
+			portalTarget.parentNode.removeChild(portalTarget);
+		}
+	});
 
 	// Types
 	interface CompletionTotals {
@@ -190,7 +212,7 @@
 		if (button) {
 			const rect = button.getBoundingClientRect();
 			dropdownPosition = {
-				top: rect.bottom + 4,
+				top: rect.bottom + 8, // Increased from 4px to 8px for more spacing
 				right: window.innerWidth - rect.right
 			};
 		}
@@ -201,7 +223,7 @@
 		isOpen = !isOpen;
 	}
 
-	function handleLanguageChange(selectedLanguage: Locale): void {
+	async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
@@ -212,8 +234,10 @@
 		// Replace the language part (first segment) with the new language
 		if (pathParts.length > 0) {
 			pathParts[0] = selectedLanguage;
-			const newPath = '/' + pathParts.join('/');
-			goto(newPath, { replaceState: false, keepFocus: true });
+			const newPath = '/' + pathParts.join('/') + $page.url.search; // Preserve query params
+
+			// Navigate and invalidate all server data to force reload
+			await goto(newPath, { replaceState: false, keepFocus: true, invalidateAll: true });
 		}
 
 		// Dispatch custom event
@@ -227,7 +251,7 @@
 	}
 
 	// Handle language change for view mode select
-	function handleViewModeLanguageChange(event: Event) {
+	async function handleViewModeLanguageChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
 
@@ -241,8 +265,10 @@
 		// Replace the language part (first segment) with the new language
 		if (pathParts.length > 0) {
 			pathParts[0] = selectedLanguage;
-			const newPath = '/' + pathParts.join('/');
-			goto(newPath, { replaceState: false, keepFocus: true });
+			const newPath = '/' + pathParts.join('/') + $page.url.search; // Preserve query params
+
+			// Navigate and invalidate all server data to force reload
+			await goto(newPath, { replaceState: false, keepFocus: true, invalidateAll: true });
 		}
 
 		// Dispatch a custom event to notify parent components
@@ -353,89 +379,91 @@
 					meter={getProgressColor(overallPercentage)}
 					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}
 				/>
-				<div class="mt-1 text-center text-xs text-surface-600 dark:text-surface-400">
+				<div class="mt-1 text-center text-xs text-tertiary-500 dark:text-primary-500">
 					{overallPercentage}% {m.translationsstatus_completed()}
 				</div>
 			</div>
 		</div>
+	</div>
+{/if}
 
-		<!-- Dropdown menu with fixed positioning -->
-		{#if isOpen}
-			<div
-				id="translation-menu"
-				class="fixed z-[9999] mt-1 origin-top-right divide-y divide-surface-200 rounded border border-surface-300 bg-surface-100 py-1 shadow-xl focus:outline-none dark:divide-surface-400 dark:bg-surface-800 {showProgress
-					? 'w-64'
-					: 'w-48'}"
-				style="top: {dropdownPosition.top}px; right: {dropdownPosition.right}px;"
-				role="menu"
-				aria-orientation="vertical"
-				aria-labelledby="language-menu-button"
-				transition:scale={{ duration: 200, easing: quintOut, start: 0.95, opacity: 0 }}
-			>
-				<!-- Language list -->
-				<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
-					{#each availableLanguages as lang, index (lang)}
-						{@const percentage = languageProgress[lang] || 0}
-						{@const isActive = currentLanguage === lang}
+<!-- Dropdown menu portal - rendered at body level -->
+{#if isOpen && portalTarget}
+	<div style="position: fixed; z-index: 99999; top: 1; left: 0; pointer-events: none; width: 100%; height: 100%;">
+		<div
+			id="translation-menu"
+			class="origin-top-right divide-y divide-surface-200 rounded-lg border-2 border-surface-400 bg-white py-1 shadow-2xl backdrop-blur-sm focus:outline-none dark:divide-surface-600 dark:border-surface-500 dark:bg-surface-800 {showProgress
+				? 'w-64'
+				: 'w-48'}"
+			style="position: fixed; top: {dropdownPosition.top}px; right: {dropdownPosition.right}px; pointer-events: auto;"
+			role="menu"
+			aria-orientation="vertical"
+			aria-labelledby="language-menu-button"
+			transition:scale={{ duration: 200, easing: quintOut, start: 0.95 }}
+		>
+			<!-- Language list -->
+			<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
+				{#each availableLanguages as lang, index (lang)}
+					{@const percentage = languageProgress[lang] || 0}
+					{@const isActive = currentLanguage === lang}
 
-						<button
-							role="menuitem"
-							class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 active:scale-[0.98] dark:hover:bg-surface-600 {isActive
-								? 'bg-primary-500/20 text-primary-700 dark:text-primary-300'
-								: ''} {showProgress ? 'justify-between' : 'justify-center'}"
-							onclick={() => handleLanguageChange(lang as Locale)}
-							aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
-							in:fade={{ duration: 200, delay: index * 30 }}
-						>
-							<div class="flex w-full items-center justify-between gap-2">
-								<!-- Language name -->
-								<span class="font-medium transition-colors duration-200">
-									{lang.toUpperCase()}
-									{#if isActive}
-										<span class="ml-1 text-xs" aria-label="Current language">●</span>
-									{/if}
-								</span>
-
-								<!-- Progress indicator -->
-								{#if showProgress && translationProgress.value?.[lang as Locale]}
-									<div class="ml-2 flex flex-1 items-center gap-2">
-										<div class="flex-1">
-											<ProgressBar class="transition-all duration-300" value={percentage} meter={getProgressColor(percentage)} aria-hidden="true" />
-										</div>
-										<span class="min-w-[2.5rem] text-right text-sm font-semibold">
-											{percentage}%
-										</span>
-									</div>
+					<button
+						role="menuitem"
+						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 active:scale-[0.98] dark:hover:bg-surface-600 {isActive
+							? 'bg-primary-500/20 text-primary-700 dark:text-primary-300'
+							: ''} {showProgress ? 'justify-between' : 'justify-center'}"
+						onclick={() => handleLanguageChange(lang as Locale)}
+						aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
+						in:fade={{ duration: 200, delay: index * 30 }}
+					>
+						<div class="flex w-full items-center justify-between gap-2">
+							<!-- Language name -->
+							<span class="font-medium transition-colors duration-200">
+								{lang.toUpperCase()}
+								{#if isActive}
+									<span class="ml-1 text-xs" aria-label="Current language">●</span>
 								{/if}
-							</div>
-						</button>
-					{/each}
-				</div>
+							</span>
 
-				<!-- Overall completion summary -->
-				{#if showProgress}
-					<div class="px-4 py-3" role="none" in:fade={{ duration: 200, delay: 100 }}>
-						<div class="mb-1 text-center text-xs font-medium text-surface-600 dark:text-surface-400">
-							{m.translationsstatus_completed()}
-						</div>
-						<div class="flex items-center justify-between gap-3">
-							{#if overallPercentage}
-								<div class="flex-1">
-									<ProgressBar
-										class="transition-all duration-300"
-										value={overallPercentage}
-										meter={getProgressColor(overallPercentage)}
-										aria-hidden="true"
-									/>
+							<!-- Progress indicator -->
+							{#if showProgress && translationProgress.value?.[lang as Locale]}
+								<div class="ml-2 flex flex-1 items-center gap-2">
+									<div class="flex-1">
+										<ProgressBar class="transition-all duration-300" value={percentage} meter={getProgressColor(percentage)} aria-hidden="true" />
+									</div>
+									<span class="min-w-[2.5rem] text-right text-sm font-semibold">
+										{percentage}%
+									</span>
 								</div>
 							{/if}
-							<span class="min-w-[2.5rem] text-right text-sm font-bold {getTextColor(overallPercentage)}">
-								{overallPercentage}%
-							</span>
 						</div>
-					</div>
-				{/if}
+					</button>
+				{/each}
 			</div>
-		{/if}
+
+			<!-- Overall completion summary -->
+			{#if showProgress}
+				<div class="px-4 py-2" role="none" in:fade={{ duration: 200, delay: 100 }}>
+					<div class="mb-1 text-center text-xs font-medium text-tertiary-500 dark:text-primary-500">
+						{m.translationsstatus_completed()}
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						{#if overallPercentage}
+							<div class="flex-1">
+								<ProgressBar
+									class="transition-all duration-300"
+									value={overallPercentage}
+									meter={getProgressColor(overallPercentage)}
+									aria-hidden="true"
+								/>
+							</div>
+						{/if}
+						<span class="min-w-[2.5rem] text-right text-sm font-bold {getTextColor(overallPercentage)}">
+							{overallPercentage}%
+						</span>
+					</div>
+				</div>
+			{/if}
+		</div>
 	</div>
 {/if}

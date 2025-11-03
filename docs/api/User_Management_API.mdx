@@ -22,6 +22,17 @@ The User Management API provides endpoints for user authentication, registration
 
 **Base Path:** `/api/user`
 
+### Quantum Computing Security
+
+All password operations in this API use **quantum-resistant cryptography**:
+
+- **Argon2id**: Memory-hard password hashing that resists quantum speedup
+- **64 MB memory requirement**: Limits quantum computer parallelization
+- **No quantum advantage**: Grover's algorithm doesn't help with memory-bound operations
+- **Security timeline**: Secure against quantum computers for 15-30+ years
+
+See [Quantum Security Guide](/docs/architecture/quantum-security.mdx) for detailed analysis.
+
 ## Authentication
 
 Most user endpoints require authentication except login and registration:
@@ -113,11 +124,13 @@ Set-Cookie: session=<session-id>; Path=/; HttpOnly; Secure; SameSite=Strict
 
 **Security Features:**
 
-- Password verification using Argon2
+- Quantum-resistant password verification using Argon2id
+- 64 MB memory-hard hashing resists quantum speedup
 - Blocks login attempts for suspended accounts
 - Generic error messages prevent user enumeration
 - Multi-tenant scoped authentication
-- Secure session cookie creation
+- Secure session cookie creation (HttpOnly, Secure, SameSite)
+- Timing-safe password comparison prevents side-channel attacks
 
 ---
 
@@ -222,7 +235,8 @@ Content-Type: application/json
 
 - This endpoint creates users directly without invitation
 - For user invitations, use the `/api/token/createToken` endpoint
-- Password is automatically hashed using Argon2
+- Password is automatically hashed using quantum-resistant Argon2id
+- Hash includes 64 MB memory cost for quantum resistance
 
 ---
 
@@ -502,10 +516,13 @@ const user = await auth.getUserByEmail(userLookupCriteria);
 
 ### Password Security
 
-- **Argon2** hashing algorithm (winner of Password Hashing Competition)
-- Salt automatically generated per password
-- Configurable time and memory cost parameters
-- Old passwords never logged or returned
+- **Argon2id** hashing algorithm (winner of Password Hashing Competition)
+- **Quantum-resistant**: Memory-hard algorithm resists quantum speedup
+- **64 MB memory cost**: Prevents GPU/ASIC/quantum parallelization
+- **Automatic salt generation**: Unique salt per password prevents rainbow tables
+- **Secure for 15-30+ years**: Strong resistance against quantum computers
+- **No quantum advantage**: Grover's algorithm ineffective for memory-bound operations
+- Old passwords never logged or returned in API responses
 
 ### Session Security
 

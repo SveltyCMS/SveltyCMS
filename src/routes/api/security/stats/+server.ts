@@ -16,7 +16,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { securityResponseService } from '@src/services/SecurityResponseService';
 import { metricsService } from '@src/services/MetricsService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/security/stats

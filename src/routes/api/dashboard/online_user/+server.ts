@@ -7,7 +7,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { auth } from '@src/databases/db';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
 // Schema for the outgoing API data

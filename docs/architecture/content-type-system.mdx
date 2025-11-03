@@ -1,0 +1,245 @@
+---
+path: 'docs/architecture/content-type-system.mdx'
+title: 'Content Type System & Code Generation'
+description: 'How SveltyCMS generates TypeScript types for collections at build time'
+order: 52
+icon: 'mdi:code-tags'
+author: 'admin'
+created: '2025-11-01'
+updated: '2025-11-01'
+tags:
+  - 'developer'
+  - 'types'
+  - 'collections'
+  - 'code-generation'
+  - 'typescript'
+---
+
+# Content Type System & Code Generation
+
+SveltyCMS uses a **build-time code generation system** to create TypeScript types for your collections, providing full type safety across the entire codebase.
+
+## 🎯 Overview
+
+When you define collections in `config/collections/`, SveltyCMS automatically:
+
+1. ✅ Scans collection schema files
+2. ✅ Validates field definitions
+3. ✅ Generates TypeScript union types
+4. ✅ Updates `src/content/types.ts` with new types
+5. ✅ Provides IDE autocomplete for collection names
+
+## 🔄 How It Works
+
+### 1. Vite Plugin Watcher
+
+The system uses a Vite plugin (`src/content/vite.ts`) that watches for changes:
+
+```typescript
+export async function generateContentTypes(server: ViteDevServer): Promise<void> {
+	// Load all collection schemas
+	const module = await server.ssrLoadModule('@src/stores/collectionStore.svelte.ts');
+	const collections = module.collections;
+
+	// Generate union type from collection names
+	const collectionNames = Object.keys(collections)
+		.map((name) => `'${name}'`)
+		.join(' | ');
+
+	// Write to types.ts
+	const types = `export type ContentTypes = ${collectionNames || 'never'};`;
+	await fs.writeFile('src/content/types.ts', types);
+}
+```
+
+### 2. Dynamic Type Generation
+
+The system generates **TypeScript union types** from your collection names:
+
+```typescript
+// Clean union type - perfect for TypeScript
+export type ContentTypes = 'Posts' | 'Users' | 'Pages' | 'Products';
+```
+
+### 3. Production Optimization
+
+In production mode, the system uses direct filesystem scanning for better performance:
+
+```typescript
+// src/content/index.ts
+async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
+	// Production mode: Direct filesystem scanning
+	if (!dev && !building) {
+		const { scanCompiledCollections } = await import('./collectionScanner');
+		const compiledCollections = await scanCompiledCollections();
+
+		const imports: Record<string, Schema> = {};
+		for (const collection of compiledCollections) {
+			if (collection.name) {
+				imports[collection.name] = collection;
+			}
+		}
+
+		return imports as Record<ContentTypes, Schema>;
+	}
+
+	// Development mode: Vite's import.meta.glob
+	// ... existing code
+}
+```
+
+## 📊 Benefits
+
+### 1. Type Safety Everywhere
+
+```typescript
+// Full autocomplete for collection names
+import type { ContentTypes } from '@src/content/types';
+
+function getCollection(name: ContentTypes) {
+	// TypeScript knows 'Posts', 'Users', etc. are valid
+	return contentManager.getCollection(name);
+}
+
+// Error: Argument of type '"InvalidName"' is not assignable
+getCollection('InvalidName'); // ❌ TypeScript error
+```
+
+### 2. IDE Support
+
+Your IDE provides autocomplete when working with collections:
+
+```typescript
+const collections: Record<ContentTypes, Schema> = {
+	Posts: {
+		/* ... */
+	}, // ✅ Autocomplete suggests 'Posts', 'Users', etc.
+	Users: {
+		/* ... */
+	}
+	// IDE warns if you miss any collections
+};
+```
+
+### 3. Refactoring Safety
+
+When you rename a collection, TypeScript catches all references:
+
+```typescript
+// Before: Collection named "BlogPosts"
+const posts = getCollection('BlogPosts'); // Works
+
+// After: Renamed to "Articles"
+const posts = getCollection('BlogPosts'); // ❌ TypeScript error - must update
+const posts = getCollection('Articles'); // ✅ Fixed
+```
+
+## 🔧 Implementation Details
+
+### Field Validation
+
+The system validates field definitions to ensure they have required properties:
+
+```typescript
+interface Field {
+	db_fieldName?: string;
+	label: string;
+	type?: string;
+}
+
+// Validates that each field has at least a label
+if (!collection?.fields || !Array.isArray(collection.fields)) {
+	logger.warn(`Collection ${key} has no valid fields array`);
+	continue;
+}
+```
+
+### Local Type Definitions
+
+To avoid circular dependencies, some types are defined locally where needed:
+
+```typescript
+// src/content/index.ts
+interface CategoryNode {
+	id: number;
+	name: string;
+	icon: string;
+	order: number;
+	collections: Schema[];
+	subcategories: Map<string, CategoryNode>;
+}
+
+interface ProcessedModule {
+	schema?: Schema;
+	default?: Schema;
+}
+```
+
+### Array Validation
+
+The system adds runtime checks to ensure data integrity:
+
+```typescript
+// Ensure fields is always an array
+if (!Array.isArray(collection.fields)) {
+	logger.warn('Collection fields is not an array, skipping');
+	continue;
+}
+
+// Safely map over fields
+const processedFields = collection.fields.map((field) => ({
+	name: field.db_fieldName || field.label,
+	type: field.type || 'string'
+}));
+```
+
+## 🚀 Performance
+
+### Development Mode
+
+- **Hot Module Replacement**: Instant type updates on file save
+- **Fast Validation**: Only changed files are reprocessed
+- **Memory Efficient**: Minimal overhead during development
+
+### Production Mode
+
+- **Build-Time Generation**: Types generated once during build
+- **No Runtime Overhead**: Types are compile-time only
+- **Optimized Scanning**: Direct filesystem access for compiled collections
+
+## 📁 Key Files
+
+- **`src/content/vite.ts`**: Vite plugin for type generation
+- **`src/content/types.ts`**: Generated ContentTypes union
+- **`src/content/index.ts`**: Collection loading with production optimization
+- **`src/content/collectionScanner.ts`**: Production filesystem scanner
+- **`config/collections/**/\*.ts`\*\*: Source collection schemas
+
+## 🎓 Best Practices
+
+### Do ✅
+
+- **Use ContentTypes everywhere** for type safety
+- **Let the system generate types** - don't edit types.ts manually
+- **Trust the type system** - if TypeScript complains, fix the root cause
+
+### Don't ❌
+
+- **Don't bypass ContentTypes** with `any` or `string`
+- **Don't manually edit generated types** - they'll be overwritten
+- **Don't skip field validation** - it catches bugs early
+
+## 🔮 Future Enhancements
+
+The roadmap includes plans to improve this system further:
+
+1. **Sandboxed Compilation**: Compile to JSON to prevent typos from crashing the server
+2. **Field-Level Types**: Generate types for individual fields, not just collections
+3. **Runtime Validation**: Use generated types for runtime schema validation
+4. **GraphQL Schema Generation**: Auto-generate GraphQL schemas from collection types
+
+See [ROADMAP.md](/docs/ROADMAP.md) for details on Phase 4: The "Sandboxed" DIL Engine.
+
+---
+
+This type generation system provides the foundation for type-safe content management throughout SveltyCMS, catching errors at compile time and providing excellent IDE support.

@@ -43,13 +43,17 @@ The middleware architecture is built on **core enterprise principles**:
 ```typescript
 // src/hooks.server.ts
 const middleware: Handle[] = [
-	handleSystemState, // 1. System readiness & state validation
-	handleSetup, // 2. Setup completion enforcement
-	handleLocale, // 3. Language preferences (i18n)
-	handleTheme, // 4. Theme management (SSR)
-	handleAuthentication, // 5. Session validation & multi-tenancy
-	handleAuthorization, // 6. Role-based access control
-	addSecurityHeaders // 7. Security headers
+	handleStaticAssetCaching, // 1. Static assets FIRST (skip all processing)
+	handleSystemState, // 2. System readiness & state validation
+	handleRateLimit, // 3. Rate limiting (abuse prevention)
+	handleFirewall, // 4. Application firewall (threat detection)
+	handleSetup, // 5. Setup completion enforcement
+	handleLocale, // 6. Language preferences (i18n)
+	handleTheme, // 7. Theme management (SSR)
+	handleAuthentication, // 8. Session validation & multi-tenancy
+	handleAuthorization, // 9. Role-based access control
+	// handleApiRequests, // 10. Optional: API caching (commented out)
+	addSecurityHeaders // 11. Security headers (defense in depth)
 ];
 
 export const handle: Handle = sequence(...middleware);
@@ -59,7 +63,39 @@ export const handle: Handle = sequence(...middleware);
 
 ## Hook Implementations
 
-### 1. handleSystemState - System Gateway
+### 1. handleStaticAssetCaching - Performance Optimization
+
+**File**: `src/hooks/handleStaticAssetCaching.ts`  
+**Purpose**: Aggressive caching for static assets (runs FIRST for maximum performance)
+
+**Strategy**: `max-age=31536000, public, immutable` (1 year cache)
+
+```typescript
+export const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
+	// Regex-based detection for performance
+	if (STATIC_ASSET_REGEX.test(event.url.pathname)) {
+		const response = await resolve(event);
+		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+		return response;
+	}
+	return resolve(event);
+};
+```
+
+**Assets Cached**:
+
+- SvelteKit build artifacts (`/_app/`)
+- Static files (`/static/`)
+- JavaScript, CSS, source maps (`.js`, `.css`, `.map`)
+- Images (`.svg`, `.png`, `.jpg`, `.webp`, `.avif`)
+- Fonts (`.woff`, `.woff2`, `.ttf`, `.eot`)
+- Manifests, favicons
+
+**Performance Impact**: Skips ALL other middleware (~15-20ms saved per static request)
+
+---
+
+### 2. handleSystemState - System Gateway
 
 **File**: `src/hooks/handleSystemState.ts`  
 **Purpose**: Validates system readiness before processing requests
@@ -118,7 +154,128 @@ export const handleSystemState: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 2. handleSetup - Installation Gateway
+### 3. handleRateLimit - Abuse Prevention
+
+**File**: `src/hooks/handleRateLimit.ts`  
+**Purpose**: Distributed rate limiting with Redis support for clustered deployments
+
+**Limits**:
+
+- **General Routes**: 500 requests/minute per IP + IP+UA
+- **API Routes**: 500/min per IP, 200/min per IP+UA (stricter)
+
+```typescript
+// Distributed store for Redis-backed rate limiting
+const distributedStore = {
+	async get(key: string): Promise<number | undefined> {
+		const data = await cacheService.get<{ count: number; expires: number }>(`ratelimit:${key}`);
+		return data && data.expires > Date.now() ? data.count : undefined;
+	},
+	async increment(key: string, ttlSeconds: number): Promise<number> {
+		const existing = await this.get(key);
+		const newCount = (existing || 0) + 1;
+		await cacheService.set(`ratelimit:${key}`, { count: newCount, expires: Date.now() + ttlSeconds * 1000 }, ttlSeconds);
+		return newCount;
+	}
+};
+
+const generalLimiter = new RateLimiter({
+	IP: [500, 'm'],
+	IPUA: [500, 'm'],
+	cookie: { name: 'ratelimit', secret: JWT_SECRET, rate: [500, 'm'] },
+	store: cacheService ? distributedStore : undefined // Redis if available
+});
+
+export const handleRateLimit: Handle = async ({ event, resolve }) => {
+	// Skip localhost in dev, static assets, build process
+	if (building || (dev && isLocalhost(ip))) return resolve(event);
+	if (isStaticAsset(url.pathname)) return resolve(event);
+
+	const limiter = url.pathname.startsWith('/api/') ? apiLimiter : generalLimiter;
+
+	if (await limiter.isLimited(event)) {
+		metricsService.incrementRateLimitViolations();
+		logger.warn(`Rate limit exceeded: IP=${ip}, Path=${url.pathname}`);
+		throw error(429, 'Too Many Requests');
+	}
+
+	return resolve(event);
+};
+```
+
+**Key Features**:
+
+- **Redis-backed**: Shared limits across all server instances in cluster
+- **Automatic fallback**: In-memory if Redis unavailable
+- **Static asset exemption**: CDN-cached content bypasses rate limiting
+- **Multi-layer protection**: IP-based + IP+UA + signed cookie
+
+---
+
+### 4. handleFirewall - Application Threat Detection
+
+**File**: `src/hooks/handleFirewall.ts`  
+**Purpose**: Detects application-specific threats that Nginx/CDN cannot catch
+
+**What It Detects** ✅:
+
+- Advanced bots (Selenium, Puppeteer, Playwright) while allowing legitimate crawlers
+- Business logic abuse (bulk delete operations, admin enumeration)
+- Suspicious parameters (credentials in URLs, tokens in query strings)
+- Template injection attempts (`{{...}}`, `${...}`, `<%...%>`)
+- Command injection patterns (`;ls`, `;wget`, `;curl`)
+- Path depth enumeration (>10 levels)
+- Encoded bypass attempts (`%2e%2e`, `%252e`)
+
+**What It Does NOT Check** ❌ (handled elsewhere):
+
+- SQL injection → Nginx + parameterized queries
+- Path traversal → Nginx + static middleware
+- Basic bot filtering → CDN
+- Rate limiting → handleRateLimit
+
+```typescript
+export const handleFirewall: Handle = async ({ event, resolve }) => {
+	const { request, url } = event;
+	const userAgent = request.headers.get('user-agent') || '';
+	const pathname = url.pathname.toLowerCase();
+
+	// 1. Advanced bot detection (allow legitimate crawlers)
+	if (isAdvancedBot(userAgent) && !isLegitimateBot(userAgent)) {
+		metricsService.incrementSecurityViolations('bot_detection');
+		logger.warn(`Bot blocked: UA=${userAgent}, Path=${pathname}`);
+		throw error(403, 'Forbidden: Automated access detected');
+	}
+
+	// 2. Application threat patterns
+	if (hasApplicationThreat(pathname, url.search)) {
+		metricsService.incrementSecurityViolations('app_firewall');
+		logger.warn(`Threat detected: IP=${event.getClientAddress()}, Path=${pathname}`);
+		throw error(403, 'Forbidden: Request pattern not allowed');
+	}
+
+	// 3. Suspicious patterns (enumeration, abuse)
+	if (hasSuspiciousPattern(pathname)) {
+		metricsService.incrementSecurityViolations('suspicious_pattern');
+		logger.warn(`Suspicious pattern: IP=${event.getClientAddress()}, Path=${pathname}`);
+		throw error(403, 'Forbidden: Invalid request pattern');
+	}
+
+	return resolve(event);
+};
+```
+
+**Performance**: ~1-2ms overhead per request, early exit for legitimate traffic
+
+**Legitimate Bots Allowed**:
+
+- Googlebot, Bingbot, DuckDuckBot
+- Baiduspider, YandexBot
+- Social media crawlers (Facebook, Twitter, LinkedIn, WhatsApp, Telegram, Discord)
+
+---
+
+### 5. handleSetup - Installation Gateway
 
 **File**: `src/hooks/handleSetup.ts`  
 **Purpose**: Ensures CMS installation is complete
@@ -165,7 +322,7 @@ export const handleSetup: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 3. handleLocale - Language Management
+### 6. handleLocale - Language Management
 
 **File**: `src/hooks/handleLocale.ts`  
 **Purpose**: Synchronizes language preferences from cookies to stores
@@ -211,7 +368,7 @@ export const handleLocale: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 4. handleTheme - SSR Theme Management
+### 7. handleTheme - SSR Theme Management
 
 **File**: `src/hooks/handleTheme.ts`  
 **Purpose**: Prevents theme flickering with server-side injection
@@ -249,7 +406,7 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 5. handleAuthentication - Session Management
+### 8. handleAuthentication - Session Management
 
 **File**: `src/hooks/handleAuthentication.ts`  
 **Purpose**: Validates sessions with WeakRef-based caching
@@ -314,10 +471,12 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 - 3-layer caching (in-memory → Redis → database)
 - Multi-tenancy with hostname-based tenant ID
 - Tenant isolation enforcement
+- Automatic session rotation every 15 minutes for security
+- Rate-limited rotation attempts to prevent abuse
 
 ---
 
-### 6. handleAuthorization - Access Control
+### 9. handleAuthorization - Access Control
 
 **File**: `src/hooks/handleAuthorization.ts`  
 **Purpose**: Enforces role-based permissions and loads admin data conditionally
@@ -402,7 +561,7 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 
 ---
 
-### 7. addSecurityHeaders - HTTP Security
+### 10. addSecurityHeaders - HTTP Security
 
 **File**: `src/hooks/addSecurityHeaders.ts`  
 **Purpose**: Essential HTTP security headers
@@ -728,7 +887,13 @@ Utility functions exported from `hooks.server.ts`:
 export const getHealthMetrics = () => metricsService.getReport();
 
 // Session management
-export { invalidateSessionCache, clearAllSessionCaches } from './hooks/handleAuthentication';
+export {
+	invalidateSessionCache,
+	clearAllSessionCaches,
+	clearSessionRefreshAttempt,
+	forceSessionRotation,
+	getSessionCacheStats
+} from './hooks/handleAuthentication';
 ```
 
 ---

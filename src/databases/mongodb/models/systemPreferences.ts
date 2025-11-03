@@ -1,6 +1,17 @@
 /**
  * @file src/databases/mongodb/models/systemPreferences.ts
  * @description MongoDB schema and model for System Preferences, supporting user-specific dashboard layouts.
+ *
+ * ### Features
+ * - Schema definition with fields for userId, layoutId, layout structure, scope, and timestamps
+ * - Indexes for efficient querying by userId, layoutId, and scope
+ * - Static methods for common operations:
+ *   - getPreferenceByLayout: Retrieve preferences for a specific user and layout
+ *   - setPreference: Create or update preferences with optional widget validation
+ *   - validateLayoutWidgets: Ensure widgets in a layout are active
+ *   - deletePreferencesByUser: Remove all preferences for a given user
+ *
+ * The model ensures data integrity and provides utility methods for managing system preferences.
  */
 
 import type { DashboardWidgetConfig, Layout, SystemPreferencesDocument } from '@src/content/types';
@@ -10,7 +21,7 @@ import mongoose, { Schema } from 'mongoose';
 import { nowISODateString } from '@utils/dateUtils';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Define interface for the model with custom static methods
 interface SystemPreferencesModelType extends Model<SystemPreferencesDocument> {

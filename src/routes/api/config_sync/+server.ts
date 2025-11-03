@@ -10,7 +10,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { configService } from '@src/services/ConfigService';
 import { invalidateSettingsCache } from '@src/services/settingsService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET → Returns filesystem vs. database synchronization status
 export const GET: RequestHandler = async ({ locals }) => {

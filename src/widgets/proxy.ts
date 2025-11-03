@@ -4,7 +4,7 @@
  * This is used by collection configuration files.
  */
 import type { Widget, WidgetModule } from '@widgets/types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export type WidgetFunction = (config: Record<string, unknown>) => Widget;
 

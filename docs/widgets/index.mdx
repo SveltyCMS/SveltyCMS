@@ -1,18 +1,20 @@
 ---
 path: 'docs/widgets/index.mdx'
 title: 'Widget System Documentation'
-description: 'Complete widget system documentation covering 3-pillar architecture, management, and development'
+description: 'Complete widget system documentation covering 3-pillar architecture, management, development, and multilingual support'
 order: 70
 icon: 'mdi:widgets'
 author: 'admin'
 created: '2025-10-17'
-updated: '2025-10-17'
+updated: '2025-11-02'
 tags:
   - 'developer'
   - 'widgets'
   - 'documentation'
   - '3-pillar'
   - 'architecture'
+  - 'i18n'
+  - 'multilingual'
 ---
 
 # Widget System Documentation
@@ -239,6 +241,56 @@ Every widget follows the same architectural pattern:
 - 🔒 **Security** - Permission-based widget access control
 - 📚 **Self-Documenting** - Each widget includes MDX documentation
 - 🧪 **Testable** - Comprehensive testing support
+- 🌍 **Multilingual** - Built-in translation support via `contentLanguage` for all text-based widgets
+
+### Multilingual Widget Support
+
+SveltyCMS widgets support multilingual content through the `translated` field property:
+
+**Enable Translation:**
+
+```typescript
+// Collection field configuration
+{
+  widget: 'input',
+  label: 'Article Title',
+  db_fieldName: 'title',
+  translated: true,  // ← Enables multilingual support
+  required: true
+}
+```
+
+**Data Storage Format:**
+
+```typescript
+// Database-agnostic format (MongoDB nested, SQL relational)
+{
+  "title": {
+    "en": "Hello World",
+    "de": "Hallo Welt",
+    "fr": "Bonjour le monde"
+  }
+}
+```
+
+**Supported Widgets:**
+
+| Widget Type | Multilingual   | Use Case                                  |
+| ----------- | -------------- | ----------------------------------------- |
+| input       | ✅ Yes         | Text content per language                 |
+| richText    | ✅ Yes         | Rich HTML content per language            |
+| email       | ✅ Yes         | Localized email templates                 |
+| phoneNumber | ✅ Yes         | International phone with localized labels |
+| number      | ✅ Yes         | Localized number formatting               |
+| seo         | ✅ Yes         | SEO metadata per language                 |
+| relation    | ✅ Conditional | Display fields translated                 |
+| megaMenu    | ✅ Yes         | Menu structure per language               |
+
+**Learn More:**
+
+- [Language Architecture](/docs/architecture/language-architecture.mdx) - Complete multilingual system guide
+- [Widget Architecture - Multilingual Section](/docs/widgets/widget-architecture.mdx#multilingual-widget-architecture) - Implementation patterns
+- [Widget Development Guide - Translation Support](/docs/widgets/widget-development-guide.mdx#translation-support) - Building translatable widgets
 
 ## 🔗 Related Documentation
 

@@ -7,7 +7,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async () => {
 	try {

@@ -18,7 +18,7 @@
 	import ImportExportManager from '@components/admin/ImportExportManager.svelte';
 	import Button from '@components/system/buttons/Button.svelte';
 	// Utils
-	import { logger } from '@utils/logger.svelte';
+	import { logger } from '@utils/logger';
 
 	// Types
 	interface WelcomeStep {

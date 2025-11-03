@@ -13,7 +13,7 @@ import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getHealthCheckReport } from '@src/stores/system';
 import { reinitializeSystem } from '@src/databases/db';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * GET /api/system?action=health

@@ -13,7 +13,7 @@
 import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 import { getSystemState, isSystemReady } from '@src/stores/system'; // Import from your state machine
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { dbInitPromise } from '@src/databases/db';
 
 let initializationAttempted = false;

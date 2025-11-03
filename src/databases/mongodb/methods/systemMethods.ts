@@ -5,7 +5,7 @@
  */
 
 import type { Model } from 'mongoose';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { SystemPreferencesDocument } from '@src/content/types';
 import type { DatabaseId } from '../../dbInterface';
 import type { SystemSetting } from '../models/systemSetting';

@@ -22,7 +22,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 // Permission checking
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Initialize ThemeManager singleton
 const themeManager = ThemeManager.getInstance();

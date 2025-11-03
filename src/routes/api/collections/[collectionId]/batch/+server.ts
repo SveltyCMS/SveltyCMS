@@ -24,7 +24,7 @@ import type { StatusType } from '@src/content/types';
 import { array, minLength, object, optional, parse, picklist, string } from 'valibot';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Validation schema for batch operations
 const batchOperationSchema = object({
@@ -236,6 +236,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		const duration = performance.now() - start;
+
+		// Invalidate server-side page cache for this collection after batch operation
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		const cachePattern = `collection:${schema._id}:*`;
+		await cacheService.clearByPattern(cachePattern).catch((err) => {
+			logger.warn('Failed to invalidate page cache after batch operation', { pattern: cachePattern, error: err });
+		});
 
 		return json({
 			success: true,

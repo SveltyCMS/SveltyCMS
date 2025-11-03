@@ -26,7 +26,7 @@ const normalizeCollectionName = (collectionId: string): string => {
 };
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // PATCH: Updates entry status
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
@@ -127,6 +127,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		const duration = performance.now() - start;
 		const successCount = results.filter((r) => r.success).length;
+
+		// Invalidate server-side page cache for this collection after status change
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		const cachePattern = `collection:${schema._id}:*`;
+		await cacheService.clearByPattern(cachePattern).catch((err) => {
+			logger.warn('Failed to invalidate page cache after status change', { pattern: cachePattern, error: err });
+		});
 
 		logger.info(`Status updated for ${successCount}/${results.length} entries in ${duration.toFixed(2)}ms`, { tenantId });
 

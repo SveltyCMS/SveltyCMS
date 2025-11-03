@@ -14,7 +14,7 @@
 
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// 1. Get user from `locals`, populated by `hooks.server.ts`

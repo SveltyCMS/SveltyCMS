@@ -41,7 +41,7 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { roles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Create a PubSub instance for subscriptions
 const pubSub = createPubSub();

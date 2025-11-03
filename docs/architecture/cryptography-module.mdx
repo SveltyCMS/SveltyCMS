@@ -19,9 +19,21 @@ tags:
 
 ## Overview
 
-SveltyCMS implements military-grade cryptography through the centralized `@utils/crypto` module, using **Argon2id** for password hashing and key derivation, and **AES-256-GCM** for data encryption. This provides enterprise-level security against modern threats, including AI-powered and quantum computing attacks.
+SveltyCMS implements military-grade cryptography through the centralized `@utils/crypto` module, using **Argon2id** for password hashing and key derivation, and **AES-256-GCM** for data encryption. This provides enterprise-level security against current classical computing threats and maintains strong resistance against emerging quantum computing capabilities.
 
 **Module Location:** `src/utils/crypto.ts`
+
+### Understanding Classical vs. Quantum Cryptography
+
+It's crucial to understand the difference between classical and quantum cryptographic systems:
+
+- **Argon2id** is a **classical password hashing algorithm** designed to run on traditional computers (CPUs). It provides security through computational cost (time and memory requirements), making brute-force attacks economically infeasible.
+
+- **Shor's Algorithm** and **Grover's Algorithm** are **quantum algorithms** that run on quantum computers:
+  - **Shor's Algorithm**: Breaks asymmetric (public-key) cryptography like RSA and ECC by efficiently factoring large numbers
+  - **Grover's Algorithm**: Provides quadratic speedup for searching unstructured databases, reducing symmetric key security by half (e.g., AES-256 becomes AES-128 equivalent)
+
+**Key Point**: Argon2 and quantum algorithms operate in fundamentally different computational paradigms. SveltyCMS's current cryptographic approach provides strong quantum resistance through symmetric encryption and memory-hard hashing.
 
 **Why Centralized?**
 
@@ -408,20 +420,192 @@ const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
 
 #### Quantum Computing Attack
 
-**Scenario:** Quantum computer with Grover's algorithm
+**Current Status**: SveltyCMS uses quantum-resistant cryptographic techniques.
 
-- **AES-256:** Reduced to 128-bit security (still requires 2^128 operations)
-- **Argon2:** Memory-hard nature resists quantum speedup
-- **Timeline:** Decades away from practical quantum threat to AES-256
+**Understanding Quantum Threats**:
 
-**Security Timeline:**
+1. **Shor's Algorithm** (for Public-Key Cryptography):
+   - **Threat**: Can break RSA, DSA, and ECC in polynomial time
+   - **SveltyCMS Impact**: ✅ **NOT AFFECTED** - We don't use public-key cryptography for data at rest
+   - **Timeline**: Large-scale quantum computers capable of breaking 2048-bit RSA are estimated 10-20+ years away
+
+2. **Grover's Algorithm** (for Symmetric Encryption):
+   - **Threat**: Provides quadratic speedup for brute-force searches
+   - **Impact on AES-256**: Reduces effective security from 256 bits to 128 bits
+   - **Real-world implication**: 2^128 operations is still computationally infeasible
+   - **Timeline**: Quantum computers with sufficient qubits are decades away
+
+3. **Argon2 Quantum Resistance**:
+   - **Memory-hard algorithms** like Argon2 are inherently quantum-resistant
+   - Quantum computers don't provide speedup for memory-bound operations
+   - 64 MB memory requirement per hash limits quantum advantage
+   - Grover's algorithm doesn't help when the bottleneck is memory access, not computation
+
+**Security Analysis**:
+
+| Attack Vector              | Classical Security | Quantum Security (Grover's) | SveltyCMS Status |
+| -------------------------- | ------------------ | --------------------------- | ---------------- |
+| AES-256-GCM Brute Force    | 2^256 operations   | 2^128 operations            | ✅ Secure        |
+| Argon2id Password Cracking | 2^128+ operations  | Limited quantum advantage   | ✅ Secure        |
+| RSA/ECC Public-Key         | Secure             | Vulnerable (Shor's)         | ✅ Not Used      |
+
+**Key Points**:
+
+- ✅ **AES-256 remains secure**: Even with Grover's algorithm reducing it to "AES-128" equivalent, 2^128 operations is still infeasible (would take billions of years)
+- ✅ **Argon2 is quantum-resistant**: Memory-hard algorithms resist quantum speedup because quantum computers don't have memory advantages
+- ✅ **No vulnerable public-key crypto**: SveltyCMS doesn't use RSA or ECC for data encryption, avoiding Shor's algorithm vulnerabilities
+
+**Security Timeline**:
 
 ```
 Current (2025):    ████████████████████████████████ 100% secure
-+10 years (2035):  ██████████████████████████████   95% secure
-+20 years (2045):  ████████████████████████         80% secure (quantum computers emerging)
-+30 years (2055):  ██████████████████               60% secure (post-quantum migration recommended)
++10 years (2035):  ██████████████████████████████   ~98% secure (small quantum computers emerging)
++20 years (2045):  ████████████████████████         ~85% secure (larger quantum computers)
++30 years (2055):  ████████████████                 ~70% secure (post-quantum migration recommended)
 ```
+
+**Migration Path**: See "Post-Quantum Cryptography Roadmap" section below for future-proofing strategy.
+
+---
+
+## Post-Quantum Cryptography Roadmap
+
+### Current Quantum Resistance Status
+
+SveltyCMS's current cryptographic implementation is already well-positioned for the quantum era:
+
+**✅ Quantum-Resistant Components**:
+
+- **Argon2id**: Memory-hard algorithms resist quantum speedup
+- **AES-256-GCM**: Maintains 128-bit quantum security (still computationally infeasible)
+- **Symmetric-key only**: No vulnerable public-key cryptography (RSA/ECC) for data encryption
+
+**⚠️ Future Considerations**:
+
+- When quantum computers become practical (15-30+ years), consider post-quantum algorithms
+- Monitor NIST post-quantum standardization efforts
+- Plan hybrid cryptographic approaches
+
+### NIST Post-Quantum Standards (2024)
+
+The National Institute of Standards and Technology (NIST) has standardized post-quantum cryptographic algorithms:
+
+#### For Public-Key Encryption (Key Encapsulation)
+
+**CRYSTALS-Kyber** (now standardized as **ML-KEM**):
+
+- **Use case**: Secure key exchange
+- **Based on**: Lattice-based cryptography (Module Learning With Errors)
+- **Security levels**: Kyber-512, Kyber-768, Kyber-1024
+- **Advantages**: Fast, small key sizes, strong security proofs
+- **SveltyCMS application**: Future key exchange mechanisms, API authentication
+
+#### For Digital Signatures
+
+**CRYSTALS-Dilithium** (now standardized as **ML-DSA**):
+
+- **Use case**: Digital signatures for authentication
+- **Based on**: Lattice-based cryptography (FIPS 204)
+- **Security levels**: Dilithium-2, Dilithium-3, Dilithium-5
+- **Advantages**: Efficient verification, secure against quantum attacks
+- **SveltyCMS application**: Future session token signing, API request verification
+
+**SPHINCS+** (now standardized as **SLH-DSA**):
+
+- **Use case**: Stateless hash-based signatures
+- **Based on**: Hash functions only
+- **Advantages**: Conservative security assumptions, no secret state
+- **SveltyCMS application**: Backup signature scheme
+
+### Hybrid Cryptographic Approach (Recommended)
+
+For maximum security during the quantum transition, implement **hybrid cryptography**:
+
+```typescript
+// Future hybrid encryption example (conceptual)
+async function hybridEncrypt(data: string, publicKey: string) {
+	// Step 1: Use classical AES-256-GCM (current system)
+	const classicalKey = generateRandomKey(32);
+	const classicalCiphertext = await aesEncrypt(data, classicalKey);
+
+	// Step 2: Use post-quantum key encapsulation (future)
+	const pqCiphertext = await kyberEncapsulate(classicalKey, publicKey);
+
+	// Step 3: Combine both
+	return {
+		ciphertext: classicalCiphertext,
+		encapsulatedKey: pqCiphertext,
+		algorithm: 'AES-256-GCM + Kyber-1024'
+	};
+}
+```
+
+**Benefits**:
+
+- ✅ Protected against classical attacks (AES-256)
+- ✅ Protected against quantum attacks (Kyber)
+- ✅ Backward compatible
+- ✅ Future-proof migration path
+
+### Migration Timeline
+
+**Phase 1: Research & Planning (2025-2027)**
+
+- Monitor NIST post-quantum standard implementations
+- Evaluate JavaScript/TypeScript libraries (e.g., `liboqs-js`, `pqcrypto`)
+- Test performance in Node.js environment
+- Design hybrid encryption architecture
+
+**Phase 2: Implementation (2028-2030)**
+
+- Add post-quantum algorithms alongside existing crypto
+- Implement hybrid encryption for new sensitive data
+- Provide migration tools for existing encrypted data
+- Update documentation and security guidelines
+
+**Phase 3: Gradual Migration (2030-2040)**
+
+- Enable post-quantum crypto by default for new installations
+- Provide automated migration path for existing data
+- Maintain backward compatibility
+- Monitor quantum computing progress
+
+**Phase 4: Full Transition (2040+)**
+
+- Deprecate classical-only encryption
+- Require post-quantum algorithms
+- Remove legacy encryption support
+
+### Current Recommendations
+
+**For New Deployments (2025-2030)**:
+
+- ✅ Continue using current Argon2id + AES-256-GCM system
+- ✅ Keep encryption keys updated and rotated
+- ✅ Monitor quantum computing developments
+- ✅ Stay informed about NIST PQC standards
+
+**For Long-Term Data (20+ year retention)**:
+
+- ⚠️ Consider additional encryption layers
+- ⚠️ Plan for data re-encryption with post-quantum algorithms
+- ⚠️ Implement key rotation policies
+- ⚠️ Use hybrid encryption for maximum security
+
+**For High-Security Applications**:
+
+- 🔒 Increase Argon2 parameters (memory: 131072 KiB, time: 5)
+- 🔒 Use AES-256-GCM with 256-bit keys (no reduction)
+- 🔒 Consider hardware security modules (HSM) with PQC support
+- 🔒 Implement multi-layer encryption
+
+### Resources
+
+- [NIST Post-Quantum Cryptography](https://csrc.nist.gov/projects/post-quantum-cryptography)
+- [CRYSTALS-Kyber Specification](https://pq-crystals.org/kyber/)
+- [CRYSTALS-Dilithium Specification](https://pq-crystals.org/dilithium/)
+- [Open Quantum Safe Project](https://openquantumsafe.org/)
+- [RFC 9180: Hybrid Public Key Encryption](https://datatracker.ietf.org/doc/html/rfc9180)
 
 ---
 

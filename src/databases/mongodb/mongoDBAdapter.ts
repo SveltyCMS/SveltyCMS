@@ -41,7 +41,8 @@ import {
 	SystemPreferencesModel,
 	SystemSettingModel,
 	ThemeModel,
-	WidgetModel
+	WidgetModel,
+	WebsiteTokenModel
 } from './models';
 
 // The full suite of refined, modular method classes
@@ -54,13 +55,14 @@ import * as mongoDBUtils from './methods/mongoDBUtils';
 import { MongoSystemMethods } from './methods/systemMethods';
 import { MongoSystemVirtualFolderMethods } from './methods/systemVirtualFolderMethods';
 import { MongoThemeMethods } from './methods/themeMethods';
+import { MongoWebsiteTokenMethods } from './methods/websiteTokenMethods';
 import { MongoWidgetMethods } from './methods/widgetMethods';
 import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type {
 	ContentNode,
 	ContentDraft,
@@ -72,7 +74,8 @@ import type {
 	BatchOperation,
 	BatchResult,
 	PerformanceMetrics,
-	CacheOptions
+	CacheOptions,
+	WebsiteToken
 } from '../dbInterface';
 import { cacheService } from '@src/databases/CacheService';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
@@ -85,6 +88,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _media!: MongoMediaMethods;
 	private _themes!: MongoThemeMethods;
 	private _widgets!: MongoWidgetMethods;
+	private _websiteTokens!: MongoWebsiteTokenMethods;
 	private _system!: MongoSystemMethods;
 	private _systemVirtualFolder!: MongoSystemVirtualFolderMethods;
 	private _auth!: MongoAuthModelRegistrar;
@@ -98,6 +102,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	public systemPreferences!: IDBAdapter['systemPreferences'];
 	public crud!: IDBAdapter['crud'];
 	public auth!: IDBAdapter['auth'];
+	public websiteTokens!: IDBAdapter['websiteTokens'];
 	public readonly utils = mongoDBUtils;
 	public collection!: IDBAdapter['collection'];
 
@@ -279,7 +284,8 @@ export class MongoDBAdapter implements IDBAdapter {
 		const repositories = {
 			nodes: new MongoCrudMethods(ContentNodeModel as unknown as mongoose.Model<BaseEntity>),
 			drafts: new MongoCrudMethods(DraftModel as unknown as mongoose.Model<BaseEntity>),
-			revisions: new MongoCrudMethods(RevisionModel as unknown as mongoose.Model<BaseEntity>)
+			revisions: new MongoCrudMethods(RevisionModel as unknown as mongoose.Model<BaseEntity>),
+			websiteTokens: new MongoCrudMethods(WebsiteTokenModel as unknown as mongoose.Model<BaseEntity>)
 		};
 		Object.entries(repositories).forEach(([key, repo]) => this._repositories.set(key, repo));
 
@@ -296,6 +302,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		this._media = new MongoMediaMethods(MediaModel as any);
 		this._themes = new MongoThemeMethods(ThemeModel);
 		this._widgets = new MongoWidgetMethods(WidgetModel);
+		this._websiteTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
 		this._system = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 		this._systemVirtualFolder = new MongoSystemVirtualFolderMethods();
 
@@ -358,6 +365,17 @@ export class MongoDBAdapter implements IDBAdapter {
 			deleteTokens: (tokenIds) => authAdapter.deleteTokens?.(tokenIds),
 			blockTokens: (tokenIds) => authAdapter.blockTokens?.(tokenIds),
 			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds)
+		};
+
+		// WEBSITE TOKENS
+		this.websiteTokens = {
+			create: (token) => this._wrapResult(() => this._websiteTokens.create(token)),
+			getAll: (options) => this._wrapResult(() => this._websiteTokens.getAll(options)),
+			getByName: (name) => this._wrapResult(() => this._websiteTokens.getByName(name)),
+			delete: (tokenId) =>
+				this._wrapResult(async () => {
+					await this._websiteTokens.delete(tokenId);
+				})
 		};
 
 		// THEMES

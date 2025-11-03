@@ -18,7 +18,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { saveRemoteMedia } from '@utils/media/mediaStorage';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;

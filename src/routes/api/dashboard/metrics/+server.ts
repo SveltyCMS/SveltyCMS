@@ -8,7 +8,7 @@ import { getHealthMetrics } from '@src/hooks.server.js';
 import type { RequestHandler } from './$types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {

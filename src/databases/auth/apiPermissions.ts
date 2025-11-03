@@ -23,6 +23,12 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	'api:systemPreferences': ['admin'], // System preferences (user dashboard layout/sizes)
 	'api:config_sync': ['admin'], // Configuration sync (import/export)
 
+	// Admin area - Admin only
+	'api:admin': ['admin'],
+
+	// Website Tokens - Admin only
+	'api:website-tokens': ['admin'],
+
 	// Authentication & Security - All authenticated users can manage their own auth/2FA
 	'api:auth': ['*'], // Authentication endpoints (2FA setup, disable, backup codes, etc.)
 
@@ -32,7 +38,6 @@ export const API_PERMISSIONS: Record<string, string[]> = {
 	// Content Management - Admin and Editor
 	'api:collections': ['admin', 'editor'], // Collection/content management
 	'api:media': ['admin', 'editor'], // Media management
-	'api:virtualFolder': ['admin', 'editor'], // Virtual folder management
 	'api:systemVirtualFolder': ['admin', 'editor'], // System virtual folders
 
 	// Dashboard & Analytics - Admin and Editor

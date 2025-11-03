@@ -7,7 +7,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
 import { MediaService } from '@src/services/MediaService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Helper function to get MediaService instance
 function getMediaService(): MediaService {

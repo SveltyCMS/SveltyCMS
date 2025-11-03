@@ -14,7 +14,7 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Utility function to determine the correct OAuth redirect URI
 function getOAuthRedirectUri(): string {

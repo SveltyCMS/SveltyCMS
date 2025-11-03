@@ -47,7 +47,7 @@ import { performance } from 'perf_hooks';
 // Permissions
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Create OSUtils instance
 const osUtils = createOSUtils();

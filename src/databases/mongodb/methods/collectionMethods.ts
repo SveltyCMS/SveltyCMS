@@ -15,7 +15,7 @@
  * - Content structure/drafts/revisions (use contentMethods.ts)
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import mongoose, { Schema as MongooseSchema, type Model } from 'mongoose';
 import type { CollectionModel } from '../../dbInterface';
 import type { Schema } from '@src/content/types';

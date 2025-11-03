@@ -33,7 +33,7 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Input validation
 import { email, object, optional, parse, string, type ValiError } from 'valibot';

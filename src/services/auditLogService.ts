@@ -15,7 +15,7 @@
  * - Uses agnostic database interface for compatibility
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { DatabaseId, BaseEntity, DatabaseResult, IDBAdapter } from '@src/databases/dbInterface';
 import { dbAdapter as dbAdapterInstance } from '@src/databases/db';
 

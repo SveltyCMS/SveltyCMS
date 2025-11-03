@@ -54,7 +54,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import nodemailer from 'nodemailer';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Svelte SSR rendering
 import { render } from 'svelte/server';

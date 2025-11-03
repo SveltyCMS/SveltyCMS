@@ -74,10 +74,14 @@ export class MongoCrudMethods<T extends BaseEntity> {
 		}
 	}
 
-	async findMany(query: FilterQuery<T>, options: { limit?: number; skip?: number } = {}): Promise<T[]> {
+	async findMany(
+		query: FilterQuery<T>,
+		options: { limit?: number; skip?: number; sort?: { [key: string]: 'asc' | 'desc' | 1 | -1 } } = {}
+	): Promise<T[]> {
 		try {
 			const results = await this.model
 				.find(query)
+				.sort(options.sort || {})
 				.skip(options.skip ?? 0)
 				.limit(options.limit ?? 0)
 				.lean()

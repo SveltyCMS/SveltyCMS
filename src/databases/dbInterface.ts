@@ -21,9 +21,10 @@
  * - Bulk validation and constraint checking
  */
 
-import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema } from '../content/types';
+import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema, WebsiteToken } from '../content/types';
 // Auth types (moved from authDBInterface)
 import type { User, Session, Token } from './auth/types';
+import type { WebsiteToken } from './schemas';
 
 export type { BaseEntity, DatabaseId, Schema };
 
@@ -423,6 +424,19 @@ export interface IDBAdapter {
 		deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Deactivate a widget
 		update(widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>>; // Update widget configuration & details
 		delete(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a widget
+	};
+
+	// Website Tokens
+	websiteTokens: {
+		create(token: Omit<WebsiteToken, '_id' | 'createdAt'>): Promise<DatabaseResult<WebsiteToken>>;
+		getAll(options: {
+			limit?: number;
+			skip?: number;
+			sort?: string;
+			order?: string;
+		}): Promise<DatabaseResult<{ data: WebsiteToken[]; total: number }>>;
+		getByName(name: string): Promise<DatabaseResult<WebsiteToken | null>>;
+		delete(tokenId: DatabaseId): Promise<DatabaseResult<void>>;
 	};
 
 	//  Media Management

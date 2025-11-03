@@ -7,7 +7,7 @@
  * Relies on Dependency Injection for testability.
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type Mongoose from 'mongoose';
 import type { DatabaseId, MediaItem, MediaMetadata, PaginatedResult, PaginationOptions } from '../../dbInterface';
 import { mediaSchema, type IMedia } from '../models/media';

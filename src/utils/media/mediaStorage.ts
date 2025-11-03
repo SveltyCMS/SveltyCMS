@@ -19,7 +19,9 @@ import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
 import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
+
+import { getPublicSettingSync } from '@src/services/settingsService';
 
 // Image sizes configuration
 const defaultImageSizes = { sm: 600, md: 900, lg: 1200 };
@@ -33,6 +35,8 @@ const SIZES: ImageSizesType = {
 	original: 0,
 	thumbnail: 200
 } as const;
+
+const getMediaFolder = () => getPublicSettingSync('MEDIA_FOLDER') || 'mediaFiles';
 
 // Get fs instance for server-side operations
 async function getFs() {
@@ -58,7 +62,7 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	try {
 		const fs = await getFs();
-		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const fullPath = Path.join(getMediaFolder(), url);
 		const dir = Path.dirname(fullPath);
 
 		logger.debug('Creating directory for file', {
@@ -191,7 +195,7 @@ export async function deleteFile(url: string): Promise<void> {
 
 	try {
 		const fs = await getFs();
-		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const filePath = Path.join(getMediaFolder(), url);
 
 		logger.debug('Deleting file', {
 			url,

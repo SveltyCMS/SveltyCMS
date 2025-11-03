@@ -23,7 +23,7 @@ import { error } from '@sveltejs/kit';
 // Permissions
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user, tenantId } = locals;

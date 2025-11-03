@@ -72,7 +72,11 @@ This document provides a comprehensive overview of all API endpoints in SveltyCM
 - ✅ `GET /api/collections/[collectionId]/[entryId]/revisions` - Get revisions
 - ✅ `POST /api/collections/[collectionId]/[entryId]/status` - Update status
 - ✅ `POST /api/collections/[collectionId]/batch` - Batch create
-- ✅ `DELETE /api/collections/[collectionId]/batch-delete` - Batch delete
+- ✅ `POST /api/collections/[collectionId]/batch` - Batch operations (delete, status, clone)
+- ✅ `PATCH /api/collections/[collectionId]/[entryId]/status` - Update entry status
+- ✅ `GET /api/collections/[collectionId]/[entryId]/revisions` - Get revision history
+- ✅ `POST /api/collections/[collectionId]/import` - Import data (JSON/CSV)
+- ✅ `GET /api/collections/[collectionId]/export` - Export data (JSON/CSV)
 - ✅ `POST /api/collections/[collectionId]/export` - Export collection
 - ✅ `POST /api/collections/[collectionId]/import` - Import collection
 
@@ -411,19 +415,3 @@ curl -X POST https://cms.example.com/api/graphql \
 **Documentation Quality:** Production-ready  
 **Coverage:** 95%+  
 **Verified:** Database agnostic ✅
-
----
-
-## 📞 Support
-
-For API questions or issues:
-
-- **Documentation:** [/docs/api/](/docs/api/)
-- **Issues:** [GitHub Issues](https://github.com/SveltyCMS/SveltyCMS/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/SveltyCMS/SveltyCMS/discussions)
-
----
-
-**Last Updated:** October 5, 2025  
-**Documentation Version:** 1.0.0  
-**API Version:** 1.0.0

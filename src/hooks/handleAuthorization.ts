@@ -22,7 +22,7 @@ import {
 	USER_PERM_CACHE_TTL_MS,
 	USER_PERM_CACHE_TTL_S
 } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // --- SIMPLE IN-MEMORY CACHE ---
 

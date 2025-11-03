@@ -1025,7 +1025,7 @@
 							{toggleAdminPassword}
 							{toggleConfirmPassword}
 							{checkPasswordRequirements}
-							systemSettings={wizard.systemSettings}
+							bind:systemSettings={wizard.systemSettings}
 							availableLanguages={systemLanguages}
 							{completeSetup}
 						/>

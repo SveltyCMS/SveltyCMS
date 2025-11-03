@@ -25,7 +25,7 @@ import { modifyRequest } from '@api/collections/modifyRequest';
 import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Lists entries in a collection with pagination, filtering, and sorting
 export const GET: RequestHandler = async ({ locals, params, url }) => {
@@ -328,6 +328,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			data: result.data,
 			performance: { duration }
 		};
+
+		// Invalidate server-side page cache for this collection
+		const cacheService = (await import('@src/databases/CacheService')).cacheService;
+		const cachePattern = `collection:${schema._id}:*`;
+		await cacheService.clearByPattern(cachePattern).catch((err) => {
+			logger.warn('Failed to invalidate page cache after POST', { pattern: cachePattern, error: err });
+		});
 
 		logger.info(`${endpoint} - Entry created successfully`, {
 			collection: schema._id,

@@ -14,7 +14,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { IDBAdapter } from '@src/databases/dbInterface';
 import {
 	generateBackupCodes,

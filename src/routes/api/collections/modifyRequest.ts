@@ -29,7 +29,7 @@ import type { FieldInstance } from '@src/content/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 
 // System logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 interface DataAccessor<T> {
 	get(): T;

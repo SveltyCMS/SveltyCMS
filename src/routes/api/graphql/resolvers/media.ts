@@ -24,7 +24,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import type { DatabaseAdapter } from '@src/databases/dbInterface';
 // System Logs
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Permissions
 

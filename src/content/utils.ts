@@ -14,7 +14,7 @@
  * - resolveWidgetPlaceholder: Resolves a widget placeholder
  */
 import { widgetRegistryService } from '@src/services/WidgetRegistryService';
-import { logger } from '../utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { ContentNode, MinimalContentNode, Schema } from './types';
 
 // An extended version of ContentNode for UI purposes that includes children.

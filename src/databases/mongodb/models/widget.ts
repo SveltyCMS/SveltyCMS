@@ -4,6 +4,17 @@
  *
  * This module defines a schema and model for widgets in the CMS.
  * Widgets are reusable components that can be placed in different areas of the site
+ *
+ * ### Features
+ * - Schema definition with fields for name, isActive, instances, dependencies, and timestamps
+ * - Indexes for efficient querying by isActive and name
+ * - Static methods for common operations:
+ *   - getAllWidgets: Retrieve all widgets
+ *   - getActiveWidgets: Retrieve names of active widgets
+ *   - activateWidget: Activate a widget by name
+ *   - deactivateWidget: Deactivate a widget by name
+ *   - updateWidget: Update a widget's configuration
+ *   - updateWidgetInstance: Atomically update a specific widget instance configuration
  */
 
 import mongoose, { Schema } from 'mongoose';
@@ -13,7 +24,7 @@ import { nowISODateString } from '@utils/dateUtils';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Widget schema
 export const widgetSchema = new Schema<Widget>(

@@ -34,7 +34,7 @@ import { getErrorMessage } from '@utils/errorHandling';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
 import { cacheService, API_CACHE_TTL_S } from '@src/databases/CacheService';
 import { metricsService } from '@src/services/MetricsService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // --- METRICS INTEGRATION ---
 // API metrics are now handled by the unified MetricsService for enterprise-grade monitoring

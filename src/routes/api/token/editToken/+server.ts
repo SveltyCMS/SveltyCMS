@@ -28,7 +28,7 @@ import { auth } from '@src/databases/db';
 import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Input validation
 import { object, string, optional, parse, type ValiError, minLength, picklist } from 'valibot';

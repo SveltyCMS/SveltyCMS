@@ -7,7 +7,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Auth
 import type { User, Permission, Role } from './types';

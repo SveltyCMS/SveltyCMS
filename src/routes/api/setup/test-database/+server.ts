@@ -4,7 +4,7 @@
  */
 
 import { databaseConfigSchema, type DatabaseConfig } from '@src/databases/schemas';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { exec } from 'child_process';
 import { existsSync } from 'fs';

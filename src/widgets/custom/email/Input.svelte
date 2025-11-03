@@ -33,6 +33,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
+	import { contentLanguage } from '@stores/store.svelte';
 
 	// Valibot validation
 	import { string, email as emailValidator, pipe, parse, type ValiError, minLength, optional } from 'valibot';
@@ -46,7 +47,8 @@
 	let { field, value = $bindable() }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	const _language = (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase();
+	// Use current content language for translated fields, default for non-translated
+	const _language = $derived(field.translated ? contentLanguage.value : ((publicEnv.DEFAULT_CONTENT_LANGUAGE as string) || 'en').toLowerCase());
 
 	// Initialize value
 	$effect(() => {

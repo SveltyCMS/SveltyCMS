@@ -25,7 +25,7 @@ import { dbAdapter } from '@src/databases/db';
 import { cacheService } from '@src/databases/CacheService';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 const CACHE_TTL = 300; // 5 minutes
 

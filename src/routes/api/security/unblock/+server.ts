@@ -6,7 +6,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { securityResponseService } from '@src/services/SecurityResponseService';
 import { hasApiPermission } from '@src/databases/auth/apiPermissions';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 /**
  * POST /api/security/unblock

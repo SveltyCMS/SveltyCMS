@@ -1,96 +1,185 @@
 ---
 path: 'docs/architecture/collection-store-dataflow.mdx'
 title: 'Collection Store Data Flow'
-description: 'How SveltyCMS loads, manages, and synchronizes collection/entry data using the collection store'
+description: 'How SveltyCMS loads, manages, and synchronizes collection/entry data using SSR and the collection store'
 order: 51
 icon: 'mdi:database-sync'
 author: 'admin'
 created: '2025-08-11'
-updated: '2025-10-14'
+updated: '2025-11-01'
 tags:
   - 'developer'
   - 'collections'
   - 'data-flow'
   - 'architecture'
+  - 'ssr'
 ---
 
-# Collection Store Data Flow
+# Collection Store Data Flow (SSR Architecture)
 
 This document describes the **canonical data flow** for loading, editing, and saving collection/entry data in SveltyCMS. It is essential for all developers working on content management, widgets, or UI components that interact with collections and entries.
 
+## 🎯 Architecture: The "SvelteKit Way"
+
+**SveltyCMS now follows a pure SSR (Server-Side Rendering) architecture.** This means:
+
+- ✅ **All data fetching happens on the server** in `+page.server.ts` load functions
+- ✅ **Components are "dumb" and receive data as props** (no client-side fetching)
+- ✅ **Server-side caching** (Redis) with SvelteKit's built-in cache invalidation
+- ✅ **URL-driven state** (pagination, sorting, filtering via search params)
+- ✅ **Zero client-side data fetching** in EntryList.svelte and Fields.svelte
+
+This eliminates the "God Component" anti-pattern and provides enterprise-grade performance.
+
 ## 🧩 Key Principles
 
-- **Single Source of Truth:** The collection store always holds the latest collection and entry data. All UI components must read from the store.
-- **Server-Driven:** Data is always loaded from the server on navigation. The store is updated with the full collection and entry data.
-- **Sensible Defaults:** Defaults (e.g., `status`, `createdAt`) are set only for new entries, and only if not present in the server response.
-- **UI as Consumer:** UI components (HeaderEdit, RightSidebar, Fields, etc.) never set defaults or fetch data directly. They only consume the store.
-- **Loader Overlay:** The global loader overlay is managed via the `globalLoadingStore` and is only shown during actual data loading or saving.
+- **Server-Side First:** All data is loaded via `+page.server.ts` load functions, never in components
+- **Props Down, Events Up:** Components receive data as props and emit events for mutations
+- **Store as Sync Layer:** The collection store is used for UI state synchronization, not data fetching
+- **Cache on Server:** Redis caching handles performance, invalidated via `invalidateAll()`
+- **URL as State:** Pagination, sorting, and filters are managed via URL search parameters
 
-## 🔄 Data Flow Overview
+## 🔄 Data Flow Overview (SSR)
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Page as +page.svelte
+    participant Browser
+    participant PageServer as +page.server.ts
     participant Store as collectionStore
-    participant API as /api/collections
+    participant Cache as Redis Cache
     participant DB as Database
+    participant PageSvelte as +page.svelte
+    participant Component as Fields/EntryList
 
-    User->>Page: Navigate to /en/Collections/Posts
-    Page->>API: GET /api/collections/posts-uuid
-    API->>DB: Query entries
-    DB-->>API: Return data
-    API-->>Page: Collection + Entries
-    Page->>Store: Set collection.value
-    Page->>Store: Set collectionValue.value
-    Store-->>Page: Data updated
+    User->>Browser: Navigate to /en/Collections/Posts?page=1
+    Browser->>PageServer: GET (SSR Load)
+    PageServer->>Cache: Check cache key
 
-    Note over User,Store: UI Components Read from Store
+    alt Cache Hit
+        Cache-->>PageServer: Return cached data
+    else Cache Miss
+        PageServer->>DB: Query collection + entries
+        DB-->>PageServer: Return data
+        PageServer->>Cache: Store in cache (TTL: 5min)
+    end
 
-    User->>Page: Edit entry field
-    Page->>Store: Update collectionValue
+    PageServer-->>Browser: HTML + data props
+    Browser->>PageSvelte: Hydrate with data
+    PageSvelte->>Store: setCollection(data.collectionSchema)
+    PageSvelte->>Component: Pass props {entries, pagination, revisions}
+    Component-->>User: Render UI
 
-    User->>Page: Click Save
-    Page->>API: PUT /api/collections/posts-uuid/entry-id
-    API->>DB: Update entry
-    DB-->>API: Updated entry
-    API-->>Page: Success + new data
-    Page->>Store: Update with server response
-    Store-->>Page: Data synchronized
+    Note over User,Component: User Interaction
+
+    User->>Component: Edit entry field
+    Component->>Store: Update collectionValue
+
+    User->>Component: Click Save
+    Component->>PageSvelte: Trigger save action
+    PageSvelte->>PageServer: POST /api/collections/[id]/[entryId]
+    PageServer->>DB: Update entry
+    DB-->>PageServer: Success
+    PageServer->>Cache: Invalidate cache
+    PageSvelte->>Browser: invalidateAll()
+    Browser->>PageServer: Re-fetch (SSR Load)
+    PageServer-->>Browser: Fresh data
+    Browser->>Component: Update with new props
 ```
 
 ### Flow Steps
 
-1. **Page Load**
-   - `[language]/[...collection]/+page.svelte` loads the collection and entry from the server.
-   - The full data is set into the collection store (`collection`, `collectionValue`, etc.).
-   - If creating a new entry, sensible defaults are set (e.g., `status: 'unpublish'`, `createdAt: now`).
+1. **SSR Page Load**
+   - User navigates to a collection page with URL params (e.g., `?page=1&sort=createdAt&order=desc`)
+   - `+page.server.ts` load function executes on the server
+   - Checks Redis cache with a composite key (collection + filters + sort + pagination)
+   - On cache miss: queries database, enriches data via `modifyRequest`, loads revisions if needed
+   - Returns sanitized data as props to the page component
 
-2. **Store Update**
-   - The store is the only source of truth for all collection/entry data.
-   - Any changes (edits, status updates) are made via store actions.
+2. **Component Hydration**
+   - `+page.svelte` receives data from the server as props
+   - Sets the collection schema in the store via `setCollection(data.collectionSchema)`
+   - Passes props down to "dumb" components (Fields, EntryList)
 
 3. **UI Consumption**
-   - All UI components read from the store.
-   - No component sets defaults or fetches data independently.
-   - The Next/Save button logic is unified: only one action button is shown at a time, based on the current step and entry state.
+   - Components like `Fields.svelte` and `EntryList.svelte` receive all data as props
+   - No client-side data fetching - components are purely presentational
+   - Store is used for form state synchronization, not data fetching
 
-4. **Loader Overlay**
-   - The loader overlay is shown only during server operations (load, save).
-   - It is hidden as soon as the operation completes.
+4. **User Interactions**
+   - **Pagination/Sorting/Filtering**: Updates URL search params, triggers full SSR reload
+   - **Form Edits**: Updates local component state and store for form binding
+   - **Mutations (Save/Delete)**: Calls API endpoint, then uses `invalidateAll()` to trigger SSR reload
 
-5. **Saving/Updating**
-   - On save, the store data is sent to the server.
-   - On success, the store is updated with the latest server response.
+5. **Cache Invalidation**
+   - After mutations, `invalidateAll()` is called
+   - SvelteKit re-runs the `+page.server.ts` load function
+   - Redis cache is invalidated by cache key pattern
+   - Fresh data is loaded and passed as new props
 
-## 📝 Example: New Menu Entry
+## 📝 Example: Loading Collection Entries
 
-- User navigates to create a new Menu entry.
-- Page loads, sets empty entry data in the store, and applies defaults (`status: 'unpublish'`, `createdAt: now`).
-- UI components (HeaderEdit, RightSidebar, Fields) read from the store and display the correct state.
-- User fills out the form and clicks Next/Save.
-- Loader overlay appears during save.
-- On success, store is updated and loader is hidden.
+### SSR Pattern (✅ Current Architecture)
+
+```typescript
+// +page.server.ts - Server-side load function
+export const load: PageServerLoad = async ({ params, url, locals }) => {
+  const { collection } = params;
+  const page = Number(url.searchParams.get('page') ?? 1);
+
+  // Check cache
+  const cacheKey = `collection:${collection}:page:${page}`;
+  const cached = await cacheService.get(cacheKey);
+  if (cached) return cached;
+
+  // Query database
+  const entries = await dbAdapter.queryBuilder('collection_' + collectionId)
+    .paginate({ page, pageSize: 10 })
+    .execute();
+
+  const result = { collectionSchema, entries, pagination };
+  await cacheService.set(cacheKey, result, 300);
+  return result;
+};
+
+// +page.svelte - Receive data as props
+<script lang="ts">
+  import EntryList from '@components/collectionDisplay/EntryList.svelte';
+
+  let { data } = $props();
+  let entries = $derived(data.entries);
+  let pagination = $derived(data.pagination);
+</script>
+
+<EntryList {entries} {pagination} />
+```
+
+## 🎯 Component Responsibilities
+
+### +page.server.ts (Server)
+
+- ✅ Query database with filters/pagination
+- ✅ Check/set Redis cache
+- ✅ Enrich data via `modifyRequest`
+- ✅ Load revisions for edit mode
+- ✅ Return sanitized props
+
+### +page.svelte (Router)
+
+- ✅ Receive server data as props
+- ✅ Sync collection schema to store
+- ✅ Pass props to child components
+- ❌ NO data fetching
+- ❌ NO cache management
+
+### Fields.svelte / EntryList.svelte (Presentation)
+
+- ✅ Receive all data as props
+- ✅ Render UI based on props
+- ✅ Bind form state to store
+- ❌ NO data fetching
+- ❌ NO API calls
+- ❌ NO defaults or data transformation
 
 ## ⚡ Status Logic for Collections and Entries
 
@@ -112,19 +201,81 @@ sequenceDiagram
 
 ## ✅ Best Practices
 
-- **Never set defaults in UI components.**
-- **Always update the store from the server response.**
-- **Use the store as the only source of truth.**
-- **Show loader overlays only during real loading/saving.**
+### Do ✅
+
+- **Use SSR load functions** for all data fetching
+- **Pass data as props** from page to components
+- **Use URL search params** for pagination/filtering/sorting
+- **Call `invalidateAll()`** after mutations to refresh data
+- **Use server-side caching** (Redis) with proper TTL
+- **Keep components "dumb"** - receive props, emit events
+- **Use the store for form state** synchronization only
+
+### Don't ❌
+
+- **Don't fetch data in components** (onMount, useEffect, etc.)
+- **Don't manage cache in components** - let the server handle it
+- **Don't set defaults in UI components** - handle in load function
+- **Don't use client-side state for server data** - use props
+- **Don't bypass SSR** for "performance" - SSR + cache is faster
+
+## 🚀 Performance Benefits
+
+The SSR architecture provides:
+
+1. **Faster Initial Load**: Server renders with data, no client-side fetch waterfall
+2. **Better Caching**: Redis cache shared across all users, not per-browser
+3. **SEO Friendly**: Full HTML with content on first load
+4. **Reduced Bundle Size**: No client-side data fetching libraries needed
+5. **Type Safety**: Server-to-client data flow is fully typed
+6. **Simpler Debugging**: All data loading logic in one place (+page.server.ts)
+
+## 📊 Cache Strategy
+
+```typescript
+// Cache key structure
+const cacheKey = `collection:${collectionId}:page:${page}:size:${pageSize}:filter:${JSON.stringify(filters)}:sort:${sortField}:${sortOrder}:tenant:${tenantId}`;
+
+// TTL: 5 minutes (300 seconds)
+await cacheService.set(cacheKey, data, 300);
+
+// Invalidation: After mutations (POST, PATCH, DELETE, batch operations)
+// All mutation endpoints automatically clear cache using pattern matching
+await cacheService.clearByPattern(`collection:${collectionId}:*`);
+```
+
+### Automatic Cache Invalidation
+
+The following API endpoints automatically invalidate server-side page cache after successful mutations:
+
+- `POST /api/collections/[collectionId]` - Create entry
+- `PATCH /api/collections/[collectionId]/[entryId]` - Update entry
+- `DELETE /api/collections/[collectionId]/[entryId]` - Delete entry
+- `PATCH /api/collections/[collectionId]/[entryId]/status` - Update status
+- `POST /api/collections/[collectionId]/batch` - Batch operations (delete, status, clone)
+
+This ensures that the next SSR load will always fetch fresh data after any data modification.
 
 ---
 
-For implementation details, see the following files:
+## 📁 Key Files
 
-- `src/routes/(app)/[language]/[...collection]/+page.svelte`
-- `src/stores/collectionStore.svelte.ts`
-- `src/components/HeaderEdit.svelte`
-- `src/components/RightSidebar.svelte`
-- `src/components/collectionDisplay/Fields.svelte`
+**Server-Side:**
 
-This workflow ensures robust, predictable, and maintainable data flow for all SveltyCMS collection and entry operations.
+- `src/routes/(app)/[language]/[...collection]/+page.server.ts` - SSR load function
+- `src/databases/CacheService.ts` - Redis caching layer
+- `src/routes/api/collections/modifyRequest.ts` - Data enrichment
+
+**Client-Side:**
+
+- `src/routes/(app)/[language]/[...collection]/+page.svelte` - Props router
+- `src/stores/collectionStore.svelte.ts` - Form state store
+- `src/components/collectionDisplay/Fields.svelte` - Dumb component (props)
+- `src/components/collectionDisplay/EntryList.svelte` - Dumb component (props)
+
+**API Endpoints:**
+
+- `src/routes/api/collections/[collectionId]/[entryId]/revisions/+server.ts` - Revision history endpoint
+- `src/utils/server/collection-utils.server.ts` - Server-side collection utilities
+
+This workflow ensures **enterprise-grade performance, type safety, and maintainability** for all SveltyCMS collection and entry operations.

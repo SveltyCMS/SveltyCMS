@@ -10,7 +10,7 @@ import type { PageServerLoad } from './$types';
 import { hasPermissionWithRoles, getAllPermissions } from '@src/databases/auth/permissions';
 
 // System Logger - Ensure logger is optimized for performance in production (e.g., disabled debug logs)
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

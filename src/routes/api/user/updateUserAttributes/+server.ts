@@ -29,7 +29,7 @@ import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Input validation
 import { email, maxLength, minLength, object, optional, parse, pipe, string, type BaseSchema, type ValiError } from 'valibot';

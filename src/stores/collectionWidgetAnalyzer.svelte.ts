@@ -5,7 +5,7 @@
 
 import type { Schema, FieldDefinition } from '@src/content/types';
 import type { WidgetPlaceholder } from '@widgets/types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger';
 
 export interface CollectionWidgetDependency {
 	collectionId: string;

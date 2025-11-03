@@ -23,7 +23,7 @@ import type { User, Session } from '@src/databases/auth/types';
 import { SessionAdapter } from '../models/authSession';
 import { TokenAdapter } from '../models/authToken';
 import { UserAdapter } from '../models/authUser';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { hashPassword } from '@utils/crypto';
 
 // Type helper to extract the auth interface from IDBAdapter
