@@ -41,7 +41,7 @@ test('should complete the setup wizard and create an admin user', async ({ page 
 
 	// Click "Test Database Connection" and wait for success
 	await page.getByRole('button', { name: 'Test Database Connection' }).click();
-	await expect(page.getByText(/connection successful/i)).toBeVisible({ timeout: 20000 });
+	await expect(page.getByText(/Database connected successfully/i)).toBeVisible({ timeout: 20000 });
 
 	// Click "Next"
 	await page.getByRole('button', { name: 'Next' }).click();

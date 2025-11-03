@@ -99,12 +99,15 @@ jobs:
           echo "Server failed to start within 60 seconds"
           exit 1
 
-      # Check if setup is needed (config/private.ts doesn't exist or is empty)
+      # Check if setup is needed (config/private.ts doesn't exist or has empty DB_HOST)
       - name: Check if setup is needed
         id: check_setup
         run: |
-          if [ ! -f config/private.ts ] || ! grep -q "DB_HOST" config/private.ts; then
-            echo "Setup needed"
+          if [ ! -f config/private.ts ]; then
+            echo "config/private.ts not found, setup needed"
+            echo "needs_setup=true" >> $GITHUB_OUTPUT
+          elif grep -q "DB_HOST: ''" config/private.ts || ! grep -q 'DB_HOST:' config/private.ts; then
+            echo "DB_HOST is empty or not set, setup needed"
             echo "needs_setup=true" >> $GITHUB_OUTPUT
           else
             echo "Setup already completed, skipping setup wizard"
@@ -149,7 +152,7 @@ jobs:
           ADMIN_PASS: Admin123!
         run: |
           echo "Running remaining Playwright tests..."
-          bunx playwright test --reporter=line --output=test-results/playwright --ignore tests/playwright/setup-wizard.spec.ts
+          bunx playwright test --reporter=line --output=test-results/playwright --grep-invert "setup-wizard"
 
       # Server-only tests (can run after main tests)
       - name: Run Bun tests (API)
