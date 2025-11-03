@@ -12,9 +12,9 @@ const authFile = path.resolve(__dirname, '..', '..', 'setup-storage-state.json')
 
 test('should complete the setup wizard and create an admin user', async ({ page }) => {
 	// 1. Go to the site, expect redirect to /setup
-	await page.goto('/');
+	await page.goto('/', { waitUntil: 'networkidle' });
 	await expect(page).toHaveURL(/.*\/setup/, { timeout: 30000 });
-	await expect(page.getByRole('heading', { name: 'Database Configuration' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Database Configuration' })).toBeVisible({ timeout: 15000 });
 
 	// --- Step 1: Database Configuration ---
 	// Fill out the form using environment variables

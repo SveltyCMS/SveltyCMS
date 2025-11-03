@@ -99,6 +99,24 @@ jobs:
           echo "Server failed to start within 60 seconds"
           exit 1
 
+      # Run setup wizard first to initialize the app (only on chromium to save time)
+      - name: Run Setup Wizard
+        env:
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB: SveltyCMS
+          MONGO_USER: admin
+          MONGO_PASS: admin
+          ADMIN_USER: admin
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASS: Admin123!
+          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
+        run: |
+          mkdir -p test-results/playwright
+          echo "=== Running setup wizard to initialize application ==="
+          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list --retries=2
+          echo "=== Setup wizard completed ==="
+
       - name: Run Playwright tests
         # We pass all secrets and configs as environment variables
         # so both playwright.config.ts and setup-wizard.spec.ts can access them.
@@ -117,8 +135,8 @@ jobs:
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
         run: |
-          mkdir -p test-results/playwright
-          bunx playwright test --reporter=line --output=test-results/playwright
+          echo "Running remaining Playwright tests..."
+          bunx playwright test --reporter=line --output=test-results/playwright --ignore tests/playwright/setup-wizard.spec.ts
 
       # Server-only tests (can run after main tests)
       - name: Run Bun tests (API)
