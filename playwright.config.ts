@@ -47,37 +47,60 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'], headless: false }
+			use: {
+				...devices['Desktop Chrome'],
+				headless: process.env.CI ? true : false  // Always headless in CI
+			}
 		},
 
 		{
 			name: 'firefox',
-			use: { ...devices['Desktop Firefox'] }
+			use: {
+				...devices['Desktop Firefox'],
+				headless: process.env.CI ? true : false
+			}
 		},
 
 		{
 			name: 'webkit',
-			use: { ...devices['Desktop Safari'] }
+			use: {
+				...devices['Desktop Safari'],
+				headless: process.env.CI ? true : false
+			}
 		},
 
 		/* Test against mobile viewports. */
 		{
 			name: 'Mobile Chrome',
-			use: { ...devices['Pixel 5'] }
+			use: {
+				...devices['Pixel 5'],
+				headless: process.env.CI ? true : false
+			}
 		},
 		{
 			name: 'Mobile Safari',
-			use: { ...devices['iPhone 12'] }
+			use: {
+				...devices['iPhone 12'],
+				headless: process.env.CI ? true : false
+			}
 		},
 
 		/* Test against branded browsers. */
 		{
 			name: 'Microsoft Edge',
-			use: { ...devices['Desktop Edge'], channel: 'msedge' }
+			use: {
+				...devices['Desktop Edge'],
+				channel: 'msedge',
+				headless: process.env.CI ? true : false
+			}
 		},
 		{
 			name: 'Google Chrome',
-			use: { ...devices['Desktop Chrome'], channel: 'chrome' }
+			use: {
+				...devices['Desktop Chrome'],
+				channel: 'chrome',
+				headless: process.env.CI ? true : false
+			}
 		}
 	],
 
