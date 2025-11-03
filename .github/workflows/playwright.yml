@@ -67,13 +67,45 @@ jobs:
       - name: Sync SvelteKit build internals
         run: bunx svelte-kit sync
 
+      # Build for preview mode
+      - name: Build for preview
+        if: matrix.mode == 'preview'
+        run: bun run build
+
+      # Start dev or preview server in background
+      - name: Start dev server
+        if: matrix.mode == 'dev'
+        run: bun run dev --port 5173 &
+        env:
+          PLAYWRIGHT_TEST: 'true'
+
+      - name: Start preview server
+        if: matrix.mode == 'preview'
+        run: bun run preview --port 4173 &
+
+      # Wait for server to be ready
+      - name: Wait for server
+        run: |
+          URL="${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}"
+          echo "Waiting for server at $URL..."
+          for i in {1..60}; do
+            if curl -sf "$URL" > /dev/null 2>&1; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/60: Server not ready yet, waiting..."
+            sleep 1
+          done
+          echo "Server failed to start within 60 seconds"
+          exit 1
+
       - name: Run Playwright tests
         # We pass all secrets and configs as environment variables
         # so both playwright.config.ts and setup-wizard.spec.ts can access them.
         env:
           # --- Config for playwright.config.ts ---
           CI_MODE: ${{ matrix.mode }}
-          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://127.0.0.1:5173' || 'http://127.0.0.1:4173' }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
 
           # --- Config for setup-wizard.spec.ts ---
           MONGO_HOST: localhost
@@ -92,7 +124,7 @@ jobs:
       - name: Run Bun tests (API)
         if: matrix.mode == 'preview'
         env:
-          API_BASE_URL: http://127.0.0.1:4173
+          API_BASE_URL: http://localhost:4173
         run: |
           mkdir -p test-results/bun
           bun test tests/bun > test-results/bun/results.txt

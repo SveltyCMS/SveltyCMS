@@ -26,7 +26,7 @@ export default defineConfig({
 	/* Set environment variables for tests */
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
-		baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173',
+		baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || (process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173'),
 
 		launchOptions: {
 			slowMo: parseInt(process.env.SLOW_MO || '0'),
@@ -105,13 +105,16 @@ export default defineConfig({
 	],
 
 	/* Run your local dev server before starting the tests */
-	webServer: {
-		command: 'bun install && bun dev --port 5173',
-		port: 5173,
-		timeout: 60000, // Increased timeout to 1 minute
-		reuseExistingServer: true,
-		env: {
-			PLAYWRIGHT_TEST: 'true'
+	// In CI, the workflow starts the server manually, so we only use webServer locally
+	...(process.env.CI ? {} : {
+		webServer: {
+			command: 'bun install && bun dev --port 5173',
+			port: 5173,
+			timeout: 60000, // Increased timeout to 1 minute
+			reuseExistingServer: true,
+			env: {
+				PLAYWRIGHT_TEST: 'true'
+			}
 		}
-	}
+	})
 });
