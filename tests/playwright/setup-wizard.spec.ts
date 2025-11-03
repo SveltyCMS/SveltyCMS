@@ -14,20 +14,34 @@ test('should complete the setup wizard and create an admin user', async ({ page 
 	// 1. Go to the site, expect redirect to /setup
 	await page.goto('/', { waitUntil: 'networkidle' });
 	await expect(page).toHaveURL(/.*\/setup/, { timeout: 30000 });
-	await expect(page.getByRole('heading', { name: 'Database Configuration' })).toBeVisible({ timeout: 15000 });
+
+	// Click "Get started" button if it appears (welcome popup/modal)
+	const getStartedButton = page.getByRole('button', { name: /get started/i });
+	try {
+		if (await getStartedButton.isVisible({ timeout: 5000 })) {
+			console.log('Found "Get started" button, clicking...');
+			await getStartedButton.click();
+			await page.waitForTimeout(2000); // Wait for modal to close and form to appear
+		}
+	} catch (e) {
+		console.log('No "Get started" button found, continuing...');
+	}
+
+	// Wait for the database configuration form to be visible (check for heading or form field)
+	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
 
 	// --- Step 1: Database Configuration ---
 	// Fill out the form using environment variables
 	// Note: We use || 'default' for safety, but these *must* be set in the CI env.
-	await page.getByLabel(/Host/).fill(process.env.MONGO_HOST || 'localhost');
-	await page.getByLabel(/Port/).fill(process.env.MONGO_PORT || '27017');
-	await page.getByLabel(/Database Name/).fill(process.env.MONGO_DB || 'SveltyCMS');
-	await page.getByLabel(/User/).fill(process.env.MONGO_USER || 'admin');
-	await page.getByLabel(/Password/).fill(process.env.MONGO_PASS || 'admin');
+	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');
+	await page.locator('#db-port').fill(process.env.MONGO_PORT || '27017');
+	await page.locator('#db-name').fill(process.env.MONGO_DB || 'SveltyCMS');
+	await page.locator('#db-user').fill(process.env.MONGO_USER || 'admin');
+	await page.locator('#db-password').fill(process.env.MONGO_PASS || 'admin');
 
-	// Click "Test Connection" and wait for success
-	await page.getByRole('button', { name: 'Test Connection' }).click();
-	await expect(page.getByText('Connection successful!')).toBeVisible({ timeout: 20000 });
+	// Click "Test Database Connection" and wait for success
+	await page.getByRole('button', { name: 'Test Database Connection' }).click();
+	await expect(page.getByText(/connection successful/i)).toBeVisible({ timeout: 20000 });
 
 	// Click "Next"
 	await page.getByRole('button', { name: 'Next' }).click();
