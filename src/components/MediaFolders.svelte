@@ -4,12 +4,18 @@
 
 Simple file-manager-like component for organizing media folders.
 
-Features:
-- Tree view of media folders
+@example
+<MediaFolders />
+
+#### Features
+- Tree view of media folders with hierarchical structure
 - Edit mode toggle for folder management
 - Drag & drop to move folders (when edit mode is on)
 - Rename and delete folders (when edit mode is on)
 - Navigate folders by clicking
+- Persistent expanded state
+- Responsive design with mobile support
+- Loading and error states
 -->
 
 <script lang="ts">
@@ -18,10 +24,15 @@ Features:
 	// Stores
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
+
+	// Utils
 	import { showToast } from '@utils/toast';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Types
 	interface FolderNode {
@@ -38,6 +49,14 @@ Features:
 		depth?: number;
 	}
 
+	interface RawFolder {
+		_id: string;
+		name: string;
+		path: string;
+		parentId?: string | null;
+		order?: number;
+	}
+
 	// State
 	let folders = $state<FolderNode[]>([]);
 	let expandedNodes = $state<Set<string>>(new Set());
@@ -46,21 +65,25 @@ Features:
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 
-	// Derived
-	let isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	// Derived states
+	const isSidebarFull = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	const isMobile = $derived(screenSize.value === 'SM');
 
-	// Fetch folders
-	async function fetchFolders() {
+	/**
+	 * Fetch folders from API
+	 */
+	async function fetchFolders(): Promise<void> {
 		isLoading = true;
 		error = null;
+
 		try {
 			const response = await fetch('/api/systemVirtualFolder');
 			const result = await response.json();
 
 			if (result.success && result.data) {
 				folders = result.data
-					.filter((folder: any) => folder.path && folder.path.startsWith('/'))
-					.map((folder: any) => ({
+					.filter((folder: RawFolder) => folder.path && folder.path.startsWith('/'))
+					.map((folder: RawFolder) => ({
 						id: folder._id,
 						name: folder.name,
 						path: folder.path,
@@ -71,20 +94,25 @@ Features:
 						nodeType: 'virtual' as const,
 						order: folder.order || 0
 					}));
+			} else {
+				throw new Error('Invalid response format');
 			}
 		} catch (err) {
 			error = 'Failed to load folders';
 			console.error('Error fetching folders:', err);
+			showToast('Failed to load folders', 'error');
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	// Build tree structure
-	let folderTree = $derived.by(() => {
+	/**
+	 * Build hierarchical folder tree structure
+	 */
+	const folderTree = $derived.by(() => {
 		const rootNode: FolderNode = {
 			id: 'root',
-			name: 'Media Root',
+			name: m.media_root_title(),
 			path: '/',
 			isExpanded: true,
 			onClick: () => handleFolderClick('root'),
@@ -96,6 +124,7 @@ Features:
 
 		if (folders.length === 0) return [rootNode];
 
+		// Create folder map
 		const folderMap = new Map<string, FolderNode>();
 		folders.forEach((folder) => {
 			folderMap.set(folder.id, {
@@ -105,6 +134,7 @@ Features:
 			});
 		});
 
+		// Build tree structure
 		const tree: FolderNode[] = [];
 		folders.forEach((folder) => {
 			const node = folderMap.get(folder.id)!;
@@ -117,26 +147,30 @@ Features:
 			}
 		});
 
-		// Set depths and sort
-		const setDepth = (nodes: FolderNode[], depth: number) => {
+		// Set depths and sort recursively
+		function setDepthAndSort(nodes: FolderNode[], depth: number): void {
 			nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
 			nodes.forEach((node) => {
 				node.depth = depth;
 				if (node.children && node.children.length > 0) {
-					setDepth(node.children, depth + 1);
+					setDepthAndSort(node.children, depth + 1);
 				}
 			});
-		};
-		setDepth(tree, 1);
+		}
+
+		setDepthAndSort(tree, 1);
 
 		rootNode.children = tree;
 		return [rootNode];
 	});
 
-	// Handle folder click
-	function handleFolderClick(folderId: string) {
+	/**
+	 * Handle folder selection
+	 */
+	function handleFolderClick(folderId: string): void {
 		selectedFolderId = folderId;
 
+		// Expand parent folders
 		if (folderId !== 'root') {
 			expandedNodes = new Set([...expandedNodes, folderId]);
 		}
@@ -146,13 +180,15 @@ Features:
 		goto(`/mediagallery${folderParam}`);
 
 		// Close sidebar on mobile
-		if (screenSize.value === 'SM') {
+		if (isMobile) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}
 
-	// Handle drag & drop
-	async function handleDragDrop(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') {
+	/**
+	 * Handle drag & drop folder reordering
+	 */
+	async function handleDragDrop(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside'): Promise<void> {
 		if (!isEditMode) return;
 
 		try {
@@ -193,92 +229,126 @@ Features:
 		}
 	}
 
-	// Initialize
+	// Toggle edit mode
+	function toggleEditMode(): void {
+		isEditMode = !isEditMode;
+	}
+
+	// Effects
+
+	// Initialize and listen for folder updates
 	$effect(() => {
 		fetchFolders();
 
-		// Listen for folder created/updated events
 		const handleFolderUpdate = () => fetchFolders();
 		document.addEventListener('folderCreated', handleFolderUpdate);
+		document.addEventListener('folderUpdated', handleFolderUpdate);
+		document.addEventListener('folderDeleted', handleFolderUpdate);
 
 		return () => {
 			document.removeEventListener('folderCreated', handleFolderUpdate);
+			document.removeEventListener('folderUpdated', handleFolderUpdate);
+			document.removeEventListener('folderDeleted', handleFolderUpdate);
 		};
 	});
 </script>
 
-<div class="media-folders-container">
+<div class="space-y-2" role="navigation" aria-label="Media folders navigation">
 	<!-- Header with Edit Mode Toggle -->
-	<div class="mb-2 flex items-center justify-between">
-		<h3 class="text-sm font-semibold text-surface-700 dark:text-surface-300">
-			<iconify-icon icon="bi:folder" width="18" class="mr-1 text-primary-500"></iconify-icon>
+	<div class="flex items-center justify-between">
+		<h3 class="flex items-center text-sm font-semibold text-surface-700 dark:text-surface-300">
+			<iconify-icon icon="bi:folder" width="18" class="mr-1 text-primary-500" aria-hidden="true"></iconify-icon>
 			Media Folders
 		</h3>
 
 		{#if isSidebarFull}
 			<button
-				onclick={() => (isEditMode = !isEditMode)}
-				class="btn btn-sm {isEditMode ? 'variant-filled-warning' : 'variant-ghost-surface'}"
+				type="button"
+				onclick={toggleEditMode}
+				class="btn btn-sm transition-colors {isEditMode ? 'variant-filled-warning' : 'variant-ghost-surface'}"
 				title={isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
+				aria-pressed={isEditMode}
 			>
-				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16"></iconify-icon>
-				{isEditMode ? 'Done' : 'Edit'}
+				<iconify-icon icon={isEditMode ? 'bi:check-circle' : 'bi:pencil'} width="16" aria-hidden="true"></iconify-icon>
+				<span class="ml-1">{isEditMode ? 'Done' : 'Edit'}</span>
 			</button>
 		{/if}
 	</div>
 
-	<!-- Edit Mode Info -->
+	<!-- Edit Mode Info Banner -->
 	{#if isEditMode && isSidebarFull}
-		<div class="mb-2 rounded bg-warning-500/10 p-2 text-xs text-warning-700 dark:text-warning-400">
-			<iconify-icon icon="bi:info-circle" width="14" class="mr-1"></iconify-icon>
-			Drag folders to move them
+		<div
+			class="flex items-start space-x-2 rounded-lg bg-warning-500/10 p-3 text-xs text-warning-700 dark:text-warning-400"
+			role="status"
+			aria-live="polite"
+		>
+			<iconify-icon icon="bi:info-circle" width="14" class="mt-0.5 shrink-0" aria-hidden="true"></iconify-icon>
+			<p>Drag folders to move them. Click to manage folder settings.</p>
 		</div>
 	{/if}
 
-	<!-- Loading State -->
-	{#if isLoading}
-		<div class="p-4 text-center">
-			<div class="flex items-center justify-center space-x-2">
-				<div class="h-4 w-4 animate-bounce rounded-full bg-primary-500"></div>
-				<div class="h-4 w-4 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.1s"></div>
-				<div class="h-4 w-4 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.2s"></div>
+	<!-- Folder Tree Content -->
+	<div class="media-folders-list" role="tree" aria-label="Media folder tree">
+		{#if isLoading}
+			<!-- Loading State -->
+			<div class="flex flex-col items-center justify-center space-y-3 p-6" role="status" aria-live="polite">
+				<div class="flex items-center justify-center space-x-2">
+					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.1s"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.2s"></div>
+				</div>
+				<p class="text-sm text-surface-600 dark:text-surface-400">Loading folders...</p>
 			</div>
-			<p class="mt-2 text-sm text-surface-600">Loading folders...</p>
-		</div>
-
-		<!-- Error State -->
-	{:else if error}
-		<div class="p-4 text-center text-error-500">
-			<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
-			<p class="mt-1 text-sm">{error}</p>
-			<button class="variant-filled-error btn btn-sm mt-2" onclick={fetchFolders}>Retry</button>
-		</div>
-
-		<!-- Folder Tree -->
-	{:else if folderTree.length > 0}
-		<TreeView
-			k={0}
-			nodes={folderTree}
-			selectedId={selectedFolderId}
-			compact={!isSidebarFull}
-			iconColorClass="text-primary-500"
-			showBadges={false}
-			allowDragDrop={isEditMode}
-			onReorder={handleDragDrop}
-		/>
-
-		<!-- Empty State -->
-	{:else}
-		<div class="p-4 text-center text-surface-500">
-			<iconify-icon icon="bi:folder" width="32" class="opacity-50"></iconify-icon>
-			<p class="mt-2 text-sm">No folders yet</p>
-		</div>
-	{/if}
+		{:else if error}
+			<!-- Error State -->
+			<div class="flex flex-col items-center justify-center space-y-3 p-6 text-center" role="alert" aria-live="assertive">
+				<iconify-icon icon="ic:outline-error" width="32" class="text-error-500" aria-hidden="true"></iconify-icon>
+				<p class="text-sm text-error-500">{error}</p>
+				<button type="button" class="variant-filled-error btn btn-sm" onclick={fetchFolders}>
+					<iconify-icon icon="ic:outline-refresh" width="16" class="mr-1" aria-hidden="true"></iconify-icon>
+					Retry
+				</button>
+			</div>
+		{:else if folderTree.length > 0}
+			<!-- Folder Tree View -->
+			<TreeView
+				k={0}
+				nodes={folderTree}
+				selectedId={selectedFolderId}
+				compact={!isSidebarFull}
+				iconColorClass="text-primary-500"
+				showBadges={false}
+				allowDragDrop={isEditMode}
+				onReorder={handleDragDrop}
+			/>
+		{:else}
+			<!-- Empty State -->
+			<div class="flex flex-col items-center justify-center space-y-2 p-6 text-center">
+				<iconify-icon icon="bi:folder" width="32" class="text-surface-400 opacity-50" aria-hidden="true"></iconify-icon>
+				<p class="text-sm text-surface-500 dark:text-surface-400">No folders yet</p>
+				<p class="text-xs text-surface-400">Create your first media folder to get started</p>
+			</div>
+		{/if}
+	</div>
 </div>
 
-<style>
-	.media-folders-container {
+<style lang="postcss">
+	/* Custom scrollbar styling */
+	.media-folders-list {
 		scrollbar-width: thin;
-		scrollbar-color: rgba(var(--color-primary-500) / 0.3) transparent;
+		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;
+	}
+
+	.media-folders-list::-webkit-scrollbar {
+		width: 4px;
+	}
+
+	.media-folders-list::-webkit-scrollbar-thumb {
+		background-color: rgb(var(--color-primary-500) / 0.3);
+		border-radius: 2px;
+	}
+
+	.media-folders-list::-webkit-scrollbar-thumb:hover {
+		background-color: rgb(var(--color-primary-500) / 0.5);
 	}
 </style>

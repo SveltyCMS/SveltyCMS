@@ -1,3 +1,21 @@
+<!--
+@file src/widgets/core/mediaUpload/Display.svelte
+@component
+**Media Upload Display Widget Component**
+
+Renders selected media files as thumbnails for display purposes.
+
+### Props
+- `value: string | string[] | null | undefined` - The ID(s) of the selected media file(s).
+
+### Features
+- **Thumbnail Display**: Shows small thumbnails of selected media files.
+- **Tooltip Support**: Displays the file name on hover.
+- **Fallback Handling**: Displays a dash if no files are selected.
+- **Svelte 5 Runes**: Uses `$state` and `$effect` for reactive state management.
+- **Utility-Driven Styling**: All styling is done using Tailwind CSS utility classes.
+- **Semantic Colors**: Uses theme-defined semantic colors for borders and backgrounds.
+-->
 <script lang="ts">
 	import type { MediaFile } from './types';
 
@@ -31,29 +49,17 @@
 	});
 </script>
 
-<div class="display-container">
+<div class="flex items-center justify-center gap-1 p-0.5">
 	{#if files.length > 0}
 		{#each files as file (file._id)}
-			<img src={file.thumbnailUrl} alt={file.name} title={file.name} class="thumbnail" />
+			<img
+				src={file.thumbnailUrl}
+				alt={file.name}
+				title={file.name}
+				class="h-8 w-8 rounded border border-surface-200 object-cover dark:border-surface-700"
+			/>
 		{/each}
 	{:else}
 		<span>–</span>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.display-container {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 4px;
-		padding: 2px;
-	}
-	.thumbnail {
-		width: 32px;
-		height: 32px;
-		object-fit: cover;
-		border-radius: 4px;
-		border: 1px solid #eee;
-	}
-</style>

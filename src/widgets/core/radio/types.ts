@@ -17,4 +17,6 @@ interface RadioOption {
 export interface RadioProps {
 	// An array of options to be displayed as radio buttons
 	options: RadioOption[];
+	// Legend text for the radio group
+	legend?: string;
 }

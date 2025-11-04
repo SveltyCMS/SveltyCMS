@@ -7,18 +7,22 @@ Provides native HTML date input with automatic ISO 8601 normalization.
 Part of the Three Pillars Architecture for widget system.
 
 @example
-<DateInput bind:value={dateValue} field={fieldDefinition} />
-User selects date → automatically converts to ISO 8601 UTC format 
+<DateInput bind:value={dateValue} {field} />
 
-### Props
+#### Props
 - `field: FieldType` - Widget field definition with metadata
 - `value: string | null | undefined` - ISO 8601 date string (bindable)
+- `error: string | null | undefined` - Validation error message
 
-### Features
-- **Native Date Picker**: Uses browser's built-in date input for optimal UX
-- **ISO 8601 Normalization**: Converts user input to standardized UTC format
-- **Timezone Consistency**: Ensures data consistency across different user timezones
-- **Automatic Validation**: HTML5 date validation with required field support
+#### Features
+- Native date picker for optimal UX
+- ISO 8601 normalization
+- Timezone consistency
+- Min/max date constraints
+- Automatic validation
+- Required field support
+- Helper text support
+- Accessible with ARIA labels
 -->
 
 <script lang="ts">
@@ -26,24 +30,29 @@ User selects date → automatically converts to ISO 8601 UTC format
 	import { validationStore } from '@stores/store.svelte';
 	import type { FieldType } from './';
 
-	// Accept `error` as a prop from the parent (string or null/undefined)
-	let { field, value, error }: { field: FieldType; value: string | null | undefined; error?: string | null | undefined } = $props();
+	interface Props {
+		field: FieldType;
+		value: string | null | undefined;
+		error?: string | null | undefined;
+	}
+
+	let { field, value = $bindable(), error }: Props = $props();
 
 	const fieldName = getFieldName(field);
 
-	// The native date input requires 'YYYY-MM-DD' format.
-	// We derive this from our stored ISO string value.
+	// Convert ISO string to YYYY-MM-DD format for native input
+
 	const inputValue = $derived.by(() => {
 		if (!value) return '';
 		try {
-			// Safely extract just the date part from the ISO string
 			return value.substring(0, 10);
 		} catch {
 			return '';
 		}
 	});
 
-	// Calculate min/max dates for constraints
+	// Calculate minimum date constraint
+
 	const minDate = $derived.by(() => {
 		if (!field.minDate) return undefined;
 		try {
@@ -53,6 +62,7 @@ User selects date → automatically converts to ISO 8601 UTC format
 		}
 	});
 
+	// Calculate maximum date constraint
 	const maxDate = $derived.by(() => {
 		if (!field.maxDate) return undefined;
 		try {
@@ -62,33 +72,34 @@ User selects date → automatically converts to ISO 8601 UTC format
 		}
 	});
 
-	// This function handles changes from the input and updates the parent `value`
-	function handleInput(event: Event & { currentTarget: HTMLInputElement }) {
+	// Handle date input change
+	function handleInput(event: Event & { currentTarget: HTMLInputElement }): void {
 		const dateStr = event.currentTarget.value;
+
 		if (dateStr) {
 			try {
-				// Validate date constraints
 				const selectedDate = new Date(dateStr);
 
+				// Validate min date constraint
 				if (field.minDate && selectedDate < new Date(field.minDate as string | Date)) {
 					validationStore.setError(fieldName, `Date must be on or after ${new Date(field.minDate as string | Date).toLocaleDateString()}`);
 					return;
 				}
 
+				// Validate max date constraint
 				if (field.maxDate && selectedDate > new Date(field.maxDate as string | Date)) {
 					validationStore.setError(fieldName, `Date must be on or before ${new Date(field.maxDate as string | Date).toLocaleDateString()}`);
 					return;
 				}
 
-				// Convert the 'YYYY-MM-DD' back to a full ISO string at UTC midnight.
-				// This ensures data consistency regardless of user timezone.
+				// Convert to ISO string at UTC midnight
 				value = selectedDate.toISOString();
 				validationStore.clearError(fieldName);
 			} catch (e) {
 				validationStore.setError(fieldName, 'Invalid date format');
 			}
 		} else {
-			value = null; // Clear the value if the input is empty
+			value = null;
 			if (field.required) {
 				validationStore.setError(fieldName, 'This field is required');
 			} else {
@@ -98,21 +109,23 @@ User selects date → automatically converts to ISO 8601 UTC format
 	}
 
 	// Handle blur for final validation
-	function handleBlur() {
+	function handleBlur(): void {
 		if (!value && field.required) {
 			validationStore.setError(fieldName, 'This field is required');
 		}
 	}
 </script>
 
-<div class="input-container">
+<div class="relative space-y-1">
+	<!-- Screen Reader Only Label -->
 	<label for={field.db_fieldName} class="sr-only">
 		{field.label}
 		{#if field.required}
-			<span class="sr-only">(required)</span>
+			<span>(required)</span>
 		{/if}
 	</label>
 
+	<!-- Date Input -->
 	<input
 		type="date"
 		id={field.db_fieldName}
@@ -131,51 +144,23 @@ User selects date → automatically converts to ISO 8601 UTC format
 		data-testid="date-input"
 	/>
 
-	{#if field.helper}
-		<div id={`${field.db_fieldName}-helper`} class="helper-text">
+	<!-- Helper Text -->
+	{#if field.helper && !error}
+		<p id={`${field.db_fieldName}-helper`} class="text-xs text-gray-600 dark:text-gray-400">
 			{field.helper}
-		</div>
+		</p>
 	{/if}
 
+	<!-- Error Message -->
 	{#if error}
-		<p id={`${field.db_fieldName}-error`} class="error-message" role="alert" aria-live="polite">
+		<p id={`${field.db_fieldName}-error`} class="text-xs text-error-500" role="alert" aria-live="polite">
 			{error}
 		</p>
 	{/if}
 </div>
 
 <style lang="postcss">
-	.input-container {
-		position: relative;
-		padding-bottom: 1.5rem; /* Make space for the error message */
-	}
-
-	.input {
-		@apply w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm;
-		@apply bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100;
-		@apply focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500;
-		@apply transition-colors duration-200;
-		@apply disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500;
-	}
-
-	.input.invalid {
-		@apply border-red-500 focus:border-red-500 focus:ring-red-500;
-	}
-
-	.input:hover:not(:disabled) {
-		@apply border-gray-400;
-	}
-
-	/* Hide the default date picker icon in webkit browsers */
-	.input::-webkit-calendar-picker-indicator {
-		@apply cursor-pointer opacity-60 hover:opacity-100;
-	}
-
-	/* Firefox date picker styling */
-	.input::-moz-focus-inner {
-		border: 0;
-	}
-
+	/* Screen reader only utility */
 	.sr-only {
 		position: absolute;
 		width: 1px;
@@ -186,20 +171,5 @@ User selects date → automatically converts to ISO 8601 UTC format
 		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
-	}
-
-	.helper-text {
-		@apply mt-1 text-sm text-gray-600 dark:text-gray-400;
-	}
-
-	.error-message {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-		text-align: center;
-		font-size: 0.75rem;
-		color: #ef4444;
-		margin-top: 0.25rem;
 	}
 </style>

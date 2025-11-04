@@ -8,9 +8,12 @@
 
 ### Props
 - `value` {string}: The role ID to display
+- `roles` {Role[]}: Array of role objects to reference for display
 
-### features
+### Features
 - Dynamic role rendering based on user roles
+- Customizable role badges with icons and colors
+- Fallback to default role if role ID not found in roles array
 -->
 
 <script lang="ts">

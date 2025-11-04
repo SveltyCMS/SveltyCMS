@@ -1,17 +1,25 @@
 <!--
 @file src/widgets/core/mediaUpload/MediaUpload.svelte
-@components
-**MediaUpload widget**
+@component
+**Media Upload Widget Component**
 
-@example
-<MediaUpload label="MediaUpload" db_fieldName="mediaUpload" required={true} />
+This component allows users to upload and manage single media files (images).
+It integrates with a media library modal for selecting existing assets and provides
+functionality for image editing and basic file information display.
 
 ### Props
-- `field`: FieldType
-- `value`: any
+- `field`: FieldType & { path: string } - Configuration for the media upload field, including validation rules and storage path.
+- `value`: File | MediaImage - The currently selected file or media image object.
 
 ### Features
-- Translatable
+- **File Upload**: Allows direct file uploads via a file input.
+- **Media Library Integration**: Opens a modal to select existing media from the library.
+- **Image Preview**: Displays a preview of the selected image.
+- **Image Editing**: Provides an option to open a modal for image manipulation.
+- **File Information Display**: Shows details like file name, size, type, and timestamps.
+- **Validation**: Integrates with Valibot for client-side validation of file types.
+- **Reactivity**: Uses Svelte 5 runes (`$state`, `$props`, `$effect`) for efficient state management.
+- **Styling**: Adheres to the project's style guide using Tailwind CSS utility classes and semantic colors.
 -->
 
 <script lang="ts">
@@ -123,7 +131,7 @@
 <div class="relative mb-4 min-h-1">
 	{#if !_data}
 		<!-- File Input -->
-		<div class:error={!!validationError}>
+		<div class="rounded-lg border-2 border-dashed border-transparent" class:!border-error-500={!!validationError}>
 			<FileInput bind:value={_data} bind:multiple={field.multiupload} onChange={validateInput} />
 		</div>
 	{:else}
@@ -207,10 +215,11 @@
 <!-- Image Editor Modal -->
 {#if showImageEditor}
 	<ModalImageEditor
-		parent={undefined}
 		{_data}
 		{field}
 		{value}
+		parent={field.path}
+		updated={Date.now()}
 		mediaOnSelect={(file: File | MediaImage) => {
 			_data = file;
 			showImageEditor = false;
@@ -218,9 +227,3 @@
 		}}
 	/>
 {/if}
-
-<style lang="postcss">
-	.error {
-		border-color: rgb(239 68 68);
-	}
-</style>

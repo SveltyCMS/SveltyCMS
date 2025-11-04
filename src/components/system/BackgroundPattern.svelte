@@ -15,7 +15,13 @@ and configurable quality settings for weaker devices.
 	autoDetectPerformance={true}
 />
 
-@features
+### Props
+- `background` {'white' | '#242728'}: Background color of the SVG container (default: 'white')
+- `startDirection` {'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight'}: Starting point of the paths (default: 'TopLeft')
+- `endDirection` {'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight'}: Ending point of the paths (default: 'BottomRight')
+- `animationDirection` {'normal' | 'reverse'}: Direction of the animation (default: 'normal')
+
+### Features
 - Reduced path count for better performance
 - Hardware acceleration with CSS transforms
 - Configurable quality settings (low/medium/high)

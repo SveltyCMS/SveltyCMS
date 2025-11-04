@@ -198,6 +198,18 @@
 	"loading_loading": "Loading...",
 	"loading_pleasewait": "Please Wait",
 	"loading_widgets": "Loading widgets...",
+	"loading_navigation_top": "Navigating",
+	"loading_navigation_bottom": "Loading page...",
+	"loading_dataFetch_top": "Fetching data",
+	"loading_dataFetch_bottom": "Please wait...",
+	"loading_authentication_top": "Authenticating",
+	"loading_authentication_bottom": "Signing you in...",
+	"loading_initialization_top": "Initializing",
+	"loading_initialization_bottom": "Setting up application...",
+	"loading_imageUpload_top": "Uploading",
+	"loading_imageUpload_bottom": "Processing files...",
+	"loading_formSubmission_top": "Submitting",
+	"loading_formSubmission_bottom": "Processing request...",
 	"logo_slogan": "with Sveltekit Power",
 	"login_Happy_Holi": "Happy Holi",
 	"login_demo_message": "This site will reset every 10 min.",
@@ -826,5 +838,6 @@
 	"setup_troubleshoot_default_2": "Verify the database server is accessible",
 	"setup_troubleshoot_default_3": "Review the error message above for specific details",
 	"setup_troubleshoot_default_4": "Check the application logs for more information",
-	"setup_troubleshoot_default_5": "For Atlas: Try pasting the full connection string from MongoDB Compass"
+	"setup_troubleshoot_default_5": "For Atlas: Try pasting the full connection string from MongoDB Compass",
+	"media_root_title": "Media Root"
 }

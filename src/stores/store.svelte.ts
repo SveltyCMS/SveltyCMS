@@ -693,3 +693,81 @@ function createValidationStore() {
 }
 
 export const validationStore = createValidationStore();
+
+// --- Data Change Tracking Store ---
+/**
+ * Tracks whether form data has been modified from its initial state.
+ * Used by Fields.svelte to communicate with save buttons in HeaderEdit/RightSidebar.
+ *
+ * Flow:
+ * 1. Fields.svelte detects changes and calls setHasChanges(true)
+ * 2. Save buttons check hasChanges before deciding to reload
+ * 3. After save/cancel, reset() is called to clear the flag
+ */
+function createDataChangeStore() {
+	let hasChanges = $state<boolean>(false);
+	let initialDataSnapshot = $state<string>('');
+	const subscribers = new SvelteSet<(value: boolean) => void>();
+
+	const notify = () => {
+		for (const fn of subscribers) {
+			try {
+				fn(hasChanges);
+			} catch {
+				// noop: subscriber errors shouldn't break notifications
+			}
+		}
+	};
+
+	return {
+		get value() {
+			return hasChanges;
+		},
+		get hasChanges() {
+			return hasChanges;
+		},
+		get initialSnapshot() {
+			return initialDataSnapshot;
+		},
+		setHasChanges: (value: boolean) => {
+			if (hasChanges !== value) {
+				hasChanges = value;
+				notify();
+			}
+		},
+		setInitialSnapshot: (data: Record<string, unknown>) => {
+			initialDataSnapshot = JSON.stringify(data);
+			hasChanges = false;
+			notify();
+		},
+		compareWithCurrent: (currentData: Record<string, unknown>): boolean => {
+			if (!initialDataSnapshot) return false;
+			const currentSnapshot = JSON.stringify(currentData);
+			const changed = currentSnapshot !== initialDataSnapshot;
+			if (hasChanges !== changed) {
+				hasChanges = changed;
+				notify();
+			}
+			return changed;
+		},
+		reset: () => {
+			hasChanges = false;
+			initialDataSnapshot = '';
+			notify();
+		},
+		// Svelte store contract
+		subscribe: (run: (value: boolean) => void) => {
+			subscribers.add(run);
+			try {
+				run(hasChanges);
+			} catch {
+				// noop on initial call
+			}
+			return () => {
+				subscribers.delete(run);
+			};
+		}
+	};
+}
+
+export const dataChangeStore = createDataChangeStore();

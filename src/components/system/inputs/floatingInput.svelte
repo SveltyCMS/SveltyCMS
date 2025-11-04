@@ -2,6 +2,7 @@
  @file src/components/system/inputs/floatingInput.svelte
  @component 
  **FloatingInput component for handling text and password inputs with floating labels**
+
  #### Props
  - `value` {string}: The input value (bindable)
  - `showPassword` {boolean}: Initial visibility of password (bindable, default: false)
@@ -24,6 +25,12 @@
  - `onClick` {function}: Click event handler (optional)
  - `onInput` {function}: Input event handler (optional)
  - `onkeydown` {function}: Keydown event handler (optional)
+
+ ### Features
+ - Floating labels for better UX
+ - Password visibility toggle for password inputs
+ - Full ARIA support for accessibility
+ - Customizable styling via props
 -->
 
 <script lang="ts">

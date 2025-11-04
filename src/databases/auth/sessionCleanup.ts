@@ -31,9 +31,7 @@ const METRICS_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
 let cleanupInterval: NodeJS.Timeout | null = null;
 let metricsCleanupInterval: NodeJS.Timeout | null = null;
 
-/**
- * Clean up expired sessions and rotated sessions past grace period
- */
+// Clean up expired sessions and rotated sessions past grace period
 export async function cleanupExpiredSessions(): Promise<{
 	expiredSessions: number;
 	rotatedSessions: number;
@@ -67,9 +65,11 @@ export async function cleanupExpiredSessions(): Promise<{
 		const duration = performance.now() - startTime;
 
 		if (totalCleaned > 0) {
-			logger.info(`Session cleanup completed: ${expiredSessions} expired, ${rotatedSessions} rotated sessions cleaned in ${duration.toFixed(2)}ms`);
+			logger.info(
+				`Session cleanup completed: \x1b[34m${totalCleaned}\x1b[0m sessions cleaned, \x1b[34m${expiredSessions}\x1b[0m expired, \x1b[34m${rotatedSessions}\x1b[0m rotated sessions cleaned in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`
+			);
 		} else {
-			logger.debug(`Session cleanup completed: no sessions to clean (${duration.toFixed(2)}ms)`);
+			logger.debug(`Session cleanup completed: no sessions to clean (\x1b[32m${duration.toFixed(2)}ms\x1b[0m)`);
 		}
 
 		return { expiredSessions, rotatedSessions, totalCleaned };
@@ -80,9 +80,7 @@ export async function cleanupExpiredSessions(): Promise<{
 	}
 }
 
-/**
- * Start automatic session cleanup
- */
+// Start automatic session cleanup
 export function startSessionCleanup(): void {
 	if (cleanupInterval) {
 		logger.warn('Session cleanup is already running');
@@ -117,9 +115,7 @@ export function startSessionCleanup(): void {
 	logger.info('Session cleanup scheduled successfully');
 }
 
-/**
- * Stop automatic session cleanup
- */
+// Stop automatic session cleanup
 export function stopSessionCleanup(): void {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
@@ -134,9 +130,7 @@ export function stopSessionCleanup(): void {
 	}
 }
 
-/**
- * Get cleanup status
- */
+// Get cleanup status
 export function getCleanupStatus(): {
 	isRunning: boolean;
 	interval: number;
@@ -149,9 +143,7 @@ export function getCleanupStatus(): {
 	};
 }
 
-/**
- * Force immediate cleanup (useful for testing or manual triggers)
- */
+// Force immediate cleanup (useful for testing or manual triggers)
 export async function forceCleanup(): Promise<{
 	expiredSessions: number;
 	rotatedSessions: number;

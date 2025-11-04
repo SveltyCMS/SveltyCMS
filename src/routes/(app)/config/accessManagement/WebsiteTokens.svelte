@@ -294,7 +294,7 @@
 											};
 										}}
 									>
-										<div class="flex items-center justify-center text-center">
+										<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
 											{header.label}
 											<iconify-icon
 												icon="material-symbols:arrow-upward-rounded"
@@ -306,7 +306,7 @@
 										</div>
 									</th>
 								{/each}
-								<th>Actions</th>
+								<th class="text-terriary-500 text-center dark:text-primary-500">Action</th>
 							</tr>
 						</thead>
 						<tbody>

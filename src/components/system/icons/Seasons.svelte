@@ -5,7 +5,10 @@
 @description
 Dynamically displays seasonal greetings and festival-based UI decorations based on the configured `publicEnv.SEASON_REGION`. Supports regional celebrations for Western Europe, East Asia, and South Asia, with conditional rendering of festive messages and animations.
 
-@features
+### Props
+- None (relies on global settings via `publicEnv`)
+
+### Features
 - Regional support: Western Europe, East Asia, South Asia.
 - Detects and highlights key festivals such as:
   - **Western Europe**: New Year, Valentine's Day, Easter, May Day, Halloween, Christmas.

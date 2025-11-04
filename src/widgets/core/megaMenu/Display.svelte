@@ -29,11 +29,11 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 	import type { MenuItem } from './types';
 
 	let { value }: { value: MenuItem[] | null | undefined } = $props();
-	const lang = $derived($contentLanguage);
+	const lang = $derived(contentLanguage.value);
 </script>
 
 {#if value && value.length > 0}
-	<ul class="menu-display-list">
+	<ul class="menu-display-list list-none pl-4">
 		{#each value as item (item._id)}
 			<li>
 				<span>{(item._fields?.title as Record<string, string> | undefined)?.[lang] || 'Untitled'}</span>
@@ -46,10 +46,3 @@ Renders: Nested <ul> structure with proper hierarchy and localization
 {:else}
 	<span>–</span>
 {/if}
-
-<style lang="postcss">
-	ul {
-		list-style: none;
-		padding-left: 1rem;
-	}
-</style>

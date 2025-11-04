@@ -23,7 +23,7 @@
 - **Database-Agnostic**: Widgets handle data format (MongoDB: nested objects, SQL: relation tables via IDBAdapter)
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { getFieldName } from '@utils/utils';
 
 	// Auth & Page data
@@ -33,6 +33,9 @@
 
 	// Stores
 	import { collection, collectionValue, setCollectionValue } from '@src/stores/collectionStore.svelte';
+	import { translationProgress, contentLanguage, dataChangeStore } from '@stores/store.svelte';
+	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -53,9 +56,10 @@
 
 	let widgetFunctions = $state<Record<string, any>>({});
 	$effect(() => {
-		widgetFunctionsStore.subscribe((value) => {
+		const unsubscribe = widgetFunctionsStore.subscribe((value) => {
 			widgetFunctions = value;
-		})();
+		});
+		return unsubscribe;
 	});
 
 	// --- 1. RECEIVE DATA AS PROPS ---
@@ -83,6 +87,22 @@
 	// Track the last entry ID to detect when switching entries
 	let lastEntryId = $state<string | undefined>(undefined);
 
+	// Track current content language for reactivity
+	let currentContentLanguage = $state<Locale>(contentLanguage.value as Locale);
+
+	// React to contentLanguage store changes and update local state
+	// This ensures widgets remount with the correct language
+	$effect(() => {
+		const newLang = contentLanguage.value as Locale;
+		if (currentContentLanguage !== newLang) {
+			console.log('[Fields] Language changed:', currentContentLanguage, '→', newLang);
+			console.log('[Fields] Current collectionValue keys:', Object.keys(currentCollectionValue));
+			// Update immediately to trigger {#key} block
+			currentContentLanguage = newLang;
+			console.log('[Fields] Updated currentContentLanguage to:', currentContentLanguage);
+		}
+	});
+
 	// --- 3. DERIVED STATE FROM PROPS ---
 	let selectedRevision = $derived(revisions.find((r: any) => r._id === selectedRevisionId) || null);
 	let diffObject = $derived(selectedRevision?.diff || null);
@@ -99,6 +119,57 @@
 
 	// --- 4. SIMPLIFIED LOGIC ---
 	let derivedFields = $derived(fields || []);
+
+	// Get translation progress
+	let currentTranslationProgress = $derived(translationProgress.value);
+
+	// Track changes to translation progress for debugging
+	$effect(() => {
+		console.log('[Fields] Translation progress updated:', {
+			showProgress: translationProgress.value?.show,
+			languages: Object.keys(translationProgress.value || {}).filter((k) => k !== 'show')
+		});
+	});
+
+	// Get available languages
+	let availableLanguages = $derived.by<Locale[]>(() => {
+		// Wait for publicEnv to be initialized
+		const languages = publicEnv?.AVAILABLE_CONTENT_LANGUAGES;
+		if (!languages || !Array.isArray(languages)) {
+			return ['en'] as Locale[];
+		}
+		return languages as Locale[];
+	});
+
+	// Helper to get field translation percentage across all languages
+	function getFieldTranslationPercentage(field: any): number {
+		if (!field.translated) return 100; // Not a translatable field
+
+		const fieldName = `${collection.value?.name}.${getFieldName(field)}`;
+		const allLangs = availableLanguages; // Use the new derived state
+
+		// Avoid division by zero if no languages are configured
+		if (allLangs.length === 0) return 100;
+
+		let translatedCount = 0;
+
+		// Count how many languages have this field translated
+		for (const lang of allLangs) {
+			const langProgress = currentTranslationProgress?.[lang as Locale];
+			if (langProgress && langProgress.translated.has(fieldName)) {
+				translatedCount++;
+			}
+		}
+
+		// Calculate the overall percentage for this field
+		return Math.round((translatedCount / allLangs.length) * 100);
+	}
+
+	// Helper to get text color based on translation status
+	function getTranslationTextColor(percentage: number): string {
+		if (percentage === 100) return 'text-tertiary-500 dark:text-primary-500';
+		return 'text-error-500';
+	}
 
 	function ensureFieldProperties(field: any) {
 		if (!field) return null;
@@ -133,6 +204,8 @@
 			console.log('[Fields] Loading entry data:', globalId);
 			currentCollectionValue = { ...global } as any;
 			lastEntryId = globalId;
+			// Set initial snapshot for change tracking
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
@@ -140,16 +213,51 @@
 		if (!globalId && !lastEntryId && global && Object.keys(global).length > 0) {
 			console.log('[Fields] Initializing new entry');
 			currentCollectionValue = { ...global } as any;
+			// Set initial snapshot for change tracking
+			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
 		// Otherwise, push local changes to global (user is editing)
-		const local = currentCollectionValue as Record<string, unknown> | undefined;
+		// Use untrack to read currentCollectionValue without creating a dependency loop
+		const local = untrack(() => currentCollectionValue) as Record<string, unknown> | undefined;
 		if (local && Object.keys(local).length > 0) {
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
 			if (currentDataStr !== globalDataStr) {
-				setCollectionValue({ ...local });
+				console.log('[Fields] Pushing local changes to global store');
+				untrack(() => setCollectionValue({ ...local }));
+				// Track changes for save button state
+				dataChangeStore.compareWithCurrent(local as Record<string, any>);
+			}
+		}
+	});
+
+	// Separate effect to detect changes in currentCollectionValue and sync to store
+	// This is needed because the widget bind:value updates currentCollectionValue
+	let lastLocalValueStr = $state<string>('');
+	$effect(() => {
+		// React to currentCollectionValue changes (from widget inputs)
+		const localStr = JSON.stringify(currentCollectionValue);
+
+		// Skip if this is the initial load or empty
+		if (!currentCollectionValue || Object.keys(currentCollectionValue).length === 0) {
+			return;
+		}
+
+		// Only update if value actually changed
+		if (localStr !== lastLocalValueStr) {
+			console.log('[Fields] currentCollectionValue changed, syncing to store');
+			lastLocalValueStr = localStr;
+
+			// Update the global store (using untrack to avoid creating dependency)
+			const global = untrack(() => collectionValue.value);
+			const globalStr = JSON.stringify(global ?? {});
+
+			if (localStr !== globalStr) {
+				untrack(() => setCollectionValue({ ...currentCollectionValue }));
+				// Track changes for save button state
+				dataChangeStore.compareWithCurrent(currentCollectionValue as Record<string, any>);
 			}
 		}
 	});
@@ -238,11 +346,30 @@
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
 								>
-									<div class="flex justify-between px-[5px] text-start">
-										<p class="inline-block font-semibold capitalize">
-											{field.label || field.db_fieldName}
-											{#if field.required}<span class="text-error-500">*</span>{/if}
-										</p>
+									<div class="flex items-center justify-between gap-2 px-[5px] text-start">
+										<!-- Field label -->
+										<div class="flex items-center gap-2">
+											<p class="inline-block font-semibold capitalize">
+												{field.label || field.db_fieldName}
+												{#if field.required}<span class="text-error-500">*</span>{/if}
+											</p>
+										</div>
+										<div class="flex items-center gap-2">
+											<!-- Translation status -->
+											{#if field.translated}
+												{@const percentage = getFieldTranslationPercentage(field)}
+												{@const textColor = getTranslationTextColor(percentage)}
+												<div class="flex items-center gap-1 text-xs">
+													<iconify-icon icon="bi:translate" width="16"></iconify-icon>
+													<span class="font-medium text-tertiary-500 dark:text-primary-500">{currentContentLanguage.toUpperCase()}</span>
+													<span class="font-medium {textColor}">({percentage}%)</span>
+												</div>
+											{/if}
+											<!-- Icon for field type -->
+											{#if field.icon}
+												<iconify-icon icon={field.icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											{/if}
+										</div>
 									</div>
 
 									{#if field.widget}
@@ -255,7 +382,11 @@
 
 										{#if WidgetComponent}
 											{@const fieldName = getFieldName(field, false)}
-											<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											{#key currentContentLanguage}
+												<!-- Widget remounts when currentContentLanguage changes -->
+												<!-- Widgets read contentLanguage from store, not props -->
+												<WidgetComponent {field} WidgetData={{}} bind:value={currentCollectionValue[fieldName]} {tenantId} />
+											{/key}
 										{:else}
 											<p class="text-error-500">{m.Fields_no_widgets_found({ name: widgetName })}</p>
 										{/if}

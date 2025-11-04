@@ -3,10 +3,23 @@
 @component
 **MultiButton component**
 
-Features:
-- Conditional rendering of buttons based on modifyEntry
-- Dynamic button rendering based on provided buttons object
+@example
+<MultiButton buttons={buttons} defaultButton={defaultButton} />
 
+### Props
+- `buttons?: Record<string, { fn: () => void; icon: string; bg_color: string; color: string; }>;` - An optional object defining multiple buttons with their respective functions, icons, background colors, and text colors.
+- `defaultButton?: string;` - The key of the default button to display prominently.
+- `on:create?: () => void;` - Event handler for the 'Create' button.
+- `on:delete?: () => void;` - Event handler for the 'Delete' button.
+- `on:publish?: () => void;` - Event handler for the 'Publish' button.
+- `on:unpublish?: () => void;` - Event handler for the 'Unpublish' button.
+- `on:test?: () => void;` - Event handler for the 'Test' button.
+
+### Features
+- **Dynamic Button Actions**: Each button can have its own function, icon, background color, and text color.
+- **Expandable Menu**: The component can expand to show additional buttons when in 'modify' mode.
+- **Customizable Appearance**: Buttons can be styled individually based on provided properties.
+- **Event Handler Decoupling**: Button actions can be defined externally and passed in as props for better modularity.
 -->
 
 <script lang="ts">

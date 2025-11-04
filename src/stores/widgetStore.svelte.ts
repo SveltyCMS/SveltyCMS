@@ -49,49 +49,55 @@ export const isLoading = derived(widgetStore, ($store) => $store.isLoading);
 // Helper functions
 export function getWidget(name: string): Widget | undefined {
 	let widget: Widget | undefined;
-	widgets.subscribe(($widgets) => {
+	const unsubscribe = widgets.subscribe(($widgets) => {
 		widget = $widgets[name];
-	})();
+	});
+	unsubscribe();
 	return widget;
 }
 
 export function getWidgetFunction(name: string): WidgetFunction | undefined {
 	let widgetFn: WidgetFunction | undefined;
-	widgetFunctions.subscribe(($widgetFunctions) => {
+	const unsubscribe = widgetFunctions.subscribe(($widgetFunctions) => {
 		widgetFn = $widgetFunctions[name];
-	})();
+	});
+	unsubscribe();
 	return widgetFn;
 }
 
 export function isWidgetActive(name: string): boolean {
 	let active = false;
-	activeWidgets.subscribe(($activeWidgets) => {
+	const unsubscribe = activeWidgets.subscribe(($activeWidgets) => {
 		active = $activeWidgets.includes(name);
-	})();
+	});
+	unsubscribe();
 	return active;
 }
 
 export function isWidgetCore(name: string): boolean {
 	let isCore = false;
-	coreWidgets.subscribe(($coreWidgets) => {
+	const unsubscribe = coreWidgets.subscribe(($coreWidgets) => {
 		isCore = $coreWidgets.includes(name);
-	})();
+	});
+	unsubscribe();
 	return isCore;
 }
 
 export function isWidgetCustom(name: string): boolean {
 	let isCustom = false;
-	customWidgets.subscribe(($customWidgets) => {
+	const unsubscribe = customWidgets.subscribe(($customWidgets) => {
 		isCustom = $customWidgets.includes(name);
-	})();
+	});
+	unsubscribe();
 	return isCustom;
 }
 
 export function getWidgetDependencies(name: string): string[] {
 	let deps: string[] = [];
-	dependencyMap.subscribe(($dependencyMap) => {
+	const unsubscribe = dependencyMap.subscribe(($dependencyMap) => {
 		deps = $dependencyMap[name] || [];
-	})();
+	});
+	unsubscribe();
 	return deps;
 }
 
@@ -101,11 +107,12 @@ export function canDisableWidget(name: string): boolean {
 
 	// Check if any other widgets depend on this one
 	let dependents: string[] = [];
-	dependencyMap.subscribe(($dependencyMap) => {
+	const unsubscribe = dependencyMap.subscribe(($dependencyMap) => {
 		dependents = Object.entries($dependencyMap)
 			.filter(([, deps]) => deps.includes(name))
 			.map(([widgetName]) => widgetName);
-	})();
+	});
+	unsubscribe();
 
 	// If any dependents are active, this widget cannot be disabled
 	return !dependents.some((dependent) => isWidgetActive(dependent));
@@ -469,9 +476,10 @@ export const widgetStoreActions = {
 			if (typeof window !== 'undefined') {
 				// Get current active widgets
 				let currentActiveWidgets: string[] = [];
-				activeWidgets.subscribe(($activeWidgets) => {
+				const unsubscribe = activeWidgets.subscribe(($activeWidgets) => {
 					currentActiveWidgets = $activeWidgets;
-				})();
+				});
+				unsubscribe();
 
 				// Client-side: use API call with active widgets as query param
 				const activeWidgetsParam = currentActiveWidgets.join(',');
@@ -516,9 +524,10 @@ async function loadActiveWidgetsFromDatabase(tenantId?: string): Promise<string[
 			// Client-side: use API call with cache bypass on first load to ensure fresh data after normalization updates
 			// Check if this is first load by seeing if store is empty
 			let needsRefresh = false;
-			widgetStore.subscribe(($store) => {
+			const unsubscribe = widgetStore.subscribe(($store) => {
 				needsRefresh = Object.keys($store.widgetFunctions).length === 0;
-			})();
+			});
+			unsubscribe();
 
 			const url = `/api/widgets/active${needsRefresh ? '?refresh=true' : ''}`;
 			logger.debug(`[widgetStore] Client-side: Fetching from ${url}`, { tenantId, needsRefresh });
@@ -604,9 +613,10 @@ if (typeof window !== 'undefined') {
 if (import.meta.hot) {
 	import.meta.hot.accept(() => {
 		let currentTenantId: string | undefined;
-		widgetStore.subscribe(($store) => {
+		const unsubscribe = widgetStore.subscribe(($store) => {
 			currentTenantId = $store.tenantId;
-		})();
+		});
+		unsubscribe(); // Immediately unsubscribe after getting the value
 
 		widgetStoreActions.reloadWidgets(currentTenantId);
 		logger.info('Widgets reloaded due to file changes.');

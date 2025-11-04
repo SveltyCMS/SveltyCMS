@@ -7,68 +7,61 @@ Renders ISO 8601 date values in localized format using the browser's language se
 Part of the Three Pillars Architecture for widget system.
 
 @example
-
 <DateDisplay value="2025-09-24T00:00:00.000Z" />
-Renders: 24.09.2025 (German) or 9/24/2025 (US) based on browser locale
+<DateDisplay value="2025-09-24T00:00:00.000Z" format="long" showRelative={true} />
 
-### Props
+#### Props
 - `value: DateWidgetData` - ISO 8601 date string from validated input
+- `format: 'short' | 'medium' | 'long' | 'full'` - Date format style (default: 'medium')
+- `showRelative: boolean` - Show relative time for recent dates (default: true)
 
-### Features
-- **Automatic Localization**: Uses `document.documentElement.lang` for proper i18n
-- **Intl.DateTimeFormat**: Leverages browser's native date formatting
-- **Graceful Fallbacks**: Handles invalid dates and null values elegantly
-- **Zero Dependencies**: Pure browser APIs for maximum compatibility
+#### Features
+- Automatic localization using browser locale
+- Intl.DateTimeFormat for native date formatting
+- Relative time for recent dates (Today, Yesterday, etc.)
+- Graceful fallbacks for invalid dates
+- Tooltip with ISO string
+- Zero dependencies
 -->
 
 <script lang="ts">
 	import type { DateWidgetData } from './';
 
-	let { value, format = 'medium' }: { value: DateWidgetData; format?: 'short' | 'medium' | 'long' | 'full' } = $props();
+	interface Props {
+		value: DateWidgetData;
+		format?: 'short' | 'medium' | 'long' | 'full';
+		showRelative?: boolean;
+	}
+
+	let { value, format = 'medium', showRelative = true }: Props = $props();
 
 	// Get the user's preferred language from the browser
-	const userLocale = document.documentElement.lang || 'en-US';
+	const userLocale = $derived(typeof document !== 'undefined' ? document.documentElement.lang || 'en-US' : 'en-US');
 
-	// Date formatting options based on format prop
+	// Get date formatting options based on format prop
 	const dateOptions = $derived.by(() => {
-		switch (format) {
-			case 'short':
-				return { dateStyle: 'short' as const };
-			case 'long':
-				return { dateStyle: 'long' as const };
-			case 'full':
-				return { dateStyle: 'full' as const };
-			case 'medium':
-			default:
-				return { dateStyle: 'medium' as const };
-		}
+		const optionsMap = {
+			short: { dateStyle: 'short' as const },
+			medium: { dateStyle: 'medium' as const },
+			long: { dateStyle: 'long' as const },
+			full: { dateStyle: 'full' as const }
+		};
+		return optionsMap[format];
 	});
 
-	const formattedDate = $derived.by(() => {
-		if (!value) return '–';
-
-		try {
-			const date = new Date(value);
-			if (isNaN(date.getTime())) return 'Invalid Date';
-
-			// Use the browser's built-in localization to format the date correctly
-			return new Intl.DateTimeFormat(userLocale, dateOptions).format(date);
-		} catch (e) {
-			console.warn('Date formatting error:', e);
-			return 'Invalid Date';
-		}
-	});
-
-	// Relative time for recent dates (optional enhancement)
+	// Calculate relative time for recent dates
 	const relativeTime = $derived.by(() => {
-		if (!value) return null;
+		if (!value || !showRelative) return null;
 
 		try {
 			const date = new Date(value);
+			if (isNaN(date.getTime())) return null;
+
 			const now = new Date();
 			const diffTime = now.getTime() - date.getTime();
 			const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
+			// Return relative time for dates within a week
 			if (diffDays === 0) return 'Today';
 			if (diffDays === 1) return 'Yesterday';
 			if (diffDays === -1) return 'Tomorrow';
@@ -80,15 +73,46 @@ Renders: 24.09.2025 (German) or 9/24/2025 (US) based on browser locale
 			return null;
 		}
 	});
+
+	// Format date using Intl.DateTimeFormat
+	const formattedDate = $derived.by(() => {
+		if (!value) return '–';
+
+		try {
+			const date = new Date(value);
+			if (isNaN(date.getTime())) return 'Invalid Date';
+
+			return new Intl.DateTimeFormat(userLocale, dateOptions).format(date);
+		} catch (e) {
+			console.warn('Date formatting error:', e);
+			return 'Invalid Date';
+		}
+	});
+
+	// Get ISO string for tooltip
+	const isoString = $derived.by(() => {
+		if (!value) return undefined;
+		try {
+			const date = new Date(value);
+			return isNaN(date.getTime()) ? undefined : date.toISOString();
+		} catch {
+			return undefined;
+		}
+	});
+
+	// Final display text
+	const displayText = $derived(relativeTime || formattedDate);
 </script>
 
-<span class="date-display" title={value ? new Date(value).toISOString() : undefined}>
-	{relativeTime || formattedDate}
-</span>
-
-<style lang="postcss">
-	.date-display {
-		@apply text-gray-900 dark:text-gray-100;
-		@apply font-medium;
-	}
-</style>
+<time class="inline-flex items-center font-medium text-gray-900 dark:text-gray-100" title={isoString} datetime={isoString}>
+	{#if relativeTime}
+		<span class="mr-1 text-primary-600 dark:text-primary-400">
+			{displayText}
+		</span>
+		<span class="text-xs text-gray-500 dark:text-gray-400">
+			({formattedDate})
+		</span>
+	{:else}
+		{displayText}
+	{/if}
+</time>

@@ -117,14 +117,15 @@ Radio({
 
 ## Configuration Properties
 
-| Property       | Type       | Required  | Default     | Description                         |
-| -------------- | ---------- | --------- | ----------- | ----------------------------------- |
-| `label`        | `string`   | ✅ Yes    | -           | Display label for the field         |
-| `db_fieldName` | `string`   | ✅ Yes    | -           | Database field name                 |
-| `options`      | `Option[]` | ✅ Yes    | `[]`        | Array of label/value pairs          |
-| `required`     | `boolean`  | ❌ No     | `false`     | Whether selection is mandatory      |
-| `helper`       | `string`   | ❌ No     | `undefined` | Helper text                         |
-| `translated`   | `boolean`  | 🔒 Locked | `false`     | Always false (values are universal) |
+| Property       | Type       | Required  | Default                | Description                         |
+| -------------- | ---------- | --------- | ---------------------- | ----------------------------------- |
+| `label`        | `string`   | ✅ Yes    | -                      | Display label for the field         |
+| `db_fieldName` | `string`   | ✅ Yes    | -                      | Database field name                 |
+| `options`      | `Option[]` | ✅ Yes    | `[]`                   | Array of label/value pairs          |
+| `required`     | `boolean`  | ❌ No     | `false`                | Whether selection is mandatory      |
+| `helper`       | `string`   | ❌ No     | `undefined`            | Helper text                         |
+| `translated`   | `boolean`  | 🔒 Locked | `false`                | Always false (values are universal) |
+| `ledgent`      | `string`   | ❌ No     | `'Select one option:'` | Legend text above radio group       |
 
 ### Option Interface
 
@@ -132,6 +133,11 @@ Radio({
 interface Option {
 	label: string; // Display text shown to user
 	value: any; // Primitive value stored in database (string, number, boolean)
+}
+
+interface RadioProps {
+	options: Option[];
+	ledgent?: string;
 }
 ```
 

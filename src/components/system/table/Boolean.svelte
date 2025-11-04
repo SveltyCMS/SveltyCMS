@@ -6,8 +6,12 @@
 @example
 <Boolean value={true} />
 
-@props
+### Props
 - `value` {boolean}: The boolean value to display
+
+### Features:
+- Displays 'Yes' for true and 'No' for false
+- Uses badges with different gradients for visual distinction
 -->
 
 <script lang="ts">

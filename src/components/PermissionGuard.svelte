@@ -28,7 +28,7 @@
 
 <script lang="ts">
 	// FIX: Use $app/stores for page store
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	// Auth types
 	import type { PermissionConfig } from '@src/databases/auth/permissions';
@@ -59,8 +59,8 @@
 	// --- REMOVED unused `loading` state ---
 
 	// Reactive states derived from page data and config
-	let permissions = $derived(($page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
-	let isAdmin = $derived(($page.data.isAdmin || false) as boolean); // Default to false if undefined
+	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
+	let isAdmin = $derived((page.data.isAdmin || false) as boolean); // Default to false if undefined
 
 	// Derive specific permission data based on config contextId
 	let permissionData = $derived(

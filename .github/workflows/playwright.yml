@@ -67,13 +67,79 @@ jobs:
       - name: Sync SvelteKit build internals
         run: bunx svelte-kit sync
 
+      # Build for preview mode
+      - name: Build for preview
+        if: matrix.mode == 'preview'
+        run: bun run build
+
+      # Start dev or preview server in background
+      - name: Start dev server
+        if: matrix.mode == 'dev'
+        run: bun run dev --port 5173 &
+        env:
+          PLAYWRIGHT_TEST: 'true'
+
+      - name: Start preview server
+        if: matrix.mode == 'preview'
+        run: bun run preview --port 4173 &
+
+      # Wait for server to be ready
+      - name: Wait for server
+        run: |
+          URL="${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}"
+          echo "Waiting for server at $URL..."
+          for i in {1..60}; do
+            if curl -sf "$URL" > /dev/null 2>&1; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/60: Server not ready yet, waiting..."
+            sleep 1
+          done
+          echo "Server failed to start within 60 seconds"
+          exit 1
+
+      # Check if setup is needed (config/private.ts doesn't exist or has empty DB_HOST)
+      - name: Check if setup is needed
+        id: check_setup
+        run: |
+          if [ ! -f config/private.ts ]; then
+            echo "config/private.ts not found, setup needed"
+            echo "needs_setup=true" >> $GITHUB_OUTPUT
+          elif grep -q "DB_HOST: ''" config/private.ts || ! grep -q 'DB_HOST:' config/private.ts; then
+            echo "DB_HOST is empty or not set, setup needed"
+            echo "needs_setup=true" >> $GITHUB_OUTPUT
+          else
+            echo "Setup already completed, skipping setup wizard"
+            echo "needs_setup=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Run setup wizard first to initialize the app (only on chromium to save time)
+      - name: Run Setup Wizard
+        if: steps.check_setup.outputs.needs_setup == 'true'
+        env:
+          MONGO_HOST: localhost
+          MONGO_PORT: 27017
+          MONGO_DB: SveltyCMS
+          MONGO_USER: admin
+          MONGO_PASS: admin
+          ADMIN_USER: admin
+          ADMIN_EMAIL: admin@example.com
+          ADMIN_PASS: Admin123!
+          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
+        run: |
+          mkdir -p test-results/playwright
+          echo "=== Running setup wizard to initialize application ==="
+          bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list --retries=2
+          echo "=== Setup wizard completed ==="
+
       - name: Run Playwright tests
         # We pass all secrets and configs as environment variables
         # so both playwright.config.ts and setup-wizard.spec.ts can access them.
         env:
           # --- Config for playwright.config.ts ---
           CI_MODE: ${{ matrix.mode }}
-          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://127.0.0.1:5173' || 'http://127.0.0.1:4173' }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
 
           # --- Config for setup-wizard.spec.ts ---
           MONGO_HOST: localhost
@@ -85,14 +151,14 @@ jobs:
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
         run: |
-          mkdir -p test-results/playwright
-          bunx playwright test --reporter=line --output=test-results/playwright
+          echo "Running remaining Playwright tests..."
+          bunx playwright test --reporter=line --output=test-results/playwright --grep-invert "setup-wizard"
 
       # Server-only tests (can run after main tests)
       - name: Run Bun tests (API)
         if: matrix.mode == 'preview'
         env:
-          API_BASE_URL: http://127.0.0.1:4173
+          API_BASE_URL: http://localhost:4173
         run: |
           mkdir -p test-results/bun
           bun test tests/bun > test-results/bun/results.txt

@@ -9,13 +9,21 @@ It includes search, filter toggles, column visibility, and density controls, opt
 @example
 <TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 
-#### Props
+### Props
 - `globalSearchValue` {string}: Current value of the global search input (default: '')
 - `searchShow` {boolean}: Visibility of the search input (default: false)
 - `filterShow` {boolean}: Visibility of filter controls (default: false)
 - `columnShow` {boolean}: Visibility of column controls (default: false)
 - `density` {string}: Table density ('compact', 'normal', 'comfortable') (default: 'normal')
 - `densityOptions` {string[]}: Custom density options (default: ['compact', 'normal', 'comfortable'])
+- `showDeleted` {boolean}: Whether to show deleted items (default: false)
+
+### Features
+- Provides a responsive layout for table filtering controls
+- Supports dynamic updates to filter and search criteria
+- Allows customization of table density and column visibility
+- Integrates with global search and filter states
+- Optimized for performance with minimal re-renders
 -->
 
 <script lang="ts">

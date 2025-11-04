@@ -399,7 +399,7 @@ async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Prom
 				// Exponential backoff
 				retryDelay *= 2;
 			} else {
-				logger.error(`Virtual folder initialization failed after ${maxRetries} attempts: ${errorMsg}`);
+				logger.error(`Virtual folder initialization failed after \x1b[34m${maxRetries}\x1b[0m attempts: ${errorMsg}`);
 			}
 		}
 	} // All retries exhausted

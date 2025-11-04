@@ -1,8 +1,17 @@
 <!-- 
 @file src/components/system/inputs/Input.svelte
-@description Component for file input 
+@component 
+**Component for file input**
 
-Features:
+### Props:
+- `type`: 'text' | 'password' | 'email' - Type of the input field.
+- `label`: string - Label for the input field.
+- `labelClass`: string - Additional classes for the label.
+- `inputClass`: string - Additional classes for the input field.
+- `placeholder`: string - Placeholder text for the input field.
+- `value`: string - Value of the input field.
+
+### Features:
 - File input 
 - Multiple file input
 - Drag and drop

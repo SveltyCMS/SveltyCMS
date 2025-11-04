@@ -25,7 +25,8 @@ This component provides a streamlined interface for managing collection entries 
 
 <script lang="ts">
 	// SvelteKit imports
-	import { page } from '$app/stores'; // Use $app/stores
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state'; // Svelte 5 uses $app/state
 	import { getLocale } from '@src/paraglide/runtime';
 
 	// Actions and Utils
@@ -40,8 +41,8 @@ This component provides a streamlined interface for managing collection entries 
 
 	// Stores
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-	import { collection, collectionValue, mode, setCollectionValue } from '@stores/collectionStore.svelte';
-	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
+	import { collection, collectionValue, mode, setCollectionValue, setMode } from '@stores/collectionStore.svelte';
+	import { saveLayerStore, shouldShowNextButton, validationStore, dataChangeStore } from '@stores/store.svelte';
 	import { handleUILayoutToggle, uiStateManager } from '@stores/UIStore.svelte';
 
 	// Skeleton
@@ -56,11 +57,14 @@ This component provides a streamlined interface for managing collection entries 
 	const modalStore = getModalStore();
 
 	// --- Derived State from Page Data ---
-	let user = $derived($page.data.user);
-	let isAdmin = $derived(($page.data.isAdmin || false) as boolean);
+	let user = $derived(page.data.user);
+	let isAdmin = $derived((page.data.isAdmin || false) as boolean);
 
 	// --- Local State ---
 	let isLoading = $state(false);
+
+	// Track data changes using the centralized store
+	let hasDataChanged = $derived(dataChangeStore.hasChanges);
 
 	// --- Derived State from Stores and Props ---
 	let currentMode = $derived(mode.value);
@@ -72,6 +76,49 @@ This component provides a streamlined interface for managing collection entries 
 
 	// Derive schedule timestamp directly from currentEntry for display
 	let scheduleTimestamp = $derived(currentEntry?._scheduled ? Number(currentEntry._scheduled) : null);
+
+	// Helper to get a display-friendly username
+	// If the value looks like a UUID, try to get actual username from user object
+	function getDisplayName(value: string | undefined | null, fallbackUser?: typeof user): string {
+		if (!value) {
+			// Try to construct name from user object
+			if (fallbackUser) {
+				if (fallbackUser.username && !isUUID(fallbackUser.username)) {
+					return fallbackUser.username;
+				}
+				if (fallbackUser.firstName || fallbackUser.lastName) {
+					return [fallbackUser.firstName, fallbackUser.lastName].filter(Boolean).join(' ');
+				}
+				if (fallbackUser.email) {
+					return fallbackUser.email.split('@')[0];
+				}
+			}
+			return 'system';
+		}
+
+		// Check if it looks like a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+		if (isUUID(value)) {
+			// It's a UUID, try to get actual name from user object
+			if (fallbackUser) {
+				if (fallbackUser.username && !isUUID(fallbackUser.username)) {
+					return fallbackUser.username;
+				}
+				if (fallbackUser.firstName || fallbackUser.lastName) {
+					return [fallbackUser.firstName, fallbackUser.lastName].filter(Boolean).join(' ');
+				}
+				if (fallbackUser.email) {
+					return fallbackUser.email.split('@')[0];
+				}
+			}
+			return 'system';
+		}
+		return value;
+	}
+
+	function isUUID(value: string): boolean {
+		const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		return uuidPattern.test(value);
+	}
 
 	// Permissions derived from collection schema
 	let canWrite = $derived(currentCollection?.permissions?.[user?.role]?.write !== false);
@@ -190,6 +237,24 @@ This component provides a streamlined interface for managing collection entries 
 			return;
 		}
 
+		// Check if there are any changes using the centralized store
+		if (!hasDataChanged) {
+			// No changes - but still need to reload full list view
+			console.log('[RightSidebar] No changes detected, returning to list view without save');
+			handleUILayoutToggle();
+			dataChangeStore.reset();
+
+			// ✅ Navigate back to list view with full data reload
+			// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
+			const currentPath = page.url.pathname; // pathname excludes query parameters
+			console.log('[RightSidebar] No changes - Navigating to:', currentPath, 'from:', page.url.href);
+			await goto(currentPath, { invalidateAll: true });
+
+			// Update mode after navigation
+			setMode('view');
+			return;
+		}
+
 		// Get a fresh snapshot of collectionValue to ensure we have the latest widget data
 		const dataToSave: EntryData = { ...(currentEntry as EntryData) };
 
@@ -204,9 +269,10 @@ This component provides a streamlined interface for managing collection entries 
 
 		// Set metadata
 		if (currentMode === 'create') {
-			dataToSave.createdBy = user?.username ?? 'system';
+			// Use the same display name logic to ensure we save readable names
+			dataToSave.createdBy = getDisplayName(user?.username, user);
 		}
-		dataToSave.updatedBy = user?.username ?? 'system';
+		dataToSave.updatedBy = getDisplayName(user?.username, user);
 
 		if (process.env.NODE_ENV !== 'production') {
 			console.log('[RightSidebar] Data to save:', dataToSave);
@@ -214,8 +280,21 @@ This component provides a streamlined interface for managing collection entries 
 
 		await saveEntry(dataToSave);
 		handleUILayoutToggle();
-	}
 
+		// Reset change tracking
+		dataChangeStore.reset();
+
+		// ✅ Navigate back to list view with full data reload
+		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
+		const currentPath = page.url.pathname; // pathname excludes query parameters
+		console.log('[RightSidebar] Navigating to:', currentPath, 'from:', page.url.href);
+		await goto(currentPath, { invalidateAll: true });
+
+		// Update mode after navigation
+		setMode('view');
+
+		console.log('[Save] Navigated back to list view with full data');
+	}
 	function saveData() {
 		prepareAndSaveEntry();
 	}
@@ -309,21 +388,22 @@ This component provides a streamlined interface for managing collection entries 
 				</div>
 
 				<div class="space-y-3">
+					<!-- Created By -->
 					<div class="space-y-1">
 						<p class="text-sm font-medium">{m.sidebar_createdby()}</p>
 						<div class="variant-filled-surface rounded-lg p-3 text-center">
 							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-								{currentEntry?.createdBy || user?.username || 'system'}
+								{getDisplayName(currentEntry?.createdBy as string, user)}
 							</span>
 						</div>
 					</div>
-
+					<!-- Updated By -->
 					{#if currentEntry?.updatedBy}
 						<div class="space-y-1">
 							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
 							<div class="variant-filled-surface rounded-lg p-3 text-center">
 								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
-									{currentEntry?.updatedBy || user?.username || 'system'}
+									{getDisplayName(currentEntry?.updatedBy as string, user)}
 								</span>
 							</div>
 						</div>

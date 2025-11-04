@@ -448,7 +448,7 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 	aria-expanded={showRoutes}
 	tabindex="0"
 	use:drag
-	class="circle flex touch-none items-center justify-center bg-tertiary-500 [&>*]:pointer-events-none"
+	class="fixed z-[99999999] flex -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 active:scale-90 [&&>*]:pointer-events-none"
 	style="top:{(Math.min(buttonInfo.y, browser ? window.innerHeight - BUTTON_RADIUS : 0) / (browser ? window.innerHeight : 1)) * 100}%;
 	       left:{(Math.min(isRightToLeft() ? BUTTON_RADIUS : buttonInfo.x, browser ? window.innerWidth - BUTTON_RADIUS : 0) /
 		(browser ? window.innerWidth : 1)) *
@@ -467,7 +467,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 {#if showRoutes}
 	<button out:keepAlive|local onclick={closeMenu} class="fixed left-0 top-0 z-[9999999]" aria-label="Close navigation overlay">
-		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
+		<svg
+			bind:this={svg}
+			xmlns="http://www.w3.org/2000/svg"
+			use:setDash
+			class="pointer-events-none fixed left-0 top-0 h-full w-full [&&>line]:pointer-events-none [&&>line]:stroke-[#da1f1f] [&&>line]:stroke-[3px]"
+		>
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
 			{#each endpointsWithPos.slice(1) as endpoint (endpoint.tooltip)}
 				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
@@ -476,13 +481,11 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 
 		<div
 			transition:fade
-			class="absolute left-1/2 top-1/4 -z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+			class="absolute left-1/2 top-1/4 z-[9999998] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;
 			       left:{center.x}px;
 			       width:{MENU_RADIUS * 2}px;
-			       height:{MENU_RADIUS * 2}px;
-			       visibility:hidden;
-			       animation: showEndPoints 0.2s 0.2s forwards"
+			       height:{MENU_RADIUS * 2}px"
 		></div>
 
 		<div
@@ -500,11 +503,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 					navigateHome();
 				}
 			}}
-			class="circle flex items-center justify-center border-2 bg-gray-600"
+			class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] cursor-pointer items-center justify-center rounded-full border-2 bg-tertiary-500"
 			style="top:{center.y}px;
-			       left:{center.x}px;
-			       visibility:hidden;
-			       animation: showEndPoints 0.2s 0.2s forwards"
+			       left:{center.x}px"
 		>
 			<iconify-icon width="32" style="color:white" icon={endpoints[0]?.icon || 'solar:home-bold'}></iconify-icon>
 		</div>
@@ -525,10 +526,10 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 						navigateToEndpoint(endpoint);
 					}
 				}}
-				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
+				class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full {endpoint.color ||
+					'bg-tertiary-500'} animate-[showEndPoints_0.2s_0.4s_forwards] hover:scale-150 active:scale-100"
 				style="top:{endpoint.y}px;
-				       left:{endpoint.x}px;
-				       animation: showEndPoints 0.2s 0.4s forwards"
+				       left:{endpoint.x}px"
 			>
 				<iconify-icon width="32" style="color:white" icon={endpoint.icon}></iconify-icon>
 			</div>
@@ -537,45 +538,12 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 {/if}
 
 <style lang="postcss">
-	.circle {
-		position: fixed;
-		transform: translate(-50%, -50%);
-		border-radius: 50%;
-		width: 50px;
-		height: 50px;
-		cursor: pointer;
-		z-index: 99999999;
-	}
-	.circle:not(:first-of-type):hover {
-		transform: translate(-50%, -50%) scale(1.5);
-	}
-	.circle:not(:first-of-type):active {
-		transform: translate(-50%, -50%) scale(1) !important;
-	}
-	.circle:first-of-type:active {
-		transform: translate(-50%, -50%) scale(0.9) !important;
-	}
-
-	svg {
-		position: fixed;
-		left: 0;
-		top: 0;
-		height: 100%;
-		width: 100%;
-		pointer-events: none;
-	}
-
-	line {
-		stroke: #da1f1f;
-		stroke-width: 3;
-		pointer-events: none;
-	}
-
-	@keyframes -global-showEndPoints {
+	@keyframes :global(showEndPoints) {
 		from {
+			opacity: 0;
 			visibility: hidden;
 		}
-		100% {
+		to {
 			opacity: 1;
 			visibility: visible;
 		}

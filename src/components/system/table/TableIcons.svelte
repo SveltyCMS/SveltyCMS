@@ -6,10 +6,18 @@
 @example
 <TableIcons checked={true} />
 
-@props
+### Props
 - `checked` {boolean}: The checked state of the icon
 - `iconStatus` {string}: The status of the icon
 - `onCheck` {(checked: boolean) => void}: Callback function for check event
+- `cellClass` {string}: Optional classes applied to the root `<td>`
+
+### Features
+- Provides a visual representation of the icon's checked state
+- Supports different icon styles based on status
+- Integrates with table row selection and actions
+- Optimized for performance with minimal re-renders
+- Accessible with keyboard navigation and screen readers
 -->
 
 <script lang="ts">

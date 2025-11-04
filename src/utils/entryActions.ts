@@ -3,6 +3,7 @@
  * @description Centralized functions for performing actions on collection entries.
  */
 
+import { invalidateAll } from '$app/navigation';
 import type { ModalSettings, ModalStore } from '@skeletonlabs/skeleton';
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
@@ -160,6 +161,9 @@ export async function saveEntry(entryData: Record<string, unknown>, publish: boo
 		}
 		setMode('view');
 		invalidateCollectionCache(collId);
+
+		// Trigger SvelteKit SSR reload
+		await invalidateAll();
 
 		// Clear client-side cache in EntryList component
 		if (typeof document !== 'undefined') {

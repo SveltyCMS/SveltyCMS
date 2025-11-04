@@ -1,6 +1,24 @@
 <!-- 
 @file src/components/system/inputs/Toggles.svelte
-@description Toggle switch component with customizable icons and labels
+@component
+**Toggle switch component with customizable icons and labels**
+
+### Props
+- `value` {boolean}: The toggle state (bindable)
+- `label` {string}: Label displayed next to the toggle (default: '')
+- `labelColor` {string}: Color class for the label when off (default: 'text-primary-500')
+- `iconOn` {string}: Icon to display when toggle is on (default: '')
+- `iconOff` {string}: Icon to display when toggle is off (default: '')
+- `size` {'sm' | 'md' | 'lg'}: Size of the toggle (default: 'md')
+- `disabled` {boolean}: Whether the toggle is disabled (default: false)
+- `title` {string}: Title attribute for the toggle (default: '')
+- `onChange` {(changed: boolean) => void}: Callback function when toggle state changes (optional)	
+
+### Features:
+- Customizable icons for on/off states
+- Size options for different UI needs
+- Disabled state handling
+- Accessible with proper labeling and focus management
 -->
 
 <script lang="ts">

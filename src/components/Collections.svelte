@@ -2,19 +2,21 @@
 @file src/components/Collections.svelte
 @component
 **Collections component for navigating content categories and collections**
+
 @example
 <Collections />
 
 #### Props
-- `collection` - The collection object to display data from.
-- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
+- None (uses global stores)
 
-Features:
+#### Features
 - Display collections and categories using TreeView
 - Advanced search with debouncing
 - Support for nested categories with expand/collapse
 - Widget validation warnings
 - Keyboard navigation support
+- Persistent expanded state
+- Performance optimized with memoization
 -->
 
 <script lang="ts" module>
@@ -26,27 +28,26 @@ Features:
 		children?: CollectionTreeNode[];
 		icon?: string;
 		badge?: {
-			count?: number; // Number to display in the badge
-			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete'; // Badge status
-			color?: string; // Badge color
-			visible?: boolean; // Badge visibility
-			icon?: string; // Badge Warning icon for inactive widgets
-			title?: string; // Tooltip title
+			count?: number;
+			status?: 'archive' | 'draft' | 'publish' | 'schedule' | 'clone' | 'test' | 'delete';
+			color?: string;
+			visible?: boolean;
+			icon?: string;
+			title?: string;
 		};
-		nodeType?: 'category' | 'collection'; // Type of the node
-		path?: string; // Path of the collection/category
-		lastModified?: Date; // Last modified date of the collection/category
-		isLoading?: boolean; // Indicate if the node is in a loading state
-		hasError?: boolean; // Indicate if there was an error loading this node
-		depth?: number; // Add depth property for indentation
-		order?: number; // Add order property for sorting
+		nodeType?: 'category' | 'collection';
+		path?: string;
+		lastModified?: Date;
+		isLoading?: boolean;
+		hasError?: boolean;
+		depth?: number;
+		order?: number;
 	}
 </script>
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { invalidateAll } from '$app/navigation';
 
 	// Types
 	import type { ContentNode, FieldInstance, Schema, StatusType, Translation } from '@src/content/types';
@@ -56,19 +57,19 @@ Features:
 	import { collection, contentStructure, mode, setMode } from '@stores/collectionStore.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
+	import { activeWidgets } from '@stores/widgetStore.svelte';
 
 	// Utils
 	import { debounce } from '@utils/utils';
 	import { validateSchemaWidgets } from '@utils/widgetValidation';
-	import { activeWidgets } from '@stores/widgetStore.svelte';
-	import { get } from 'svelte/store';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
 
-	// ParaglideJS
+	// i18n
 	import * as m from '@src/paraglide/messages';
 
+	// Extended ContentNode interface
 	interface ExtendedContentNode extends Omit<ContentNode, 'children' | 'order'> {
 		path?: string;
 		children?: ExtendedContentNode[];
@@ -85,207 +86,201 @@ Features:
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
+	let isSearching = $state(false);
 
-	// Debounce function
+	// Collection count cache for performance
+	const collectionCountCache = new Map<string, number>();
+
+	// Debounce search input
 	const debouncedSearchUpdate = debounce.create(
 		((searchValue: string) => {
 			debouncedSearch = searchValue.toLowerCase().trim();
+			isSearching = false;
 		}) as (...args: unknown[]) => unknown,
 		150
 	);
 
-	// --- Derived States ---
-	let nestedStructure = $derived(contentStructure.value || []);
-	let isFullSidebar = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	// Derived states
+	const nestedStructure = $derived(contentStructure.value || []);
+	const isFullSidebar = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	const currentLanguage = $derived(contentLanguage.value);
+	const selectedCollectionId = $derived(collection.value?._id);
+	const currentMode = $derived(mode.value);
+	const currentActiveWidgets = $derived($activeWidgets);
 
-	// Effect for debouncing search
-	$effect(() => {
-		debouncedSearchUpdate(search);
-	});
+	/**
+	 * Count total collections in a category tree
+	 */
+	function countAllCollections(node: ExtendedContentNode): number {
+		const cacheKey = node._id;
+		if (collectionCountCache.has(cacheKey)) {
+			return collectionCountCache.get(cacheKey)!;
+		}
 
-	// --- OPTIMIZED: collectionStructureNodes is now $derived ---
-	// eslint-disable-next-line svelte/prefer-svelte-reactivity
-	let collectionCountCache = new Map<string, number>();
+		if (!node.children) {
+			collectionCountCache.set(cacheKey, 0);
+			return 0;
+		}
 
-	let collectionStructureNodes = $derived(() => {
-		const structure = nestedStructure;
-		const lang = contentLanguage.value;
-		const expanded = expandedNodes;
-		const selectedId = collection.value?._id;
-		const activeWidgetList = get(activeWidgets);
-
-		collectionCountCache.clear();
-
-		function countAllCollections(node: ExtendedContentNode): number {
-			const cacheKey = node._id;
-			if (collectionCountCache.has(cacheKey)) {
-				return collectionCountCache.get(cacheKey)!;
+		let count = 0;
+		for (const child of node.children) {
+			if (child.nodeType === 'collection') {
+				count++;
+			} else if (child.nodeType === 'category') {
+				count += countAllCollections(child);
 			}
-			if (!node.children) {
-				collectionCountCache.set(cacheKey, 0);
-				return 0;
-			}
-			let count = 0;
-			for (const child of node.children) {
-				if (child.nodeType === 'collection') {
-					count++;
-				} else if (child.nodeType === 'category') {
-					count += countAllCollections(child);
+		}
+
+		collectionCountCache.set(cacheKey, count);
+		return count;
+	}
+
+	/**
+	 * Get status color for badge
+	 */
+	function getStatusColor(status?: StatusType): string {
+		const statusColorMap: Record<StatusType, string> = {
+			[StatusTypes.publish]: 'bg-success-500',
+			[StatusTypes.draft]: 'bg-warning-500',
+			[StatusTypes.archive]: 'bg-surface-500',
+			[StatusTypes.schedule]: 'bg-primary-500',
+			[StatusTypes.clone]: 'bg-secondary-500',
+			[StatusTypes.test]: 'bg-tertiary-500',
+			[StatusTypes.delete]: 'bg-error-500',
+			[StatusTypes.unpublish]: 'bg-warning-400'
+		};
+
+		return status ? statusColorMap[status] || 'bg-primary-500' : 'bg-primary-500';
+	}
+
+	/**
+	 * Map content node to tree node structure
+	 */
+	function mapNode(node: ExtendedContentNode, activeWidgetList: any[], depth = 0): CollectionTreeNode {
+		const isCategory = node.nodeType === 'category';
+		const translation = node.translations?.find((trans: Translation) => trans.languageTag === currentLanguage);
+		const label = translation?.translationName || node.name;
+		const nodeId = node._id;
+		const isExpanded = expandedNodes.has(nodeId) || selectedCollectionId === nodeId;
+
+		// Check for inactive widgets in collections
+		let hasInactiveWidgets = false;
+		if (!isCategory && node.fields) {
+			const validation = validateSchemaWidgets({ ...node, fields: node.fields } as Schema, activeWidgetList);
+			hasInactiveWidgets = !validation.valid;
+		}
+
+		// Map children recursively
+		let children: CollectionTreeNode[] | undefined;
+		if (isCategory && node.children) {
+			const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
+			children = sortedChildren.map((child) => mapNode(child, activeWidgetList, depth + 1));
+		}
+
+		// Create badge for categories or warning badge for collections
+		const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
+		const badge = isCategory
+			? {
+					count: countAllCollections(node),
+					visible: true,
+					status: allowedStatus.includes(node.status as (typeof allowedStatus)[number]) ? (node.status as (typeof allowedStatus)[number]) : undefined,
+					color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
 				}
-			}
-			collectionCountCache.set(cacheKey, count);
-			return count;
-		}
-
-		function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
-			const isCategory = node.nodeType === 'category';
-			const translation = node.translations?.find((trans: Translation) => trans.languageTag === lang);
-			const label = translation?.translationName || node.name;
-			const nodeId = node._id;
-			const isExpanded = expanded.has(nodeId) || selectedId === nodeId;
-
-			let hasInactiveWidgets = false;
-			if (!isCategory && node.fields) {
-				const validation = validateSchemaWidgets({ ...node, fields: node.fields } as Schema, activeWidgetList);
-				hasInactiveWidgets = !validation.valid;
-			}
-
-			let children: CollectionTreeNode[] | undefined;
-			if (isCategory && node.children) {
-				const sortedChildren = [...node.children].sort((a, b) => (a.order || 0) - (b.order || 0));
-				children = sortedChildren.map((child) => mapNode(child, depth + 1));
-			}
-
-			const allowedStatus = ['archive', 'draft', 'publish', 'schedule', 'clone', 'test', 'delete'] as const;
-			const badge = isCategory
+			: hasInactiveWidgets
 				? {
-						count: countAllCollections(node),
 						visible: true,
-						status: allowedStatus.includes(node.status as (typeof allowedStatus)[number])
-							? (node.status as (typeof allowedStatus)[number])
-							: undefined,
-						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
+						color: 'bg-warning-500',
+						icon: 'mdi:alert-circle',
+						title: 'This collection uses inactive widgets'
 					}
-				: hasInactiveWidgets
-					? {
-							visible: true,
-							color: 'bg-warning-500',
-							icon: 'mdi:alert-circle',
-							title: 'This collection uses inactive widgets'
-						}
-					: undefined;
+				: undefined;
 
-			return {
-				...node,
-				name: label,
-				id: nodeId,
-				isExpanded,
-				onClick: () => {
-					console.log('[Collections] onClick fired for node:', label, nodeId);
-					handleCollectionSelect(node);
-				},
-				children,
-				badge,
-				depth,
-				order: node.order || 0,
-				lastModified: node.lastModified
-			};
-		}
+		return {
+			...node,
+			name: label,
+			id: nodeId,
+			isExpanded,
+			onClick: () => handleCollectionSelect(node),
+			children,
+			badge,
+			depth,
+			order: node.order || 0,
+			lastModified: node.lastModified
+		};
+	}
 
-		const sortedRootNodes = [...structure].sort((a, b) => (a.order || 0) - (b.order || 0));
-		return sortedRootNodes.map((node) => mapNode(node));
+	/**
+	 * Build collection tree structure
+	 */
+	const collectionStructureNodes = $derived(() => {
+		collectionCountCache.clear();
+		const sortedRootNodes = [...nestedStructure].sort((a, b) => (a.order || 0) - (b.order || 0));
+		return sortedRootNodes.map((node) => mapNode(node, currentActiveWidgets));
 	});
 
-	// Helper function for navigation
+	/**
+	 * Navigate to a path with optional reload
+	 */
 	async function navigateTo(path: string, options: { replaceState?: boolean; forceReload?: boolean } = {}): Promise<void> {
-		console.log('[navigateTo] Starting navigation', {
+		console.log('[Collections.navigateTo]', {
 			targetPath: path,
 			currentPath: page.url.pathname,
-			forceReload: options.forceReload,
-			willInvalidate: options.forceReload || page.url.pathname === path
+			forceReload: options.forceReload
 		});
 
-		// If forcing reload or path is same but we need fresh data
+		// Force reload if needed
 		if (options.forceReload || page.url.pathname === path) {
-			console.log('[navigateTo] Calling invalidateAll before navigation');
-			await invalidateAll(); // Force SSR to re-run
+			await invalidateAll();
 		}
 
-		console.log('[navigateTo] Calling goto with invalidateAll: true');
 		await goto(path, {
 			replaceState: options.replaceState,
-			invalidateAll: true // Force data reload
+			invalidateAll: true
 		});
-		console.log('[navigateTo] Navigation completed');
 	}
 
-	// Get status color for badges
-	function getStatusColor(status?: StatusType): string {
-		switch (status) {
-			case StatusTypes.publish:
-				return 'bg-success-500';
-			case StatusTypes.draft:
-				return 'bg-warning-500';
-			case StatusTypes.archive:
-				return 'bg-surface-500';
-			default:
-				return 'bg-primary-500';
-		}
-	}
-
-	// Collection selection
-	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema) {
+	/**
+	 * Handle collection/category selection
+	 */
+	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema): void {
 		const isExtendedContentNode = (node: unknown): node is ExtendedContentNode =>
 			typeof node === 'object' && node !== null && '_id' in node && 'nodeType' in node;
 
-		if (isExtendedContentNode(selectedCollection)) {
-			if (selectedCollection.nodeType === 'collection') {
-				const currentCollectionId = collection.value?._id;
+		if (!isExtendedContentNode(selectedCollection)) return;
 
-				console.log('[handleCollectionSelect] Collection selected', {
-					selectedId: selectedCollection._id,
-					selectedName: selectedCollection.name,
-					selectedPath: selectedCollection.path,
-					currentCollectionId,
-					isSameCollection: currentCollectionId === selectedCollection._id
-				});
+		if (selectedCollection.nodeType === 'collection') {
+			const currentCollectionId = collection.value?._id;
+			const isSameCollection = currentCollectionId === selectedCollection._id;
 
-				// Always navigate to trigger SSR, even if same collection
-				// The path might be the same but we need fresh data
+			console.log('[Collections.handleCollectionSelect]', {
+				selectedId: selectedCollection._id,
+				selectedName: selectedCollection.name,
+				isSameCollection
+			});
 
-				// Set mode to view for collection display
-				setMode('view');
+			// Set mode to view
+			setMode('view');
+			shouldShowNextButton.set(true);
 
-				// Don't clear collection - let the server load set the new one
-				// This prevents the Loading flash
-				shouldShowNextButton.set(true);
-
-				// Clear cached entry list data
-				const cacheEvent = new CustomEvent('clearEntryListCache', {
+			// Clear entry list cache
+			document.dispatchEvent(
+				new CustomEvent('clearEntryListCache', {
 					detail: { resetState: true, reason: 'collection-switch' }
-				});
-				document.dispatchEvent(cacheEvent);
+				})
+			);
 
-				// Navigate to the collection using UUID
-				// The server will handle UUID lookup and the browser will show the path
-				const targetPath = `/${contentLanguage.value}/${selectedCollection._id}`;
-				console.log('[handleCollectionSelect] About to navigate to UUID:', targetPath);
-				navigateTo(targetPath, { forceReload: currentCollectionId === selectedCollection._id });
-			} else if (selectedCollection.nodeType === 'category') {
-				toggleNodeExpansion(selectedCollection._id);
-			}
+			// Navigate to collection using UUID
+			const targetPath = `/${currentLanguage}/${selectedCollection._id}`;
+			navigateTo(targetPath, { forceReload: isSameCollection });
+		} else if (selectedCollection.nodeType === 'category') {
+			toggleNodeExpansion(selectedCollection._id);
 		}
 	}
 
-	// Search clearing
-	function clearSearch() {
-		search = '';
-		debouncedSearch = '';
-	}
-
-	// Toggle node expansion
-	function toggleNodeExpansion(nodeId: string) {
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	/**
+	 * Toggle node expansion state
+	 */
+	function toggleNodeExpansion(nodeId: string): void {
 		const newSet = new Set(expandedNodes);
 		if (newSet.has(nodeId)) {
 			newSet.delete(nodeId);
@@ -295,11 +290,27 @@ Features:
 		expandedNodes = newSet;
 	}
 
-	// Effect to synchronize mode with route
+	/**
+	 * Clear search input
+	 */
+	function clearSearch(): void {
+		search = '';
+		debouncedSearch = '';
+	}
+
+	// Effects
+
+	// Debounce search input
+	$effect(() => {
+		if (search) {
+			isSearching = true;
+		}
+		debouncedSearchUpdate(search);
+	});
+
+	// Synchronize mode with route
 	$effect(() => {
 		const pathname = page.url.pathname;
-		const currentMode = mode.value;
-
 		// Only handle collection mode, media mode is handled by MediaFolders component
 		if (!pathname.includes('/mediagallery') && currentMode === 'media') {
 			setMode('view');
@@ -307,86 +318,107 @@ Features:
 	});
 </script>
 
-<div class="collections-container mt-2" role="navigation" aria-label="Collections navigation">
+<div class="mt-2 space-y-2" role="navigation" aria-label="Collections navigation">
 	<!-- Search Input -->
-	<div class="{isFullSidebar ? 'mb-2 w-full' : 'mb-1 max-w-[135px]'} input-group input-group-divider grid grid-cols-[1fr_auto]">
-		<div class="relative">
-			<input
-				type="text"
-				placeholder="Search collections..."
-				bind:value={search}
-				class="input {isFullSidebar ? 'h-12' : 'h-10'} outline-hidden pr-8 transition-all duration-500 ease-in-out"
-				aria-label="Search collections"
-				autocomplete="off"
-			/>
-			{#if search}
-				<div class="absolute right-2 top-1/2 -translate-y-1/2 transform">
-					<div class="h-2 w-2 animate-pulse rounded-full bg-primary-500"></div>
+	<div class="relative {isFullSidebar ? 'w-full' : 'max-w-[135px]'}" role="search">
+		<!-- Input Field -->
+		<input
+			type="text"
+			placeholder={isFullSidebar ? 'Search collections...' : 'Search...'}
+			bind:value={search}
+			class="w-full rounded border border-surface-300 bg-surface-50 px-3 pr-11 text-sm text-surface-900 outline-none transition-all duration-200 placeholder:text-surface-400 hover:border-surface-400 focus:border-tertiary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-50 dark:placeholder:text-surface-400 dark:hover:border-surface-500 dark:focus:border-primary-500 focus:dark:border-primary-500 {isFullSidebar
+				? 'h-12 py-2'
+				: 'h-10 py-1.5'}"
+			aria-label="Search collections"
+			autocomplete="off"
+		/>
+
+		<!-- Right Side Icon/Button -->
+		<div class="absolute right-1 top-1/2 -translate-y-1/2">
+			{#if isSearching}
+				<!-- Searching Indicator (pulsing dot while typing) -->
+				<div class="flex items-center justify-center {isFullSidebar ? 'h-8 w-8' : 'h-7 w-7'}" aria-hidden="true">
+					<div class="h-2 w-2 animate-pulse rounded-full bg-tertiary-500 dark:bg-primary-500"></div>
+				</div>
+			{:else if search}
+				<!-- Clear Button (when search is complete and has text) -->
+				<button type="button" onclick={clearSearch} class="variant-glass btn {isFullSidebar ? 'h-10 w-10' : 'h-7 w-7'}" aria-label="Clear search">
+					<iconify-icon icon="ic:round-close" width="16"></iconify-icon>
+				</button>
+			{:else}
+				<!-- Search Icon (when empty) -->
+				<div
+					class="flex items-center justify-center rounded bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-300 {isFullSidebar
+						? 'h-12 w-12'
+						: 'h-10 w-10'}"
+				>
+					<iconify-icon icon="ic:outline-search" width="24"></iconify-icon>
 				</div>
 			{/if}
 		</div>
-		<button
-			onclick={clearSearch}
-			class="variant-filled-surface w-12 transition-colors hover:variant-filled-primary"
-			aria-label="Clear search"
-			disabled={!search}
-		>
-			<iconify-icon icon={search ? 'ic:outline-clear' : 'ic:outline-search-off'} width="20"></iconify-icon>
-		</button>
 	</div>
 
-	<!-- Collections TreeView with Loading State -->
-	{#if isLoading}
-		<div class="p-4 text-center">
-			<div class="flex items-center justify-center space-x-2">
-				<div class="h-4 w-4 animate-bounce rounded-full bg-primary-500"></div>
-				<div class="h-4 w-4 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.1s"></div>
-				<div class="h-4 w-4 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.2s"></div>
+	<!-- Collections TreeView -->
+	<div class="collections-list" role="tree" aria-label="Collection tree">
+		{#if isLoading}
+			<div class="flex flex-col items-center justify-center space-y-3 p-6" role="status" aria-live="polite">
+				<div class="flex items-center justify-center space-x-2">
+					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.1s"></div>
+					<div class="h-3 w-3 animate-bounce rounded-full bg-primary-500" style="animation-delay: 0.2s"></div>
+				</div>
+				<p class="text-sm text-surface-600 dark:text-surface-400">Loading collections...</p>
 			</div>
-			<p class="mt-2 text-sm text-surface-600">Loading collections...</p>
-		</div>
-	{:else if error}
-		<div class="p-4 text-center text-error-500">
-			<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
-			<p class="mt-1 text-sm">{error}</p>
-			<button class="variant-filled-error btn btn-sm mt-2" onclick={() => window.location.reload()}> Retry </button>
-		</div>
-	{:else if collectionStructureNodes().length > 0}
-		<TreeView
-			k={0}
-			nodes={collectionStructureNodes()}
-			selectedId={collection.value?._id ?? null}
-			compact={!isFullSidebar}
-			search={debouncedSearch}
-			iconColorClass="text-error-500"
-			showBadges={true}
-		></TreeView>
-	{:else}
-		<div class="p-4 text-center text-surface-500">
-			<iconify-icon icon="bi:collection" width="32" class="opacity-50"></iconify-icon>
-			<p class="mt-2 text-sm">{m.collection_no_collections_found()}</p>
-		</div>
-	{/if}
+		{:else if error}
+			<div class="flex flex-col items-center justify-center space-y-3 p-6 text-center" role="alert" aria-live="assertive">
+				<iconify-icon icon="ic:outline-error" width="32" class="text-error-500"></iconify-icon>
+				<p class="text-sm text-error-500">{error}</p>
+				<button type="button" class="variant-filled-error btn btn-sm" onclick={() => window.location.reload()}>
+					<iconify-icon icon="ic:outline-refresh" width="16" class="mr-1"></iconify-icon>
+					Retry
+				</button>
+			</div>
+		{:else if collectionStructureNodes().length > 0}
+			<TreeView
+				k={0}
+				nodes={collectionStructureNodes()}
+				selectedId={selectedCollectionId ?? null}
+				compact={!isFullSidebar}
+				search={debouncedSearch}
+				iconColorClass="text-error-500"
+				showBadges={true}
+			/>
+		{:else}
+			<div class="flex flex-col items-center justify-center space-y-2 p-6 text-center">
+				<iconify-icon icon="bi:collection" width="32" class="text-surface-400 opacity-50"></iconify-icon>
+				<p class="text-sm text-surface-500 dark:text-surface-400">{m.collection_no_collections_found()}</p>
+			</div>
+		{/if}
+	</div>
 </div>
 
-<style>
-	/* Smooth animations for expansion states */
+<style lang="postcss">
+	/* Smooth animations for tree nodes */
 	:global(.tree-node) {
 		transition: all 0.2s ease-in-out;
 	}
 
-	/* Custom scrollbar for sidebar */
-	.collections-container {
+	/* Custom scrollbar styling */
+	.collections-list {
 		scrollbar-width: thin;
-		scrollbar-color: rgba(var(--color-primary-500) / 0.3) transparent;
+		scrollbar-color: rgb(var(--color-primary-500) / 0.3) transparent;
 	}
 
-	.collections-container::-webkit-scrollbar {
+	.collections-list::-webkit-scrollbar {
 		width: 4px;
 	}
 
-	.collections-container::-webkit-scrollbar-thumb {
-		background-color: rgba(var(--color-primary-500) / 0.3);
+	.collections-list::-webkit-scrollbar-thumb {
+		background-color: rgb(var(--color-primary-500) / 0.3);
 		border-radius: 2px;
+	}
+
+	.collections-list::-webkit-scrollbar-thumb:hover {
+		background-color: rgb(var(--color-primary-500) / 0.5);
 	}
 </style>

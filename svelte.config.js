@@ -51,7 +51,7 @@ const config = {
 				'script-src': ['self', 'unsafe-eval', 'blob:'], // unsafe-eval for dev HMR, blob: for workers
 				'worker-src': ['self', 'blob:'], // Allow workers from same origin and blob URLs
 				'style-src': ['self', 'unsafe-inline'], // unsafe-inline for faster builds
-				'img-src': ['self', 'data:', 'https://api.iconify.design', 'https://api.unisvg.com', 'https://api.simplesvg.com', 'https://placehold.co'],
+				'img-src': ['self', 'data:', 'blob:', 'https://api.iconify.design', 'https://api.unisvg.com', 'https://api.simplesvg.com', 'https://placehold.co'],
 				'font-src': ['self', 'data:'],
 				'connect-src': [
 					'self',

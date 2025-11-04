@@ -35,6 +35,7 @@ Features:
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { cloneEntries, setEntriesStatus } from '@utils/entryActions';
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
+	import { preloadEntry, reflectModeInURL } from '@utils/navigationUtils';
 	// Import centralized actions
 	// Config
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
@@ -72,7 +73,11 @@ Features:
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
-	let { entries: serverEntries = [], pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 } } = $props<{
+	let {
+		entries: serverEntries = [],
+		pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
+		contentLanguage: propContentLanguage
+	} = $props<{
 		entries?: any[];
 		pagination?: {
 			currentPage: number;
@@ -80,6 +85,7 @@ Features:
 			totalItems: number;
 			pagesCount: number;
 		};
+		contentLanguage?: string;
 	}>();
 
 	// =================================================================
@@ -168,6 +174,135 @@ Features:
 	let SelectAll = $state(false);
 	const selectedMap: Record<string, boolean> = $state({});
 
+	// =================================================================
+	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
+	// =================================================================
+	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
+	const preloadedEntries = new Map<string, { data: any; timestamp: number; hoverCount: number }>();
+
+	const PRELOAD_CACHE_TTL = 30000; // ms - keep preloaded data for 30 seconds
+
+	// Phase 2: Connection-aware preloading
+	let isSlowConnection = $state(false);
+	let isPreloadEnabled = $state(true);
+
+	// Phase 2: Predictive preloading - track hover patterns
+	const hoverPatterns = new Map<string, number>(); // entryId -> hover count
+	let predictivePreloadQueue: string[] = [];
+
+	// Detect connection speed
+	$effect(() => {
+		if (browser && 'connection' in navigator) {
+			const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+			if (conn) {
+				const checkConnection = () => {
+					const effectiveType = conn.effectiveType;
+					const saveData = conn.saveData;
+					isSlowConnection = saveData || effectiveType === 'slow-2g' || effectiveType === '2g';
+					isPreloadEnabled = !isSlowConnection;
+				};
+				checkConnection();
+				conn.addEventListener('change', checkConnection);
+				return () => conn.removeEventListener('change', checkConnection);
+			}
+		}
+	});
+
+	function handleRowHoverStart(entryId: string) {
+		// Phase 2: Respect connection awareness
+		if (!isPreloadEnabled) {
+			console.log('[Preload] Disabled on slow connection');
+			return;
+		}
+
+		// ✅ Use SvelteKit's preloadData
+		preloadEntry(entryId, page.url.pathname);
+
+		// Phase 2: Track hover patterns for predictive preloading
+		const currentCount = hoverPatterns.get(entryId) || 0;
+		hoverPatterns.set(entryId, currentCount + 1);
+
+		// Phase 2: Predictive preloading - queue frequently hovered entries
+		if (currentCount >= 2) {
+			predictivePreloadQueue.push(entryId);
+		}
+	}
+
+	function handleRowHoverEnd() {
+		// Cancel pending preload if user moves mouse away quickly
+		if (hoverPreloadTimeout) {
+			clearTimeout(hoverPreloadTimeout);
+			hoverPreloadTimeout = null;
+		}
+	}
+
+	// Phase 2: Batch preloading during idle time
+	async function batchPreloadVisibleEntries() {
+		if (!isPreloadEnabled || !browser) return;
+
+		// Use requestIdleCallback for background loading
+		if ('requestIdleCallback' in window) {
+			(window as any).requestIdleCallback(
+				async (deadline: any) => {
+					let i = 0;
+					const entriesToPreload = tableData.slice(0, 5); // First 5 visible entries
+
+					while (i < entriesToPreload.length && deadline.timeRemaining() > 0) {
+						const entry = entriesToPreload[i];
+						const cached = preloadedEntries.get(entry._id);
+
+						if (!cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL) {
+							try {
+								const preloadUrl = new URL(page.url);
+								preloadUrl.searchParams.set('edit', entry._id);
+
+								await fetch(preloadUrl.toString(), {
+									method: 'GET',
+									credentials: 'include',
+									headers: { 'X-Preload': 'true', 'X-Batch-Preload': 'true' }
+								});
+
+								preloadedEntries.set(entry._id, {
+									data: null,
+									timestamp: Date.now(),
+									hoverCount: 0
+								});
+
+								console.log(`[Batch Preload] Entry ${entry._id.substring(0, 8)} preloaded during idle`);
+							} catch (error) {
+								console.warn('[Batch Preload] Failed:', error);
+							}
+						}
+						i++;
+					}
+				},
+				{ timeout: 2000 }
+			);
+		}
+	}
+
+	// Trigger batch preload when data changes
+	$effect(() => {
+		if (tableData.length > 0 && currentMode === 'view') {
+			// Delay to avoid interfering with initial page load
+			setTimeout(() => batchPreloadVisibleEntries(), 2000);
+		}
+	});
+
+	// Cleanup preload cache periodically
+	$effect(() => {
+		const cleanupInterval = setInterval(() => {
+			const now = Date.now();
+			for (const [entryId, cached] of preloadedEntries.entries()) {
+				if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
+					preloadedEntries.delete(entryId);
+				}
+			}
+		}, 10000); // Cleanup every 10 seconds
+
+		return () => clearInterval(cleanupInterval);
+	});
+
 	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
 		displayTableHeaders = event.detail.items;
 	}
@@ -201,8 +336,35 @@ Features:
 		screenSize: screenSize.value
 	}));
 
-	// Destructure for easier access
-	const currentLanguage = $derived(currentStates.language);
+	// Initialize globalSearchValue from URL parameter on mount/navigation
+	$effect(() => {
+		const urlSearch = page.url.searchParams.get('search') || '';
+		if (urlSearch !== globalSearchValue) {
+			globalSearchValue = urlSearch;
+		}
+	});
+
+	// Reactive effect to update URL when globalSearchValue changes (user typing)
+	$effect(() => {
+		const searchValue = globalSearchValue;
+		const currentUrlSearch = page.url.searchParams.get('search') || '';
+
+		// Skip if values match (avoid loop) or initial empty state
+		if (searchValue === currentUrlSearch) {
+			return;
+		}
+
+		// Use untrack to prevent infinite loops from URL changes
+		untrack(() => {
+			filterDebounce(() => {
+				updateURL({
+					search: searchValue || null,
+					page: searchValue ? 1 : null // Reset to page 1 when searching, preserve page when clearing
+				});
+			});
+		});
+	}); // Destructure for easier access
+	const currentLanguage = $derived(propContentLanguage || currentStates.language);
 	const currentMode = $derived(currentStates.mode);
 	const currentCollection = $derived(currentStates.collection);
 
@@ -391,11 +553,19 @@ Features:
 			newEntry.status = collection.value.status;
 		}
 
+		// ✅ GUI-FIRST PATTERN: Instant mode switch (no data loading needed for create)
+		// 1. Update stores INSTANTLY (no navigation wait)
 		setMode('create');
 		setCollectionValue(newEntry);
 
+		// 2. Reflect in URL (passive, no reload)
+		reflectModeInURL('create');
+
+		// 3. Toggle UI
 		await Promise.resolve();
 		handleUILayoutToggle();
+
+		console.log('[Create] INSTANT - New entry mode');
 	};
 
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
@@ -691,7 +861,11 @@ Features:
 				<tbody>
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
-							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
+							<tr
+								class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}"
+								onmouseenter={() => handleRowHoverStart(entry._id)}
+								onmouseleave={handleRowHoverEnd}
+							>
 								<TableIcons
 									cellClass={`w-10 text-center ${selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}`}
 									checked={selectedMap[index]}
@@ -753,26 +927,14 @@ Features:
 														}
 													});
 												} else {
+													// ✅ GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
 													const originalEntry = tableData.find((e: any) => e._id === entry._id);
 													if (originalEntry) {
-														// Load the entry data into collectionValue
-														setCollectionValue(originalEntry);
-
-														// Set mode to edit
-														setMode('edit');
-
-														// If the entry is published, silently change to draft status for editing
-														// The warning toast will only show if user navigates away with unsaved changes
-														if (originalEntry.status === 'publish') {
-															// Update the local collectionValue to draft/unpublish status
-															setCollectionValue({
-																...originalEntry,
-																status: 'draft'
-															});
-														}
-
-														// Trigger UI layout change to show edit interface
-														handleUILayoutToggle();
+														// Navigate to edit mode - this triggers SSR to load full multilingual data
+														// List view has language-projected data, edit mode needs all languages
+														const newUrl = `${page.url.pathname}?edit=${originalEntry._id}`;
+														goto(newUrl);
+														console.log(`[Edit] Loading full data for entry ${originalEntry._id}`);
 													}
 												}
 											}}
@@ -791,7 +953,14 @@ Features:
 													</div>
 												</div>
 											{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
-												{@html entry[header.name][currentLanguage] || '-'}
+												{@const fieldData = entry[header.name]}
+												{@const translatedValue = fieldData[currentLanguage] || Object.values(fieldData)[0] || '-'}
+												{@const debugInfo = `Field: ${header.name}, Lang: ${currentLanguage}, Data: ${JSON.stringify(fieldData)}, Value: ${translatedValue}`}
+												{#if header.name === 'last_name'}
+													<span title={debugInfo}>{@html translatedValue}</span>
+												{:else}
+													{@html translatedValue}
+												{/if}
 											{:else}
 												{@html entry[header.name] || '-'}
 											{/if}

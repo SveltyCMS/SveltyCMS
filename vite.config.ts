@@ -343,11 +343,19 @@ export default defineConfig((): UserConfig => {
 		],
 
 		server: {
-			fs: { allow: ['static', '.'] },
+			fs: {
+				allow: ['static', '.'],
+				deny: ['**/tests/**']
+			},
 			watch: {
 				// Prevent watcher from triggering on generated/sensitive files
-				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**']
+				ignored: ['**/config/private.ts', '**/config/private.backup.*.ts', '**/compiledCollections/**', '**/tests/**']
 			}
+		},
+
+		ssr: {
+			noExternal: [],
+			external: ['bun:test']
 		},
 
 		resolve: {
@@ -478,7 +486,8 @@ export default defineConfig((): UserConfig => {
 
 		optimizeDeps: {
 			exclude: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
-			include: ['@skeletonlabs/skeleton']
+			include: ['@skeletonlabs/skeleton'],
+			entries: ['!tests/**/*']
 		}
 	};
 });

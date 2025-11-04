@@ -52,7 +52,7 @@
 
 	// Components
 	import { showCloneModal, showScheduleModal, showStatusChangeConfirm } from '@utils/modalUtils';
-import ScheduleModal from './ScheduleModal.svelte';
+	import ScheduleModal from './ScheduleModal.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -193,14 +193,14 @@ import ScheduleModal from './ScheduleModal.svelte';
 	});
 
 	// Current button state
-	let currentConfig = $derived(buttonMap[currentAction] || buttonMap.create);
+	let currentConfig = $derived(buttonMap[String(currentAction)] || buttonMap.create);
 	let isMainButtonDisabled = $derived(currentAction !== 'create' && !hasSelections);
 
 	// Get available actions for dropdown (exclude current action)
 	let availableActions = $derived(Object.entries(buttonMap).filter(([type]) => type !== currentAction));
 
 	// Helper functions
-	function isActionDisabled(actionType: string): boolean {
+	function isActionDisabled(actionType: ActionType): boolean {
 		return actionType !== 'create' && !hasSelections;
 	}
 
@@ -451,7 +451,7 @@ import ScheduleModal from './ScheduleModal.svelte';
 			transition:scale={{ duration: 200, easing: quintOut, start: 0.95, opacity: 0 }}
 		>
 			{#each availableActions as [actionType, config] (actionType)}
-				{@const disabled = isActionDisabled(actionType)}
+				{@const disabled = isActionDisabled(actionType as ActionType)}
 
 				<li class={disabled ? 'opacity-50' : ''}>
 					<button

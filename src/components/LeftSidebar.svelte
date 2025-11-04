@@ -24,7 +24,7 @@
 	import { browser } from '$app/environment';
 
 	// Import necessary utilities and types
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { Schema } from '@src/content/types'; // Import Schema type (collection definition)
 	import { getLanguageName } from '@utils/languageUtils';
 
@@ -59,9 +59,9 @@
 	type SidebarState = 'full' | 'collapsed' | 'hidden';
 
 	// Reactive user data
-	let user = $derived($page.data.user);
-	let currentPath = $derived($page.url.pathname);
-	let collections: Schema[] = $derived($page.data.collections);
+	let user = $derived(page.data.user);
+	let currentPath = $derived(page.url.pathname);
+	let collections: Schema[] = $derived(page.data.collections);
 	// Check if we're in media mode
 	let isMediaMode = $derived(currentPath.includes('/mediagallery'));
 
@@ -78,7 +78,7 @@
 	let firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
 
 	let availableLanguages = $derived(
-		[...(publicEnv?.LOCALES || $page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
+		[...(publicEnv?.LOCALES || page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
 			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
 		)
 	);

@@ -31,6 +31,8 @@ This document describes the **canonical data flow** for loading, editing, and sa
 
 This eliminates the "God Component" anti-pattern and provides enterprise-grade performance.
 
+> **📖 Multilingual Content**: For details on how multilingual data is handled within this SSR architecture, including language projection and translation progress tracking, see [Multilingual Data Loading](./multilingual-data-loading.mdx).
+
 ## 🧩 Key Principles
 
 - **Server-Side First:** All data is loaded via `+page.server.ts` load functions, never in components

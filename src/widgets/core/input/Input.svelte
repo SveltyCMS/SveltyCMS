@@ -47,7 +47,7 @@
 	// Props
 	interface Props {
 		field: FieldType;
-		value?: any;
+		value?: Record<string, string> | null | undefined;
 		validateOnMount?: boolean;
 		validateOnChange?: boolean;
 		validateOnBlur?: boolean;
@@ -77,23 +77,16 @@
 	let isValidating = $state(false);
 	let isTouched = $state(false);
 
-	// Memoized badge class calculation
-	const badgeClassCache = new Map<string, string>();
-	const getBadgeClass = (length: number) => {
-		const key = `${length}-${field?.minLength}-${field?.maxLength}-${field?.count}`;
-		if (badgeClassCache.has(key)) return badgeClassCache.get(key)!;
-
-		let result: string;
-		if (field?.minLength && length < (field?.minLength as number)) result = 'bg-red-600';
-		else if (field?.maxLength && length > (field?.maxLength as number)) result = 'bg-red-600';
-		else if (field?.count && length === (field?.count as number)) result = 'bg-green-600';
-		else if (field?.count && length > (field?.count as number)) result = 'bg-orange-600';
-		else if (field?.minLength) result = '!variant-filled-surface';
-		else result = '!variant-ghost-surface';
-
-		badgeClassCache.set(key, result);
-		return result;
-	};
+	// Memoized badge class calculation using $derived
+	let badgeClass = $derived(() => {
+		const length = count;
+		if (field?.minLength && length < (field?.minLength as number)) return 'bg-red-600';
+		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
+		if (field?.count && length === (field?.count as number)) return 'bg-green-600';
+		if (field?.count && length > (field?.count as number)) return 'bg-orange-600';
+		if (field?.minLength) return '!variant-filled-surface';
+		return '!variant-ghost-surface';
+	});
 
 	// Create validation schema
 	let validationSchema = $derived.by(() => {
@@ -141,12 +134,12 @@
 
 				// Length validations
 				if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
-					if (field?.minLength && currentValue.length < field.minLength) {
+					if (typeof field?.minLength === 'number' && typeof currentValue === 'string' && currentValue.length < field.minLength) {
 						const error = `Minimum length is ${field.minLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
 					}
-					if (field?.maxLength && currentValue.length > field.maxLength) {
+					if (typeof field?.maxLength === 'number' && typeof currentValue === 'string' && currentValue.length > field.maxLength) {
 						const error = `Maximum length is ${field.maxLength}`;
 						validationStore.setError(fieldName, error);
 						return error;
@@ -214,7 +207,8 @@
 		if (!value) {
 			value = {};
 		}
-		value = { ...value, [_language]: newValue };
+		// Ensure value is treated as a new object for reactivity
+		value = { ...(value || {}), [_language]: newValue };
 	}
 
 	// Cleanup function
@@ -223,7 +217,7 @@
 			if (debounceTimeout) {
 				clearTimeout(debounceTimeout);
 			}
-			badgeClassCache.clear();
+			// No cache to clear
 		};
 	});
 
@@ -251,7 +245,7 @@
 	export const WidgetData = async () => value;
 </script>
 
-<div class="input-container relative mb-4">
+<div class="relative mb-4 min-h-10 w-full pb-6">
 	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
@@ -277,8 +271,11 @@
 			minlength={field?.minLength as number | undefined}
 			maxlength={field?.maxLength as number | undefined}
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
-			class:error={!!validationError}
-			class:validating={isValidating}
+			class:!border-error-500={!!validationError}
+			class:!ring-1={!!validationError || isValidating}
+			class:!ring-error-500={!!validationError}
+			class:!border-primary-500={isValidating && !validationError}
+			class:!ring-primary-500={isValidating && !validationError}
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${fieldName}-error` : undefined}
 			aria-required={field?.required}
@@ -289,7 +286,7 @@
 		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
 			<div class="flex items-center" role="status" aria-live="polite">
 				{#if field?.count || field?.minLength || field?.maxLength}
-					<span class="badge mr-1 rounded-full {getBadgeClass(count)}" aria-label="Character count">
+					<span class="badge mr-1 rounded-full {badgeClass}" aria-label="Character count">
 						{#if field?.count && field?.minLength && field?.maxLength}
 							{count}/{field?.maxLength}
 						{:else if field?.count && field?.maxLength}
@@ -328,67 +325,3 @@
 		</p>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.input-container {
-		min-height: 2.5rem;
-		position: relative;
-		padding-bottom: 1.5rem;
-		width: 100%;
-	}
-
-	.input-wrapper {
-		position: relative;
-		display: flex;
-		align-items: center;
-	}
-
-	.input {
-		flex-grow: 1;
-	}
-
-	.input.invalid {
-		border-color: #ef4444;
-	}
-
-	.error {
-		border-color: rgb(239 68 68);
-		box-shadow: 0 0 0 1px rgb(239 68 68);
-	}
-
-	.validating {
-		border-color: rgb(59 130 246);
-		box-shadow: 0 0 0 1px rgb(59 130 246);
-	}
-
-	.counter {
-		position: absolute;
-		right: 0.75rem;
-		font-size: 0.75rem;
-		color: #9ca3af;
-	}
-
-	.counter.error {
-		color: #ef4444;
-	}
-
-	.error-message {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-		text-align: center;
-		font-size: 0.75rem;
-		color: #ef4444;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.animate-spin {
-		animation: spin 1s linear infinite;
-	}
-</style>

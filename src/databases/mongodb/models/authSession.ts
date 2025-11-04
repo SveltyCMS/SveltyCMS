@@ -94,7 +94,7 @@ export class SessionAdapter {
 			});
 
 			if (result.deletedCount && result.deletedCount > 0) {
-				logger.info(`🔄 Migrated sessions: Removed ${result.deletedCount} old ObjectId-based sessions`);
+				logger.info(`🔄 Migrated sessions: Removed \x1b[34m${result.deletedCount}\x1b[0m old ObjectId-based sessions`);
 			}
 		} catch (err) {
 			// Non-critical error - old sessions will expire naturally

@@ -36,9 +36,9 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	import AnnotateTopToolbar from './components/toolbars/AnnotateTopToolbar.svelte';
 
 	// Layout components
-	import EditorSidebar from './components/EditorSidebar.svelte';
-	import EditorCanvas from './components/EditorCanvas.svelte';
-	import MobileToolbar from './components/MobileToolbar.svelte';
+	import EditorSidebar from './components/toolbars/EditorSidebar.svelte';
+	import EditorCanvas from './components/toolbars/EditorCanvas.svelte';
+	import MobileToolbar from './components/toolbars/MobileToolbar.svelte';
 
 	// Konva
 	import Konva from 'konva';
@@ -622,7 +622,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	{#if !isMobile}
 		<div class="editor-layout">
 			<!-- Left Sidebar -->
-			<EditorSidebar {activeState} onToolSelect={toggleTool} hasImage={!!storeState.imageNode} />
+			<EditorSidebar activeState={activeState ?? ''} onToolSelect={toggleTool} hasImage={!!storeState.imageNode} />
 
 			<!-- Main Canvas Area -->
 			<div class="editor-main">

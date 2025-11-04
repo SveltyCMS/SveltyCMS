@@ -54,9 +54,7 @@ export function validateSchemaWidgets(
 	};
 }
 
-/**
- * Validate widgets in a dashboard layout
- */
+// Validate widgets in a dashboard layout
 export function validateLayoutWidgets(
 	layout: Layout,
 	activeWidgets: string[]
@@ -84,9 +82,7 @@ export function validateLayoutWidgets(
 	};
 }
 
-/**
- * Extract widget names from schema fields
- */
+// Extract widget names from schema fields
 function extractWidgetsFromSchema(schema: Schema): string[] {
 	const widgets: string[] = [];
 
@@ -103,9 +99,7 @@ function extractWidgetsFromSchema(schema: Schema): string[] {
 	return Array.from(new Set(widgets));
 }
 
-/**
- * Get widget dependencies for a collection
- */
+// Get widget dependencies for a collection
 export function getCollectionWidgetDependencies(schema: Schema): {
 	widgets: string[];
 	totalCount: number;

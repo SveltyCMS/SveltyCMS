@@ -3,17 +3,31 @@
 @component
 **This component acts as a layout and data router for the collection view.**
 
+## Navigation Architecture (GUI-First Pattern):
+
+### PRIMARY: GUI Actions (90% of navigation)
+1. User hovers button → Preload data to cache
+2. User clicks button → Check cache → setMode() → URL reflects change
+3. FAST: No goto(), no SSR reload, instant mode switching
+
+### SECONDARY: URL Changes (10% - manual edits)
+1. User manually edits URL → Detect change in $effect
+2. Parse URL → Translate to UUID → setMode() → Load if not cached
+3. SLOWER: Required SSR reload only when user types URL directly
+
 ## Features:
 - Receives all page data (schema, entries, pagination) from the server-side `load` function.
 - Passes server-loaded data as props to the `EntryList` or `Fields` components.
-- Does not perform any client-side data fetching.
+- URL-to-mode translation for manual URL edits (browser address bar changes).
 - Auto-saves unsaved changes as draft when navigating away to prevent data loss.
 -->
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { collection, mode, setCollection, collectionValue, setMode } from '@src/stores/collectionStore.svelte';
+	import { untrack } from 'svelte';
+	import { collection, mode, setCollection, collectionValue, setMode, setCollectionValue } from '@src/stores/collectionStore.svelte';
 	import { contentLanguage } from '@stores/store.svelte';
+	import { parseURLToMode } from '@utils/navigationUtils';
 	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
 	import Fields from '@src/components/collectionDisplay/Fields.svelte';
 	import Loading from '@src/components/Loading.svelte';
@@ -47,26 +61,147 @@
 	let userClickedCancel = $state(false);
 	let isSavingDraft = $state(false);
 
+	// Track when we last received server data to avoid overwriting client-side language changes
+	let lastServerLanguage = $state<string | undefined>(undefined);
+
 	// Sync contentLanguage store with server data
+	// IMPORTANT: Server language (URL) takes precedence over cookie/store
+	// This MUST run immediately when data changes to ensure widgets get correct language
+	// BUT: Only sync when we receive NEW server data (not on client-side URL changes)
 	$effect(() => {
-		if (serverContentLanguage && contentLanguage.value !== serverContentLanguage) {
-			contentLanguage.set(serverContentLanguage as any);
+		if (serverContentLanguage) {
+			// Only sync if server language actually changed (indicates new server load)
+			if (serverContentLanguage !== lastServerLanguage) {
+				const currentStoreLanguage = contentLanguage.value;
+				if (currentStoreLanguage !== serverContentLanguage) {
+					console.log('[+page.svelte] Syncing contentLanguage from server:', currentStoreLanguage, '→', serverContentLanguage);
+					// Set without untrack to ensure all reactive subscribers are notified
+					contentLanguage.set(serverContentLanguage as any);
+					console.log('[+page.svelte] ContentLanguage store now:', contentLanguage.value);
+				}
+				lastServerLanguage = serverContentLanguage;
+			}
 		}
 	});
 
-	// This effect runs when SvelteKit provides new data from the `load` function
+	// ============================================================================
+	// URL-TO-MODE TRANSLATION & INITIAL LOAD DETECTION
+	// ============================================================================
+	// Handles both:
+	// 1. Initial page load with ?edit=id in URL
+	// 2. Manual URL changes (user types in address bar)
+	// 3. Language changes in edit mode (URL language prefix changes but ?edit=id stays same)
+
+	let lastUrlString = $state('');
+	let lastEditParam = $state<string | null>(null);
+	let hasInitiallyLoaded = $state(false);
+
+	$effect(() => {
+		const currentUrl = page.url.toString();
+		const editParam = page.url.searchParams.get('edit');
+		const createParam = page.url.searchParams.get('create');
+
+		// CASE 1: Initial page load with ?edit=id
+		if (!hasInitiallyLoaded && editParam && entries && entries.length === 1) {
+			hasInitiallyLoaded = true;
+			lastEditParam = editParam;
+			const entryData = entries[0];
+			console.log('[Initial Load] Edit mode detected, loading entry:', entryData._id);
+
+			setMode('edit');
+			setCollectionValue(entryData);
+			initialCollectionValue = JSON.stringify(entryData);
+			lastUrlString = currentUrl;
+			return; // Exit early to avoid triggering URL change logic
+		}
+
+		// CASE 2: URL changed (manual navigation)
+		if (currentUrl !== lastUrlString && hasInitiallyLoaded) {
+			// Check if only language changed (URL language prefix) but params stayed the same
+			const editParamChanged = editParam !== lastEditParam;
+			const wasInCreateMode = lastUrlString.includes('create=true');
+			const isInCreateMode = createParam === 'true';
+
+			// If we're in edit/create mode and only URL language changed, ignore the URL change
+			// This happens when user changes language in TranslationStatus dropdown
+			if ((mode.value === 'edit' || mode.value === 'create') && editParam === lastEditParam && isInCreateMode === wasInCreateMode) {
+				console.log('[URL Change] Language prefix changed, but staying in', mode.value, 'mode (no reload needed)');
+				lastUrlString = currentUrl;
+				return; // Don't reload data, just update URL tracking
+			}
+
+			lastUrlString = currentUrl;
+			lastEditParam = editParam;
+			const parsed = parseURLToMode(page.url);
+
+			console.log(`[URL Change] ${mode.value} → ${parsed.mode}`, {
+				entryId: parsed.entryId,
+				hasEntries: entries.length,
+				editParamChanged
+			});
+
+			// Edit mode from URL change
+			if (parsed.mode === 'edit' && parsed.entryId && editParamChanged) {
+				if (entries && entries.length === 1) {
+					// Data already loaded by server
+					const entryData = entries[0];
+					setMode('edit');
+					setCollectionValue(entryData);
+					initialCollectionValue = JSON.stringify(entryData);
+				} else {
+					// Need to reload data
+					invalidateAll().then(() => {
+						setMode('edit');
+						console.log(`[URL Change] Reloaded entry ${parsed.entryId}`);
+					});
+				}
+			} else if (parsed.mode === 'view' && mode.value === 'edit') {
+				// Exiting edit mode
+				setMode('view');
+			} else if (parsed.mode === 'create') {
+				// Create mode
+				setMode('create');
+				const newEntry: Record<string, any> = {};
+				const fields = collection.value?.fields || [];
+				for (const field of fields) {
+					if (typeof field === 'object' && field !== null && 'label' in field) {
+						const fieldName = (field as any).label || 'field';
+						newEntry[fieldName] = null;
+					}
+				}
+				setCollectionValue(newEntry);
+			} else if (mode.value !== parsed.mode) {
+				// Other mode changes
+				setMode(parsed.mode);
+			}
+		}
+
+		// CASE 3: Mark as loaded after first render (for view mode)
+		if (!hasInitiallyLoaded && !editParam) {
+			hasInitiallyLoaded = true;
+			lastEditParam = editParam;
+			lastUrlString = currentUrl;
+		}
+	});
+
+	// Sync collection schema from server data
 	$effect(() => {
 		if (collectionSchema) {
-			// Set the global store with the fresh data loaded from the server
 			setCollection(collectionSchema);
 		}
 	});
 
 	// Track initial state when entering edit mode
+	// This runs AFTER collectionValue is set, but doesn't trigger when collectionValue changes
 	$effect(() => {
-		if (mode.value === 'edit' && collectionValue.value) {
-			initialCollectionValue = JSON.stringify(collectionValue.value);
-			userClickedCancel = false; // Reset cancel flag
+		const currentMode = mode.value;
+		if (currentMode === 'edit') {
+			// Use untrack to read collectionValue without creating a dependency
+			const currentValue = untrack(() => collectionValue.value);
+			if (currentValue) {
+				initialCollectionValue = JSON.stringify(currentValue);
+				userClickedCancel = false; // Reset cancel flag
+			}
 		}
 	});
 
@@ -132,7 +267,7 @@
 
 	// Listen for cancel button clicks
 	$effect(() => {
-		const handleCancelClick = (event: CustomEvent) => {
+		const handleCancelClick = () => {
 			userClickedCancel = true;
 			console.log('[Auto-save] Cancel clicked - no draft will be saved');
 		};
@@ -198,7 +333,7 @@
 		<Loading />
 	{:else if mode.value === 'view' || mode.value === 'modify'}
 		<!-- Pass the server-loaded data directly as props -->
-		<EntryList {entries} {pagination} />
+		<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />
 	{:else if ['edit', 'create'].includes(mode.value)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)]">
 			<!-- Pass the server-loaded data directly as props -->

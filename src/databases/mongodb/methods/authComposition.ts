@@ -163,7 +163,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 					};
 				}
 
-				logger.info(`User and sessions deleted: user=${user_id}, sessions=${deletedSessionCount}`, {
+				logger.info(`User and sessions deleted: user=\x1b[34m${user_id}\x1b[0m, sessions=\x1b[34m${deletedSessionCount}\x1b[0m`, {
 					user_id,
 					deletedSessionCount,
 					tenantId
