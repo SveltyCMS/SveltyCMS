@@ -25,7 +25,6 @@ import { error } from '@sveltejs/kit';
 import type { DatabaseAdapter, DatabaseResult } from '@src/databases/dbInterface';
 import type { Permission, Role, Session, SessionStore, Token, User } from './types';
 
-import { roles } from '@root/config/roles';
 import { corePermissions } from './corePermissions';
 
 // System Logger
@@ -40,8 +39,6 @@ export {
 	getAllPermissions,
 	getPermissionById,
 	getPermissionConfig,
-	getUserRole,
-	getUserRoles,
 	hasPermissionWithRoles as hasPermission,
 	hasPermissionByAction,
 	isAdminRoleWithRoles,
@@ -73,13 +70,12 @@ import { SESSION_COOKIE_NAME } from './constants';
 import { hashPassword as cryptoHashPassword, verifyPassword as cryptoVerifyPassword } from '@utils/crypto';
 
 // Import caching
-import { cacheService, CacheCategory } from '@src/databases/CacheService';
+import { cacheService } from '@src/databases/CacheService';
 
 // Main Auth class
 export class Auth {
 	private db: DatabaseAdapter;
 	private sessionStore: SessionStore;
-	private roles: Role[] = [...roles];
 	private permissions: Permission[] = [...corePermissions];
 
 	constructor(db: DatabaseAdapter, sessionStore: SessionStore) {
@@ -107,33 +103,7 @@ export class Auth {
 		return this.db.auth.unblockUsers(userIds, tenantId);
 	}
 
-	// Role management
-
-	getRoles(): Role[] {
-		return this.roles;
-	}
-
-	getRoleById(roleId: string): Role | undefined {
-		return this.roles.find((role) => role._id === roleId);
-	}
-
-	addRole(role: Role): void {
-		const exists = this.roles.some((r) => r._id === role._id);
-		if (!exists) {
-			this.roles.push(role);
-		}
-	}
-
-	updateRole(roleId: string, updates: Partial<Role>): void {
-		const index = this.roles.findIndex((r) => r._id === roleId);
-		if (index !== -1) {
-			this.roles[index] = { ...this.roles[index], ...updates };
-		}
-	}
-
-	deleteRole(roleId: string): void {
-		this.roles = this.roles.filter((r) => r._id !== roleId);
-	} // Permission management
+	// Permission management
 
 	getPermissions(): Permission[] {
 		return this.permissions;
@@ -144,35 +114,9 @@ export class Auth {
 		if (!exists) {
 			this.permissions.push(permission);
 		}
-	} // Simplified permission checking - ADMINS GET ALL PERMISSIONS
+	}
 
-	hasPermission(user: User, permissionId: string): boolean {
-		const userRole = this.getRoleById(user.role);
-		if (!userRole) {
-			logger.warn('Role not found for user', { email: user.email });
-			return false;
-		}
-
-		if (userRole.isAdmin) {
-			return true;
-		}
-
-		return userRole.permissions.includes(permissionId);
-	} // Check permission by action and type
-
-	hasPermissionByAction(user: User, action: string, type: string, contextId?: string): boolean {
-		const userRole = this.getRoleById(user.role);
-		if (!userRole) return false;
-
-		if (userRole.isAdmin) {
-			return true;
-		}
-
-		const permission = this.permissions.find((p) => p.action === action && p.type === type && (!contextId || p.contextId === contextId));
-		if (!permission) return false;
-
-		return userRole.permissions.includes(permission._id);
-	} // User management
+	// User management
 
 	async createUser(userData: Partial<User>, oauth: boolean = false): Promise<User> {
 		try {
@@ -204,20 +148,12 @@ export class Auth {
 	}
 
 	async getUserById(user_id: string, tenantId?: string): Promise<User | null> {
-		// Cache user data using USER category (dynamic TTL from settings)
-		const cacheKey = `user:id:${user_id}`;
-		const cached = await cacheService.get<User>(cacheKey, tenantId, CacheCategory.USER);
-		if (cached) {
-			logger.trace('Cache hit for user by ID', { user_id });
-			return cached;
-		}
-
+		// No caching - getUserById is fast enough and avoids cache invalidation complexity
+		// Session cache already stores user data for authenticated requests
 		const result = (await this.db.auth.getUserById(user_id, tenantId)) as unknown;
 		if (result && typeof result === 'object' && result !== null && 'success' in (result as Record<string, unknown>)) {
 			const r = result as DatabaseResult<User | null>;
 			if (r.success && r.data) {
-				// Cache with USER category (default: 1 min, configurable via settings)
-				await cacheService.setWithCategory(cacheKey, r.data, CacheCategory.USER, tenantId);
 				return r.data;
 			}
 			return null;
@@ -225,14 +161,8 @@ export class Auth {
 		return (result as User | null) ?? null;
 	}
 	async getUserByEmail(criteria: { email: string; tenantId?: string }): Promise<User | null> {
-		// Cache user lookups by email using USER category
-		const cacheKey = `user:email:${criteria.email.toLowerCase()}`;
-		const cached = await cacheService.get<User>(cacheKey, criteria.tenantId, CacheCategory.USER);
-		if (cached) {
-			logger.trace('Cache hit for user by email', { email: criteria.email });
-			return cached;
-		}
-
+		// No caching - getUserByEmail is only used during login/registration
+		// Caching here adds complexity without significant performance benefit
 		const result = (await this.db.auth.getUserByEmail(criteria)) as unknown;
 		logger.debug('Auth.getUserByEmail - raw result from db.auth', {
 			result,
@@ -249,10 +179,7 @@ export class Auth {
 			});
 			if (r.success === true) {
 				const userData = 'data' in r ? (r as { data: User | null }).data : null;
-				if (userData) {
-					// Cache with USER category (default: 1 min, configurable via settings)
-					await cacheService.setWithCategory(cacheKey, userData, CacheCategory.USER, criteria.tenantId);
-				}
+				// No caching - not needed for login/registration flows
 				return userData ?? null;
 			}
 			return null;
@@ -265,16 +192,10 @@ export class Auth {
 			throw error(500, 'Failed to update user');
 		}
 
-		// Invalidate user caches after update (maintain cache consistency)
-		const cacheKey = `user:id:${userId}`;
-		await cacheService.delete(cacheKey, tenantId);
-
-		// If email was in updates, invalidate email cache too
-		if (updates.email) {
-			const emailCacheKey = `user:email:${updates.email.toLowerCase()}`;
-			await cacheService.delete(emailCacheKey, tenantId);
-		}
+		// No cache invalidation needed - we removed user-by-id and user-by-email caching
+		// Session cache is the only cache, and it's invalidated by updateUserAttributes API
 	}
+
 	async deleteUser(user_id: string, tenantId?: string): Promise<void> {
 		// Get user first to clear email cache
 		const user = await this.getUserById(user_id, tenantId);
@@ -373,8 +294,8 @@ export class Auth {
 		throw error(500, 'Token rotation failed');
 	}
 
-	async getAllRoles(): Promise<Role[]> {
-		return this.roles;
+	async getAllRoles(tenantId?: string): Promise<Role[]> {
+		return this.db.auth.getAllRoles(tenantId);
 	}
 
 	async getAllTokens(filter?: { tenantId?: string }): Promise<DatabaseResult<Token[]>> {
@@ -607,26 +528,6 @@ export class Auth {
 
 // Utility functions for backwards compatibility and convenience
 // All password operations use quantum-resistant Argon2id
-
-/**
- * Check if user has admin role
- * @param user - User object to check
- * @returns True if user is admin
- */
-export function isAdmin(user: User): boolean {
-	const role = roles.find((r) => r._id === user.role);
-	return role?.isAdmin === true;
-}
-
-/**
- * Check if user has specific role
- * @param user - User object to check
- * @param roleName - Role name to check against
- * @returns True if user has the specified role
- */
-export function hasRole(user: User, roleName: string): boolean {
-	return user.role.toLowerCase() === roleName.toLowerCase();
-}
 
 /**
  * Hash a password using quantum-resistant Argon2id

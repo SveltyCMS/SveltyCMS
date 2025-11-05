@@ -19,11 +19,13 @@
 	8. Lazy Component State & Error Handling
 -->
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { onDestroy, onMount, type Component } from 'svelte';
+
 	// Stores
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { setupStore } from '@stores/setupStore.svelte';
 	import { systemLanguage } from '@stores/store.svelte';
+
 	// Componets
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
@@ -34,20 +36,19 @@
 	import { getModalStore, type ModalSettings, Modal } from '@skeletonlabs/skeleton';
 	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+
 	// Utils
 	import { setupAdminSchema, dbConfigSchema, systemSettingsSchema } from '@utils/formSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { setGlobalToastStore, showToast } from '@utils/toast';
+	import { locales as availableLocales } from '@src/paraglide/runtime';
+
 	// Valiation
 	import { safeParse } from 'valibot';
-	// Types
-	import type { PageData } from './$types';
-
-	// --- 0. PAGE DATA ---
-	let { data }: { data: PageData } = $props();
 
 	// --- 1. STATE MANAGEMENT ---
 	const { wizard, load: loadStore, clear: clearStore, setupPersistence } = setupStore;
@@ -149,7 +150,7 @@
 				}, 100);
 			});
 		} else {
-			console.log('Welcome modal already shown this session, skipping...');
+			logger.debug('Welcome modal already shown this session, skipping...');
 		}
 
 		// Warn user before leaving with unsaved changes
@@ -181,7 +182,7 @@
 				if (confirmed) {
 					// Potentially trigger navigation to step 1 or some other setup start action
 				} else {
-					console.log('User closed welcome modal without starting.');
+					logger.debug('User closed welcome modal without starting.');
 					// What happens if they close? Maybe nothing, they just see the faded setup page.
 				}
 			}
@@ -256,30 +257,9 @@
 		return false;
 	});
 
-	// System languages: From server-side load (reads project.inlang/settings.json)
-	// During setup, publicEnv.LOCALES is empty, so we use data.availableLanguages
+	// System languages: From Paraglide runtime (reads project.inlang/settings.json at build time)
 	const systemLanguages = $derived.by<string[]>(() => {
-		// First try data from server (direct from settings.json)
-		if (data.availableLanguages && data.availableLanguages.length > 0) {
-			return [...new Set(data.availableLanguages)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
-		}
-
-		// Fallback to publicEnv.LOCALES (after setup is complete)
-		const raw = publicEnv?.LOCALES;
-		let normalized: string[] = [];
-
-		if (typeof raw === 'string' && (raw as string).trim()) {
-			normalized = (raw as string).split(/[ ,;]+/).filter(Boolean);
-		} else if (Array.isArray(raw) && raw.length > 0) {
-			normalized = raw.filter((item): item is string => typeof item === 'string');
-		}
-
-		if (normalized.length > 0) {
-			return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
-		}
-
-		// Final fallback
-		return ['en', 'de'];
+		return [...availableLocales].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 	});
 
 	// Legend data (used in vertical stepper legend)
@@ -436,7 +416,7 @@
 					validationErrors = newValidationErrors;
 				}
 
-				console.error('Database test failed:', {
+				logger.error('Database test failed:', {
 					userFriendly: data.userFriendly,
 					error: data.error,
 					classification: data.classification,
@@ -448,7 +428,7 @@
 			errorMessage = `Network error: ${errorMsg}`;
 			wizard.dbTestPassed = false;
 			successMessage = '';
-			console.error('Network error during database test:', e);
+			logger.error('Network error during database test:', e);
 		} finally {
 			isLoading = false;
 		}
@@ -561,7 +541,7 @@
 
 					const seedData = await seedResponse.json();
 					if (seedData.success) {
-						console.log('✅ Database initialized successfully');
+						logger.debug('✅ Database initialized successfully');
 						showToast('Database initialized successfully! ✨', 'success', 3000);
 
 						// Store first collection info for faster redirect
@@ -569,11 +549,11 @@
 							wizard.firstCollection = seedData.firstCollection;
 						}
 					} else {
-						console.warn('⚠️  Database initialization had issues:', seedData.error);
+						logger.warn('⚠️  Database initialization had issues:', seedData.error);
 						showToast('Setup will continue, data will be created as needed.', 'info', 4000);
 					}
 				} catch (seedError) {
-					console.warn('⚠️  Error during database initialization:', seedError);
+					logger.warn('⚠️  Error during database initialization:', seedError);
 					// Don't block user from continuing
 				} finally {
 					isLoading = false;

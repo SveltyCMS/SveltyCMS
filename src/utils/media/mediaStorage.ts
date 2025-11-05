@@ -2,6 +2,7 @@
  * @file src/utils/media/mediaStorage.ts
  * @description Core media storage functionality for the CMS.
  * This module handles all file system operations and media processing.
+ * Supports both local filesystem and cloud storage (S3, R2, Cloudinary).
  */
 
 import { cacheService } from '@src/databases/CacheService';
@@ -15,6 +16,7 @@ import Path from 'path';
 import Sharp from 'sharp';
 import { MediaTypeEnum, Permission } from './mediaModels';
 import { getSanitizedFileName, hashFileContent } from './mediaProcessing';
+import { isCloudStorage, uploadToCloud, deleteFromCloud, getCloudUrl, cloudFileExists } from './cloudStorage';
 
 import type { MediaAccess, MediaRemoteVideo, ResizedImage } from './mediaModels';
 
@@ -58,9 +60,29 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
 	});
 }
 
-// Saves a file to disk
-export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
+// Saves a file to disk or cloud storage
+export async function saveFileToDisk(buffer: Buffer, url: string): Promise<string> {
 	try {
+		// Check if using cloud storage
+		if (isCloudStorage()) {
+			logger.debug('Uploading file to cloud storage', {
+				url,
+				bufferSize: buffer.length
+			});
+
+			// Upload to cloud and return the public URL
+			const publicUrl = await uploadToCloud(buffer, url);
+
+			logger.info('File uploaded to cloud storage', {
+				url,
+				publicUrl,
+				fileSize: buffer.length
+			});
+
+			return publicUrl;
+		}
+
+		// LOCAL STORAGE: Save to filesystem
 		const fs = await getFs();
 		const fullPath = Path.join(getMediaFolder(), url);
 		const dir = Path.dirname(fullPath);
@@ -87,8 +109,11 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 			fileSize: buffer.length,
 			directoryCreated: dir
 		});
+
+		// Return local URL format
+		return `/files/${url}`;
 	} catch (err) {
-		const message = `Failed to save file to disk: ${err instanceof Error ? err.message : String(err)}`;
+		const message = `Failed to save file: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, {
 			url,
 			error: err,
@@ -194,10 +219,31 @@ export async function deleteFile(url: string): Promise<void> {
 	const startTime = performance.now();
 
 	try {
+		// Check if using cloud storage
+		if (isCloudStorage()) {
+			logger.debug('Deleting file from cloud storage', { url });
+
+			// Extract relative path from URL
+			let relativePath = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+			if (relativePath.startsWith('files/')) {
+				relativePath = relativePath.slice('files/'.length);
+			}
+
+			await deleteFromCloud(relativePath);
+
+			logger.info('File deleted from cloud storage', {
+				url,
+				relativePath,
+				processingTime: performance.now() - startTime
+			});
+			return;
+		}
+
+		// Local filesystem deletion
 		const fs = await getFs();
 		const filePath = Path.join(getMediaFolder(), url);
 
-		logger.debug('Deleting file', {
+		logger.debug('Deleting file from local storage', {
 			url,
 			filePath
 		});
@@ -223,10 +269,35 @@ export async function deleteFile(url: string): Promise<void> {
 
 // Retrieves a file from storage
 export async function getFile(url: string): Promise<Buffer> {
+	// For cloud storage, this would typically not be used since files are accessed via redirect
+	// But we provide it for special cases like server-side processing
+	if (isCloudStorage()) {
+		// Extract relative path
+		let relativePath = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+		if (relativePath.startsWith('files/')) {
+			relativePath = relativePath.slice('files/'.length);
+		}
+
+		// Note: This would require implementing a download method in cloudStorage.ts
+		// For now, we'll throw an error as cloud files should be accessed directly via URL
+		const cloudUrl = getCloudUrl(relativePath);
+		logger.warn('getFile called for cloud storage - files should be accessed directly', { url, cloudUrl });
+
+		// Fetch from cloud URL
+		const response = await fetch(cloudUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch cloud file: ${response.statusText}`);
+		}
+		const buffer = Buffer.from(await response.arrayBuffer());
+		logger.info('File retrieved from cloud storage', { url, cloudUrl, size: buffer.length });
+		return buffer;
+	}
+
+	// Local filesystem retrieval
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getMediaFolder(), url);
 	const buffer = await fs.promises.readFile(filePath);
-	logger.info('File retrieved from disk', { url });
+	logger.info('File retrieved from disk', { url, filePath, size: buffer.length });
 	return buffer;
 }
 
@@ -234,20 +305,64 @@ export async function getFile(url: string): Promise<Buffer> {
  * Checks if a file exists in storage
  */
 export async function fileExists(url: string): Promise<boolean> {
+	// Check cloud storage
+	if (isCloudStorage()) {
+		try {
+			// Extract relative path
+			let relativePath = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+			if (relativePath.startsWith('files/')) {
+				relativePath = relativePath.slice('files/'.length);
+			}
+
+			const exists = await cloudFileExists(relativePath);
+			logger.debug('Cloud file existence check', { url, relativePath, exists });
+			return exists;
+		} catch (err) {
+			logger.error('Error checking cloud file existence', { url, error: err });
+			return false;
+		}
+	}
+
+	// Check local filesystem
 	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const filePath = Path.join(getMediaFolder(), url);
 	try {
 		await fs.promises.access(filePath);
+		logger.debug('Local file existence check', { url, filePath, exists: true });
 		return true;
 	} catch {
+		logger.debug('Local file existence check', { url, filePath, exists: false });
 		return false;
 	}
 }
 
 // Moves a file to trash
 export async function moveMediaToTrash(url: string): Promise<void> {
+	// Check if using cloud storage
+	if (isCloudStorage()) {
+		logger.info("Deleting file from cloud storage (cloud storage doesn't have trash)", { url });
+
+		// For cloud storage, we directly delete the file
+		// Cloud providers typically have their own versioning/backup systems
+		try {
+			// Extract relative path from URL
+			let relativePath = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+			if (relativePath.startsWith('files/')) {
+				relativePath = relativePath.slice('files/'.length);
+			}
+
+			await deleteFromCloud(relativePath);
+			logger.info('File deleted from cloud storage', { url, relativePath });
+		} catch (err) {
+			logger.error('Failed to delete from cloud storage', { url, error: err });
+			// Don't throw - treat as best-effort
+		}
+		return;
+	}
+
+	// LOCAL STORAGE: Move to .trash directory
 	const fs = await getFs();
-	const mediaFolder = publicEnv.MEDIA_FOLDER;
+	const mediaFolder = getMediaFolder();
 
 	// Normalize various possible forms:
 	// - /files/avatars/...
@@ -283,7 +398,7 @@ export async function moveMediaToTrash(url: string): Promise<void> {
 	try {
 		const stat = await fs.promises.stat(sourceAbs).catch(() => null);
 		if (!stat) {
-			logger.warn('Source file not found for trash; skipping', { sourceAbs });
+			logger.warn('Source file not found for trash; skipping', { sourceAbs, url, normalized: input });
 			return;
 		}
 		if (!stat.isFile()) {
@@ -292,19 +407,18 @@ export async function moveMediaToTrash(url: string): Promise<void> {
 			return;
 		}
 		await fs.promises.rename(sourceAbs, trashAbs);
-		logger.info('File moved to trash', { originalUrl: url, trashUrl: trashAbs });
+		logger.info('File moved to trash successfully', { originalUrl: url, sourceAbs, trashAbs });
 	} catch (err) {
 		const code = err && typeof err === 'object' && 'code' in err ? (err as { code?: string }).code : undefined;
 		if (code === 'ENOENT') {
-			logger.warn('File not found during trash operation; skipping', { sourceAbs });
+			logger.warn('File not found during trash operation; skipping', { sourceAbs, url });
 			return;
 		}
 		// Re-throw for upstream handling for unexpected errors
+		logger.error('Unexpected error moving file to trash', { sourceAbs, trashAbs, error: err });
 		throw err;
 	}
-}
-
-// Cleans up media directory
+} // Cleans up media directory
 
 export async function cleanMediaDirectory(): Promise<void> {
 	// Implementation for cleaning up unused files
@@ -393,7 +507,7 @@ export async function saveRemoteMedia(fileUrl: string, contentTypes: string, use
 }
 
 /**
- * Saves an avatar image to disk and database
+ * Saves an avatar image to storage (local or cloud) and database
  * The avatar URL will also be saved to the user's database record by the calling API
  */
 export async function saveAvatarImage(file: File, userId: string = 'system'): Promise<string> {
@@ -403,14 +517,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		// Check if database adapter is available, but don't fail if it's not fully ready
 		const isDatabaseReady = dbAdapter && dbAdapter.utils && typeof dbAdapter.utils.generateId === 'function';
 		if (!isDatabaseReady) {
-			logger.warn('Database adapter not fully ready - avatar will be saved to disk only');
-		}
-
-		const fs = await getFs();
-		// Create avatars directory under the media folder
-		const avatarsPath = Path.join(process.cwd(), publicEnv.MEDIA_FOLDER, 'avatars');
-		if (!fs.existsSync(avatarsPath)) {
-			await fs.promises.mkdir(avatarsPath, { recursive: true });
+			logger.warn('Database adapter not fully ready - avatar will be saved to storage only');
 		}
 
 		const arrayBuffer = await file.arrayBuffer();
@@ -425,16 +532,20 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		if (existingFile && existingFile.success && existingFile.data) {
 			const mediaData = existingFile.data as { url?: string };
 			let fileUrl = mediaData.url || '';
-			const mediaServerUrl = publicEnv.MEDIASERVER_URL;
-			if (mediaServerUrl) {
-				fileUrl = `${mediaServerUrl}/${fileUrl}`;
+
+			// Return cloud URL or local /files/ URL
+			if (isCloudStorage()) {
+				fileUrl = getCloudUrl(fileUrl);
 			} else {
-				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+				fileUrl = `/files/${fileUrl}`;
 			}
+
+			logger.info('Avatar already exists, returning existing URL', { hash, fileUrl });
 			return fileUrl;
 		}
 
 		let avatarUrl: string;
+		let publicUrl: string;
 		let width = 0;
 		let height = 0;
 		let mimeType = file.type;
@@ -442,7 +553,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 		if (ext === 'svg') {
 			// Save SVG as-is
 			avatarUrl = `avatars/${hash}-${sanitizedBlobName}.${ext}`;
-			await saveFileToDisk(buffer, avatarUrl);
+			publicUrl = await saveFileToDisk(buffer, avatarUrl);
 			// SVGs don't have width/height here
 		} else {
 			// Convert to AVIF thumbnail (200px as defined in SIZES.thumbnail)
@@ -454,17 +565,19 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 			// Process metadata and buffer in parallel
 			const [resizedBuffer, meta] = await Promise.all([resizedImage.toBuffer(), resizedImage.metadata()]);
 
-			await saveFileToDisk(resizedBuffer, avatarUrl);
+			publicUrl = await saveFileToDisk(resizedBuffer, avatarUrl);
 			width = meta.width || 0;
 			height = meta.height || 0;
 			mimeType = 'image/avif';
 		}
 
 		// Create MediaItem-compatible object for database storage
+		// Store relative path in DB, not full URL
 		const mediaItemForDB = {
 			filename: file.name,
 			hash,
 			path: 'avatars',
+			url: avatarUrl, // Store relative path
 			size: buffer.length,
 			mimeType,
 			thumbnails: { avatar: { url: avatarUrl, width, height } },
@@ -479,6 +592,8 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 			filename: file.name,
 			hash,
 			path: 'avatars',
+			avatarUrl,
+			publicUrl,
 			size: buffer.length,
 			mimeType,
 			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId
@@ -503,7 +618,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 									details: uploadResult?.error?.details || 'No additional details',
 									code: uploadResult?.error?.code || 'UNKNOWN_ERROR'
 								});
-								logger.warn('Avatar file saved to disk but not to database metadata');
+								logger.warn('Avatar file saved to storage but not to database metadata');
 							}
 						} else {
 							// Fallback: Try to use the CRUD interface to create a media record
@@ -545,18 +660,17 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 			logger.info('Database not ready - skipping avatar metadata save');
 		}
 
-		// Return the URL for serving to the client - this will be saved to user.avatar field
-		const fileUrl = `/${publicEnv.MEDIA_FOLDER}/${avatarUrl}`;
-
-		logger.info('Avatar saved successfully to disk', {
+		// Return the public URL (cloud or local)
+		logger.info('Avatar saved successfully', {
 			userId: userId?.includes('@') ? userId.replace(/(.{2}).*@(.*)/, '$1****@$2') : userId,
-			avatarUrl: fileUrl,
+			publicUrl,
 			fileSize: buffer.length,
 			mimeType,
+			storageType: isCloudStorage() ? 'cloud' : 'local',
 			note: 'Avatar URL will be saved to user database record by calling API'
 		});
 
-		return fileUrl;
+		return publicUrl;
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error('Unknown error occurred');
 		logger.error('Error saving avatar image:', {

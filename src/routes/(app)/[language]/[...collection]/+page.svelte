@@ -22,6 +22,7 @@
 - Auto-saves unsaved changes as draft when navigating away to prevent data loss.
 -->
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { beforeNavigate, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { untrack } from 'svelte';
@@ -30,7 +31,6 @@
 	import { parseURLToMode } from '@utils/navigationUtils';
 	import EntryList from '@src/components/collectionDisplay/EntryList.svelte';
 	import Fields from '@src/components/collectionDisplay/Fields.svelte';
-	import Loading from '@src/components/Loading.svelte';
 	import { showToast } from '@utils/toast';
 	import type { Schema } from '@src/content/types';
 
@@ -74,10 +74,10 @@
 			if (serverContentLanguage !== lastServerLanguage) {
 				const currentStoreLanguage = contentLanguage.value;
 				if (currentStoreLanguage !== serverContentLanguage) {
-					console.log('[+page.svelte] Syncing contentLanguage from server:', currentStoreLanguage, '→', serverContentLanguage);
+					logger.debug('[+page.svelte] Syncing contentLanguage from server:', currentStoreLanguage, '→', serverContentLanguage);
 					// Set without untrack to ensure all reactive subscribers are notified
 					contentLanguage.set(serverContentLanguage as any);
-					console.log('[+page.svelte] ContentLanguage store now:', contentLanguage.value);
+					logger.debug('[+page.svelte] ContentLanguage store now:', contentLanguage.value);
 				}
 				lastServerLanguage = serverContentLanguage;
 			}
@@ -106,7 +106,7 @@
 			hasInitiallyLoaded = true;
 			lastEditParam = editParam;
 			const entryData = entries[0];
-			console.log('[Initial Load] Edit mode detected, loading entry:', entryData._id);
+			logger.debug('[Initial Load] Edit mode detected, loading entry:', entryData._id);
 
 			setMode('edit');
 			setCollectionValue(entryData);
@@ -125,7 +125,7 @@
 			// If we're in edit/create mode and only URL language changed, ignore the URL change
 			// This happens when user changes language in TranslationStatus dropdown
 			if ((mode.value === 'edit' || mode.value === 'create') && editParam === lastEditParam && isInCreateMode === wasInCreateMode) {
-				console.log('[URL Change] Language prefix changed, but staying in', mode.value, 'mode (no reload needed)');
+				logger.debug('[URL Change] Language prefix changed, but staying in', mode.value, 'mode (no reload needed)');
 				lastUrlString = currentUrl;
 				return; // Don't reload data, just update URL tracking
 			}
@@ -134,7 +134,7 @@
 			lastEditParam = editParam;
 			const parsed = parseURLToMode(page.url);
 
-			console.log(`[URL Change] ${mode.value} → ${parsed.mode}`, {
+			logger.debug(`[URL Change] ${mode.value} → ${parsed.mode}`, {
 				entryId: parsed.entryId,
 				hasEntries: entries.length,
 				editParamChanged
@@ -152,7 +152,7 @@
 					// Need to reload data
 					invalidateAll().then(() => {
 						setMode('edit');
-						console.log(`[URL Change] Reloaded entry ${parsed.entryId}`);
+						logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
 					});
 				}
 			} else if (parsed.mode === 'view' && mode.value === 'edit') {
@@ -251,14 +251,14 @@
 					collectionValue.value = { ...draftData, _id: result.data._id };
 				}
 
-				console.log('[Auto-save] Draft saved successfully');
+				logger.debug('[Auto-save] Draft saved successfully');
 				return true;
 			} else {
-				console.error('[Auto-save] Failed to save draft:', response.statusText);
+				logger.error('[Auto-save] Failed to save draft:', response.statusText);
 				return false;
 			}
 		} catch (error) {
-			console.error('[Auto-save] Error saving draft:', error);
+			logger.error('[Auto-save] Error saving draft:', error);
 			return false;
 		} finally {
 			isSavingDraft = false;
@@ -269,7 +269,7 @@
 	$effect(() => {
 		const handleCancelClick = () => {
 			userClickedCancel = true;
-			console.log('[Auto-save] Cancel clicked - no draft will be saved');
+			logger.debug('[Auto-save] Cancel clicked - no draft will be saved');
 		};
 
 		document.addEventListener('cancelEdit' as any, handleCancelClick as EventListener);
@@ -282,7 +282,7 @@
 	beforeNavigate(async ({ cancel }) => {
 		// Skip if user clicked cancel button
 		if (userClickedCancel) {
-			console.log('[Auto-save] Skipping auto-save due to cancel');
+			logger.debug('[Auto-save] Skipping auto-save due to cancel');
 			userClickedCancel = false;
 			return;
 		}
@@ -293,7 +293,7 @@
 			const hasUnsavedChanges = currentValue !== initialCollectionValue;
 
 			if (hasUnsavedChanges && !isSavingDraft) {
-				console.log('[Auto-save] Detected unsaved changes, auto-saving as draft...');
+				logger.debug('[Auto-save] Detected unsaved changes, auto-saving as draft...');
 
 				// Cancel navigation temporarily
 				cancel();
@@ -329,8 +329,19 @@
 	{/if}
 
 	{#if !collection.value}
-		<!-- This should only flash briefly on first load -->
-		<Loading />
+		<!-- Collection data should be available from SSR, if not show error -->
+		<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded-lg border border-error-500 bg-error-50 p-8">
+			<svg class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+				/>
+			</svg>
+			<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-400">Collection Not Loaded</h3>
+			<p class="text-center text-error-600 dark:text-error-400">Unable to load collection schema. Please refresh the page.</p>
+		</div>
 	{:else if mode.value === 'view' || mode.value === 'modify'}
 		<!-- Pass the server-loaded data directly as props -->
 		<EntryList {entries} {pagination} contentLanguage={serverContentLanguage} />

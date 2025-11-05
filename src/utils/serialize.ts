@@ -7,7 +7,7 @@ import type { User } from '@src/databases/auth/types';
 import type { Schema } from '@root/src/content/types';
 
 // System Logger
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 // Define the Serializable type
 export type SerializableValue = string | number | boolean | null | Date | Serializable | Serializable[];

@@ -26,6 +26,7 @@ Part of the Three Pillars Architecture for widget system.
 
 <script lang="ts">
 	import type { DateWidgetData } from './';
+	import { logger } from '@utils/logger';
 
 	interface Props {
 		value: DateWidgetData;
@@ -84,7 +85,7 @@ Part of the Three Pillars Architecture for widget system.
 
 			return new Intl.DateTimeFormat(userLocale, dateOptions).format(date);
 		} catch (e) {
-			console.warn('Date formatting error:', e);
+			logger.warn('Date formatting error:', e);
 			return 'Invalid Date';
 		}
 	});

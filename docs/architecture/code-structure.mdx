@@ -1122,6 +1122,98 @@ export async function load({ params, url, locals }) {
 
 ---
 
+## 🔗 Navigation Best Practices
+
+### Recommended: Use Anchor Tags with Preloading
+
+**✅ DO**: Use semantic HTML with SvelteKit's built-in preloading:
+
+```svelte
+<!-- Automatically preloads data when user hovers -->
+<a href="/collection/posts/edit" data-sveltekit-preload-data="hover"> Edit Post </a>
+
+<!-- For query parameters -->
+<a href={`?edit=${entryId}`} data-sveltekit-preload-data="hover"> Edit Entry </a>
+
+<!-- For multilingual routes -->
+<a href={`/${contentLanguage.value}/posts`} data-sveltekit-preload-data="hover"> View Posts </a>
+```
+
+**Benefits:**
+
+- ✅ Automatic hover preloading (85-95% faster perceived load)
+- ✅ Better SEO (crawlable links)
+- ✅ Native keyboard navigation (Tab, Enter)
+- ✅ Right-click "Open in new tab" support
+- ✅ Screen reader friendly
+- ✅ No JavaScript required for basic functionality
+
+**❌ DON'T**: Use buttons with programmatic navigation:
+
+```svelte
+<!-- Anti-pattern: No preloading, worse accessibility -->
+<button onclick={() => goto('/collection/posts/edit')}> Edit Post </button>
+```
+
+### When to Use `goto()`
+
+Only use programmatic navigation when you need to:
+
+- Combine navigation with complex side effects
+- Navigate conditionally based on async logic
+- Handle form submissions with validation
+- Close modals/sidebars before navigation
+
+```svelte
+<script>
+	import { goto } from '$app/navigation';
+
+	async function handleComplexAction() {
+		// Complex logic before navigation
+		await saveData();
+		closeModal();
+		updateAnalytics();
+
+		// Then navigate programmatically
+		await goto('/success');
+	}
+</script>
+
+<!-- Use button for complex actions -->
+<button onclick={handleComplexAction}> Save and Continue </button>
+
+<!-- But use <a> tag for simple navigation -->
+<a href="/cancel" data-sveltekit-preload-data="hover"> Cancel </a>
+```
+
+### Side Effects with Navigation
+
+Combine anchor tags with onclick handlers for side effects:
+
+```svelte
+<script>
+	function handleSideEffects() {
+		// Side effects only (don't prevent navigation)
+		closeSidebar();
+		trackEvent('navigation_clicked');
+	}
+</script>
+
+<!-- Anchor handles navigation, onclick handles side effects -->
+<a href="/dashboard" data-sveltekit-preload-data="hover" onclick={handleSideEffects}> Go to Dashboard </a>
+```
+
+### External Links
+
+```svelte
+<!-- External links should NOT use preload -->
+<a href="https://external-site.com" target="_blank" rel="noopener noreferrer"> External Link </a>
+```
+
+For more details, see [Hover Preloading Architecture](./hover-preloading.mdx).
+
+---
+
 ## 🧪 Testing Strategy
 
 ### 1. Unit Tests (Bun)

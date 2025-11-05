@@ -18,6 +18,7 @@ Registers and manages the service worker for offline support and caching.
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { logger } from '@utils/logger';
 
 	let updateAvailable = $state(false);
 	let registration: ServiceWorkerRegistration | null = $state(null);
@@ -67,7 +68,7 @@ Registers and manages the service worker for offline support and caching.
 				window.location.reload();
 			});
 		} catch (error) {
-			console.error('[ServiceWorker] Registration failed:', error);
+			logger.error('[ServiceWorker] Registration failed:', error);
 		}
 	}
 

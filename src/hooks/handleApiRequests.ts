@@ -60,9 +60,21 @@ function shouldBypassCache(searchParams: URLSearchParams): boolean {
 export const handleApiRequests: Handle = async ({ event, resolve }) => {
 	const { url, locals, request } = event;
 
-	// Early exit for non-API routes or unauthenticated requests
-	if (!url.pathname.startsWith('/api/') || !locals.user) {
+	// Early exit for non-API routes
+	if (!url.pathname.startsWith('/api/')) {
 		return resolve(event);
+	}
+
+	// Skip authentication check for setup API routes
+	// These are handled by handleSetup middleware for access control
+	if (url.pathname.startsWith('/api/setup')) {
+		return resolve(event);
+	}
+
+	// Require authentication for all other API routes
+	if (!locals.user) {
+		logger.warn(`Unauthenticated API access attempt: \x1b[33m${url.pathname}\x1b[0m`);
+		throw error(401, 'Authentication required');
 	}
 
 	metricsService.incrementApiRequests();
@@ -191,7 +203,7 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
 				await cacheService.clearByPattern(`${patternToInvalidate}*`, locals.tenantId);
 
 				logger.debug(
-					`Invalidated API cache for pattern ${patternToInvalidate}* (tenant: ${locals.tenantId || 'global'}) after ${request.method} request`
+					`Invalidated API cache for pattern \x1b[34m${patternToInvalidate}\x1b[0m* (tenant: ${locals.tenantId || 'global'}) after \x1b[34m${request.method}\x1b[0m request`
 				);
 			} catch (invalidationError) {
 				logger.error(`Failed to invalidate API cache after ${request.method}: ${getErrorMessage(invalidationError)}`);

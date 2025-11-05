@@ -14,11 +14,12 @@
 	}
 	import { debounce } from '@utils/utils';
 	import { untrack } from 'svelte';
+	import { logger } from '@utils/logger';
 	// Stores
 	import { avatarSrc } from '@stores/store.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Components
-	import Loading from '@components/Loading.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
@@ -70,40 +71,43 @@
 	let totalItems = $state(0);
 
 	async function fetchData() {
-		isLoading = true;
-		const endpoint = showUserList ? '/api/admin/users' : '/api/admin/tokens';
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams();
-		params.set('page', String(currentPage));
-		params.set('limit', String(rowsPerPage));
-		params.set('sort', sorting.sortedBy || 'createdAt');
-		if (sorting.isSorted !== 0) {
-			params.set('order', sorting.isSorted === 1 ? 'asc' : 'desc');
-		}
-		if (globalSearchValue) {
-			params.set('search', globalSearchValue);
-		}
+		await globalLoadingStore.withLoading(
+			loadingOperations.dataFetch,
+			async () => {
+				const endpoint = showUserList ? '/api/admin/users' : '/api/admin/tokens';
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity
+				const params = new URLSearchParams();
+				params.set('page', String(currentPage));
+				params.set('limit', String(rowsPerPage));
+				params.set('sort', sorting.sortedBy || 'createdAt');
+				if (sorting.isSorted !== 0) {
+					params.set('order', sorting.isSorted === 1 ? 'asc' : 'desc');
+				}
+				if (globalSearchValue) {
+					params.set('search', globalSearchValue);
+				}
 
-		try {
-			const response = await fetch(`${endpoint}?${params.toString()}`);
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to fetch data');
-			}
-			const result = await response.json();
-			if (result.success) {
-				tableData = result.data;
-				totalItems = result.pagination.totalItems;
-			}
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-			console.error('AdminArea fetch error:', errorMessage);
-			showToast(`Error fetching data: ${errorMessage}`, 'error');
-			tableData = [];
-			totalItems = 0;
-		} finally {
-			isLoading = false;
-		}
+				try {
+					const response = await fetch(`${endpoint}?${params.toString()}`);
+					if (!response.ok) {
+						const errorData = await response.json();
+						throw new Error(errorData.message || 'Failed to fetch data');
+					}
+					const result = await response.json();
+					if (result.success) {
+						tableData = result.data;
+						totalItems = result.pagination.totalItems;
+					}
+				} catch (err) {
+					const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+					logger.error('AdminArea fetch error:', errorMessage);
+					showToast(`Error fetching data: ${errorMessage}`, 'error');
+					tableData = [];
+					totalItems = 0;
+				}
+			},
+			'Fetching admin data'
+		);
 	}
 
 	// Custom event handler for token updates from Multibutton
@@ -175,15 +179,12 @@
 	let showUserList = $state(true);
 	let showUsertoken = $state(false);
 	let showExpiredTokens = $state(false);
-	let isLoading = $state(false);
 	let globalSearchValue = $state('');
 	let searchShow = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	let selectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
-
-	// Note: tableData is now a $state variable set by fetchData() above, not derived from adminData
 
 	// Derived rows to display and selection will be defined below
 	let density = $state(
@@ -223,6 +224,7 @@
 		void rowsPerPage;
 		void sorting;
 		void globalSearchValue;
+		void currentUser; // Watch for changes to current user (triggers refresh after user update)
 
 		untrack(() => {
 			fetchData();
@@ -621,9 +623,7 @@
 		</button>
 	</div>
 
-	{#if isLoading}
-		<Loading />
-	{:else if showUserList || showUsertoken}
+	{#if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 			<h2 class="order-1 text-xl font-bold text-tertiary-500 dark:text-primary-500">
 				{#if showUserList}{m.adminarea_userlist()}{:else if showUsertoken}{m.adminarea_listtoken()}{/if}

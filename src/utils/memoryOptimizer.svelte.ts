@@ -6,6 +6,7 @@
  */
 
 import { SvelteSet } from 'svelte/reactivity';
+import { logger } from '@utils/logger';
 
 /**
  * Creates a memory-efficient store with automatic cleanup
@@ -123,7 +124,7 @@ export function createResourceManager() {
 				try {
 					cleanup();
 				} catch (error) {
-					console.warn('Resource cleanup error:', error);
+					logger.warn('Resource cleanup error:', error);
 				}
 			});
 			resources.clear();

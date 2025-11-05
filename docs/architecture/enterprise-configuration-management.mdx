@@ -14,19 +14,17 @@ tags:
   - 'sync'
 ---
 
-import { Callout } from 'nextra/components'
+import { Callout } from 'nextra/components';
 
 # Enterprise Configuration Management
 
 This document outlines the architecture for the SveltyCMS configuration management system. It's inspired by Drupal's robust CEX/CIM workflow and is designed to provide a reliable, version-controllable, and developer-friendly way to manage the site's entire structure. The primary goal is to treat the site's structure as code.
 
-
-
 ## Core Principles
 
 The entire system is built on three foundational principles:
 
-1.  **⚙️ Configuration as Code:** Every piece of site structure (collections, roles, widget states, etc.) is represented by a version-controllable JSON file in the Git repository. The filesystem is the **source of truth**.
+1.  **⚙️ Configuration as Code:** Core site structure (collections, widget states, themes, etc.) is represented by version-controllable JSON files in the Git repository. The filesystem is the **source of truth** for these elements. Note: **Roles are database-only** and managed via the Access Management interface, not synced from filesystem.
 
 2.  **🆔 UUIDs are Everything:** All configuration entities are identified by a `uuidv4`. This is the non-negotiable key that allows the system to track the same entity across different environments (dev, staging, live) regardless of database IDs.
 
@@ -37,10 +35,12 @@ The entire system is built on three foundational principles:
 A critical feature is the ability to manage dependencies between structural code (e.g., a widget) and environment-specific secrets (e.g., API keys stored in System Settings).
 
 <Callout type="info">
-  **Example:** A developer adds a `MapboxWidget` to the codebase. This widget requires a `MAPBOX_API_KEY` to function, which is a secret stored as a System Setting in the database.
+	**Example:** A developer adds a `MapboxWidget` to the codebase. This widget requires a `MAPBOX_API_KEY` to function, which is a secret stored as a
+	System Setting in the database.
 </Callout>
 
 The system bridges this gap in three steps:
+
 1.  **Declare Dependencies:** The widget's code declares its required settings in a `_requiredSettings` property.
 2.  **"Install Hook" on Import:** When the new widget is imported, the system reads its `_requiredSettings` and automatically creates a placeholder entry in the `system_settings` table if one doesn't exist.
 3.  **Application Health Check:** A "Status Report" page in the CMS continuously validates that all required settings have non-empty values, alerting the admin and providing a direct link to the settings page if a key is missing.
@@ -50,18 +50,24 @@ The system bridges this gap in three steps:
 The system is composed of a filesystem structure, a unified API, and a service layer, supporting two distinct workflows.
 
 ### Filesystem Structure (`/config/sync/`)
+
 All exported configuration lives in a structured, version-controllable directory.
+
 - `/collections/[name].[uuid].json`
-- `/roles/[name].[uuid].json`
 - `/system/widget.state.json`
 - `/system/theme.state.json`
 
+**Note:** Roles are stored in the `auth_roles` database collection and edited via `/config/accessManagement` or `/api/permission/update`.
+
 ### The Unified API (`/api/config_sync`)
+
 A single, secure endpoint orchestrates all actions:
+
 - **`GET /status`:** Runs the "diff" algorithm and reports on new, updated, and deleted entities, as well as any unmet requirements.
 - **`POST /export`:** Writes the current active configuration from the database to the filesystem.
 - **`POST /import`:** Applies the configuration from the filesystem to the database, respecting dependencies.
 
 ### The Two Workflows
+
 1.  **Development (Hot Sync):** Powered by your `vite.config.ts`, this provides a real-time "inner loop." When a developer changes a config file, the Vite watcher instantly triggers the compiler and reloads the server, providing immediate feedback.
 2.  **Deployment (Cold Sync):** Powered by the `/api/config_sync` endpoint, this provides a robust "outer loop." It's used by CI/CD pipelines or admins to bring a staging or production environment's database into perfect alignment with the codebase.

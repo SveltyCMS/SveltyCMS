@@ -27,6 +27,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Stores
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	// Logger
+	import { logger } from '@utils/logger';
 	// Utils & Media
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
@@ -273,7 +275,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(result.error || 'Failed to create folder');
 			}
 		} catch (error) {
-			console.error('Error creating folder:', error);
+			logger.error('Error creating folder:', error);
 			const errorMessage =
 				error instanceof Error && error.message.includes('duplicate')
 					? error.message
@@ -302,7 +304,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(result.error || 'Failed to fetch folders');
 			}
 		} catch (error) {
-			console.error('Error fetching updated folders:', error);
+			logger.error('Error fetching updated folders:', error);
 			showToast('Failed to fetch folders', 'error');
 			return [];
 		}
@@ -332,7 +334,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(data.error || 'Unknown error');
 			}
 		} catch (error: unknown) {
-			console.error('Error fetching media files:', error);
+			logger.error('Error fetching media files:', error);
 			let errorMessage = 'Failed to load media';
 			if (error instanceof Error) {
 				if (error.message.includes('timeout')) {
@@ -365,7 +367,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			// Fetch media files for the current folder
 			await fetchMediaFiles();
 		} catch (error) {
-			console.error('Error opening folder:', error);
+			logger.error('Error opening folder:', error);
 			showToast('Failed to open folder', 'error');
 		}
 	}
@@ -419,7 +421,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(result.error || 'Failed to delete media');
 			}
 		} catch (error) {
-			console.error('Error deleting media: ', error);
+			logger.error('Error deleting media: ', error);
 			showToast('Error deleting media', 'error');
 		}
 	}
@@ -438,7 +440,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			try {
 				defaultBehavior();
 			} catch (error) {
-				console.error('Navigation error:', error);
+				logger.error('Navigation error:', error);
 				// Fallback to home page if history.back() fails
 				goto('/');
 			}

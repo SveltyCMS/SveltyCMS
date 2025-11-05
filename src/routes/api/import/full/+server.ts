@@ -437,7 +437,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 } // 207 Multi-Status if partial success
 		);
 	} catch (error) {
-		console.error('Import error:', error);
+		logger.error('Import error:', error);
 		return json(
 			{
 				success: false,

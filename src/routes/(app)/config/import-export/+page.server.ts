@@ -13,13 +13,11 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-import { roles } from '@root/config/roles';
-import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { user } = locals;
+		const { user, isAdmin, roles: tenantRoles } = locals;
 
 		// Auth check
 		if (!user) {
@@ -27,12 +25,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		// Role lookup
-		const userRole = roles.find((r) => r._id === user.role);
+		// Permission check using cached tenantRoles from locals
+		const hasPermission = tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('importexport')));
 
-		// Permission check
-		const hasPermission = hasPermissionWithRoles(user, 'config:importexport', roles);
-		if (!hasPermission) {
+		if (!hasPermission && !isAdmin) {
 			logger.warn(`Permission denied: user=${user._id}, role=${user.role}, missing=config:importexport`);
 			throw error(403, 'Insufficient permissions');
 		}
@@ -44,7 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				username: user.username,
 				email: user.email,
 				role: user.role,
-				isAdmin: !!userRole?.isAdmin
+				isAdmin
 			}
 		};
 	} catch (err) {

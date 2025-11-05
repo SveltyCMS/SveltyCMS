@@ -38,6 +38,7 @@ and automated response visualization for enterprise security operations.
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { logger } from '@utils/logger';
 	import BaseWidget from '../BaseWidget.svelte';
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
@@ -194,7 +195,7 @@ and automated response visualization for enterprise security operations.
 			incidents = incidentsData.incidents || [];
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to fetch security data';
-			console.error('Security data fetch error:', err);
+			logger.error('Security data fetch error:', err);
 		} finally {
 			isLoading = false;
 		}

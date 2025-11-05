@@ -18,17 +18,16 @@
 	import { showToast } from '@utils/toast';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
-	import Loading from '@components/Loading.svelte';
 	import { clipboard } from '@skeletonlabs/skeleton';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import type { WebsiteToken } from '@src/databases/schemas';
 	import type { User } from '@src/databases/auth/types';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	let tokens = $state<WebsiteToken[]>([]);
 	let users = $state<User[]>([]);
 	let userMap = $derived(new Map(users.map((u) => [u._id, u.username || u.email])));
-	let isLoading = $state(true);
 	let newTokenName = $state('');
 
 	// Filter state
@@ -103,39 +102,42 @@
 	}
 
 	async function fetchTokens() {
-		isLoading = true;
-		const params = new URLSearchParams();
-		params.set('page', String(currentPage));
-		params.set('limit', String(rowsPerPage));
-		params.set('sort', sorting.sortedBy);
-		if (sorting.isSorted !== 0) {
-			params.set('order', sorting.isSorted === 1 ? 'asc' : 'desc');
-		}
+		await globalLoadingStore.withLoading(
+			loadingOperations.tokenGeneration,
+			async () => {
+				const params = new URLSearchParams();
+				params.set('page', String(currentPage));
+				params.set('limit', String(rowsPerPage));
+				params.set('sort', sorting.sortedBy);
+				if (sorting.isSorted !== 0) {
+					params.set('order', sorting.isSorted === 1 ? 'asc' : 'desc');
+				}
 
-		if (globalSearchValue) {
-			params.set('search', globalSearchValue);
-		}
+				if (globalSearchValue) {
+					params.set('search', globalSearchValue);
+				}
 
-		for (const [key, value] of Object.entries(filters)) {
-			if (value) {
-				params.set(key, value);
-			}
-		}
+				for (const [key, value] of Object.entries(filters)) {
+					if (value) {
+						params.set(key, value);
+					}
+				}
 
-		try {
-			const response = await fetch(`/api/website-tokens?${params.toString()}`);
-			if (response.ok) {
-				const result = await response.json();
-				tokens = result.data;
-				totalItems = result.pagination.totalItems;
-			} else {
-				showToast('Failed to fetch tokens', 'error');
-			}
-		} catch (error) {
-			showToast('An error occurred while fetching tokens', 'error');
-		} finally {
-			isLoading = false;
-		}
+				try {
+					const response = await fetch(`/api/website-tokens?${params.toString()}`);
+					if (response.ok) {
+						const result = await response.json();
+						tokens = result.data;
+						totalItems = result.pagination.totalItems;
+					} else {
+						showToast('Failed to fetch tokens', 'error');
+					}
+				} catch (error) {
+					showToast('An error occurred while fetching tokens', 'error');
+				}
+			},
+			'Fetching website tokens'
+		);
 	}
 
 	async function generateToken() {
@@ -262,103 +264,99 @@
 					</div>
 				</div>
 			{/if}
-			{#if isLoading}
-				<Loading />
-			{:else}
-				<div class="table-container">
-					<table class="table table-hover">
-						<thead>
-							{#if filterShow}
-								<tr class="divide-x divide-surface-400">
-									<th></th>
-									{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
-										<th>
-											<input
-												type="text"
-												class="input"
-												placeholder={`Filter by ${header.label}...`}
-												oninput={(e) => handleInputChange(e.currentTarget.value, header.key)}
-											/>
-										</th>
-									{/each}
-									<th></th>
-								</tr>
-							{/if}
-							<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-								{#each displayTableHeaders.filter((h) => h.visible) as header}
-									<th
-										onclick={() => {
-											sorting = {
-												sortedBy: header.key,
-												isSorted: sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? -1 : sorting.isSorted === -1 ? 0 : 1) : 1
-											};
-										}}
-									>
-										<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
-											{header.label}
-											<iconify-icon
-												icon="material-symbols:arrow-upward-rounded"
-												width="22"
-												class="origin-center duration-300 ease-in-out"
-												class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
-												class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
-											></iconify-icon>
-										</div>
+			<div class="table-container">
+				<table class="table table-hover">
+					<thead>
+						{#if filterShow}
+							<tr class="divide-x divide-surface-400">
+								<th></th>
+								{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
+									<th>
+										<input
+											type="text"
+											class="input"
+											placeholder={`Filter by ${header.label}...`}
+											oninput={(e) => handleInputChange(e.currentTarget.value, header.key)}
+										/>
 									</th>
 								{/each}
-								<th class="text-terriary-500 text-center dark:text-primary-500">Action</th>
+								<th></th>
 							</tr>
-						</thead>
-						<tbody>
-							{#each tokens as token (token._id)}
-								<tr>
-									{#each displayTableHeaders.filter((h) => h.visible) as header}
-										<td>
-											{#if header.key === 'token'}
-												<div class="flex items-center gap-2">
-													<code>{token.token}</code>
-													<button
-														use:clipboard={token.token}
-														onclick={() => showToast('Token copied to clipboard', 'success')}
-														class="variant-ghost-surface btn-icon btn-icon-sm"
-														aria-label="Copy token to clipboard"
-													>
-														<iconify-icon icon="mdi:clipboard-outline" width="16"></iconify-icon>
-													</button>
-												</div>
-											{:else if header.key === 'createdAt'}
-												{new Date(token.createdAt).toLocaleDateString()}
-											{:else if header.key === 'createdBy'}
-												{userMap.get(token.createdBy) || token.createdBy}
-											{:else}
-												{token[header.key as keyof WebsiteToken]}
-											{/if}
-										</td>
-									{/each}
-									<td>
-										<button class="variant-filled-error btn btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
-									</td>
-								</tr>
+						{/if}
+						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+							{#each displayTableHeaders.filter((h) => h.visible) as header}
+								<th
+									onclick={() => {
+										sorting = {
+											sortedBy: header.key,
+											isSorted: sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? -1 : sorting.isSorted === -1 ? 0 : 1) : 1
+										};
+									}}
+								>
+									<div class="text-terriary-500 flex items-center justify-center text-center dark:text-primary-500">
+										{header.label}
+										<iconify-icon
+											icon="material-symbols:arrow-upward-rounded"
+											width="22"
+											class="origin-center duration-300 ease-in-out"
+											class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
+											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
+										></iconify-icon>
+									</div>
+								</th>
 							{/each}
-						</tbody>
-					</table>
+							<th class="text-terriary-500 text-center dark:text-primary-500">Action</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each tokens as token (token._id)}
+							<tr>
+								{#each displayTableHeaders.filter((h) => h.visible) as header}
+									<td>
+										{#if header.key === 'token'}
+											<div class="flex items-center gap-2">
+												<code>{token.token}</code>
+												<button
+													use:clipboard={token.token}
+													onclick={() => showToast('Token copied to clipboard', 'success')}
+													class="variant-ghost-surface btn-icon btn-icon-sm"
+													aria-label="Copy token to clipboard"
+												>
+													<iconify-icon icon="mdi:clipboard-outline" width="16"></iconify-icon>
+												</button>
+											</div>
+										{:else if header.key === 'createdAt'}
+											{new Date(token.createdAt).toLocaleDateString()}
+										{:else if header.key === 'createdBy'}
+											{userMap.get(token.createdBy) || token.createdBy}
+										{:else}
+											{token[header.key as keyof WebsiteToken]}
+										{/if}
+									</td>
+								{/each}
+								<td>
+									<button class="variant-filled-error btn btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+			<div class="flex justify-center">
+				<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+					<TablePagination
+						bind:currentPage
+						bind:rowsPerPage
+						{pagesCount}
+						{totalItems}
+						onUpdatePage={(page) => (currentPage = page)}
+						onUpdateRowsPerPage={(rows) => {
+							rowsPerPage = rows;
+							currentPage = 1;
+						}}
+					/>
 				</div>
-				<div class="flex justify-center">
-					<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
-						<TablePagination
-							bind:currentPage
-							bind:rowsPerPage
-							{pagesCount}
-							{totalItems}
-							onUpdatePage={(page) => (currentPage = page)}
-							onUpdateRowsPerPage={(rows) => {
-								rowsPerPage = rows;
-								currentPage = 1;
-							}}
-						/>
-					</div>
-				</div>
-			{/if}
+			</div>
 		</div>
 	</div>
 </div>

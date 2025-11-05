@@ -1,40 +1,49 @@
 # .github/workflows/playwright.yml
-# Full test CI for Playwright + Bun
-# This workflow now relies on playwright.config.ts to run the setup wizard.
 name: Playwright and Bun Tests
 
 on:
-  push: # Test all pushes to protected branches
+  push:
     branches: [main, next]
-  pull_request: # Only PRs targeting main require full testing
+  pull_request:
     branches: [main]
-  workflow_dispatch: {} # Allow manual testing
-  workflow_call: {} # Allow being called from other workflows (e.g., auto-release)
+  workflow_dispatch: {}
+  workflow_call: {}
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
 
 jobs:
   test:
-    name: SveltyCMS Tests (${{ matrix.mode }}) # Matrix: dev + preview
-    timeout-minutes: 60 # Limit long-runs
+    name: SveltyCMS Tests (${{ matrix.mode }})
+    timeout-minutes: 60
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      checks: write
 
     strategy:
-      fail-fast: false # Don’t cancel dev tests if preview fails
+      fail-fast: false
       matrix:
-        mode: [dev, preview] # Test both serving modes
+        mode: [dev, preview]
+
+    # ✅ SET ONCE at job level - shared by all steps
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
+      CI_MODE: ${{ matrix.mode }}
 
     steps:
-      # Grab code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Setup Bun environment
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # Cache Bun dependencies
-      - name: Cache Bun dependencies and Playwright browsers
+      - name: Cache dependencies
         uses: actions/cache@v3
         with:
           path: |
@@ -45,7 +54,6 @@ jobs:
             ${{ runner.OS }}-bun-playwright-
         continue-on-error: true
 
-      # start monogodb
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
         with:
@@ -55,24 +63,19 @@ jobs:
           mongodb-db: SveltyCMS
           mongodb-port: 27017
 
-      # Bun faster than npm/pnpm
       - name: Install deps
         run: bun install
 
-      # Web engine support
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps
 
-      # Prepare .svelte-kit
       - name: Sync SvelteKit build internals
         run: bunx svelte-kit sync
 
-      # Build for preview mode
       - name: Build for preview
         if: matrix.mode == 'preview'
         run: bun run build
 
-      # Start dev or preview server in background
       - name: Start dev server
         if: matrix.mode == 'dev'
         run: bun run dev --port 5173 &
@@ -83,13 +86,11 @@ jobs:
         if: matrix.mode == 'preview'
         run: bun run preview --port 4173 &
 
-      # Wait for server to be ready
       - name: Wait for server
         run: |
-          URL="${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}"
-          echo "Waiting for server at $URL..."
+          echo "Waiting for server at $PLAYWRIGHT_TEST_BASE_URL..."
           for i in {1..60}; do
-            if curl -sf "$URL" > /dev/null 2>&1; then
+            if curl -sf "$PLAYWRIGHT_TEST_BASE_URL" > /dev/null 2>&1; then
               echo "Server is ready!"
               exit 0
             fi
@@ -99,7 +100,6 @@ jobs:
           echo "Server failed to start within 60 seconds"
           exit 1
 
-      # Check if setup is needed (config/private.ts doesn't exist or has empty DB_HOST)
       - name: Check if setup is needed
         id: check_setup
         run: |
@@ -114,10 +114,11 @@ jobs:
             echo "needs_setup=false" >> $GITHUB_OUTPUT
           fi
 
-      # Run setup wizard first to initialize the app (only on chromium to save time)
+      # ✅ ONLY setup wizard needs MongoDB credentials
       - name: Run Setup Wizard
         if: steps.check_setup.outputs.needs_setup == 'true'
         env:
+          # These are ONLY for the setup wizard test
           MONGO_HOST: localhost
           MONGO_PORT: 27017
           MONGO_DB: SveltyCMS
@@ -126,44 +127,24 @@ jobs:
           ADMIN_USER: admin
           ADMIN_EMAIL: admin@example.com
           ADMIN_PASS: Admin123!
-          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
         run: |
           mkdir -p test-results/playwright
           echo "=== Running setup wizard to initialize application ==="
           bunx playwright test tests/playwright/setup-wizard.spec.ts --project=chromium --reporter=list --retries=2
           echo "=== Setup wizard completed ==="
 
+      # ✅ Regular tests don't need MongoDB env vars
       - name: Run Playwright tests
-        # We pass all secrets and configs as environment variables
-        # so both playwright.config.ts and setup-wizard.spec.ts can access them.
-        env:
-          # --- Config for playwright.config.ts ---
-          CI_MODE: ${{ matrix.mode }}
-          PLAYWRIGHT_TEST_BASE_URL: ${{ matrix.mode == 'dev' && 'http://localhost:5173' || 'http://localhost:4173' }}
-
-          # --- Config for setup-wizard.spec.ts ---
-          MONGO_HOST: localhost
-          MONGO_PORT: 27017
-          MONGO_DB: SveltyCMS
-          MONGO_USER: admin
-          MONGO_PASS: admin
-          ADMIN_USER: admin
-          ADMIN_EMAIL: admin@example.com
-          ADMIN_PASS: Admin123!
         run: |
           echo "Running remaining Playwright tests..."
           bunx playwright test --reporter=line --output=test-results/playwright --grep-invert "setup-wizard"
 
-      # Server-only tests (can run after main tests)
       - name: Run Bun tests (API)
         if: matrix.mode == 'preview'
-        env:
-          API_BASE_URL: http://localhost:4173
         run: |
           mkdir -p test-results/bun
           bun test tests/bun > test-results/bun/results.txt
 
-      # CI history + debugging
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -172,7 +153,6 @@ jobs:
           path: test-results/
           retention-days: 21
 
-      # Crash diagnosis
       - name: Show server logs (debug on failure)
         if: failure()
         run: |

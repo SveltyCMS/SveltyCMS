@@ -471,11 +471,11 @@ npm run typecheck    # Type checking
 
 ### Important Files
 
-- `.env` - Environment configuration
-- `config/roles.ts` - Role definitions
+- `config/private.ts` - Database connection configuration (created during setup)
 - `config/collections/` - Collection schemas
 - `src/routes/api/` - API endpoints
 - `src/databases/` - Database adapters
+- Roles are managed in the database via `/config/accessManagement`
 
 ---
 

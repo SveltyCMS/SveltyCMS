@@ -447,17 +447,17 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
 			const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale) || 'en';
 
-			// Check if collections exist in the database (runtime-created collections)
-			// First try the firstCollection passed from setup wizard (if available)
-			if (firstCollection?._id) {
-				// Use UUID for internal redirect, browser will convert to friendly name
-				redirectPath = `/${userLanguage}/${firstCollection._id}`;
-				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${firstCollection.name} (ID: ${firstCollection._id})`, { correlationId });
-			} else if (firstCollection?.path) {
-				// Fallback to path if _id not available (shouldn't happen but safety first)
-				redirectPath = `/${userLanguage}${firstCollection.path}`;
-				logger.warn(`Setup complete: Using path-based redirect (missing _id): ${redirectPath}`, { correlationId });
-			} else {
+		// Check if collections exist in the database (runtime-created collections)
+		// First try the firstCollection passed from setup wizard (if available)
+		if (firstCollection?.path) {
+			// Use path for redirect (friendly URL)
+			redirectPath = `/${userLanguage}${firstCollection.path}`;
+			logger.info(`Setup complete: Redirecting to pre-seeded collection: ${firstCollection.name} (path: ${firstCollection.path})`, { correlationId });
+		} else if (firstCollection?._id) {
+			// Fallback to ID if path not available (will redirect to UUID which might be less friendly)
+			redirectPath = `/${userLanguage}/${firstCollection._id}`;
+			logger.warn(`Setup complete: Using ID-based redirect (missing path): ${redirectPath}`, { correlationId });
+		} else {
 				// Fallback: Query database for available collections
 				const collectionPath = await getCachedFirstCollectionPath(userLanguage);
 

@@ -80,19 +80,22 @@ async function discoverWidgets(): Promise<WidgetInfo[]> {
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const { user, isAdmin, hasManageUsersPermission, permissions, roles } = locals;
+	const { user, isAdmin, roles: tenantRoles } = locals;
 	if (!user) {
 		logger.warn('User not authenticated, redirecting to login.');
 		throw redirect(301, '/login');
 	}
 
-	// Ensure only admins can access the dashboard
-	if (!isAdmin) {
-		logger.warn(`Non-admin user (${user.email}) attempted to access the dashboard. Redirecting.`);
-		throw redirect(302, '/'); // Redirect to home page or an access-denied page
+	// Check if user has permission to access dashboard
+	const hasDashboardPermission =
+		isAdmin || tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'dashboard' && p.actions.includes('read')));
+
+	if (!hasDashboardPermission) {
+		logger.warn(`User ${user._id} (${user.email}) does not have permission to access dashboard. Redirecting.`);
+		throw error(403, 'Insufficient permissions to access dashboard');
 	}
 
-	logger.trace(`Admin user authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
+	logger.trace(`User authenticated successfully for dashboard: \x1b[34m${user._id}\x1b[0m`);
 
 	const { _id, ...rest } = user;
 	const availableWidgets = await discoverWidgets();
@@ -103,10 +106,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				id: _id.toString(),
 				...rest
 			},
-			isAdmin,
-			hasManageUsersPermission,
-			permissions,
-			roles
+			isAdmin
 		},
 		availableWidgets
 	};

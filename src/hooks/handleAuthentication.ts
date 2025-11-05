@@ -371,7 +371,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 	}
 
 	// Skip public routes
-	const publicRoutes = ['/login', '/register', '/forgot-password'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/setup', '/api/setup'];
 	if (publicRoutes.some((r) => url.pathname.startsWith(r))) {
 		return resolve(event);
 	}

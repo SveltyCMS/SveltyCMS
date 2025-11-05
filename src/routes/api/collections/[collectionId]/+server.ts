@@ -22,7 +22,7 @@ import type { BaseEntity } from '@src/databases/dbInterface';
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
-import { roles, initializeRoles } from '@root/config/roles';
+import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -42,11 +42,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	// Ensure roles are initialized
-	await initializeRoles();
-
 	// Get user's role and determine admin status properly
-	const availableRoles = locals.roles && locals.roles.length > 0 ? locals.roles : roles;
+	const availableRoles = locals.roles && locals.roles.length > 0 ? locals.roles : getDefaultRoles();
 	const userRole = availableRoles.find((role) => role._id === user?.role);
 	const isAdmin = Boolean(userRole?.isAdmin);
 

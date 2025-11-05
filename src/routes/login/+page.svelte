@@ -13,6 +13,7 @@ Features:
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { getPublicSetting, publicEnv } from '@src/stores/globalSettings.svelte';
 	import type { PageData } from './$types';
 	// Components
@@ -24,6 +25,7 @@ Features:
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { locales as availableLocales } from '@src/paraglide/runtime';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -88,11 +90,7 @@ Features:
 	let debounceTimeout = $state<ReturnType<typeof setTimeout>>();
 
 	// Derived state using $derived rune
-	const availableLanguages = $derived(
-		Array.isArray(getPublicSetting('LOCALES'))
-			? [...getPublicSetting('LOCALES')].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
-			: ['en']
-	);
+	const availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
 
 	const filteredLanguages = $derived(
 		availableLanguages.filter(
@@ -103,11 +101,7 @@ Features:
 	);
 
 	// Ensure a valid language is always used
-	const currentLanguage = $derived(
-		systemLanguage.value && Array.isArray(getPublicSetting('LOCALES')) && getPublicSetting('LOCALES').includes(systemLanguage.value)
-			? systemLanguage.value
-			: 'en'
-	);
+	const currentLanguage = $derived(systemLanguage.value && availableLocales.includes(systemLanguage.value) ? systemLanguage.value : 'en');
 
 	// Language selection
 	function handleLanguageSelection(lang: string) {
@@ -252,11 +246,11 @@ Features:
 				.then((response) => {
 					if (response.ok) {
 					} else {
-						console.log('[DEBUG] Prefetch action failed:', response.status);
+						logger.debug('[DEBUG] Prefetch action failed:', response.status);
 					}
 				})
 				.catch((err) => {
-					console.log('[DEBUG] Prefetch fetch error:', err);
+					logger.debug('[DEBUG] Prefetch fetch error:', err);
 				});
 		}
 	});

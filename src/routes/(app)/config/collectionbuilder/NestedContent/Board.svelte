@@ -10,6 +10,7 @@ Features:
 <script lang="ts">
 	// Component
 	import Column from './Column.svelte';
+	import { logger } from '@utils/logger';
 
 	// Svelte DND-actions
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
@@ -110,7 +111,7 @@ Features:
 			structureState = e.detail.items;
 			dragError = null;
 		} catch (error) {
-			console.error('Error handling DnD consider in Board:', error);
+			logger.error('Error handling DnD consider in Board:', error);
 			dragError = error instanceof Error ? error.message : 'Error handling drag operation';
 		}
 	}
@@ -134,7 +135,7 @@ Features:
 				onNodeUpdate(flatNodes);
 				updateTimeout = null;
 			} catch (err) {
-				console.error('Error flattening in timeout:', err);
+				logger.error('Error flattening in timeout:', err);
 				dragError = err instanceof Error ? err.message : 'Error flattening structure';
 			}
 		}, 100); // Wait 100ms for all zones to settle
@@ -156,7 +157,7 @@ Features:
 			onNodeUpdate(newFlatContentNodes);
 			dragError = null;
 		} catch (error) {
-			console.error('Error handling DnD finalize in Board:', error);
+			logger.error('Error handling DnD finalize in Board:', error);
 			dragError = error instanceof Error ? error.message : 'Error finalizing drag operation';
 		} finally {
 			// Allow the effect to run again after drag is complete

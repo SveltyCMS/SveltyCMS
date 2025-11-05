@@ -6,7 +6,7 @@
 Displays a grid of media files with search, thumbnails, and detailed info view.
 
 @example
-<Media onselect={(file) => console.log('Selected:', file)} />
+<Media onselect={(file) => logger.debug('Selected:', file)} />
 
 ### Props
 - `onselect` {function} - Callback when a file is selected
@@ -18,6 +18,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { debounce } from '@utils/utils';
 	import axios from 'axios';
@@ -88,7 +89,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 			showInfoSet = new Set(); // Reset info toggles on refresh
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load media';
-			console.error('Error fetching media:', err);
+			logger.error('Error fetching media:', err);
 		} finally {
 			isLoading = false;
 		}

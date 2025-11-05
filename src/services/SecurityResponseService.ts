@@ -109,7 +109,7 @@ const THREAT_PATTERNS = {
 		/(\/\*.*\*\/)/,
 		/(\b(AND|OR)\b.*\b\d+\s*=\s*\d+\b)/i
 	],
-	XSS_PATTERNS: [/<script[^>]*>.*?<\/script>/i, /javascript:/i, /on\w+\s*=/i, /<iframe[^>]*>/i, /eval\s*\(/i, /document\.cookie/i],
+	XSS_PATTERNS: [/<script[^>]*>.*?<\/script\s*>/i, /javascript:/i, /on\w+\s*=/i, /<iframe[^>]*>/i, /eval\s*\(/i, /document\.cookie/i],
 	SUSPICIOUS_USER_AGENTS: [/sqlmap/i, /nikto/i, /burpsuite/i, /nmap/i, /masscan/i, /bot/i]
 };
 

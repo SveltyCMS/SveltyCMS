@@ -29,6 +29,7 @@ Part of the Three Pillars Architecture for widget system.
 
 <script lang="ts">
 	import type { FieldType } from './';
+	import { logger } from '@utils/logger';
 	import type { RemoteVideoData } from './types';
 
 	import { debounce } from '@utils/utils';
@@ -89,7 +90,7 @@ Part of the Three Pillars Architecture for widget system.
 					value = null; // Clear parent value on error.
 				}
 			} catch (e) {
-				console.error('Error fetching video metadata:', e);
+				logger.error('Error fetching video metadata:', e);
 				fetchError = 'An unexpected error occurred while fetching video data.';
 				value = null;
 			} finally {

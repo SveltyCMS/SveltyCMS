@@ -21,12 +21,12 @@
  * - Bulk validation and constraint checking
  */
 
-import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema, WebsiteToken } from '../content/types';
+import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateString, Schema } from '../content/types';
 // Auth types (moved from authDBInterface)
-import type { User, Session, Token } from './auth/types';
+import type { User, Session, Token, Role } from './auth/types';
 import type { WebsiteToken } from './schemas';
 
-export type { BaseEntity, DatabaseId, Schema };
+export type { BaseEntity, DatabaseId, Schema, User, Session, Token, Role };
 
 export type ContentNode = ContentNodeType;
 
@@ -350,6 +350,13 @@ export interface IDBAdapter {
 		deleteUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ deletedCount: number }>>;
 		blockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
 		unblockUsers(user_ids: string[], tenantId?: string): Promise<DatabaseResult<{ modifiedCount: number }>>;
+
+		// Role Management Methods
+		getAllRoles(tenantId?: string): Promise<Role[]>;
+		getRoleById(roleId: string, tenantId?: string): Promise<DatabaseResult<Role | null>>;
+		createRole(role: Role): Promise<DatabaseResult<Role>>;
+		updateRole(roleId: string, roleData: Partial<Role>, tenantId?: string): Promise<DatabaseResult<Role>>;
+		deleteRole(roleId: string, tenantId?: string): Promise<DatabaseResult<void>>;
 
 		// Combined Performance-Optimized Methods
 		createUserAndSession(

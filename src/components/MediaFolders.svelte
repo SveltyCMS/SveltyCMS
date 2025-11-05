@@ -19,7 +19,7 @@ Simple file-manager-like component for organizing media folders.
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { logger } from '@utils/logger';
 
 	// Stores
 	import { screenSize } from '@stores/screenSizeStore.svelte';
@@ -99,7 +99,7 @@ Simple file-manager-like component for organizing media folders.
 			}
 		} catch (err) {
 			error = 'Failed to load folders';
-			console.error('Error fetching folders:', err);
+			logger.error('Error fetching folders:', err);
 			showToast('Failed to load folders', 'error');
 		} finally {
 			isLoading = false;
@@ -165,7 +165,8 @@ Simple file-manager-like component for organizing media folders.
 	});
 
 	/**
-	 * Handle folder selection
+	 * Handle folder click - expand and update state
+	 * Navigation is handled by <a> tag in TreeView
 	 */
 	function handleFolderClick(folderId: string): void {
 		selectedFolderId = folderId;
@@ -175,19 +176,13 @@ Simple file-manager-like component for organizing media folders.
 			expandedNodes = new Set([...expandedNodes, folderId]);
 		}
 
-		// Navigate to media gallery with folder
-		const folderParam = folderId === 'root' ? '' : `?folderId=${folderId}`;
-		goto(`/mediagallery${folderParam}`);
-
-		// Close sidebar on mobile
+		// Close sidebar on mobile (navigation happens via link)
 		if (isMobile) {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}
 
-	/**
-	 * Handle drag & drop folder reordering
-	 */
+	// Handle drag & drop folder reordering
 	async function handleDragDrop(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside'): Promise<void> {
 		if (!isEditMode) return;
 
@@ -225,7 +220,7 @@ Simple file-manager-like component for organizing media folders.
 			}
 		} catch (error) {
 			showToast('Failed to move folder', 'error');
-			console.error('Error moving folder:', error);
+			logger.error('Error moving folder:', error);
 		}
 	}
 

@@ -9,6 +9,10 @@ on:
       - 'docs/**/*.mdx'
       - 'docs/**/*.ts'
 
+# Set minimal permissions for all jobs in this workflow
+permissions:
+  contents: read
+
 jobs:
   lint-docs:
     runs-on: ubuntu-latest # Ubuntu environment for CI

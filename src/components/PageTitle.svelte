@@ -45,13 +45,11 @@
 - Fluid typography scaling
 -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
-
 	// Stores
 	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { isDesktop } from '@stores/screenSizeStore.svelte';
 
-	type DefaultBehaviorFn = () => Promise<void> | void;
+	type DefaultBehaviorFn = () => void;
 
 	interface Props {
 		name: string;
@@ -85,22 +83,24 @@
 		return [name];
 	});
 
-	async function handleBackClick() {
-		const defaultBehavior: DefaultBehaviorFn = async () => {
-			if (backUrl) {
-				// --- FIX: Suppress the false positive linter error ---
-				// eslint-disable-next-line svelte/no-navigation-without-resolve
-				await goto(backUrl, { replaceState: false });
-			} else {
+	function handleBackClick(event: Event) {
+		const defaultBehavior: DefaultBehaviorFn = () => {
+			if (!backUrl) {
+				event.preventDefault();
 				window.history.back();
 			}
+			// If backUrl exists, let the link handle navigation naturally
 		};
 
 		if (onBackClick) {
+			event.preventDefault();
 			onBackClick(defaultBehavior);
-		} else {
-			await defaultBehavior();
+		} else if (!backUrl) {
+			// No backUrl provided, use browser history
+			event.preventDefault();
+			window.history.back();
 		}
+		// Otherwise, let the <a> tag handle navigation with preloading
 	}
 </script>
 
@@ -141,22 +141,29 @@
 		</h1>
 	</div>
 	{#if showBackButton}
-		<button
-			onclick={async () => {
-				await handleBackClick();
-			}}
-			aria-label="Go back"
-			tabindex="0"
-			onkeydown={async (e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					await handleBackClick();
-				}
-			}}
-			class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
-			style="min-width: 48px; min-height: 48px;"
-			data-cms-action="back"
-		>
-			<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
-		</button>
+		{#if backUrl}
+			<a
+				href={backUrl}
+				aria-label="Go back"
+				class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
+				style="min-width: 48px; min-height: 48px;"
+				data-cms-action="back"
+				data-sveltekit-preload-data="hover"
+				onclick={(e) => handleBackClick(e)}
+			>
+				<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+			</a>
+		{:else}
+			<button
+				onclick={(e) => handleBackClick(e)}
+				aria-label="Go back"
+				tabindex="0"
+				class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
+				style="min-width: 48px; min-height: 48px;"
+				data-cms-action="back"
+			>
+				<iconify-icon icon="ri:arrow-left-line" width="24" aria-hidden="true"></iconify-icon>
+			</button>
+		{/if}
 	{/if}
 </div>

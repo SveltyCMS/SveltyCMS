@@ -22,6 +22,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import type { FieldType } from '.';
 
 	// Utils
@@ -126,7 +127,7 @@
 				if (field?.required && (currentValue === null || currentValue === undefined || currentValue === '')) {
 					const error = 'This field is required';
 					if (process.env.NODE_ENV !== 'production') {
-						console.log(`[Input Widget] Setting required field error for ${fieldName}:`, error);
+						logger.debug(`[Input Widget] Setting required field error for ${fieldName}:`, error);
 					}
 					validationStore.setError(fieldName, error);
 					return error;
@@ -161,7 +162,7 @@
 					throw error;
 				}
 			} catch (error) {
-				console.error('Validation error:', error);
+				logger.error('Validation error:', error);
 				const errorMessage = 'An unexpected error occurred during validation';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;

@@ -223,7 +223,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					required
 					autocomplete="email"
 					icon="mdi:email"
-					inputClass="dark-mode-input"
+					textColor="text-tertiary-500 dark:text-white"
 				/>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -231,7 +231,6 @@ It handles token creation, updates, and deletion with proper validation and erro
 					</div>
 				{/if}
 			</div>
-
 			<!-- Token field (hidden but still submitted with form) -->
 			<input bind:value={formData.token} type="hidden" name="token" />
 
@@ -303,11 +302,5 @@ It handles token creation, updates, and deletion with proper validation and erro
 {/if}
 
 <style>
-	:global(.dark-mode-input) {
-		color: black;
-	}
-
-	:global(.dark .dark-mode-input) {
-		color: white;
-	}
+	/* Removed: dark-mode-input styles - now handled via textColor prop */
 </style>

@@ -24,6 +24,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import Konva from 'konva';
 
 	interface Props {
@@ -66,7 +67,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	$effect(() => {
 		if (!mounted && stage && layer && imageNode && container) {
 			mounted = true;
-			console.log('Crop tool mounted, initializing...', { stage, layer, imageNode, container });
+			logger.debug('Crop tool mounted, initializing...', { stage, layer, imageNode, container });
 
 			// Small delay to ensure all Konva elements are ready
 			setTimeout(() => {
@@ -75,7 +76,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 			return () => {
 				// Cleanup on unmount
-				console.log('Crop tool unmounting, cleaning up...');
+				logger.debug('Crop tool unmounting, cleaning up...');
 				cleanupCropTool();
 				cleanupRotationGrid();
 			};
@@ -91,11 +92,11 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	function initCropTool() {
-		console.log('initCropTool called', { imageNode, layer, cropShape, container });
+		logger.debug('initCropTool called', { imageNode, layer, cropShape, container });
 
 		// Validate required elements
 		if (!stage || !layer || !imageNode || !container) {
-			console.error('Missing required elements for crop tool initialization');
+			logger.error('Missing required elements for crop tool initialization');
 			return;
 		}
 
@@ -113,7 +114,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 
 		// Validate dimensions
 		if (containerBox.width === 0 || containerBox.height === 0) {
-			console.error('Container has zero dimensions:', containerBox);
+			logger.error('Container has zero dimensions:', containerBox);
 			return;
 		}
 
@@ -122,7 +123,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		const visibleHeight = containerBox.height;
 		const size = Math.min(visibleWidth, visibleHeight) * 0.6; // 60% of smallest dimension
 
-		console.log('Container dimensions:', {
+		logger.debug('Container dimensions:', {
 			containerBox,
 			visibleWidth,
 			visibleHeight,
@@ -326,7 +327,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 		// Force redraw to ensure visibility
 		stage.batchDraw();
 
-		console.log('Crop tool initialized and drawn', {
+		logger.debug('Crop tool initialized and drawn', {
 			cropTool: cropTool?.attrs,
 			transformer: transformer?.attrs,
 			cropOverlay: cropOverlay?.attrs,
@@ -501,13 +502,13 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	// ========== EXPORTED FUNCTIONS ==========
 
 	export function rotateLeft() {
-		console.log('rotateLeft called, current angle:', rotationAngle);
+		logger.debug('rotateLeft called, current angle:', rotationAngle);
 		rotationAngle = (rotationAngle - 90) % 360;
-		console.log('New angle:', rotationAngle);
+		logger.debug('New angle:', rotationAngle);
 	}
 
 	export function flipHorizontal() {
-		console.log('flipHorizontal called');
+		logger.debug('flipHorizontal called');
 		isFlippedH = !isFlippedH;
 		if (container) {
 			container.scaleX(container.scaleX() * -1);
@@ -529,13 +530,13 @@ UI components are external (CropTopToolbar, CropBottomBar).
 	}
 
 	export function cleanup() {
-		console.log('Manual cleanup called from parent');
+		logger.debug('Manual cleanup called from parent');
 		cleanupCropTool();
 		cleanupRotationGrid();
 	}
 
 	export function setAspectRatio(ratio: string) {
-		console.log('Setting aspect ratio:', ratio);
+		logger.debug('Setting aspect ratio:', ratio);
 		aspectRatio = ratio;
 
 		// Reinitialize crop tool with new aspect ratio constraint
@@ -593,7 +594,7 @@ UI components are external (CropTopToolbar, CropBottomBar).
 			shape: cropShape
 		};
 
-		console.log('Applying crop:', {
+		logger.debug('Applying crop:', {
 			cropBox,
 			containerTransform: containerTransform.m,
 			topLeft,

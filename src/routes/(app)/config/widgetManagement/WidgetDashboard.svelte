@@ -12,6 +12,7 @@ Features:
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { logger } from '@utils/logger';
 	import WidgetCard from './WidgetCard.svelte';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import { widgetStoreActions } from '@stores/widgetStore.svelte';
@@ -147,7 +148,7 @@ Features:
 			});
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load widgets';
-			console.error('Error loading widgets:', err);
+			logger.error('Error loading widgets:', err);
 		} finally {
 			isLoading = false;
 		}
@@ -189,7 +190,7 @@ Features:
 			console.info(`Widget ${widgetName} ${newStatus ? 'activated' : 'deactivated'} - Store and UI refreshed`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to update widget status';
-			console.error('Error toggling widget:', err);
+			logger.error('Error toggling widget:', err);
 			alert(`Error: ${message}`);
 		}
 	}
@@ -223,7 +224,7 @@ Features:
 			console.info(`Widget ${widgetName} uninstalled`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to uninstall widget';
-			console.error('Error uninstalling widget:', err);
+			logger.error('Error uninstalling widget:', err);
 			alert(`Error: ${message}`);
 		}
 	}

@@ -37,9 +37,6 @@ import { hasPermissionWithRoles, registerPermission } from '@src/databases/auth/
 import { PermissionAction, PermissionType } from '@src/databases/auth/types';
 import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 
-// Roles Configuration
-import { roles } from '@root/config/roles';
-
 // System Logger
 import { logger } from '@utils/logger.server';
 
@@ -150,7 +147,7 @@ async function createGraphQLSchema(dbAdapter: DatabaseAdapter, tenantId?: string
 				if (!user) {
 					throw new Error('Unauthorized: No user in context');
 				}
-				const userHasPermission = hasPermissionWithRoles(user, 'config:accessManagement', roles);
+				const userHasPermission = hasPermissionWithRoles(user, 'config:accessManagement', context.locals?.roles || []);
 				if (!userHasPermission) {
 					throw new Error('Forbidden: Insufficient permissions');
 				}

@@ -3,20 +3,20 @@
 @component
 **VirtualFolder component for managing virtual folders in a media gallery**
 
-```tsx
+@example
 <VirtualFolder {currentFolder} />
-```
-@props
+
+### Props
 - `currentFolder` (object): The currently selected folder.
 
-@events
+### Events
 - `updateFolder` (event): Emits an event when a folder is updated.
 - `deleteFolder` (event): Emits an event when a folder is deleted.
 - `createFolder` (event): Emits an event when a new folder is created.
 - `navigateToFolder` (event): Emits an event when a folder is navigated to.
 - `returnToCollections` (event): Emits an event when the "Return to Collections" button is clicked
 
-Features:
+### Features:
 - Fetches and displays virtual folders
 - Creates new folders
 - Updates existing folders (except root)
@@ -27,8 +27,8 @@ Features:
 -->
 
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { showToast } from '@utils/toast';
+	import { logger } from '@utils/logger';
 	import { onMount } from 'svelte';
 	// Stores
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
@@ -137,7 +137,7 @@ Features:
 				throw new Error(result.error || 'Failed to update folder');
 			}
 		} catch (error) {
-			console.error('Error updating folder:', error);
+			logger.error('Error updating folder:', error);
 			showToast('Error updating folder', 'error');
 		}
 	}
@@ -159,29 +159,22 @@ Features:
 				throw new Error(result.error || 'Failed to delete folder');
 			}
 		} catch (error) {
-			console.error('Error deleting folder:', error);
+			logger.error('Error deleting folder:', error);
 			showToast('Error deleting folder', 'error');
 		}
 	}
 
-	// Navigate to a folder
-	async function openFolder(folderId: string | null): Promise<void> {
-		if (folderId === null) {
-			// Navigate to root
-			await goto('/mediagallery');
-		} else {
-			// Navigate to the selected folder
-			await goto(`/mediagallery?folderId=${folderId}`);
-		}
-	}
-
-	// Return to Collections
-	function returnToCollections(): void {
-		setMode('view');
-		goto('/'); // Adjust this route as needed
+	// Handle mobile sidebar close on navigation
+	function handleMobileSidebarClose() {
 		if (get(screenSize) === 'SM') {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
+	}
+
+	// Return to Collections - handle mode switching
+	function handleReturnToCollections() {
+		setMode('view');
+		handleMobileSidebarClose();
 	}
 
 	// Fetch folders on component mount
@@ -194,24 +187,28 @@ Features:
 	<!-- Return to Collections Button -->
 	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
-		<button
-			onclick={returnToCollections}
+		<a
+			href="/"
+			onclick={handleReturnToCollections}
 			aria-label="Return to Collections"
 			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
+			data-sveltekit-preload-data="hover"
 		>
 			<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2"></iconify-icon>
 			<p class="mr-auto text-center uppercase">Collections</p>
-		</button>
+		</a>
 	{:else}
 		<!-- Sidebar Collapsed -->
-		<button
-			onclick={returnToCollections}
+		<a
+			href="/"
+			onclick={handleReturnToCollections}
 			aria-label="Return to Collections"
 			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
+			data-sveltekit-preload-data="hover"
 		>
 			<iconify-icon icon="bi:collection" width="24" class="text-error-500"></iconify-icon>
 			<p class="text-xs uppercase text-white">Collections</p>
-		</button>
+		</a>
 	{/if}
 
 	<!-- Loading State -->
@@ -230,20 +227,32 @@ Features:
 				{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
-						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">
+						<a
+							href={`/mediagallery?folderId=${folder._id}`}
+							onclick={handleMobileSidebarClose}
+							aria-label={`Open folder: ${folder.name}`}
+							class="btn flex items-center space-x-2 p-2"
+							data-sveltekit-preload-data="hover"
+						>
 							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
 							<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
-						</button>
+						</a>
 					</div>
 				{:else}
 					<!-- Sidebar Collapsed -->
 					<div
 						class="nowrap mt-2 flex w-full flex-col items-center rounded bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
 					>
-						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex flex-col items-center p-2">
+						<a
+							href={`/mediagallery?folderId=${folder._id}`}
+							onclick={handleMobileSidebarClose}
+							aria-label={`Open folder: ${folder.name}`}
+							class="btn flex flex-col items-center p-2"
+							data-sveltekit-preload-data="hover"
+						>
 							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
 							<span class="text-xs">{folder.name}</span>
-						</button>
+						</a>
 					</div>
 				{/if}
 			{/each}

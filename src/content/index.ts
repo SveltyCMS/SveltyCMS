@@ -312,7 +312,8 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 	}
 
 	// Production mode optimization: Use direct filesystem scanning for better performance
-	if (!dev && !building) {
+	// NOTE: Only on server! Browser should use API endpoint
+	if (!dev && !building && !browser) {
 		logger.trace('Running in production mode - using scanCompiledCollections for optimal performance');
 		try {
 			const { scanCompiledCollections } = await import('./collectionScanner');

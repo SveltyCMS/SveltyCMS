@@ -16,6 +16,7 @@
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
 	import { loadIcons } from '@iconify/svelte';
+	import { logger } from '@utils/logger';
 	import { onDestroy } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
@@ -141,7 +142,7 @@
 				icons = [];
 			}
 		} catch (error) {
-			console.error('Error fetching icons:', error);
+			logger.error('Error fetching icons:', error);
 			searchError = error instanceof Error ? error.message : 'Failed to fetch icons';
 			icons = [];
 		} finally {
@@ -166,7 +167,7 @@
 			const data: Record<string, IconLibrary> = await response.json();
 			iconLibraries = data;
 		} catch (error) {
-			console.error('Error fetching icon libraries:', error);
+			logger.error('Error fetching icon libraries:', error);
 			searchError = error instanceof Error ? error.message : 'Failed to load libraries';
 		} finally {
 			isLoadingLibraries = false;

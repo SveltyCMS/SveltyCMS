@@ -6,6 +6,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 <script lang="ts">
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
+	import { logger } from '@utils/logger';
 	import type { DbConfig } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
@@ -144,7 +145,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				database: database || ''
 			};
 		} catch (error) {
-			console.error('Error parsing connection string:', error);
+			logger.error('Error parsing connection string:', error);
 			return null;
 		}
 	}

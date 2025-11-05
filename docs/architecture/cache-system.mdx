@@ -6,13 +6,14 @@ order: 5
 icon: 'mdi:database-clock'
 author: 'MohamedAae'
 created: '2025-10-03'
-updated: '2025-10-05'
+updated: '2025-11-05'
 tags:
   - 'cache'
   - 'redis'
   - 'mongodb'
   - 'performance'
   - 'ttl'
+  - 'optimization'
 ---
 
 # Cache System
@@ -56,6 +57,17 @@ SveltyCMS implements a **dual-layer caching system** combining **Redis** (in-mem
             Return     Cache Both
             Data       Layers
 ```
+
+### Cache Optimization Strategy
+
+**Important**: To avoid redundant caching and cache invalidation complexity:
+
+- **Session Cache**: Single source of truth for authenticated user data
+- **User Data**: NOT cached separately - fetched directly from database when needed (fast enough)
+- **API Responses**: Cached by endpoint pattern for expensive queries
+- **Static Content**: Cached for rarely-changing data
+
+This eliminates the need to invalidate multiple cache keys when user data changes.
 
 ### Cache Layers
 
@@ -172,7 +184,21 @@ await cacheStore.set('computed:report:monthly', report, null, 'computed');
 
 ### Best Practices
 
-**1. Choose the Right Category**
+**1. Avoid Redundant Caching**
+
+```typescript
+// ❌ Bad: Caching the same data in multiple places
+await cacheService.set('user:id:123', userData, null, 'session');
+await cacheService.set('user:email:john@example.com', userData, null, 'session');
+// Problem: Need to invalidate 2 caches when user updates
+
+// ✅ Good: Single source of truth
+// Session cache already contains user data
+// Just fetch from DB when needed (it's fast)
+const user = await db.getUserById(userId);
+```
+
+**2. Choose the Right Category**
 
 ```typescript
 // ✅ Good: API data cached with API category
@@ -197,15 +223,22 @@ await cacheStore.set('api:stocks:AAPL', data, null, 'static'); // 7 days TTL
 **3. Invalidate on Updates**
 
 ```typescript
-// When updating a post, clear related caches
-async function updatePost(postId: string, data: any) {
-	await db.posts.update(postId, data);
+// When updating a user, clear related caches
+async function updateUser(userId: string, data: any) {
+	await db.users.update(userId, data);
 
-	// Clear specific caches
-	await cacheStore.delete(`dynamic:post:${postId}`);
-	await cacheStore.delete('query:posts:published');
-	await cacheStore.delete('query:posts:recent');
+	// Clear session cache (single source of truth for user data)
+	const sessionId = getSessionId();
+	await cacheService.delete(sessionId);
+
+	// Clear admin list cache (if user data appears in admin lists)
+	await cacheService.clearByPattern('api:*:/api/admin/users*');
 }
+
+// ❌ Bad: Don't cache the same data multiple times
+// await cacheService.delete(`user:id:${userId}`);
+// await cacheService.delete(`user:email:${email}`);
+// await cacheService.delete(`user:username:${username}`);
 ```
 
 **4. Batch Operations**
@@ -602,4 +635,4 @@ For questions or issues, see:
 
 ---
 
-_Last Updated: October 3, 2025_
+_Last Updated: November 5, 2025 - Optimized to eliminate redundant user data caching_

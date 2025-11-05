@@ -4,6 +4,42 @@ This document outlines the multi-phase plan to refactor SveltyCMS into a high-pe
 
 ---
 
+## ✅ Completed: Role System Migration (Database-Only Architecture)
+
+**Goal:** Migrate from filesystem-based role configuration to a pure database-only architecture.
+
+**Status:** ✅ **Completed**.
+
+**What Was Done:**
+
+1. **Removed `config/roles.ts`:** Deleted the filesystem-based role configuration file completely.
+2. **Created Shared Module:** `src/databases/auth/defaultRoles.ts` provides default roles for setup wizard seeding only.
+3. **Updated Authorization:** `handleAuthorization.ts` now redirects to `/setup` if no database roles exist (no fallback mechanisms).
+4. **Cleaned Database Layer:** Removed 54 lines of deprecated role methods from `Auth` class:
+   - Removed: `getRoles()`, `getRoleById()`, `addRole()`, `updateRole()`, `deleteRole()`
+   - Removed: `hasPermission()`, `hasPermissionByAction()`, `isAdmin()`, `hasRole()`
+   - Removed: `private roles` field and related exports
+5. **Updated ConfigService:** Removed role sync from enterprise config management (roles are database-only).
+6. **Updated All Routes:** 20+ API routes and 5 server pages now use `locals.roles` from database.
+7. **Updated Documentation:** 7 documentation files updated to reflect database-only architecture.
+
+**Key Results:**
+
+- **Database-First:** CMS requires functional database with roles, no fallback to config files
+- **Multi-Tenant Ready:** Full tenant-specific role isolation via `tenantId`
+- **Dynamic Management:** Roles editable via `/config/accessManagement` and `/api/permission/update`
+- **Clean Architecture:** No deprecated code, clear separation of concerns
+- **Default Seeding:** Three default roles (admin, developer, editor) seeded during setup wizard
+- **Immediate Effect:** Role changes take effect instantly via cache invalidation
+
+**Benefits for NX Migration:**
+
+- ✅ Eliminates shared config file dependencies
+- ✅ Enables clean package separation
+- ✅ Database-first architecture aligns with monorepo best practices
+
+---
+
 ## Phase 0: Monorepo Migration & Build Optimization
 
 **Goal:** Migrate the monolithic codebase to a flat NX monorepo to solve build-time performance and bundle size issues.
@@ -12,18 +48,53 @@ This document outlines the multi-phase plan to refactor SveltyCMS into a high-pe
 
 **Action:** Execute the "NX Monorepo Migration" Plan.
 
+**Prerequisites Completed:**
+
+- ✅ Role system migrated to database-only (eliminates config file dependencies)
+- ✅ No more shared config files blocking clean package separation
+
 **Key Steps:**
 
 1.  **Structure:** Create a flat NX monorepo structure (`apps/cms`, `apps/setup-wizard`, `apps/login`, `libs/db-driver-mongo`, etc.).
 2.  **Database Driver Aliasing:** Implement `tsconfig.base.json` path aliases (`@sveltycms/database`) to ensure only the correct database driver is bundled for production. This is a critical step for bundle size reduction.
 3.  **Setup Wizard Extraction:** Move the setup wizard into its own `apps/setup-wizard` application.
 4.  **Decouple Logic:** Extract reusable logic into libraries (`libs/api-logic`, `libs/graphql-logic`, `libs/shared-utils`).
+5.  **UI Framework Upgrade:**
+
+- Migrate to **Tailwind CSS v4** with tree-shaking for optimal CSS bundle size
+- Upgrade to **Skeleton UI v4.2** with tree-shaking support
+- Implement aggressive CSS purging and dead code elimination
+
+6.  **Bundle Optimization:**
+
+- Configure NX build targets with aggressive tree-shaking
+- Implement code splitting for database drivers
+- Extract shared dependencies into optimized libs
 
 **Expected Result:**
 
-- **Bundle Size Reduction:** ~603KB → ~230KB (~62% reduction).
-- **Architecture:** A decoupled, maintainable monorepo.
-- **Performance:** Faster builds and development server startup.
+- **Bundle Size Reduction:** ~603KB → ~230KB (~62% reduction) or better with Tailwind v4 tree-shaking
+- **Architecture:** A decoupled, maintainable monorepo
+- **Performance:** Faster builds and development server startup
+- **Modern Stack:** Latest Tailwind v4 and Skeleton UI v4.2 with optimal tree-shaking
+
+**Next Immediate Steps:**
+
+1. Initialize NX workspace: `npx create-nx-workspace@latest sveltycms --preset=empty`
+2. Create base monorepo structure with apps and libs folders
+3. Configure `tsconfig.base.json` with path mappings
+4. Set up Tailwind CSS v4 with tree-shaking configuration
+5. Configure Skeleton UI v4.2 with component-level imports
+6. Migrate core CMS to `apps/cms` with optimized build config
+7. Extract database adapters to `libs/db-*` packages
+8. Move setup wizard to `apps/setup-wizard`
+9. Configure NX build orchestration and caching
+
+**⚠️ Security Note:**
+
+- **Setup API Endpoints:** Currently `/api/setup/*` endpoints remain accessible after setup completion for troubleshooting purposes (e.g., testing database connections after DB failure). This is intentional but NOT 100% secure.
+- **TODO for Phase 0:** When moving setup wizard to standalone `apps/setup-wizard` app, these endpoints will be completely separated from the main CMS, eliminating this security concern.
+- **Current Mitigation:** Setup page UI is blocked after completion, only API endpoints remain accessible (requires knowledge of exact endpoints to misuse).
 
 ---
 

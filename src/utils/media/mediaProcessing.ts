@@ -118,14 +118,15 @@ export function getSanitizedFileName(fileName: string): {
 		throw new Error(message);
 	}
 
-	logger.trace('Sanitizing filename', {
-		original: baseName,
-		length: baseName.length,
-		extension: ext
-	});
 	const lastDotIndex = fileName.lastIndexOf('.');
 	const name = lastDotIndex > -1 ? fileName.slice(0, lastDotIndex) : fileName;
 	const ext = lastDotIndex > -1 ? fileName.slice(lastDotIndex + 1) : '';
+
+	logger.trace('Sanitizing filename', {
+		original: fileName,
+		nameWithoutExt: name,
+		extension: ext
+	});
 
 	const sanitized = {
 		fileNameWithoutExt: sanitize(name),
@@ -133,9 +134,9 @@ export function getSanitizedFileName(fileName: string): {
 	};
 
 	logger.trace('Filename sanitized', {
-		original: originalBaseName,
-		sanitized: sanitized,
-		full: sanitized + ext
+		original: fileName,
+		sanitizedName: sanitized.fileNameWithoutExt,
+		normalizedExt: sanitized.ext
 	});
 	return sanitized;
 }

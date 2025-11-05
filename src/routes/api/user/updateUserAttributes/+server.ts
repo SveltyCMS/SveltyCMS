@@ -134,6 +134,17 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			}
 		}
 
+		// Note: We no longer cache user data by ID or email - session cache is the only cache
+		// This eliminates redundant caching and cache invalidation complexity
+
+		// Invalidate admin users list cache so UI updates immediately
+		try {
+			await cacheService.clearByPattern(`api:*:/api/admin/users*`, tenantId);
+			logger.debug('Admin users list cache cleared after user update');
+		} catch (cacheError) {
+			logger.warn(`Failed to clear admin users cache: ${cacheError}`);
+		}
+
 		// Invalidate roles cache since user data may have changed
 		const { invalidateRolesCache } = await import('@src/hooks/handleAuthorization');
 		invalidateRolesCache(tenantId);

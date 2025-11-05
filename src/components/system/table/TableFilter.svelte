@@ -32,6 +32,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	// Stores
 	import { setTranslationStatusOpen } from '@stores/store.svelte';
 
+	// Logger
+	import { logger } from '@utils/logger';
+
 	// Props with types
 	let {
 		globalSearchValue = $bindable(''),
@@ -63,7 +66,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 					density = settings.density;
 				}
 			} catch (e) {
-				console.error('Failed to load user table settings', e);
+				logger.error('Failed to load user table settings', e);
 				// Keep default if error
 			}
 		}
@@ -77,7 +80,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				settings.density = density;
 				localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(settings));
 			} catch (e) {
-				console.error('Failed to save user table settings', e);
+				logger.error('Failed to save user table settings', e);
 			}
 		}
 	});

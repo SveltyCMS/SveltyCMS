@@ -16,6 +16,7 @@ with customizable colors, sizes, and styles.
 	import Konva from 'konva';
 	import { onMount, onDestroy } from 'svelte';
 	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
+	import { logger } from '@utils/logger';
 
 	// Props
 	let {
@@ -96,7 +97,7 @@ with customizable colors, sizes, and styles.
 	 */
 	function initialize() {
 		if (!stage || !layer) {
-			console.warn('Cannot initialize: stage or layer not available');
+			logger.warn('Cannot initialize: stage or layer not available');
 			return;
 		}
 
@@ -107,7 +108,7 @@ with customizable colors, sizes, and styles.
 				transformer.getLayer();
 				return;
 			} catch (e) {
-				console.warn('Existing transformer is invalid, recreating');
+				logger.warn('Existing transformer is invalid, recreating');
 				transformer = null;
 			}
 		}
@@ -241,7 +242,7 @@ with customizable colors, sizes, and styles.
 
 		// Check if node is still attached to the layer
 		if (!node || !node.getParent()) {
-			console.warn('Cannot select annotation: node is not attached to layer');
+			logger.warn('Cannot select annotation: node is not attached to layer');
 			return;
 		}
 
@@ -249,7 +250,7 @@ with customizable colors, sizes, and styles.
 		try {
 			node.getAbsolutePosition(); // This will throw if node is destroyed
 		} catch (e) {
-			console.warn('Cannot select annotation: node is destroyed', e);
+			logger.warn('Cannot select annotation: node is destroyed', e);
 			return;
 		}
 
@@ -258,7 +259,7 @@ with customizable colors, sizes, and styles.
 			transformer.nodes([]);
 			transformer.detach();
 		} catch (e) {
-			console.warn('Error detaching transformer:', e);
+			logger.warn('Error detaching transformer:', e);
 		}
 
 		selectedAnnotation = node;
@@ -280,7 +281,7 @@ with customizable colors, sizes, and styles.
 			layer.batchDraw();
 			stage.batchDraw();
 		} catch (e) {
-			console.error('Error attaching transformer to node:', e);
+			logger.error('Error attaching transformer to node:', e);
 			selectedAnnotation = null;
 			transformer.nodes([]);
 		}

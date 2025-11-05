@@ -46,6 +46,7 @@
 </script>
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -222,7 +223,7 @@
 	 * Navigate to a path with optional reload
 	 */
 	async function navigateTo(path: string, options: { replaceState?: boolean; forceReload?: boolean } = {}): Promise<void> {
-		console.log('[Collections.navigateTo]', {
+		logger.debug('[Collections.navigateTo]', {
 			targetPath: path,
 			currentPath: page.url.pathname,
 			forceReload: options.forceReload
@@ -252,7 +253,7 @@
 			const currentCollectionId = collection.value?._id;
 			const isSameCollection = currentCollectionId === selectedCollection._id;
 
-			console.log('[Collections.handleCollectionSelect]', {
+			logger.debug('[Collections.handleCollectionSelect]', {
 				selectedId: selectedCollection._id,
 				selectedName: selectedCollection.name,
 				isSameCollection

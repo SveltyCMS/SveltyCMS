@@ -297,15 +297,36 @@ let _contentLanguage = $state<Locale>(initialContentLanguage);
 **2. Language Switching:**
 
 ```svelte
-<!-- TranslationStatus.svelte -->
+<!-- TranslationStatus.svelte - Recommended: Anchor tag dropdown -->
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { contentLanguage } from '@stores/store.svelte';
+
+	function handleLanguageChange(newLang: string) {
+		// Update store (syncs with server on navigation)
+		contentLanguage.set(newLang);
+	}
+</script>
+
+<!-- Dropdown with anchor tags for each language -->
+{#each AVAILABLE_CONTENT_LANGUAGES as lang}
+	<a
+		href={`/${lang}/${collectionPath}`}
+		data-sveltekit-preload-data="hover"
+		data-sveltekit-reload
+		onclick={() => handleLanguageChange(lang)}
+		class:active={lang === contentLanguage.value}>
+		{lang.toUpperCase()}
+	</a>
+{/each}
+
+<!-- Alternative: Programmatic navigation for complex dropdowns -->
+<script lang="ts">
+	import { goto, invalidateAll } from '$app/navigation';
 
 	async function switchLanguage(newLang: string) {
 		contentLanguage.set(newLang);
 
-		// Navigate with language in URL and force server reload
+		// Use goto() when you need special navigation options
 		await goto(`/${newLang}/${collectionPath}`, { invalidateAll: true });
 	}
 </script>

@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
@@ -38,7 +39,7 @@
 		field.label = field.widget.GuiFields.label;
 		fields = [...fields, field];
 		addField = false;
-		// console.log(fields);
+		// logger.debug(fields);
 	}
 
 	function handleCancel() {

@@ -17,6 +17,7 @@ All dynamic CMS settings organized into logical groups
 	import PageTitle from '@components/PageTitle.svelte';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { logger } from '@utils/logger';
 
 	// Import settings structure
 	import { getSettingGroupsByRole } from './settingsGroups';
@@ -130,7 +131,7 @@ All dynamic CMS settings organized into logical groups
 					}
 				}
 			} catch (err) {
-				console.error(`Failed to check group ${group.id}:`, err);
+				logger.error(`Failed to check group ${group.id}:`, err);
 			}
 		}
 

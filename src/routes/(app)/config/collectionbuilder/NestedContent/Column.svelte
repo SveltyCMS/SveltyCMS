@@ -17,6 +17,7 @@ Features:
 
 <script lang="ts">
 	import Column from './Column.svelte'; // Recursive import for nested columns
+	import { logger } from '@utils/logger';
 	import { goto } from '$app/navigation';
 
 	// Stores
@@ -69,7 +70,7 @@ Features:
 			children = e.detail.items;
 			updateError = null;
 		} catch (error) {
-			console.error('Error handling DnD consider in Column:', error);
+			logger.error('Error handling DnD consider in Column:', error);
 			updateError = error instanceof Error ? error.message : 'Error handling drag operation';
 		}
 	}
@@ -92,7 +93,7 @@ Features:
 
 			updateError = null;
 		} catch (error) {
-			console.error('Error handling DnD finalize in Column:', error);
+			logger.error('Error handling DnD finalize in Column:', error);
 			updateError = error instanceof Error ? error.message : 'Error finalizing drag operation';
 		}
 	} /**
@@ -105,7 +106,7 @@ Features:
 			setMode('edit');
 			await goto(`/config/collectionbuilder/edit${item.path}`);
 		} catch (error) {
-			console.error('Error navigating to collection:', error);
+			logger.error('Error navigating to collection:', error);
 			updateError = error instanceof Error ? error.message : 'Error navigating to collection';
 		} finally {
 			isUpdating = false;

@@ -20,7 +20,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 // Auth
 import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
-import { roles, initializeRoles } from '@root/config/roles';
+import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // Helper function to normalize collection names for database operations
 const normalizeCollectionName = (collectionId: string): string => {
@@ -98,8 +98,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			throw error(404, 'Entry not found');
 		} // Check if user can access this specific entry (status-based)
 
-		await initializeRoles();
-		const userRole = roles.find((role) => role._id === user.role);
+		const userRole = getDefaultRoles().find((role) => role._id === user.role);
 		const isAdmin = userRole?.isAdmin === true;
 		if (!isAdmin && result.data.status !== 'published') {
 			logger.warn(`${endpoint} - Non-admin user attempted to access unpublished entry`, {

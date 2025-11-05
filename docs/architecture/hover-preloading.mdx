@@ -208,15 +208,24 @@ if (editEntryId) {
 
 ### Client-Side Navigation
 
-When user clicks after preload:
+**Recommended**: Use `<a>` tags with `data-sveltekit-preload-data="hover"` for automatic preloading:
+
+```svelte
+<!-- EntryList.svelte - Recommended approach -->
+<a href={`?edit=${originalEntry._id}`} data-sveltekit-preload-data="hover" class="table-row">
+	<!-- Row content -->
+</a>
+
+<!-- SvelteKit automatically preloads on hover! -->
+```
+
+**Alternative**: Programmatic navigation (when needed for complex interactions):
 
 ```typescript
-// EntryList.svelte - Click handler
+// Only use goto() when you need to combine navigation with other logic
 const newUrl = new URL(page.url);
 newUrl.searchParams.set('edit', originalEntry._id);
 goto(newUrl, { keepFocus: true });
-
-// Data already preloaded → instant page transition!
 ```
 
 ## Monitoring & Debugging
@@ -248,16 +257,18 @@ console.log(`[Preload] Entry ${entryId.substring(0, 8)} preloaded`);
 
 ### Do's ✅
 
-- ✅ Use intent detection (hover delay)
+- ✅ **Use `<a>` tags with `data-sveltekit-preload-data="hover"`** for navigation links
+- ✅ Use intent detection (hover delay) for custom preload logic
 - ✅ Deduplicate preload requests
 - ✅ Clean up stale cache entries
-- ✅ Mark preload requests with header (`X-Preload: true`)
-- ✅ Leverage SvelteKit's fetch caching
+- ✅ Mark custom preload requests with header (`X-Preload: true`)
+- ✅ Leverage SvelteKit's built-in fetch caching
 - ✅ Monitor server load impact
 
 ### Don'ts ❌
 
-- ❌ Preload on short hovers (< 300ms)
+- ❌ Use `<button onclick={() => goto(url)}>` for navigation (prevents preloading)
+- ❌ Preload on short hovers (< 300ms) with custom logic
 - ❌ Preload same entry repeatedly
 - ❌ Keep preload cache indefinitely
 - ❌ Preload on mobile/slow connections (future)

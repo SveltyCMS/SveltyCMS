@@ -5,6 +5,7 @@
 It provides a user-friendly interface for creating, editing, and deleting collections.
 -->
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -78,7 +79,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			setCollection(data.collection);
 			originalName = String(data.collection.name || '');
 		} else {
-			console.error('Collection data not found for editing.');
+			logger.error('Collection data not found for editing.');
 			// Optionally, redirect or show a proper error message
 		}
 	}
@@ -195,7 +196,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 					goto(`/collection`);
 				} else {
 					// User cancelled, do not delete
-					console.log('User cancelled deletion.');
+					logger.debug('User cancelled deletion.');
 				}
 			}
 		};
@@ -245,7 +246,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 	<TabGroup bind:group={localTabSet}>
 		<!-- User Permissions -->
-		{#if page.data.user && page.data.user.isAdmin}
+		{#if page.data.isAdmin}
 			<!-- Edit -->
 			<Tab bind:group={localTabSet} name="default" value={0}>
 				<div class="flex items-center gap-1">

@@ -23,6 +23,8 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
+
 	// Stores
 	import { mode, setMode } from '@root/src/stores/collectionStore.svelte';
 
@@ -55,25 +57,25 @@
 			color: 'white'
 		},
 		Delete: {
-			fn: props['on:delete'] || (() => console.warn('Delete handler not provided')),
+			fn: props['on:delete'] || (() => logger.warn('Delete handler not provided')),
 			icon: 'tdesign:delete-1',
 			bg_color: 'red',
 			color: 'white'
 		},
 		Publish: {
-			fn: props['on:publish'] || (() => console.warn('Publish handler not provided')),
+			fn: props['on:publish'] || (() => logger.warn('Publish handler not provided')),
 			icon: '',
 			bg_color: 'lime',
 			color: 'white'
 		},
 		Unpublish: {
-			fn: props['on:unpublish'] || (() => console.warn('Unpublish handler not provided')),
+			fn: props['on:unpublish'] || (() => logger.warn('Unpublish handler not provided')),
 			icon: '',
 			bg_color: 'orange',
 			color: 'white'
 		},
 		Test: {
-			fn: props['on:test'] || (() => console.warn('Test handler not provided')),
+			fn: props['on:test'] || (() => logger.warn('Test handler not provided')),
 			icon: '',
 			bg_color: 'brown',
 			color: 'white'

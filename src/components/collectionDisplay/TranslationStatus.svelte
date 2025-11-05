@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { untrack, onMount, onDestroy } from 'svelte';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { goto } from '$app/navigation';
@@ -240,7 +241,7 @@
 	// EDIT/CREATE MODE: Toggle language locally WITHOUT navigation
 	// Data is already loaded (single entry), just switch which language fields to show
 	function handleLanguageChange(selectedLanguage: Locale): void {
-		console.log('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
+		logger.debug('[TranslationStatus] Language change:', contentLanguage.value, '→', selectedLanguage);
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
@@ -257,7 +258,7 @@
 
 				// Use replaceState to update URL without navigation/reload
 				window.history.replaceState({}, '', newPath);
-				console.log('[TranslationStatus] Updated URL to:', newPath);
+				logger.debug('[TranslationStatus] Updated URL to:', newPath);
 			}
 
 			// Dispatch custom event for local reactivity
@@ -266,7 +267,7 @@
 				bubbles: true
 			});
 			window.dispatchEvent(customEvent);
-			console.log('[TranslationStatus] Dispatched languageChanged event');
+			logger.debug('[TranslationStatus] Dispatched languageChanged event');
 		}
 	}
 
@@ -334,7 +335,7 @@
 		const entryChanged = entryId !== lastEntryId;
 
 		if (currentCollection?.fields && (collectionChanged || entryChanged)) {
-			console.log('[TranslationStatus] Initializing translation progress', {
+			logger.debug('[TranslationStatus] Initializing translation progress', {
 				collectionId,
 				entryId,
 				collectionChanged,
@@ -377,7 +378,7 @@
 			// Only update if data actually changed
 			const currentStr = JSON.stringify(currentCollectionValue);
 			if (currentStr !== lastCollectionValueStr) {
-				console.log('[TranslationStatus] Collection value changed, updating progress');
+				logger.debug('[TranslationStatus] Collection value changed, updating progress');
 				// Update translation progress from the new data
 				updateTranslationProgressFromFields(currentCollection, currentCollectionValue);
 				lastCollectionValueStr = currentStr;

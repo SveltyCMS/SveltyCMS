@@ -4,6 +4,8 @@
  *
  * This module provides a simplified collection scanning function that can be used
  * during system setup without requiring the full ContentManager or global dbAdapter.
+ *
+ * NOTE: This is SERVER-ONLY code that uses Node.js fs module.
  */
 
 import { logger } from '@utils/logger.server';

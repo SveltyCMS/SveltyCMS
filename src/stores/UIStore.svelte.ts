@@ -103,12 +103,12 @@ const createUIStores = () => {
 			const isViewMode = mode.value === 'view' || mode.value === 'media';
 			const newState = getDefaultState(currentSize, isViewMode);
 
-			logger.debug('UIStore: updateLayout called', {
-				currentSize,
-				modeValue: mode.value,
-				isViewMode,
-				manualOverrideActive: Date.now() < manualOverrideUntil
-			});
+			// logger.debug('UIStore: updateLayout called', {
+			// 	currentSize,
+			// 	modeValue: mode.value,
+			// 	isViewMode,
+			// 	manualOverrideActive: Date.now() < manualOverrideUntil
+			// });
 
 			// If within manual override window, preserve current sidebar states
 			const now = Date.now();
@@ -121,11 +121,11 @@ const createUIStores = () => {
 
 			// Only update if state actually changes
 			const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== prevState[key as keyof UIState]);
-			logger.debug('UIStore: State comparison', {
-				prevState,
-				newState,
-				isDifferent
-			});
+			// logger.debug('UIStore: State comparison', {
+			// 	prevState,
+			// 	newState,
+			// 	isDifferent
+			// });
 
 			if (isDifferent) {
 				requestAnimationFrame(() => {

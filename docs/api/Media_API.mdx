@@ -1,18 +1,22 @@
 ---
 path: 'docs/api/Media_API.mdx'
 title: 'Media API Reference'
-description: 'Complete API reference for uploading, managing, and serving media files in SveltyCMS.'
+description: 'Complete API reference for uploading, managing, and serving media files in SveltyCMS with support for local and cloud storage.'
 order: 5
 icon: 'mdi:image-multiple'
 author: 'admin'
 created: '2025-10-05'
-updated: '2025-10-28'
+updated: '2025-11-05'
 tags:
   - 'api'
   - 'media'
   - 'upload'
   - 'files'
   - 'images'
+  - 'cloud-storage'
+  - 's3'
+  - 'r2'
+  - 'cloudinary'
 ---
 
 # Media API Reference
@@ -21,7 +25,114 @@ tags:
 
 The Media API provides comprehensive endpoints for managing media files (images, videos, documents) in SveltyCMS. All operations use a database-agnostic adapter and support multi-tenancy.
 
+**Storage Support:**
+- **Local Storage**: Files stored on the server filesystem
+- **Cloud Storage**: S3, Cloudflare R2, or Cloudinary
+- **Hybrid**: Mix of local and cloud storage
+
 **Base Path:** `/api/media`
+
+## Storage Architecture
+
+SveltyCMS supports multiple storage backends configured via system settings:
+
+### Storage Types
+
+- `local` - Files stored on server filesystem (default)
+- `s3` - Amazon S3 or S3-compatible services
+- `r2` - Cloudflare R2 (S3-compatible)
+- `cloudinary` - Cloudinary media platform
+
+### MEDIA_FOLDER Usage
+
+The `MEDIA_FOLDER` setting serves different purposes based on storage type:
+
+- **Local Storage**: Filesystem path (e.g., `./mediaFolder`, `/var/media`)
+- **Cloud Storage**: Path prefix/bucket subfolder (e.g., `cms-media`, `production/assets`)
+
+### URL Patterns
+
+**Local Storage:**
+```
+Database:  /files/avatars/hash-image.avif
+Filesystem: ./mediaFolder/avatars/hash-image.avif
+Request:   GET /files/avatars/hash-image.avif
+```
+
+**Cloud Storage (S3/R2):**
+```
+Database:  /files/avatars/hash-image.avif
+Cloud:     https://cdn.example.com/cms-media/avatars/hash-image.avif
+Request:   GET /files/avatars/hash-image.avif → 307 Redirect
+```
+
+**Cloud Storage (Cloudinary):**
+```
+Database:  /files/avatars/hash-image.avif
+Cloud:     https://res.cloudinary.com/{cloud}/image/upload/cms-media/avatars/hash-image.avif
+Request:   GET /files/avatars/hash-image.avif → 307 Redirect
+```
+
+## Configuration
+
+### Local Storage (Default)
+
+```javascript
+// System Settings
+{
+  MEDIA_STORAGE_TYPE: 'local',
+  MEDIA_FOLDER: './mediaFolder'
+}
+```
+
+### S3-Compatible Storage
+
+```javascript
+// System Settings
+{
+  MEDIA_STORAGE_TYPE: 's3', // or 'r2'
+  MEDIA_FOLDER: 'cms-media', // Bucket prefix
+  MEDIA_CLOUD_REGION: 'us-east-1',
+  MEDIA_CLOUD_ENDPOINT: 'https://s3.amazonaws.com', // Optional for S3
+  MEDIA_CLOUD_PUBLIC_URL: 'https://cdn.example.com'
+}
+
+// Environment Variables (required)
+MEDIA_ACCESS_KEY_ID=your-access-key
+MEDIA_SECRET_ACCESS_KEY=your-secret-key
+```
+
+### Cloudflare R2
+
+```javascript
+// System Settings
+{
+  MEDIA_STORAGE_TYPE: 'r2',
+  MEDIA_FOLDER: 'cms-media',
+  MEDIA_CLOUD_REGION: 'auto',
+  MEDIA_CLOUD_ENDPOINT: 'https://<account-id>.r2.cloudflarestorage.com',
+  MEDIA_CLOUD_PUBLIC_URL: 'https://cdn.example.com'
+}
+
+// Environment Variables (required)
+MEDIA_ACCESS_KEY_ID=your-r2-access-key
+MEDIA_SECRET_ACCESS_KEY=your-r2-secret-key
+```
+
+### Cloudinary
+
+```javascript
+// System Settings
+{
+  MEDIA_STORAGE_TYPE: 'cloudinary',
+  MEDIA_FOLDER: 'cms-media'
+}
+
+// Environment Variables (required)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+```
 
 ## Authentication
 

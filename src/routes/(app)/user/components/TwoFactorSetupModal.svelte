@@ -9,7 +9,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 <TwoFactorSetupModal qrCodeUrl="..." secret="..." backupCodes={[]} />
 
 ### Props
-- `parent` {SvelteComponent} - Modal parent component
+- `parent` {ModalComponent} - Modal parent component with skeleton modal properties
 - `qrCodeUrl` {string} - QR code URL for authenticator app
 - `secret` {string} - Secret key for manual entry
 - `backupCodes` {string[]} - Backup codes for recovery
@@ -18,46 +18,55 @@ This modal displays the QR code for setting up 2FA and handles verification.
 - QR code display
 - Manual secret key entry option
 - Code verification
-- Backup codes display
+- Backup codes display (all visible at once)
 - Responsive design
 -->
 
 <script lang="ts">
+	// Utils
+	import { logger } from '@utils/logger';
+	import { showToast } from '@utils/toast';
+
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	let { parent, qrCodeUrl, secret, backupCodes } = $props<{
-		parent: any;
+	interface Props {
+		parent: ModalComponent['props'] & { regionFooter?: string; onClose?: (success: boolean) => void; buttonPositive?: string };
 		qrCodeUrl: string;
 		secret: string;
 		backupCodes: string[];
-	}>();
+	}
+
+	let { parent = { regionFooter: 'modal-footer p-4' }, qrCodeUrl, secret, backupCodes }: Props = $props();
 
 	const modalStore = getModalStore();
 
 	// State
 	let verificationCode = $state('');
 	let isVerifying = $state(false);
-	let showSecret = $state(false);
-	let showBackupCodes = $state(false);
-	let currentStep = $state<'setup' | 'verify' | 'complete'>('setup');
+	let currentStep = $state<'setup' | 'complete'>('setup');
 	let error = $state('');
 
-	//Copy text to clipboard
+	// Copy text to clipboard
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			// Could add a toast here if needed
+			showToast(`<iconify-icon icon="mdi:check" width="20" class="mr-1"></iconify-icon> ${m.button_copy()} successful`, 'success');
 		} catch (err) {
-			console.error('Failed to copy:', err);
+			logger.error('Failed to copy:', err);
+			showToast(`<iconify-icon icon="mdi:alert-circle" width="20" class="mr-1"></iconify-icon> Failed to copy`, 'error');
 		}
 	}
 
 	// Verify the setup code
-	async function verifySetup() {
+	async function verifySetup(event: SubmitEvent) {
+		event.preventDefault();
+
 		if (!verificationCode.trim() || verificationCode.length !== 6) {
 			error = m.twofa_error_invalid_code();
 			return;
@@ -80,9 +89,10 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			}
 
 			currentStep = 'complete';
-			showBackupCodes = true;
+			showToast(`<iconify-icon icon="mdi:check-circle" width="20" class="mr-1"></iconify-icon> ${m.twofa_setup_complete_title()}`, 'success');
 		} catch (err) {
 			error = err instanceof Error ? err.message : m.twofa_error_invalid_code();
+			showToast(`<iconify-icon icon="mdi:alert-circle" width="20" class="mr-1"></iconify-icon> ${error}`, 'error');
 		} finally {
 			isVerifying = false;
 		}
@@ -91,12 +101,18 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	// Complete setup and close modal
 	function completeSetup() {
 		if (parent.onClose) parent.onClose(true);
+		if ($modalStore[0]?.response) {
+			$modalStore[0].response({ success: true });
+		}
 		modalStore.close();
 	}
 
 	// Cancel setup
 	function cancelSetup() {
 		if (parent.onClose) parent.onClose(false);
+		if ($modalStore[0]?.response) {
+			$modalStore[0].response({ success: false });
+		}
 		modalStore.close();
 	}
 
@@ -108,46 +124,52 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		error = '';
 	}
 
-	/**
-	 * Format secret key for better readability
-	 */
+	// Format secret key for better readability
 	function formatSecret(secret: string): string {
 		return secret.replace(/(.{4})/g, '$1 ').trim();
 	}
+
+	// Base Classes
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
+	const cHeader = 'text-2xl font-bold';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-<div class="max-w-2xl p-6">
-	{#if currentStep === 'setup'}
-		<!-- Step 1: Show QR Code -->
-		<div class="mb-6 text-center">
-			<h4 class="h4 mb-2">{m.twofa_setup_scan_title()}</h4>
-			<p class="mb-4 text-surface-600 dark:text-surface-300">
-				{m.twofa_setup_scan_description()}
-			</p>
+{#if $modalStore[0]}
+	<div class="modal-example-form {cBase}">
+		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+			{$modalStore[0]?.title ?? '(title missing)'}
+		</header>
 
-			<!-- QR Code -->
-			<div class="mb-4 flex justify-center">
-				<div class="rounded-lg bg-white p-4 shadow-sm">
-					<img src={qrCodeUrl} alt="2FA QR Code" class="h-48 w-48" style="image-rendering: pixelated;" />
-				</div>
-			</div>
+		<article class="text-center text-sm text-black dark:text-white">
+			{$modalStore[0]?.body ?? '(body missing)'}
+		</article>
 
-			<!-- Manual entry option -->
-			<div class="mt-4">
-				<button onclick={() => (showSecret = !showSecret)} class="text-sm text-primary-500 underline hover:text-primary-600">
-					{showSecret ? m.twofa_hide_secret() : m.twofa_show_secret()}
-				</button>
+		{#if currentStep === 'setup'}
+			<!-- Setup Form -->
+			<form class="modal-form {cForm}" onsubmit={verifySetup} id="twofa-form">
+				<!-- QR Code Section -->
+				<div class="space-y-4">
+					<div class="text-center">
+						<!-- QR Code -->
+						<div class="mb-4 flex justify-center">
+							<div class="rounded-lg bg-white p-4 shadow-sm">
+								<img src={qrCodeUrl} alt="2FA QR Code" class="h-48 w-48" style="image-rendering: pixelated;" />
+							</div>
+						</div>
+					</div>
 
-				{#if showSecret}
-					<div class="mt-3 rounded-lg bg-surface-100 p-3 dark:bg-surface-700">
-						<p class="mb-2 text-sm text-surface-600 dark:text-surface-300">
+					<!-- Manual Entry Section (Always Visible) -->
+					<div class="rounded-lg bg-surface-100 p-4 dark:bg-surface-700">
+						<p class="mb-3 text-sm font-medium text-surface-700 dark:text-surface-300">
 							{m.twofa_manual_entry_description()}
 						</p>
 						<div class="flex items-center gap-2">
-							<code class="flex-1 rounded bg-surface-200 p-2 font-mono text-sm dark:bg-surface-600">
+							<code class="flex-1 rounded bg-surface-200 p-3 font-mono text-sm dark:bg-surface-600">
 								{formatSecret(secret)}
 							</code>
 							<button
+								type="button"
 								onclick={() => copyToClipboard(secret)}
 								class="variant-soft-primary btn btn-sm"
 								title={m.button_copy()}
@@ -157,87 +179,57 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							</button>
 						</div>
 					</div>
-				{/if}
-			</div>
-		</div>
 
-		<!-- Next Step Button -->
-		<div class="flex justify-center">
-			<button onclick={() => (currentStep = 'verify')} class="variant-filled-primary btn">
-				<iconify-icon icon="mdi:arrow-right" width="20" class="mr-2"></iconify-icon>
-				{m.twofa_setup_next()}
-			</button>
-		</div>
-	{:else if currentStep === 'verify'}
-		<!-- Step 2: Verify Code -->
-		<div class="mb-6 text-center">
-			<h4 class="h4 mb-2">{m.twofa_verify_setup_title()}</h4>
-			<p class="mb-4 text-surface-600 dark:text-surface-300">
-				{m.twofa_verify_setup_description()}
-			</p>
+					<!-- Verification Code Input -->
+					<div>
+						<label for="verification-code" class="mb-2 block text-sm font-medium text-black dark:text-white">
+							{m.twofa_verify_setup_description()}
+						</label>
+						<div class="relative">
+							<input
+								id="verification-code"
+								type="text"
+								bind:value={verificationCode}
+								oninput={handleInput}
+								placeholder={m.twofa_code_placeholder()}
+								class="input w-full text-center font-mono text-2xl tracking-widest"
+								maxlength="6"
+								autocomplete="off"
+								class:border-error-500={error}
+								class:focus\:border-error-500={error}
+								aria-label="Verification code"
+							/>
+						</div>
 
-			<!-- Verification Code Input -->
-			<div class="mx-auto max-w-xs">
-				<div class="relative">
-					<input
-						type="text"
-						bind:value={verificationCode}
-						oninput={handleInput}
-						placeholder={m.twofa_code_placeholder()}
-						class="input text-center font-mono text-2xl tracking-widest"
-						maxlength="6"
-						autocomplete="off"
-						class:border-error-500={error}
-						class:focus\:border-error-500={error}
-					/>
+						{#if error}
+							<p class="mt-2 text-sm text-error-500">{error}</p>
+						{/if}
+					</div>
+				</div>
+			</form>
+		{:else if currentStep === 'complete'}
+			<!-- Setup Complete -->
+			<div class="modal-form {cForm}">
+				<div class="text-center">
+					<div class="mb-4">
+						<iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon>
+					</div>
+
+					<p class="mb-6 text-surface-600 dark:text-surface-300">
+						{m.twofa_setup_complete_description()}
+					</p>
 				</div>
 
-				{#if error}
-					<p class="mt-2 text-sm text-error-500">{error}</p>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Action Buttons -->
-		<div class="flex justify-center gap-3">
-			<button onclick={() => (currentStep = 'setup')} class="variant-soft-surface btn">
-				<iconify-icon icon="mdi:arrow-left" width="20" class="mr-2"></iconify-icon>
-				{m.button_back()}
-			</button>
-
-			<button onclick={verifySetup} disabled={verificationCode.length !== 6 || isVerifying} class="variant-filled-primary btn">
-				{#if isVerifying}
-					<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
-					{m.twofa_verifying()}
-				{:else}
-					<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
-					{m.twofa_verify_button()}
-				{/if}
-			</button>
-		</div>
-	{:else if currentStep === 'complete'}
-		<!-- Step 3: Setup Complete -->
-		<div class="mb-6 text-center">
-			<div class="mb-4">
-				<iconify-icon icon="mdi:check-circle" width="64" class="mx-auto text-success-500"></iconify-icon>
-			</div>
-
-			<h4 class="h4 mb-2 text-success-600 dark:text-success-400">
-				{m.twofa_setup_complete_title()}
-			</h4>
-			<p class="mb-6 text-surface-600 dark:text-surface-300">
-				{m.twofa_setup_complete_description()}
-			</p>
-		</div>
-
-		<!-- Backup Codes -->
-		{#if showBackupCodes && backupCodes.length > 0}
-			<div class="mb-6">
-				<div class="variant-ghost-warning flex gap-3 rounded-lg border p-4">
-					<iconify-icon icon="mdi:key-variant" width="24"></iconify-icon>
-					<div class="flex-1">
-						<h5 class="h5 mb-2">{m.twofa_backup_codes_title()}</h5>
-						<p class="mb-3 text-sm">{m.twofa_backup_codes_save_description()}</p>
+				<!-- Backup Codes (Always Visible) -->
+				{#if backupCodes.length > 0}
+					<div class="variant-ghost-warning rounded-lg border p-4">
+						<div class="mb-3 flex items-start gap-3">
+							<iconify-icon icon="mdi:key-variant" width="24" class="shrink-0"></iconify-icon>
+							<div class="flex-1">
+								<h5 class="mb-1 font-semibold">{m.twofa_backup_codes_title()}</h5>
+								<p class="text-sm">{m.twofa_backup_codes_save_description()}</p>
+							</div>
+						</div>
 
 						<div class="mb-3 grid grid-cols-2 gap-2">
 							{#each backupCodes as code}
@@ -247,35 +239,54 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							{/each}
 						</div>
 
-						<div class="flex justify-center gap-2">
-							<button onclick={() => copyToClipboard(backupCodes.join('\n'))} class="variant-soft-primary btn btn-sm">
+						<div class="mb-3 flex justify-center">
+							<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="variant-soft-primary btn btn-sm">
 								<iconify-icon icon="mdi:content-copy" width="16" class="mr-1"></iconify-icon>
 								{m.button_copy_all()}
 							</button>
 						</div>
 
-						<p class="mt-3 text-sm text-warning-600 dark:text-warning-400">
-							<iconify-icon icon="mdi:alert" width="16" class="mr-1"></iconify-icon>
-							{m.twofa_backup_codes_warning()}
-						</p>
+						<div class="flex items-start gap-2 rounded bg-warning-500/10 p-3">
+							<iconify-icon icon="mdi:alert" width="16" class="mt-0.5 shrink-0 text-warning-600"></iconify-icon>
+							<p class="text-sm text-warning-600 dark:text-warning-400">
+								{m.twofa_backup_codes_warning()}
+							</p>
+						</div>
 					</div>
-				</div>
+				{/if}
 			</div>
 		{/if}
 
-		<!-- Complete Button -->
-		<div class="flex justify-center">
-			<button onclick={completeSetup} class="variant-filled-success btn">
-				<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
-				{m.button_complete()}
-			</button>
-		</div>
-	{/if}
-
-	<!-- Cancel Button (always visible) -->
-	<div class="mt-4 flex justify-center">
-		<button onclick={cancelSetup} class="variant-soft-surface btn">
-			{m.button_cancel()}
-		</button>
+		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
+			{#if currentStep === 'setup'}
+				<!-- Setup Footer -->
+				<button type="button" class="variant-outline-secondary btn" onclick={cancelSetup}>
+					{m.button_cancel()}
+				</button>
+				<button
+					type="submit"
+					form="twofa-form"
+					disabled={verificationCode.length !== 6 || isVerifying}
+					class="variant-filled-primary btn {parent?.buttonPositive ?? ''}"
+				>
+					{#if isVerifying}
+						<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
+						{m.twofa_verifying()}
+					{:else}
+						<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+						{m.twofa_verify_button()}
+					{/if}
+				</button>
+			{:else}
+				<!-- Complete Footer -->
+				<button type="button" class="variant-outline-secondary btn" onclick={cancelSetup}>
+					{m.button_cancel()}
+				</button>
+				<button type="button" onclick={completeSetup} class="variant-filled-success btn {parent?.buttonPositive ?? ''}">
+					<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
+					{m.button_complete()}
+				</button>
+			{/if}
+		</footer>
 	</div>
-</div>
+{/if}

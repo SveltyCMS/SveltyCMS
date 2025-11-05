@@ -15,16 +15,12 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Auth
-import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
-
 // System Logs
 import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { user } = locals;
+		const { user, isAdmin, roles: tenantRoles } = locals;
 
 		// If validation fails, redirect the user to the login page
 		if (!user) {
@@ -35,20 +31,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Log successful session validation
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
-		// Check user permission for system settings
-		// First check if user is admin (explicit check)
-		const userRole = roles.find((role) => role._id === user.role);
-		const isAdmin = userRole?.isAdmin === true;
-
-		const hasSystemSettingsPermission = isAdmin || hasPermissionWithRoles(user, 'config:settings', roles);
+		// Check user permission for system settings using cached tenantRoles from locals
+		const hasSystemSettingsPermission =
+			isAdmin || tenantRoles.some((role) => role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('settings')));
 
 		if (!hasSystemSettingsPermission) {
 			const message = `User ${user._id} does not have permission to access system settings`;
 			logger.warn(message, {
 				userRole: user.role,
-				isAdmin,
-				availableRoles: roles.map((r) => r._id),
-				roleFound: !!userRole
+				isAdmin
 			});
 			throw error(403, 'Insufficient permissions');
 		}
@@ -60,7 +51,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				_id: _id.toString(),
 				...rest
 			},
-			isAdmin: isAdmin
+			isAdmin
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

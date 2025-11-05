@@ -15,16 +15,12 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Auth
-import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
-
 // System Logger
 import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { user } = locals;
+		const { user, roles: tenantRoles } = locals;
 
 		// If validation fails, redirect the user to the login page
 		if (!user) {
@@ -34,8 +30,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m}`);
 
-		// Check user permission for widget management
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'config:widgetManagement', roles);
+		// Check user permission for widget management using cached tenantRoles from locals
+		const hasWidgetPermission = tenantRoles.some((role) =>
+			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('widgetManagement'))
+		);
 
 		if (!hasWidgetPermission) {
 			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access widget management`;
@@ -55,6 +53,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 			logger.warn(`Failed to load installed widgets for tenant ${tenantId}:`, error);
 		}
 
+		// Check additional widget permissions using cached tenantRoles
+		const canInstallWidgets = tenantRoles.some((role) =>
+			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('widgetInstall'))
+		);
+		const canUninstallWidgets = tenantRoles.some((role) =>
+			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('widgetUninstall'))
+		);
+		const canManageMarketplace = tenantRoles.some((role) =>
+			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('marketplace'))
+		);
+
 		// Return user data and widget management context
 		const { _id, ...rest } = user;
 		return {
@@ -65,9 +74,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			tenantId,
 			installedWidgets,
 			// Additional context for widget management
-			canInstallWidgets: hasPermissionWithRoles(user, 'config:widgetInstall', roles),
-			canUninstallWidgets: hasPermissionWithRoles(user, 'config:widgetUninstall', roles),
-			canManageMarketplace: hasPermissionWithRoles(user, 'config:marketplace', roles)
+			canInstallWidgets,
+			canUninstallWidgets,
+			canManageMarketplace
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

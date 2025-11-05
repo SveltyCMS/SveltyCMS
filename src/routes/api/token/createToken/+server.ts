@@ -15,7 +15,11 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
-import { initializeRoles, roles } from '@root/config/roles';
+import { dateToISODateString } from '@utils/dateUtils';
+import { getUserFromEmail } from '@src/databases/auth';
+import type { User } from '@src/databases/auth/types';
+import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
+import { randomUUID } from 'node:crypto';
 import { auth, dbAdapter } from '@src/databases/db';
 
 // System Logger
@@ -52,10 +56,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		logger.debug('Received token creation request:', { ...body, tenantId }); // Validate input using the Valibot schema
 
 		const validatedData = parse(addUserTokenSchema, body);
-		logger.debug('Validated data:', validatedData); // Initialize roles and validate the selected role
+		logger.debug('Validated data:', validatedData); // Validate the selected role
 
-		await initializeRoles();
-		const roleInfo = roles.find((r) => r._id === validatedData.role);
+		const roleInfo = getDefaultRoles().find((r) => r._id === validatedData.role);
 		if (!roleInfo) {
 			throw error(400, 'Invalid role selected.');
 		}

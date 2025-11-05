@@ -25,6 +25,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { getFieldName } from '@utils/utils';
+	import { logger } from '@utils/logger';
 
 	// Auth & Page data
 	import { page } from '$app/state';
@@ -45,8 +46,6 @@
 	import { showConfirm } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 
-	// Components
-	import Loading from '@components/Loading.svelte';
 	import { widgetStoreActions, widgetFunctions as widgetFunctionsStore } from '@stores/widgetStore.svelte';
 
 	// Eager load all widget components for immediate use in Fields
@@ -95,11 +94,11 @@
 	$effect(() => {
 		const newLang = contentLanguage.value as Locale;
 		if (currentContentLanguage !== newLang) {
-			console.log('[Fields] Language changed:', currentContentLanguage, '→', newLang);
-			console.log('[Fields] Current collectionValue keys:', Object.keys(currentCollectionValue));
+			logger.debug('Language changed:', currentContentLanguage, '→', newLang);
+			logger.debug('Current collectionValue keys:', Object.keys(currentCollectionValue));
 			// Update immediately to trigger {#key} block
 			currentContentLanguage = newLang;
-			console.log('[Fields] Updated currentContentLanguage to:', currentContentLanguage);
+			logger.debug('Updated currentContentLanguage to:', currentContentLanguage);
 		}
 	});
 
@@ -112,7 +111,7 @@
 			await widgetStoreActions.initializeWidgets(tenantId);
 			widgetsReady = true;
 		} catch (error) {
-			console.error('[Fields] Failed to initialize widgets:', error);
+			logger.error('[Fields] Failed to initialize widgets:', error);
 			widgetsReady = true; // unblock UI
 		}
 	});
@@ -125,7 +124,7 @@
 
 	// Track changes to translation progress for debugging
 	$effect(() => {
-		console.log('[Fields] Translation progress updated:', {
+		logger.debug('Translation progress updated:', {
 			showProgress: translationProgress.value?.show,
 			languages: Object.keys(translationProgress.value || {}).filter((k) => k !== 'show')
 		});
@@ -201,7 +200,7 @@
 
 		// When a new entry is loaded (different ID), pull from global -> local
 		if (globalId && globalId !== lastEntryId) {
-			console.log('[Fields] Loading entry data:', globalId);
+			logger.debug('Loading entry data:', globalId);
 			currentCollectionValue = { ...global } as any;
 			lastEntryId = globalId;
 			// Set initial snapshot for change tracking
@@ -211,7 +210,7 @@
 
 		// If creating new entry (no ID), initialize with global state
 		if (!globalId && !lastEntryId && global && Object.keys(global).length > 0) {
-			console.log('[Fields] Initializing new entry');
+			logger.debug('Initializing new entry');
 			currentCollectionValue = { ...global } as any;
 			// Set initial snapshot for change tracking
 			dataChangeStore.setInitialSnapshot(global as Record<string, any>);
@@ -225,7 +224,7 @@
 			const currentDataStr = JSON.stringify(local);
 			const globalDataStr = JSON.stringify(global ?? {});
 			if (currentDataStr !== globalDataStr) {
-				console.log('[Fields] Pushing local changes to global store');
+				logger.debug('Pushing local changes to global store');
 				untrack(() => setCollectionValue({ ...local }));
 				// Track changes for save button state
 				dataChangeStore.compareWithCurrent(local as Record<string, any>);
@@ -247,7 +246,7 @@
 
 		// Only update if value actually changed
 		if (localStr !== lastLocalValueStr) {
-			console.log('[Fields] currentCollectionValue changed, syncing to store');
+			logger.debug('currentCollectionValue changed, syncing to store');
 			lastLocalValueStr = localStr;
 
 			// Update the global store (using untrack to avoid creating dependency)
@@ -333,9 +332,17 @@
 			<div class="mb-2 text-center text-xs text-error-500">{m.form_required()}</div>
 			<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 				{#if !widgetsReady}
-					<div class="flex h-48 items-center justify-center">
-						<Loading />
-						<p class="ml-2 text-surface-500">Loading widgets...</p>
+					<div class="dark:bg-warning-950 flex h-48 flex-col items-center justify-center rounded-lg border border-warning-500 bg-warning-50 p-8">
+						<svg class="mb-4 h-16 w-16 text-warning-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
+						<h3 class="mb-2 text-xl font-bold text-warning-600 dark:text-warning-400">Widgets Not Ready</h3>
+						<p class="text-center text-warning-600 dark:text-warning-400">Widget initialization failed. Please refresh the page.</p>
 					</div>
 				{:else}
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
@@ -452,7 +459,33 @@
 				{/if}
 			</div>
 		{:else if localTabSet === 2}
-			<div class="p-4">Live Preview coming soon!</div>
+			{@const hostProd = publicEnv?.HOST_PROD || 'https://localhost:5173'}
+			{@const entryId = (collectionValue as any).value?._id || 'draft'}
+			{@const previewUrl = `${hostProd}?preview=${entryId}`}
+			<div class="flex h-[600px] flex-col p-4">
+				<div class="mb-4 flex items-center justify-between gap-4">
+					<div class="flex flex-1 items-center gap-2">
+						<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<input type="text" class="input flex-grow text-sm" readonly value={previewUrl} />
+						<button class="variant-ghost-surface btn btn-sm" use:clipboard={previewUrl} aria-label="Copy preview URL">
+							<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
+						</button>
+					</div>
+					<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="variant-filled-primary btn btn-sm">
+						<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
+						Open
+					</a>
+				</div>
+
+				<div class="flex-1 overflow-hidden rounded-lg border border-surface-300 dark:border-surface-700">
+					<iframe src={previewUrl} title="Live Preview" class="h-full w-full" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+					></iframe>
+				</div>
+
+				<div class="mt-2 text-center text-xs text-surface-500">
+					Preview URL: {hostProd}?preview={entryId}
+				</div>
+			</div>
 		{:else if localTabSet === 3}
 			<div class="space-y-4 p-4">
 				<div class="flex items-center gap-2">

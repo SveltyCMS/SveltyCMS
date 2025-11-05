@@ -13,6 +13,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 <script lang="ts">
 	import axios from 'axios';
 	import { invalidateAll } from '$app/navigation';
+	import { logger } from '@utils/logger';
 
 	// Stores
 	import { page } from '$app/state';
@@ -33,6 +34,20 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	let files: FileList | null = $state(null);
 	let isUploading = $state(false);
 	let uploadProgress = $state(0);
+	let previewUrl = $state<string | null>(null); // Local preview URL, separate from global store
+	let imageLoadError = $state(false); // Track if current avatar failed to load
+
+	// Computed value for avatar display with fallback
+	let displayAvatar = $derived.by(() => {
+		if (previewUrl) return previewUrl;
+		if (imageLoadError) return '/Default_User.svg';
+		const avatarUrl = avatarSrc.value || '/Default_User.svg';
+		// Add timestamp for cache busting, unless it's a data URI or default avatar
+		if (avatarUrl !== '/Default_User.svg' && !avatarUrl.startsWith('data:')) {
+			return `${avatarUrl}?t=${Date.now()}`;
+		}
+		return avatarUrl;
+	});
 
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
@@ -92,6 +107,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		files = inputFiles;
 		const lastFile = files[files.length - 1];
 
+		// Reset error state when new file is selected
+		imageLoadError = false;
+
 		// Create optimized preview for large files
 		createOptimizedPreview(lastFile);
 	}
@@ -114,7 +132,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					canvas.height = img.height * ratio;
 
 					ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-					avatarSrc.value = canvas.toDataURL('image/jpeg', 0.8);
+					previewUrl = canvas.toDataURL('image/jpeg', 0.8); // Update local preview only
 				};
 
 				img.src = URL.createObjectURL(file);
@@ -123,15 +141,15 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				const fileReader = new FileReader();
 				fileReader.onload = (e) => {
 					if (e.target instanceof FileReader) {
-						avatarSrc.value = e.target.result as string;
+						previewUrl = e.target.result as string; // Update local preview only
 					}
 				};
 				fileReader.readAsDataURL(file);
 			}
 		} catch (error) {
-			console.error('Error creating preview:', error);
+			logger.error('Error creating preview:', error);
 			// Fallback to default avatar
-			avatarSrc.value = '/Default_User.svg';
+			previewUrl = null;
 		}
 	}
 
@@ -148,11 +166,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		} catch (error) {
 			if ((error as ValiError<typeof avatarSchema>).issues) {
 				const valiError = error as ValiError<typeof avatarSchema>;
-				console.error(valiError.issues[0]?.message);
+				logger.error(valiError.issues[0]?.message);
 				showToast(valiError.issues[0]?.message || 'Invalid file', 'error');
 				return;
 			}
-			console.error((error as Error).message);
+			logger.error((error as Error).message);
 			showToast((error as Error).message || 'Upload failed', 'error');
 			return;
 		}
@@ -225,15 +243,17 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			});
 
 			if (response.status === 200) {
-				avatarSrc.value = response.data.avatarUrl;
+				avatarSrc.value = response.data.avatarUrl; // Update global store only on successful save
 				showToast('<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> Avatar updated successfully!', 'success');
 				modalStore.close();
 				await invalidateAll();
 			}
 		} catch (error) {
-			console.error('Error uploading avatar:', error);
+			logger.error('Error uploading avatar:', error);
 			const msg = axios.isAxiosError(error) && error.response?.data?.message ? error.response.data.message : 'Failed to update avatar';
 			showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${msg}`, 'error');
+			// Reset preview on error
+			previewUrl = null;
 		} finally {
 			isUploading = false;
 			uploadProgress = 0;
@@ -243,8 +263,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Delete avatar
 	async function deleteAvatar(): Promise<void> {
 		try {
-			const response = await axios.delete('/api/user/deleteAvatar');
+			// Send the current avatar URL from the store in case DB is out of sync
+			const currentAvatar = avatarSrc.value;
 
+			const response = await axios.delete('/api/user/deleteAvatar', {
+				data: { avatarUrl: currentAvatar }
+			});
 			if (response.status === 200) {
 				avatarSrc.value = '/Default_User.svg';
 
@@ -254,7 +278,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				await invalidateAll(); // Reload the page data to get the updated user object
 			}
 		} catch (error) {
-			console.error('Error deleting avatar:', error);
+			logger.error('Error deleting avatar:', error);
 			showToast('<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> Failed to delete avatar', 'error');
 		}
 	}
@@ -293,7 +317,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						}
 					}}
 				>
-					<Avatar src={avatarSrc.value ? avatarSrc.value : '/Default_User.svg'} alt="User avatar" loading="lazy" rounded-full class="w-32" />
+					<Avatar src={displayAvatar} alt="User avatar" loading="lazy" rounded="rounded-full" width="w-32" />
 					<!-- Hover/Focus overlay cue when not uploading -->
 					{#if !isUploading}
 						<div class="absolute inset-0 hidden items-center justify-center rounded-full bg-black/30 text-white focus-within:flex hover:flex">

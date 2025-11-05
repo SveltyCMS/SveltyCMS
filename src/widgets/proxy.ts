@@ -4,7 +4,7 @@
  * This is used by collection configuration files.
  */
 import type { Widget, WidgetModule } from '@widgets/types';
-import { logger } from '@utils/logger.server';
+import { logger } from '@utils/logger';
 
 export type WidgetFunction = (config: Record<string, unknown>) => Widget;
 

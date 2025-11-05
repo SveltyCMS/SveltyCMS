@@ -25,6 +25,7 @@ Features:
 </script>
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -53,7 +54,6 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import Loading from '@components/Loading.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Status from '@components/system/table/Status.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
@@ -211,7 +211,7 @@ Features:
 	function handleRowHoverStart(entryId: string) {
 		// Phase 2: Respect connection awareness
 		if (!isPreloadEnabled) {
-			console.log('[Preload] Disabled on slow connection');
+			logger.debug('[Preload] Disabled on slow connection');
 			return;
 		}
 
@@ -268,9 +268,9 @@ Features:
 									hoverCount: 0
 								});
 
-								console.log(`[Batch Preload] Entry ${entry._id.substring(0, 8)} preloaded during idle`);
+								logger.debug(`[Batch Preload] Entry ${entry._id.substring(0, 8)} preloaded during idle`);
 							} catch (error) {
-								console.warn('[Batch Preload] Failed:', error);
+								logger.warn('[Batch Preload] Failed:', error);
 							}
 						}
 						i++;
@@ -565,7 +565,7 @@ Features:
 		await Promise.resolve();
 		handleUILayoutToggle();
 
-		console.log('[Create] INSTANT - New entry mode');
+		logger.debug('[Create] INSTANT - New entry mode');
 	};
 
 	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess);
@@ -600,7 +600,7 @@ Features:
 								}
 							}
 						} catch (batchError) {
-							console.warn('Batch delete failed, using individual deletes:', batchError);
+							logger.warn('Batch delete failed, using individual deletes:', batchError);
 							await Promise.all(
 								selectedIds.map((entryId) => {
 									const collId = collection.value?._id;
@@ -649,7 +649,20 @@ Features:
 
 <!--Table -->
 {#if !currentCollection}
-	<Loading customTopText="Loading Collection" customBottomText="Please wait..." />
+	<div class="dark:bg-error-950 flex h-64 flex-col items-center justify-center rounded-lg border border-error-500 bg-error-50 p-8">
+		<svg class="mb-4 h-16 w-16 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				stroke-width="2"
+				d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+			/>
+		</svg>
+		<h3 class="mb-2 text-xl font-bold text-error-600 dark:text-error-400">Collection Not Found</h3>
+		<p class="text-center text-error-600 dark:text-error-400">
+			The requested collection could not be loaded. Please check the collection name and try again.
+		</p>
+	</div>
 {:else}
 	<!-- Header -->
 	<div class="mb-2 flex justify-between dark:text-white">
@@ -921,7 +934,7 @@ Features:
 																	showToast(result.error || 'Failed to update entry status', 'error');
 																}
 															} catch (error) {
-																console.error('Error updating entry status:', error);
+																logger.error('Error updating entry status:', error);
 																showToast('An error occurred while updating entry status', 'error');
 															}
 														}
@@ -934,7 +947,7 @@ Features:
 														// List view has language-projected data, edit mode needs all languages
 														const newUrl = `${page.url.pathname}?edit=${originalEntry._id}`;
 														goto(newUrl);
-														console.log(`[Edit] Loading full data for entry ${originalEntry._id}`);
+														logger.debug(`[Edit] Loading full data for entry ${originalEntry._id}`);
 													}
 												}
 											}}

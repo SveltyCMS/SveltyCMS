@@ -15,6 +15,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { logger } from '@utils/logger';
 
 	// Types
 	type AdjustmentKey = 'brightness' | 'contrast' | 'saturation' | 'temperature' | 'exposure' | 'highlights' | 'shadows' | 'clarity' | 'vibrance';
@@ -108,7 +109,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				selectedSticker: selected ? { id: selected.id, previewUrl: selected.previewUrl } : null
 			};
 		} catch (e) {
-			console.warn('Error getting watermark data:', e);
+			logger.warn('Error getting watermark data:', e);
 			return { stickers: [], selectedSticker: null };
 		}
 	});
@@ -262,7 +263,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 	function loadImageAndSetupKonva(imageSrc: string, file?: File) {
 		if (!containerRef) {
-			console.error('Container ref not available - this should not happen');
+			logger.error('Container ref not available - this should not happen');
 			return;
 		}
 
@@ -458,7 +459,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			layer.batchDraw();
 			stage.batchDraw();
 		} catch (error) {
-			console.error('Failed to restore from state data:', error);
+			logger.error('Failed to restore from state data:', error);
 		}
 	}
 
@@ -484,7 +485,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	async function handleSave() {
 		const { stage, file } = imageEditorStore.state;
 		if (!stage || !file) {
-			console.error('No stage or file available for saving');
+			logger.error('No stage or file available for saving');
 			return;
 		}
 
@@ -543,7 +544,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				}, 3000);
 			}
 		} catch (error) {
-			console.error('Error saving image:', error);
+			logger.error('Error saving image:', error);
 
 			// Show error notification
 			const errorNotification = document.querySelector('.error-message') || createErrorNotification();
@@ -707,7 +708,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 									// Validate crop dimensions
 									if (width <= 0 || height <= 0) {
-										console.error('Invalid crop dimensions:', { width, height });
+										logger.error('Invalid crop dimensions:', { width, height });
 										imageEditorStore.setActiveState('');
 										return;
 									}
@@ -1001,7 +1002,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 
 								// Validate crop dimensions
 								if (width <= 0 || height <= 0) {
-									console.error('Invalid crop dimensions:', { width, height });
+									logger.error('Invalid crop dimensions:', { width, height });
 									imageEditorStore.setActiveState('');
 									return;
 								}

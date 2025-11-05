@@ -33,12 +33,13 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 
 <Button leadingIcon="mdi:save" aria-label="Save document" loading />
 
-<Button variant="primary" loading replaceTextOnLoading onclick={() => console.log('clicked')}>
+<Button variant="primary" loading replaceTextOnLoading onclick={() => logger.debug('clicked')}>
   Submit
 </Button>
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	// — Types —
 	type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 	type ButtonVariant = 'primary' | 'secondary' | 'error' | 'ghost' | 'text' | 'outline';

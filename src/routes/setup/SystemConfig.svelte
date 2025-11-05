@@ -23,6 +23,7 @@ Key Features:
 	import * as m from '@src/paraglide/messages';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { locales as systemLocales } from '@src/paraglide/runtime';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import type { SystemSettings } from '@stores/setupStore.svelte';
 	// Validation
@@ -30,15 +31,13 @@ Key Features:
 	import { systemSettingsSchema } from '@utils/formSchemas';
 
 	// --- PROPS ---
-	const {
-		systemSettings,
-		validationErrors,
-		availableLanguages = [] // system lange form paraglideJS
-	} = $props<{
+	const { systemSettings, validationErrors } = $props<{
 		systemSettings: SystemSettings;
 		validationErrors: Record<string, string>;
-		availableLanguages?: string[];
 	}>();
+
+	// availableLanguages from Paraglide (system/UI languages)
+	const availableLanguages: string[] = [...systemLocales];
 
 	// Real-time validation state
 	let localValidationErrors = $state<Record<string, string>>({});
@@ -96,17 +95,13 @@ Key Features:
 		touchedFields = touchedFields;
 	}
 	// Utility: human friendly language label
+	// Uses Intl.DisplayNames API to get native language names (e.g., "Deutsch" for "de")
 	function displayLang(code: string) {
 		try {
-			// Try to find in full ISO list first for content languages
-			const isoLang = iso6391.find((l) => l.code === code);
-			if (isoLang) return `${isoLang.name} (${isoLang.native})`;
-			// Fallback for system languages which might have different source
-			if (availableLanguages.includes(code)) return `${getLanguageName(code)} (${code.toUpperCase()})`;
-			// Final fallback for any other case
-			return /[a-z]{2,}/i.test(code) ? `${code.toLowerCase()} (${code.toUpperCase()})` : code;
+			const name = getLanguageName(code);
+			return `${name} (${code.toUpperCase()})`;
 		} catch {
-			return code;
+			return code.toUpperCase();
 		}
 	}
 
@@ -172,8 +167,8 @@ Key Features:
 	}
 
 	function addContentLanguage(code: string) {
-		const c = code.toLowerCase();
-		if (!c || c.length !== 2 || !iso6391.some((lang) => lang.code === c)) return;
+		const c = code.toLowerCase().trim();
+		if (!c || c.length < 2) return;
 		if (!systemSettings.contentLanguages.includes(c)) {
 			systemSettings.contentLanguages = [...systemSettings.contentLanguages, c];
 			if (!systemSettings.defaultContentLanguage) systemSettings.defaultContentLanguage = c;
@@ -201,12 +196,12 @@ Key Features:
 	let systemAvailable = $state<string[]>([]);
 	let contentAvailable = $state<{ code: string; name: string; native: string }[]>([]);
 	$effect(() => {
-		// ✅ system languages can only be those defined in availableLanguages
+		// ✅ system languages: only from Paraglide's availableLanguages
 		systemAvailable = availableLanguages.filter(
 			(l: string) => !systemSettings.systemLanguages.includes(l) && l.toLowerCase().includes(systemPickerSearch.toLowerCase())
 		);
 
-		// ✅ content languages can still be from iso6391 (no restriction)
+		// ✅ content languages: from iso639-1.json (browseable list)
 		const search = contentPickerSearch.toLowerCase();
 		contentAvailable = iso6391.filter(
 			(lang) =>
@@ -605,22 +600,14 @@ Key Features:
 									<input
 										id="content-lang-search"
 										class="mb-2 w-full rounded border border-slate-300/60 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500 dark:border-slate-600"
-										placeholder="Search or type code..."
+										placeholder="Search languages..."
 										bind:value={contentPickerSearch}
 									/>
-									{#if contentPickerSearch.trim() && !availableLanguages.includes(contentPickerSearch.trim())}
-										<button
-											type="button"
-											class="mb-2 w-full rounded bg-primary-500/10 px-2 py-1 text-left text-xs text-primary-600 hover:bg-primary-500/20 dark:text-primary-300"
-											onclick={() => addContentLanguage(contentPickerSearch.trim())}
-											>{m.button_add_code?.({ code: contentPickerSearch.trim() }) || `Add "${contentPickerSearch.trim()}"`}</button
-										>
-									{/if}
 									<div class="max-h-48 overflow-auto">
 										{#if contentAvailable.length === 0}
 											<p class="px-1 py-2 text-center text-[11px] text-slate-500">{m.setup_help_no_matches?.() || 'No matches'}</p>
 										{/if}
-										{#each contentAvailable as sug, index (index)}
+										{#each contentAvailable as sug}
 											<button
 												type="button"
 												class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-xs hover:bg-primary-500/10"

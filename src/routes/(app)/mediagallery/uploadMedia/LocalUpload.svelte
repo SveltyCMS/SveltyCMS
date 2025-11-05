@@ -21,6 +21,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
@@ -44,7 +45,7 @@
 			component: modalComponent,
 			response: (r: any) => {
 				if (r) {
-					console.log('response:', r);
+					logger.debug('response:', r);
 					// Upload is handled exclusively by ModalUploadMedia component
 					// which receives uploadFiles as a prop
 				}
@@ -131,7 +132,7 @@
 				throw new Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
-			console.error('Error uploading files:', error);
+			logger.error('Error uploading files:', error);
 			showToast('Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
 		}
 	}

@@ -32,9 +32,9 @@ function extractUUIDFromJs(content: string): string | null {
 
 class ConfigService {
 	private syncDirs = {
-		collections: path.resolve(process.cwd(), 'compiledCollections'),
-		roles: path.resolve(process.cwd(), 'config/roles')
+		collections: path.resolve(process.cwd(), 'compiledCollections')
 		// Extend with widgets, themes, etc.
+		// Note: Roles are database-only, not synced from filesystem
 	};
 
 	/** Returns current sync status between filesystem and database. */
@@ -68,13 +68,12 @@ class ConfigService {
 		await fs.mkdir(exportDir, { recursive: true });
 
 		// Fetch all entity types in parallel
-		const [collections, roles] = await Promise.all([
-			dbAdapter?.collections ? dbAdapter.collections.getAll() : [],
-			dbAdapter?.roles ? dbAdapter.roles.getAll() : []
-		]);
+		// Note: Roles are database-only and not part of export/import sync
+		// TODO: Implement proper collection schema fetching via dbAdapter.collection API
+		const [collections] = await Promise.all([Promise.resolve([])]);
 
 		// Prepare entities map
-		const entities = { collections, roles };
+		const entities = { collections };
 
 		// Write each entity type in parallel, streaming for large datasets
 		await Promise.all(
@@ -130,20 +129,8 @@ class ConfigService {
 			state.set(collection.uuid, { uuid: collection.uuid, type: 'collection', name: collection.name, hash, entity: collection });
 		}
 
-		// 2. Scan Roles
-		try {
-			const rolesConfig = await import('../../config/roles.ts');
-			const roles = rolesConfig.default;
-			for (const role of roles) {
-				const hash = createChecksum(role);
-				// Assuming roles have a unique name that can be used as a stand-in for UUID if none exists
-				const id = role.uuid || role.name;
-				state.set(id, { uuid: id, type: 'role', name: role.name, hash, entity: role });
-			}
-		} catch (err) {
-			logger.warn('Could not import roles from config/roles.ts', err);
-		}
-
+		// Note: Roles are managed directly in the database via /api/permission/update
+		// They are not part of the filesystem config sync workflow
 		// TODO: Add calls for widgets, themes, etc.
 		return state;
 	}
@@ -152,22 +139,9 @@ class ConfigService {
 		if (!dbAdapter) throw new Error('Database adapter not available.');
 		const state = new Map<string, ConfigEntity>();
 
-		// 1. Fetch Roles from System Preferences
-		try {
-			const rolesResult = await dbAdapter.systemPreferences.get('ROLES', 'system');
-			if (rolesResult.success && Array.isArray(rolesResult.data)) {
-				const roles = rolesResult.data;
-				for (const role of roles) {
-					// Assuming the role object is simple, e.g., { name: 'admin', ... }
-					const roleObj = typeof role === 'string' ? { name: role } : role;
-					const hash = createChecksum(roleObj);
-					const id = roleObj.uuid || roleObj.name;
-					state.set(id, { uuid: id, type: 'role', name: roleObj.name, hash, entity: roleObj });
-				}
-			}
-		} catch (err) {
-			logger.warn('Could not fetch roles from database', err);
-		}
+		// Note: Roles are managed in auth_roles collection, not systemPreferences
+		// They are edited via /api/permission/update and /config/accessManagement
+		// This config sync is for collections, widgets, themes, etc. only
 
 		// TODO: Implement fetching for Collections
 		// The current dbAdapter interface does not provide a clear method to get all collection schemas.

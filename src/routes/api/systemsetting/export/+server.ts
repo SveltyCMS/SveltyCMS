@@ -120,7 +120,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		});
 	} catch (error) {
-		console.error('Export error:', error);
+		logger.error('Export error:', error);
 		return json(
 			{
 				error: 'Export failed',

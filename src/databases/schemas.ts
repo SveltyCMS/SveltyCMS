@@ -20,6 +20,7 @@
 
 import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
 import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
+import { logger } from '@utils/logger';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 
@@ -260,14 +261,14 @@ function formatPath(path: BaseIssue<unknown>['path']): string {
  * @param configFile - The name of the configuration file being validated.
  */
 function logValidationErrors(issues: BaseIssue<unknown>[], configFile: string): void {
-	console.error(`\n${colors.yellow}⚠️ Invalid configuration in ${colors.cyan}${configFile}${colors.reset}`);
+	logger.error(`\n${colors.yellow}⚠️ Invalid configuration in ${colors.cyan}${configFile}${colors.reset}`);
 
 	issues.forEach((issue) => {
 		const fieldPath = formatPath(issue.path) || 'Configuration object';
-		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
-		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
+		logger.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
+		logger.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
 		if (issue.input !== undefined) {
-			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
+			logger.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
 		}
 	});
 }
@@ -361,7 +362,7 @@ function performConditionalValidation(config: Config): string[] {
  */
 export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<unknown>>, config: unknown, configName: string): unknown {
 	if (!validationLogPrinted) {
-		console.log(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
+		logger.info('Validating CMS configuration...');
 		validationLogPrinted = true;
 	}
 
@@ -372,27 +373,27 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		// Perform secondary, cross-field validation
 		const conditionalErrors = performConditionalValidation(result.output as Config);
 		if (conditionalErrors.length > 0) {
-			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
-			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
-			console.error('━'.repeat(70));
-			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
+			logger.error(`${configName} validation failed with logical errors:`);
+			logger.error(`File: ${configFile}`);
+			logger.error('━'.repeat(70));
+			logger.error('Logical Validation Errors:');
 			conditionalErrors.forEach((error) => {
-				console.error(`   - ${error}`);
+				logger.error(`   - ${error}`);
 			});
-			console.error('\n' + '━'.repeat(70));
-			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
+			logger.error('━'.repeat(70));
+			logger.fatal('Server cannot start. Please fix the logical inconsistencies listed above.');
 			process.exit(1);
 		}
 		return result.output;
 	} else {
 		// Handle schema validation failures
-		console.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
-		console.error('━'.repeat(70));
+		logger.error(`${configName} validation failed. Please check your configuration.`);
+		logger.error('━'.repeat(70));
 
 		logValidationErrors(result.issues, configFile);
 
-		console.error('\n' + '━'.repeat(70));
-		console.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
+		logger.error('━'.repeat(70));
+		logger.fatal('Server cannot start. Please fix the errors listed above.');
 		process.exit(1);
 	}
 }

@@ -7,7 +7,7 @@ import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import {
 	widgetStoreActions,
 	widgetFunctions as widgetFunctionsStore,
@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Check permission - only admins can sync widgets
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		const isAdmin = user.role === 'admin' || user.role === 'super-admin';
 
 		if (!hasWidgetPermission || !isAdmin) {

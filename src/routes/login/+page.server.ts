@@ -41,10 +41,6 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
-// Import roles
-import { initializeRoles, roles } from '@root/config/roles';
-await initializeRoles();
-
 // System Logger
 import { logger } from '@utils/logger.server';
 

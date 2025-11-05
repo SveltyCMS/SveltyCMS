@@ -24,6 +24,7 @@ This component provides a streamlined interface for managing collection entries 
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	// SvelteKit imports
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state'; // Svelte 5 uses $app/state
@@ -209,7 +210,7 @@ This component provides a streamlined interface for managing collection entries 
 		} catch (e) {
 			const error = e as Error;
 			showToast(`Error ${newStatus} entry: ${error.message}`, 'error');
-			console.error('[RightSidebar] Toggle error:', e);
+			logger.error('[RightSidebar] Toggle error:', e);
 			return false;
 		} finally {
 			isLoading = false;
@@ -240,14 +241,14 @@ This component provides a streamlined interface for managing collection entries 
 		// Check if there are any changes using the centralized store
 		if (!hasDataChanged) {
 			// No changes - but still need to reload full list view
-			console.log('[RightSidebar] No changes detected, returning to list view without save');
+			logger.debug('[RightSidebar] No changes detected, returning to list view without save');
 			handleUILayoutToggle();
 			dataChangeStore.reset();
 
 			// ✅ Navigate back to list view with full data reload
 			// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
 			const currentPath = page.url.pathname; // pathname excludes query parameters
-			console.log('[RightSidebar] No changes - Navigating to:', currentPath, 'from:', page.url.href);
+			logger.debug('[RightSidebar] No changes - Navigating to:', currentPath, 'from:', page.url.href);
 			await goto(currentPath, { invalidateAll: true });
 
 			// Update mode after navigation
@@ -275,7 +276,7 @@ This component provides a streamlined interface for managing collection entries 
 		dataToSave.updatedBy = getDisplayName(user?.username, user);
 
 		if (process.env.NODE_ENV !== 'production') {
-			console.log('[RightSidebar] Data to save:', dataToSave);
+			logger.debug('[RightSidebar] Data to save:', dataToSave);
 		}
 
 		await saveEntry(dataToSave);
@@ -287,13 +288,13 @@ This component provides a streamlined interface for managing collection entries 
 		// ✅ Navigate back to list view with full data reload
 		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
 		const currentPath = page.url.pathname; // pathname excludes query parameters
-		console.log('[RightSidebar] Navigating to:', currentPath, 'from:', page.url.href);
+		logger.debug('[RightSidebar] Navigating to:', currentPath, 'from:', page.url.href);
 		await goto(currentPath, { invalidateAll: true });
 
 		// Update mode after navigation
 		setMode('view');
 
-		console.log('[Save] Navigated back to list view with full data');
+		logger.debug('[Save] Navigated back to list view with full data');
 	}
 	function saveData() {
 		prepareAndSaveEntry();

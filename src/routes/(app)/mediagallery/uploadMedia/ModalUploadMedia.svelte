@@ -22,6 +22,7 @@
 <script lang="ts">
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { logger } from '@utils/logger';
 	const modalStore = getModalStore();
 
 	// ParaglideJS
@@ -67,7 +68,7 @@
 						const url = URL.createObjectURL(file);
 						newObjectUrls.set(fileKey, url);
 					} catch (e) {
-						console.error(`Error creating ObjectURL for ${file.name}:`, e);
+						logger.error(`Error creating ObjectURL for ${file.name}:`, e);
 						// Optionally handle the error, e.g., set a placeholder URL or skip
 					}
 				}
@@ -177,7 +178,7 @@
 					if (!duplicateWarning) {
 						duplicateWarning = `File "${file.name}" already exists and was skipped.`;
 					}
-					console.warn(`Duplicate file skipped: ${file.name}`);
+					logger.warn(`Duplicate file skipped: ${file.name}`);
 				} else {
 					addedFiles.push(file);
 					fileSet.add(fileKey); // Add to set immediately
@@ -225,7 +226,7 @@
 			// Clear files and close the modal ONLY on successful upload
 			handleCancel();
 		} catch (error) {
-			console.error('Error uploading files:', error);
+			logger.error('Error uploading files:', error);
 			// Keep the modal open and display an error message
 			// You might want a dedicated error state instead of reusing duplicateWarning
 			duplicateWarning = `Upload failed: ${error instanceof Error ? error.message : String(error)}`;

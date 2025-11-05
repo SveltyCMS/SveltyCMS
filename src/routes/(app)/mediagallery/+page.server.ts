@@ -92,9 +92,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	try {
 		// User is already validated in hooks.server.ts
-		const { user } = locals;
+		const { user, isAdmin, roles: tenantRoles } = locals;
 		if (!user) {
 			throw redirect(302, '/login');
+		}
+
+		// Check if user has permission to access media gallery
+		const hasMediaPermission =
+			isAdmin ||
+			tenantRoles.some((role) =>
+				role.permissions?.some((p) => p.resource === 'media' && (p.actions.includes('read') || p.actions.includes('write')))
+			);
+
+		if (!hasMediaPermission) {
+			logger.warn(`User ${user._id} does not have permission to access media gallery`);
+			throw error(403, 'Insufficient permissions to access media gallery');
 		}
 
 		const folderId = url.searchParams.get('folderId'); // Get folderId from URL

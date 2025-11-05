@@ -40,6 +40,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { StatusTypes } from '@src/content/types';
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 
@@ -209,8 +210,8 @@
 	}
 
 	function openScheduleModal(): void {
-		console.log('Opening schedule modal with count:', selectedCount);
-		console.log('Modal store:', modalStore);
+		logger.debug('Opening schedule modal with count:', selectedCount);
+		logger.debug('Modal store:', modalStore);
 
 		// Use the component-level modalStore directly
 		modalStore.trigger({
@@ -222,7 +223,7 @@
 			},
 			response: (result: { date: Date; action: string } | boolean) => {
 				if (result && typeof result === 'object' && 'date' in result) {
-					console.log('Schedule confirmed:', result.date, result.action);
+					logger.debug('Schedule confirmed:', result.date, result.action);
 					schedule(result.date.toISOString(), result.action);
 				}
 			}
@@ -230,7 +231,7 @@
 	}
 
 	function openPublishModal(): void {
-		console.log('Opening publish modal with count:', selectedCount);
+		logger.debug('Opening publish modal with count:', selectedCount);
 
 		modalStore.trigger({
 			type: 'confirm',
@@ -239,7 +240,7 @@
 			buttonTextConfirm: 'Publish',
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('Publish confirmed');
+					logger.debug('Publish confirmed');
 					publish();
 				}
 			}
@@ -247,7 +248,7 @@
 	}
 
 	function openUnpublishModal(): void {
-		console.log('Opening unpublish modal with count:', selectedCount);
+		logger.debug('Opening unpublish modal with count:', selectedCount);
 
 		modalStore.trigger({
 			type: 'confirm',
@@ -256,7 +257,7 @@
 			buttonTextConfirm: 'Unpublish',
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('Unpublish confirmed');
+					logger.debug('Unpublish confirmed');
 					unpublish();
 				}
 			}
@@ -264,7 +265,7 @@
 	}
 
 	function openCloneModal(): void {
-		console.log('Opening clone modal with count:', selectedCount);
+		logger.debug('Opening clone modal with count:', selectedCount);
 
 		modalStore.trigger({
 			type: 'confirm',
@@ -273,7 +274,7 @@
 			buttonTextConfirm: m.entrylist_multibutton_clone(),
 			response: (confirmed: boolean) => {
 				if (confirmed) {
-					console.log('Clone confirmed');
+					logger.debug('Clone confirmed');
 					clone();
 				}
 			}
@@ -285,7 +286,7 @@
 		event.preventDefault();
 		event.stopPropagation();
 
-		console.log('Main button clicked, action:', currentAction, 'hasSelections:', hasSelections, 'selectedCount:', selectedCount);
+		logger.debug('Main button clicked, action:', currentAction, 'hasSelections:', hasSelections, 'selectedCount:', selectedCount);
 
 		switch (currentAction) {
 			case 'create':
@@ -317,7 +318,7 @@
 				test();
 				break;
 			default:
-				console.warn('Unknown action:', currentAction);
+				logger.warn('Unknown action:', currentAction);
 		}
 
 		closeDropdown();

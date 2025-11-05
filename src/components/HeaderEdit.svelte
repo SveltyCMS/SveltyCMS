@@ -28,6 +28,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entryActions';
 	// Types
@@ -196,7 +197,7 @@
 	// Shared save logic for HeaderEdit and RightSidebar
 	async function prepareAndSaveEntry() {
 		if (!validationStore.isValid) {
-			console.warn('[HeaderEdit] Save blocked due to validation errors.');
+			logger.warn('[HeaderEdit] Save blocked due to validation errors.');
 			showToast(m.validation_fix_before_save(), 'error');
 			return;
 		}
@@ -204,14 +205,14 @@
 		// Check if there are any changes using the centralized store
 		if (!dataChangeStore.hasChanges) {
 			// No changes - but still need to reload full list view
-			console.log('[HeaderEdit] No changes detected, returning to list view without save');
+			logger.debug('[HeaderEdit] No changes detected, returning to list view without save');
 			toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed');
 			dataChangeStore.reset();
 
 			// ✅ Navigate back to list view with full data reload
 			// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
 			const currentPath = page.url.pathname; // pathname excludes query parameters
-			console.log('[HeaderEdit] No changes - Navigating to:', currentPath, 'from:', page.url.href);
+			logger.debug('[HeaderEdit] No changes - Navigating to:', currentPath, 'from:', page.url.href);
 			await goto(currentPath, { invalidateAll: true });
 
 			// Update mode after navigation
@@ -238,7 +239,7 @@
 		dataToSave.updatedBy = getDisplayName(user?.username, user);
 
 		if (process.env.NODE_ENV !== 'production') {
-			console.log(
+			logger.debug(
 				'[HeaderEdit] Saving with status:',
 				dataToSave.status,
 				'collectionValue.status:',
@@ -255,13 +256,13 @@
 		// ✅ Navigate back to list view with full data reload
 		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
 		const currentPath = page.url.pathname; // pathname excludes query parameters
-		console.log('[HeaderEdit] Navigating to:', currentPath, 'from:', page.url.href);
+		logger.debug('[HeaderEdit] Navigating to:', currentPath, 'from:', page.url.href);
 		await goto(currentPath, { invalidateAll: true });
 
 		// Update mode after navigation
 		setMode('view');
 
-		console.log('[Save] Navigated back to list view with full data');
+		logger.debug('[Save] Navigated back to list view with full data');
 	} // Save form data with validation
 	async function saveData() {
 		await prepareAndSaveEntry();
@@ -337,13 +338,13 @@
 		// ✅ Navigate back to list view with full data reload
 		// Remove ?edit= and ?create= parameters to trigger SSR reload of full entry list
 		const currentPath = page.url.pathname; // pathname excludes query parameters
-		console.log('[HeaderEdit] Cancel - Navigating to:', currentPath, 'from:', page.url.href);
+		logger.debug('[HeaderEdit] Cancel - Navigating to:', currentPath, 'from:', page.url.href);
 		await goto(currentPath, { invalidateAll: true });
 
 		// Update mode after navigation
 		setMode('view');
 
-		console.log('[Cancel] Navigated back to list view with full data');
+		logger.debug('[Cancel] Navigated back to list view with full data');
 	}
 
 	// Delete confirmation modal - use centralized function
@@ -351,7 +352,7 @@
 		deleteCurrentEntry(getModalStore(), isAdmin);
 	} // Next button handler for menu creation workflow
 	function next(): void {
-		console.log('[HeaderEdit] Next button clicked');
+		logger.debug('[HeaderEdit] Next button clicked');
 		// Add your next logic here
 	}
 

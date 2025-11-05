@@ -24,13 +24,11 @@ It provides functionality to:
 	import type { Role } from '@src/databases/auth/types';
 
 	// Components
-	import Loading from '@components/Loading.svelte';
 	import { showToast } from '@utils/toast';
 
 	let { roleData, setRoleData } = $props();
 
 	// Reactive state
-	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let currentAdminRole = $state<string | null>(null);
 	let currentAdminName = $state<string | null>(null);
@@ -42,26 +40,18 @@ It provides functionality to:
 	let availableRoles = $derived(roleData.filter((role: Role) => role._id !== currentAdminRole));
 	let hasChanges = $derived(selectedAdminRole !== currentAdminRole);
 
-	// Initialize component data
+	// Initialize component data (run once)
 	$effect(() => {
-		loadRoles();
-	});
-
-	// Function to load roles from the authAdapter
-	const loadRoles = async () => {
-		try {
+		// Only initialize if data hasn't been loaded yet
+		if (!currentAdminRole && roleData.length > 0) {
 			const currentAdmin = roleData.find((role: Role) => role.isAdmin === true);
 			if (currentAdmin) {
 				currentAdminRole = currentAdmin._id;
 				currentAdminName = currentAdmin.name;
 				selectedAdminRole = currentAdmin._id;
 			}
-		} catch (err) {
-			error = `Failed to load roles: ${err instanceof Error ? err.message : String(err)}`;
-		} finally {
-			isLoading = false;
 		}
-	};
+	});
 
 	// Handle role change
 	const handleRoleChange = (event: Event) => {
@@ -108,9 +98,7 @@ It provides functionality to:
 	};
 </script>
 
-{#if isLoading}
-	<Loading customTopText="Loading Admin Role..." customBottomText="" />
-{:else if error}
+{#if error}
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>

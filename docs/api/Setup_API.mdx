@@ -99,15 +99,28 @@ sequenceDiagram
 These endpoints are **only accessible when the system is in setup mode**:
 
 - Config file (`config/private.ts`) doesn't exist OR
+- Config file exists but has empty values (not yet configured) OR
 - Config file exists but database has no admin users
 
-### Automatic Disabling
+### Automatic Disabling & Security
 
-Once setup is complete:
+Once setup is complete (config file has valid values):
 
-- These endpoints return `403 Forbidden`
-- All requests redirect to `/login`
+- **The `/setup` page** redirects to `/login` (302 redirect)
+- **All `/api/setup/*` endpoints** return `403 Forbidden` with error message
 - System enters normal operation mode
+- Ongoing system configuration is managed via `/api/settings/*` endpoints (see [Settings API](./Settings_API.mdx))
+
+**Security Rationale:**
+
+Blocking setup API endpoints after completion prevents:
+
+- Unauthorized database connection testing and information disclosure
+- Potential re-seeding or data manipulation attempts
+- Exposure of system configuration details
+- Processing of unnecessary requests
+
+> **Note:** The setup process creates initial system settings in the database. After setup, these settings are managed through the [Settings API](./Settings_API.mdx), NOT by re-running setup endpoints.
 
 ---
 
@@ -283,7 +296,9 @@ yarn add mongoose
 
 ### Seed Database
 
-Writes the configuration file and seeds the database with default data.
+Writes the configuration file and seeds the database with default data including system settings.
+
+> **Important:** This endpoint creates the **initial** system settings in the database. After setup is complete, these settings are managed through the [Settings API](./Settings_API.mdx) (`/api/settings/*`), not by re-running this endpoint.
 
 #### Request
 
@@ -1048,15 +1063,28 @@ async function handleApiCall(endpoint: string, data: unknown) {
 ### After Setup
 
 1. **Endpoints Disabled**
-   - All `/api/setup/*` return `403 Forbidden`
-   - Setup wizard page redirects to `/login`
+   - All `/api/setup/*` endpoints return `403 Forbidden` with error message
+   - Setup wizard page (`/setup`) redirects to `/login`
+   - This security measure prevents:
+     - Database connection information disclosure
+     - Unauthorized system reconfiguration attempts
+     - Exposure of setup-specific functionality
 
-2. **Configuration Protection**
+2. **Settings Management Transition**
+   - Initial system settings are created during setup via `/api/setup/seed`
+   - After setup, modify settings through **[Settings API](/docs/api/Settings_API.mdx)**:
+     - `GET /api/settings/[group]` - Retrieve settings
+     - `PUT /api/settings/[group]` - Update settings
+     - `DELETE /api/settings/[group]` - Reset to defaults
+   - Settings changes are live and cached for performance
+   - No server restart required for most settings
+
+3. **Configuration Protection**
    - `config/private.ts` in `.gitignore`
    - Secrets never exposed to client
    - Credentials encrypted at rest
 
-3. **Database Security**
+4. **Database Security**
    - Multi-tenant isolation (if enabled)
    - Role-based access control
    - Audit logging for admin actions

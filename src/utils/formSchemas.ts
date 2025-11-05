@@ -39,8 +39,8 @@ const usernameSchema = pipe(
 	string(),
 	trim(),
 	minLength(2, 'Username must be at least 2 characters'),
-	maxLength(24, 'Username must be at most 24 characters'),
-	regex(/^[a-zA-Z0-9@$!%*#]+$/, 'Username contains invalid characters')
+	maxLength(50, 'Username must be at most 50 characters'),
+	regex(/^[a-zA-Z0-9@$!%*#._-]+$/, 'Username contains invalid characters')
 );
 
 // --- Reusable Email Schemas ---

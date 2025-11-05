@@ -38,6 +38,7 @@
 </script>
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	// Import recursive component and transitions/easing
 	import TreeViewComponent from './TreeView.svelte';
 	const TreeView = TreeViewComponent;
@@ -131,7 +132,7 @@
 
 	// Toggle expansion state
 	function toggleNode(node: TreeNode) {
-		console.log('[TreeView] toggleNode called for:', node.name, 'hasChildren:', !!node.children, 'hasOnClick:', !!node.onClick);
+		logger.debug('[TreeView] toggleNode called for:', node.name, 'hasChildren:', !!node.children, 'hasOnClick:', !!node.onClick);
 
 		// Toggle expansion if node has children
 		if (node.children) {
@@ -144,7 +145,7 @@
 
 		// Always call onClick if it exists (even for leaf nodes without children)
 		if (node.onClick) {
-			console.log('[TreeView] Calling node.onClick');
+			logger.debug('[TreeView] Calling node.onClick');
 			node.onClick(node);
 		}
 	}

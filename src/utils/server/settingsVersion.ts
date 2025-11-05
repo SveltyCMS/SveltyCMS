@@ -6,6 +6,8 @@
  * to all connected clients via SSE for instant UI updates.
  */
 
+import { logger } from '@utils/logger.server';
+
 let currentVersion = 0;
 type VersionListener = (version: number) => void;
 const listeners = new Set<VersionListener>();
@@ -21,7 +23,7 @@ export function updateVersion(): void {
 		try {
 			listener(currentVersion);
 		} catch (error) {
-			console.error('Error notifying settings listener:', error);
+			logger.error('Error notifying settings listener:', error);
 		}
 	});
 }

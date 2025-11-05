@@ -214,7 +214,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			{ status: result.success ? 200 : 207 }
 		);
 	} catch (error) {
-		console.error('Import error:', error);
+		logger.error('Import error:', error);
 		return json({ success: false, error: 'Import failed', message: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
 	}
 };

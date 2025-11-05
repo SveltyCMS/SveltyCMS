@@ -15,6 +15,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { logger } from '@utils/logger';
 	import { createEventDispatcher } from 'svelte';
 
 	// ParaglideJS
@@ -500,7 +501,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 					await invalidateAll();
 				} catch (error) {
-					console.error(`Error during action '${action}' for type '${type}':`, error);
+					logger.error(`Error during action '${action}' for type '${type}':`, error);
 					const errorMessage = error instanceof Error ? error.message : `An unknown error occurred.`;
 					showToast(errorMessage, 'error');
 				}

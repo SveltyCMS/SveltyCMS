@@ -3,6 +3,9 @@
  * @description Defines media models and interfaces for the CMS
  */
 
+// Storage type for media files
+export type StorageType = 'local' | 's3' | 'r2' | 'cloudinary';
+
 // Enum representing media types
 export enum MediaTypeEnum {
 	Image = 'image',

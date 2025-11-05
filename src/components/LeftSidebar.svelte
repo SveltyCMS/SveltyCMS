@@ -22,17 +22,19 @@
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 	import { browser } from '$app/environment';
+	import { logger } from '@utils/logger';
 
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import type { Schema } from '@src/content/types'; // Import Schema type (collection definition)
 	import { getLanguageName } from '@utils/languageUtils';
+	import { locales as availableLocales } from '@src/paraglide/runtime';
 
 	// Stores
 	import { setMode } from '@stores/collectionStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
-	import { publicEnv } from '@stores/globalSettings.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Import components
 	import VersionCheck from '@components/VersionCheck.svelte';
@@ -77,11 +79,7 @@
 
 	let firstCollectionPath = $derived(collections?.[0] ? `/Collections/${collections[0].name}` : '/Collections');
 
-	let availableLanguages = $derived(
-		[...(publicEnv?.LOCALES || page.data?.settings?.LOCALES || ['en'])].sort((a, b) =>
-			getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
-		)
-	);
+	let availableLanguages = $derived([...availableLocales].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))));
 
 	let showLanguageDropdown = $derived(availableLanguages.length > LANGUAGE_DROPDOWN_THRESHOLD);
 
@@ -115,6 +113,13 @@
 		return browser && window.innerWidth < MOBILE_BREAKPOINT;
 	}
 
+	function truncate(str: string, maxLength = 12): string {
+		if (str.length <= maxLength) {
+			return str;
+		}
+		return `${str.substring(0, maxLength)}...`;
+	}
+
 	async function navigateTo(path: string): Promise<void> {
 		if (currentPath === path) return;
 
@@ -124,17 +129,28 @@
 
 		setMode('view');
 
-		// Special handling: mediagallery doesn't use language prefix
-		if (path === '/mediagallery' || path.startsWith('/mediagallery')) {
-			await goto(path, { replaceState: false });
-			return;
+		// Start loading state for navigation
+		globalLoadingStore.startLoading(loadingOperations.navigation, `LeftSidebar.navigateTo(${path})`);
+
+		try {
+			// Special handling: mediagallery doesn't use language prefix
+			if (path === '/mediagallery' || path.startsWith('/mediagallery')) {
+				await goto(path, { replaceState: false });
+				return;
+			}
+
+			// Ensure path includes language prefix for collection routes
+			const currentLocale = getLocale();
+			const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
+
+			await goto(pathWithLanguage, { replaceState: false });
+		} finally {
+			// Stop loading after navigation completes
+			// Note: SvelteKit will handle the actual page load, this just shows initial navigation
+			setTimeout(() => {
+				globalLoadingStore.stopLoading(loadingOperations.navigation);
+			}, 100);
 		}
-
-		// Ensure path includes language prefix for collection routes
-		const currentLocale = getLocale();
-		const pathWithLanguage = path.startsWith(`/${currentLocale}`) ? path : `/${currentLocale}${path}`;
-
-		await goto(pathWithLanguage, { replaceState: false });
 	}
 
 	// Click outside handler
@@ -193,7 +209,7 @@
 		try {
 			await axios.post('/api/user/logout', {}, { withCredentials: true });
 		} catch (error) {
-			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
+			logger.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 		} finally {
 			// Always redirect to login, even if logout fails
 			if (browser) {
@@ -315,8 +331,8 @@
 				>
 					<Avatar src={avatarUrl} alt="User Avatar" initials="AV" class="mx-auto {isSidebarFull ? 'w-[40px]' : 'w-[35px]'}" />
 					{#if isSidebarFull && user?.username}
-						<div class="-ml-1.5 -mt-1 text-center text-[10px] uppercase text-black dark:text-white">
-							{user.username}
+						<div class="-ml-1.5 -mt-1 text-center text-[10px] text-black dark:text-white" title={user.username}>
+							{truncate(user.username)}
 						</div>
 					{/if}
 				</button>

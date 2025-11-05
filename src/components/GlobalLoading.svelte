@@ -31,9 +31,7 @@
 		bottom: string;
 	}
 
-	/**
-	 * Get contextual loading text based on current operation
-	 */
+	// Get contextual loading text based on current operation
 	function getLoadingText(): LoadingText {
 		const reason = globalLoadingStore.loadingReason;
 
@@ -61,6 +59,30 @@
 			[loadingOperations.formSubmission]: {
 				top: m.loading_formSubmission_top(),
 				bottom: m.loading_formSubmission_bottom()
+			},
+			[loadingOperations.configSave]: {
+				top: m.loading_configSave_top(),
+				bottom: m.loading_configSave_bottom()
+			},
+			[loadingOperations.roleManagement]: {
+				top: m.loading_roleManagement_top(),
+				bottom: m.loading_roleManagement_bottom()
+			},
+			[loadingOperations.permissionUpdate]: {
+				top: m.loading_permissionUpdate_top(),
+				bottom: m.loading_permissionUpdate_bottom()
+			},
+			[loadingOperations.tokenGeneration]: {
+				top: m.loading_tokenGeneration_top(),
+				bottom: m.loading_tokenGeneration_bottom()
+			},
+			[loadingOperations.collectionLoad]: {
+				top: m.loading_collectionLoad_top(),
+				bottom: m.loading_collectionLoad_bottom()
+			},
+			[loadingOperations.widgetInit]: {
+				top: m.loading_widgetInit_top(),
+				bottom: m.loading_widgetInit_bottom()
 			}
 		};
 
@@ -84,22 +106,10 @@
 	aria-label="{loadingText.top} - {loadingText.bottom}"
 >
 	<!-- Animated loading circles -->
-	<div
-		class="absolute h-[150px] w-[150px] animate-[rotate_3s_cubic-bezier(0.26,1.36,0.74,-0.29)_infinite] rounded-full border-[7px] border-solid border-error-500 border-l-transparent border-r-transparent"
-		aria-hidden="true"
-	></div>
-	<div
-		class="absolute h-[170px] w-[170px] animate-[rotate-reverse_2s_cubic-bezier(0.26,1.36,0.74,-0.29)_infinite] rounded-full border-[6px] border-solid border-success-400 border-l-transparent border-r-transparent"
-		aria-hidden="true"
-	></div>
-	<div
-		class="absolute h-[190px] w-[190px] animate-[rotate_3s_cubic-bezier(0.26,1.36,0.74,-0.29)_infinite] rounded-full border-[5px] border-solid border-tertiary-400 border-l-transparent border-r-transparent"
-		aria-hidden="true"
-	></div>
-	<div
-		class="absolute h-[210px] w-[210px] animate-[rotate-reverse_3s_cubic-bezier(0.26,1.36,0.74,-0.29)_infinite] rounded-full border-[4px] border-solid border-surface-400 border-l-transparent border-r-transparent"
-		aria-hidden="true"
-	></div>
+	<div class="loader loader-1" aria-hidden="true"></div>
+	<div class="loader loader-2" aria-hidden="true"></div>
+	<div class="loader loader-3" aria-hidden="true"></div>
+	<div class="loader loader-4" aria-hidden="true"></div>
 
 	<!-- Loading content -->
 	<div class="absolute flex flex-col items-center justify-center space-y-2 rounded-full bg-transparent p-6 text-center">
@@ -116,6 +126,36 @@
 </div>
 
 <style lang="postcss">
+	/* Base loader styles */
+	.loader {
+		position: absolute;
+		border-radius: 50%;
+		border-style: solid;
+		border-left-color: transparent;
+		border-right-color: transparent;
+	}
+
+	/* Individual loader animations */
+	.loader-1 {
+		@apply h-[150px] w-[150px] border-[7px] border-error-500;
+		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+	}
+
+	.loader-2 {
+		@apply h-[170px] w-[170px] border-[6px] border-success-400;
+		animation: rotate-reverse 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+	}
+
+	.loader-3 {
+		@apply h-[190px] w-[190px] border-[5px] border-tertiary-400;
+		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+	}
+
+	.loader-4 {
+		@apply h-[210px] w-[210px] border-[4px] border-surface-400;
+		animation: rotate-reverse 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+	}
+
 	/* Rotation animations */
 	@keyframes rotate {
 		from {

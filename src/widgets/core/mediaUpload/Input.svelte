@@ -19,6 +19,7 @@
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -34,7 +35,7 @@
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
 		// In a real app, this would be an API call: GET /api/media?ids=id1,id2,...
 		// For this example, we'll simulate it with a timeout.
-		console.log('Fetching data for IDs:', ids);
+		logger.debug('Fetching data for IDs:', ids);
 		return new Promise((resolve) =>
 			setTimeout(() => {
 				const files: MediaFile[] = ids.map((id) => ({

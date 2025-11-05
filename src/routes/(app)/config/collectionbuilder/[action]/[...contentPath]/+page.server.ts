@@ -36,7 +36,7 @@ import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 // Auth
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { permissionConfigs } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import { permissions } from '@src/databases/auth/permissions';
 
 // System Logger
@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const collectionManagementConfig = permissionConfigs.collectionManagement;
 		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
 		// Find user role and check admin status
-		const userRole = roles.find((r) => r._id === user.role);
+		const userRole = locals.roles || [].find((r) => r._id === user.role);
 		const isAdmin = userRole?.isAdmin;
 		if (!permissionCheck.hasPermission && !isAdmin) {
 			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection management`;
@@ -85,7 +85,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		if (action === 'new') {
 			return {
 				user: { ...rest, id: _id.toString() },
-				roles, // Add roles data
+				locals.roles || [], // Add locals.roles || [] data
 				permissions, // Add permissions data
 				permissionConfigs // Add permission configs
 			};
@@ -129,7 +129,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		return {
 			user: { ...rest, id: _id.toString() },
-			roles, // Add roles data
+			locals.roles || [], // Add locals.roles || [] data
 			permissions, // Add permissions data
 			permissionConfigs, // Add permission configs
 			collection: serializableCollection

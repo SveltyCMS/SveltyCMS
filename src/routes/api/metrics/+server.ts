@@ -18,6 +18,7 @@
  */
 
 import { json, type RequestHandler } from '@sveltejs/kit';
+import { logger } from '@utils/logger.server';
 import { metricsService } from '@src/services/MetricsService';
 import { error } from '@sveltejs/kit';
 
@@ -61,7 +62,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 		});
 	} catch (err) {
-		console.error('Error retrieving metrics:', err);
+		logger.error('Error retrieving metrics:', err);
 		throw error(500, 'Failed to retrieve metrics');
 	}
 };
@@ -101,7 +102,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw err;
 		}
 
-		console.error('Error resetting metrics:', err);
+		logger.error('Error resetting metrics:', err);
 		throw error(500, 'Failed to reset metrics');
 	}
 };

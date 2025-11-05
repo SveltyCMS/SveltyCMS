@@ -13,6 +13,7 @@ import { publicEnv } from '@src/stores/globalSettings.svelte';
 import * as m from '@src/paraglide/messages';
 import { collection, collectionValue, setCollectionValue, setMode } from '@stores/collectionStore.svelte';
 import { showToast } from '@utils/toast';
+import { logger } from './logger';
 import {
 	batchDeleteEntries,
 	batchUpdateEntries,
@@ -100,7 +101,7 @@ export async function deleteEntries(entryIds: string[], isPermanentDelete: boole
 				}
 			} catch (batchError) {
 				// Fallback: delete entries one by one
-				console.warn('Batch delete failed, using individual deletes:', batchError);
+				logger.warn('Batch delete failed, using individual deletes:', batchError);
 				await Promise.all(entryIds.map((entryId) => deleteEntry(collId, entryId)));
 				showToast(entryMessages.entriesDeleted(entryIds.length), 'success');
 				onSuccess();
@@ -392,7 +393,7 @@ export async function cloneCurrentEntry() {
 				clonedPayload.status = StatusTypes.draft;
 				clonedPayload.clonedFrom = entry._id;
 
-				console.log('Cloning entry with payload:', clonedPayload);
+				logger.debug('Cloning entry with payload:', clonedPayload);
 
 				const result = await createEntry(coll._id, clonedPayload);
 				if (result.success) {

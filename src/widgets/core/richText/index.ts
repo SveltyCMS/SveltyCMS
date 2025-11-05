@@ -21,7 +21,9 @@ import type { RichTextProps } from './types';
 // Helper to check if HTML content is effectively empty.
 const isContentEmpty = (html: string) => {
 	if (!html) return true;
-	const stripped = html.replace(/<[^>]+>/g, '').trim();
+	// Remove <script> tags and their content first for security
+	const noScripts = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+	const stripped = noScripts.replace(/<[^>]+>/g, '').trim();
 	return stripped.length === 0;
 };
 

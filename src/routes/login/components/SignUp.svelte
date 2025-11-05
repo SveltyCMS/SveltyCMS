@@ -12,6 +12,7 @@ Features:
 -->
 
 <script lang="ts">
+	import { logger } from '@utils/logger';
 	import { browser } from '$app/environment';
 
 	import type { PageData } from '../$types';
@@ -158,7 +159,7 @@ Features:
 		}
 		// Also check if the form was pre-filled by the server (invalid token case)
 		if (browser && $form.token && !isInviteFlow) {
-			console.log('Form token pre-filled by server:', $form.token);
+			logger.debug('Form token pre-filled by server:', $form.token);
 		}
 	});
 

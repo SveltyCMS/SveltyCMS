@@ -54,7 +54,6 @@ export interface User {
 	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
 	last2FAVerification?: Date; // Timestamp of last successful 2FA verification
 	permissions: string[]; // Set of permissions associated with the user
-	isAdmin?: boolean; // Is the user an admin
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
 }
 
@@ -65,6 +64,7 @@ export interface Role {
 	description?: string; // Optional description of the role
 	isAdmin?: boolean; // Indicates if the role has admin privileges
 	permissions: string[]; // Array of permission IDs associated with the role
+	tenantId?: string; // Optional tenant identifier for multi-tenant installations
 	groupName?: string; // Optional group name associated with the role
 	icon?: string; // Optional icon for the role (e.g., for UI display)
 	color?: string; // Optional color for the role (e.g., for UI display)

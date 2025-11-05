@@ -1,0 +1,679 @@
+---
+path: 'docs/architecture/cloud-storage-implementation.mdx'
+title: 'Cloud Storage Implementation'
+description: 'Technical documentation of the cloud storage architecture and implementation details'
+order: 35
+icon: 'mdi:cloud-cog'
+author: 'admin'
+created: '2025-11-05'
+updated: '2025-11-05'
+tags:
+  - 'architecture'
+  - 'cloud-storage'
+  - 's3'
+  - 'r2'
+  - 'cloudinary'
+  - 'media'
+  - 'storage'
+---
+
+# Cloud Storage Implementation
+
+## Overview
+
+This document provides technical details about the cloud storage implementation in SveltyCMS, including architecture decisions, code changes, and integration points.
+
+## Architecture Decisions
+
+### 1. Abstraction Layer
+
+**Decision**: Create a unified abstraction layer (`cloudStorage.ts`) that handles all cloud storage operations.
+
+**Rationale**:
+
+- Single source of truth for cloud storage logic
+- Easy to add new storage providers
+- Isolates cloud-specific code from business logic
+- Lazy-loads SDKs to reduce bundle size
+
+### 2. URL Normalization
+
+**Decision**: Store all media URLs in the database using the `/files/` format, regardless of storage type.
+
+**Rationale**:
+
+- Storage-agnostic database schema
+- Easy migration between storage types
+- Consistent API responses
+- Centralized URL resolution in the `/files/` route
+
+### 3. MEDIA_FOLDER as Prefix
+
+**Decision**: Use the `MEDIA_FOLDER` setting as a path prefix in both local and cloud storage.
+
+**Rationale**:
+
+- Consistent behavior across storage types
+- Allows organizing files within cloud buckets
+- Supports multiple CMS instances sharing one bucket
+- Prevents naming conflicts
+
+### 4. Redirect vs Proxy
+
+**Decision**: Use 307 redirects to cloud URLs instead of proxying files through the server.
+
+**Rationale**:
+
+- Reduces server bandwidth and CPU usage
+- Leverages CDN caching and global distribution
+- Maintains HTTP method (important for range requests)
+- Faster content delivery to end users
+
+## Implementation Details
+
+### Files Created
+
+#### `src/utils/media/cloudStorage.ts`
+
+**Purpose**: Core cloud storage abstraction layer
+
+**Exports**:
+
+```typescript
+// Configuration
+export function getCloudStorageConfig(): CloudStorageConfig;
+export function isCloudStorage(): boolean;
+
+// Path handling
+export function getCloudPath(relativePath: string): string;
+export function getCloudUrl(relativePath: string): string;
+
+// Operations
+export async function uploadToCloud(buffer: Buffer, relativePath: string): Promise<string>;
+export async function deleteFromCloud(relativePath: string): Promise<void>;
+export async function cloudFileExists(relativePath: string): Promise<boolean>;
+```
+
+**Key Features**:
+
+- Lazy SDK loading (only loads when needed)
+- Support for S3, R2, and Cloudinary
+- Automatic MEDIA_FOLDER prefix handling
+- Environment variable fallback for credentials
+- Comprehensive error logging
+
+**Implementation Details**:
+
+```typescript
+// S3/R2 Implementation
+- Uses @aws-sdk/client-s3
+- Lazy-loads SDK on first use
+- Supports custom endpoints (R2)
+- Public-read ACL for uploaded files
+- HeadObject for existence checks
+
+// Cloudinary Implementation
+- Uses cloudinary SDK
+- Lazy-loads on first use
+- Automatic format optimization
+- Unique public_id generation
+- resource_type: 'auto' for all file types
+```
+
+### Files Modified
+
+#### `src/utils/media/mediaModels.ts`
+
+**Changes**:
+
+```typescript
+// Added
+export type StorageType = 'local' | 's3' | 'r2' | 'cloudinary';
+```
+
+#### `src/routes/files/[...path]/+server.ts`
+
+**Changes**:
+
+- Added cloud storage check at the beginning of GET handler
+- Constructs full cloud URL with MEDIA_FOLDER prefix
+- Returns 307 redirect to cloud URL
+- Falls through to local file serving if not cloud
+
+**Flow**:
+
+```typescript
+GET /files/avatars/image.avif
+↓
+if (isCloudStorage())
+  ↓
+  MEDIA_FOLDER = getPublicSettingSync('MEDIA_FOLDER') // 'cms-media'
+  ↓
+  cloudUrl = getCloudUrl('avatars/image.avif')
+  // Returns: https://cdn.example.com/cms-media/avatars/image.avif
+  ↓
+  return new Response(null, { status: 307, location: cloudUrl })
+else
+  ↓
+  Serve from local filesystem
+```
+
+#### `src/utils/media/mediaStorage.ts`
+
+**Major Changes**:
+
+1. **Imports**: Added cloud storage functions
+
+   ```typescript
+   import { isCloudStorage, uploadToCloud, deleteFromCloud, getCloudUrl, cloudFileExists } from './cloudStorage';
+   ```
+
+2. **`saveFileToDisk()`**: Now returns URL instead of void
+
+   ```typescript
+   // Before
+   export async function saveFileToDisk(buffer: Buffer, relativePath: string): Promise<void>;
+
+   // After
+   export async function saveFileToDisk(buffer: Buffer, relativePath: string): Promise<string>;
+
+   // Implementation
+   if (isCloudStorage()) {
+   	const publicUrl = await uploadToCloud(buffer, relativePath);
+   	return publicUrl; // Cloud URL
+   }
+   // Local save...
+   return `/files/${relativePath}`; // Local URL
+   ```
+
+3. **`deleteFile()`**: Cloud-aware deletion
+
+   ```typescript
+   if (isCloudStorage()) {
+   	// Extract relative path from URL
+   	let relativePath = url.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '');
+   	if (relativePath.startsWith('files/')) {
+   		relativePath = relativePath.slice('files/'.length);
+   	}
+   	await deleteFromCloud(relativePath);
+   	return;
+   }
+   // Local deletion...
+   ```
+
+4. **`getFile()`**: Cloud file retrieval via fetch
+
+   ```typescript
+   if (isCloudStorage()) {
+   	// Extract relative path...
+   	const cloudUrl = getCloudUrl(relativePath);
+   	const response = await fetch(cloudUrl);
+   	return Buffer.from(await response.arrayBuffer());
+   }
+   // Local read...
+   ```
+
+5. **`fileExists()`**: Cloud existence check
+
+   ```typescript
+   if (isCloudStorage()) {
+   	// Extract relative path...
+   	return await cloudFileExists(relativePath);
+   }
+   // Local check...
+   ```
+
+6. **`moveMediaToTrash()`**: Cloud deletion (no trash)
+
+   ```typescript
+   if (isCloudStorage()) {
+   	// Extract relative path...
+   	await deleteFromCloud(relativePath);
+   	return; // No trash folder in cloud
+   }
+   // Local trash logic...
+   ```
+
+7. **`saveAvatarImage()`**: Captures public URL
+
+   ```typescript
+   // Capture URL from saveFileToDisk
+   const publicUrl = await saveFileToDisk(svgBuffer, avatarUrl);
+
+   // Store relative path in DB
+   url: avatarUrl; // e.g., 'avatars/hash.avif'
+
+   // Return public URL
+   return publicUrl; // Cloud URL or /files/ URL
+   ```
+
+#### `src/routes/api/user/saveAvatar/+server.ts`
+
+**Changes**:
+
+- Removed 15+ lines of manual URL normalization
+- Now trusts `saveAvatarImage()` to return correct URL
+- Simplified from ~155 lines to ~140 lines
+
+**Before**:
+
+```typescript
+const avatarUrl = await saveAvatarImage(...);
+// Complex normalization logic (15+ lines)
+const normalizedUrl = ...;
+user.avatar = normalizedUrl;
+```
+
+**After**:
+
+```typescript
+const avatarUrl = await saveAvatarImage(...);
+user.avatar = avatarUrl; // Already correct
+```
+
+#### `src/routes/api/user/deleteAvatar/+server.ts`
+
+**Changes**: None needed - already uses `moveMediaToTrash()` which is now cloud-aware
+
+#### `src/routes/api/media/delete/+server.ts`
+
+#### `src/routes/api/media/exists/+server.ts`
+
+#### `src/routes/api/media/get/+server.ts`
+
+**Changes**: None needed - already use updated `deleteFile()`, `fileExists()`, and `getFile()` functions
+
+### Documentation Created
+
+#### `docs/guides/cloud-storage.mdx`
+
+**Sections**:
+
+- Overview and benefits
+- Architecture diagrams
+- Storage flow visualization
+- URL resolution explanation
+- Configuration for S3, R2, Cloudinary
+- Installation instructions
+- Migration guide
+- Best practices (security, performance, cost)
+- Troubleshooting
+- FAQ
+
+#### `docs/api/Media_API.mdx`
+
+**Updates**:
+
+- Added storage architecture section
+- Configuration examples
+- MEDIA_FOLDER usage explanation
+- URL pattern examples
+- Updated tags to include cloud storage
+
+## Configuration Schema
+
+### System Settings (Database)
+
+```typescript
+interface MediaSettings {
+	MEDIA_STORAGE_TYPE: 'local' | 's3' | 'r2' | 'cloudinary';
+	MEDIA_FOLDER: string; // Local path OR cloud prefix
+
+	// Cloud-specific (optional)
+	MEDIA_CLOUD_REGION?: string;
+	MEDIA_CLOUD_ENDPOINT?: string;
+	MEDIA_CLOUD_PUBLIC_URL?: string;
+}
+```
+
+### Environment Variables
+
+```bash
+# S3/R2 Credentials
+MEDIA_ACCESS_KEY_ID=
+MEDIA_SECRET_ACCESS_KEY=
+
+# Cloudinary Credentials
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+## Data Flow
+
+### Upload Flow
+
+```
+1. Client uploads file via API
+   ↓
+2. API calls saveAvatarImage() or saveFileToDisk()
+   ↓
+3. Functions check isCloudStorage()
+   ↓
+4a. [Cloud] uploadToCloud() → Returns cloud URL
+4b. [Local] fs.writeFile() → Returns /files/ URL
+   ↓
+5. Database stores relative path (e.g., 'avatars/image.avif')
+   ↓
+6. API returns public URL to client
+```
+
+### Access Flow
+
+```
+1. Client requests /files/avatars/image.avif
+   ↓
+2. /files/ route handler checks isCloudStorage()
+   ↓
+3a. [Cloud] 307 Redirect to cloud URL
+3b. [Local] Serve from filesystem
+   ↓
+4. Browser fetches from final location
+```
+
+### Delete Flow
+
+```
+1. API calls deleteFile() or moveMediaToTrash()
+   ↓
+2. Functions check isCloudStorage()
+   ↓
+3a. [Cloud] deleteFromCloud() → Direct deletion
+3b. [Local] Move to .trash folder
+   ↓
+4. Database record updated/removed
+```
+
+## Testing Considerations
+
+### Unit Tests
+
+**Should test**:
+
+- `getCloudPath()` correctly prepends MEDIA_FOLDER
+- `getCloudUrl()` constructs valid URLs
+- `isCloudStorage()` correctly identifies storage type
+- Path normalization in all functions
+
+### Integration Tests
+
+**Should test**:
+
+- Avatar upload with local storage
+- Avatar upload with S3 storage
+- Avatar upload with Cloudinary storage
+- File deletion with all storage types
+- URL redirection from /files/ route
+- File existence checks
+
+### Manual Testing
+
+**Checklist**:
+
+- [ ] Upload avatar with local storage
+- [ ] Upload avatar with S3 configuration
+- [ ] Upload avatar with R2 configuration
+- [ ] Upload avatar with Cloudinary configuration
+- [ ] Verify MEDIA_FOLDER prefix in cloud URLs
+- [ ] Verify /files/ route redirects to cloud
+- [ ] Delete avatar from cloud storage
+- [ ] Check file existence in cloud storage
+- [ ] Migrate from local to cloud
+- [ ] Test with CDN (CloudFront, Cloudflare)
+
+## Security Considerations
+
+### Credentials Management
+
+**Best Practices**:
+
+- Store credentials in environment variables, not settings
+- Use IAM roles when possible (AWS)
+- Rotate keys regularly
+- Use minimum required permissions
+
+### Access Control
+
+**Implementation**:
+
+- Public-read ACL for uploaded files (S3/R2)
+- Bucket policies restrict write access
+- API endpoints check user permissions
+- Tenant isolation maintained
+
+### URL Security
+
+**Considerations**:
+
+- Cloud URLs are public (not signed by default)
+- For private files, implement signed URL generation
+- Consider presigned URLs for temporary access
+- CORS configuration on cloud storage
+
+## Performance Optimizations
+
+### Lazy Loading
+
+**Implementation**:
+
+```typescript
+let s3Client: S3Client | null = null;
+
+async function getS3Client() {
+  if (!s3Client) {
+    const { S3Client } = await import('@aws-sdk/client-s3');
+    s3Client = new S3Client({...});
+  }
+  return s3Client;
+}
+```
+
+**Benefits**:
+
+- Reduces initial bundle size
+- Only loads SDKs when needed
+- Faster app startup
+
+### Caching
+
+**Strategy**:
+
+- Cloud URLs cached in `/files/` route
+- Browser caches cloud files (CDN headers)
+- Settings cached to avoid DB lookups
+- File existence checks can be cached
+
+### CDN Integration
+
+**Recommended**:
+
+- S3: Use CloudFront distribution
+- R2: Use custom domain (automatic CDN)
+- Cloudinary: Built-in CDN included
+
+## Migration Path
+
+### Phase 1: Implementation (Completed)
+
+- ✅ Create cloud storage abstraction
+- ✅ Update media utilities
+- ✅ Update API endpoints
+- ✅ Update documentation
+
+### Phase 2: Testing
+
+- Unit tests for cloud storage functions
+- Integration tests for each storage type
+- Manual testing with real cloud accounts
+
+### Phase 3: Deployment
+
+- Deploy with local storage (backward compatible)
+- Gradual migration to cloud storage
+- Monitor for issues
+
+### Phase 4: Optimization
+
+- Implement signed URLs for private files
+- Add batch upload/delete operations
+- Optimize for large files (multipart upload)
+- Add progress tracking
+
+## Future Enhancements
+
+### Potential Features
+
+1. **Multiple Storage Backends**: Different storage types for different file types
+2. **Hybrid Storage**: Recent files on fast storage, archive on cheap storage
+3. **Automatic Migration**: Background job to migrate local files to cloud
+4. **Advanced Cloudinary**: Use transformation URLs for on-the-fly resizing
+5. **Signed URLs**: Temporary access to private files
+6. **Multipart Upload**: For large files (>5MB)
+7. **Storage Analytics**: Track usage, costs, performance
+8. **Backup Strategy**: Automatic backups to secondary storage
+
+### Proposed Architecture
+
+```typescript
+interface StorageStrategy {
+	primary: StorageConfig;
+	backup?: StorageConfig;
+	rules?: {
+		fileType?: string[];
+		minSize?: number;
+		maxSize?: number;
+		storage: StorageType;
+	}[];
+}
+```
+
+## Troubleshooting Guide
+
+### Common Issues
+
+**Issue**: Files upload but URLs are 404
+
+- **Cause**: MEDIA_FOLDER mismatch between upload and URL generation
+- **Solution**: Verify MEDIA_FOLDER setting is consistent
+
+**Issue**: 307 redirects not working
+
+- **Cause**: isCloudStorage() returning false
+- **Solution**: Check MEDIA_STORAGE_TYPE setting
+
+**Issue**: Access denied errors
+
+- **Cause**: Missing or incorrect credentials
+- **Solution**: Verify environment variables and IAM permissions
+
+**Issue**: Files uploaded to wrong bucket path
+
+- **Cause**: getCloudPath() not being used
+- **Solution**: All cloud operations should use getCloudPath()
+
+### Debug Steps
+
+1. **Check Configuration**:
+
+   ```typescript
+   const config = getCloudStorageConfig();
+   console.log('Storage Type:', config.storageType);
+   console.log('Media Folder:', config.mediaFolder);
+   ```
+
+2. **Test Cloud Operations**:
+
+   ```typescript
+   const testPath = 'test/file.txt';
+   console.log('Cloud Path:', getCloudPath(testPath));
+   console.log('Cloud URL:', getCloudUrl(testPath));
+   ```
+
+3. **Verify Credentials**:
+
+   ```bash
+   echo $MEDIA_ACCESS_KEY_ID
+   echo $MEDIA_SECRET_ACCESS_KEY
+   ```
+
+4. **Check Logs**:
+   ```bash
+   grep "cloud storage" logs/app.log
+   grep "uploading to cloud" logs/app.log
+   ```
+
+## Code Examples
+
+### Custom Upload Handler
+
+```typescript
+import { uploadToCloud, getCloudUrl } from '@utils/media/cloudStorage';
+
+export async function uploadCustomFile(file: File, folder: string) {
+	const buffer = Buffer.from(await file.arrayBuffer());
+	const filename = `${folder}/${Date.now()}-${file.name}`;
+
+	const publicUrl = await uploadToCloud(buffer, filename);
+
+	return {
+		url: filename, // For database
+		publicUrl // For API response
+	};
+}
+```
+
+### Batch Delete
+
+```typescript
+import { deleteFromCloud } from '@utils/media/cloudStorage';
+
+export async function batchDelete(files: string[]) {
+	const results = await Promise.allSettled(files.map((file) => deleteFromCloud(file)));
+
+	return results.map((result, i) => ({
+		file: files[i],
+		success: result.status === 'fulfilled',
+		error: result.status === 'rejected' ? result.reason : null
+	}));
+}
+```
+
+### Signed URL Generation (S3)
+
+```typescript
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+
+export async function getPrivateFileUrl(relativePath: string, expiresIn = 3600) {
+	const config = getCloudStorageConfig();
+	const s3Client = await getS3Client();
+
+	const command = new GetObjectCommand({
+		Bucket: config.bucket,
+		Key: getCloudPath(relativePath)
+	});
+
+	return await getSignedUrl(s3Client, command, { expiresIn });
+}
+```
+
+## Conclusion
+
+The cloud storage implementation provides a robust, scalable foundation for media management in SveltyCMS. The abstraction layer ensures consistency across storage types while maintaining flexibility for future enhancements.
+
+**Key Achievements**:
+
+- ✅ Multi-provider support (S3, R2, Cloudinary)
+- ✅ Transparent to existing code
+- ✅ MEDIA_FOLDER as universal prefix
+- ✅ Backward compatible with local storage
+- ✅ Performance optimizations (lazy loading, redirects)
+- ✅ Comprehensive documentation
+
+**Next Steps**:
+
+1. Add unit and integration tests
+2. Test with real cloud accounts
+3. Monitor performance and costs
+4. Gather user feedback
+5. Implement advanced features (signed URLs, multipart uploads)

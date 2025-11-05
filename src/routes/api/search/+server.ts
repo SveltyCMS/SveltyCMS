@@ -16,7 +16,7 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { roles } from '@root/config/roles';
+
 
 // Databases & Api
 import { dbAdapter } from '@src/databases/db';

@@ -20,8 +20,10 @@ import { invalidateSettingsCache } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
+import { getAllPermissions } from '@src/databases/auth';
+import { defaultRoles as importedDefaultRoles } from '@src/databases/auth/defaultRoles';
 
-// Import inlang settings directly (TypeScript handles JSON imports)
+// Import inlang settings directly (TypeScript/SvelteKit handles JSON imports)
 import inlangSettings from '@root/project.inlang/settings.json';
 
 // ============================================================================
@@ -58,6 +60,9 @@ const defaultTheme: Theme = {
 	updatedAt: dateToISODateString(new Date())
 };
 
+// Re-export defaultRoles from shared module for backward compatibility
+export const defaultRoles = importedDefaultRoles;
+
 // Seeds the default theme into the database
 export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void> {
 	logger.info('🎨 Checking if default theme needs seeding...');
@@ -80,6 +85,53 @@ export async function seedDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void
 		logger.info('✅ Default theme seeded successfully');
 	} catch (error) {
 		logger.error('Failed to seed default theme:', error);
+		throw error;
+	}
+}
+
+/**
+ * Seeds default roles into the database
+ * Roles are now stored in database for dynamic management via UI
+ * Admin role gets all available permissions automatically
+ */
+export async function seedRoles(dbAdapter: DatabaseAdapter): Promise<void> {
+	logger.info('🔐 Seeding default roles...');
+
+	if (!dbAdapter || !dbAdapter.auth) {
+		throw new Error('Database adapter or auth interface not available');
+	}
+
+	try {
+		// Get all available permissions for admin role
+		const allPermissions = getAllPermissions();
+		const adminPermissions = allPermissions.map((p) => p._id);
+
+		// Seed each default role
+		for (const role of defaultRoles) {
+			try {
+				// Admin role gets all permissions
+				const roleToCreate = {
+					...role,
+					permissions: role._id === 'admin' ? adminPermissions : role.permissions
+				};
+
+				await dbAdapter.auth.createRole(roleToCreate);
+				logger.debug(`✅ Role "${role.name}" seeded successfully`);
+			} catch (error) {
+				// Skip if role already exists (duplicate key error)
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				if (errorMessage.includes('duplicate') || errorMessage.includes('E11000')) {
+					logger.debug(`ℹ️  Role "${role.name}" already exists, skipping`);
+				} else {
+					logger.error(`Failed to seed role "${role.name}":`, error);
+					throw error;
+				}
+			}
+		}
+
+		logger.info('✅ Default roles seeded successfully');
+	} catch (error) {
+		logger.error('Failed to seed roles:', error);
 		throw error;
 	}
 }
@@ -197,6 +249,9 @@ export async function initSystemFromSetup(adapter: DatabaseAdapter): Promise<{ f
 
 	// Seed the default theme
 	await seedDefaultTheme(adapter);
+
+	// Seed default roles into database (from shared defaultRoles module)
+	await seedRoles(adapter);
 
 	// Seed collections from filesystem
 	// This creates collection models in MongoDB so ContentManager can access them quickly

@@ -74,8 +74,7 @@ import type {
 	BatchOperation,
 	BatchResult,
 	PerformanceMetrics,
-	CacheOptions,
-	WebsiteToken
+	CacheOptions
 } from '../dbInterface';
 import { cacheService } from '@src/databases/CacheService';
 import { cacheMetrics } from '@src/databases/CacheMetrics';
@@ -364,7 +363,14 @@ export class MongoDBAdapter implements IDBAdapter {
 			deleteExpiredTokens: () => authAdapter.deleteExpiredTokens(),
 			deleteTokens: (tokenIds) => authAdapter.deleteTokens?.(tokenIds),
 			blockTokens: (tokenIds) => authAdapter.blockTokens?.(tokenIds),
-			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds)
+			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds),
+
+			// Role Management Methods (authAdapter already returns DatabaseResult or Role[], don't double-wrap)
+			getAllRoles: (tenantId) => authAdapter.getAllRoles(tenantId),
+			getRoleById: (roleId, tenantId) => authAdapter.getRoleById(roleId, tenantId),
+			createRole: (role) => authAdapter.createRole(role),
+			updateRole: (roleId, roleData, tenantId) => authAdapter.updateRole(roleId, roleData, tenantId),
+			deleteRole: (roleId, tenantId) => authAdapter.deleteRole(roleId, tenantId)
 		};
 
 		// WEBSITE TOKENS

@@ -24,8 +24,6 @@ It provides the following functionality:
 	// Auth
 	import type { Permission, Role } from '@src/databases/auth/types';
 	import { PermissionType } from '@src/databases/auth/types';
-	// Components
-	import Loading from '@components/Loading.svelte';
 
 	interface Props {
 		// Props passed from +page.svelte
@@ -39,7 +37,6 @@ It provides the following functionality:
 	// Reactive state
 	let permissionsList = $state<Permission[]>([]);
 	let roles = $state<Role[]>([]);
-	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let searchTerm = $state('');
 	let modifiedPermissions = $state(new Set<string>());
@@ -130,22 +127,14 @@ It provides the following functionality:
 	let adminRole = $derived(roles.find((role) => role.isAdmin));
 	let nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
 
-	// Initialize data when component mounts
+	// Initialize data when component mounts (run once)
 	$effect(() => {
-		loadData();
-	});
-
-	// Load initial data
-	const loadData = async () => {
-		try {
+		// Only initialize if data hasn't been loaded yet
+		if (permissionsList.length === 0 && page.data.permissions.length > 0) {
 			roles = roleData;
 			permissionsList = page.data.permissions;
-		} catch (err) {
-			error = `Failed to initialize: ${err instanceof Error ? err.message : String(err)}`;
-		} finally {
-			isLoading = false;
 		}
-	};
+	});
 
 	// Function to filter permissions by group (with sorting applied)
 	const filterGroups = (permissions: Permission[], group: string): Permission[] => {
@@ -201,9 +190,7 @@ It provides the following functionality:
 	};
 </script>
 
-{#if isLoading}
-	<Loading customTopText="Loading Permissions..." customBottomText="" />
-{:else if error}
+{#if error}
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Permission Management:</h3>

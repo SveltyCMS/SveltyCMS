@@ -17,11 +17,9 @@ import type { PageData as AppPageData } from './$types';
 // Auth
 import type { User } from '@src/databases/auth/types';
 
-// Roles
-import { roles } from '@root/config/roles';
-
 // System Logger
 import { logger } from '@utils/logger.server';
+import { error } from '@sveltejs/kit';
 
 // Create a global variable to store the fetch function for actions
 let eventFetch: typeof globalThis.fetch;
@@ -35,17 +33,20 @@ interface ExpectedPageData extends AppPageData {
 }
 
 export async function load({ locals, fetch }: { locals: App.Locals; fetch: typeof globalThis.fetch }): Promise<ExpectedPageData> {
-	const { user: userData, tenantId, roles: tenantRoles } = locals; // Store the fetch function for use in actions
+	const { user: userData, isAdmin } = locals;
 
-	eventFetch = fetch; // Permission check: only allow admins to view email previews
-	// Use tenant-specific roles from locals if available, otherwise fallback to global roles.
+	// Store the fetch function for use in actions
+	eventFetch = fetch;
 
-	const rolesToUse = tenantRoles && tenantRoles.length > 0 ? tenantRoles : roles;
-	const userRole = rolesToUse.find((role) => role._id === userData?.role);
-	const isAdmin = Boolean(userRole?.isAdmin);
+	// Permission check: only allow admins to view email previews
+	if (!userData) {
+		logger.warn('Unauthenticated attempt to access email previews');
+		throw error(401, 'Authentication required');
+	}
 
-	if (!userData || !isAdmin) {
-		logger.warn(`Unauthorized attempt to access email previews by user: ${userData?.username || 'Guest'}`, { tenantId });
+	if (!isAdmin) {
+		logger.warn(`Unauthorized attempt to access email previews by user: ${userData.username}`);
+		throw error(403, 'Insufficient permissions - admin access required');
 	}
 
 	const emailListData = await emailList({ path: '/src/components/emails' });

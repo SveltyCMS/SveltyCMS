@@ -11,7 +11,6 @@
 
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { getPrivateSettingSync } from '@src/services/settingsService';
-import { initializeRoles, roles } from '@root/config/roles';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import type { Role } from '@src/databases/auth/types';
 import { auth } from '@src/databases/db';
@@ -71,7 +70,10 @@ async function getCachedUserCount(tenantId?: string): Promise<number> {
 	}
 }
 
-/** Get cached roles for access checks */
+/**
+ * Get cached roles for access checks (database-only)
+ * Returns empty array if database is unavailable - caller should handle setup redirect
+ */
 async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 	const now = Date.now();
 	const key = tenantId || 'global';
@@ -83,14 +85,14 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 
 	try {
 		if (!auth) {
-			await initializeRoles();
-			return roles;
+			logger.warn('Database adapter not initialized - roles unavailable');
+			return [];
 		}
 
-		let data = await auth.getAllRoles();
+		const data = await auth.getAllRoles(tenantId);
 		if (!data || data.length === 0) {
-			await initializeRoles();
-			data = roles;
+			logger.warn('No roles found in database', { tenantId });
+			return [];
 		}
 
 		const cacheData = { data, timestamp: now };
@@ -98,9 +100,8 @@ async function getCachedRoles(tenantId?: string): Promise<Role[]> {
 		await cacheService.set(`roles:${key}`, cacheData, USER_PERM_CACHE_TTL_S, tenantId);
 		return data;
 	} catch (err) {
-		logger.warn(`Failed to fetch roles: ${err instanceof Error ? err.message : String(err)}`);
-		await initializeRoles();
-		return roles;
+		logger.error(`Failed to fetch roles from database: ${err instanceof Error ? err.message : String(err)}`);
+		return [];
 	}
 }
 
@@ -131,9 +132,18 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
 	const userCount = await getCachedUserCount(locals.tenantId);
 	locals.isFirstUser = userCount === 0;
 
-	// --- Load cached roles ---
+	// --- Load cached roles (database-only) ---
 	const rolesData = await getCachedRoles(locals.tenantId);
 	locals.roles = rolesData;
+
+	// --- Redirect to setup if database not initialized (no roles found) ---
+	if (rolesData.length === 0 && !pathname.startsWith('/setup') && !pathname.startsWith('/api/setup')) {
+		logger.warn('No roles found in database - redirecting to setup', { pathname, tenantId: locals.tenantId });
+		if (isApi) {
+			throw error(503, 'Service Unavailable: System not initialized. Please run setup.');
+		}
+		throw redirect(302, '/setup');
+	}
 
 	// --- Handle authenticated users ---
 	if (user) {

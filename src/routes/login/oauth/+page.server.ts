@@ -29,9 +29,6 @@ import { get } from 'svelte/store';
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/databases/auth/googleAuth';
 import { logger } from '@utils/logger.server';
 
-// Import roles
-import { roles } from '@root/config/roles';
-
 // Types
 interface GoogleUserInfo {
 	email?: string | null;
@@ -207,8 +204,9 @@ async function handleGoogleUser(
 			if (googleUser.picture) avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
 			// Create the first user (admin)
 
-			const adminRole = roles.find((r) => r.isAdmin);
-			if (!adminRole) throw new Error('Admin role not found in roles configuration');
+			// Get admin role from auth adapter (which has access to tenant-aware roles)
+			const adminRoleId = await auth?.getAdminRoleId();
+			if (!adminRoleId) throw new Error('Admin role not found in roles configuration');
 
 			const userData = {
 				email,
@@ -216,8 +214,7 @@ async function handleGoogleUser(
 				firstName: googleUser.given_name,
 				lastName: googleUser.family_name,
 				avatar: avatarUrl,
-				role: adminRole._id,
-				permissions: adminRole.permissions,
+				role: adminRoleId,
 				lastAuthMethod: 'google',
 				isRegistered: true,
 				blocked: false,

@@ -22,17 +22,7 @@
 -->
 
 <script lang="ts">
-	type Props = {
-		value?: boolean;
-		label?: string;
-		labelColor?: string;
-		iconOn?: string;
-		iconOff?: string;
-		size?: 'sm' | 'md' | 'lg';
-		disabled?: boolean;
-		title?: string;
-		onChange?: (changed: boolean) => void;
-	};
+	import { logger } from '@utils/logger';
 
 	let {
 		value = $bindable(false),
@@ -63,7 +53,7 @@
 		try {
 			onChange?.(checked);
 		} catch (error) {
-			console.error('[Toggles] Error in onChange callback:', error);
+			logger.error('[Toggles] Error in onChange callback:', error);
 		}
 	}
 

@@ -7,7 +7,7 @@ import { json, error } from '@sveltejs/kit';
 import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import { cacheService } from '@src/databases/CacheService';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Check permission
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(
 				`User ${user._id} (role: ${user.role}, tenant: ${user.tenantId || 'global'}) denied access to API /api/widgets due to insufficient role permissions`

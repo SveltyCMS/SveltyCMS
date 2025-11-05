@@ -113,7 +113,43 @@ The language switcher dropdown:
 1. **View Mode**: Changes URL → triggers SSR reload with new language
 2. **Edit Mode**: Updates local store → recalculates translation progress
 
+**Recommended: Anchor Tag Approach**
+
+```svelte
+<!-- Best practice: Use anchor tags with preloading -->
+<script lang="ts">
+	import { contentLanguage } from '@stores/store.svelte';
+	import { page } from '$app/stores';
+
+	function handleLanguageChange(selectedLanguage: Locale): void {
+		contentLanguage.set(selectedLanguage);
+		isOpen = false;
+	}
+
+	function getLanguageUrl(selectedLanguage: Locale): string {
+		const currentPath = $page.url.pathname;
+		const pathParts = currentPath.split('/').filter(Boolean);
+		pathParts[0] = selectedLanguage;
+		return '/' + pathParts.join('/') + $page.url.search;
+	}
+</script>
+
+<!-- Anchor tag with automatic preloading -->
+<a
+	href={getLanguageUrl(selectedLanguage)}
+	data-sveltekit-preload-data="hover"
+	data-sveltekit-reload
+	onclick={() => handleLanguageChange(selectedLanguage)}
+>
+	{selectedLanguage.toUpperCase()}
+</a>
+```
+
+**Alternative: Programmatic Navigation** (use only when needed for complex logic)
+
 ```typescript
+import { goto } from '$app/navigation';
+
 async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
 	contentLanguage.set(selectedLanguage);
 	isOpen = false;
@@ -129,12 +165,18 @@ async function handleLanguageChange(selectedLanguage: Locale): Promise<void> {
 }
 ```
 
-**Why `goto()` instead of `window.location.href`?**
+**Why anchor tags are better:**
 
-- Preserves SPA behavior (smooth transition)
-- Triggers SSR data fetch automatically via `invalidateAll: true`
-- Maintains scroll position and UI state
-- Enables page transition animations
+- ✅ Automatic hover preloading (instant navigation feel)
+- ✅ Better SEO and accessibility
+- ✅ Native browser features (right-click, keyboard nav)
+- ✅ No async/await complexity
+
+**When to use `goto()`:**
+
+- Complex dropdowns with `<select>` elements
+- Navigation combined with modal closing or animations
+- Conditional navigation based on validation
 
 ## Performance Characteristics
 

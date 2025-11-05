@@ -25,7 +25,7 @@ import type { RequestHandler } from './$types';
 // Auth and permission helpers
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { roles, initializeRoles } from '@root/config/roles';
+import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -87,12 +87,9 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 		const dataToUpdate: { role?: string; expires?: Date } = {};
 
-		// Initialize roles to ensure they are available
-		await initializeRoles();
-
 		// If a new role is provided, validate it exists.
 		if (newTokenData.role) {
-			const roleExists = roles.some((r) => r._id === newTokenData.role);
+			const roleExists = getDefaultRoles().some((r) => r._id === newTokenData.role);
 			if (!roleExists) {
 				throw error(400, 'The provided role ID is invalid.');
 			}

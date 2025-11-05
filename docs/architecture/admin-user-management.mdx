@@ -213,12 +213,13 @@ The token management section displays all invitation tokens created in the syste
    - Helpful for pre-populating forms
 
    **Role** (required):
-   - Select from available roles:
-     - `super-admin`: Full system access
-     - `admin`: Administrative access
-     - `editor`: Content management
-     - `user`: Standard user access
-     - Custom roles if configured
+   - Select from available roles (loaded from database):
+     - `admin`: Full system access (superuser)
+     - `developer`: Development tools, APIs, and system configuration
+     - `editor`: Content management and media
+     - Custom roles if configured via Access Management
+   - Roles are dynamically loaded from the database
+   - New roles can be created in `/config/accessManagement`
 
    **Expires** (required):
    - Token validity period:

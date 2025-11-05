@@ -22,6 +22,7 @@ Key features:
 <script lang="ts">
 	// Utils
 	import { formatBytes } from '@utils/utils';
+	import { logger } from '@utils/logger';
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
@@ -153,7 +154,7 @@ Key features:
 							onerror={(e: Event) => {
 								const target = e.target as HTMLImageElement;
 								if (target) {
-									console.error('Failed to load media thumbnail for file:', file.filename);
+									logger.error('Failed to load media thumbnail for file:', file.filename);
 									target.src = '/static/Default_User.svg';
 									target.alt = 'Fallback thumbnail image';
 								}

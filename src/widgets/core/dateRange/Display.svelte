@@ -24,6 +24,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 
 <script lang="ts">
 	import type { DateRangeWidgetData } from './';
+	import { logger } from '@utils/logger';
 
 	interface Props {
 		value: DateRangeWidgetData | null | undefined;
@@ -65,7 +66,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 
 			return `${startFormatted} → ${endFormatted}`;
 		} catch (e) {
-			console.warn('Date range formatting error:', e);
+			logger.warn('Date range formatting error:', e);
 			return 'Invalid Range';
 		}
 	});

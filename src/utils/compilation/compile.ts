@@ -19,6 +19,9 @@ import path from 'path';
 import * as ts from 'typescript';
 import { v4 as uuidv4 } from 'uuid';
 
+// Note: Cannot import logger.server here as this file is imported by vite.config.ts
+// which runs before SvelteKit is initialized. Use console for build-time logging.
+
 interface CompileOptions {
 	systemCollections?: string;
 	userCollections?: string;

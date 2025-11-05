@@ -7,7 +7,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -18,7 +18,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Check permission
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget uninstall API due to insufficient permissions`);
 			throw error(403, 'Insufficient permissions');

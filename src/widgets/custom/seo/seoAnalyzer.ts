@@ -242,7 +242,11 @@ export class SeoAnalyzer {
 		let match;
 		while ((match = headingRegex.exec(content)) !== null) {
 			const level = parseInt(match[1]) as 1 | 2 | 3 | 4 | 5 | 6;
-			const text = match[2].replace(/<[^>]*>/g, '').trim();
+			const text = match[2]
+				.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '') // Remove <script> tags and their content
+				.replace(/<script.*?>/gi, '') // Remove any remaining <script> tags
+				.replace(/<[^>]*>/g, '') // Remove other HTML tags
+				.trim();
 			headings[`h${level}` as keyof typeof headings].push(text);
 		}
 

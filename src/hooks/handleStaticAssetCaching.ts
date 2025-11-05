@@ -17,6 +17,7 @@
  * ### Assets Cached
  * - SvelteKit build artifacts (`/_app/`)
  * - User static files (`/static/`)
+ * - Media files (`/files/`)
  * - JavaScript and CSS files (`.js`, `.css`)
  * - Images (`.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`)
  * - Fonts (`.woff`, `.woff2`, `.ttf`, `.eot`)
@@ -39,7 +40,7 @@ import type { Handle } from '@sveltejs/kit';
  * Optimized for performance with specific path prefixes and file extensions.
  */
 const STATIC_ASSET_REGEX =
-	/^\/(?:_app\/|static\/|favicon\.ico|manifest\.webmanifest|apple-touch-icon.*\.png|robots\.txt|sitemap\.xml)|.*\.(?:js|css|map|svg|png|jpe?g|gif|webp|avif|woff2?|ttf|eot)$/;
+	/^\/(?:_app\/|static\/|files\/|favicon\.ico|manifest\.webmanifest|apple-touch-icon.*\.png|robots\.txt|sitemap\.xml)|.*\.(?:js|css|map|svg|png|jpe?g|gif|webp|avif|woff2?|ttf|eot)$/;
 
 /**
  * Alternative function-based approach for more readable asset detection.
@@ -50,7 +51,7 @@ const STATIC_ASSET_REGEX =
  */
 function isStaticAsset(pathname: string): boolean {
 	// Check path prefixes (most common, check first)
-	if (pathname.startsWith('/_app/') || pathname.startsWith('/static/')) {
+	if (pathname.startsWith('/_app/') || pathname.startsWith('/static/') || pathname.startsWith('/files/')) {
 		return true;
 	}
 
