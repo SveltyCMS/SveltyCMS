@@ -3,19 +3,8 @@
  * @description API endpoint for rendering and sending emails using Svelte templates and Nodemailer.
  *
  * This module provides functionality to:
- * - Receive a reques	// 3. Configure Nodemailer Transporter
-	const smtpPort = Number(getPrivateSettingSync('SMTP_PORT'));
-	const secureConnection = smtpPort === 465;
-
-	const transporter = nodemailer.createTransport({
-		host: getPrivateSettingSync('SMTP_HOST'),
-		port: smtpPort,
-		secure: secureConnection,
-		auth: {
-			user: getPrivateSettingSync('SMTP_USER'),
-			pass: getPrivateSettingSync('SMTP_PASS')
-		}, email based on a template.
- * - Render email content using Svelte components and svelte-email-tailwind.
+ * - Receive a request to send an email based on a template.
+ * - Render email content using Svelte components and better-svelte-email.
  * - Send emails using Nodemailer with SMTP configuration from environment variables.
  * - Support multiple email templates and dynamic props.
  * - Handle internationalization for email content (basic structure).

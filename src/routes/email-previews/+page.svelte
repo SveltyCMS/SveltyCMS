@@ -14,8 +14,8 @@
 -->
 
 <script lang="ts">
-	import PreviewInterface from 'svelte-email-tailwind/preview/PreviewInterface.svelte';
+	import { EmailPreview } from 'better-svelte-email/preview';
 	export let data;
 </script>
 
-<PreviewInterface {data} email="info@svelteycms.com" />
+<EmailPreview emailList={data.emails} />

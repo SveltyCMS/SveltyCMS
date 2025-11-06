@@ -14,8 +14,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// svelte-email-tailwind
-	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
+	// better-svelte-email
+	import { Body, Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
 
 	interface Props {
 		email?: string;
@@ -27,6 +27,11 @@
 	}
 
 	let { email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = systemLanguage.value }: Props = $props();
+
+	// Use production host logo if available, otherwise fall back to GitHub
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 
 	// The tokenLink is now passed directly from the API, no need to construct it here.
 </script>
@@ -43,11 +48,11 @@
 			<Section>
 				<Link href={dev ? (publicEnv?.HOST_DEV ?? 'http://localhost:5173') : (publicEnv?.HOST_PROD ?? '')}>
 					<Img
-						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
+						src={logoSrc}
 						alt={`${publicEnv?.SITE_NAME ?? 'SveltyCMS'} logo`}
 						width="150"
 						height="auto"
-						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
+						style="margin-left: auto; margin-right: auto; display: block;"
 					/>
 				</Link>
 			</Section>
@@ -63,8 +68,8 @@
 			</Section>
 
 			<!-- User Information Box -->
-			<Section style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px', margin: '16px 0' }}>
-				<Text style={{ fontSize: '14px', lineHeight: '1.5' }}>
+			<Section style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
+				<Text style="font-size: 14px; line-height: 1.5;">
 					<strong>{m.usertoken_email()}</strong>
 					{email}<br />
 					<strong>{m.usertoken_role()}</strong>
@@ -78,8 +83,8 @@
 			</Section>
 
 			<!-- CTA Button -->
-			<Section style={{ textAlign: 'center' }}>
-				<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+			<Section style="text-align: center;">
+				<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 					{m.usertoken_button()}
 				</Text>
 				<center>
@@ -87,15 +92,7 @@
 						href={tokenLink || '#'}
 						pX={24}
 						pY={12}
-						style={{
-							backgroundColor: '#22c55e',
-							color: '#fff',
-							borderRadius: '8px',
-							minWidth: '200px',
-							fontWeight: 'bold',
-							fontSize: '18px',
-							display: 'inline-block'
-						}}
+						style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;"
 					>
 						Accept Invitation & Create Account
 					</Button>
@@ -109,7 +106,7 @@
 			<!-- Fallback information for printed emails -->
 			<Section>
 				<Hr />
-				<Text style={{ fontSize: '12px', color: '#666' }}>
+				<Text style="font-size: 12px; color: #666;">
 					<strong>Can't click the link?</strong> Go to {publicEnv?.HOST_PROD || publicEnv?.HOST_DEV || 'your site'} and use the token above during signup.
 				</Text>
 			</Section>
@@ -120,7 +117,7 @@
 
 			<!-- Footer -->
 			<Section>
-				<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+				<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 					<Link href="https://SveltyCMS.com">
 						Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
 					</Link>

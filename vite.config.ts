@@ -7,7 +7,7 @@
  * - Centralized path management and logging utilities.
  * - Efficient, direct Hot Module Replacement (HMR) for content structure without fake HTTP requests.
  * - Dynamic compilation of user-defined collections with real-time feedback.
- * - Seamless integration with Paraglide for i18n and svelte-email-tailwind for email templating.
+ * - Seamless integration with Paraglide for i18n and better-svelte-email for email templating.
  */
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
@@ -15,7 +15,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
 import path from 'path';
-import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import { compile } from './src/utils/compilation/compile';
@@ -320,9 +319,6 @@ export default defineConfig((): UserConfig => {
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/paraglide'
-			}),
-			svelteEmailTailwind({
-				pathToEmailFolder: './src/components/emails'
 			})
 		],
 

@@ -1,23 +1,16 @@
 /**
- * @file src/routes/(app)/config/collection/[...contentTypes]/+page.server.ts
- * @description Server-side logic for collection management in the CMS.
+ * @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/+page.server.ts
+ * @description Server-side logic for creating and editing individual collections.
  *
- * This module handles:
- * - Authentication and authorization for collection management
- * - CRUD operations for collections (Create, Read, Update, Delete)
- * - Processing and saving collection schemas
- * - Managing collection configurations
- * - Compiling and updating collections
- *
- * Key features:
- * - Role-based access control
- * - Dynamic field processing for widgets
- * - Permission management for collections
- * - File system operations for collection storage
- * - Integration with collection compilation and update processes
- *
- * The module uses SvelteKit's load and actions functions to handle
- * server-side operations and data preparation for the client.
+ * #Features:
+ * - Handles 'new' and 'edit' actions based on URL parameters.
+ * - Checks for authenticated user in locals (set by hooks.server.ts).
+ * - Verifies user permissions: Must be admin or have 'config:collection:manage' permission.
+ * - Fetches all permissions and roles to pass to the client (for UI selectors).
+ * - For 'edit' mode, fetches the specific collection data from contentManager.
+ * - For 'new' mode, returns a null collection object.
+ * - Serializes collection data, removing functions before sending to the client.
+ * - Provides 'saveCollection' and 'deleteCollections' actions for persistence.
  */
 
 import fs from 'fs';
@@ -34,7 +27,8 @@ import { compile } from '@src/utils/compilation/compile';
 import { widgetFunctions as widgets } from '@stores/widgetStore.svelte';
 
 // Auth
-import { hasPermissionByAction } from '@src/databases/auth/permissions';
+// Use hasPermissionWithRoles and roles from locals, like the example pattern
+import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 import { permissionConfigs } from '@src/databases/auth/permissions';
 
 import { permissions } from '@src/databases/auth/permissions';
@@ -58,8 +52,11 @@ type fields = ReturnType<WidgetType[keyof WidgetType]>;
 // Define load function as async function that takes an event parameter
 export const load: PageServerLoad = async ({ locals, params }) => {
 	try {
-		const { user } = locals;
+		// 1. Get user, roles, and admin status from locals (set by hook)
+		const { user, roles: tenantRoles, isAdmin } = locals;
+		const { action } = params;
 
+		// 2. User authentication (already done by hook, this is a fallback)
 		if (!user) {
 			logger.warn('User not authenticated, redirecting to login');
 			throw redirect(302, '/login');
@@ -67,40 +64,48 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
-		// Check user permission for collection management
-		const collectionManagementConfig = permissionConfigs.collectionManagement;
-		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
-		// Find user role and check admin status
-		const userRole = locals.roles || [].find((r) => r._id === user.role);
-		const isAdmin = userRole?.isAdmin;
-		if (!permissionCheck.hasPermission && !isAdmin) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection management`;
-			logger.warn(message);
+		// 3. Authorization check
+		// Use the 'config:collection:manage' permission string (adjust if needed)
+		const hasManagePermission = hasPermissionWithRoles(user, 'config:collection:manage', tenantRoles);
+
+		// Replicate original logic: User must be an Admin OR have the specific permission.
+		if (!isAdmin && !hasManagePermission) {
+			const message = `User \x1b[34m${user._id}\x1b[0m lacks 'config:collection:manage' permission and is not admin.`;
+			logger.warn(message, { userId: user._id, isAdmin, hasManagePermission });
 			throw error(403, 'Insufficient permissions');
 		}
 
-		const action = params.action;
+		// 4. Serialize user data (like the example)
 		const { _id, ...rest } = user;
+		const serializedUser = {
+			id: _id.toString(),
+			...rest,
+			isAdmin // Include admin status
+		};
 
+		// 5. Handle 'new' action
 		if (action === 'new') {
 			return {
-				user: { ...rest, id: _id.toString() },
-				locals.roles || [], // Add locals.roles || [] data
-				permissions, // Add permissions data
-				permissionConfigs // Add permission configs
+				user: serializedUser,
+				roles: tenantRoles || [], // Roles:' key
+				permissions, // Permissions data
+				permissionConfigs, // Permission configs
+				collection: null // Pass null for 'new' action
 			};
 		}
 
+		// 6. Handle 'edit' action (default)
 		await contentManager.refresh(); // Force a refresh to bypass any stale cache
-		const navStructure = await contentManager.getNavigationStructure();
-		logger.trace('navStructure:', JSON.stringify(navStructure, null, 2));
 		const collection = params.contentPath;
-
 		const currentCollection = await contentManager.getCollection(`/${collection}`);
 
-		logger.trace('currentCollection in server load (after refresh):', currentCollection);
+		if (!currentCollection) {
+			logger.warn(`Collection not found at path: /${collection}`, { path: `/${collection}` });
+			throw error(404, 'Collection not found');
+		}
 
-		function deepCloneAndRemoveFunctions(obj: any): any {
+		// Helper function to deep clone and remove functions
+		function deepCloneAndRemoveFunctions(obj: unknown): unknown {
 			if (obj === null || typeof obj !== 'object') {
 				return obj;
 			}
@@ -110,16 +115,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			}
 
 			if (Array.isArray(obj)) {
-				return obj.map((item) => deepCloneAndRemoveFunctions(item));
+				return (obj as unknown[]).map((item) => deepCloneAndRemoveFunctions(item));
 			}
 
-			const newObj = {};
-			for (const key in obj) {
+			const newObj: Record<string, unknown> = {};
+			for (const key in obj as Record<string, unknown>) {
 				if (Object.prototype.hasOwnProperty.call(obj, key)) {
-					if (typeof obj[key] === 'function') {
+					const value = (obj as Record<string, unknown>)[key];
+					if (typeof value === 'function') {
 						continue; // Skip functions
 					}
-					newObj[key] = deepCloneAndRemoveFunctions(obj[key]);
+					newObj[key] = deepCloneAndRemoveFunctions(value);
 				}
 			}
 			return newObj;
@@ -128,10 +134,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const serializableCollection = currentCollection ? deepCloneAndRemoveFunctions(currentCollection) : null;
 
 		return {
-			user: { ...rest, id: _id.toString() },
-			locals.roles || [], // Add locals.roles || [] data
-			permissions, // Add permissions data
-			permissionConfigs, // Add permission configs
+			user: serializedUser,
+			roles: tenantRoles || [], // roles:' key
+			permissions, // Permissions data
+			permissionConfigs, //Permission configs
 			collection: serializableCollection
 		};
 	} catch (err) {

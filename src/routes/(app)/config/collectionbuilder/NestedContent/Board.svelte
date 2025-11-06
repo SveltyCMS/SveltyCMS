@@ -3,7 +3,12 @@
 @component
 **Board component for managing nested collections**
 
-Features:
+### Props
+- `contentNodes` {ContentNode[]} - Array of content nodes representing collections and categories
+- `onNodeUpdate` {Function} - Callback function to handle updates to the content node
+- `onEditCategory` {Function} - Callback function to handle editing of categories
+
+### Features:
 - Drag and drop reordering of collections
 - Support for nested categories
 -->

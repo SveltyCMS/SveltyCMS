@@ -11,7 +11,7 @@
  *
  */
 
-import { createEmail, emailList, sendEmail } from 'svelte-email-tailwind/preview';
+import { createEmail, emailList, sendEmail } from 'better-svelte-email/preview';
 import type { PageData as AppPageData } from './$types';
 
 // Auth
@@ -53,12 +53,12 @@ export async function load({ locals, fetch }: { locals: App.Locals; fetch: typeo
 
 	return {
 		user: userData,
-		...emailListData
+		emails: emailListData
 	};
 }
 
 export const actions = {
-	...createEmail, // Use the API endpoint for sending emails with proper fetch handling
+	...createEmail,
 	...sendEmail({
 		customSendEmailFunction: async ({ /* from, */ to, subject /* html */ }) => {
 			// Extract template name from subject or use default

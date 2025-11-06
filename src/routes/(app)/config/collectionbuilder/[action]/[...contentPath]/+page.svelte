@@ -2,8 +2,21 @@
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/+page.svelte
 @component  
 **This component sets up and displays the collection page.**
+
 It provides a user-friendly interface for creating, editing, and deleting collections.
+
+### Props
+- `data`: An object containing:
+- `collection`: The collection schema data (if editing an existing collection).
+- `contentLanguage`: The current content language setting.
+- `user`: The authenticated user information.
+
+### Features
+- Dynamically sets the page title based on whether the user is creating a new collection or editing an existing one.
+- Loads collection data when editing, and initializes state accordingly.
+- Provides tabs for editing collection forms and widget fields.
 -->
+
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import axios from 'axios';

@@ -11,8 +11,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
-	// svelte-email-tailwind components
-	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email-tailwind';
+	// better-svelte-email components
+	import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from 'better-svelte-email';
 
 	interface Props {
 		username?: string;
@@ -21,6 +21,11 @@
 	}
 
 	let { username = '', hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
+
+	// Use production host logo if available, otherwise fall back to GitHub
+	const logoSrc = publicEnv?.HOST_PROD
+		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
+		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>
@@ -36,11 +41,11 @@
 			<Section>
 				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
-						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
+						src={logoSrc}
 						alt={`${publicEnv.SITE_NAME} logo`}
 						width="150"
 						height="auto"
-						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
+						style="margin-left: auto; margin-right: auto; display: block;"
 					/>
 				</Link>
 			</Section>
@@ -78,15 +83,7 @@
 							href={hostLink}
 							pX={24}
 							pY={12}
-							style={{
-								backgroundColor: '#22c55e',
-								color: '#fff',
-								borderRadius: '8px',
-								minWidth: '200px',
-								fontWeight: 'bold',
-								fontSize: '18px',
-								display: 'inline-block'
-							}}
+							style="background-color: #22c55e; color: #fff; border-radius: 8px; min-width: 200px; font-weight: bold; font-size: 18px; display: inline-block;"
 						>
 							Go to SveltyCMS
 						</Button>
@@ -97,7 +94,7 @@
 
 				<!-- Footer -->
 				<Section>
-					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+					<Text style="text-align: center; font-weight: bold; font-size: 16px;">
 						<Link href="https://SveltyCMS.com">
 							Your <span style="color:#111;">Svelty</span><span style="color:#22c55e;font-weight:bold;">CMS</span> team
 						</Link>
