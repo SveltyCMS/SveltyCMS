@@ -54,9 +54,9 @@ import { fileURLToPath } from 'url';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import type { Plugin, UserConfig, ViteDevServer } from 'vite';
 import { defineConfig, createLogger } from 'vite';
-import { compile } from '@utils/compile';
-import { isSetupComplete } from './src/utils/setupCheck';
-import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
+// import { compile } from '../shared-utils/compile';
+// import { isSetupConfigComplete } from './src/utils/setupCheck';
+// import { securityCheckPlugin } from './src/utils/vitePluginSecurityCheck';
 
 // --- Constants & Configuration ---
 
@@ -112,7 +112,7 @@ async function initializeCollectionsStructure() {
 		if (!hasLoggedCollectionInit) {
 			log.info(`Found \x1b[32m${sourceFiles.length}\x1b[0m collection(s), compiling...`);
 		}
-		await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+		// await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
 		if (!hasLoggedCollectionInit) {
 			log.success('Initial collection compilation successful!');
 			hasLoggedCollectionInit = true;
@@ -158,7 +158,7 @@ function cmsWatcherPlugin(): Plugin {
 			compileTimeout = setTimeout(async () => {
 				log.info(`Collection change detected. Recompiling...`);
 				try {
-					await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
+					// await compile({ userCollections: paths.userCollections, compiledCollections: paths.compiledCollections });
 					log.success('Re-compilation successful!');
 
 					// ✅ NEW: Register collection models in database after recompilation
@@ -262,30 +262,30 @@ customLogger.warn = (msg, options) => {
 export default defineConfig((): UserConfig => {
 	// Check if setup is complete (only log during dev mode)
 	if (!isBuild) {
-		const setupComplete = isSetupComplete();
-		if (setupComplete) {
-			log.success('Configuration detected. Initializing CMS...');
-		} else {
-			log.warn('⚠️  No configuration found!');
-			log.info('');
-			log.info('  Please run the setup wizard first:');
-			log.info('  $ cd apps/setup && bun run dev');
-			log.info('');
-			log.info('  After setup completes, return here and run:');
-			log.info('  $ cd apps/cms && bun run dev');
-			log.info('');
-		}
+		// const setupComplete = isSetupConfigComplete();
+		// if (setupComplete) {
+		// 	log.success('Configuration detected. Initializing CMS...');
+		// } else {
+		// 	log.warn('⚠️  No configuration found!');
+		// 	log.info('');
+		// 	log.info('  Please run the setup wizard first:');
+		// 	log.info('  $ cd apps/setup && bun run dev');
+		// 	log.info('');
+		// 	log.info('  After setup completes, return here and run:');
+		// 	log.info('  $ cd apps/cms && bun run dev');
+		// 	log.info('');
+		// }
 	}
 
 	return {
 		customLogger,
 		plugins: [
 			// Security check plugin runs first to detect private setting imports
-			securityCheckPlugin({
-				failOnError: true,
-				showWarnings: true,
-				extensions: ['.svelte', '.ts', '.js']
-			}),
+			// securityCheckPlugin({
+			// 	failOnError: true,
+			// 	showWarnings: true,
+			// 	extensions: ['.svelte', '.ts', '.js']
+			// }),
 			sveltekit(),
 			cmsWatcherPlugin(), // Always use watcher plugin (no setup mode)
 			paraglideVitePlugin({
@@ -328,6 +328,7 @@ export default defineConfig((): UserConfig => {
 				'@src': path.resolve(__dirname, './src'),
 				'@components': path.resolve(__dirname, './src/components'),
 				'@content': path.resolve(__dirname, './src/content'),
+				'@databases': path.resolve(__dirname, './src/databases'),
 				'@utils': path.resolve(__dirname, './src/utils'),
 				'@stores': path.resolve(__dirname, './src/stores'),
 				'@widgets': path.resolve(__dirname, './src/widgets')

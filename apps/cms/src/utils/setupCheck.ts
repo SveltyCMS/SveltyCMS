@@ -6,9 +6,9 @@
 
 import { join } from 'node:path';
 // 1. Import the generic check from nx shared-utils
-import { isConfigFilePopulated, invalidateConfigCache } from '@sveltycms/apps/shared-utils';
+import { isConfigFilePopulated, invalidateConfigCache } from '../../../shared-utils/configCheck';
 // 2. Import app-specific modules
-import { dbAdapter } from '@src/databases/db';
+import { dbAdapter } from '../databases/db';
 
 // --- Path Configuration ---
 // In monorepo: config is at workspace root (../../config from apps/cms)
@@ -90,7 +90,7 @@ export function invalidateSetupCache(clearPrivateEnv = false): void {
 	// 3. Clear the app-specific DB connection cache
 	if (clearPrivateEnv) {
 		// This import is safe because it's inside its own app
-		import('@src/databases/db')
+		import('../databases/db')
 			.then((db) => {
 				if (db.clearPrivateConfigCache) {
 					db.clearPrivateConfigCache(false); // Don't keep privateEnv
