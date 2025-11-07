@@ -155,7 +155,7 @@
 					}
 
 					// Update the global content structure store after successful deletion
-					contentStructure.set(newStructure);
+					contentStructure.value = newStructure;
 					modalStore.close(); // Close modal after successful deletion
 				} catch (error) {
 					logger.error('Error deleting category:', error);

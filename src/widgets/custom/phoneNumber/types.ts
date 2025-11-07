@@ -18,4 +18,7 @@ export interface PhoneNumberProps {
 	 * If not provided, a default international format is used.
 	 */
 	pattern?: string;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }

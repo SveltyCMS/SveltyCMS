@@ -518,7 +518,7 @@ class ContentManager {
 				order: dbNode?.order ?? 999,
 				nodeType: 'category',
 				translations: dbNode?.translations ?? [],
-				createdAt: dbNode?.createdAt ?? now,
+				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
 				updatedAt: now
 			});
 		}
@@ -539,7 +539,7 @@ class ContentManager {
 				// Store FULL schema in memory for getCollection() to work
 				collectionDef: schema,
 				tenantId: schema.tenantId,
-				createdAt: dbNode?.createdAt ?? now,
+				createdAt: dbNode?.createdAt ? dateToISODateString(new Date(dbNode.createdAt)) : now,
 				updatedAt: now
 			});
 		}

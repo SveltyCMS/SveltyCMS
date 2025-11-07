@@ -20,4 +20,7 @@ export interface NumberProps {
 
 	// A placeholder for the input field
 	placeholder?: string;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }

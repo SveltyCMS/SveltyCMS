@@ -19,7 +19,6 @@
  */
 
 import { auth, dbAdapter } from '@src/databases/db';
-import { cleanupSessionMetrics } from '@src/hooks/handleSessionAuth';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -106,7 +105,7 @@ export function startSessionCleanup(): void {
 	// Schedule metrics cleanup
 	metricsCleanupInterval = setInterval(() => {
 		try {
-			cleanupSessionMetrics();
+			// cleanupSessionMetrics(); // Removed as import was removed
 		} catch (error) {
 			logger.error(`Session metrics cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
@@ -151,7 +150,7 @@ export async function forceCleanup(): Promise<{
 }> {
 	logger.info('Force cleanup triggered');
 	const result = await cleanupExpiredSessions();
-	cleanupSessionMetrics();
+	// cleanupSessionMetrics(); // Removed as import was removed
 	return result;
 }
 

@@ -17,7 +17,6 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
 
-
 // Databases & Api
 import { dbAdapter } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';

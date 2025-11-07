@@ -17,4 +17,7 @@ export interface RatingProps {
 
 	// The icon to use for an empty star @default 'material-symbols:star-outline'
 	iconEmpty?: string;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }

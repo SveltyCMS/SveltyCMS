@@ -21,6 +21,7 @@
  */
 
 import { writable } from 'svelte/store';
+import { getModalStore } from '@skeletonlabs/skeleton';
 
 // System Logs
 import { logger } from '@utils/logger';
@@ -71,6 +72,7 @@ export const globalSearchIndex = writable<SearchData[]>([
 				path: '/user',
 				action: [
 					() => {
+						const modalStore = getModalStore();
 						modalStore.trigger({
 							type: 'component',
 							component: 'ModalEditAvatar',
@@ -84,6 +86,7 @@ export const globalSearchIndex = writable<SearchData[]>([
 				path: '/user',
 				action: [
 					() => {
+						const modalStore = getModalStore();
 						modalStore.trigger({
 							type: 'component',
 							component: 'modalUserForm',
@@ -100,26 +103,7 @@ export const globalSearchIndex = writable<SearchData[]>([
 		description: 'View and edit users in the user admin area.',
 		keywords: ['user', 'role', 'profile', 'settings', 'account', 'password', 'token', 'admin'],
 		triggers: {
-			'Show User List': {
-				path: '/user',
-				action: [
-					() => {
-						if (!showUserList) {
-							toggleUserList();
-						}
-					}
-				]
-			},
-			'Show User Token': {
-				path: '/user',
-				action: [
-					() => {
-						if (!showUsertoken) {
-							toggleUserToken();
-						}
-					}
-				]
-			}
+			'Show User Admin': { path: '/user' }
 		}
 	},
 	{

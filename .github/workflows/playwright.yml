@@ -19,7 +19,7 @@ jobs:
     name: SveltyCMS Tests (${{ matrix.mode }})
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
       checks: write

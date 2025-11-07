@@ -112,11 +112,17 @@ export function generateManualEntryDetails(
 	account: string;
 	secret: string;
 	issuer: string;
+	algorithm: string;
+	digits: number;
+	period: number;
 } {
 	return {
 		account: userEmail,
 		secret: secret,
-		issuer: serviceName
+		issuer: serviceName,
+		algorithm: TOTP_CONFIG.ALGORITHM,
+		digits: TOTP_CONFIG.DIGITS,
+		period: TOTP_CONFIG.STEP
 	};
 }
 

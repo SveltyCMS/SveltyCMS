@@ -19,7 +19,8 @@
  */
 
 import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
-import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
+import type { DatabaseId, ISODateString } from './dbInterface';
+import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, transform, union } from 'valibot';
 import { logger } from '@utils/logger';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
@@ -133,6 +134,8 @@ export const publicConfigSchema = object({
 	}),
 	MEDIASERVER_URL: optional(string()), // Optional: URL of a separate media server or CDN endpoint
 
+	MEDIA_BUCKET_NAME: optional(pipe(string(), minLength(1))), // Bucket name for S3/R2/compatible services
+
 	// --- Cloud Storage Configuration (Optional - only needed if MEDIA_STORAGE_TYPE is not 'local') ---
 	MEDIA_CLOUD_REGION: optional(string()), // Cloud storage region (e.g., 'us-east-1', 'auto' for R2)
 	MEDIA_CLOUD_ENDPOINT: optional(string()), // Custom endpoint URL for S3-compatible services (R2, MinIO, etc.)
@@ -174,11 +177,20 @@ export const publicConfigSchema = object({
 });
 
 export const websiteTokenSchema = object({
-	_id: string(),
+	_id: pipe(
+		string(),
+		transform((input) => input as DatabaseId)
+	) as BaseSchema<string, DatabaseId, BaseIssue<string>>,
 	name: pipe(string(), minLength(1, 'Token name is required.')),
 	token: pipe(string(), minLength(32)),
-	createdAt: string(),
-	updatedAt: string(),
+	createdAt: pipe(
+		string(),
+		transform((input) => input as ISODateString)
+	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
+	updatedAt: pipe(
+		string(),
+		transform((input) => input as ISODateString)
+	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
 	createdBy: string()
 });
 

@@ -12,7 +12,9 @@
  *    * Error tracking service integration
  */
 
+import type { ISODateString } from '@src/content/types';
 import { logger } from '@utils/logger';
+import { publicEnv } from '@stores/globalSettings.svelte';
 
 // --- Type Definitions ---
 export interface ApiResponse<T = unknown> {
@@ -28,7 +30,7 @@ export interface RevisionDiff {
 
 export interface RevisionMeta {
 	_id: string;
-	revision_at: string; // ISO date string
+	revision_at: ISODateString; // ISO date string
 	revision_by: string;
 }
 

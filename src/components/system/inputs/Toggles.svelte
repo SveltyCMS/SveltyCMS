@@ -33,7 +33,7 @@
 		size = 'md',
 		disabled = false,
 		title = '',
-		onChange
+		onChange = undefined
 	} = $props();
 
 	// Generate a unique ID for a11y

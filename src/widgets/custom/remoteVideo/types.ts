@@ -24,6 +24,9 @@ export interface RemoteVideoProps {
 	 * If empty, all supported platforms are allowed.
 	 */
 	allowedPlatforms?: VideoPlatform[];
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 /**

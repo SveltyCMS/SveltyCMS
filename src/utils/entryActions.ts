@@ -188,6 +188,10 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 		return;
 	}
 
+	// Type assertions after null check
+	const collectionId = coll._id as string;
+	const entryId = entry._id as string;
+
 	const entryStatus: StatusType = (entry.status as StatusType) || StatusTypes.draft;
 	const isArchived = entryStatus === StatusTypes.archive;
 	const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
@@ -195,11 +199,11 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 	// Determine what options to show based on rules
 	if (!useArchiving) {
 		// USE_ARCHIVE_ON_DELETE: false - Always delete directly
-		showDeleteConfirmationModal(coll._id, entry._id, StatusTypes.delete);
+		showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete);
 	} else if (isArchived) {
 		// Archived entry - only admins can permanently delete
 		if (isAdmin) {
-			showDeleteConfirmationModal(coll._id, entry._id, StatusTypes.delete);
+			showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete);
 		} else {
 			showToast('Only administrators can delete archived entries.', 'warning');
 		}
@@ -207,10 +211,10 @@ export async function deleteCurrentEntry(_modalStore: ModalStore, isAdmin: boole
 		// Active entry (draft, clone, publish, unpublish, test)
 		if (isAdmin) {
 			// Admin can choose: show both options in one modal
-			showAdminChoiceModal(coll._id, entry._id);
+			showAdminChoiceModal(collectionId, entryId);
 		} else {
 			// Non-admin can only archive
-			showDeleteConfirmationModal(coll._id, entry._id, StatusTypes.archive);
+			showDeleteConfirmationModal(collectionId, entryId, StatusTypes.archive);
 		}
 	}
 }
@@ -284,6 +288,8 @@ export async function permanentlyDeleteEntry(entryId: string) {
 		return;
 	}
 
+	const collectionId = coll._id as string;
+
 	showConfirm({
 		title: 'Confirm Permanent Deletion',
 		body: 'This will permanently delete the archived entry from the database. This action cannot be undone.',
@@ -291,9 +297,9 @@ export async function permanentlyDeleteEntry(entryId: string) {
 		confirmClasses: 'bg-error-500 hover:bg-error-600 text-white',
 		onConfirm: async () => {
 			try {
-				await deleteEntry(coll._id, entryId);
+				await deleteEntry(collectionId, entryId);
 				showToast('Entry permanently deleted.', 'success');
-				invalidateCollectionCache(coll._id);
+				invalidateCollectionCache(collectionId);
 				setMode('view');
 			} catch (e) {
 				showToast(`Error permanently deleting entry: ${(e as Error).message}`, 'error');
@@ -309,12 +315,16 @@ export async function setEntryStatus(newStatus: StatusType) {
 		showToast(m.set_status_no_selection_error(), 'warning');
 		return;
 	}
+
+	const collectionId = coll._id as string;
+	const entryId = entry._id as string;
+
 	if (newStatus === 'draft' || newStatus === StatusTypes.archive) {
 		showToast(`${newStatus} status is reserved for system operations.`, 'error');
 		return;
 	}
 	try {
-		await updateStatus(coll._id, entry._id, newStatus);
+		await updateStatus(collectionId, entryId, newStatus);
 		setCollectionValue({ ...collectionValue.value, status: newStatus });
 		showToast(m.entry_status_updated({ status: newStatus }), 'success');
 	} catch (e) {
@@ -332,11 +342,14 @@ export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDat
 		return;
 	}
 
+	const collectionId = coll._id as string;
+	const entryId = entry._id as string;
+
 	if (scheduledDate) {
 		// If date is provided, directly schedule
 		try {
 			// 'scheduled' is not a valid StatusType, use 'publish' or 'draft' as needed
-			await updateStatus(coll._id!, entry._id!, StatusTypes.publish);
+			await updateStatus(collectionId, entryId, StatusTypes.publish);
 			setCollectionValue({
 				...collectionValue.value,
 				status: StatusTypes.publish,
@@ -352,7 +365,7 @@ export async function scheduleCurrentEntry(_modalStore: ModalStore, scheduledDat
 			initialAction: StatusTypes.publish,
 			onSchedule: async (date: Date, action: string) => {
 				try {
-					await updateStatus(coll._id!, entry._id!, StatusTypes.publish);
+					await updateStatus(collectionId, entryId, StatusTypes.publish);
 					setCollectionValue({
 						...collectionValue.value,
 						status: StatusTypes.publish,
@@ -377,6 +390,8 @@ export async function cloneCurrentEntry() {
 		return;
 	}
 
+	const collectionId = coll._id as string;
+
 	showCloneModal({
 		count: 1,
 		onConfirm: async () => {
@@ -395,10 +410,10 @@ export async function cloneCurrentEntry() {
 
 				logger.debug('Cloning entry with payload:', clonedPayload);
 
-				const result = await createEntry(coll._id, clonedPayload);
+				const result = await createEntry(collectionId, clonedPayload);
 				if (result.success) {
 					showToast(entryMessages.entryCloned(), 'success');
-					invalidateCollectionCache(coll._id);
+					invalidateCollectionCache(collectionId);
 					setMode('view');
 				} else {
 					throw new Error(result.error || 'Failed to create clone');
@@ -437,6 +452,8 @@ export async function saveDraftAndLeave(modalStore: ModalStore): Promise<boolean
 		return true; // Allow navigation if no unsaved changes
 	}
 
+	const collectionId = coll._id as string;
+
 	return new Promise((resolve) => {
 		const modalSettings: ModalSettings = {
 			type: 'confirm',
@@ -456,15 +473,16 @@ export async function saveDraftAndLeave(modalStore: ModalStore): Promise<boolean
 
 						if (entry._id) {
 							// Update existing entry with draft status
-							const result = await updateEntry(coll._id, entry._id, draftData);
+							const entryId = entry._id as string;
+							const result = await updateEntry(collectionId, entryId, draftData);
 							if (!result.success) {
 								throw new Error(result.error || 'Failed to update entry');
 							}
-							await updateStatus(coll._id!, entry._id!, StatusTypes.draft);
+							await updateStatus(collectionId, entryId, StatusTypes.draft);
 						} else {
 							// Create new entry with draft status
 							draftData.status = StatusTypes.draft;
-							const result = await createEntry(coll._id, draftData);
+							const result = await createEntry(collectionId, draftData);
 							if (!result.success) {
 								throw new Error(result.error || 'Failed to create entry');
 							}
@@ -472,7 +490,7 @@ export async function saveDraftAndLeave(modalStore: ModalStore): Promise<boolean
 
 						showToast('Changes saved as draft.', 'warning');
 
-						invalidateCollectionCache(coll._id);
+						invalidateCollectionCache(collectionId);
 						hasUnsavedChanges = false;
 						resolve(true); // Allow navigation
 					} catch (e) {

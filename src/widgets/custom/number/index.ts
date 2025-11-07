@@ -26,17 +26,20 @@ type AggregationField = { db_fieldName: string; [key: string]: unknown };
 
 // The validation schema is a function to create rules based on the field config.
 const validationSchema = (field: FieldInstance) => {
-	// Start with a base number schema.
-	const baseSchema = number('Value must be a number.');
+	// Build validation actions based on field config
+	const validationActions: Array<ReturnType<typeof minValue> | ReturnType<typeof maxValue>> = [];
 
-	// Build validation rules based on field config
-	let schema = baseSchema;
 	if (field.min !== undefined) {
-		schema = pipe(schema, minValue(field.min as number, `Value must be at least ${field.min}.`));
+		validationActions.push(minValue(field.min as number, `Value must be at least ${field.min}.`));
 	}
 	if (field.max !== undefined) {
-		schema = pipe(schema, maxValue(field.max as number, `Value must not exceed ${field.max}.`));
+		validationActions.push(maxValue(field.max as number, `Value must not exceed ${field.max}.`));
 	}
+
+	// Create final schema with validations
+	const baseSchema = number('Value must be a number.');
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const schema = validationActions.length > 0 ? pipe(baseSchema, ...(validationActions as any)) : baseSchema;
 
 	// If the field is not required, wrap the schema to allow it to be undefined.
 	return field.required ? schema : optional(schema);

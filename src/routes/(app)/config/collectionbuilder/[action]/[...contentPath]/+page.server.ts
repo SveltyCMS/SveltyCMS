@@ -36,6 +36,30 @@ import { permissions } from '@src/databases/auth/permissions';
 // System Logger
 import { logger } from '@utils/logger.server';
 
+// Type definitions for widget field structure
+interface WidgetConfig {
+	Name: string;
+	key: string;
+	GuiFields: Record<string, unknown>;
+}
+
+interface FieldWithWidget {
+	widget?: WidgetConfig;
+	[key: string]: unknown;
+}
+
+interface WidgetGuiSchema {
+	imports?: string[];
+	[key: string]: unknown;
+}
+
+interface WidgetDefinition {
+	GuiSchema?: Record<string, WidgetGuiSchema>;
+	[key: string]: unknown;
+}
+
+type FieldsData = Record<string, FieldWithWidget>;
+
 // Load Prettier config
 async function getPrettierConfig() {
 	try {
@@ -46,8 +70,6 @@ async function getPrettierConfig() {
 		return { parser: 'typescript' };
 	}
 }
-
-type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -165,7 +187,7 @@ export const actions: Actions = {
 			const collectionStatus = formData.get('status') as string;
 
 			// Widgets Fields
-			const fields = JSON.parse(fieldsData) as Array<fields>;
+			const fields = JSON.parse(fieldsData) as FieldsData;
 			const imports = await goThrough(fields, fieldsData);
 
 			// Generate collection file using AST transformation
@@ -188,7 +210,7 @@ export const actions: Actions = {
 			await compile();
 			//await contentManager.generateContentTypes();
 			//await contentManager.generateCollectionFieldTypes();
-			await contentManager.updateCollections(true);
+			await contentManager.refresh();
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
@@ -204,19 +226,27 @@ export const actions: Actions = {
 			const categories = JSON.parse(formData.get('categories') as string);
 
 			// Convert categories to path-based structure
-			const pathCategories = categories.map((cat) => ({
+			interface Category {
+				name: string;
+				path?: string;
+				collections?: Array<{
+					name: string;
+					path?: string;
+				}>;
+			}
+
+			const pathCategories = (categories as Category[]).map((cat) => ({
 				...cat,
 				path: cat.name.toLowerCase().replace(/\s+/g, '-'),
 				collections:
 					cat.collections?.map((col) => ({
 						...col,
-						path: `${cat.path}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
+						path: `${cat.path || cat.name.toLowerCase().replace(/\s+/g, '-')}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
 					})) || []
 			}));
 
 			// Update collections with new category paths
-			await contentManager.updateCollections(true);
-			await getCollectionModels();
+			await contentManager.refresh();
 
 			return {
 				status: 200,
@@ -247,41 +277,58 @@ export const actions: Actions = {
 };
 
 // Recursively goes through a collection's fields
-async function goThrough(object: Record<string, unknown>, fields: string): Promise<string> {
+async function goThrough(object: FieldsData, fields: string): Promise<string> {
 	const imports = new Set<string>();
-	/// processfields
-	async function processField(field: unknown, fields?: string) {
+
+	async function processField(field: FieldWithWidget | FieldsData, fields?: string): Promise<void> {
 		if (!(field instanceof Object)) return;
 
 		for (const key in field) {
-			await processField(field[key], fields);
+			const fieldValue = field[key];
 
-			if (!field[key]?.widget) continue;
+			// Recursively process nested fields
+			if (typeof fieldValue === 'object' && fieldValue !== null) {
+				await processField(fieldValue as FieldWithWidget, fields);
+			}
 
-			const widget = widgets[field[key].widget.Name];
+			// Check if this field has a widget configuration
+			if (!fieldValue || typeof fieldValue !== 'object') continue;
+			const fieldWithWidget = fieldValue as FieldWithWidget;
+			if (!fieldWithWidget.widget) continue;
+
+			// Get widget definition
+			const widgetName = fieldWithWidget.widget.Name;
+			const widgetStore = widgets as unknown as Record<string, WidgetDefinition>;
+			const widget = widgetStore[widgetName];
 			if (!widget || !widget.GuiSchema) continue;
 
+			// Process widget imports
 			for (const importKey in widget.GuiSchema) {
 				const widgetImport = widget.GuiSchema[importKey].imports;
 				if (!widgetImport) continue;
 
 				for (const _import of widgetImport) {
-					const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
+					const importValue = fieldWithWidget[importKey];
+					const replacement = (typeof importValue === 'string' ? importValue : '').replace(/🗑️/g, '').trim();
 					imports.add(_import.replace(`{${importKey}}`, replacement));
 				}
 			}
 
-			field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+			// Convert widget to string representation
+			const widgetCall = `🗑️widgets.${fieldWithWidget.widget.key}(${JSON.stringify(fieldWithWidget.widget.GuiFields, (_k, value) =>
 				typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 			)})🗑️`;
-			const parsedFields = JSON.parse(fields || '{}');
 
+			field[key] = widgetCall as unknown as FieldWithWidget;
+
+			// Add permissions if present
+			const parsedFields = JSON.parse(fields || '{}') as FieldsData;
 			if (parsedFields[key]?.permissions) {
-				const subWidget = field[key].split('}');
+				const subWidget = widgetCall.split('}');
 				const permissions = removeFalseValues(parsedFields[key].permissions);
 				const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
 				const newWidget = subWidget[0] + permissionStr + subWidget[1];
-				field[key] = newWidget;
+				field[key] = newWidget as unknown as FieldWithWidget;
 			}
 		}
 	}
@@ -324,7 +371,7 @@ interface CollectionData {
 	collectionStatus: string;
 	collectionDescription: string | FormDataEntryValue | null;
 	collectionSlug: string;
-	fields: Array<fields>;
+	fields: FieldsData;
 	imports: string;
 }
 
@@ -397,11 +444,13 @@ function createCollectionTransformer(data: CollectionData): ts.TransformerFactor
 					// Create the schema object with actual data
 					const schemaObject = createSchemaObjectLiteral(data);
 
-					// Create new variable declaration
+					// Create new variable declaration (TypeScript 5.9+ API)
+					// createVariableDeclaration(name, exclamationToken, type, initializer)
 					const newDeclaration = ts.factory.createVariableDeclaration(
 						ts.factory.createIdentifier('schema'),
-						ts.factory.createTypeReferenceNode('Schema'),
-						schemaObject
+						undefined, // exclamation token
+						undefined, // type  - let TypeScript infer
+						schemaObject // initializer
 					);
 
 					// Create new variable statement with export modifier

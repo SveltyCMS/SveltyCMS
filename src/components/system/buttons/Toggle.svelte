@@ -28,17 +28,19 @@
 		thumbClass = '',
 		value = $bindable(false),
 		label = '',
-		labelClass = ''
+		labelClass = '',
+		class: className = ''
 	} = $props<{
 		trackClass?: string;
 		thumbClass?: string;
 		value?: boolean;
 		label?: string;
 		labelClass?: string;
+		class?: string;
 	}>();
 </script>
 
-<label class={twMerge('flex w-full cursor-pointer items-center justify-between', $$props.class)}>
+<label class={twMerge('flex w-full cursor-pointer items-center justify-between', className)}>
 	{#if label}
 		<span class={twMerge('mr-3', labelClass)}>{label}</span>
 	{/if}
@@ -47,7 +49,7 @@
 		role="switch"
 		aria-checked={value}
 		aria-label={label || 'Toggle'}
-		on:click={() => (value = !value)}
+		onclick={() => (value = !value)}
 		class={twMerge(
 			'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
 			value ? 'bg-green-500' : 'bg-gray-200',

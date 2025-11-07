@@ -34,12 +34,13 @@ import { json, error as svelteKitError } from '@sveltejs/kit';
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
 
-// Environment variables for SMTP configuration
-import { getPrivateSettingSync } from '@src/services/settingsService';
+// Database adapter for SMTP configuration
+import { dbAdapter } from '@src/databases/db';
 
 // Permissions
 
 // Nodemailer for actual email sending
+// @ts-expect-error - nodemailer has no type declarations
 import nodemailer from 'nodemailer';
 
 // System Logger
@@ -70,15 +71,16 @@ export interface EmailTemplateProps {
 }
 
 // Function to get a specific email template component dynamically
-async function getEmailTemplate(templateName: string): Promise<ComponentType<EmailTemplateProps> | null> {
+async function getEmailTemplate(templateName: string): Promise<ComponentType | null> {
 	const path = `/src/components/emails/${templateName}.svelte`;
 	const moduleImporter = svelteEmailModules[path];
 
 	if (moduleImporter) {
 		try {
-			const module = await moduleImporter();
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const module = (await moduleImporter()) as any;
 			// Assuming the default export is the Svelte component
-			return (module as unknown).default as ComponentType<EmailTemplateProps>;
+			return module.default as ComponentType;
 		} catch (e) {
 			logger.error(`Failed to import email template '${templateName}' from path '${path}':`, e);
 			return null;
@@ -92,7 +94,8 @@ type RenderedEmailContent = { html: string; text: string };
 
 // Renders a Svelte email component to HTML and plain text
 const renderEmailToStrings = async (
-	component: ComponentType<EmailTemplateProps>,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	component: any,
 	templateNameForLog: string,
 	props?: EmailTemplateProps
 ): Promise<RenderedEmailContent> => {
@@ -121,13 +124,13 @@ const renderEmailToStrings = async (
 };
 
 // Generates a standardized JSON error response
-function createErrorResponse(message: string, status: number = 500) {
+function createErrorResponse(message: string, status: number = 500): never {
 	logger.error(`API Error in /api/sendMail (${status}): ${message}`);
 	throw svelteKitError(status, message);
 }
 
 // --- POST Handler ---
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals }): Promise<Response> => {
 	const { user, tenantId } = locals;
 	// Check for internal API calls (from createToken API)
 	const isInternalCall = request.headers.get('x-internal-call') === 'true';
@@ -135,7 +138,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!isInternalCall) {
 		// Authentication is handled by hooks.server.ts - user presence confirms access
 
-		logger.debug(`User '${user?.username || 'Unknown'}' calling /api/sendMail`, { tenantId });
+		logger.debug(`User '${user?.email || 'Unknown'}' calling /api/sendMail`, { tenantId });
 	} else {
 		logger.debug('Internal API call to /api/sendMail', { tenantId });
 	}
@@ -169,10 +172,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const availableTemplateNames = Object.keys(svelteEmailModules).map((path) => path.split('/').pop()?.replace('.svelte', ''));
 		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
-	// Validate SMTP configuration from privateEnv
-	const requiredSmtpVars: (keyof typeof privateEnv)[] = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
-	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
 
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		return createErrorResponse('Database adapter is not available', 500);
+	}
+
+	// Validate SMTP configuration from database settings
+	const smtpHostResult = await dbAdapter.systemPreferences.get<string>('SMTP_HOST', 'system');
+	const smtpPortResult = await dbAdapter.systemPreferences.get<string>('SMTP_PORT', 'system');
+	const smtpUserResult = await dbAdapter.systemPreferences.get<string>('SMTP_USER', 'system');
+	const smtpPassResult = await dbAdapter.systemPreferences.get<string>('SMTP_PASS', 'system');
+
+	const smtpHost = smtpHostResult?.success ? smtpHostResult.data : null;
+	const smtpPort = smtpPortResult?.success ? smtpPortResult.data : null;
+	const smtpUser = smtpUserResult?.success ? smtpUserResult.data : null;
+	const smtpPass = smtpPassResult?.success ? smtpPassResult.data : null;
+
+	const missingVars: string[] = [];
+	if (!smtpHost) missingVars.push('SMTP_HOST');
+	if (!smtpPort) missingVars.push('SMTP_PORT');
+	if (!smtpUser) missingVars.push('SMTP_USER');
+	if (!smtpPass) missingVars.push('SMTP_PASS');
 	if (missingVars.length > 0) {
 		logger.warn('SMTP configuration incomplete. Email sending skipped.', {
 			missingVars,
@@ -180,21 +201,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		return json({
 			success: true,
-			message: 'Email sending skipped due to incomplete SMTP configuration',
+			message: 'SMTP settings not configured. Please configure email settings in System Settings to enable email notifications.',
 			dev_mode: true,
-			missing_config: missingVars
+			missing_config: missingVars,
+			smtp_not_configured: true,
+			user_message: 'Email notifications are not configured yet. Please contact your administrator to set up SMTP settings.'
 		});
 	}
 
 	// If SMTP host is a known dummy/placeholder, skip sending in dev-friendly way
-	const dummyHost = String(getPrivateSettingSync('SMTP_HOST') || '').toLowerCase();
+	const dummyHost = String(smtpHost || '').toLowerCase();
 	if (/dummy|example|\.invalid$/.test(dummyHost)) {
-		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: getPrivateSettingSync('SMTP_HOST'), tenantId });
+		logger.warn('SMTP host appears to be a placeholder; skipping email send.', { host: smtpHost, tenantId });
 		return json({
 			success: true,
 			message: 'Email sending skipped due to dummy SMTP host (development mode).',
 			dev_mode: true,
-			dummy_host: getPrivateSettingSync('SMTP_HOST')
+			dummy_host: smtpHost
 		});
 	}
 	// Enhance props with languageTag if your templates expect it
@@ -214,16 +237,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return createErrorResponse((renderErr as Error).message, 500);
 	}
 	// 3. Configure Nodemailer Transporter
-	const smtpPort = Number(getPrivateSettingSync('SMTP_PORT'));
-	const secureConnection = smtpPort === 465;
+	const smtpPortNum = Number(smtpPort);
+	const secureConnection = smtpPortNum === 465;
 
 	const transporter = nodemailer.createTransport({
-		host: getPrivateSettingSync('SMTP_HOST'),
-		port: smtpPort,
+		host: smtpHost,
+		port: smtpPortNum,
 		secure: secureConnection,
 		auth: {
-			user: getPrivateSettingSync('SMTP_USER'),
-			pass: getPrivateSettingSync('SMTP_PASS')
+			user: smtpUser,
+			pass: smtpPass
 		},
 		tls: {
 			rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true
@@ -233,7 +256,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// 4. Define Mail Options
 
 	const fromName = props?.sitename || 'SveltyCMS';
-	const mailFrom = getPrivateSettingSync('SMTP_MAIL_FROM');
+	const smtpMailFromResult = await dbAdapter.systemPreferences.get<string>('SMTP_MAIL_FROM', 'system');
+	const mailFrom = (smtpMailFromResult?.success ? smtpMailFromResult.data : null) || smtpUser;
 	const mailOptions = {
 		from: `"${fromName}" <${mailFrom}>`,
 		to: recipientEmail,

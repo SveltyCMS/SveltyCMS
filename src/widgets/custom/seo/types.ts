@@ -17,6 +17,9 @@ export interface SeoProps {
 	 * @default ['social', 'schema', 'advanced']
 	 */
 	features?: SeoFeature[];
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 // Defines the complete data structure for a stored SEO entry

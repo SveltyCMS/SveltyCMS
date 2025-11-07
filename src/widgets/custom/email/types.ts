@@ -10,4 +10,7 @@
 export interface EmailProps {
 	// Placeholder text for the input field
 	placeholder?: string;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }

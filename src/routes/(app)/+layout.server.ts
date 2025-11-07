@@ -55,7 +55,7 @@ async function refreshUser(sessionUser: User | null): Promise<User | null> {
 	if (!sessionUser) return null;
 
 	try {
-		const dbUser = await auth.getUserById(sessionUser._id.toString());
+		const dbUser = await auth!.getUserById(sessionUser._id.toString());
 
 		if (dbUser) {
 			logger.debug('Fresh user data loaded in layout', {
@@ -119,7 +119,7 @@ function createLayoutError(err: unknown, fallbackMessage: string): LayoutError {
  * - Logs all errors for monitoring
  */
 export const load: LayoutServerLoad = async ({ locals, depends }) => {
-	const { theme, user: sessionUser, nonce } = locals;
+	const { theme, user: sessionUser, cspNonce } = locals;
 
 	// Register cache dependency for manual invalidation
 	// Call invalidate('app:content') to refresh this data
@@ -141,7 +141,7 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 			contentStructure, // Navigation tree structure
 			user: freshUser, // Fresh user data with avatar
 			publicSettings, // Public configuration from cache
-			nonce, // CSP nonce for inline scripts
+			cspNonce, // CSP nonce for inline scripts
 			// Streaming slot for non-critical data
 			streamed: {
 				// Add progressive enhancement data here

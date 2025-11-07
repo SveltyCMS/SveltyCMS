@@ -17,7 +17,7 @@
  * providing a single interface for the MongoDB adapter.
  */
 
-import type { IDBAdapter, DatabaseResult } from '@src/databases/dbInterface';
+import type { IDBAdapter, DatabaseResult, ISODateString } from '@src/databases/dbInterface';
 import type { User, Session, Role } from '@src/databases/auth/types';
 
 import { SessionAdapter } from '../models/authSession';
@@ -70,7 +70,7 @@ export function composeMongoAuthAdapter(): AuthInterface {
 		// Combined Performance-Optimized Methods
 		createUserAndSession: async (
 			userData: Partial<User>,
-			sessionData: { expires: Date; tenantId?: string }
+			sessionData: { expires: ISODateString; tenantId?: string }
 		): Promise<DatabaseResult<{ user: User; session: Session }>> => {
 			try {
 				// Hash password if provided

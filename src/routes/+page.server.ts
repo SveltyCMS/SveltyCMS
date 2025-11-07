@@ -12,15 +12,15 @@ import { dbInitPromise } from '@src/databases/db';
 import { error, redirect } from '@sveltejs/kit';
 
 import type { PageServerLoad } from './$types';
+import type { User, Role } from '@src/databases/auth/types';
 
 // Roles
-
 
 // System Logger
 import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const { user, tenantId, roles } = locals;
+	const { user, tenantId, roles } = locals as { user: User | null; tenantId: string | undefined; roles: Role[] | undefined };
 	const tenantRoles = roles || [];
 	if (!user) {
 		logger.debug('User is not authenticated, redirecting to login');
@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		// Determine the correct language for the redirect URL
-		const redirectLanguage = url.searchParams.get('contentLanguage') || user.systemLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+		const redirectLanguage = url.searchParams.get('contentLanguage') || user.locale || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
 		// Use the new, efficient method from ContentManager to get the redirect URL
 		const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);

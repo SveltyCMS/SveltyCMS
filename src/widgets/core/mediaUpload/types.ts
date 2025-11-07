@@ -23,6 +23,9 @@ export interface MediaProps {
 	 * @default []
 	 */
 	allowedTypes?: string[];
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }
 
 /**

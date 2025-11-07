@@ -15,7 +15,7 @@
 
 // System Logger
 import { logger } from '@utils/logger.server';
-import type { IDBAdapter } from '@src/databases/dbInterface';
+import type { IDBAdapter, ISODateString } from '@src/databases/dbInterface';
 import {
 	generateBackupCodes,
 	generateManualEntryDetails,
@@ -109,11 +109,10 @@ export class TwoFactorAuthService {
 				is2FAEnabled: true,
 				totpSecret: secret,
 				backupCodes: hashedBackupCodes,
-				last2FAVerification: new Date()
+				last2FAVerification: new Date().toISOString() as ISODateString
 			};
 
 			const result = await this.db.updateUserAttributes(userId, updateData, tenantId);
-
 			if (!result.success) {
 				throw new Error('Failed to update user 2FA settings');
 			}
@@ -160,7 +159,7 @@ export class TwoFactorAuthService {
 				await this.db.updateUserAttributes(
 					userId,
 					{
-						last2FAVerification: new Date()
+						last2FAVerification: new Date().toISOString() as ISODateString
 					},
 					tenantId
 				);
@@ -187,7 +186,7 @@ export class TwoFactorAuthService {
 							userId,
 							{
 								backupCodes: updatedBackupCodes,
-								last2FAVerification: new Date()
+								last2FAVerification: new Date().toISOString() as ISODateString
 							},
 							tenantId
 						);
@@ -296,7 +295,7 @@ export class TwoFactorAuthService {
 		enabled: boolean;
 		hasBackupCodes: boolean;
 		backupCodesCount: number;
-		lastVerification?: Date;
+		lastVerification?: ISODateString;
 	}> {
 		try {
 			const userResult = await this.db.getUserById(userId, tenantId);

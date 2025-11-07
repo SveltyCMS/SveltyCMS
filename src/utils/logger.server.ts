@@ -30,6 +30,8 @@
 
 import { browser, building } from '$app/environment';
 import { publicEnv } from '@stores/globalSettings.svelte';
+import type { ISODateString } from '@src/content/types';
+import { dateToISODateString, isoDateStringToDate } from '@src/utils/dateUtils';
 
 // This module should never run in browser - fail fast if it does
 if (browser) {
@@ -58,7 +60,7 @@ type LogEntry = {
 	level: LogLevel;
 	message: string;
 	args: LoggableValue[];
-	timestamp: Date;
+	timestamp: ISODateString;
 };
 
 // Masking configuration type
@@ -150,7 +152,8 @@ function updateMaxEnabledPriority() {
 		return;
 	}
 	const enabledLevels = getEnv('LOG_LEVELS', ['fatal', 'error', 'warn', 'info', 'debug', 'trace']);
-	if (!Array.isArray(enabledLevels) || enabledLevels.includes('none')) {
+	// Ensure enabledLevels is an array before calling .includes
+	if (!Array.isArray(enabledLevels) || (Array.isArray(enabledLevels) && enabledLevels.includes('none'))) {
 		maxEnabledPriority = LOG_LEVEL_MAP.none.priority;
 		return;
 	}
@@ -402,7 +405,7 @@ const serverFileOps = {
 				this._logStream = null;
 			}
 
-			const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+			const timestamp = dateToISODateString(new Date()).replace(/[:.]/g, '-');
 			const rotatedFilePath = `${logFilePath}.${timestamp}`;
 			await fsPromises.rename(logFilePath, rotatedFilePath);
 			await fsPromises.writeFile(logFilePath, '');
@@ -447,7 +450,10 @@ const serverFileOps = {
 
 	async writeBatchToFile(batch: LogEntry[]): Promise<void> {
 		const logString = batch
-			.map((entry) => `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`)
+			.map(
+				(entry) =>
+					`${isoDateStringToDate(entry.timestamp).toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`
+			)
 			.join('');
 
 		if (!logString) return;
@@ -487,7 +493,7 @@ const serverFileOps = {
 					};
 					const icon = icons[entry.level.toUpperCase()] || '●';
 					const formattedLevel = entry.level.toUpperCase().padEnd(5);
-					const timestamp = entry.timestamp.toISOString().slice(0, 19).replace('T', ' ');
+					const timestamp = entry.timestamp;
 
 					console.log(`\x1b[2m${timestamp}\x1b[0m ${color}${icon} [${formattedLevel}]\x1b[0m ${entry.message} ${formattedArgs}`);
 				}
@@ -597,7 +603,7 @@ const log = (level: LogLevel, message: string, args: LoggableValue[]): void => {
 
 	process.stdout.write(`\x1b[2m${cleanTimestamp}\x1b[0m ${color}${icon} [${formattedLevel}]\x1b[0m ${sourceInfo}${message} ${formattedArgs}\n`);
 
-	state.queue.push({ level, message, args: maskedArgs, timestamp: new Date() });
+	state.queue.push({ level, message, args: maskedArgs, timestamp: dateToISODateString(new Date()) });
 	if (state.queue.length >= config.batchSize) {
 		safeExecute(processBatch);
 	} else {

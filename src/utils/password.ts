@@ -69,8 +69,8 @@ export async function hashPassword(password: string): Promise<string> {
 		const argon2 = await import('argon2');
 
 		const hashedPassword = await argon2.hash(password, {
-			memory: ARGON2_CONFIG.memory,
-			time: ARGON2_CONFIG.time,
+			memoryCost: ARGON2_CONFIG.memory,
+			timeCost: ARGON2_CONFIG.time,
 			parallelism: ARGON2_CONFIG.parallelism,
 			type: argon2.argon2id
 		});
@@ -133,10 +133,9 @@ export async function needsRehashing(hashedPassword: string): Promise<boolean> {
 		// Check if the hash uses our current secure parameters
 		// argon2.needsRehash will return true if the hash doesn't match our current settings
 		return argon2.needsRehash(hashedPassword, {
-			memory: ARGON2_CONFIG.memory,
-			time: ARGON2_CONFIG.time,
-			parallelism: ARGON2_CONFIG.parallelism,
-			type: argon2.argon2id
+			memoryCost: ARGON2_CONFIG.memory,
+			timeCost: ARGON2_CONFIG.time,
+			parallelism: ARGON2_CONFIG.parallelism
 		});
 	} catch (error) {
 		logger.error('Failed to check if password needs rehashing:', error);

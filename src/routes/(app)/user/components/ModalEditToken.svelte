@@ -119,10 +119,25 @@ It handles token creation, updates, and deletion with proper validation and erro
 				throw new Error(responseData.message || 'Operation failed');
 			}
 
-			showToast(
-				`<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} successfully`,
-				'success'
-			);
+			// Check if SMTP is not configured
+			if (responseData.smtp_not_configured) {
+				showToast(
+					`<iconify-icon icon="mdi:email-alert" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email not sent: SMTP not configured`,
+					'warning'
+				);
+			} else if (responseData.dev_mode && !responseData.email_sent) {
+				// Email was skipped due to dev mode or dummy config
+				showToast(
+					`<iconify-icon icon="mdi:dev-to" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} - Email sending skipped (dev mode)`,
+					'info'
+				);
+			} else {
+				// Success - email sent
+				showToast(
+					`<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${isEditMode ? 'Token updated' : 'Token created'} successfully`,
+					'success'
+				);
+			}
 
 			// Invalidate data first, then close modal
 			await invalidateAll();

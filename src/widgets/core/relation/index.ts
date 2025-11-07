@@ -37,7 +37,7 @@ const validationSchema = (field: FieldInstance) => {
 };
 
 // Create the widget definition using the factory.
-const RelationWidget = createWidget<RelationProps, ReturnType<typeof validationSchema>>({
+const RelationWidget = createWidget<RelationProps>({
 	Name: 'Relation',
 	Icon: 'mdi:relation-one-to-one',
 	Description: m.widget_relation_description(),

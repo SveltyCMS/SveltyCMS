@@ -12,8 +12,7 @@ import {
 	widgetStoreActions,
 	widgetFunctions as widgetFunctionsStore,
 	coreWidgets as coreWidgetsStore,
-	customWidgets as customWidgetsStore,
-	type WidgetFunction
+	customWidgets as customWidgetsStore
 } from '@stores/widgetStore.svelte';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -36,16 +35,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw error(403, 'Insufficient permissions - admin access required');
 		}
 
-		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId || user.tenantId;
+		const tenantId = request.headers.get('X-Tenant-ID') || locals.tenantId;
 
 		// Initialize widgets to get all from file system
 		await widgetStoreActions.initializeWidgets(tenantId);
 
 		// Get all widget functions from file system
-		let allWidgetFunctions: Record<string, WidgetFunction> = {};
+		let allWidgetFunctions: Record<string, unknown> = {};
 		let coreWidgetNames: string[] = [];
 		let customWidgetNames: string[] = [];
-
 		widgetFunctionsStore.subscribe(($widgetFunctions) => {
 			allWidgetFunctions = $widgetFunctions;
 		})();
@@ -64,10 +62,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Get current widgets from database
-		const dbResult = await locals.dbAdapter.widgets.getAll();
-		const dbWidgets = dbResult.success ? dbResult.data || [] : [];
-		const dbWidgetNames = dbWidgets.map((w) => w.name);
-
+		const dbResult = await locals.dbAdapter.widgets.findAll();
+		const dbWidgets: Array<Record<string, unknown>> = dbResult.success ? (dbResult.data as unknown as Array<Record<string, unknown>>) || [] : [];
+		const dbWidgetNames = dbWidgets.map((w) => w.name as string);
 		logger.info('Starting widget sync...', {
 			fileSystem: Object.keys(allWidgetFunctions).length,
 			database: dbWidgets.length,
@@ -89,12 +86,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			try {
 				const isCore = coreWidgetNames.includes(name);
 				const exists = dbWidgetNames.includes(name);
+				const widget = widgetFn as Record<string, unknown>;
 
 				if (exists) {
 					// Widget exists in DB - ensure it's active if it's core
 					const dbWidget = dbWidgets.find((w) => w.name === name);
-					if (isCore && dbWidget && !dbWidget.isActive) {
-						await locals.dbAdapter.widgets.activateWidget(name);
+					if (isCore && dbWidget && !(dbWidget.isActive as boolean)) {
+						await locals.dbAdapter.widgets.update(dbWidget._id as unknown as import('@databases/dbInterface').DatabaseId, { isActive: true });
 						results.activated.push(name);
 						logger.trace(`Activated core widget: ${name}`);
 					} else {
@@ -102,18 +100,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					}
 				} else {
 					// Widget doesn't exist - create it
-					const createResult = await locals.dbAdapter.widgets.create({
+					const createResult = await locals.dbAdapter.widgets.register({
 						name,
-						description: widgetFn.Description || `${name} widget`,
-						icon: widgetFn.Icon || (isCore ? 'mdi:puzzle' : 'mdi:puzzle-plus'),
-						isCore,
 						isActive: isCore, // Core widgets are active by default
-						version: '1.0.0',
-						dependencies: widgetFn.__dependencies || [],
-						createdAt: new Date(),
-						updatedAt: new Date()
+						instances: {},
+						dependencies: (widget.__dependencies as string[]) || []
 					});
-
 					if (createResult.success) {
 						results.created.push(name);
 						logger.info(`Created widget in database: ${name} (${isCore ? 'core' : 'custom'})`);

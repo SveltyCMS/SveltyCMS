@@ -6,7 +6,7 @@ order: 5
 icon: 'mdi:image-multiple'
 author: 'admin'
 created: '2025-10-05'
-updated: '2025-11-05'
+updated: '2025-11-06'
 tags:
   - 'api'
   - 'media'
@@ -23,109 +23,93 @@ tags:
 
 ## Overview
 
-The Media API provides comprehensive endpoints for managing media files (images, videos, documents) in SveltyCMS. All operations use a database-agnostic adapter and support multi-tenancy.
+The Media API provides a robust and type-safe system for managing media files (images, videos, documents) in SveltyCMS. All operations are handled by the `MediaService`, which uses a database-agnostic adapter and supports multi-tenancy.
 
 **Storage Support:**
-- **Local Storage**: Files stored on the server filesystem
-- **Cloud Storage**: S3, Cloudflare R2, or Cloudinary
-- **Hybrid**: Mix of local and cloud storage
+- **Local Storage**: Files stored on the server filesystem.
+- **Cloud Storage**: S3, Cloudflare R2, or Cloudinary.
 
 **Base Path:** `/api/media`
 
+## MediaItem Data Structure
+
+When a file is uploaded, it is stored as a `MediaItem` document in the database. This provides rich metadata and versioning.
+
+```typescript
+interface MediaItem {
+  _id: string;          // Unique database ID
+  filename: string;       // Original filename
+  hash: string;           // SHA-256 hash of the file content
+  path: string;           // Relative storage path (e.g., "global/original/image-hash.jpg")
+  url: string;            // Publicly accessible URL
+  mimeType: string;       // File MIME type
+  size: number;           // File size in bytes
+  createdBy: string;      // ID of the user who uploaded the file
+  createdAt: string;      // ISODateString of creation time
+  updatedAt: string;      // ISODateString of last update time
+  thumbnails: {           // Auto-generated for images (except SVG)
+    [key: string]: {
+      url: string;
+      width: number;
+      height: number;
+    };
+  };
+  metadata: {             // Additional metadata
+    originalFilename: string;
+    uploadedBy: string;
+    uploadTimestamp: string;
+    [key: string]: any;
+  };
+  access: MediaAccess[];  // Access control rules
+}
+```
+
 ## Storage Architecture
 
-SveltyCMS supports multiple storage backends configured via system settings:
+SveltyCMS supports multiple storage backends configured via system settings.
 
 ### Storage Types
 
-- `local` - Files stored on server filesystem (default)
-- `s3` - Amazon S3 or S3-compatible services
-- `r2` - Cloudflare R2 (S3-compatible)
-- `cloudinary` - Cloudinary media platform
+- `local` - Files stored on the server filesystem (default).
+- `s3` - Amazon S3 or other S3-compatible services.
+- `r2` - Cloudflare R2 (which is S3-compatible).
+- `cloudinary` - Cloudinary media platform.
 
-### MEDIA_FOLDER Usage
+### Configuration Explained
 
-The `MEDIA_FOLDER` setting serves different purposes based on storage type:
-
-- **Local Storage**: Filesystem path (e.g., `./mediaFolder`, `/var/media`)
-- **Cloud Storage**: Path prefix/bucket subfolder (e.g., `cms-media`, `production/assets`)
-
-### URL Patterns
-
-**Local Storage:**
-```
-Database:  /files/avatars/hash-image.avif
-Filesystem: ./mediaFolder/avatars/hash-image.avif
-Request:   GET /files/avatars/hash-image.avif
-```
-
-**Cloud Storage (S3/R2):**
-```
-Database:  /files/avatars/hash-image.avif
-Cloud:     https://cdn.example.com/cms-media/avatars/hash-image.avif
-Request:   GET /files/avatars/hash-image.avif → 307 Redirect
-```
-
-**Cloud Storage (Cloudinary):**
-```
-Database:  /files/avatars/hash-image.avif
-Cloud:     https://res.cloudinary.com/{cloud}/image/upload/cms-media/avatars/hash-image.avif
-Request:   GET /files/avatars/hash-image.avif → 307 Redirect
-```
-
-## Configuration
-
-### Local Storage (Default)
+#### Local Storage (Default)
 
 ```javascript
 // System Settings
 {
-  MEDIA_STORAGE_TYPE: 'local',
-  MEDIA_FOLDER: './mediaFolder'
+  "MEDIA_STORAGE_TYPE": "local",
+  "MEDIA_FOLDER": "./mediaFolder" // Filesystem path relative to the project root
 }
 ```
 
-### S3-Compatible Storage
+#### S3-Compatible Storage (S3 & R2)
+
+For S3-compatible storage, a bucket name is required. The `MEDIA_FOLDER` acts as a prefix (subfolder) within the bucket.
 
 ```javascript
 // System Settings
 {
-  MEDIA_STORAGE_TYPE: 's3', // or 'r2'
-  MEDIA_FOLDER: 'cms-media', // Bucket prefix
-  MEDIA_CLOUD_REGION: 'us-east-1',
-  MEDIA_CLOUD_ENDPOINT: 'https://s3.amazonaws.com', // Optional for S3
-  MEDIA_CLOUD_PUBLIC_URL: 'https://cdn.example.com'
+  "MEDIA_STORAGE_TYPE": "s3", // or "r2"
+  "MEDIA_BUCKET_NAME": "your-s3-bucket-name",      // **Required**: The name of your S3 bucket.
+  "MEDIA_FOLDER": "cms-media",                   // Optional: A prefix to organize files within the bucket.
+  "MEDIA_CLOUD_REGION": "us-east-1",
+  "MEDIA_CLOUD_ENDPOINT": "https://s3.amazonaws.com", // Optional for AWS S3, required for other providers.
+  "MEDIA_CLOUD_PUBLIC_URL": "https://cdn.example.com" // The public URL of your bucket/CDN.
 }
-
-// Environment Variables (required)
-MEDIA_ACCESS_KEY_ID=your-access-key
-MEDIA_SECRET_ACCESS_KEY=your-secret-key
 ```
 
-### Cloudflare R2
+#### Cloudinary
 
 ```javascript
 // System Settings
 {
-  MEDIA_STORAGE_TYPE: 'r2',
-  MEDIA_FOLDER: 'cms-media',
-  MEDIA_CLOUD_REGION: 'auto',
-  MEDIA_CLOUD_ENDPOINT: 'https://<account-id>.r2.cloudflarestorage.com',
-  MEDIA_CLOUD_PUBLIC_URL: 'https://cdn.example.com'
-}
-
-// Environment Variables (required)
-MEDIA_ACCESS_KEY_ID=your-r2-access-key
-MEDIA_SECRET_ACCESS_KEY=your-r2-secret-key
-```
-
-### Cloudinary
-
-```javascript
-// System Settings
-{
-  MEDIA_STORAGE_TYPE: 'cloudinary',
-  MEDIA_FOLDER: 'cms-media'
+  "MEDIA_STORAGE_TYPE": "cloudinary",
+  "MEDIA_FOLDER": "cms-media" // A folder name within your Cloudinary account.
 }
 
 // Environment Variables (required)
@@ -136,7 +120,7 @@ CLOUDINARY_API_SECRET=your-api-secret
 
 ## Authentication
 
-All media endpoints require authentication:
+All media endpoints require an authenticated session via a cookie.
 
 ```http
 Cookie: session=your-session-id
@@ -144,56 +128,9 @@ Cookie: session=your-session-id
 
 ## Endpoints
 
-### 1. List Media Files
+### 1. Upload a File
 
-Retrieves a paginated list of media files.
-
-#### Request
-
-```http
-GET /api/media
-```
-
-**Query Parameters:**
-
-- `limit` (number, optional) - Max files to return (1-100, default: 25)
-- `folder` (string, optional) - Filter by folder path
-- `type` (string, optional) - Filter by MIME type (e.g., `image/jpeg`)
-
-**Permissions Required:** `media:read` or authenticated user
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"data": [
-		{
-			"id": "file123",
-			"name": "image.jpg",
-			"size": 245760,
-			"modified": "2025-10-05T14:30:00Z",
-			"type": "jpeg",
-			"url": "/uploads/image.jpg",
-			"mimeType": "image/jpeg",
-			"folder": "/images"
-		}
-	],
-	"pagination": {
-		"page": 1,
-		"pageSize": 25,
-		"total": 42
-	}
-}
-```
-
----
-
-### 2. Process Media Files (Upload, Delete, etc.)
-
-A versatile endpoint for processing files. The action is determined by the `processType` field in the `multipart/form-data` body.
+Uploads one or more files. The files are processed by `MediaService` and saved as `MediaItem` documents.
 
 #### Request
 
@@ -202,58 +139,80 @@ POST /api/media/process
 ```
 
 **Headers:**
-
 ```http
-Cookie: session=your-session-id
 Content-Type: multipart/form-data
 ```
 
-#### Process Type: `save` (Upload Files)
-
 **Body (multipart/form-data):**
+- `files` (File): One or more files to upload.
+- `folder` (string, optional): A virtual folder path to associate the media with.
+- `alt` (string, optional): Alt text for images.
 
-- `processType`: `save`
-- `files` (file) - One or more files to upload
-- `folder` (string, optional) - Target folder path
-- `alt` (string, optional) - Alt text for images
-- `title` (string, optional) - File title/caption
+**Permissions Required:** `media:write` or authenticated user.
 
-**Permissions Required:** `media:write` or authenticated user
+#### Response (Success 200)
 
-**Response (Success 200):**
+A `MediaItem` object for each successfully uploaded file.
 
 ```json
 {
-	"success": true,
-	"files": [
-		{
-			"_id": "file123",
-			"filename": "image.jpg",
-			"originalName": "My Photo.jpg",
-			"path": "/uploads/2025/10/image.jpg",
-			"url": "https://cdn.example.com/uploads/2025/10/image.jpg",
-			"size": 245760,
-			"mimeType": "image/jpeg"
-		}
-	],
-	"message": "Files uploaded successfully"
+  "success": true,
+  "files": [
+    {
+      "_id": "db_id_string",
+      "filename": "photo.jpg",
+      "hash": "a1b2c3d4e5f6",
+      "path": "global/original/photo-a1b2c3d4e5f6.jpg",
+      "url": "https://cdn.example.com/global/original/photo-a1b2c3d4e5f6.jpg",
+      "mimeType": "image/jpeg",
+      "size": 123456,
+      "createdBy": "user_id_string",
+      "createdAt": "2025-11-06T10:00:00.000Z",
+      "updatedAt": "2025-11-06T10:00:00.000Z",
+      "thumbnails": {
+        "small": { "url": "...", "width": 400, "height": 300 },
+        "medium": { "url": "...", "width": 800, "height": 600 }
+      },
+      "metadata": {
+        "originalFilename": "photo.jpg",
+        "uploadedBy": "user_id_string",
+        "uploadTimestamp": "2025-11-06T10:00:00.000Z"
+      }
+    }
+  ],
+  "message": "Files uploaded successfully"
 }
 ```
 
-#### Process Type: `delete` (Delete File)
+---
 
-**Body (multipart/form-data):**
+### 2. List Media Files
 
-- `processType`: `delete`
-- `mediaId` (string) - The ID of the media file to delete.
+Retrieves a paginated list of `MediaItem` documents.
 
-**Permissions Required:** `media:delete` or admin
+#### Request
 
-**Response (Success 200):**
+```http
+GET /api/media
+```
+
+**Query Parameters:**
+- `limit` (number, optional): Max files per page (default: 20).
+- `page` (number, optional): Page number to retrieve (default: 1).
+- `folder` (string, optional): Filter by virtual folder path.
+- `type` (string, optional): Filter by MIME type (e.g., `image/jpeg`).
+
+**Permissions Required:** `media:read` or authenticated user.
+
+#### Response (Success 200)
 
 ```json
 {
-  "success": true
+  "success": true,
+  "media": [
+    // Array of MediaItem objects
+  ],
+  "total": 42
 }
 ```
 
@@ -261,35 +220,26 @@ Content-Type: multipart/form-data
 
 ### 3. Get Media File Details
 
-Retrieves detailed information about a specific media file.
+Retrieves a single `MediaItem` by its ID.
 
 #### Request
 
 ```http
-GET /api/media/[fileId]
+GET /api/media/[id]
 ```
 
-**Permissions Required:** `media:read` or authenticated user
+**Permissions Required:** `media:read` or authenticated user.
 
-#### Response
+#### Response (Success 200)
 
-**Success (200):**
+A single `MediaItem` object.
 
 ```json
 {
-	"success": true,
-	"data": {
-		"_id": "file123",
-		"filename": "image.jpg",
-		"url": "/uploads/image.jpg",
-		"size": 245760,
-		"mimeType": "image/jpeg",
-		"width": 1920,
-		"height": 1080,
-		"metadata": {
-			"camera": "Canon EOS"
-		}
-	}
+  "success": true,
+  "data": {
+    // A MediaItem object
+  }
 }
 ```
 
@@ -297,162 +247,55 @@ GET /api/media/[fileId]
 
 ### 4. Update Media File Metadata
 
-Updates media file metadata (not the file itself).
+Updates the metadata of a `MediaItem`. This does not change the file itself.
 
 #### Request
 
 ```http
-PATCH /api/media/[fileId]
+PATCH /api/media/[id]
 ```
 
 **Body (JSON):**
-
 ```json
 {
-	"alt": "Updated alt text",
-	"title": "Updated title",
-	"folder": "/new-folder"
+  "filename": "A Better Name.jpg",
+  "metadata": {
+    "alt": "A descriptive alt text.",
+    "tags": ["nature", "mountain"]
+  }
 }
 ```
 
-**Permissions Required:** `media:update` or file owner
+**Permissions Required:** `media:update` or file owner.
 
-#### Response
-
-**Success (200):**
-
-```json
-{
-	"success": true,
-	"message": "Media file updated successfully"
-}
-```
-
----
-
-### 5. Save Remote Media
-
-Saves a media file from a remote URL.
-
-#### Request
-
-```http
-POST /api/media/remote
-```
-
-**Body (JSON):**
-
-- `fileUrl` (string, required): The URL of the file to save.
-- `contentTypes` (string, required): The collection type to save the file to (e.g., `media_images`).
-
-**Permissions Required:** `media:write` or authenticated user
-
-#### Response
-
-**Success (200):**
+#### Response (Success 200)
 
 ```json
 {
   "success": true,
-  "id": "file456",
-  "fileInfo": { ... }
+  "message": "Media file updated successfully"
 }
 ```
 
 ---
 
-### 6. Move to Trash
+### 5. Delete a Media File
 
-Moves a media file to the trash.
+Permanently deletes a media file from both the database and the storage provider (local or cloud).
 
 #### Request
 
 ```http
-POST /api/media/trash
+DELETE /api/media/[id]
 ```
 
-**Body (JSON):**
+**Permissions Required:** `media:delete` or admin.
 
-- `url` (string, required): The URL of the file to move to the trash.
-
-**Permissions Required:** `media:delete` or admin
-
-#### Response
-
-**Success (200):**
+#### Response (Success 200)
 
 ```json
 {
-  "success": true
-}
-```
-
----
-
-### 7. Check File Existence
-
-Checks if a media file exists.
-
-#### Request
-
-```http
-GET /api/media/exists?url={file_url}
-```
-
-**Permissions Required:** Authenticated user
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-  "exists": true
-}
-```
-
----
-
-### 8. Get File Content
-
-Retrieves the raw media file.
-
-#### Request
-
-```http
-GET /api/media/get?url={file_url}
-```
-
-**Permissions Required:** Authenticated user (for private files)
-
-#### Response
-
-The raw file data with appropriate `Content-Type` and `Content-Disposition` headers.
-
----
-
-### 9. Permanently Delete File
-
-Permanently deletes a media file from storage and the database.
-
-#### Request
-
-```http
-DELETE /api/media/delete
-```
-
-**Body (JSON):**
-
-- `url` (string, required): The URL of the file to delete.
-
-**Permissions Required:** `admin`
-
-#### Response
-
-**Success (200):**
-
-```json
-{
-  "success": true
+  "success": true,
+  "message": "Media deleted successfully"
 }
 ```

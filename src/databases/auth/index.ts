@@ -23,12 +23,14 @@ import { dev } from '$app/environment';
 import { error } from '@sveltejs/kit';
 
 import type { DatabaseAdapter, DatabaseResult } from '@src/databases/dbInterface';
+import type { ISODateString } from '@src/content/types';
 import type { Permission, Role, Session, SessionStore, Token, User } from './types';
 
 import { corePermissions } from './corePermissions';
 
 // System Logger
 import { logger } from '@utils/logger.server';
+import { dateToISODateString } from '@src/utils/dateUtils';
 
 // Import global settings service for DB-based configuration
 import { getPrivateSettingSync } from '@src/services/settingsService';
@@ -86,7 +88,7 @@ export class Auth {
 	// Combined Performance-Optimized Methods (wrapper for db.auth methods)
 	async createUserAndSession(
 		userData: Partial<User>,
-		sessionData: { expires: Date; tenantId?: string }
+		sessionData: { expires: ISODateString; tenantId?: string }
 	): Promise<DatabaseResult<{ user: User; session: Session }>> {
 		return this.db.auth.createUserAndSession(userData, sessionData);
 	}
@@ -230,7 +232,7 @@ export class Auth {
 		return 0;
 	}
 
-	async createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<Session> {
+	async createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<Session> {
 		const sr = (await this.db.auth.createSession(sessionData)) as unknown;
 		let session: Session | null = null;
 		if (sr && typeof sr === 'object' && sr !== null && 'success' in (sr as Record<string, unknown>)) {
@@ -277,7 +279,7 @@ export class Auth {
 		await this.sessionStore.delete(session_id);
 	}
 
-	async getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null> {
+	async getSessionTokenData(session_id: string): Promise<{ expiresAt: ISODateString; user_id: string } | null> {
 		const result = await this.db.auth.getSessionTokenData(session_id);
 		if (result && result.success) {
 			return result.data;
@@ -285,7 +287,7 @@ export class Auth {
 		return null;
 	}
 
-	async rotateToken(oldToken: string, expires: Date): Promise<string> {
+	async rotateToken(oldToken: string, expires: ISODateString): Promise<string> {
 		if (!this.db.auth.rotateToken) throw error(500, 'Token rotation not supported');
 		const result = await this.db.auth.rotateToken(oldToken, expires);
 		if (result && result.success) {
@@ -308,7 +310,7 @@ export class Auth {
 	 * @param tokenData - Token creation data including user_id, expires, type, and optional tenantId
 	 * @returns The created token string
 	 */
-	async createToken(tokenData: { user_id: string; expires: Date; type: string; tenantId?: string }): Promise<string> {
+	async createToken(tokenData: { user_id: string; expires: ISODateString; type: string; tenantId?: string }): Promise<string> {
 		// Get user email (required for token creation)
 		const user = await this.getUserById(tokenData.user_id, tokenData.tenantId);
 		if (!user) throw new Error('User not found');
@@ -424,7 +426,7 @@ export class Auth {
 				return null;
 			}
 
-			const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+			const expiresAt = dateToISODateString(new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
 			const session = await this.createSession({ user_id: user._id, expires: expiresAt, tenantId });
 
 			await this.sessionStore.set(session._id, user, expiresAt);

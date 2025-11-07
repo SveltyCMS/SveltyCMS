@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	//    Only return non-sensitive information needed for display.
 	return {
 		user: {
-			username: user.username
+			email: user.email
 		}
 	};
 };

@@ -39,7 +39,6 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger';
 	// — Types —
 	type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 	type ButtonVariant = 'primary' | 'secondary' | 'error' | 'ghost' | 'text' | 'outline';

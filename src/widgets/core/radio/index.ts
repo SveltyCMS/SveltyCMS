@@ -35,7 +35,7 @@ const validationSchema = (field: FieldInstance & RadioProps) => {
 };
 
 // Create the widget definition using the factory.
-const RadioWidget = createWidget<RadioProps, ReturnType<typeof validationSchema>>({
+const RadioWidget = createWidget<RadioProps>({
 	Name: 'Radio',
 	Icon: 'mdi:radiobox-marked',
 	Description: m.widget_radio_description(),

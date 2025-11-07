@@ -15,7 +15,7 @@
 import type { FieldInstance } from '@src/content/types';
 import * as m from '@src/paraglide/messages';
 import { createWidget } from '@src/widgets/factory';
-import { check, object, optional, string, type InferInput as ValibotInput } from 'valibot';
+import { object, optional, pipe, string, custom, type InferInput } from 'valibot';
 import type { RichTextProps } from './types';
 
 // Helper to check if HTML content is effectively empty.
@@ -35,10 +35,14 @@ const validationSchema = (field: FieldInstance) => {
 		content: string() // HTML content.
 	});
 
-	// If the field is required, use `check` to check if the content is truly empty.
+	// If the field is required, validate that content is not empty
 	if (field.required) {
-		return check(schema, (data) => !isContentEmpty(data.content), {
-			message: 'Content is required.'
+		return object({
+			title: string(),
+			content: pipe(
+				string(),
+				custom((input) => !isContentEmpty(input as string), 'Content is required.')
+			)
 		});
 	}
 
@@ -46,7 +50,7 @@ const validationSchema = (field: FieldInstance) => {
 };
 
 // Create the widget definition using the factory.
-const RichTextWidget = createWidget<RichTextProps, ReturnType<typeof validationSchema>>({
+const RichTextWidget = createWidget<RichTextProps>({
 	Name: 'RichText',
 	Icon: 'mdi:format-pilcrow-arrow-right',
 	Description: m.widget_richText_description(),
@@ -70,4 +74,4 @@ export default RichTextWidget;
 
 // Export helper types.
 export type FieldType = ReturnType<typeof RichTextWidget>;
-export type RichTextWidgetData = Input<ReturnType<typeof validationSchema>>;
+export type RichTextWidgetData = InferInput<ReturnType<typeof validationSchema>>;

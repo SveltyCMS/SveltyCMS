@@ -26,7 +26,7 @@ import type { BaseEntity, ContentNode as ContentNodeType, DatabaseId, ISODateStr
 import type { User, Session, Token, Role } from './auth/types';
 import type { WebsiteToken } from './schemas';
 
-export type { BaseEntity, DatabaseId, Schema, User, Session, Token, Role };
+export type { BaseEntity, ContentNodeType, DatabaseId, ISODateString, Schema, User, Session, Token, Role, WebsiteToken };
 
 export type ContentNode = ContentNodeType;
 
@@ -166,7 +166,7 @@ export interface MediaItem extends BaseEntity {
 	size: number;
 	mimeType: string;
 	folderId?: DatabaseId; // Reference to SystemVirtualFolder for organization
-	thumbnails: Record<string, string | number | undefined>;
+	thumbnails: Record<string, { url: string; width: number; height: number } | undefined>;
 	metadata: MediaMetadata;
 	createdBy: DatabaseId;
 	updatedBy: DatabaseId;
@@ -361,25 +361,25 @@ export interface IDBAdapter {
 		// Combined Performance-Optimized Methods
 		createUserAndSession(
 			userData: Partial<User>,
-			sessionData: { expires: Date; tenantId?: string }
+			sessionData: { expires: ISODateString; tenantId?: string }
 		): Promise<DatabaseResult<{ user: User; session: Session }>>;
 		deleteUserAndSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<{ deletedUser: boolean; deletedSessionCount: number }>>;
 
 		// Session Management Methods
-		createSession(sessionData: { user_id: string; expires: Date; tenantId?: string }): Promise<DatabaseResult<Session>>;
-		updateSessionExpiry(session_id: string, newExpiry: Date): Promise<DatabaseResult<Session>>;
+		createSession(sessionData: { user_id: string; expires: ISODateString; tenantId?: string }): Promise<DatabaseResult<Session>>;
+		updateSessionExpiry(session_id: string, newExpiry: ISODateString): Promise<DatabaseResult<Session>>;
 		deleteSession(session_id: string): Promise<DatabaseResult<void>>;
 		deleteExpiredSessions(): Promise<DatabaseResult<number>>;
 		validateSession(session_id: string): Promise<DatabaseResult<User | null>>;
 		invalidateAllUserSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<void>>;
 		getActiveSessions(user_id: string, tenantId?: string): Promise<DatabaseResult<Session[]>>;
 		getAllActiveSessions(tenantId?: string): Promise<DatabaseResult<Session[]>>;
-		getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: Date; user_id: string } | null>>;
-		rotateToken(oldToken: string, expires: Date): Promise<DatabaseResult<string>>;
+		getSessionTokenData(session_id: string): Promise<DatabaseResult<{ expiresAt: ISODateString; user_id: string } | null>>;
+		rotateToken(oldToken: string, expires: ISODateString): Promise<DatabaseResult<string>>;
 		cleanupRotatedSessions?(): Promise<DatabaseResult<number>>;
 
 		// Token Management Methods
-		createToken(data: { user_id: string; email: string; expires: Date; type: string; tenantId?: string }): Promise<DatabaseResult<string>>;
+		createToken(data: { user_id: string; email: string; expires: ISODateString; type: string; tenantId?: string }): Promise<DatabaseResult<string>>;
 		updateToken(token_id: string, tokenData: Partial<Token>, tenantId?: string): Promise<DatabaseResult<Token>>;
 		validateToken(
 			token: string,
@@ -418,7 +418,7 @@ export interface IDBAdapter {
 		update(themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>>; // Update a theme
 		getAllThemes(): Promise<Theme[]>; // Get all themes
 		storeThemes(themes: Theme[]): Promise<void>; // Store multiple themes
-		getDefaultTheme(tenantId?: string): Promise<Theme | null>; // Get the default theme for a tenant
+		getDefaultTheme(tenantId?: string): Promise<DatabaseResult<Theme | null>>; // Get the default theme for a tenant
 	};
 
 	// Widget System
@@ -580,7 +580,7 @@ export interface IDBAdapter {
 		getMetrics(): Promise<DatabaseResult<PerformanceMetrics>>;
 		clearMetrics(): Promise<DatabaseResult<void>>;
 		enableProfiling(enabled: boolean): Promise<DatabaseResult<void>>;
-		getSlowQueries(limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: Date }>>>;
+		getSlowQueries(limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>>;
 	};
 
 	// Caching Layer Integration
@@ -624,6 +624,7 @@ export interface IDBAdapter {
 
 // Type alias for backward compatibility
 export type DatabaseAdapter = IDBAdapter;
+export type dbInterface = IDBAdapter;
 
 /** Virtual Folder Types **/
 export interface SystemVirtualFolder extends BaseEntity {

@@ -48,10 +48,10 @@ export default TextStyle.extend({
 		return {
 			...this.parent?.(),
 			setFontSize:
-				(fontSize) =>
+				(fontSize: string) =>
 				({ chain }) => {
-					// Convert numbers to string to ensure consistent handling
-					const size = typeof fontSize === 'number' ? fontSize.toString() : fontSize;
+					// Ensure fontSize is a string
+					const size = String(fontSize);
 					return chain().focus().setMark(this.name, { fontSize: size }).run();
 				},
 			unsetFontSize:

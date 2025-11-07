@@ -70,7 +70,7 @@ export interface RevisionData {
 	entryId: string;
 	collectionId: string;
 	data: Record<string, unknown>;
-	timestamp: string;
+	timestamp: ISODateString;
 	userId?: string;
 	operation?: 'create' | 'update' | 'delete' | 'status_change';
 	tenantId?: string;
@@ -241,8 +241,8 @@ export interface SystemPreferencesDocument {
 	layoutId: string; // Layout identifier
 	layout: Layout; // Complete layout configuration
 	scope: 'user' | 'system' | 'widget'; // Preference scope
-	createdAt: Date; // Creation timestamp
-	updatedAt: Date; // Last update timestamp
+	createdAt: ISODateString; // Creation timestamp
+	updatedAt: ISODateString; // Last update timestamp
 }
 
 export interface DropIndicator {

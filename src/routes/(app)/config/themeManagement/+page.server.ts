@@ -18,7 +18,6 @@ import type { PageServerLoad } from './$types';
 // Auth
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-
 // System Logs
 import { logger } from '@utils/logger.server';
 

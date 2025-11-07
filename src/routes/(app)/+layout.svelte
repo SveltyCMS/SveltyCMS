@@ -278,7 +278,7 @@
 <svelte:head>
 	<!-- Dark Mode Initialization (CSP-compliant with nonce) -->
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-	{@html '<script nonce="' + data.nonce + '">(' + setInitialClassState.toString() + ')();</script>'}
+	{@html '<script nonce="' + (data?.nonce || '') + '">(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!-- Basic SEO -->
 	<meta name="description" content={seoDescription} />

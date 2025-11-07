@@ -48,35 +48,37 @@ import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
 import { getPublicSettingSync, getPrivateSettingSync } from '@src/services/settingsService';
 import { logger } from '@utils/logger.server';
 import type { FieldDefinition } from '@src/content/types';
+import type { User } from '@src/databases/auth/types';
 
 export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 	const { user, tenantId, dbAdapter } = locals;
+	const typedUser = user as User; // Explicitly cast user to User type
 	const { language, collection } = params;
 
+	// =================================================================
+	// 1. PRE-FLIGHT CHECKS & REDIRECTS (moved outside try-catch)
+	// =================================================================
+	if (!user) {
+		throw redirect(302, '/login');
+	}
+
+	const collectionNameOnly = collection?.split('/').pop();
+	const systemPages = ['config', 'user', 'dashboard', 'imageEditor', 'email-previews'];
+	if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
+		throw redirect(302, `/${collectionNameOnly}${url.search}`);
+	}
+
+	const availableLanguages = getPublicSettingSync('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
+	if (typedUser?.locale && typedUser.locale !== language && availableLanguages.includes(typedUser.locale)) {
+		const newPath = url.pathname.replace(`/${language}/`, `/${typedUser.locale}/`);
+		throw redirect(302, newPath);
+	}
+
+	if (typedUser.lastAuthMethod === 'token') {
+		throw redirect(302, '/user');
+	}
+
 	try {
-		// =================================================================
-		// 1. PRE-FLIGHT CHECKS & REDIRECTS (from original file)
-		// =================================================================
-		if (!user) {
-			throw redirect(302, '/login');
-		}
-
-		const collectionNameOnly = collection?.split('/').pop();
-		const systemPages = ['config', 'user', 'dashboard', 'imageEditor', 'email-previews'];
-		if (collectionNameOnly && systemPages.includes(collectionNameOnly)) {
-			throw redirect(302, `/${collectionNameOnly}${url.search}`);
-		}
-
-		const availableLanguages = getPublicSettingSync('AVAILABLE_CONTENT_LANGUAGES') || ['en'];
-		if (user?.systemLanguage && user.systemLanguage !== language && availableLanguages.includes(user.systemLanguage)) {
-			const newPath = url.pathname.replace(`/${language}/`, `/${user.systemLanguage}/`);
-			throw redirect(302, newPath);
-		}
-
-		if (user.lastAuthMethod === 'token') {
-			throw redirect(302, '/user');
-		}
-
 		// =================================================================
 		// 2. GET COLLECTION SCHEMA
 		// =================================================================
@@ -164,6 +166,10 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		}
 
 		// Build the query with search support
+		if (!dbAdapter) {
+			logger.error('Database adapter is not available.', { tenantId });
+			throw error(500, 'Database adapter is not available.');
+		}
 		let query = dbAdapter.queryBuilder(collectionTableName).where(finalFilter);
 
 		// Add global search across all collection fields if search term provided
@@ -193,10 +199,12 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 			searchableFields.push('_id', 'status', 'createdBy', 'updatedBy');
 
 			logger.debug(`[Global Search] Searching for "${globalSearch}" across fields: ${searchableFields.join(', ')}`);
-			query = query.search(globalSearch, searchableFields as unknown as (keyof unknown)[]);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			query = query.search(globalSearch, searchableFields as any);
 		}
 
-		query = query.sort(sortParams.field, sortParams.direction).paginate({ page, pageSize });
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		query = query.sort(sortParams.field as any, sortParams.direction).paginate({ page, pageSize });
 
 		// Build count query (must include same filters and search)
 		let countQuery = dbAdapter.queryBuilder(collectionTableName).where(finalFilter);
@@ -208,18 +216,23 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 				})
 				.filter((name): name is string => typeof name === 'string');
 			searchableFields.push('_id', 'status', 'createdBy', 'updatedBy');
-			countQuery = countQuery.search(globalSearch, searchableFields as unknown as (keyof unknown)[]);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			countQuery = countQuery.search(globalSearch, searchableFields as any);
 		}
 
 		const [entriesResult, countResult] = await Promise.all([query.execute(), countQuery.count()]);
 
 		if (!entriesResult.success || !countResult.success) {
-			const dbError = entriesResult.error || countResult.error || 'Unknown database error';
+			const dbError =
+				(!entriesResult.success && 'error' in entriesResult ? entriesResult.error : undefined) ||
+				(!countResult.success && 'error' in countResult ? countResult.error : undefined) ||
+				'Unknown database error';
 			logger.error('Failed to load collection entries.', { error: dbError });
 			throw error(500, `Failed to load collection entries: ${dbError}`);
 		}
 
-		const entries = entriesResult.data;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const entries = (entriesResult.data || []) as any[];
 		const totalItems = countResult.data;
 
 		// =================================================================
@@ -228,9 +241,11 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		if (entries.length > 0) {
 			await modifyRequest({
 				data: entries,
-				fields: currentCollection.fields,
-				collection: currentCollection,
-				user,
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				fields: currentCollection.fields as any,
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				collection: currentCollection as any,
+				user: typedUser,
 				type: 'GET',
 				tenantId
 			});
@@ -251,14 +266,27 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		if (!editEntryId) {
 			for (let i = 0; i < entries.length; i++) {
 				const entry = entries[i];
-				for (const field of currentCollection.fields) {
-					const fieldName = field.db_fieldName || field.label;
-					if (field.translated && entry[fieldName] && typeof entry[fieldName] === 'object' && !Array.isArray(entry[fieldName])) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				for (const field of currentCollection.fields as any[]) {
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const fieldName = (field as any).db_fieldName || (field as any).label;
+					if (
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(field as any).translated &&
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(entry as any)[fieldName] &&
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						typeof (entry as any)[fieldName] === 'object' &&
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						!Array.isArray((entry as any)[fieldName])
+					) {
 						// ENTERPRISE BEHAVIOR: Show only the requested language
 						// If translation doesn't exist, show clear indicator instead of fallback language
 						// This prevents confusion and clearly shows which content needs translation
-						const value = entry[fieldName][language];
-						entry[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const value = ((entry as any)[fieldName] as any)[language];
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						(entry as any)[fieldName] = value !== undefined && value !== null && value !== '' ? value : '-';
 					}
 				}
 			}
@@ -299,12 +327,12 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 		const returnData = {
 			theme: locals.theme,
 			user: {
-				_id: locals.user?._id,
-				username: locals.user?.username,
-				email: locals.user?.email,
-				role: locals.user?.role,
-				avatar: locals.user?.avatar,
-				systemLanguage: locals.user?.systemLanguage
+				_id: typedUser?._id,
+				username: typedUser?.username,
+				email: typedUser?.email,
+				role: typedUser?.role,
+				avatar: typedUser?.avatar,
+				locale: typedUser?.locale
 			},
 			isAdmin: locals.isAdmin,
 			hasManageUsersPermission: locals.hasManageUsersPermission,

@@ -126,7 +126,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 			return json({ success: true, message: 'No avatar to remove.' });
 		} // Remove the avatar URL from the user's profile.
 
-		await auth.updateUserAttributes(targetUserId, { avatar: null }, tenantId);
+		await auth.updateUserAttributes(targetUserId, { avatar: undefined }, tenantId);
 		logger.info('User avatar attribute removed from profile.', { userId: targetUserId, removedBy: currentUser._id, tenantId });
 
 		// Invalidate cache for users list so UI updates

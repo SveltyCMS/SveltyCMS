@@ -51,14 +51,16 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		requiredWidgets.push(...Array.from(widgetSet));
 
+		const collectionCount = Object.keys(allCollections).length;
+
 		logger.trace('Analyzed collection widget dependencies', {
 			tenantId,
-			collectionsAnalyzed: collectionNames.length,
+			collectionsAnalyzed: collectionCount,
 			requiredWidgets: Array.from(requiredWidgets)
 		});
 		return json({
 			requiredWidgets,
-			collectionsAnalyzed: Object.keys(allCollections).length,
+			collectionsAnalyzed: collectionCount,
 			tenantId
 		});
 	} catch (err) {

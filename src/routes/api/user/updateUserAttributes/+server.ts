@@ -32,7 +32,7 @@ import { auth } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 
 // Input validation
-import { email, maxLength, minLength, object, optional, parse, pipe, string, type BaseSchema, type ValiError } from 'valibot';
+import { email, maxLength, minLength, object, optional, parse, pipe, string } from 'valibot';
 
 // Define the base schema for user data. The 'role' is handled separately for security.
 const baseUserDataSchema = object({
@@ -93,7 +93,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		}
 
 		// **SECURITY FEATURE**: Prevent users from changing their own role
-		let schemaToUse: BaseSchema = baseUserDataSchema;
+		let schemaToUse = baseUserDataSchema;
 		if (newUserData.role) {
 			if (isEditingSelf) {
 				// If a user tries to submit a 'role' change for themselves, throw an error.
@@ -163,9 +163,9 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		});
 	} catch (err) {
 		// Handle specific validation errors from Valibot.
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
+		if (err instanceof Error && err.name === 'ValiError') {
+			const valiError = err as unknown as { issues: Array<{ message: string }> };
+			const issues = valiError.issues.map((issue: { message: string }) => issue.message).join(', ');
 			logger.warn('Invalid input for updateUserAttributes API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);
 		}

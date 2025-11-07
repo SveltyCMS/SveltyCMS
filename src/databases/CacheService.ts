@@ -176,12 +176,12 @@ class RedisStore implements ICacheStore {
 
 	async clearByPattern(pattern: string): Promise<void> {
 		await this.ensureReady();
-		let cursor: number | string = 0;
+		let cursor: string = '0';
 		do {
 			const result = await this.client!.scan(cursor, { MATCH: pattern, COUNT: 100 });
-			cursor = result.cursor; // Keep it as-is (Redis returns it in the format it expects next)
+			cursor = result.cursor; // Redis returns cursor as string
 			if (result.keys.length > 0) await this.client!.del(result.keys);
-		} while (cursor !== 0 && cursor !== '0');
+		} while (cursor !== '0');
 	}
 
 	async disconnect(): Promise<void> {

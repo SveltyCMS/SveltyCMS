@@ -24,7 +24,9 @@ functionality for image editing and basic file information display.
 
 <script lang="ts">
 	import type { FieldType } from '.';
+	import type { ISODateString } from '@src/content/types';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+	import { isoDateStringToDate } from '@utils/dateUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -123,8 +125,10 @@ functionality for image editing and basic file information display.
 	};
 
 	// Helper function to get timestamp
-	function getTimestamp(date: Date | number): number {
-		return typeof date === 'number' ? date : date.getTime();
+	function getTimestamp(date: Date | number | ISODateString): number {
+		if (typeof date === 'number') return date;
+		if (typeof date === 'string') return isoDateStringToDate(date as ISODateString).getTime();
+		return date.getTime();
 	}
 </script>
 
@@ -150,14 +154,14 @@ functionality for image editing and basic file information display.
 
 					<p class="text-left">
 						{m.widget_ImageUpload_Size()}
-						<span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
+						<span class="text-tertiary-500 dark:text-primary-500">{((_data.size ?? 0) / 1024).toFixed(2)} KB</span>
 					</p>
 				</div>
 				<!-- Image -->
 				<div class="flex items-center justify-between">
 					{#if !isFlipped}
 						<img
-							src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails.sm.url}
+							src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails?.sm?.url || _data.url}
 							alt=""
 							class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
 						/>

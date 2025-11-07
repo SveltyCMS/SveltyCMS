@@ -30,7 +30,7 @@
 
 // Mongoose and core types
 import mongoose, { type FilterQuery } from 'mongoose';
-import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError } from '../dbInterface';
+import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError, ISODateString } from '../dbInterface';
 
 // All Mongoose Models
 import {
@@ -423,7 +423,7 @@ export class MongoDBAdapter implements IDBAdapter {
 					}
 				}
 			},
-			getDefaultTheme: async () => await this._themes.getDefault()
+			getDefaultTheme: async () => this._wrapResult(() => this._themes.getDefault())
 		};
 
 		// WIDGETS
@@ -1104,7 +1104,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			await mongoose.connection.db.setProfilingLevel(level);
 			return { success: true, data: undefined };
 		},
-		getSlowQueries: async (limit = 10): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: Date }>>> => {
+		getSlowQueries: async (limit = 10): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>> => {
 			if (!mongoose.connection.db) {
 				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
 			}
@@ -1114,7 +1114,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				return {
 					query: JSON.stringify(doc.command),
 					duration: doc.millis,
-					timestamp: doc.ts
+					timestamp: doc.ts.toISOString() as ISODateString
 				};
 			});
 			return { success: true, data: slowQueries };

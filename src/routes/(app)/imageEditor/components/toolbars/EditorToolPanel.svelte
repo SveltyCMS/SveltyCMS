@@ -177,7 +177,7 @@ Provides a clean interface for tool parameters and quick actions.
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.editor-tool-panel {
 		@apply flex w-80 flex-col border-l;
 		@apply transition-all duration-300 ease-in-out;
@@ -290,7 +290,9 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.shortcut-item {
-		@apply flex items-center justify-between;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 	}
 
 	/* Custom kbd styling */
@@ -332,7 +334,7 @@ Provides a clean interface for tool parameters and quick actions.
 	/* Smooth scrolling */
 	.panel-content {
 		scrollbar-width: thin;
-		scrollbar-color: theme(colors.surface.400) transparent;
+		scrollbar-color: rgb(var(--color-surface-400) / 1) transparent;
 	}
 
 	.panel-content::-webkit-scrollbar {
@@ -344,11 +346,11 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.panel-content::-webkit-scrollbar-thumb {
-		background: theme(colors.surface.400);
+		background: rgb(var(--color-surface-400) / 1);
 		border-radius: 2px;
 	}
 
 	.panel-content::-webkit-scrollbar-thumb:hover {
-		background: theme(colors.surface.500);
+		background: rgb(var(--color-surface-500) / 1);
 	}
 </style>

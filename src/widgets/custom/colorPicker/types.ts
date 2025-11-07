@@ -3,8 +3,8 @@
  * @description Type definitions for the ColorPicker widget.
  *
  * @features
- * - **Strictly Typed**: Uses `Record<string, never>` for a truly empty object type.
+ * - **Strictly Typed**: Satisfies WidgetProps constraint with index signature.
  */
 
 // Defines the properties unique to the ColorPicker widget.
-export type ColorPickerProps = Record<string, never>;
+export type ColorPickerProps = Record<string, unknown>;

@@ -143,7 +143,8 @@ const ImageResize = ImageExtension.extend({
 
 	addNodeView() {
 		return ({ editor, node, getPos }) => {
-			const nodeAttrs = node.attrs as Record<string, unknown>;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const nodeAttrs = (node as any).attrs as Record<string, unknown>;
 			nodeAttrs._ = null;
 
 			const container = document.createElement('div');
@@ -200,13 +201,16 @@ const ImageResize = ImageExtension.extend({
 				document.removeEventListener('mousemove', onDrag);
 				document.removeEventListener('mouseup', onStopDrag);
 				if (typeof getPos === 'function') {
-					editor.view.dispatch(
-						editor.view.state.tr.setNodeMarkup(getPos(), undefined, {
-							...nodeAttrs,
-							w: resizer.style.width,
-							h: resizer.style.height
-						})
-					);
+					const pos = getPos();
+					if (pos !== undefined) {
+						editor.view.dispatch(
+							editor.view.state.tr.setNodeMarkup(pos, undefined, {
+								...nodeAttrs,
+								w: resizer.style.width,
+								h: resizer.style.height
+							})
+						);
+					}
 				}
 			};
 
@@ -253,7 +257,7 @@ function knobDrag(
 	e.stopPropagation();
 
 	// Check if shift key is pressed to preserve aspect ratio
-	const preserveAspectRatio = e.shiftKey;
+	const shouldPreserveAspectRatio = e.shiftKey;
 
 	knob.setPointerCapture(e.pointerId);
 	knob.onpointermove = (e) => {
@@ -263,7 +267,7 @@ function knobDrag(
 			const newWidth = currentWidth + dx;
 			resizer.style.width = `${newWidth}px`;
 			nodeAttrs.w = `${newWidth}px`;
-			preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, e.shiftKey);
+			preserveAspectRatio(resizer, nodeAttrs, `${newWidth}px`, shouldPreserveAspectRatio);
 		} else {
 			const currentHeight = parseInt(resizer.style.height, 10);
 			const dy = side === 'top' ? e.movementY * -1 : e.movementY;

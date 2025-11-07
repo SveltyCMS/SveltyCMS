@@ -8,7 +8,6 @@ import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const { user } = locals;
@@ -29,9 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Widget name is required');
 		}
 
-		const actualTenantId = tenantId || user.tenantId || 'default-tenant';
-
-		// TODO: Implement widget uninstallation logic
+		const actualTenantId = tenantId || locals.tenantId || 'default-tenant'; // TODO: Implement widget uninstallation logic
 		// 1. Check if widget is currently active (must be deactivated first)
 		// 2. Check for dependencies (other widgets depending on this one)
 		// 3. Remove widget files from tenant directory

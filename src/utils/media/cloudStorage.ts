@@ -31,6 +31,7 @@ import type { StorageType } from './mediaModels';
 // Cloud storage configuration interface
 export interface CloudStorageConfig {
 	storageType: StorageType;
+	bucketName?: string; // <-- ADDED: Explicit bucket name
 	mediaFolder: string; // Used as path prefix in all storage types
 	region?: string;
 	endpoint?: string;
@@ -45,17 +46,16 @@ export function getCloudStorageConfig(): CloudStorageConfig {
 	const storageType = getPublicSettingSync('MEDIA_STORAGE_TYPE') as StorageType;
 	const mediaFolder = getPublicSettingSync('MEDIA_FOLDER') || '';
 
-	// Normalize media folder - remove ./ prefix but keep as-is for cloud (it's the bucket prefix)
-	const normalizedFolder =
-		storageType === 'local' ? mediaFolder.replace(/^\.\//, '') : mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, ''); // Remove leading/trailing slashes for cloud
+	// Normalize media folder - remove ./ prefix and any leading/trailing slashes
+	const normalizedFolder = mediaFolder.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
 
 	return {
 		storageType,
-		mediaFolder: normalizedFolder,
+		bucketName: getPublicSettingSync('MEDIA_BUCKET_NAME') as string | undefined, // Explicitly cast to string | undefined
+		mediaFolder: normalizedFolder, // This is NOW JUST a prefix
 		region: getPublicSettingSync('MEDIA_CLOUD_REGION'),
 		endpoint: getPublicSettingSync('MEDIA_CLOUD_ENDPOINT'),
 		publicUrl: getPublicSettingSync('MEDIA_CLOUD_PUBLIC_URL') || getPublicSettingSync('MEDIASERVER_URL'),
-		// Access keys should be set via environment variables for security
 		accessKeyId: process.env.MEDIA_ACCESS_KEY_ID,
 		secretAccessKey: process.env.MEDIA_SECRET_ACCESS_KEY,
 		cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME
@@ -71,20 +71,14 @@ export function isCloudStorage(): boolean {
 /**
  * Construct full cloud path with MEDIA_FOLDER prefix
  * @param relativePath - Path relative to media folder (e.g., "avatars/image.avif")
- * @returns Full path including MEDIA_FOLDER prefix
+ * @returns Full path including MEDIA_FOLDER prefix (e.g., "cms-media/avatars/image.avif")
  */
 export function getCloudPath(relativePath: string): string {
 	const config = getCloudStorageConfig();
-
-	// Remove leading slash from relative path
 	const cleanPath = relativePath.replace(/^\/+/, '');
-
-	// If no media folder prefix, return as-is
 	if (!config.mediaFolder) {
 		return cleanPath;
 	}
-
-	// Combine media folder with relative path
 	return `${config.mediaFolder}/${cleanPath}`;
 }
 
@@ -127,6 +121,7 @@ export async function uploadToCloud(buffer: Buffer, relativePath: string): Promi
 		throw error(500, 'uploadToCloud called with local storage type');
 	}
 
+	// S3/R2 use the full path (prefix + relative) as the Key
 	const fullPath = getCloudPath(relativePath);
 
 	logger.debug('Uploading to cloud storage', {
@@ -139,10 +134,14 @@ export async function uploadToCloud(buffer: Buffer, relativePath: string): Promi
 	switch (config.storageType) {
 		case 's3':
 		case 'r2':
-			return await uploadToS3Compatible(buffer, fullPath, config);
+			// Pass the FULL path (e.g., "cms-media/avatars/image.avif")
+			await uploadToS3Compatible(buffer, fullPath, config);
+			return getCloudUrl(relativePath); // Return public URL
 
 		case 'cloudinary':
-			return await uploadToCloudinary(buffer, fullPath, config);
+			// Pass the RELATIVE path (e.g., "avatars/image.avif")
+			// Cloudinary combines `folder` and `public_id` itself
+			return await uploadToCloudinary(buffer, relativePath, config);
 
 		default:
 			throw error(500, `Unsupported storage type: ${config.storageType}`);
@@ -175,7 +174,8 @@ export async function deleteFromCloud(relativePath: string): Promise<void> {
 			break;
 
 		case 'cloudinary':
-			await deleteFromCloudinary(fullPath, config);
+			// Pass relative path
+			await deleteFromCloudinary(relativePath, config);
 			break;
 
 		default:
@@ -202,7 +202,7 @@ export async function cloudFileExists(relativePath: string): Promise<boolean> {
 			return await s3FileExists(fullPath, config);
 
 		case 'cloudinary':
-			return await cloudinaryFileExists(fullPath, config);
+			return await cloudinaryFileExists(relativePath, config);
 
 		default:
 			return false;
@@ -211,12 +211,15 @@ export async function cloudFileExists(relativePath: string): Promise<boolean> {
 
 // ==================== S3/R2 Implementation ====================
 
-async function uploadToS3Compatible(buffer: Buffer, key: string, config: CloudStorageConfig): Promise<string> {
-	// Lazy load AWS SDK only when needed
+async function uploadToS3Compatible(buffer: Buffer, key: string, config: CloudStorageConfig): Promise<void> {
 	const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
 
 	if (!config.accessKeyId || !config.secretAccessKey) {
 		throw error(500, 'S3 credentials not configured. Set MEDIA_ACCESS_KEY_ID and MEDIA_SECRET_ACCESS_KEY environment variables.');
+	}
+	if (!config.bucketName) {
+		// <-- CHECK for bucket name
+		throw error(500, 'S3 storage configured but MEDIA_BUCKET_NAME is not set.');
 	}
 
 	const client = new S3Client({
@@ -229,24 +232,19 @@ async function uploadToS3Compatible(buffer: Buffer, key: string, config: CloudSt
 	});
 
 	try {
-		// For R2 and S3, the bucket name is derived from the endpoint or publicUrl
-		// The key already includes the full path with MEDIA_FOLDER prefix
 		const command = new PutObjectCommand({
-			Bucket: config.mediaFolder.split('/')[0], // First part is bucket name
-			Key: key.replace(/^[^/]+\//, ''), // Remove bucket name from key if present
+			Bucket: config.bucketName, // <-- Use config.bucketName
+			Key: key, // <-- Use the full path as the key
 			Body: buffer,
 			ContentType: getMimeType(key)
 		});
 
 		await client.send(command);
-
 		logger.info('File uploaded to S3/R2', { key, size: buffer.length });
-
-		// Return public URL
-		return getCloudUrl(key);
 	} catch (err) {
 		logger.error('Failed to upload to S3/R2', { key, error: err });
-		throw error(500, `Failed to upload to cloud storage: ${err.message}`);
+		const message = err instanceof Error ? err.message : String(err);
+		throw error(500, `Failed to upload to cloud storage: ${message}`);
 	}
 }
 
@@ -255,6 +253,9 @@ async function deleteFromS3Compatible(key: string, config: CloudStorageConfig): 
 
 	if (!config.accessKeyId || !config.secretAccessKey) {
 		throw error(500, 'S3 credentials not configured');
+	}
+	if (!config.bucketName) {
+		throw error(500, 'S3 storage configured but MEDIA_BUCKET_NAME is not set.');
 	}
 
 	const client = new S3Client({
@@ -268,15 +269,16 @@ async function deleteFromS3Compatible(key: string, config: CloudStorageConfig): 
 
 	try {
 		const command = new DeleteObjectCommand({
-			Bucket: config.mediaFolder.split('/')[0],
-			Key: key.replace(/^[^/]+\//, '')
+			Bucket: config.bucketName, // <-- Use config.bucketName
+			Key: key // <-- Use the full path as the key
 		});
 
 		await client.send(command);
 		logger.info('File deleted from S3/R2', { key });
 	} catch (err) {
 		logger.error('Failed to delete from S3/R2', { key, error: err });
-		throw error(500, `Failed to delete from cloud storage: ${err.message}`);
+		const message = err instanceof Error ? err.message : String(err);
+		throw error(500, `Failed to delete from cloud storage: ${message}`);
 	}
 }
 
@@ -284,6 +286,9 @@ async function s3FileExists(key: string, config: CloudStorageConfig): Promise<bo
 	const { S3Client, HeadObjectCommand } = await import('@aws-sdk/client-s3');
 
 	if (!config.accessKeyId || !config.secretAccessKey) {
+		return false;
+	}
+	if (!config.bucketName) {
 		return false;
 	}
 
@@ -298,8 +303,8 @@ async function s3FileExists(key: string, config: CloudStorageConfig): Promise<bo
 
 	try {
 		const command = new HeadObjectCommand({
-			Bucket: config.mediaFolder.split('/')[0],
-			Key: key.replace(/^[^/]+\//, '')
+			Bucket: config.bucketName, // <-- Use config.bucketName
+			Key: key // <-- Use the full path as the key
 		});
 
 		await client.send(command);
@@ -311,8 +316,8 @@ async function s3FileExists(key: string, config: CloudStorageConfig): Promise<bo
 
 // ==================== Cloudinary Implementation ====================
 
-async function uploadToCloudinary(buffer: Buffer, publicId: string, config: CloudStorageConfig): Promise<string> {
-	// Lazy load Cloudinary SDK only when needed
+// Pass RELATIVE path here (e.g., "avatars/image.avif")
+async function uploadToCloudinary(buffer: Buffer, relativePath: string, config: CloudStorageConfig): Promise<string> {
 	const cloudinary = await import('cloudinary').then((m) => m.v2);
 
 	if (!config.cloudinaryCloudName) {
@@ -325,19 +330,25 @@ async function uploadToCloudinary(buffer: Buffer, publicId: string, config: Clou
 		api_secret: process.env.CLOUDINARY_API_SECRET
 	});
 
+	// Remove extension from relative path for public_id
+	const publicId = relativePath.replace(/\.[^.]+$/, '');
+
 	return new Promise((resolve, reject) => {
 		const uploadStream = cloudinary.uploader.upload_stream(
 			{
-				public_id: publicId.replace(/\.[^.]+$/, ''), // Remove extension for Cloudinary
-				folder: config.mediaFolder,
+				public_id: publicId, // e.g., "avatars/image"
+				folder: config.mediaFolder, // e.g., "cms-media"
 				resource_type: 'auto'
 			},
 			(error, result) => {
 				if (error) {
 					logger.error('Failed to upload to Cloudinary', { publicId, error });
 					reject(new Error(`Failed to upload to Cloudinary: ${error.message}`));
+				} else if (!result) {
+					logger.error('Failed to upload to Cloudinary: No result returned', { publicId });
+					reject(new Error('Failed to upload to Cloudinary: No result returned'));
 				} else {
-					logger.info('File uploaded to Cloudinary', { publicId, url: result.secure_url });
+					logger.info('File uploaded to Cloudinary', { publicId: result.public_id, url: result.secure_url });
 					resolve(result.secure_url);
 				}
 			}
@@ -347,7 +358,8 @@ async function uploadToCloudinary(buffer: Buffer, publicId: string, config: Clou
 	});
 }
 
-async function deleteFromCloudinary(publicId: string, config: CloudStorageConfig): Promise<void> {
+// Pass RELATIVE path here
+async function deleteFromCloudinary(relativePath: string, config: CloudStorageConfig): Promise<void> {
 	const cloudinary = await import('cloudinary').then((m) => m.v2);
 
 	if (!config.cloudinaryCloudName) {
@@ -360,8 +372,11 @@ async function deleteFromCloudinary(publicId: string, config: CloudStorageConfig
 		api_secret: process.env.CLOUDINARY_API_SECRET
 	});
 
+	// Construct the full public_id (folder + relative path without extension)
+	const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, '')}`;
+
 	try {
-		await cloudinary.uploader.destroy(publicId.replace(/\.[^.]+$/, ''));
+		await cloudinary.uploader.destroy(publicId);
 		logger.info('File deleted from Cloudinary', { publicId });
 	} catch (err) {
 		logger.error('Failed to delete from Cloudinary', { publicId, error: err });
@@ -369,7 +384,8 @@ async function deleteFromCloudinary(publicId: string, config: CloudStorageConfig
 	}
 }
 
-async function cloudinaryFileExists(publicId: string, config: CloudStorageConfig): Promise<boolean> {
+// Pass RELATIVE path here
+async function cloudinaryFileExists(relativePath: string, config: CloudStorageConfig): Promise<boolean> {
 	const cloudinary = await import('cloudinary').then((m) => m.v2);
 
 	if (!config.cloudinaryCloudName) {
@@ -382,8 +398,10 @@ async function cloudinaryFileExists(publicId: string, config: CloudStorageConfig
 		api_secret: process.env.CLOUDINARY_API_SECRET
 	});
 
+	const publicId = `${config.mediaFolder}/${relativePath.replace(/\.[^.]+$/, '')}`;
+
 	try {
-		await cloudinary.api.resource(publicId.replace(/\.[^.]+$/, ''));
+		await cloudinary.api.resource(publicId);
 		return true;
 	} catch {
 		return false;

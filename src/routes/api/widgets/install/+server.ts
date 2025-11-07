@@ -8,7 +8,6 @@ import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const { user } = locals;

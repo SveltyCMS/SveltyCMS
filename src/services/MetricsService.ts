@@ -255,6 +255,13 @@ class MetricsService {
 		this.counters.security.cspViolations++;
 	}
 
+	/**
+	 * Increment security violations counter.
+	 */
+	incrementSecurityViolations(): void {
+		this.counters.security.cspViolations++; // Using CSP counter for now, can be extended
+	}
+
 	// --- PERFORMANCE METRICS ---
 
 	/**

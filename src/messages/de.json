@@ -65,6 +65,7 @@
 	"button_save": "Speichern",
 	"button_send": "Schicken",
 	"button_test": "Prüfen",
+	"button_Collections": "Sammlungen",
 	"cannot_disable_dependency": "Kann nicht deaktiviert werden: Andere Widgets sind davon abhängig",
 	"clear_search": "Suche löschen",
 	"clone_entry_body": "Möchten Sie diesen Eintrag wirklich klonen? Es wird eine neue Kopie erstellt.",

@@ -31,7 +31,7 @@ async function getDbAdapter(): Promise<IDBAdapter> {
 type AuditDetails = Record<string, string | number | boolean | null | undefined>;
 
 // Audit log entry interface extending BaseEntity
-export interface AuditLogEntry extends Omit<BaseEntity, 'id'> {
+export interface AuditLogEntry extends Omit<BaseEntity, 'id' | 'created_at'> {
 	id?: DatabaseId;
 	eventType: AuditEventType;
 	severity: AuditSeverity;
@@ -131,7 +131,7 @@ export class AuditLogService {
 	async logEvent(entry: Omit<AuditLogEntry, 'timestamp' | 'id' | 'created_at' | 'updated_at'>): Promise<void> {
 		try {
 			const db = await getDbAdapter();
-			const auditEntry: Omit<AuditLogEntry, 'id'> = {
+			const auditEntry: Omit<AuditLogEntry, 'id'> & { created_at?: string; updated_at?: string } = {
 				...entry,
 				timestamp: new Date().toISOString(),
 				created_at: new Date().toISOString(),
@@ -208,9 +208,7 @@ export class AuditLogService {
 		}
 	}
 
-	/**
-	 * Get audit statistics for dashboard
-	 */
+	// Get audit statistics for dashboard
 	async getStatistics(days: number = 30): Promise<DatabaseResult<AuditStatistics>> {
 		try {
 			const db = await getDbAdapter();
@@ -273,9 +271,7 @@ export class AuditLogService {
 		}
 	}
 
-	/**
-	 * Get recent suspicious activities
-	 */
+	// Get recent suspicious activities
 	async getSuspiciousActivities(limit: number = 50): Promise<DatabaseResult<AuditLogEntry[]>> {
 		const suspiciousEventTypes: AuditEventType[] = [
 			AuditEventType.USER_LOGIN_FAILED,
@@ -293,9 +289,7 @@ export class AuditLogService {
 		});
 	}
 
-	/**
-	 * Clean up old audit logs based on retention policy
-	 */
+	// Clean up old audit logs based on retention policy
 	async cleanupOldLogs(retentionDays: number = 365): Promise<void> {
 		try {
 			const db = await getDbAdapter();
@@ -317,9 +311,7 @@ export class AuditLogService {
 		}
 	}
 
-	/**
-	 * Initialize database indexes for optimal performance
-	 */
+	// Initialize database indexes for optimal performance
 	private async initializeIndexes(): Promise<void> {
 		try {
 			// Note: Index creation will be handled by the database adapter
@@ -339,29 +331,3 @@ export const logAuditEvent = auditLogService.logEvent.bind(auditLogService);
 export const queryAuditLogs = auditLogService.queryLogs.bind(auditLogService);
 export const getAuditStatistics = auditLogService.getStatistics.bind(auditLogService);
 export const getSuspiciousActivities = auditLogService.getSuspiciousActivities.bind(auditLogService);
-
-/**
- * Example usage:
- *
- * // Log a user login event
- * await logAuditEvent({
- *   eventType: AuditEventType.USER_LOGIN,
- *   severity: 'low',
- *   actorId: user.id,
- *   actorEmail: user.email,
- *   action: 'User successfully logged in',
- *   details: { loginMethod: 'email' },
- *   ipAddress: request.ip,
- *   result: 'success'
- * });
- *
- * // Query recent failed login attempts
- * const failedLogins = await queryAuditLogs({
- *   eventTypes: [AuditEventType.USER_LOGIN_FAILED],
- *   severity: 'medium',
- *   startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
- * });
- *
- * // Get dashboard statistics
- * const stats = await getAuditStatistics(7); // Last 7 days
- */

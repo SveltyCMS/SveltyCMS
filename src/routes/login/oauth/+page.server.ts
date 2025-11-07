@@ -5,6 +5,7 @@
 
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import type { ISODateString } from '@src/content/types';
 
 // Auth
 import { google } from 'googleapis';
@@ -22,7 +23,8 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 // Stores
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
-import { systemLanguage, type Locale } from '@stores/store.svelte';
+import type { Locale } from '@src/paraglide/runtime';
+import { systemLanguage } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
 // System Logger
@@ -142,7 +144,11 @@ async function handleGoogleUser(
 	}
 
 	if (googleUser.locale) {
-		systemLanguage.set(googleUser.locale);
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE || 'en']) as Locale[];
+		const locale = googleUser.locale as Locale;
+		if (supportedLocales.includes(locale)) {
+			systemLanguage.set(locale);
+		}
 	}
 
 	if (!auth) {
@@ -177,14 +183,14 @@ async function handleGoogleUser(
 			const userData = {
 				email,
 				username: googleUser.name ?? '',
-				firstName: googleUser.given_name,
-				lastName: googleUser.family_name,
-				avatar: avatarUrl,
+				firstName: googleUser.given_name ?? undefined,
+				lastName: googleUser.family_name ?? undefined,
+				avatar: avatarUrl ?? undefined,
 				role: inviteRole,
 				lastAuthMethod: 'google',
 				isRegistered: true,
 				blocked: false,
-				googleRefreshToken: refreshToken
+				googleRefreshToken: refreshToken ?? undefined
 			};
 
 			logger.debug('Creating invited user with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
@@ -204,27 +210,26 @@ async function handleGoogleUser(
 			if (googleUser.picture) avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
 			// Create the first user (admin)
 
-			// Get admin role from auth adapter (which has access to tenant-aware roles)
-			const adminRoleId = await auth?.getAdminRoleId();
-			if (!adminRoleId) throw new Error('Admin role not found in roles configuration');
+			// Get admin role from roles list
+			const roles = await auth?.getAllRoles();
+			const adminRole = roles?.find((r) => r.isAdmin);
+			if (!adminRole) throw new Error('Admin role not found in roles configuration');
 
 			const userData = {
 				email,
 				username: googleUser.name ?? '',
-				firstName: googleUser.given_name,
-				lastName: googleUser.family_name,
-				avatar: avatarUrl,
-				role: adminRoleId,
+				firstName: googleUser.given_name ?? undefined,
+				lastName: googleUser.family_name ?? undefined,
+				avatar: avatarUrl ?? undefined,
+				role: adminRole._id,
 				lastAuthMethod: 'google',
 				isRegistered: true,
 				blocked: false,
-				googleRefreshToken: refreshToken
+				googleRefreshToken: refreshToken ?? undefined
 			};
 
 			logger.debug('Creating first user (admin) with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
-			user = await auth?.createUser(userData, true);
-
-			// Invalidate user count cache after first user (admin) creation
+			user = await auth?.createUser(userData, true); // Invalidate user count cache after first user (admin) creation
 			invalidateUserCountCache();
 
 			// Send welcome email for new admin
@@ -241,7 +246,7 @@ async function handleGoogleUser(
 		}
 
 		// Always update user attributes (even if avatar is null, to ensure other fields are updated)
-		const updateData = {
+		const updateData: Record<string, unknown> = {
 			email,
 			lastAuthMethod: 'google',
 			firstName: googleUser.given_name ?? user.firstName ?? '',
@@ -256,15 +261,19 @@ async function handleGoogleUser(
 		}
 
 		logger.debug('Updating user attributes:', updateData);
+		if (!auth) throw new Error('Auth system not initialized');
 		await auth.updateUserAttributes(user._id.toString(), updateData);
 		logger.debug(`Updated user attributes for: \x1b[34m${user._id}\x1b[0m`);
 	}
 
 	if (!user?._id) throw new Error('User ID is missing after creation or retrieval');
 	// Create User Session and set cookie
-	const session = await auth?.createSession({ user_id: user._id });
-	const sessionCookie = auth?.createSessionCookie(session._id);
-	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+	if (!auth) throw new Error('Auth system not initialized');
+	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+	const session = await auth.createSession({ user_id: user._id, expires: expiresAt.toISOString() as ISODateString });
+	const sessionCookie = auth.createSessionCookie(session._id);
+	const cookieAttributes = sessionCookie.attributes as Record<string, unknown>;
+	cookies.set(sessionCookie.name, sessionCookie.value, { ...cookieAttributes, path: '/' });
 }
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
@@ -294,7 +303,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 				const authUrl = await generateGoogleAuthUrl(token, 'consent');
 				redirect(302, authUrl);
 			} else {
-				throw error(400, { message: 'OAuth Authentication Failed', details: `${error_param}: ${error_subtype || 'Unknown error'}` });
+				throw error(400, `OAuth Authentication Failed: ${error_param}: ${error_subtype || 'Unknown error'}`);
 			}
 		}
 
@@ -320,6 +329,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		// Process OAuth callback
 		try {
+			if (!code) throw error(400, 'Authorization code missing');
 			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
 			// Create a fresh OAuth client instance specifically for token exchange
@@ -360,32 +370,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			logger.error('OAuth callback processing error:', { error: err, stack: err instanceof Error ? err.stack : undefined, code, token });
 			// Provide more specific error messages based on the error type
 			if (errorMessage.includes('A valid invitation is required')) {
-				throw error(403, {
-					message: 'Admin Invitation Required',
-					details: 'This CMS requires an invitation from an administrator to create any new account.'
-				});
+				throw error(403, 'Admin Invitation Required: This CMS requires an invitation from an administrator to create any new account.');
 			}
 			if (errorMessage.includes('invitation is invalid, expired, or has already been used')) {
-				throw error(403, {
-					message: 'Invalid or Expired Invitation',
-					details: 'Your invitation token is invalid, expired, or has already been used.'
-				});
+				throw error(403, 'Invalid or Expired Invitation: Your invitation token is invalid, expired, or has already been used.');
 			}
 			if (errorMessage.includes('Google account email does not match the invitation email')) {
-				throw error(403, {
-					message: 'Google Account Email Mismatch',
-					details: 'The Google account email does not match the invitation email address.'
-				});
+				throw error(403, 'Google Account Email Mismatch: The Google account email does not match the invitation email address.');
 			}
 			// Provide more detailed error information
-			const errorDetails = err instanceof Error ? err.stack : 'No stack trace available';
-			throw error(500, {
-				message: 'OAuth Processing Failed',
-				details: errorMessage,
-				stack: errorDetails,
-				code: code ? 'Present' : 'Missing',
-				token: token ? 'Present' : 'Missing'
-			});
+			throw error(500, `OAuth Processing Failed: ${errorMessage}`);
 		}
 	} catch (err) {
 		// Check if this is a redirect (which is expected and successful)
@@ -402,14 +396,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
 		logger.error('Comprehensive OAuth Error:', { message: errorMessage, stack: err instanceof Error ? err.stack : 'No stack trace', fullError: err });
 		// Provide more detailed error information for the user
-		throw error(500, {
-			message: 'OAuth Authentication Failed',
-			details: errorMessage,
-			type: err instanceof Error ? err.constructor.name : 'Unknown Error Type'
-		});
+		throw error(500, `OAuth Authentication Failed: ${errorMessage}`);
 	}
 
-	throw error(500, { message: 'OAuth Authentication Failed', details: 'Unexpected end of OAuth flow' });
+	throw error(500, 'OAuth Authentication Failed: Unexpected end of OAuth flow');
 };
 
 export const actions: Actions = {

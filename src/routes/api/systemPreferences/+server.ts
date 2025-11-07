@@ -19,13 +19,14 @@
 
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { hasPermissionByAction } from '@src/databases/auth/permissions';
 import { logger } from '@utils/logger.server';
 import * as v from 'valibot';
 
 // Validation Schemas
 const PreferenceSchema = v.object({
-	key: v.string([v.minLength(1, 'Preference key cannot be empty.')]),
+	key: v.pipe(v.string(), v.minLength(1, 'Preference key cannot be empty.')),
 	value: v.any()
 });
 
@@ -33,7 +34,7 @@ const SetSinglePreferenceSchema = PreferenceSchema;
 const SetMultiplePreferencesSchema = v.array(PreferenceSchema);
 
 // GET Handler for retrieving one or more preferences
-export const GET = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
 		logger.warn('Unauthorized attempt to load system preferences');
 		return json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,7 +52,11 @@ export const GET = async ({ locals, url }) => {
 	try {
 		// Handle request for multiple keys
 		if (multipleKeys.length > 0) {
-			const result = await dbAdapter.systemPreferences.getMany(multipleKeys, 'user', userId);
+			if (!dbAdapter) {
+				throw new Error('Database adapter not available');
+			}
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await dbAdapter.systemPreferences.getMany(multipleKeys, 'user', userId as any);
 			if (!result.success) {
 				throw new Error(result.message);
 			}
@@ -60,7 +65,11 @@ export const GET = async ({ locals, url }) => {
 
 		// Handle request for a single key
 		if (singleKey) {
-			const result = await dbAdapter.systemPreferences.get(singleKey, 'user', userId);
+			if (!dbAdapter) {
+				throw new Error('Database adapter not available');
+			}
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await dbAdapter.systemPreferences.get(singleKey, 'user', userId as any);
 			if (!result.success) {
 				// Return a default value for layout preferences to prevent UI breakage
 				if (singleKey.startsWith('dashboard.layout.')) {
@@ -80,7 +89,7 @@ export const GET = async ({ locals, url }) => {
 };
 
 // POST Handler for creating or updating one or more preferences
-export const POST = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
 		logger.warn('Unauthorized attempt to save system preferences');
 		return json({ error: 'Unauthorized' }, { status: 401 });
@@ -98,8 +107,12 @@ export const POST = async ({ request, locals }) => {
 		// Try parsing as a single preference
 		const singleResult = v.safeParse(SetSinglePreferenceSchema, data);
 		if (singleResult.success) {
+			if (!dbAdapter) {
+				throw new Error('Database adapter not available');
+			}
 			const { key, value } = singleResult.output;
-			const result = await dbAdapter.systemPreferences.set(key, value, 'user', userId);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await dbAdapter.systemPreferences.set(key, value, 'user', userId as any);
 			if (!result.success) throw new Error(result.message);
 			return json({ success: true, message: `Preference '${key}' saved.` }, { status: 200 });
 		}
@@ -107,7 +120,11 @@ export const POST = async ({ request, locals }) => {
 		// Try parsing as multiple preferences
 		const multipleResult = v.safeParse(SetMultiplePreferencesSchema, data);
 		if (multipleResult.success) {
-			const preferencesToSet = multipleResult.output.map((p) => ({ ...p, scope: 'user' as const, userId }));
+			if (!dbAdapter) {
+				throw new Error('Database adapter not available');
+			}
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const preferencesToSet = multipleResult.output.map((p) => ({ ...p, scope: 'user' as const, userId: userId as any }));
 			const result = await dbAdapter.systemPreferences.setMany(preferencesToSet);
 			if (!result.success) throw new Error(result.message);
 			return json({ success: true, message: `${preferencesToSet.length} preferences saved.` }, { status: 200 });
@@ -124,7 +141,7 @@ export const POST = async ({ request, locals }) => {
 };
 
 // DELETE Handler for removing a preference
-export const DELETE = async ({ locals, url }) => {
+export const DELETE: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
 		logger.warn('Unauthorized attempt to delete a system preference');
 		return json({ error: 'Unauthorized' }, { status: 401 });
@@ -143,7 +160,11 @@ export const DELETE = async ({ locals, url }) => {
 	const userId = locals.user._id;
 
 	try {
-		const result = await dbAdapter.systemPreferences.delete(key, 'user', userId);
+		if (!dbAdapter) {
+			throw new Error('Database adapter not available');
+		}
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const result = await dbAdapter.systemPreferences.delete(key, 'user', userId as any);
 		if (!result.success) {
 			// It might not be an error if the key didn't exist, but we log it just in case.
 			logger.warn(`Attempted to delete non-existent preference key '${key}' for user ${userId}`);

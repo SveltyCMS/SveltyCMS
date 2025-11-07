@@ -15,7 +15,7 @@
  */
 
 import { logger } from '@utils/logger';
-import type { Layout, Schema } from '@src/content/types';
+import type { Layout, Schema, FieldInstance } from '@src/content/types';
 
 /**
  * Validate widgets in a collection schema
@@ -90,8 +90,8 @@ function extractWidgetsFromSchema(schema: Schema): string[] {
 		if (field.widget) {
 			if (typeof field.widget === 'string') {
 				widgets.push(field.widget);
-			} else if (field.widget.type) {
-				widgets.push(field.widget.type);
+			} else if (typeof field.widget === 'object' && 'Name' in field.widget) {
+				widgets.push(field.widget.Name);
 			}
 		}
 	}
@@ -133,8 +133,10 @@ export function canSafelyDeactivateWidget(
 	// Check collections
 	for (const schema of allSchemas) {
 		const schemaWidgets = extractWidgetsFromSchema(schema);
-		if (schemaWidgets.includes(widgetName)) {
-			usedInCollections.push(schema.name);
+		if (widgetName && schemaWidgets.includes(widgetName)) {
+			if (schema.name) {
+				usedInCollections.push(schema.name);
+			}
 		}
 	}
 
@@ -179,12 +181,14 @@ export function getAffectedCollections(widgetName: string, schemas: Schema[]): s
 
 	for (const schema of schemas) {
 		const schemaWidgets = extractWidgetsFromSchema(schema);
-		if (schemaWidgets.includes(widgetName)) {
-			affected.push(schema.name);
-			logger.trace('[WidgetValidation] Widget used in collection', {
-				widget: widgetName,
-				collection: schema.name
-			});
+		if (widgetName && schemaWidgets.includes(widgetName)) {
+			if (schema.name) {
+				affected.push(schema.name);
+				logger.trace('[WidgetValidation] Widget used in collection', {
+					widget: widgetName,
+					collection: schema.name
+				});
+			}
 		}
 	}
 
@@ -227,14 +231,15 @@ export function validateCollectionForRendering(
 	const fieldsWithIssues: Array<{ fieldName: string; widget: string; issue: string }> = [];
 
 	// Check each field for widget issues
-	for (const field of schema.fields || []) {
-		if (field.widget && !activeWidgets.includes(field.widget)) {
+	for (const field of (schema.fields || []) as FieldInstance[]) {
+		const widgetName = typeof field.widget === 'string' ? field.widget : field.widget?.Name;
+		if (widgetName && !activeWidgets.includes(widgetName)) {
 			const fieldName = field.db_fieldName || field.label || 'unknown';
-			const issue = `Widget "${field.widget}" is inactive or missing. Content for this field cannot be rendered.`;
+			const issue = `Widget "${widgetName}" is inactive or missing. Content for this field cannot be rendered.`;
 
 			fieldsWithIssues.push({
 				fieldName,
-				widget: field.widget,
+				widget: widgetName,
 				issue
 			});
 

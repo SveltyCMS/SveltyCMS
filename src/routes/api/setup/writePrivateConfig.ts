@@ -1,6 +1,9 @@
 /**
  * @file src/routes/api/setup/writePrivateConfig.ts
  * @description Utility to write private.ts configuration file during setup
+ *
+ * ### Features
+ * - Writes database credentials and security keys to private.ts
  */
 
 import type { DatabaseConfig } from '@src/databases/schemas';

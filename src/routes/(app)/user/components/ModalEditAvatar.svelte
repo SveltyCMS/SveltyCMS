@@ -27,7 +27,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { showToast } from '@utils/toast';
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
 
@@ -162,7 +162,24 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 		try {
 			parse(avatarSchema, { file });
-			await uploadAvatar(file);
+
+			// Show confirmation if replacing existing avatar
+			if (avatarSrc.value && avatarSrc.value !== '/Default_User.svg') {
+				const confirmModal = {
+					type: 'confirm' as const,
+					title: 'Replace Avatar',
+					body: 'Are you sure you want to replace your current avatar?',
+					response: async (confirmed: boolean) => {
+						if (confirmed) {
+							await uploadAvatar(file);
+						}
+					}
+				};
+				modalStore.trigger(confirmModal);
+			} else {
+				// No existing avatar, upload directly
+				await uploadAvatar(file);
+			}
 		} catch (error) {
 			if ((error as ValiError<typeof avatarSchema>).issues) {
 				const valiError = error as ValiError<typeof avatarSchema>;
@@ -250,6 +267,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			}
 		} catch (error) {
 			logger.error('Error uploading avatar:', error);
+
+			// Log detailed error information
+			if (axios.isAxiosError(error)) {
+				logger.error('Server response:', error.response?.data);
+				logger.error('Status:', error.response?.status);
+			}
+
 			const msg = axios.isAxiosError(error) && error.response?.data?.message ? error.response.data.message : 'Failed to update avatar';
 			showToast(`<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${msg}`, 'error');
 			// Reset preview on error
@@ -260,26 +284,71 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		}
 	}
 
-	// Delete avatar
+	// Delete avatar with confirmation
 	async function deleteAvatar(): Promise<void> {
+		logger.info('deleteAvatar function called');
+
+		// Use a Promise to wait for the user's response
+		const confirmed = await new Promise<boolean>((resolve) => {
+			const confirmModal: ModalSettings = {
+				type: 'confirm',
+				title: 'Delete Avatar',
+				body: 'Are you sure you want to delete your avatar? This action cannot be undone.',
+				response: (r: boolean) => {
+					logger.info('Confirmation response received:', r);
+					resolve(r);
+				}
+			};
+			logger.info('Triggering confirmation modal');
+			modalStore.trigger(confirmModal);
+		});
+
+		// If user cancelled, return early
+		if (!confirmed) {
+			logger.info('Delete cancelled by user');
+			return;
+		}
+
+		// User confirmed - proceed with deletion
 		try {
-			// Send the current avatar URL from the store in case DB is out of sync
 			const currentAvatar = avatarSrc.value;
+			logger.info('Attempting to delete avatar:', currentAvatar);
 
 			const response = await axios.delete('/api/user/deleteAvatar', {
 				data: { avatarUrl: currentAvatar }
 			});
-			if (response.status === 200) {
-				avatarSrc.value = '/Default_User.svg';
 
+			logger.info('Delete response:', response.data);
+
+			if (response.status === 200 && response.data.success) {
+				// Update the avatar store
+				avatarSrc.value = '/Default_User.svg';
+				previewUrl = null;
+
+				// Show success message
 				showToast('<iconify-icon icon="radix-icons:avatar" color="white" width="24" class="mr-1"></iconify-icon> Avatar Deleted', 'success');
 
-				modalStore.close();
-				await invalidateAll(); // Reload the page data to get the updated user object
+				// Close ALL modals (confirmation + avatar modal)
+				modalStore.clear();
+
+				// Reload page data
+				await invalidateAll();
+			} else {
+				throw new Error(response.data.message || 'Delete failed');
 			}
 		} catch (error) {
 			logger.error('Error deleting avatar:', error);
-			showToast('<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> Failed to delete avatar', 'error');
+
+			if (axios.isAxiosError(error)) {
+				logger.error('Server response:', error.response?.data);
+				logger.error('Status:', error.response?.status);
+			}
+
+			const msg = axios.isAxiosError(error) && error.response?.data?.message ? error.response.data.message : 'Failed to delete avatar';
+
+			showToast(`<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> ${msg}`, 'error');
+
+			// On error, user stays in avatar modal (confirmation modal auto-closes)
 		}
 	}
 
@@ -371,7 +440,15 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
 			{#if avatarSrc.value !== '/Default_User.svg'}
-				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
+				<button
+					type="button"
+					onclick={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						deleteAvatar();
+					}}
+					class="variant-filled-error btn"
+				>
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>
 				</button>

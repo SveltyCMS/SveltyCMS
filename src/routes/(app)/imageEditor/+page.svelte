@@ -30,7 +30,7 @@ This page serves as a demo and testing environment for the image editor.
 	};
 </script>
 
-<PageTitle title="Image Editor" />
+<PageTitle name="Image Editor" />
 
 <div class="wrapper h-screen w-full">
 	<div class="flex h-full w-full flex-col">

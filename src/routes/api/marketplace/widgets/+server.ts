@@ -8,7 +8,6 @@ import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
 
-
 // Mock marketplace widgets - replace with actual marketplace API integration
 const MARKETPLACE_WIDGETS = [
 	{

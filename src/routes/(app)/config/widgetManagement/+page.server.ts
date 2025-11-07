@@ -30,10 +30,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m}`);
 
-		// Check user permission for widget management using cached tenantRoles from locals
-		const hasWidgetPermission = tenantRoles.some((role) =>
-			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('widgetManagement'))
-		);
+		// Check user permission for widget management
+		// Permissions are stored as strings like 'config:widgetManagement:manage'
+		const hasWidgetPermission = user.permissions?.includes('config:widgetManagement:manage') || tenantRoles.some((role) => role.isAdmin);
 
 		if (!hasWidgetPermission) {
 			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access widget management`;
@@ -42,7 +41,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Get tenant information for multi-tenant widget management
-		const tenantId = user.tenantId || 'default-tenant';
+		// Note: tenantId is not on the user object, it's in locals
+		const tenantId = locals.tenantId || 'default-tenant';
 
 		// Load installed widgets for this tenant
 		const installedWidgets: string[] = [];
@@ -53,16 +53,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			logger.warn(`Failed to load installed widgets for tenant ${tenantId}:`, error);
 		}
 
-		// Check additional widget permissions using cached tenantRoles
-		const canInstallWidgets = tenantRoles.some((role) =>
-			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('widgetInstall'))
-		);
-		const canUninstallWidgets = tenantRoles.some((role) =>
-			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('widgetUninstall'))
-		);
-		const canManageMarketplace = tenantRoles.some((role) =>
-			role.permissions?.some((p) => p.resource === 'config' && p.actions.includes('marketplace'))
-		);
+		// Check additional widget permissions
+		// Permissions are stored as strings in user.permissions array
+		const canInstallWidgets = user.permissions?.includes('config:widgetInstall:manage') || tenantRoles.some((role) => role.isAdmin);
+		const canUninstallWidgets = user.permissions?.includes('config:widgetUninstall:manage') || tenantRoles.some((role) => role.isAdmin);
+		const canManageMarketplace = user.permissions?.includes('config:marketplace:manage') || tenantRoles.some((role) => role.isAdmin);
 
 		// Return user data and widget management context
 		const { _id, ...rest } = user;

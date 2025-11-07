@@ -36,6 +36,15 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Check authentication
+		if (!locals.user) {
+			throw error(401, 'Unauthorized');
+		}
+
+		if (!auth) {
+			throw error(500, 'Authentication system not available');
+		}
+
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
 		const targetUserId = (formData.get('userId') as string) || (formData.get('user_id') as string) || locals.user._id; // Default to self if no userId provided

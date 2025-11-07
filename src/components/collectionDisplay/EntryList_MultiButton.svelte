@@ -52,7 +52,6 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Components
-	import { showCloneModal, showScheduleModal, showStatusChangeConfirm } from '@utils/modalUtils';
 	import ScheduleModal from './ScheduleModal.svelte';
 
 	// ParaglideJS

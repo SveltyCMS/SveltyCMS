@@ -65,6 +65,7 @@
 	"button_save": "Save",
 	"button_send": "Send",
 	"button_test": "Test",
+	"button_Collections": "Collections",
 	"cannot_disable_dependency": "Cannot disable: other widgets depend on this",
 	"clear_search": "Clear search",
 	"clone_entry_body": "Are you sure you want to clone this entry? A new copy will be created.",

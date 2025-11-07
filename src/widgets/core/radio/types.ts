@@ -8,7 +8,7 @@
  */
 
 // Defines a single option for the radio group.
-interface RadioOption {
+export interface RadioOption {
 	label: string;
 	value: string | number;
 }
@@ -19,4 +19,7 @@ export interface RadioProps {
 	options: RadioOption[];
 	// Legend text for the radio group
 	legend?: string;
+
+	// Index signature to satisfy WidgetProps constraint
+	[key: string]: unknown;
 }

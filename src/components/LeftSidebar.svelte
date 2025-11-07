@@ -277,7 +277,7 @@
 
 		<!-- Toggle to Collections Button -->
 		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-2 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				setMode('view');
 				navigateTo(firstCollectionPath);
@@ -287,7 +287,7 @@
 			<iconify-icon icon="bi:arrow-left" width="18" class="text-error-500"></iconify-icon>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
-				<span class="text-sm">Collections</span>
+				<span class="">{m.button_Collections()} </span>
 			{:else}
 				<iconify-icon icon="bi:collection" width="18" class="text-error-500"></iconify-icon>
 			{/if}
@@ -297,7 +297,7 @@
 
 		<!-- Toggle to Media Gallery Button -->
 		<button
-			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-3 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			class="btn mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-surface-500 py-4 transition-all duration-200 hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				setMode('media');
 				navigateTo('/mediagallery');
@@ -306,7 +306,7 @@
 		>
 			{#if isSidebarFull}
 				<iconify-icon icon="bi:images" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<span class="text-sm">{m.Collections_MediaGallery()}</span>
+				<span class="">{m.Collections_MediaGallery()}</span>
 				<iconify-icon icon="bi:arrow-right" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			{:else}
 				<iconify-icon icon="bi:images" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>

@@ -61,8 +61,8 @@ const config = {
 					'https://api.simplesvg.com',
 					'https://placehold.co',
 					'https://api.qrserver.com',
-				'https://github.com',
-				'https://raw.githubusercontent.com'
+					'https://github.com',
+					'https://raw.githubusercontent.com'
 				],
 				'font-src': ['self', 'data:'],
 				'connect-src': [

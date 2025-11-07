@@ -29,9 +29,11 @@ import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // System Logger
 import { logger } from '@utils/logger.server';
+import { dateToISODateString } from '@src/utils/dateUtils';
+import type { ISODateString } from '@src/content/types';
 
 // Input validation
-import { object, string, optional, parse, type ValiError, minLength, picklist } from 'valibot';
+import { object, string, optional, parse, type ValiError, minLength, picklist, type Issue } from 'valibot';
 
 // Define the allowed expiration values for consistency with the creation endpoint.
 const allowedExpirationValues = ['2 hrs', '12 hrs', '2 days', '1 week'] as const;
@@ -85,7 +87,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 
-		const dataToUpdate: { role?: string; expires?: Date } = {};
+		const dataToUpdate: { role?: string; expires?: ISODateString } = {};
 
 		// If a new role is provided, validate it exists.
 		if (newTokenData.role) {
@@ -105,7 +107,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 				'1 week': 604800
 			};
 			const seconds = expirationInSeconds[newTokenData.expires];
-			dataToUpdate.expires = new Date(Date.now() + seconds * 1000);
+			dataToUpdate.expires = dateToISODateString(new Date(Date.now() + seconds * 1000));
 		}
 		// Update the token with the sanitized and validated data.
 		const updatedToken = await auth.updateToken(tokenId, dataToUpdate);
@@ -128,9 +130,9 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		});
 	} catch (err) {
 		// Handle specific validation errors from Valibot.
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
+		if (err instanceof Error && err.name === 'ValiError') {
+			const valiError = err as ValiError<typeof editTokenSchema>;
+			const issues = valiError.issues.map((issue: Issue) => issue.message).join(', ');
 			logger.warn('Invalid input for editToken API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);
 		}

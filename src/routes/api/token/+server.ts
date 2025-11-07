@@ -61,7 +61,7 @@ export const POST: RequestHandler = async (event) => {
 			if (err.name === 'ValiError') {
 				const validationErrors = err.issues?.map((issue) => `${issue.path?.join('.')}: ${issue.message}`) || ['Invalid data'];
 				logger.warn(`Token creation validation failed`, {
-					userId: user?._id,
+					userId: locals.user?._id,
 					validationErrors,
 					providedFields: Object.keys(body || {})
 				});
@@ -84,7 +84,7 @@ export const POST: RequestHandler = async (event) => {
 			const targetUser = await auth.getUserById(tokenData.user_id);
 			if (!targetUser || targetUser.tenantId !== tenantId) {
 				logger.warn('Attempt to create a token for a user in another tenant.', {
-					adminId: user?._id,
+					adminId: locals.user?._id,
 					adminTenantId: tenantId,
 					targetUserId: tokenData.user_id,
 					targetTenantId: targetUser?.tenantId
@@ -100,7 +100,7 @@ export const POST: RequestHandler = async (event) => {
 			targetEmail: tokenData.email,
 			role: tokenData.role,
 			expiresIn: tokenData.expiresIn,
-			createdBy: user?._id,
+			createdBy: locals.user?._id,
 			tenantId
 		});
 
@@ -108,7 +108,7 @@ export const POST: RequestHandler = async (event) => {
 			user_id: tokenData.user_id,
 			...(getPrivateSettingSync('MULTI_TENANT') && { tenantId }), // Conditionally add tenantId
 			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
-			expires: expiresAt,
+			expires: expiresAt.toISOString(),
 			type: 'registration' // Or another appropriate type
 		});
 		// Invalidate the tokens cache so the new token appears immediately in admin area
@@ -127,12 +127,12 @@ export const POST: RequestHandler = async (event) => {
 			targetEmail: tokenData.email,
 			role: tokenData.role,
 			expiresAt: expiresAt.toISOString(),
-			createdBy: user?._id,
+			createdBy: locals.user?._id,
 			tenantId
 		});
 
 		return json(responseData, { status: 201 });
-	} catch (err) {
+	} catch (err: any) {
 		if (err.status) {
 			// Re-throw SvelteKit errors (they're already logged)
 			throw err;

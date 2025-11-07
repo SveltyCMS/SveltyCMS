@@ -44,7 +44,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		const serializableUser = {
 			_id: user._id.toString(),
-			username: user.username,
 			email: user.email,
 			role: user.role,
 			permissions: user.permissions
@@ -68,10 +67,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				// - config:settings:database
 				// - config:settings:email
 				// etc.
-				const permissionCheck = await hasPermissionByAction(locals, config);
+				const permissionCheck = await hasPermissionByAction(user, config.action, config.type, config.contextId, locals.roles || []);
 				permissions[config.contextId] = {
-					hasPermission: permissionCheck.hasPermission,
-					isRateLimited: permissionCheck.isRateLimited
+					hasPermission: permissionCheck,
+					isRateLimited: false
 				};
 			}
 		}
