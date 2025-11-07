@@ -73,3 +73,5 @@ src/paraglide/**/*.js
 
 # Internal work tracking (private)
 .work-tracking.md
+.current-status.md
+.client-update-*.md
