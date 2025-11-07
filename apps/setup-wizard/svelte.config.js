@@ -19,7 +19,8 @@ const config = {
 			'@services': '../cms/src/services',
 			'@src': '../cms/src',
 			'@stores': '../cms/src/stores',
-			'@utils': '../shared-utils'
+			'@utils': '../shared-utils',
+			'@sveltycms/shared-config': '../shared-config'
 		}
 	}
 };

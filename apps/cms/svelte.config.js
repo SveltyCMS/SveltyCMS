@@ -41,7 +41,8 @@ const config = {
 			'@themes': './src/themes',
 			'@types': './src/types',
 			'@utils': '../shared-utils',
-			'@widgets': './src/widgets'
+			'@widgets': './src/widgets',
+			'@sveltycms/shared-config': '../shared-config'
 		},
 
 		// Use SvelteKit's built-in CSP support
