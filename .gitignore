@@ -75,3 +75,15 @@ src/paraglide/**/*.js
 .work-tracking.md
 .current-status.md
 .client-update-*.md
+
+# Internal documentation (work tracking, not for client repo)
+.work-tracking.md
+.client-update-day1.md
+.current-status.md
+START_HERE.md
+CIRCULAR_DEPENDENCY_REPORT.md
+REFACTOR_PLAN.md
+REFACTOR_PROGRESS.md
+REFACTOR_COMPLETE_SUMMARY.md
+COMMIT_STRATEGY.md
+.gitignore-docs
