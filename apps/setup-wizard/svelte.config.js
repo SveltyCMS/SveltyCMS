@@ -13,12 +13,12 @@ const config = {
 			'@api': './src/routes/api',
 			'@collections': '../../config/collections',
 			'@config': '../../config',
-			'@components': '../cms/src/components',
+			'@components': './src/components',
 			'@databases': '../cms/src/databases',
 			'@root': '../..',
 			'@services': '../cms/src/services',
 			'@src': '../cms/src',
-			'@stores': '../cms/src/stores',
+			'@stores': './src/stores',
 			'@utils': '../shared-utils',
 			'@sveltycms/shared-config': '../shared-config'
 		}
