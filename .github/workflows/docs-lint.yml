@@ -13,9 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm tsx docs/lint-docs.ts
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run apps/docs/lint-docs.ts
