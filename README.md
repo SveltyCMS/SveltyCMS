@@ -65,111 +65,195 @@ Experience a leap in productivity with DXP seamlessly woven into SveltyCMS. Watc
 
 Footnote: As a headless CMS fortified with GraphQL API, SveltyCMS fully harnesses the potential of DXP, driving functions, ensuring scalability, enhancing adaptability and delivering personalized digital experiences. Empower your development voyage today with the versatile capabilities of SveltyCMS integrated with DXP.
 
-## :rocket: Setup
+## :rocket: Fresh Installation Guide
 
-### Clone the repository
+### Prerequisites
 
-To clone our [repository](https://github.com/SveltyCMS/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
+Before you begin, ensure you have the following installed:
+
+- **Node.js** (v20 or higher) - [Download](https://nodejs.org/en)
+- **Bun** (recommended) - [Install](https://bun.sh)
+- **MongoDB** (v6 or higher) - [Download](https://www.mongodb.com/try/download/community)
+- **Git** - [Download](https://git-scm.com/downloads)
+
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 ```
 
-### Install all dependencies
+### Step 2: Install Dependencies
 
-Install STABLE [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
-
-<details open>
-<summary><b>npm</b></summary>
+We recommend using **Bun** for the best performance:
 
 ```bash
-# Install all dependencies
-npm install
-
-# Development (CLI installer launches automatically if needed)
-npm run dev
-
-# Manual CLI Installer (optional)
-npm run installer
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-</details>
-
-<details>
-<summary><b>pnpm</b></summary>
-
-```bash
-# Install pnpm if you haven't already
-npm install -g pnpm
-
-# Install all dependencies
-pnpm install
-
-# Development (CLI installer launches automatically if needed)
-pnpm run dev
-
-# Manual CLI Installer (optional)
-pnpm run installer
-
-# Build for production
-pnpm run build
-
-# Preview production build
-pnpm run preview
-```
-
-</details>
-
-<details>
-<summary><b>bun</b></summary>
-
-```bash
-# Install bun if you haven't already
+# Install Bun if you haven't already
 curl -fsSL https://bun.sh/install | bash
 
 # Install all dependencies
 bun install
+```
 
-# Development (CLI installer launches automatically if needed)
-bun run dev
+<details>
+<summary>Alternative: Using npm or pnpm</summary>
 
-# Manual CLI Installer (optional)
-bun run installer
+```bash
+# Using npm
+npm install
 
-# Build for production
-bun run build
-
-# Preview production build
-bun run preview
+# Using pnpm
+npm install -g pnpm
+pnpm install
 ```
 
 </details>
 
-### Automated Setup via GUI Setup Installer
+### Step 3: Start MongoDB
 
-SveltyCMS features an intelligent CLI installer that automatically launches when you start the development server without configuration files. The installer handles all setup automatically:
+Ensure MongoDB is running on your system:
 
-- **Smart Detection**: Runs automatically via `vite.config.ts` when config files are missing
-- **Database Configuration**: Choose from MongoDB, PostgreSQL, or SQLite
-- **Admin Account Setup**: Create your first administrator account
-- **Security Configuration**: Automatic generation of secrets and keys
-- **Email & OAuth Setup**: Optional SMTP and Google OAuth configuration
+```bash
+# On Linux/macOS
+sudo systemctl start mongod
 
-Simply run `bun run dev` (or npm/pnpm equivalent) and follow the interactive prompts!
+# On macOS with Homebrew
+brew services start mongodb-community
 
-### Development and Production
+# On Windows
+net start MongoDB
+```
 
-See our `package.json` for more information about development, build, preview, format, lint & testing commands.
+Verify MongoDB is running:
 
-Development server runs on `localhost:5173`
-Preview server runs on `localhost:4173`
+```bash
+mongosh --eval "db.version()"
+```
+
+### Step 4: Run the Setup Wizard
+
+SveltyCMS uses an NX monorepo structure with multiple apps. Start with the setup wizard:
+
+```bash
+# Run the setup wizard
+bun nx run setup-wizard:dev
+```
+
+The setup wizard will open at `http://localhost:5174` and guide you through:
+
+- Database configuration
+- Admin account creation
+- Email settings (optional)
+- Security configuration
+
+### Step 5: Run the CMS
+
+After completing the setup wizard, start the main CMS application:
+
+```bash
+# Run the CMS
+bun nx run cms:dev
+```
+
+The CMS will be available at `http://localhost:5173`
+
+### Quick Start Commands
+
+```bash
+# Run setup wizard
+bun nx run setup-wizard:dev
+
+# Run CMS (after setup)
+bun nx run cms:dev
+
+# Run documentation site
+bun nx run docs:dev
+
+# Build for production
+bun nx run cms:build
+
+# Run all tests
+bun nx run-many --target=test --all
+
+# Lint all projects
+bun nx run-many --target=lint --all
+```
+
+### Monorepo Structure
+
+SveltyCMS uses NX monorepo with the following apps:
+
+```
+apps/
+├── cms/              # Main CMS application
+├── setup-wizard/     # Initial setup wizard
+├── docs/             # Documentation site
+├── shared-config/    # Shared configuration
+├── shared-utils/     # Shared utilities
+└── shared-theme/     # Shared theme
+```
+
+### Common Issues & Solutions
+
+**Issue: MongoDB connection failed**
+
+```bash
+# Solution: Check if MongoDB is running
+sudo systemctl status mongod
+
+# Or start MongoDB
+sudo systemctl start mongod
+```
+
+**Issue: Port already in use**
+
+```bash
+# Solution: Kill the process using the port
+# For port 5173 (CMS)
+lsof -ti:5173 | xargs kill -9
+
+# For port 5174 (Setup Wizard)
+lsof -ti:5174 | xargs kill -9
+```
+
+**Issue: Dependency scan errors**
+
+```bash
+# Solution: Clear caches and reinstall
+rm -rf node_modules/.vite
+rm -rf apps/cms/.svelte-kit
+rm -rf apps/setup-wizard/.svelte-kit
+bun install
+```
+
+**Issue: Build fails**
+
+```bash
+# Solution: Clear NX cache and rebuild
+bun nx reset
+bun install
+bun nx run cms:build
+```
+
+### Environment Configuration
+
+After running the setup wizard, your configuration will be saved in:
+
+- `config/private.ts` - Database and security settings
+- `config/roles.ts` - User roles and permissions
+
+You can manually edit these files if needed.
+
+### Next Steps
+
+After installation:
+
+1. Log in to the CMS at `http://localhost:5173`
+2. Create your first collection
+3. Add content
+4. Access via REST API or GraphQL at `/api/graphql`
+
+For detailed documentation, see our [Documentation](docs/) folder.
 
 ## :lock: Authentication & Security
 
