@@ -12,7 +12,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { logger } from '@utils/logger.svelte';
-import type { DatabaseConfig } from '@src/databases/schemas';
+import type { DatabaseConfig } from '@sveltycms/shared-config/schemas';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

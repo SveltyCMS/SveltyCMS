@@ -3,7 +3,7 @@
  * @description An API endpoint to test MongoDB connections during setup with detailed feedback.
  */
 
-import { databaseConfigSchema, type DatabaseConfig } from '@src/databases/schemas';
+import { databaseConfigSchema, type DatabaseConfig } from '@sveltycms/shared-config/schemas';
 import { logger } from '@utils/logger.svelte';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { exec } from 'child_process';

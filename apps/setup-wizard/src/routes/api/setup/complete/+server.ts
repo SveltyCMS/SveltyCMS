@@ -14,10 +14,11 @@
 import { dev } from '$app/environment';
 
 // Auth
-import type { User, Session } from '@src/databases/schemas';
+import type { User, Session } from '@sveltycms/shared-config/schemas';
+// TODO: Auth class still imports from CMS - needs refactoring
 import { Auth } from '@src/databases/auth';
-import { invalidateSettingsCache } from '@src/services/settingsService';
-import { setupAdminSchema } from '@src/utils/formSchemas';
+import { invalidateSettingsCache } from '../../utils/settingsCache';
+import { setupAdminSchema } from '@utils/formSchemas';
 import { json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import { randomBytes } from 'crypto';
@@ -25,6 +26,7 @@ import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
 // Content Manager for redirects
+// TODO: ContentManager and collectionStore still import from CMS - needs refactoring
 import { contentManager } from '@src/content/ContentManager';
 import type { Locale } from '$paraglide/runtime';
 import { publicEnv } from '@root/config/public';

@@ -3,8 +3,8 @@
  * @description Shared utility functions for the setup API endpoints.
  */
 
-import type { DatabaseConfig } from '@src/databases/schemas';
-import type { IDBAdapter } from '@src/databases/dbInterface';
+import type { DatabaseConfig } from '@sveltycms/shared-config/schemas';
+import type { IDBAdapter } from '@sveltycms/shared-config/dbInterface';
 import { logger } from '@utils/logger.svelte';
 
 /**

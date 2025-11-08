@@ -13,10 +13,10 @@
  *   resulting in faster redirects and better UX after setup completion.
  */
 
-import { publicConfigSchema } from '@src/databases/schemas';
-import type { DatabaseId } from '@src/content/types';
-import type { DatabaseAdapter, Theme } from '@src/databases/dbInterface';
-import { invalidateSettingsCache } from '@src/services/settingsService';
+import { publicConfigSchema } from '@sveltycms/shared-config/schemas';
+import type { DatabaseId } from '@sveltycms/shared-config/types';
+import type { DatabaseAdapter, Theme } from '@sveltycms/shared-config/dbInterface';
+import { invalidateSettingsCache } from '../../utils/settingsCache';
 import { logger } from '@utils/logger.svelte';
 import { dateToISODateString } from '@utils/dateUtils';
 import { safeParse } from 'valibot';
