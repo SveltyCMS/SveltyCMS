@@ -4,9 +4,9 @@
  * Now uses 'theme' cookie with 'dark' | 'light' values.
  */
 import { browser } from '$app/environment';
-import type { Theme } from '@src/databases/dbInterface';
-import { nowISODateString } from '@src/utils/dateUtils';
-import type { ISODateString } from '@src/content/types';
+import type { Theme } from '@sveltycms/shared-config/dbInterface';
+import { nowISODateString } from '@utils/dateUtils';
+import type { ISODateString } from '@sveltycms/shared-config/types';
 import { setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
 
 // --- State Shape ---

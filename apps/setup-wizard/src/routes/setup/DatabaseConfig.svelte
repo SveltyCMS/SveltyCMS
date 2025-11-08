@@ -5,7 +5,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 -->
 <script lang="ts">
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	import * as m from '@src/paraglide/messages';
+	import * as m from '$paraglide/messages';
 	import type { DbConfig } from '@stores/setupStore.svelte';
 
 	// Popup settings (click to toggle)

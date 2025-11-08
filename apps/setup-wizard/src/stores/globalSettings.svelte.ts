@@ -13,7 +13,7 @@
  * - Type-safe access to public configuration
  */
 
-import { publicConfigSchema } from '@src/databases/schemas';
+import { publicConfigSchema } from '@sveltycms/shared-config/schemas';
 import { type InferOutput } from 'valibot';
 
 type PublicEnv = InferOutput<typeof publicConfigSchema> & { PKG_VERSION?: string };

@@ -11,7 +11,7 @@
 -->
 <script lang="ts">
 	import { setupStore } from '@stores/setupStore.svelte';
-	import * as m from '@src/paraglide/messages';
+	import * as m from '$paraglide/messages';
 	import { showToast } from '@utils/toast';
 
 	const { wizard } = setupStore;

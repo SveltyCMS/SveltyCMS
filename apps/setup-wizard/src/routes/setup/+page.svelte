@@ -21,7 +21,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	// Stores
-	import { publicEnv } from '@src/stores/globalSettings.svelte';
+	import { publicEnv } from '@stores/globalSettings.svelte';
 	import { setupStore } from '@stores/setupStore.svelte';
 	import { systemLanguage } from '@stores/store.svelte';
 	// Componets
@@ -35,8 +35,8 @@
 	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
+	import * as m from '$paraglide/messages';
+	import { getLocale } from '$paraglide/runtime';
 	// Utils
 	import { setupAdminSchema } from '@utils/formSchemas';
 	import { getLanguageName } from '@utils/languageUtils';
@@ -172,10 +172,14 @@
 	// --- 5. DERIVED STATE ---
 	const dbConfigFingerprint = $derived<string>(JSON.stringify(wizard.dbConfig));
 	const isFullUri = $derived<boolean>(
-		wizard.dbConfig.host.startsWith('mongodb://') || wizard.dbConfig.host.startsWith('mongodb+srv://') || wizard.dbConfig.type === 'mongodb+srv'
+		wizard.dbConfig.host.startsWith('mongodb://') ||
+			wizard.dbConfig.host.startsWith('mongodb+srv://') ||
+			wizard.dbConfig.type === 'mongodb+srv'
 	);
 	const dbConfigChangedSinceTest = $derived<boolean>(
-		!!lastTestFingerprint && lastTestFingerprint !== dbConfigFingerprint && !!lastDbTestResult?.success
+		!!lastTestFingerprint &&
+			lastTestFingerprint !== dbConfigFingerprint &&
+			!!lastDbTestResult?.success
 	);
 
 	const passwordRequirements = $derived<PasswordRequirements>({
@@ -183,7 +187,9 @@
 		letter: /[a-zA-Z]/.test(wizard.adminUser.password),
 		number: /[0-9]/.test(wizard.adminUser.password),
 		special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(wizard.adminUser.password),
-		match: wizard.adminUser.password === wizard.adminUser.confirmPassword && wizard.adminUser.password !== ''
+		match:
+			wizard.adminUser.password === wizard.adminUser.confirmPassword &&
+			wizard.adminUser.password !== ''
 	});
 
 	// Wizard steps configuration
@@ -198,7 +204,9 @@
 		{ label: m.setup_step_system(), shortDesc: m.setup_step_system_desc() },
 		{
 			label: m.setup_step_email ? m.setup_step_email() : 'Email (Optional)',
-			shortDesc: m.setup_step_email_desc ? m.setup_step_email_desc() : 'Configure SMTP for email functionality'
+			shortDesc: m.setup_step_email_desc
+				? m.setup_step_email_desc()
+				: 'Configure SMTP for email functionality'
 		},
 		{ label: m.setup_step_complete(), shortDesc: m.setup_step_complete_desc() }
 	]);
@@ -223,7 +231,8 @@
 
 	const canProceed = $derived.by<boolean>(() => {
 		if (wizard.currentStep === 0) return wizard.dbTestPassed;
-		if (wizard.currentStep === 1 || wizard.currentStep === 2) return validateStep(wizard.currentStep, false);
+		if (wizard.currentStep === 1 || wizard.currentStep === 2)
+			return validateStep(wizard.currentStep, false);
 		if (wizard.currentStep === 3) return true; // Email step is optional, always can proceed
 		return false;
 	});
@@ -233,7 +242,9 @@
 	const systemLanguages = $derived.by<string[]>(() => {
 		// First try data from server (direct from settings.json)
 		if (data.availableLanguages && data.availableLanguages.length > 0) {
-			return [...new Set(data.availableLanguages)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+			return [...new Set(data.availableLanguages)].sort((a: string, b: string) =>
+				getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
+			);
 		}
 
 		// Fallback to publicEnv.LOCALES (after setup is complete)
@@ -247,7 +258,9 @@
 		}
 
 		if (normalized.length > 0) {
-			return [...new Set(normalized)].sort((a: string, b: string) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+			return [...new Set(normalized)].sort((a: string, b: string) =>
+				getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en'))
+			);
 		}
 
 		// Final fallback
@@ -332,7 +345,10 @@
 				showDbDetails = false; // Collapse details on success
 				validationErrors = {};
 			} else {
-				errorMessage = data.userFriendly || data.error || 'Database connection failed. Please check your configuration.';
+				errorMessage =
+					data.userFriendly ||
+					data.error ||
+					'Database connection failed. Please check your configuration.';
 				wizard.dbTestPassed = false;
 				successMessage = '';
 				showDbDetails = true; // Auto-expand details on failure
@@ -437,7 +453,8 @@
 				window.location.href = data.redirectPath || '/config/collectionbuilder';
 			}, 1500);
 		} catch (e) {
-			const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred during finalization.';
+			const errorMsg =
+				e instanceof Error ? e.message : 'An unknown error occurred during finalization.';
 			errorMessage = errorMsg;
 			// Error toast already shown above in the if block, don't show duplicate
 			// Only show toast here if it's a network error (not thrown by us)
@@ -664,18 +681,24 @@
 	<Toast />
 	<div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
 		<!-- Header -->
-		<div class="mb-4 flex-shrink-0 rounded-xl border border-surface-200 bg-white p-3 shadow-xl dark:border-white dark:bg-surface-800 sm:p-6 lg:mb-6">
+		<div
+			class="border-surface-200 dark:bg-surface-800 mb-4 flex-shrink-0 rounded-xl border bg-white p-3 shadow-xl sm:p-6 lg:mb-6 dark:border-white"
+		>
 			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
 				<div class="flex flex-1 items-center gap-3 sm:gap-4">
-					<a href="https://github.com/SveltyCMS/SveltyCMS" target="_blank" rel="noopener noreferrer">
+					<a
+						href="https://github.com/SveltyCMS/SveltyCMS"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
 						<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-12 w-auto" />
 					</a>
-					<h1 class="text-xl font-bold leading-tight sm:text-2xl lg:text-3xl">
+					<h1 class="text-xl leading-tight font-bold sm:text-2xl lg:text-3xl">
 						<a
 							href="https://github.com/SveltyCMS/SveltyCMS"
 							target="_blank"
 							rel="noopener noreferrer"
-							class="transition-colors hover:text-primary-500"
+							class="hover:text-primary-500 transition-colors"
 						>
 							<SiteName siteName={wizard.systemSettings.siteName} highlight="CMS" />
 						</a>
@@ -684,7 +707,9 @@
 
 				<div class="flex flex-shrink-0 items-center gap-1 sm:gap-4">
 					<div class="hidden rounded border border-indigo-100 bg-indigo-50 px-3 py-1.5 lg:flex">
-						<div class="text-xs font-medium uppercase tracking-wider text-surface-500">{m.setup_heading_badge()}</div>
+						<div class="text-surface-500 text-xs font-medium tracking-wider uppercase">
+							{m.setup_heading_badge()}
+						</div>
 					</div>
 					<div class="language-selector relative">
 						{#if systemLanguages.length > 5}
@@ -697,26 +722,42 @@
 									stroke="currentColor"
 									viewBox="0 0 24 24"
 								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M19 9l-7 7-7-7"
+									/>
 								</svg>
 							</button>
 							{#if isLangOpen}
 								<div
 									class="absolute right-0 z-20 mt-2 w-52 rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800"
 								>
-									<input bind:value={langSearch} placeholder={m.setup_search_placeholder()} class="input-sm input mb-2 w-full" />
+									<input
+										bind:value={langSearch}
+										placeholder={m.setup_search_placeholder()}
+										class="input-sm input mb-2 w-full"
+									/>
 									<div class="max-h-56 overflow-y-auto">
-										{#each systemLanguages.filter((l) => getLanguageName(l).toLowerCase().includes(langSearch.toLowerCase())) as lang}
+										{#each systemLanguages.filter((l) => getLanguageName(l)
+												.toLowerCase()
+												.includes(langSearch.toLowerCase())) as lang}
 											<button
 												onclick={() => selectLanguage(lang)}
-												class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 {currentLanguageTag ===
+												class="hover:bg-surface-200/60 dark:hover:bg-surface-600/60 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm {currentLanguageTag ===
 												lang
-													? 'bg-surface-200/80 font-medium dark:bg-surface-600/70'
+													? 'bg-surface-200/80 dark:bg-surface-600/70 font-medium'
 													: ''}"
 											>
 												<span>{getLanguageName(lang)} {lang.toUpperCase()}</span>
 												{#if currentLanguageTag === lang}
-													<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														class="h-4 w-4 text-emerald-500"
+														viewBox="0 0 20 20"
+														fill="currentColor"
+													>
 														<path
 															fill-rule="evenodd"
 															d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -730,12 +771,23 @@
 								</div>
 							{/if}
 						{:else}
-							<select bind:value={currentLanguageTag} class="input" onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}>
-								{#each systemLanguages as lang}<option value={lang}>{getLanguageName(lang)} {lang.toUpperCase()}</option>{/each}
+							<select
+								bind:value={currentLanguageTag}
+								class="input"
+								onchange={(e) => selectLanguage((e.target as HTMLSelectElement).value)}
+							>
+								{#each systemLanguages as lang}<option value={lang}
+										>{getLanguageName(lang)} {lang.toUpperCase()}</option
+									>{/each}
 							</select>
 						{/if}
 					</div>
-					<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="variant-ghost btn-icon" iconSize={22} />
+					<ThemeToggle
+						showTooltip={true}
+						tooltipPlacement="bottom"
+						buttonClass="variant-ghost btn-icon"
+						iconSize={22}
+					/>
 				</div>
 
 				<p class="w-full text-center text-sm sm:text-base">
@@ -748,27 +800,36 @@
 		<div class="flex flex-col gap-4 lg:flex-row lg:gap-6">
 			<!-- Step Indicator (Left Side) - Horizontal on mobile, vertical on desktop -->
 			<div class="w-full shrink-0 lg:w-80 xl:w-96">
-				<div class="flex flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
+				<div
+					class="border-surface-200 dark:bg-surface-800 flex flex-col rounded-xl border bg-white shadow-xl dark:border-white"
+				>
 					<!-- Mobile: Horizontal step indicator -->
-					<div class="relative flex items-start justify-between p-4 lg:hidden" role="list" aria-label="Setup progress">
+					<div
+						class="relative flex items-start justify-between p-4 lg:hidden"
+						role="list"
+						aria-label="Setup progress"
+					>
 						{#each steps as _step, i}
 							<!-- Mobile step (button for backward navigation) -->
 							<div class="relative z-10 flex flex-1 flex-col items-center" role="listitem">
 								<button
 									type="button"
-									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
+									class="focus-visible:ring-primary-500 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 sm:h-10 sm:w-10 sm:text-sm {stepCompleted[
 										i
 									]
 										? 'bg-primary-500 text-white'
 										: i === wizard.currentStep
 											? 'bg-error-500 text-white shadow-xl'
-											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} {stepClickable[i] || i === wizard.currentStep
+											: 'bg-surface-200 text-surface-500 dark:bg-surface-700 dark:text-surface-400'} {stepClickable[
+										i
+									] || i === wizard.currentStep
 										? 'cursor-pointer'
 										: 'cursor-not-allowed'}"
 									aria-current={i === wizard.currentStep ? 'step' : undefined}
 									aria-label={`${_step.label} – ${stepCompleted[i] ? 'Completed' : i === wizard.currentStep ? 'Current step' : 'Pending step'}`}
 									disabled={!(stepClickable[i] || i === wizard.currentStep)}
-									onclick={() => (stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
+									onclick={() =>
+										(stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
 								>
 									<span class="text-[0.65rem]">
 										{stepCompleted[i] ? '✓' : i === wizard.currentStep ? '●' : '•'}
@@ -787,9 +848,14 @@
 						{/each}
 
 						<!-- Connecting lines for mobile -->
-						<div class="absolute left-12 right-12 top-8 flex h-0.5 sm:left-14 sm:right-14 sm:top-9" aria-hidden="true">
+						<div
+							class="absolute top-8 right-12 left-12 flex h-0.5 sm:top-9 sm:right-14 sm:left-14"
+							aria-hidden="true"
+						>
 							{#each steps as _unused, i}{#if i !== steps.length - 1}<div
-										class="mx-1 h-0.5 flex-1 {stepCompleted[i] ? 'bg-primary-500' : 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
+										class="mx-1 h-0.5 flex-1 {stepCompleted[i]
+											? 'bg-primary-500'
+											: 'border-t-2 border-dashed border-slate-200 bg-transparent'}"
 									></div>{/if}{/each}
 						</div>
 					</div>
@@ -799,11 +865,14 @@
 						{#each steps as _step, i}
 							<div class="relative last:pb-0">
 								<button
-									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[i] || i === wizard.currentStep
+									class="flex w-full items-start gap-4 rounded-lg p-4 transition-all {stepClickable[
+										i
+									] || i === wizard.currentStep
 										? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
 										: 'cursor-not-allowed opacity-50'}"
 									disabled={!(stepClickable[i] || i === wizard.currentStep)}
-									onclick={() => (stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
+									onclick={() =>
+										(stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
 								>
 									<div
 										class="relative z-10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ring-white transition-all {stepCompleted[
@@ -840,7 +909,9 @@
 									</div>
 								</button>
 								{#if i !== steps.length - 1}<div
-										class="absolute left-[1.65rem] top-[3.5rem] h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[i]
+										class="absolute top-[3.5rem] left-[1.65rem] h-[calc(100%-3.5rem)] w-[2px] {stepCompleted[
+											i
+										]
 											? 'bg-primary-500'
 											: 'border-l-2 border-dashed border-slate-200'}"
 									></div>{/if}
@@ -849,15 +920,21 @@
 						<!-- Setup Steps Legend -->
 						<div class="mt-6 flex items-end gap-6 border-t pt-6">
 							<div class="flex-1">
-								<h4 class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200">Legend</h4>
+								<h4
+									class="mb-4 text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200"
+								>
+									Legend
+								</h4>
 								<ul class="space-y-2 text-xs">
 									{#each legendItems as item}
 										<li class="grid grid-cols-[1.4rem_auto] items-center gap-x-3">
 											<div
-												class="flex h-5 w-5 items-center justify-center rounded-full font-semibold leading-none
+												class="flex h-5 w-5 items-center justify-center rounded-full leading-none font-semibold
 												{item.key === 'completed' ? ' bg-primary-500 text-white' : ''}
 												{item.key === 'current' ? ' bg-error-500 text-white shadow-sm' : ''}
-												{item.key === 'pending' ? ' bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600' : ''}"
+												{item.key === 'pending'
+													? ' bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'
+													: ''}"
 											>
 												<span class="text-[0.65rem]">{item.content}</span>
 											</div>
@@ -877,24 +954,46 @@
 			</div>
 
 			<!-- Main Card (Right Side) -->
-			<div class="flex flex-1 flex-col rounded-xl border border-surface-200 bg-white shadow-xl dark:border-white dark:bg-surface-800">
+			<div
+				class="border-surface-200 dark:bg-surface-800 flex flex-1 flex-col rounded-xl border bg-white shadow-xl dark:border-white"
+			>
 				<!-- Card Header with Step Title -->
 				<div class="flex flex-shrink-0 justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
 					<h2 class="flex items-center text-lg font-semibold tracking-tight sm:text-xl">
 						{#if wizard.currentStep === 0}
-							<iconify-icon icon="mdi:database" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon="mdi:database"
+								class="text-error-500 mr-2 h-4 w-4 sm:h-5 sm:w-5"
+								aria-hidden="true"
+							></iconify-icon>
 							{m.setup_step_database()}
 						{:else if wizard.currentStep === 1}
-							<iconify-icon icon="mdi:account" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon="mdi:account"
+								class="text-error-500 mr-2 h-4 w-4 sm:h-5 sm:w-5"
+								aria-hidden="true"
+							></iconify-icon>
 							{m.setup_step_admin()}
 						{:else if wizard.currentStep === 2}
-							<iconify-icon icon="mdi:cog" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon="mdi:cog"
+								class="text-error-500 mr-2 h-4 w-4 sm:h-5 sm:w-5"
+								aria-hidden="true"
+							></iconify-icon>
 							{m.setup_step_system()}
 						{:else if wizard.currentStep === 3}
-							<iconify-icon icon="mdi:email" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon="mdi:email"
+								class="text-error-500 mr-2 h-4 w-4 sm:h-5 sm:w-5"
+								aria-hidden="true"
+							></iconify-icon>
 							{m.setup_step_email()}
 						{:else}
-							<iconify-icon icon="mdi:check-circle" class="mr-2 h-4 w-4 text-error-500 sm:h-5 sm:w-5" aria-hidden="true"></iconify-icon>
+							<iconify-icon
+								icon="mdi:check-circle"
+								class="text-error-500 mr-2 h-4 w-4 sm:h-5 sm:w-5"
+								aria-hidden="true"
+							></iconify-icon>
 							{m.setup_step_complete()}
 						{/if}
 					</h2>
@@ -908,7 +1007,8 @@
 						aria-label="Reset data"
 						title="Reset data"
 					>
-						<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+						<iconify-icon icon="mdi:backup-restore" class="mr-1 h-4 w-4" aria-hidden="true"
+						></iconify-icon>
 						Reset Data
 					</button>
 				</div>
@@ -959,22 +1059,43 @@
 							>
 								<svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									{#if successMessage}
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M5 13l4 4L19 7"
+										/>
 									{:else}
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+										/>
 									{/if}
 								</svg>
 								<div class="flex-1">
 									{successMessage || errorMessage}
 								</div>
-								<button type="button" class="btn-sm flex shrink-0 items-center gap-1" onclick={() => (showDbDetails = !showDbDetails)}>
-									<iconify-icon icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'} class="h-4 w-4"></iconify-icon>
-									<span class="hidden sm:inline">{showDbDetails ? m.setup_db_test_details_hide() : m.setup_db_test_details_show()}</span>
+								<button
+									type="button"
+									class="btn-sm flex shrink-0 items-center gap-1"
+									onclick={() => (showDbDetails = !showDbDetails)}
+								>
+									<iconify-icon
+										icon={showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+										class="h-4 w-4"
+									></iconify-icon>
+									<span class="hidden sm:inline"
+										>{showDbDetails
+											? m.setup_db_test_details_hide()
+											: m.setup_db_test_details_show()}</span
+									>
 								</button>
 								<!-- Dismiss status message -->
 								<button
 									type="button"
-									class="btn-icon btn-sm h-6 w-6 shrink-0 rounded hover:bg-surface-200/60 dark:hover:bg-surface-600/60"
+									class="btn-icon btn-sm hover:bg-surface-200/60 dark:hover:bg-surface-600/60 h-6 w-6 shrink-0 rounded"
 									aria-label="Close message"
 									onclick={() => {
 										successMessage = '';
@@ -986,48 +1107,68 @@
 								</button>
 							</div>
 							{#if showDbDetails}
-								<div class="border-t border-surface-200 bg-surface-50 text-xs dark:border-surface-600 dark:bg-surface-700">
+								<div
+									class="border-surface-200 bg-surface-50 dark:border-surface-600 dark:bg-surface-700 border-t text-xs"
+								>
 									<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-3 sm:grid-cols-6">
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.setup_db_test_latency()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{lastDbTestResult.latencyMs ?? '—'} ms</span>
+											<span class="text-terrary-500 dark:text-primary-500"
+												>{lastDbTestResult.latencyMs ?? '—'} ms</span
+											>
 										</div>
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.setup_db_test_engine()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.type}</span>
+											<span class="text-terrary-500 dark:text-primary-500"
+												>{wizard.dbConfig.type}</span
+											>
 										</div>
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.label_host()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.host}</span>
+											<span class="text-terrary-500 dark:text-primary-500"
+												>{wizard.dbConfig.host}</span
+											>
 										</div>
 										{#if !isFullUri}
 											<div class="sm:col-span-1">
 												<span class="font-semibold">{m.label_port()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.port}</span>
+												<span class="text-terrary-500 dark:text-primary-500"
+													>{wizard.dbConfig.port}</span
+												>
 											</div>
 										{/if}
 										<div class="sm:col-span-1">
 											<span class="font-semibold">{m.label_database()}:</span>
-											<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.name}</span>
+											<span class="text-terrary-500 dark:text-primary-500"
+												>{wizard.dbConfig.name}</span
+											>
 										</div>
 										{#if wizard.dbConfig.user}
 											<div class="sm:col-span-1">
-												<span class="font-semibold">{m.label_user?.() || m.setup_db_test_user()}:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{wizard.dbConfig.user}</span>
+												<span class="font-semibold"
+													>{m.label_user?.() || m.setup_db_test_user()}:</span
+												>
+												<span class="text-terrary-500 dark:text-primary-500"
+													>{wizard.dbConfig.user}</span
+												>
 											</div>
 										{/if}
 										{#if lastDbTestResult.classification}
 											<div class="sm:col-span-2">
 												<span class="font-semibold">Code:</span>
-												<span class="text-terrary-500 dark:text-primary-500">{lastDbTestResult.classification}</span>
+												<span class="text-terrary-500 dark:text-primary-500"
+													>{lastDbTestResult.classification}</span
+												>
 											</div>
 										{/if}
 									</div>
 									{#if !lastDbTestResult.success}
-										<div class="border-t border-surface-200 p-3 dark:border-surface-600">
+										<div class="border-surface-200 dark:border-surface-600 border-t p-3">
 											{#if lastDbTestResult.userFriendly}
-												<div class="mb-2 font-semibold text-error-600">Error:</div>
-												<div class="mb-3 rounded bg-red-50 p-2 text-sm text-error-700 dark:bg-error-900/20 dark:text-white">
+												<div class="text-error-600 mb-2 font-semibold">Error:</div>
+												<div
+													class="text-error-700 dark:bg-error-900/20 mb-3 rounded bg-red-50 p-2 text-sm dark:text-white"
+												>
 													{lastDbTestResult.userFriendly}
 												</div>
 											{/if}
@@ -1039,12 +1180,18 @@
 					{/if}
 				</div>
 				<!-- Navigation -->
-				<div class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pb-4 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
+				<div
+					class="flex flex-shrink-0 items-center justify-between border-t border-slate-200 px-4 pt-4 pb-4 sm:px-8 sm:pt-6 sm:pb-6"
+				>
 					<!-- Previous Button -->
 					<div class="flex-1">
 						{#if wizard.currentStep > 0}
-							<button onclick={prevStep} class="variant-filled-tertiary btn dark:variant-filled-primary">
-								<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+							<button
+								onclick={prevStep}
+								class="variant-filled-tertiary btn dark:variant-filled-primary"
+							>
+								<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"
+								></iconify-icon>
 								{m.button_previous()}
 							</button>
 						{/if}
@@ -1052,7 +1199,10 @@
 
 					<!-- Step Indicator -->
 					<div class="flex-shrink-0 text-center text-sm font-medium">
-						{m.setup_progress_step_of({ current: String(wizard.currentStep + 1), total: String(totalSteps) })}
+						{m.setup_progress_step_of({
+							current: String(wizard.currentStep + 1),
+							total: String(totalSteps)
+						})}
 					</div>
 
 					<!-- Next/Complete Button -->
@@ -1062,20 +1212,26 @@
 								onclick={nextStep}
 								disabled={!canProceed}
 								aria-disabled={!canProceed}
-								class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
+								class="variant-filled-tertiary btn dark:variant-filled-primary transition-all {canProceed
+									? ''
+									: 'cursor-not-allowed opacity-60'}"
 							>
 								{m.button_next()}
-								<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+								<iconify-icon icon="mdi:arrow-right-bold" class="ml-1 h-4 w-4" aria-hidden="true"
+								></iconify-icon>
 							</button>
 						{:else if wizard.currentStep === steps.length - 1}
 							<button
 								onclick={completeSetup}
 								disabled={isLoading}
 								aria-disabled={isLoading}
-								class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+								class="variant-filled-tertiary btn dark:variant-filled-primary transition-all {isLoading
+									? 'cursor-not-allowed opacity-60'
+									: ''}"
 							>
 								{isLoading ? 'Completing...' : m.button_complete?.() || 'Complete'}
-								<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"></iconify-icon>
+								<iconify-icon icon="mdi:check-bold" class="ml-1 h-4 w-4" aria-hidden="true"
+								></iconify-icon>
 							</button>
 						{/if}
 					</div>
