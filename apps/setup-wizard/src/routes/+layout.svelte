@@ -5,8 +5,8 @@
  -->
 
 <script lang="ts">
-	// Import CMS app styles (Tailwind v3 + Skeleton v2)
-	import '@src/app.postcss';
+	// Import setup-wizard app styles (Tailwind v3 + Skeleton v2)
+	import '../app.css';
 
 	// Register Iconify custom element globally
 	import 'iconify-icon';

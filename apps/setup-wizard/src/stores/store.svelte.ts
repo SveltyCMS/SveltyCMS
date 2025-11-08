@@ -3,8 +3,8 @@
  * @description Global state management
  */
 
-import type { Locale } from '@src/paraglide/runtime';
-import { publicEnv } from '@src/stores/globalSettings.svelte';
+import type { Locale } from '$paraglide/runtime';
+import { publicEnv } from '@stores/globalSettings.svelte';
 import { SvelteSet } from 'svelte/reactivity';
 
 // --- Helper Functions & Interfaces ---
@@ -216,7 +216,11 @@ export const avatarSrc = {
 
 			// Fallback: if it looks like a relative media path, prefix /files/
 			// Otherwise, keep as-is
-			_avatarSrc = trimmed ? (trimmed.endsWith('.svg') ? `/${trimmed}` : `/files/${trimmed}`) : '/Default_User.svg';
+			_avatarSrc = trimmed
+				? trimmed.endsWith('.svg')
+					? `/${trimmed}`
+					: `/files/${trimmed}`
+				: '/Default_User.svg';
 		} catch {
 			_avatarSrc = newValue || '/Default_User.svg';
 		}
@@ -344,8 +348,12 @@ let initialSystemLanguage: Locale;
 let initialContentLanguage: Locale;
 
 try {
-	initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.BASE_LOCALE as Locale) ?? 'en';
-	initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale) ?? 'en';
+	initialSystemLanguage =
+		(getCookie('systemLanguage') as Locale | null) ?? (publicEnv.BASE_LOCALE as Locale) ?? 'en';
+	initialContentLanguage =
+		(getCookie('contentLanguage') as Locale | null) ??
+		(publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale) ??
+		'en';
 } catch {
 	// Fallback values for server-side initialization
 	initialSystemLanguage = 'en' as Locale;
@@ -445,8 +453,12 @@ export const contentLanguage = {
 };
 
 // Simple reactive state for other stores
-let _headerActionButton = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-let _headerActionButton2 = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+let _headerActionButton = $state<ConstructorOfATypedSvelteComponent | string | undefined>(
+	undefined
+);
+let _headerActionButton2 = $state<ConstructorOfATypedSvelteComponent | string | undefined>(
+	undefined
+);
 let _pkgBgColor = $state('variant-filled-primary');
 let _file = $state<File | null>(null);
 let _saveEditedImage = $state(false);
@@ -457,8 +469,12 @@ let _saveFunction = $state<SaveFunction>({
 let _validationErrors = $state<ValidationErrors>({});
 
 // Subscriber sets for manual subscription tracking
-const headerActionButtonSubscribers = new SvelteSet<(value: ConstructorOfATypedSvelteComponent | string | undefined) => void>();
-const headerActionButton2Subscribers = new SvelteSet<(value: ConstructorOfATypedSvelteComponent | string | undefined) => void>();
+const headerActionButtonSubscribers = new SvelteSet<
+	(value: ConstructorOfATypedSvelteComponent | string | undefined) => void
+>();
+const headerActionButton2Subscribers = new SvelteSet<
+	(value: ConstructorOfATypedSvelteComponent | string | undefined) => void
+>();
 const pkgBgColorSubscribers = new SvelteSet<(value: string) => void>();
 const fileSubscribers = new SvelteSet<(value: File | null) => void>();
 const saveEditedImageSubscribers = new SvelteSet<(value: boolean) => void>();
@@ -466,7 +482,11 @@ const saveFunctionSubscribers = new SvelteSet<(value: SaveFunction) => void>();
 const validationErrorsSubscribers = new SvelteSet<(value: ValidationErrors) => void>();
 
 // Helper to create simple store wrappers
-function createSimpleStore<T>(getter: () => T, setter: (value: T) => void, subscribers: SvelteSet<(value: T) => void>) {
+function createSimpleStore<T>(
+	getter: () => T,
+	setter: (value: T) => void,
+	subscribers: SvelteSet<(value: T) => void>
+) {
 	const notify = () => {
 		const currentValue = getter();
 		for (const fn of subscribers) {
@@ -632,7 +652,9 @@ export const indexer = undefined;
 function createValidationStore() {
 	let errors = $state<ValidationErrors>({});
 	const isValid = $derived(() => Object.values(errors).every((error) => !error));
-	const subscribers = new SvelteSet<(value: { errors: ValidationErrors; isValid: boolean }) => void>();
+	const subscribers = new SvelteSet<
+		(value: { errors: ValidationErrors; isValid: boolean }) => void
+	>();
 
 	const notify = () => {
 		const current = { errors: { ...errors }, isValid: isValid() }; // Call the derived function

@@ -17,7 +17,7 @@ Key Features:
 -->
 <script lang="ts">
 	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import * as m from '$paraglide/messages';
 	// Types from setupStore
 	import type { AdminUser, DbConfig, SystemSettings } from '@stores/setupStore.svelte';
 

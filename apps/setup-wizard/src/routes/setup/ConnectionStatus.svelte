@@ -3,7 +3,7 @@
 @description Real-time connection status indicator with detailed feedback
 -->
 <script lang="ts">
-	import * as m from '@src/paraglide/messages';
+	import * as m from '$paraglide/messages';
 
 	type ConnectionState = 'idle' | 'testing' | 'success' | 'error';
 
