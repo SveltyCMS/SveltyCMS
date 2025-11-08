@@ -31,13 +31,13 @@
  * @prerequisite System state is READY and JWT secret is available
  */
 
-import { building, dev } from '$app/environment';
+import { building } from '$app/environment';
 import { error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { metricsService } from '@src/services/MetricsService';
 import { cacheService } from '@src/databases/CacheService';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // --- RATE LIMITER CONFIGURATION ---
 
@@ -63,6 +63,20 @@ const distributedStore = {
 	},
 
 	/**
+	 * Adds/sets a value in the store (required by sveltekit-rate-limiter)
+	 */
+	async add(key: string, ttlSeconds: number): Promise<number> {
+		try {
+			const expires = Date.now() + ttlSeconds * 1000;
+			await cacheService.set(`ratelimit:${key}`, { count: 1, expires }, ttlSeconds);
+			return 1;
+		} catch (err) {
+			logger.error(`Distributed rate limit store ADD failed: ${err instanceof Error ? err.message : String(err)}`);
+			return 0;
+		}
+	},
+
+	/**
 	 * Increments the counter for a rate limit key
 	 */
 	async increment(key: string, ttlSeconds: number): Promise<number> {
@@ -76,6 +90,13 @@ const distributedStore = {
 		} catch (err) {
 			logger.error(`Distributed rate limit store INCREMENT failed: ${err instanceof Error ? err.message : String(err)}`);
 			return 1; // Fail open to prevent blocking all traffic
+		}
+	},
+	async clear(): Promise<void> {
+		try {
+			await cacheService.delete(`ratelimit:*`); // Clear all rate limit keys
+		} catch (err) {
+			logger.error(`Distributed rate limit store CLEAR failed: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 };
@@ -155,8 +176,10 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 	// 1. Build process
 	if (building) return resolve(event);
 
-	// 2. Localhost during development
-	if (dev && isLocalhost(clientIp)) return resolve(event);
+	// 2. Localhost during development OR production
+	if (isLocalhost(clientIp)) {
+		return resolve(event);
+	}
 
 	// 3. Static assets (no need to rate limit CDN-cached content)
 	if (isStaticAsset(url.pathname)) return resolve(event);

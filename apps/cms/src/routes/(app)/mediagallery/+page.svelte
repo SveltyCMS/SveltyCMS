@@ -27,6 +27,8 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// Stores
 	import { toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
+	// Logger
+	import { logger } from '@utils/logger';
 	// Utils & Media
 	import { publicEnv } from '@src/stores/globalSettings.svelte';
 	import { MediaTypeEnum, type MediaBase, type MediaImage } from '@utils/media/mediaModels';
@@ -35,11 +37,14 @@ Displays a collection of media files (images, documents, audio, video) with:
 	import PageTitle from '@components/PageTitle.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
+	import VirtualMediaGrid from './VirtualMediaGrid.svelte';
+	import AdvancedSearchModal from './AdvancedSearchModal.svelte';
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	import { showToast } from '@utils/toast';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+	import type { SearchCriteria } from '@utils/media/advancedSearch';
 
 	// Initialize modal store
 	const modalStore = getModalStore();
@@ -57,7 +62,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 	// State using runes
 	let files = $state<MediaImage[]>([]);
 	let allSystemVirtualFolders = $state<SystemVirtualFolder[]>([]);
-	let systemVirtualFolders = $state<SystemVirtualFolder[]>([]);
 	let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
 	let breadcrumb = $state<string[]>([]);
 
@@ -67,6 +71,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 	let tableSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 	let isLoading = $state(false);
+
+	// Enterprise features state
+	let showAdvancedSearch = $state(false);
+	let advancedSearchCriteria = $state<SearchCriteria | null>(null);
+
+	// Performance optimization: Use virtual scrolling for large collections
+	const USE_VIRTUAL_THRESHOLD = 100;
 
 	type MediaTypeOption = {
 		value: 'All' | MediaTypeEnum;
@@ -84,25 +95,48 @@ Displays a collection of media files (images, documents, audio, video) with:
 	];
 
 	// Computed value for filtered files based on search and type
-	let filteredFiles = $derived(
-		files.filter((file) => {
+	let filteredFiles = $derived.by(() => {
+		let results = files.filter((file) => {
 			const matchesSearch = (file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase());
 			const matchesType = selectedMediaType === 'All' || file.type === selectedMediaType;
 			return matchesSearch && matchesType;
-		})
-	);
+		});
+
+		// Apply advanced search criteria if set
+		if (advancedSearchCriteria) {
+			// Import the advancedSearch function if criteria is active
+			// This will be handled by the modal's onSearch callback
+			return results;
+		}
+
+		return results;
+	});
+
+	// Performance optimization: Use virtual scrolling for large collections
+	let useVirtualScrolling = $derived(filteredFiles.length > USE_VIRTUAL_THRESHOLD);
 
 	// Computed folders for breadcrumb - create a mapping of breadcrumb paths to folder IDs
 	let breadcrumbFolders = $derived.by(() => {
-		if (!currentSystemVirtualFolder) return [];
-
 		const folders: { _id: string; name: string; path: string[] }[] = [];
+
+		// Always add root as first folder
+		folders.push({
+			_id: 'root',
+			name: 'Media Root',
+			path: []
+		});
+
+		if (!currentSystemVirtualFolder) {
+			return folders;
+		}
+
 		let current: SystemVirtualFolder | null = currentSystemVirtualFolder;
 		const pathSegments: string[] = [];
 
+		const tempFolders: { _id: string; name: string; path: string[] }[] = [];
 		while (current) {
 			pathSegments.unshift(current.name);
-			folders.unshift({
+			tempFolders.unshift({
 				_id: current._id,
 				name: current.name,
 				path: [...pathSegments] // Copy the current path
@@ -111,7 +145,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
 		}
 
-		return folders;
+		return [...folders, ...tempFolders];
 	});
 
 	// Handle user preferences
@@ -139,32 +173,19 @@ Displays a collection of media files (images, documents, audio, video) with:
 	let safeTableSize = $derived<'small' | 'medium' | 'large'>(tableSize === 'tiny' ? 'small' : tableSize);
 
 	// Initialize component with runes
+	// Run once on mount to set up initial data
 	$effect(() => {
-		// Note: Mode is now managed by Collections component based on route
-
+		// Load initial data from server
 		if (data && data.systemVirtualFolders) {
-			// Process initial folder data from server
 			allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
 		}
 
-		// Fetch all folders for navigation and breadcrumbs
-		fetchUpdatedSystemVirtualFolders()
-			.then((all) => {
-				allSystemVirtualFolders = all;
-			})
-			.catch((error) => {
-				console.error('Failed to load virtual folders in effect:', error);
-				// Use fallback data from server load if available
-				if (data && data.systemVirtualFolders) {
-					allSystemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
-						...folder,
-						path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
-					}));
-				}
-			});
+		if (data && data.currentFolder) {
+			currentSystemVirtualFolder = data.currentFolder;
+		}
 
 		if (data && data.media) {
 			files = data.media;
@@ -179,7 +200,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			tableSize = preferredTableSize as 'tiny' | 'small' | 'medium' | 'large';
 		}
 
-		// Listen for folder selection events from the Collections sidebar
+		// Listen for folder selection events
 		const handleSystemVirtualFolderSelected = (event: CustomEvent) => {
 			const { folderId } = event.detail;
 			openSystemVirtualFolder(folderId && folderId !== 'root' ? folderId : null);
@@ -191,25 +212,33 @@ Displays a collection of media files (images, documents, audio, video) with:
 			document.removeEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
 		};
 	});
+
+	// Update breadcrumb when current folder changes
+	$effect(() => {
+		// This effect only runs when currentSystemVirtualFolder or allSystemVirtualFolders changes
+		updateBreadcrumb();
+	});
 	// Function to update breadcrumb based on current folder
 	function updateBreadcrumb() {
 		if (!currentSystemVirtualFolder) {
-			breadcrumb = [];
+			// At root level - show Media Root
+			breadcrumb = ['Media Root'];
 			return;
 		}
 
 		// Build breadcrumb by traversing up the parent hierarchy
 		const buildBreadcrumb = (folder: SystemVirtualFolder): string[] => {
-			const path: string[] = [];
+			const path: string[] = ['Media Root']; // Always start with root
 			let current: SystemVirtualFolder | null = folder;
 
+			const folderPath: string[] = [];
 			while (current) {
-				path.unshift(current.name); // Add folder name to the beginning
+				folderPath.unshift(current.name); // Add folder name to the beginning
 				// Find the parent folder
 				current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
 			}
 
-			return path;
+			return [...path, ...folderPath];
 		};
 
 		breadcrumb = buildBreadcrumb(currentSystemVirtualFolder);
@@ -255,7 +284,6 @@ Displays a collection of media files (images, documents, audio, video) with:
 			if (result.success) {
 				// Refetch all folders and update current view
 				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parentId);
 
 				// Notify Collections component
 				document.dispatchEvent(
@@ -269,7 +297,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(result.error || 'Failed to create folder');
 			}
 		} catch (error) {
-			console.error('Error creating folder:', error);
+			logger.error('Error creating folder:', error);
 			const errorMessage =
 				error instanceof Error && error.message.includes('duplicate')
 					? error.message
@@ -298,7 +326,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 				throw new Error(result.error || 'Failed to fetch folders');
 			}
 		} catch (error) {
-			console.error('Error fetching updated folders:', error);
+			logger.error('Error fetching updated folders:', error);
 			showToast('Failed to fetch folders', 'error');
 			return [];
 		}
@@ -306,11 +334,11 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Memoized fetch for media files
 	let lastSystemFolderId = $state<string | null>(null);
-	async function fetchMediaFiles() {
+	async function fetchMediaFiles(forceRefresh = false) {
 		const folderId = currentSystemVirtualFolder ? currentSystemVirtualFolder._id : 'root';
 
-		// Skip if already loading or same folder
-		if (isLoading || folderId === lastSystemFolderId) return;
+		// Skip if already loading or same folder (unless force refresh)
+		if (!forceRefresh && (isLoading || folderId === lastSystemFolderId)) return;
 
 		isLoading = true;
 		globalLoadingStore.startLoading(loadingOperations.dataFetch);
@@ -323,12 +351,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 			if (data.success) {
 				files = Array.isArray(data.data.contents?.files) ? data.data.contents.files : [];
+				logger.info(`Fetched ${files.length} files for folder: ${folderId}`);
 				// Folders are handled by allSystemVirtualFolders
 			} else {
 				throw new Error(data.error || 'Unknown error');
 			}
 		} catch (error: unknown) {
-			console.error('Error fetching media files:', error);
+			logger.error('Error fetching media files:', error);
 			let errorMessage = 'Failed to load media';
 			if (error instanceof Error) {
 				if (error.message.includes('timeout')) {
@@ -361,7 +390,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			// Fetch media files for the current folder
 			await fetchMediaFiles();
 		} catch (error) {
-			console.error('Error opening folder:', error);
+			logger.error('Error opening folder:', error);
 			showToast('Failed to open folder', 'error');
 		}
 	}
@@ -383,8 +412,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			? Array.isArray(currentSystemVirtualFolder.path)
 				? currentSystemVirtualFolder.path.join('/')
 				: currentSystemVirtualFolder.path
-			: publicEnv.MEDIA_FOLDER || 'mediaFiles';
-
+			: publicEnv?.MEDIA_FOLDER || 'mediaFiles';
 		const modal: ModalSettings = {
 			type: 'prompt',
 			title: 'Add Folder',
@@ -399,26 +427,172 @@ Displays a collection of media files (images, documents, audio, video) with:
 
 	// Handle delete image
 	async function handleDeleteImage(file: MediaBase) {
+		// Show confirmation modal
+		const modal: ModalSettings = {
+			type: 'confirm',
+			title: 'Delete Media',
+			body: `Are you sure you want to delete "${file.filename}"? This action cannot be undone.`,
+			response: async (confirmed: boolean) => {
+				if (!confirmed) return;
+
+				try {
+					logger.info('Delete image request:', { _id: file._id, filename: file.filename });
+
+					const formData = new FormData();
+					formData.append('imageData', JSON.stringify(file));
+
+					const response = await fetch('?/deleteMedia', {
+						method: 'POST',
+						body: formData
+					});
+
+					logger.info('Delete response status:', response.status);
+
+					if (!response.ok) {
+						const errorText = await response.text();
+						logger.error('Delete failed with status:', response.status, errorText);
+						throw new Error(`Server error: ${response.status} - ${errorText}`);
+					}
+
+					const result = await response.json();
+					logger.debug('Delete response:', result);
+
+					// Handle SvelteKit's wrapped response format
+					let data = result;
+					if (result.type === 'success' && result.data) {
+						// Parse if data is a string
+						data = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+					}
+
+					// Check if it's an array response (like upload)
+					const success = Array.isArray(data) ? data[0]?.success : data?.success;
+
+					if (success) {
+						showToast('Media deleted successfully.', 'success');
+
+						// Reactively remove the deleted file from the files array
+						// Svelte 5 runes will automatically update all derived state
+						files = files.filter((f) => f._id !== file._id);
+
+						logger.info(`Removed file ${file.filename} from UI. Remaining: ${files.length} files`);
+					} else {
+						throw new Error(data?.error || 'Failed to delete media');
+					}
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					logger.error('Error deleting media:', errorMessage);
+					showToast(`Error deleting media: ${errorMessage}`, 'error');
+				}
+			}
+		};
+
+		modalStore.trigger(modal);
+	}
+
+	// Handle bulk delete
+	async function handleBulkDelete(filesToDelete: MediaBase[]) {
+		// Show confirmation modal
+		const modal: ModalSettings = {
+			type: 'confirm',
+			title: 'Delete Multiple Media',
+			body: `Are you sure you want to delete ${filesToDelete.length} file${filesToDelete.length > 1 ? 's' : ''}? This action cannot be undone.`,
+			response: async (confirmed: boolean) => {
+				if (!confirmed) return;
+
+				try {
+					logger.info('Bulk delete request:', { count: filesToDelete.length });
+
+					// Track successfully deleted files
+					const successfullyDeletedIds = new Set<string>();
+					let successCount = 0;
+					let failCount = 0;
+
+					for (const file of filesToDelete) {
+						try {
+							const formData = new FormData();
+							formData.append('imageData', JSON.stringify(file));
+
+							const response = await fetch('?/deleteMedia', {
+								method: 'POST',
+								body: formData
+							});
+
+							if (response.ok) {
+								const result = await response.json();
+								let data = result;
+								if (result.type === 'success' && result.data) {
+									data = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
+								}
+								const success = Array.isArray(data) ? data[0]?.success : data?.success;
+								if (success) {
+									successCount++;
+									successfullyDeletedIds.add(file._id as string);
+								} else {
+									failCount++;
+								}
+							} else {
+								failCount++;
+							}
+						} catch (error) {
+							logger.error('Error deleting file:', file.filename, error);
+							failCount++;
+						}
+					}
+
+					// Show result
+					if (failCount === 0) {
+						showToast(`Successfully deleted ${successCount} file${successCount > 1 ? 's' : ''}`, 'success');
+					} else if (successCount === 0) {
+						showToast(`Failed to delete ${failCount} file${failCount > 1 ? 's' : ''}`, 'error');
+					} else {
+						showToast(`Deleted ${successCount} file${successCount > 1 ? 's' : ''}, ${failCount} failed`, 'warning');
+					}
+
+					// Reactively remove only successfully deleted files
+					// Svelte 5 runes will automatically update filteredFiles derived state
+					files = files.filter((f) => !successfullyDeletedIds.has(f._id as string));
+
+					logger.info(`Removed ${successCount} files from UI. Remaining: ${files.length} files`);
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					logger.error('Error in bulk delete:', errorMessage);
+					showToast(`Error deleting media: ${errorMessage}`, 'error');
+				}
+			}
+		};
+
+		modalStore.trigger(modal);
+	}
+
+	// Handle advanced search
+	async function handleAdvancedSearch(criteria: SearchCriteria) {
 		try {
-			const response = await fetch('?/deleteMedia', {
+			const response = await fetch('/api/media/search', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ image: file })
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ criteria })
 			});
 
+			if (!response.ok) throw new Error('Search failed');
+
 			const result = await response.json();
-			if (result?.success) {
-				showToast('Media deleted successfully.', 'success');
-				await fetchMediaFiles();
-			} else {
-				throw new Error(result.error || 'Failed to delete media');
-			}
+
+			// Update files with search results
+			files = result.files;
+			advancedSearchCriteria = criteria;
+			showAdvancedSearch = false;
+
+			showToast(`Found ${result.totalCount} file${result.totalCount === 1 ? '' : 's'} matching ${result.matchedCriteria.length} criteria`, 'success');
 		} catch (error) {
-			console.error('Error deleting media: ', error);
-			showToast('Error deleting media', 'error');
+			logger.error('Advanced search error:', error);
+			showToast('Search failed. Please try again.', 'error');
 		}
+	}
+
+	// Clear advanced search
+	function clearAdvancedSearch() {
+		advancedSearchCriteria = null;
+		fetchMediaFiles(); // Reload all files
 	}
 </script>
 
@@ -435,7 +609,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 			try {
 				defaultBehavior();
 			} catch (error) {
-				console.error('Navigation error:', error);
+				logger.error('Navigation error:', error);
 				// Fallback to home page if history.back() fails
 				goto('/');
 			}
@@ -467,13 +641,19 @@ Displays a collection of media files (images, documents, audio, video) with:
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
 		<label for="globalSearch">Search</label>
-		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
-			<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
-			{#if globalSearchValue}
-				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
-					<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
-				</button>
-			{/if}
+		<div class="flex gap-2">
+			<div class="input-group input-group-divider grid flex-1 grid-cols-[auto_1fr_auto]">
+				<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
+				{#if globalSearchValue}
+					<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
+						<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
+					</button>
+				{/if}
+			</div>
+			<!-- Advanced Search Button (Mobile) - Outside input group -->
+			<button onclick={() => (showAdvancedSearch = true)} aria-label="Advanced search" class="variant-filled-surface btn" title="Advanced Search">
+				<iconify-icon icon="mdi:magnify-plus-outline" width="24"></iconify-icon>
+			</button>
 		</div>
 
 		<div class="mt-4 flex justify-between">
@@ -499,13 +679,13 @@ Displays a collection of media files (images, documents, audio, video) with:
 						{#if view === 'grid'}
 							<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
 							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-center text-xs">Grid</p>
 							</button>
 						{/if}
@@ -545,7 +725,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Tiny"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:apps" height="40" style={`color:text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:apps" height="40" style="color:text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Tiny</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
@@ -579,8 +759,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Small"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}
-								></iconify-icon>
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style="color:text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
@@ -614,7 +793,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Medium"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
@@ -648,7 +827,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 								aria-label="Large"
 								class="px-1"
 							>
-								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view" height="40" style="color: text-black dark:text-white"></iconify-icon>
 								<p class="text-xs">Large</p>
 							</button>
 						{/if}
@@ -661,7 +840,7 @@ Displays a collection of media files (images, documents, audio, video) with:
 	<div class="mb-2 hidden items-center justify-between gap-1 md:flex md:gap-3">
 		<div class="mb-8 flex w-full flex-col justify-center gap-1">
 			<label for="globalSearchMd">Search</label>
-			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
+			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto_auto]">
 				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 				{#if globalSearchValue}
 					<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
@@ -670,6 +849,12 @@ Displays a collection of media files (images, documents, audio, video) with:
 				{/if}
 			</div>
 		</div>
+
+		<!-- Advanced Search Button (Desktop) -->
+		<button onclick={() => (showAdvancedSearch = true)} aria-label="Advanced search" class="variant-filled-surface btn gap-2" title="Advanced Search">
+			<iconify-icon icon="mdi:magnify-plus-outline" width="24"></iconify-icon>
+			Advanced
+		</button>
 
 		<div class="mb-8 flex flex-col justify-center gap-1">
 			<label for="mediaTypeMd">Type</label>
@@ -852,18 +1037,50 @@ Displays a collection of media files (images, documents, audio, video) with:
 	</div>
 
 	{#if view === 'grid'}
-		<MediaGrid
-			{filteredFiles}
-			{gridSize}
-			ondeleteImage={handleDeleteImage}
-			on:sizechange={({ detail }) => {
-				if (detail.type === 'grid') {
-					gridSize = detail.size;
-					storeUserPreference(view, gridSize, tableSize);
-				}
-			}}
-		/>
+		{#if useVirtualScrolling}
+			<!-- Enterprise Virtual Scrolling for Large Collections (100+ files) -->
+			<VirtualMediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} onBulkDelete={handleBulkDelete} />
+			<div class="alert variant-ghost-surface mt-4">
+				<iconify-icon icon="mdi:lightning-bolt" width="20"></iconify-icon>
+				<span class="text-sm">
+					Virtual scrolling enabled for optimal performance with {filteredFiles.length} files
+				</span>
+			</div>
+		{:else}
+			<!-- Standard Grid for Smaller Collections -->
+			<MediaGrid
+				{filteredFiles}
+				{gridSize}
+				ondeleteImage={handleDeleteImage}
+				onBulkDelete={handleBulkDelete}
+				on:sizechange={({ detail }) => {
+					if (detail.type === 'grid') {
+						gridSize = detail.size;
+						storeUserPreference(view, gridSize, tableSize);
+					}
+				}}
+			/>
+		{/if}
 	{:else}
 		<MediaTable {filteredFiles} tableSize={safeTableSize} ondeleteImage={handleDeleteImage} />
 	{/if}
 </div>
+
+<!-- Modals -->
+{#if showAdvancedSearch}
+	<AdvancedSearchModal {files} onSearch={handleAdvancedSearch} onClose={() => (showAdvancedSearch = false)} />
+{/if}
+
+<!-- Active Search Indicator -->
+{#if advancedSearchCriteria}
+	<div class="alert variant-filled-warning fixed bottom-4 right-4 z-40 max-w-sm">
+		<iconify-icon icon="mdi:filter" width="20"></iconify-icon>
+		<div class="flex-1">
+			<p class="font-semibold">Advanced search active</p>
+			<p class="text-sm opacity-90">Showing filtered results</p>
+		</div>
+		<button onclick={clearAdvancedSearch} class="variant-ghost-surface btn-icon btn-sm" aria-label="Clear search">
+			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+		</button>
+	</div>
+{/if}

@@ -30,7 +30,7 @@
 
 // Mongoose and core types
 import mongoose, { type FilterQuery } from 'mongoose';
-import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError } from '../dbInterface';
+import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError, ISODateString } from '../dbInterface';
 
 // All Mongoose Models
 import {
@@ -41,7 +41,8 @@ import {
 	SystemPreferencesModel,
 	SystemSettingModel,
 	ThemeModel,
-	WidgetModel
+	WidgetModel,
+	WebsiteTokenModel
 } from './models';
 
 // The full suite of refined, modular method classes
@@ -54,13 +55,14 @@ import * as mongoDBUtils from './methods/mongoDBUtils';
 import { MongoSystemMethods } from './methods/systemMethods';
 import { MongoSystemVirtualFolderMethods } from './methods/systemVirtualFolderMethods';
 import { MongoThemeMethods } from './methods/themeMethods';
+import { MongoWebsiteTokenMethods } from './methods/websiteTokenMethods';
 import { MongoWidgetMethods } from './methods/widgetMethods';
 import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 // Auth adapter composition
 import { composeMongoAuthAdapter } from './methods/authComposition';
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type {
 	ContentNode,
 	ContentDraft,
@@ -85,6 +87,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	private _media!: MongoMediaMethods;
 	private _themes!: MongoThemeMethods;
 	private _widgets!: MongoWidgetMethods;
+	private _websiteTokens!: MongoWebsiteTokenMethods;
 	private _system!: MongoSystemMethods;
 	private _systemVirtualFolder!: MongoSystemVirtualFolderMethods;
 	private _auth!: MongoAuthModelRegistrar;
@@ -98,6 +101,7 @@ export class MongoDBAdapter implements IDBAdapter {
 	public systemPreferences!: IDBAdapter['systemPreferences'];
 	public crud!: IDBAdapter['crud'];
 	public auth!: IDBAdapter['auth'];
+	public websiteTokens!: IDBAdapter['websiteTokens'];
 	public readonly utils = mongoDBUtils;
 	public collection!: IDBAdapter['collection'];
 
@@ -279,7 +283,8 @@ export class MongoDBAdapter implements IDBAdapter {
 		const repositories = {
 			nodes: new MongoCrudMethods(ContentNodeModel as unknown as mongoose.Model<BaseEntity>),
 			drafts: new MongoCrudMethods(DraftModel as unknown as mongoose.Model<BaseEntity>),
-			revisions: new MongoCrudMethods(RevisionModel as unknown as mongoose.Model<BaseEntity>)
+			revisions: new MongoCrudMethods(RevisionModel as unknown as mongoose.Model<BaseEntity>),
+			websiteTokens: new MongoCrudMethods(WebsiteTokenModel as unknown as mongoose.Model<BaseEntity>)
 		};
 		Object.entries(repositories).forEach(([key, repo]) => this._repositories.set(key, repo));
 
@@ -296,6 +301,7 @@ export class MongoDBAdapter implements IDBAdapter {
 		this._media = new MongoMediaMethods(MediaModel as any);
 		this._themes = new MongoThemeMethods(ThemeModel);
 		this._widgets = new MongoWidgetMethods(WidgetModel);
+		this._websiteTokens = new MongoWebsiteTokenMethods(WebsiteTokenModel);
 		this._system = new MongoSystemMethods(SystemPreferencesModel, SystemSettingModel);
 		this._systemVirtualFolder = new MongoSystemVirtualFolderMethods();
 
@@ -357,7 +363,25 @@ export class MongoDBAdapter implements IDBAdapter {
 			deleteExpiredTokens: () => authAdapter.deleteExpiredTokens(),
 			deleteTokens: (tokenIds) => authAdapter.deleteTokens?.(tokenIds),
 			blockTokens: (tokenIds) => authAdapter.blockTokens?.(tokenIds),
-			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds)
+			unblockTokens: (tokenIds) => authAdapter.unblockTokens?.(tokenIds),
+
+			// Role Management Methods (authAdapter already returns DatabaseResult or Role[], don't double-wrap)
+			getAllRoles: (tenantId) => authAdapter.getAllRoles(tenantId),
+			getRoleById: (roleId, tenantId) => authAdapter.getRoleById(roleId, tenantId),
+			createRole: (role) => authAdapter.createRole(role),
+			updateRole: (roleId, roleData, tenantId) => authAdapter.updateRole(roleId, roleData, tenantId),
+			deleteRole: (roleId, tenantId) => authAdapter.deleteRole(roleId, tenantId)
+		};
+
+		// WEBSITE TOKENS
+		this.websiteTokens = {
+			create: (token) => this._wrapResult(() => this._websiteTokens.create(token)),
+			getAll: (options) => this._wrapResult(() => this._websiteTokens.getAll(options)),
+			getByName: (name) => this._wrapResult(() => this._websiteTokens.getByName(name)),
+			delete: (tokenId) =>
+				this._wrapResult(async () => {
+					await this._websiteTokens.delete(tokenId);
+				})
 		};
 
 		// THEMES
@@ -399,7 +423,7 @@ export class MongoDBAdapter implements IDBAdapter {
 					}
 				}
 			},
-			getDefaultTheme: async () => await this._themes.getDefault()
+			getDefaultTheme: async () => this._wrapResult(() => this._themes.getDefault())
 		};
 
 		// WIDGETS
@@ -464,16 +488,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			// Use bulk database operation instead of sequential deletes (33x faster)
 			deleteMany: (keys: string[], scope?: 'user' | 'system', userId?: DatabaseId) =>
 				this._wrapResult(() => this._system.deleteMany(keys, scope, userId)),
-			clear: (scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.clear(scope, userId)),
-			// User preferences methods (dashboard layouts & widgets)
-			getSystemPreferences: (userId: string, layoutId: string) => this._wrapResult(() => this._system.getSystemPreferences(userId, layoutId)),
-			setUserPreferences: (userId: string, layoutId: string, layout: import('@src/content/types').Layout) =>
-				this._wrapResult(() => this._system.setUserPreferences(userId, layoutId, layout)),
-			getWidgetState: <T>(userId: string, layoutId: string, widgetId: string) =>
-				this._wrapResult(() => this._system.getWidgetState<T>(userId, layoutId, widgetId)),
-			setWidgetState: (userId: string, layoutId: string, widgetId: string, state: unknown) =>
-				this._wrapResult(() => this._system.setWidgetState(userId, layoutId, widgetId, state)),
-			clearSystemPreferences: (userId: string) => this._wrapResult(() => this._system.clearSystemPreferences(userId))
+			clear: (scope?: 'user' | 'system', userId?: DatabaseId) => this._wrapResult(() => this._system.clear(scope, userId))
 		};
 
 		// MEDIA
@@ -1089,7 +1104,7 @@ export class MongoDBAdapter implements IDBAdapter {
 			await mongoose.connection.db.setProfilingLevel(level);
 			return { success: true, data: undefined };
 		},
-		getSlowQueries: async (limit = 10): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: Date }>>> => {
+		getSlowQueries: async (limit = 10): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: ISODateString }>>> => {
 			if (!mongoose.connection.db) {
 				return { success: false, message: 'Not connected to DB', error: { code: 'DB_DISCONNECTED', message: 'Not connected' } };
 			}
@@ -1099,7 +1114,7 @@ export class MongoDBAdapter implements IDBAdapter {
 				return {
 					query: JSON.stringify(doc.command),
 					duration: doc.millis,
-					timestamp: doc.ts
+					timestamp: doc.ts.toISOString() as ISODateString
 				};
 			});
 			return { success: true, data: slowQueries };

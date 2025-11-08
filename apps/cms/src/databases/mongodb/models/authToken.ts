@@ -18,11 +18,11 @@ import mongoose, { Schema } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
-import type { DatabaseResult } from '@src/databases/dbInterface';
+import type { DatabaseResult, ISODateString } from '@src/databases/dbInterface';
 import type { Token } from '@src/databases/auth/types';
 
 // System Logging
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { generateId } from '@src/databases/mongodb/methods/mongoDBUtils';
 
 // Define the Token schema
@@ -78,7 +78,7 @@ export class TokenAdapter {
 	async createToken(data: {
 		user_id: string;
 		email: string;
-		expires: Date;
+		expires: ISODateString;
 		type: string;
 		username?: string;
 		role?: string;

@@ -16,7 +16,6 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { roles } from '@root/config/roles';
 
 // Databases & Api
 import { dbAdapter } from '@src/databases/db';
@@ -24,7 +23,7 @@ import { contentManager } from '@src/content/ContentManager';
 import { modifyRequest } from '@api/collections/modifyRequest';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // GET: Advanced search across collections
 export const GET: RequestHandler = async ({ locals, url }) => {

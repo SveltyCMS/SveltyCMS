@@ -35,7 +35,7 @@ export class MongoWebsiteTokenMethods {
 		order?: string;
 		filter?: any;
 	}): Promise<{ data: WebsiteToken[]; total: number }> {
-		const sort = options.sort && options.order ? { [options.sort]: options.order } : {};
+		const sort = options.sort && options.order ? { [options.sort]: options.order as 'asc' | 'desc' | 1 | -1 } : {};
 		const data = await this.crud.findMany(options.filter || {}, { limit: options.limit, skip: options.skip, sort });
 		const total = await this.crud.count(options.filter || {});
 		return { data, total };

@@ -10,7 +10,9 @@
  * - Prometheus-compatible export format
  */
 
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
+import type { ISODateString } from '@src/content/types';
+import { dateToISODateString } from '@src/utils/dateUtils';
 
 export interface CacheMetricSnapshot {
 	hits: number;
@@ -18,7 +20,7 @@ export interface CacheMetricSnapshot {
 	hitRate: number;
 	totalRequests: number;
 	avgResponseTime: number;
-	lastReset: Date;
+	lastReset: ISODateString;
 	byCategory: Record<
 		string,
 		{
@@ -37,18 +39,16 @@ export interface CacheEvent {
 	category: string;
 	tenantId?: string;
 	responseTime?: number;
-	timestamp: Date;
+	timestamp: ISODateString;
 }
 
-/**
- * Tracks cache performance metrics with support for multi-tenant isolation
- */
+// Tracks cache performance metrics with support for multi-tenant isolation
 export class CacheMetrics {
 	private hits = 0;
 	private misses = 0;
 	private totalResponseTime = 0;
 	private requestCount = 0;
-	private lastResetTime = new Date();
+	private lastResetTime: ISODateString = dateToISODateString(new Date());
 
 	// Category-based metrics (query, schema, widget, theme, media, content)
 	private categoryMetrics = new Map<
@@ -68,9 +68,7 @@ export class CacheMetrics {
 	private recentEvents: CacheEvent[] = [];
 	private readonly MAX_EVENTS = 100;
 
-	/**
-	 * Records a cache hit
-	 */
+	// Records a cache hit
 	recordHit(key: string, category: string, tenantId?: string, responseTime?: number): void {
 		this.hits++;
 		this.requestCount++;
@@ -92,12 +90,10 @@ export class CacheMetrics {
 		}
 
 		// Record event
-		this.addEvent({ type: 'hit', key, category, tenantId, responseTime, timestamp: new Date() });
+		this.addEvent({ type: 'hit', key, category, tenantId, responseTime, timestamp: dateToISODateString(new Date()) });
 	}
 
-	/**
-	 * Records a cache miss
-	 */
+	// Records a cache miss
 	recordMiss(key: string, category: string, tenantId?: string, responseTime?: number): void {
 		this.misses++;
 		this.requestCount++;
@@ -119,38 +115,30 @@ export class CacheMetrics {
 		}
 
 		// Record event
-		this.addEvent({ type: 'miss', key, category, tenantId, responseTime, timestamp: new Date() });
+		this.addEvent({ type: 'miss', key, category, tenantId, responseTime, timestamp: dateToISODateString(new Date()) });
 	}
 
-	/**
-	 * Records a cache set operation with TTL for average tracking
-	 */
+	// Records a cache set operation with TTL for average tracking
 	recordSet(key: string, category: string, ttl: number, tenantId?: string): void {
 		const catMetrics = this.categoryMetrics.get(category) || { hits: 0, misses: 0, totalTTL: 0, ttlCount: 0 };
 		catMetrics.totalTTL += ttl;
 		catMetrics.ttlCount++;
 		this.categoryMetrics.set(category, catMetrics);
 
-		this.addEvent({ type: 'set', key, category, tenantId, timestamp: new Date() });
+		this.addEvent({ type: 'set', key, category, tenantId, timestamp: dateToISODateString(new Date()) });
 	}
 
-	/**
-	 * Records a cache delete operation
-	 */
+	// Records a cache delete operation
 	recordDelete(key: string, category: string, tenantId?: string): void {
-		this.addEvent({ type: 'delete', key, category, tenantId, timestamp: new Date() });
+		this.addEvent({ type: 'delete', key, category, tenantId, timestamp: dateToISODateString(new Date()) });
 	}
 
-	/**
-	 * Records a cache clear operation
-	 */
+	// Records a cache clear operation
 	recordClear(pattern: string, category: string, tenantId?: string): void {
-		this.addEvent({ type: 'clear', key: pattern, category, tenantId, timestamp: new Date() });
+		this.addEvent({ type: 'clear', key: pattern, category, tenantId, timestamp: dateToISODateString(new Date()) });
 	}
 
-	/**
-	 * Adds an event to the recent events queue
-	 */
+	// Adds an event to the recent events queue
 	private addEvent(event: CacheEvent): void {
 		this.recentEvents.push(event);
 		if (this.recentEvents.length > this.MAX_EVENTS) {
@@ -158,9 +146,7 @@ export class CacheMetrics {
 		}
 	}
 
-	/**
-	 * Gets current metrics snapshot
-	 */
+	// Gets current metrics snapshot
 	getSnapshot(): CacheMetricSnapshot {
 		const hitRate = this.requestCount > 0 ? this.hits / this.requestCount : 0;
 		const avgResponseTime = this.requestCount > 0 ? this.totalResponseTime / this.requestCount : 0;
@@ -213,16 +199,14 @@ export class CacheMetrics {
 		this.misses = 0;
 		this.totalResponseTime = 0;
 		this.requestCount = 0;
-		this.lastResetTime = new Date();
+		this.lastResetTime = dateToISODateString(new Date());
 		this.categoryMetrics.clear();
 		this.tenantMetrics.clear();
 		this.recentEvents = [];
 		logger.info('Cache metrics reset');
 	}
 
-	/**
-	 * Logs current metrics summary
-	 */
+	// Logs current metrics summary
 	logSummary(): void {
 		const snapshot = this.getSnapshot();
 		logger.info('Cache Metrics Summary', {
@@ -236,9 +220,7 @@ export class CacheMetrics {
 		});
 	}
 
-	/**
-	 * Exports metrics in Prometheus format for monitoring systems
-	 */
+	// Exports metrics in Prometheus format for monitoring systems
 	exportPrometheusFormat(): string {
 		const snapshot = this.getSnapshot();
 		const lines: string[] = [];

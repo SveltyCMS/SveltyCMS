@@ -5,9 +5,9 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import {
 	widgetStoreActions,
 	widgetFunctions as widgetFunctionsStore,
@@ -26,13 +26,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 
 		// Check permission
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
 			logger.warn(`User ${user._id} denied access to widget API due to insufficient permissions`);
 			throw error(403, 'Insufficient permissions');
 		}
 
-		const tenantId = url.searchParams.get('tenantId') || user.tenantId || 'default-tenant';
+		const tenantId = url.searchParams.get('tenantId') || 'default-tenant';
 
 		// Initialize widgets if not already loaded
 		await widgetStoreActions.initializeWidgets(tenantId);
@@ -73,39 +73,38 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const isActive = activeWidgetNames.includes(name);
 			const isCore = coreWidgetNames.includes(name);
 			const dependencies = getWidgetDependencies(name);
+			const widget = widgetFn as Record<string, unknown>;
 
 			return {
 				name,
-				icon: widgetFn.Icon || (isCore ? 'mdi:puzzle' : 'mdi:puzzle-plus'),
-				description: widgetFn.Description || '',
+				icon: (widget.Icon as string) || (isCore ? 'mdi:puzzle' : 'mdi:puzzle-plus'),
+				description: (widget.Description as string) || '',
 				isCore,
 				isActive,
 				dependencies,
 				// 3-Pillar Architecture Components
 				pillar: {
 					definition: {
-						name: widgetFn.Name,
-						description: widgetFn.Description,
-						icon: widgetFn.Icon,
-						guiSchema: widgetFn.GuiSchema ? Object.keys(widgetFn.GuiSchema).length : 0,
-						aggregations: !!widgetFn.aggregations
+						name: widget.Name as string,
+						description: widget.Description as string,
+						icon: widget.Icon as string,
+						guiSchema: widget.GuiSchema ? Object.keys(widget.GuiSchema as object).length : 0,
+						aggregations: !!widget.aggregations
 					},
 					input: {
-						componentPath: widgetFn.__inputComponentPath || '',
-						exists: !!widgetFn.__inputComponentPath
+						componentPath: (widget.__inputComponentPath as string) || '',
+						exists: !!(widget.__inputComponentPath as string)
 					},
 					display: {
-						componentPath: widgetFn.__displayComponentPath || '',
-						exists: !!widgetFn.__displayComponentPath
+						componentPath: (widget.__displayComponentPath as string) || '',
+						exists: !!(widget.__displayComponentPath as string)
 					}
 				},
 				// Widget metadata
 				canDisable: !isCore && dependencies.length === 0,
-				hasValidation: !!widgetFn.GuiSchema
+				hasValidation: !!widget.GuiSchema
 			};
-		});
-
-		// Sort: core first, then alphabetically
+		}); // Sort: core first, then alphabetically
 		widgetList.sort((a, b) => {
 			if (a.isCore && !b.isCore) return -1;
 			if (!a.isCore && b.isCore) return 1;

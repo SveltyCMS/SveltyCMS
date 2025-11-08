@@ -33,7 +33,7 @@ Icon-only buttons automatically get an 'aria-label="Button"' fallback unless `ar
 
 <Button leadingIcon="mdi:save" aria-label="Save document" loading />
 
-<Button variant="primary" loading replaceTextOnLoading onclick={() => console.log('clicked')}>
+<Button variant="primary" loading replaceTextOnLoading onclick={() => logger.debug('clicked')}>
   Submit
 </Button>
 -->

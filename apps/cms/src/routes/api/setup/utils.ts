@@ -1,6 +1,16 @@
 /**
  * @file src/routes/api/setup/utils.ts
  * @description Shared utility functions for the setup API endpoints.
+ *
+ * Features
+ * - **Database Connection String Builder:** Constructs connection strings for supported databases.
+ * - **Setup Database Adapter Factory:** Provides a centralized function to create and connect database adapters for setup operations.
+ *
+ * Supported Databases
+ * - MongoDB (standard and Atlas SRV)
+ *
+ * Future Plans
+ * - Extend support to PostgreSQL, MySQL, and MariaDB via Drizzle ORM.
  */
 
 import type { DatabaseConfig } from '@src/databases/schemas';

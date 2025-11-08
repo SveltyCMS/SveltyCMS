@@ -23,13 +23,13 @@ import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 
 // Validation
-import { any, object, parse, type ValiError } from 'valibot';
+import { any, object, parse } from 'valibot';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
+import { cacheService } from '@src/databases/CacheService';
 
 // System logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Minimal shared result type guards (kept local to avoid broad dependencies)
 interface DatabaseResultLike<T> {
@@ -83,9 +83,7 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 				});
 				throw error(403, 'Forbidden: You can only edit tokens within your own tenant.');
 			}
-		} // TODO: Use database-agnostic interface once updateToken is implemented
-
-		// Use database-agnostic interface if available, with graceful fallback
+		} // TODO: Use database-agnostic interface once updateToken is implemented		// Use database-agnostic interface if available, with graceful fallback
 		let updateResult: unknown = null;
 		const possibleAuth: unknown = auth as unknown;
 		if (
@@ -117,13 +115,15 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 
 		logger.info('Token updated successfully', { tokenId, updateData: newTokenData, tenantId }); // Invalidate the tokens cache so the UI updates immediately
 
-		invalidateAdminCache('tokens', tenantId);
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
 
 		return json({ success: true, message: 'Token updated successfully.' });
 	} catch (err) {
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
+		if (err instanceof Error && err.name === 'ValiError') {
+			const valiError = err as unknown as { issues: Array<{ message: string }> };
+			const issues = valiError.issues.map((issue: { message: string }) => issue.message).join(', ');
 			logger.warn('Invalid input for edit token API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);
 		}
@@ -154,15 +154,17 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			if (!tenantId) {
 				throw error(500, 'Tenant could not be identified for this operation.');
 			}
+			if (!auth) {
+				throw error(500, 'Auth service is not initialized');
+			}
 			const tokenToDelete = await auth.getTokenByValue(tokenId);
-			if (!tokenToDelete || tokenToDelete.tenantId !== tenantId) {
-				logger.warn('Attempt to delete a token belonging to another tenant.', {
+			if (!tokenToDelete) {
+				logger.warn('Attempt to delete a non-existent token.', {
 					adminId: user?._id,
 					adminTenantId: tenantId,
-					targetTokenId: tokenId,
-					targetTenantId: tokenToDelete?.tenantId
+					targetTokenId: tokenId
 				});
-				throw error(403, 'Forbidden: You can only delete tokens within your own tenant.');
+				throw error(404, 'Token not found.');
 			}
 		}
 
@@ -184,13 +186,18 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		} else {
 			const { TokenAdapter } = await import('@src/databases/mongodb/models/authToken');
 			const tokenAdapter = new TokenAdapter();
-			deletedCount = await tokenAdapter.deleteTokens([tokenId]);
+			const result = await tokenAdapter.deleteTokens([tokenId]);
+			if (result.success && result.data) {
+				deletedCount = result.data.deletedCount;
+			}
 		}
 		if (!deletedCount) {
 			throw error(404, 'Token not found');
 		} // Invalidate the tokens cache so the deleted token disappears immediately from admin area
 
-		invalidateAdminCache('tokens', tenantId);
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		});
 
 		logger.info(`Token ${tokenId} deleted successfully`, { executedBy: user?._id, tenantId });
 

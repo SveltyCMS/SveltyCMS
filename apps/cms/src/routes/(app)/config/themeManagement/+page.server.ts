@@ -17,10 +17,9 @@ import type { PageServerLoad } from './$types';
 
 // Auth
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // System Logs
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -36,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.trace(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for theme management
-		const hasThemeManagementPermission = hasPermissionWithRoles(user, 'config:themeManagement', roles);
+		const hasThemeManagementPermission = hasPermissionWithRoles(user, 'config:themeManagement', locals.roles || []);
 
 		if (!hasThemeManagementPermission) {
 			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access theme management`;

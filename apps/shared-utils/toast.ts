@@ -3,7 +3,8 @@
  * Centralized toast utility for consistent notifications across modals/components.
  */
 
-import { getToastStore, type ToastStore } from '@skeletonlabs/skeleton-svelte';
+import { getToastStore, type ToastStore } from '@skeletonlabs/skeleton';
+import { logger } from '@utils/logger';
 
 let toastStoreRef: ToastStore | null = null;
 
@@ -28,7 +29,7 @@ export function showToast(message: string, type: ToastType = 'info', timeout?: n
 	};
 
 	if (!toastStoreRef) {
-		console.warn('[toast] Toast store not initialized. Call setGlobalToastStore(getToastStore()) in a root component.');
+		logger.warn('[toast] Toast store not initialized. Call setGlobalToastStore(getToastStore()) in a root component.');
 		return;
 	}
 

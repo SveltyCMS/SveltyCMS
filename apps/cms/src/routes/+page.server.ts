@@ -12,15 +12,16 @@ import { dbInitPromise } from '@src/databases/db';
 import { error, redirect } from '@sveltejs/kit';
 
 import type { PageServerLoad } from './$types';
+import type { User, Role } from '@src/databases/auth/types';
 
 // Roles
-import { roles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const { user, tenantId, roles: tenantRoles } = locals;
+	const { user, tenantId, roles } = locals as { user: User | null; tenantId: string | undefined; roles: Role[] | undefined };
+	const tenantRoles = roles || [];
 	if (!user) {
 		logger.debug('User is not authenticated, redirecting to login');
 		throw redirect(302, '/login');
@@ -34,8 +35,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		// For any route other than the root, just return user data
 		if (url.pathname !== '/') {
-			const rolesToUse = tenantRoles && tenantRoles.length > 0 ? tenantRoles : roles;
-			const userRole = rolesToUse.find((role) => role._id === user?.role);
+			const userRole = tenantRoles.find((role) => role._id === user?.role);
 			const isAdmin = Boolean(userRole?.isAdmin);
 
 			return {
@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 
 		// Determine the correct language for the redirect URL
-		const redirectLanguage = url.searchParams.get('contentLanguage') || user.systemLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+		const redirectLanguage = url.searchParams.get('contentLanguage') || user.locale || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
 		// Use the new, efficient method from ContentManager to get the redirect URL
 		const redirectUrl = await contentManager.getFirstCollectionRedirectUrl(redirectLanguage, tenantId);
@@ -64,8 +64,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// If no collections are found, do not redirect.
 		// The page can render a message like "No collections configured."
 		logger.warn('No collections found for user. Staying on root page.', { tenantId });
-		const rolesToUse = tenantRoles && tenantRoles.length > 0 ? tenantRoles : roles;
-		const userRole = rolesToUse.find((role) => role._id === user?.role);
+		const userRole = tenantRoles.find((role) => role._id === user?.role);
 		const isAdmin = Boolean(userRole?.isAdmin);
 		return {
 			user: { ...user, isAdmin },
