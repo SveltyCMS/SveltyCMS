@@ -5,3 +5,5 @@
 
 export * from './schemas.js';
 export * from './writePrivateConfig.js';
+export * from './dbInterface.js';
+export * from './types.js';

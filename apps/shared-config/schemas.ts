@@ -220,3 +220,63 @@ export function formatPath(path: BaseIssue<unknown>['path']): string {
 	if (!path || path.length === 0) return 'root';
 	return path.map((p) => String(p.key)).join('.');
 }
+
+// ----------------- USER & SESSION TYPES -----------------
+
+/**
+ * User entity - represents a user in the system
+ */
+export interface User {
+	_id: string;
+	email: string;
+	tenantId?: string;
+	password?: string;
+	role: string;
+	username?: string;
+	firstName?: string;
+	lastName?: string;
+	locale?: string;
+	avatar?: string;
+	lastAuthMethod?: string;
+	lastActiveAt?: Date;
+	expiresAt?: Date;
+	isRegistered?: boolean;
+	failedAttempts?: number;
+	blocked?: boolean;
+	resetRequestedAt?: Date;
+	resetToken?: string;
+	lockoutUntil?: Date | null;
+	is2FAEnabled?: boolean;
+	totpSecret?: string;
+	backupCodes?: string[];
+	last2FAVerification?: Date;
+	permissions: string[];
+	isAdmin?: boolean;
+	googleRefreshToken?: string | null;
+}
+
+/**
+ * Session entity - represents a user session
+ */
+export interface Session {
+	_id: string;
+	user_id: string;
+	expires: Date;
+	tenantId?: string;
+	rotated?: boolean;
+	rotatedTo?: string;
+}
+
+/**
+ * Role entity - represents a user role
+ */
+export interface Role {
+	_id: string;
+	name: string;
+	description?: string;
+	isAdmin?: boolean;
+	permissions: string[];
+	groupName?: string;
+	icon?: string;
+	color?: string;
+}

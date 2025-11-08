@@ -7,6 +7,8 @@
     "exports": {
         ".": "./index.ts",
         "./schemas": "./schemas.ts",
-        "./writePrivateConfig": "./writePrivateConfig.ts"
+        "./writePrivateConfig": "./writePrivateConfig.ts",
+        "./dbInterface": "./dbInterface.ts",
+        "./types": "./types.ts"
     }
 }
