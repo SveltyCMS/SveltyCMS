@@ -15,19 +15,20 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
-import { initializeRoles, roles } from '@root/config/roles';
+import type { ISODateString } from '@src/content/types';
 import { auth, dbAdapter } from '@src/databases/db';
+import { getDefaultRoles } from '@src/databases/auth/defaultRoles';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Cache invalidation
-import { invalidateAdminCache } from '@src/hooks/handleAuthorization';
+import { cacheService } from '@src/databases/CacheService';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { v4 as uuidv4 } from 'uuid';
-import { parse, type ValiError } from 'valibot';
+import { parse } from 'valibot';
 
 // ParaglideJS
 import { getLocale } from '@src/paraglide/runtime';
@@ -52,10 +53,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		logger.debug('Received token creation request:', { ...body, tenantId }); // Validate input using the Valibot schema
 
 		const validatedData = parse(addUserTokenSchema, body);
-		logger.debug('Validated data:', validatedData); // Initialize roles and validate the selected role
+		logger.debug('Validated data:', validatedData); // Validate the selected role
 
-		await initializeRoles();
-		const roleInfo = roles.find((r) => r._id === validatedData.role);
+		const roleInfo = getDefaultRoles().find((r) => r._id === validatedData.role);
 		if (!roleInfo) {
 			throw error(400, 'Invalid role selected.');
 		}
@@ -73,11 +73,12 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			throw error(409, 'A user with this email address already exists in this tenant.');
 		}
 
-		if (existingTokens && existingTokens.length > 0) {
+		if (existingTokens && existingTokens.success && existingTokens.data && existingTokens.data.length > 0) {
 			logger.warn('Attempted to create a token for an email that already has one in this tenant', { email: validatedData.email, tenantId });
 			throw error(409, 'An invitation token for this email already exists in this tenant. Please delete the existing token first.');
-		} // Calculate expiration date
+		}
 
+		// Calculate expiration date
 		const expirationInSeconds: Record<string, number> = {
 			'2 hrs': 7200,
 			'12 hrs': 43200,
@@ -96,15 +97,14 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		// For invite tokens, we use the database adapter directly since the user doesn't exist yet
 		const user_id = uuidv4();
 		const type = 'invite';
-		const expiryDate = expires;
 
 		// Use dbAdapter directly for invite tokens since the user doesn't exist yet
 		const tokenResult = await dbAdapter.auth.createToken({
 			user_id: user_id,
 			email: validatedData.email.toLowerCase(), // Use the provided email directly
-			expires: expiryDate,
+			expires: expires.toISOString() as ISODateString,
 			type,
-			role: validatedData.role, // Include the selected role
+			// Note: role is stored separately in the token metadata, not in the token itself
 			tenantId: tenantId || undefined
 		});
 
@@ -160,22 +160,30 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		// Check if email was actually sent or skipped due to dummy config
 		const emailResult = await emailResponse.json();
 		const emailSkipped = emailResult.dev_mode === true;
+		const smtpNotConfigured = emailResult.smtp_not_configured === true;
 
-		if (emailSkipped) {
-			logger.info('Token created successfully - email sending skipped (development mode)', {
+		if (emailSkipped || smtpNotConfigured) {
+			const reason = smtpNotConfigured ? 'SMTP not configured' : 'development mode';
+			logger.info(`Token created successfully - email sending skipped (${reason})`, {
 				email: validatedData.email,
 				role: roleInfo.name,
 				tenantId,
-				config_status: 'dummy_email_config'
+				config_status: smtpNotConfigured ? 'smtp_not_configured' : 'dummy_email_config'
 			});
 			// Return token so it can be delivered manually in dev
-			invalidateAdminCache('tokens', tenantId);
+			cacheService.delete('tokens', tenantId).catch((err) => {
+				logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+			});
 			return json({
 				success: true,
-				message: 'Token created; email sending skipped (development mode).',
+				message: smtpNotConfigured
+					? 'Token created; email not sent - SMTP not configured. Please configure email settings in System Settings.'
+					: 'Token created; email sending skipped (development mode).',
 				token: { value: token, expires: expires.toISOString() },
 				email_sent: false,
-				dev_mode: true
+				dev_mode: emailSkipped,
+				smtp_not_configured: smtpNotConfigured,
+				user_message: smtpNotConfigured ? emailResult.user_message : undefined
 			});
 		} else {
 			logger.info('Token created and email sent successfully', {
@@ -185,7 +193,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			});
 		} // Invalidate the admin cache for tokens so the UI refreshes immediately
 
-		invalidateAdminCache('tokens', tenantId); // Return success response
+		cacheService.delete('tokens', tenantId).catch((err) => {
+			logger.warn(`Failed to invalidate tokens cache: ${err.message}`);
+		}); // Return success response
 
 		return json({
 			success: true,
@@ -194,8 +204,8 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			email_sent: true
 		});
 	} catch (err) {
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
+		if (err instanceof Error && err.name === 'ValiError') {
+			const valiError = err as unknown as { issues: Array<{ message: string }> };
 			const issues = valiError.issues.map((issue) => issue.message).join(', ');
 			logger.warn('Invalid input for createToken API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);

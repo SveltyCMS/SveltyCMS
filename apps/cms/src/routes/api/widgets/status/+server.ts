@@ -4,10 +4,10 @@
  * Database agnostic - uses dbAdapter interface
  */
 import { json, error } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 import { hasPermissionWithRoles } from '@src/databases/auth/permissions';
-import { roles } from '@root/config/roles';
+
 import { cacheService } from '@src/databases/CacheService';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -20,15 +20,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Check permission
-		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', roles);
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'api:widgets', locals.roles);
 		if (!hasWidgetPermission) {
-			logger.warn(
-				`User ${user._id} (role: ${user.role}, tenant: ${user.tenantId || 'global'}) denied access to API /api/widgets due to insufficient role permissions`
-			);
+			logger.warn(`User ${user._id} (role: ${user.role}) denied access to API /api/widgets due to insufficient role permissions`);
 			throw error(403, 'Insufficient permissions');
-		}
-
-		// Check database adapter availability
+		} // Check database adapter availability
 		if (!locals.dbAdapter?.widgets) {
 			throw error(500, 'Widget database adapter not available');
 		}
@@ -56,33 +52,32 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			);
 		}
 
-		// Can't deactivate core widgets
-		if (!isActive && widget.isCore) {
-			throw error(400, `Cannot deactivate core widget "${widgetName}". Core widgets are required for system operation.`);
-		}
+		// Note: Widget interface doesn't track isCore status in database
+		// Core widgets are determined by the file system location, not database property
 
 		// If deactivating, check if the widget is in use by collections
 		if (!isActive) {
-			const contentManager = locals.contentManager;
-			if (contentManager) {
-				const allSchemas = contentManager.getAllSchemas();
+			const contentManager = await import('@root/src/content/ContentManager').then((m) => m.contentManager);
 
-				// Check if widget is used in any collection
-				const usedInCollections: string[] = [];
-				for (const schema of allSchemas) {
-					// Check if any fields use this widget
-					if (schema.fields?.some((field) => field.widget === widgetName)) {
-						usedInCollections.push(schema.name);
+			// Check if widget is used in any collection
+			const allCollections = contentManager.getCollections();
+			const usedInCollections: string[] = [];
+			for (const [, schema] of Object.entries(allCollections)) {
+				const schemaObj = schema as Record<string, unknown>;
+				// Check if any fields use this widget
+				if (schemaObj.fields && Array.isArray(schemaObj.fields)) {
+					if (schemaObj.fields.some((field: Record<string, unknown>) => field.widget === widgetName)) {
+						usedInCollections.push((schemaObj.name as string) || 'Unknown');
 					}
 				}
+			}
 
-				if (usedInCollections.length > 0) {
-					throw error(
-						400,
-						`Cannot deactivate widget "${widgetName}". It is currently used in collections: ${usedInCollections.join(', ')}. ` +
-							`Deactivating it would corrupt data and prevent content rendering.`
-					);
-				}
+			if (usedInCollections.length > 0) {
+				throw error(
+					400,
+					`Cannot deactivate widget "${widgetName}". It is currently used in collections: ${usedInCollections.join(', ')}. ` +
+						`Deactivating it would corrupt data and prevent content rendering.`
+				);
 			}
 		}
 
@@ -118,17 +113,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		});
 
 		const updateResult = await locals.dbAdapter.widgets.update(widget._id, {
-			isActive,
-			updatedAt: new Date()
+			isActive
 		});
 
 		if (!updateResult.success || !updateResult.data) {
+			const errorMsg = !updateResult.success && 'error' in updateResult ? (updateResult.error as { message?: string })?.message : undefined;
 			logger.error('Failed to update widget in database', {
 				widgetId: widget._id,
 				widgetName,
-				error: updateResult.error
+				error: errorMsg
 			});
-			throw error(500, `Failed to update widget status: ${updateResult.error?.message || 'Unknown error'}`);
+			throw error(500, `Failed to update widget status: ${errorMsg || 'Unknown error'}`);
 		}
 
 		// Clear widget active cache for current tenant ID

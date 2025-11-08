@@ -3,7 +3,7 @@ import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger.server';
 import crypto from 'crypto';
 
-export async function GET({ locals, url }) {
+export async function GET({ locals, url }: { locals: App.Locals; url: URL }): Promise<Response> {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
@@ -16,25 +16,16 @@ export async function GET({ locals, url }) {
 	const limit = Number(url.searchParams.get('limit') ?? 10);
 	const sort = url.searchParams.get('sort') ?? 'createdAt';
 	const order = url.searchParams.get('order') ?? 'desc';
-	const search = url.searchParams.get('search') ?? '';
 
-	const filter: any = {};
-	if (search) {
-		filter.name = { $regex: search, $options: 'i' };
-	}
-
-	for (const [key, value] of url.searchParams.entries()) {
-		if (key !== 'page' && key !== 'limit' && key !== 'sort' && key !== 'order' && key !== 'search') {
-			filter[key] = { $regex: value, $options: 'i' };
-		}
-	}
+	// Note: The current dbAdapter.websiteTokens.getAll() doesn't support filter parameter
+	// Search/filter functionality would need to be added to the database adapter
+	// For now, we fetch all and can filter client-side if needed
 
 	const result = await dbAdapter.websiteTokens.getAll({
 		limit,
 		skip: (page - 1) * limit,
 		sort,
-		order,
-		filter
+		order
 	});
 
 	if (!result.success) {
@@ -50,7 +41,7 @@ export async function GET({ locals, url }) {
 	});
 }
 
-export async function POST({ locals, request }) {
+export async function POST({ locals, request }: { locals: App.Locals; request: Request }): Promise<Response> {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
@@ -75,6 +66,7 @@ export async function POST({ locals, request }) {
 	const result = await dbAdapter.websiteTokens.create({
 		name,
 		token,
+		updatedAt: new Date().toISOString() as import('@databases/dbInterface').ISODateString,
 		createdBy: locals.user._id
 	});
 

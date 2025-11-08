@@ -17,10 +17,12 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 // Auth
-import type { SessionStore, User } from './types';
+import type { User, ISODateString } from '@databases/dbInterface';
+import { isoDateStringToDate } from '@utils/dateUtils';
+import type { SessionStore } from './types';
 
 // Redis client interface to avoid direct dependency on a specific Redis library
 interface RedisLike {
@@ -47,8 +49,9 @@ class InMemorySessionManager implements SessionStore {
 		return session.user;
 	}
 
-	async set(session_id: string, user: User, expiration: Date): Promise<void> {
-		this.sessions.set(session_id, { user, expiresAt: expiration });
+	async set(session_id: string, user: User, expiration: ISODateString): Promise<void> {
+		const expirationDate = isoDateStringToDate(expiration);
+		this.sessions.set(session_id, { user, expiresAt: expirationDate });
 	}
 
 	async delete(session_id: string): Promise<void> {
@@ -80,7 +83,7 @@ class InMemorySessionManager implements SessionStore {
 		const dbUser = await dbValidationFn(session_id);
 		if (dbUser) {
 			// Cache the user in memory for future access (assuming 1 hour expiration)
-			const expiration = new Date(Date.now() + 60 * 60 * 1000);
+			const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString() as ISODateString;
 			await this.set(session_id, dbUser, expiration);
 		}
 		return dbUser;
@@ -130,12 +133,13 @@ class RedisSessionManager implements SessionStore {
 		return await this.fallbackManager.get(session_id);
 	}
 
-	async set(session_id: string, user: User, expiration: Date): Promise<void> {
-		const sessionData = { user, expiresAt: expiration };
+	async set(session_id: string, user: User, expiration: ISODateString): Promise<void> {
+		const expirationDate = isoDateStringToDate(expiration);
+		const sessionData = { user, expiresAt: expirationDate };
 
 		try {
 			if (this.redisClient) {
-				const ttlSeconds = Math.floor((expiration.getTime() - Date.now()) / 1000);
+				const ttlSeconds = Math.floor((expirationDate.getTime() - Date.now()) / 1000);
 				if (ttlSeconds > 0) {
 					await this.redisClient.setex(session_id, ttlSeconds, JSON.stringify(sessionData));
 					return;
@@ -201,7 +205,7 @@ class RedisSessionManager implements SessionStore {
 		const dbUser = await dbValidationFn(session_id);
 		if (dbUser) {
 			// Cache the validated user (assuming 1 hour expiration)
-			const expiration = new Date(Date.now() + 60 * 60 * 1000);
+			const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString() as ISODateString;
 			await this.set(session_id, dbUser, expiration);
 		}
 		return dbUser;

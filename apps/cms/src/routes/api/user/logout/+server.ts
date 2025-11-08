@@ -22,7 +22,7 @@ import { SESSION_COOKIE_NAME } from '@src/databases/auth/constants';
 import { cacheService } from '@src/databases/CacheService';
 import { auth } from '@src/databases/db';
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
 	const { user, session_id, tenantId } = locals;
@@ -34,9 +34,11 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 		if (session_id && user) {
 			// Revoke Google OAuth Token
-			if (user.googleRefreshToken) {
+			// Check if user has googleRefreshToken (property exists in full User type but not in minimal locals type)
+			const fullUser = user as { googleRefreshToken?: string | null } & typeof user;
+			if (fullUser.googleRefreshToken) {
 				try {
-					const refreshToken = user.googleRefreshToken;
+					const refreshToken = fullUser.googleRefreshToken;
 					const response = await fetch(`https://oauth2.googleapis.com/revoke?token=${refreshToken}`, {
 						method: 'POST',
 						headers: {
@@ -46,7 +48,7 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 					if (response.ok) {
 						logger.info('Successfully revoked Google OAuth token for user', { userId: user._id, tenantId }); // Clear the refresh token from the database, scoped by tenant.
-						await auth.updateUserAttributes(user._id, { googleRefreshToken: null }, tenantId);
+						await auth.updateUserAttributes(user._id, { googleRefreshToken: undefined }, tenantId);
 					} else {
 						const errorBody = await response.json();
 						logger.warn('Failed to revoke Google OAuth token. It may have already been revoked.', {

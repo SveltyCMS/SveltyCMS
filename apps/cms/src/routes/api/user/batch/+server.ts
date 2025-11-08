@@ -22,18 +22,19 @@ import { getPrivateSettingSync } from '@src/services/settingsService';
 
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import type { User } from '@src/databases/auth/types';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
 
 // Validation
-import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
+import { array, minLength, object, parse, picklist, pipe, string } from 'valibot';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 
 const batchUserActionSchema = object({
-	userIds: array(string([minLength(1, 'User ID cannot be empty.')])),
+	userIds: array(pipe(string(), minLength(1, 'User ID cannot be empty.'))),
 	action: picklist(['delete', 'block', 'unblock'], 'Invalid action specified.')
 });
 
@@ -64,12 +65,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			// Check if all users exist and belong to the tenant
 			const userChecks = await Promise.all(
 				userIds.map(async (userId) => {
-					const userResult = await auth.db.auth.getUserById(userId, tenantId);
-					return userResult.success ? userResult.data : null;
+					return await auth!.getUserById(userId, tenantId);
 				})
 			);
-
-			if (userChecks.some((user) => user === null)) {
+			if (userChecks.some((u: User | null) => u === null)) {
 				logger.warn(`Attempt to act on users outside of tenant or non-existent users`, {
 					userId: user?._id,
 					tenantId,
@@ -93,14 +92,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						totalDeleted++;
 						totalSessionsDeleted += result.data.deletedSessionCount || 0;
 					} else {
+						const errorMsg = !result.success && 'error' in result ? result.error?.message : 'Unknown error';
 						logger.warn(`Failed to delete user or sessions`, {
 							userId,
-							error: result.message,
+							error: errorMsg,
 							tenantId
 						});
 					}
 				}
-
 				if (totalDeleted === 0) {
 					throw error(500, 'Failed to delete any users');
 				}
@@ -119,7 +118,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				break;
 			}
 			case 'block': {
-				const result = await auth.db.auth.blockUsers(userIds, tenantId);
+				const result = await auth.blockUsers(userIds, tenantId);
 				if (!result.success) {
 					throw error(500, `Failed to block users: ${result.error}`);
 				}
@@ -127,7 +126,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				break;
 			}
 			case 'unblock': {
-				const result = await auth.db.auth.unblockUsers(userIds, tenantId);
+				const result = await auth.unblockUsers(userIds, tenantId);
 				if (!result.success) {
 					throw error(500, `Failed to unblock users: ${result.error}`);
 				}
@@ -135,22 +134,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				break;
 			}
 		}
-
 		logger.info(`Batch user action '${action}' completed.`, {
 			affectedIds: userIds,
 			executedBy: user?._id,
 			tenantId
 		});
-		// Invalidate admin cache since user data has changed
-
-		const { invalidateAdminCache } = await import('@src/hooks/handleAuthorization');
-		invalidateAdminCache('users', tenantId);
+		// Invalidate user count cache since users were deleted
+		const { invalidateUserCountCache } = await import('@src/hooks/handleAuthorization');
+		invalidateUserCountCache(tenantId);
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
+		if (err instanceof Error && err.name === 'ValiError') {
+			const valiError = err as unknown as { issues: Array<{ message: string }> };
+			const issues = valiError.issues.map((issue: { message: string }) => issue.message).join(', ');
 			logger.warn('Invalid input for user batch API:', { issues });
 			throw error(400, `Invalid input: ${issues}`);
 		}

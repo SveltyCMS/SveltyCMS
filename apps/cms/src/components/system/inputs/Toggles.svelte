@@ -1,20 +1,28 @@
 <!-- 
 @file src/components/system/inputs/Toggles.svelte
-@description Toggle switch component with customizable icons and labels
+@component
+**Toggle switch component with customizable icons and labels**
+
+### Props
+- `value` {boolean}: The toggle state (bindable)
+- `label` {string}: Label displayed next to the toggle (default: '')
+- `labelColor` {string}: Color class for the label when off (default: 'text-primary-500')
+- `iconOn` {string}: Icon to display when toggle is on (default: '')
+- `iconOff` {string}: Icon to display when toggle is off (default: '')
+- `size` {'sm' | 'md' | 'lg'}: Size of the toggle (default: 'md')
+- `disabled` {boolean}: Whether the toggle is disabled (default: false)
+- `title` {string}: Title attribute for the toggle (default: '')
+- `onChange` {(changed: boolean) => void}: Callback function when toggle state changes (optional)	
+
+### Features:
+- Customizable icons for on/off states
+- Size options for different UI needs
+- Disabled state handling
+- Accessible with proper labeling and focus management
 -->
 
 <script lang="ts">
-	type Props = {
-		value?: boolean;
-		label?: string;
-		labelColor?: string;
-		iconOn?: string;
-		iconOff?: string;
-		size?: 'sm' | 'md' | 'lg';
-		disabled?: boolean;
-		title?: string;
-		onChange?: (changed: boolean) => void;
-	};
+	import { logger } from '@utils/logger';
 
 	let {
 		value = $bindable(false),
@@ -25,33 +33,27 @@
 		size = 'md',
 		disabled = false,
 		title = '',
-		onChange
-	} = $props<Props>();
+		onChange = undefined
+	} = $props();
 
 	// Generate a unique ID for a11y
 	const id = `toggle-${Math.random().toString(36).substring(2, 9)}`;
 
 	// Handle toggle state change
 	function handleToggle(event: Event) {
-		console.log('[Toggles] handleToggle called, disabled:', disabled, 'event type:', event.type);
-
 		if (disabled) {
-			console.log('[Toggles] Toggle is disabled, returning early');
 			event.preventDefault();
 			return;
 		}
 
 		const checked = (event.target as HTMLInputElement).checked;
-		console.log('[Toggles] Current value:', value, 'new checked:', checked);
 
 		value = checked;
-		console.log('[Toggles] Updated value to:', value, 'calling onChange with:', checked);
 
 		try {
 			onChange?.(checked);
-			console.log('[Toggles] onChange callback completed');
 		} catch (error) {
-			console.error('[Toggles] Error in onChange callback:', error);
+			logger.error('[Toggles] Error in onChange callback:', error);
 		}
 	}
 

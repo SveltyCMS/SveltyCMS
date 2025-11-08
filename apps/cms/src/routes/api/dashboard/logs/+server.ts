@@ -22,7 +22,8 @@ import { createBrotliDecompress, createGunzip } from 'node:zlib';
 import type { RequestHandler } from './$types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
+import type { ISODateString } from '@src/content/types';
 
 // Validation
 import * as v from 'valibot';
@@ -37,7 +38,7 @@ const QuerySchema = v.object({
 });
 
 const LogEntrySchema = v.object({
-	timestamp: v.string(),
+	timestamp: v.string() as v.BaseSchema<ISODateString>,
 	level: v.string(),
 	message: v.string(),
 	messageHtml: v.string(),
@@ -65,16 +66,14 @@ const ANSI_COLOR_MAP: Record<string, string> = {
 };
 
 interface RawLogEntry {
-	timestamp: string;
+	timestamp: ISODateString;
 	level: string;
 	message: string;
 	messageHtml: string;
 	args: unknown[];
 }
 
-/**
- * Converts ANSI escape sequences to HTML spans with inline CSS colors
- */
+// Converts ANSI escape sequences to HTML spans with inline CSS colors
 function convertAnsiToHtml(text: string): string {
 	// Simple but effective approach: process ANSI codes sequentially
 	let result = '';
@@ -126,9 +125,8 @@ function convertAnsiToHtml(text: string): string {
 	}
 
 	return result;
-} /**
- * Parses a log line with ANSI color support
- */
+}
+// Parses a log line with ANSI color support
 const parseLogLineWithColors = (line: string): RawLogEntry | null => {
 	// Enhanced regex to handle ANSI codes in timestamp and message
 	const regex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+\[([^\]]+)\]\s+(.*)$/;
@@ -144,7 +142,7 @@ const parseLogLineWithColors = (line: string): RawLogEntry | null => {
 			const cleanMessage = message || line;
 
 			return {
-				timestamp: timestamp || new Date().toISOString(),
+				timestamp: (timestamp || new Date().toISOString()) as ISODateString,
 				level: level || 'INFO',
 				message: cleanMessage.replace(/\[\d+(?:;\d+)*m/g, ''), // Strip ANSI for plain text
 				messageHtml: convertAnsiToHtml(cleanMessage),
@@ -154,7 +152,7 @@ const parseLogLineWithColors = (line: string): RawLogEntry | null => {
 
 		// Last resort: treat the whole line as a message
 		return {
-			timestamp: new Date().toISOString(),
+			timestamp: new Date().toISOString() as ISODateString,
 			level: 'INFO',
 			message: line.replace(/\[\d+(?:;\d+)*m/g, ''), // Strip ANSI for plain text
 			messageHtml: convertAnsiToHtml(line),
@@ -183,7 +181,7 @@ const parseLogLineWithColors = (line: string): RawLogEntry | null => {
 	}
 
 	return {
-		timestamp,
+		timestamp: timestamp as ISODateString,
 		level,
 		message: message.replace(/\[\d+(?:;\d+)*m/g, ''), // Clean message for plain text
 		messageHtml: convertAnsiToHtml(message), // Rich HTML message with colors

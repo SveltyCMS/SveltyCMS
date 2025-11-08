@@ -19,9 +19,9 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
-import type { SystemVirtualFolder } from '@src/databases/dbInterface';
-import type { MediaAccess } from '@utils/media/mediaModels';
-import { saveAudio, saveDocument, saveImage, saveVideo } from '@utils/media/mediaProcessing';
+import type { SystemVirtualFolder } from '@root/src/databases/dbInterface';
+import type { MediaAccess } from '@root/src/utils/media/mediaModels';
+import { MediaService } from '@src/services/MediaService';
 import { constructUrl } from '@utils/media/mediaUtils';
 import mime from 'mime-types';
 
@@ -29,7 +29,7 @@ import mime from 'mime-types';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger.svelte';
+import { logger, type LoggableValue } from '@utils/logger.server';
 
 interface StackItem {
 	parent: Record<string, unknown> | Array<unknown> | null;
@@ -92,9 +92,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	try {
 		// User is already validated in hooks.server.ts
-		const { user } = locals;
+		const { user, isAdmin, roles: tenantRoles } = locals;
 		if (!user) {
 			throw redirect(302, '/login');
+		}
+
+		// Check if user has permission to access media gallery
+		const hasMediaPermission =
+			isAdmin ||
+			tenantRoles.some((role) =>
+				role.permissions?.some((p) => p.resource === 'media' && (p.actions.includes('read') || p.actions.includes('write')))
+			);
+
+		if (!hasMediaPermission) {
+			logger.warn(`User ${user._id} does not have permission to access media gallery`);
+			throw error(403, 'Insufficient permissions to access media gallery');
 		}
 
 		const folderId = url.searchParams.get('folderId'); // Get folderId from URL
@@ -117,8 +129,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
 		logger.trace('Current folder determined:', currentFolder);
 
-		// Fetch from all media collections since MediaItem doesn't exist
-		const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+		// Fetch from all media collections including the primary MediaItem collection
+		const mediaCollections = ['MediaItem', 'media_images', 'media_documents', 'media_audio', 'media_videos'];
 		const allMediaResults: Record<string, unknown>[] = [];
 
 		for (const collection of mediaCollections) {
@@ -198,6 +210,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 					return {
 						...item,
+						type: item.type ?? item.mimeType?.split('/')[0], // Preserve type or derive from mimeType
 						path: item.path ?? 'global',
 						name: item.filename ?? 'unnamed-media',
 						// Use the item's path if available when constructing the original URL
@@ -240,8 +253,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	// Default action for file upload
-	default: async ({ request, locals }) => {
+	// Upload action for file upload
+	upload: async ({ request, locals }) => {
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
 			throw error(500, 'Internal Server Error');
@@ -257,58 +270,27 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const files = formData.getAll('files');
 
-			// Map of file types to their respective save functions
-			const save_media_file = {
-				application: saveDocument,
-				audio: saveAudio,
-				font: saveDocument,
-				example: saveDocument,
-				image: saveImage,
-				message: saveDocument,
-				model: saveDocument,
-				multipart: saveDocument,
-				text: saveDocument,
-				video: saveVideo
-			};
+			const mediaService = new MediaService(dbAdapter);
 
-			const collection_names: Record<string, string> = {
-				application: 'media_documents',
-				audio: 'media_audio',
-				font: 'media_documents',
-				example: 'media_documents',
-				image: 'media_images',
-				message: 'media_documents',
-				model: 'media_documents',
-				multipart: 'media_documents',
-				text: 'media_documents',
-				video: 'media_videos'
-			};
-			const access = {
-				userId: user._id,
-				roleId: user.role,
-				permissions: locals.user?.permissions
-			} as MediaAccess;
+			const access: MediaAccess = 'public'; // or 'private'/'protected' based on your needs
+
 			for (const file of files) {
 				if (file instanceof File) {
-					const type = file.type.split('/')[0] as keyof typeof save_media_file;
-					if (type in save_media_file) {
-						const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id, access);
-						const insertResult = await dbAdapter.crud.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
-
-						if (!insertResult.success) {
-							if (insertResult.error?.message?.includes('duplicate')) {
-								throw new Error(`A file with name "${file.name}" already exists`);
-							}
-							throw new Error(insertResult.error?.message || 'Failed to save file');
-						}
+					try {
+						// Use MediaService.saveMedia which handles all media types
+						await mediaService.saveMedia(file, user._id, access, 'global');
 						logger.info(`File uploaded successfully: ${file.name}`);
-					} else {
-						logger.warn(`Unsupported file type: ${file.type}`);
+					} catch (fileError) {
+						const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
+						if (errorMessage.includes('duplicate')) {
+							logger.warn(`A file with name "${file.name}" already exists`);
+							throw new Error(`A file with name "${file.name}" already exists`);
+						}
+						throw new Error(errorMessage);
 					}
 				}
 			}
 
-			// TODO: Add back invalidation when upgrading SvelteKit
 			return { success: true };
 		} catch (err) {
 			let userMessage = 'Error uploading file';
@@ -328,38 +310,71 @@ export const actions: Actions = {
 
 	// Action to delete a media file
 	deleteMedia: async ({ request }) => {
-		const body = await request.json();
-		logger.warn('Request Body', body);
-		const { image } = body;
-		logger.trace('Received delete request for image:', image);
-
-		if (!image || !image._id) {
-			logger.error('Invalid image data received');
-			throw error(400, 'Invalid image data received');
-		}
-
-		if (!dbAdapter) {
-			logger.error('Database adapter is not initialized.');
-			throw error(500, 'Internal Server Error');
-		}
-
 		try {
-			logger.info(`Deleting image: ${image._id}`);
-			const success = await dbAdapter.deleteMedia(image._id.toString());
+			const formData = await request.formData();
+			const imageDataStr = formData.get('imageData');
 
-			if (success) {
-				logger.info('Image deleted successfully');
+			logger.info('Delete request received, imageDataStr:', imageDataStr);
+
+			if (!imageDataStr || typeof imageDataStr !== 'string') {
+				logger.error('Invalid image data received - not a string');
+				throw error(400, 'Invalid image data received');
+			}
+
+			const image = JSON.parse(imageDataStr);
+			logger.warn('Parsed image data:', image);
+			logger.trace('Received delete request for image:', image);
+
+			if (!image || !image._id) {
+				logger.error('Invalid image data received - no _id');
+				throw error(400, 'Invalid image data received');
+			}
+
+			if (!dbAdapter) {
+				logger.error('Database adapter is not initialized.');
+				throw error(500, 'Internal Server Error');
+			}
+
+			// Move file to trash before deleting from database
+			try {
+				if (image.url) {
+					const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
+					await moveMediaToTrash(image.url);
+					logger.info('File moved to trash:', image.url);
+				}
+
+				// Also move thumbnails to trash if they exist
+				if (image.thumbnails) {
+					const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
+					for (const size in image.thumbnails) {
+						if (image.thumbnails[size]?.url) {
+							await moveMediaToTrash(image.thumbnails[size].url);
+							logger.info('Thumbnail moved to trash:', image.thumbnails[size].url);
+						}
+					}
+				}
+			} catch (trashError) {
+				logger.error('Error moving files to trash:', trashError);
+				// Continue with database deletion even if trash move fails
+			}
+
+			// Determine which collection to delete from - default to MediaItem if not specified
+			const collection = image.collection || 'MediaItem';
+			logger.info(`Deleting image from collection '${collection}': ${image._id}`);
+
+			const result = await dbAdapter.crud.delete(collection, image._id.toString());
+
+			if (result.success) {
+				logger.info('Image deleted successfully from', collection);
 				// TODO: Add back invalidation when upgrading SvelteKit
 				return { success: true }; // Return true on success
 			} else {
-				// Log the failure but maybe don't throw a 500, return success: false?
-				// Or keep throwing error if deletion failure is critical. Let's keep the error for now.
-				logger.error('Failed to delete image from database.');
-				throw error(500, 'Failed to delete image');
+				logger.error('Failed to delete image from database:', result);
+				throw error(500, result.message || 'Failed to delete image');
 			}
 		} catch (err) {
-			logger.error('Error deleting image:', err as LoggableValue);
-			throw error(500, 'Internal Server Error');
+			logger.error('Error in deleteMedia action:', err as LoggableValue);
+			throw error(500, err instanceof Error ? err.message : 'Internal Server Error');
 		}
 	},
 
@@ -383,67 +398,35 @@ export const actions: Actions = {
 				throw new Error('No URLs provided');
 			}
 
-			const access = {
-				userId: user._id,
-				roleId: user.role,
-				permissions: locals.user?.permissions
-			} as MediaAccess;
-
-			const save_media_file = {
-				application: saveDocument,
-				audio: saveAudio,
-				font: saveDocument,
-				example: saveDocument,
-				image: saveImage,
-				message: saveDocument,
-				model: saveDocument,
-				multipart: saveDocument,
-				text: saveDocument,
-				video: saveVideo
-			};
-
-			const collection_names: Record<string, string> = {
-				application: 'media_documents',
-				audio: 'media_audio',
-				font: 'media_documents',
-				example: 'media_documents',
-				image: 'media_images',
-				message: 'media_documents',
-				model: 'media_documents',
-				multipart: 'media_documents',
-				text: 'media_documents',
-				video: 'media_videos'
-			};
+			const mediaService = new MediaService(dbAdapter);
+			const access: MediaAccess = 'public'; // or 'private'/'protected' based on your needs
 
 			for (const url of remoteUrls) {
-				const response = await fetch(url);
-				if (!response.ok) {
-					logger.warn(`Failed to fetch remote URL: ${url}`);
-					continue;
-				}
-				const arrayBuffer = await response.arrayBuffer();
-				const buffer = Buffer.from(arrayBuffer);
-				const contentType = response.headers.get('content-type') || 'application/octet-stream';
-				const filename = url.substring(url.lastIndexOf('/') + 1);
-
-				const file = new File([buffer], filename, { type: contentType });
-
-				const type = file.type.split('/')[0] as keyof typeof save_media_file;
-
-				if (type in save_media_file) {
-					const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id, access);
-					const insertResult = await dbAdapter.crud.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
-
-					if (!insertResult.success) {
-						if (insertResult.error?.message?.includes('duplicate')) {
-							logger.warn(`A file with name "${file.name}" already exists`);
-						} else {
-							throw new Error(insertResult.error?.message || 'Failed to save file');
-						}
+				try {
+					const response = await fetch(url);
+					if (!response.ok) {
+						logger.warn(`Failed to fetch remote URL: ${url}`);
+						continue;
 					}
-					logger.info(`File uploaded successfully: ${file.name}`);
-				} else {
-					logger.warn(`Unsupported file type: ${file.type}`);
+					const arrayBuffer = await response.arrayBuffer();
+					const buffer = Buffer.from(arrayBuffer);
+					const contentType = response.headers.get('content-type') || 'application/octet-stream';
+					const filename = url.substring(url.lastIndexOf('/') + 1);
+
+					const file = new File([buffer], filename, { type: contentType });
+
+					// Use MediaService.saveMedia which handles all media types
+					await mediaService.saveMedia(file, user._id, access, 'global');
+					logger.info(`Remote file uploaded successfully: ${file.name}`);
+				} catch (fileError) {
+					const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
+					if (errorMessage.includes('duplicate')) {
+						logger.warn(`A file from URL "${url}" already exists`);
+					} else {
+						logger.error(`Failed to upload file from ${url}: ${errorMessage}`);
+					}
+					// Continue with next URL instead of throwing
+					continue;
 				}
 			}
 
@@ -453,7 +436,7 @@ export const actions: Actions = {
 			if (err instanceof Error) {
 				userMessage = err.message;
 			}
-			logger.error(`Error during file upload: ${err instanceof Error ? err.message : String(err)}`);
+			logger.error(`Error during remote file upload: ${err instanceof Error ? err.message : String(err)}`);
 			throw error(400, userMessage);
 		}
 	}

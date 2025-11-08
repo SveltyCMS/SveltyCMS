@@ -403,7 +403,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 	// Test database accessibility
 	try {
 		// Try a simple getMany operation to test connectivity
-		await dbAdapter.systemPreferences.getMany(['HOST_DEV'], 'system' as string);
+		await dbAdapter.systemPreferences.getMany(['HOST_DEV'], 'system');
 		logger.debug('Database adapter is accessible');
 	} catch (error) {
 		logger.error('Database adapter is not accessible:', error);
@@ -420,7 +420,7 @@ export async function seedSettings(dbAdapter: DatabaseAdapter): Promise<void> {
 	let existingSettings: Record<string, unknown> = {};
 
 	try {
-		const result = await dbAdapter.systemPreferences.getMany(allKeys, 'system' as string);
+		const result = await dbAdapter.systemPreferences.getMany(allKeys, 'system');
 		if (result.success && result.data) {
 			existingSettings = result.data;
 		}
@@ -523,7 +523,7 @@ export async function exportSettingsSnapshot(dbAdapter: DatabaseAdapter): Promis
 	// For now, we'll get the known settings keys
 	const allSettingKeys = [...defaultPublicSettings, ...defaultPrivateSettings].map((s) => s.key);
 
-	const settingsResult = await dbAdapter.systemPreferences.getMany(allSettingKeys, 'system' as string);
+	const settingsResult = await dbAdapter.systemPreferences.getMany(allSettingKeys, 'system');
 
 	if (!settingsResult.success) {
 		throw new Error(`Failed to export settings: ${settingsResult.error?.message}`);

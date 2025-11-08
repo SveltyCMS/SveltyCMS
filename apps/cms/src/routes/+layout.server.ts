@@ -7,6 +7,7 @@ import { version } from '../../package.json';
 import { getPrivateSettingSync } from '@src/services/settingsService';
 import { publicEnv } from '@src/stores/globalSettings.svelte';
 import type { LayoutServerLoad } from './$types';
+import type { Locale } from '@src/paraglide/runtime';
 
 export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 	// Load settings from configuration service - settings should be loaded from DB during initialization

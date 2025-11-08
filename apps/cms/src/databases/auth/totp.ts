@@ -2,6 +2,17 @@
  * @file src/databases/auth/totp.ts
  * @description Time-based One-Time Password (TOTP) implementation for two-factor authentication
  * using only Node.js built-in crypto module. It follows RFC 6238 standard.
+ *
+ * Features:
+ * - Generate TOTP secrets
+ * - Generate QR code URLs for authenticator apps
+ * - Generate manual entry details
+ * - Generate current TOTP codes
+ * - Verify TOTP codes with time drift tolerance
+ * - Generate and verify backup codes
+ * - Validate TOTP secret format
+ *
+ * Note: This implementation avoids external dependencies to keep the bundle size minimal.
  */
 
 // Server-side only: Dynamic import to prevent bundling in client code
@@ -22,9 +33,7 @@ const TOTP_CONFIG = {
 	ALGORITHM: 'sha1' as const
 };
 
-/**
- * Base32 encoding (RFC 4648)
- */
+// Base32 encoding (RFC 4648)
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function base32Encode(buffer: Buffer): string {
@@ -103,11 +112,17 @@ export function generateManualEntryDetails(
 	account: string;
 	secret: string;
 	issuer: string;
+	algorithm: string;
+	digits: number;
+	period: number;
 } {
 	return {
 		account: userEmail,
 		secret: secret,
-		issuer: serviceName
+		issuer: serviceName,
+		algorithm: TOTP_CONFIG.ALGORITHM,
+		digits: TOTP_CONFIG.DIGITS,
+		period: TOTP_CONFIG.STEP
 	};
 }
 

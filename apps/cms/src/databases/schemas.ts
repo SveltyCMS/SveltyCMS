@@ -19,7 +19,9 @@
  */
 
 import type { BaseIssue, BaseSchema, InferOutput } from 'valibot';
-import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
+import type { DatabaseId, ISODateString } from './dbInterface';
+import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, transform, union } from 'valibot';
+import { logger } from '@utils/logger';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 
@@ -132,6 +134,8 @@ export const publicConfigSchema = object({
 	}),
 	MEDIASERVER_URL: optional(string()), // Optional: URL of a separate media server or CDN endpoint
 
+	MEDIA_BUCKET_NAME: optional(pipe(string(), minLength(1))), // Bucket name for S3/R2/compatible services
+
 	// --- Cloud Storage Configuration (Optional - only needed if MEDIA_STORAGE_TYPE is not 'local') ---
 	MEDIA_CLOUD_REGION: optional(string()), // Cloud storage region (e.g., 'us-east-1', 'auto' for R2)
 	MEDIA_CLOUD_ENDPOINT: optional(string()), // Custom endpoint URL for S3-compatible services (R2, MinIO, etc.)
@@ -172,6 +176,24 @@ export const publicConfigSchema = object({
 	USE_GOOGLE_OAUTH: optional(boolean()) // Enable Google OAuth login on the public-facing login page
 });
 
+export const websiteTokenSchema = object({
+	_id: pipe(
+		string(),
+		transform((input) => input as DatabaseId)
+	) as BaseSchema<string, DatabaseId, BaseIssue<string>>,
+	name: pipe(string(), minLength(1, 'Token name is required.')),
+	token: pipe(string(), minLength(32)),
+	createdAt: pipe(
+		string(),
+		transform((input) => input as ISODateString)
+	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
+	updatedAt: pipe(
+		string(),
+		transform((input) => input as ISODateString)
+	) as BaseSchema<string, ISODateString, BaseIssue<string>>,
+	createdBy: string()
+});
+
 /**
  * Defines the structure for database connection configuration used during setup.
  * Currently supports MongoDB (including Atlas SRV). SQL databases planned for future releases.
@@ -188,6 +210,7 @@ export const databaseConfigSchema = object({
 // ----------------- TYPES & HELPERS -----------------
 export type DatabaseConfig = InferOutput<typeof databaseConfigSchema>;
 export type PrivateConfig = InferOutput<typeof privateConfigSchema>;
+export type WebsiteToken = InferOutput<typeof websiteTokenSchema>;
 
 export type PublicConfig = InferOutput<typeof publicConfigSchema>;
 
@@ -250,14 +273,14 @@ function formatPath(path: BaseIssue<unknown>['path']): string {
  * @param configFile - The name of the configuration file being validated.
  */
 function logValidationErrors(issues: BaseIssue<unknown>[], configFile: string): void {
-	console.error(`\n${colors.yellow}⚠️ Invalid configuration in ${colors.cyan}${configFile}${colors.reset}`);
+	logger.error(`\n${colors.yellow}⚠️ Invalid configuration in ${colors.cyan}${configFile}${colors.reset}`);
 
 	issues.forEach((issue) => {
 		const fieldPath = formatPath(issue.path) || 'Configuration object';
-		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
-		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
+		logger.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
+		logger.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
 		if (issue.input !== undefined) {
-			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
+			logger.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
 		}
 	});
 }
@@ -351,7 +374,7 @@ function performConditionalValidation(config: Config): string[] {
  */
 export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<unknown>>, config: unknown, configName: string): unknown {
 	if (!validationLogPrinted) {
-		console.log(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
+		logger.info('Validating CMS configuration...');
 		validationLogPrinted = true;
 	}
 
@@ -362,27 +385,27 @@ export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<un
 		// Perform secondary, cross-field validation
 		const conditionalErrors = performConditionalValidation(result.output as Config);
 		if (conditionalErrors.length > 0) {
-			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
-			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
-			console.error('━'.repeat(70));
-			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
+			logger.error(`${configName} validation failed with logical errors:`);
+			logger.error(`File: ${configFile}`);
+			logger.error('━'.repeat(70));
+			logger.error('Logical Validation Errors:');
 			conditionalErrors.forEach((error) => {
-				console.error(`   - ${error}`);
+				logger.error(`   - ${error}`);
 			});
-			console.error('\n' + '━'.repeat(70));
-			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
+			logger.error('━'.repeat(70));
+			logger.fatal('Server cannot start. Please fix the logical inconsistencies listed above.');
 			process.exit(1);
 		}
 		return result.output;
 	} else {
 		// Handle schema validation failures
-		console.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
-		console.error('━'.repeat(70));
+		logger.error(`${configName} validation failed. Please check your configuration.`);
+		logger.error('━'.repeat(70));
 
 		logValidationErrors(result.issues, configFile);
 
-		console.error('\n' + '━'.repeat(70));
-		console.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
+		logger.error('━'.repeat(70));
+		logger.fatal('Server cannot start. Please fix the errors listed above.');
 		process.exit(1);
 	}
 }

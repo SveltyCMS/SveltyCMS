@@ -6,6 +6,8 @@
  * throughout the authentication system to avoid circular imports.
  */
 
+import type { ISODateString } from '@src/content/types';
+
 // Permission Actions
 export enum PermissionAction {
 	CREATE = 'create', // Grants the ability to create a new resource or record.
@@ -41,20 +43,19 @@ export interface User {
 	locale?: string; // Locale of the user
 	avatar?: string; // URL of the user's avatar image
 	lastAuthMethod?: string; // The last authentication method used by the user
-	lastActiveAt?: Date; // The last time the user was active (ISO date string)
-	expiresAt?: Date; // When the reset token expires (ISO date string)
+	lastActiveAt?: ISODateString; // The last time the user was active (ISO date string)
+	expiresAt?: ISODateString; // When the reset token expires (ISO date string)
 	isRegistered?: boolean; // Indicates if the user has completed registration
 	failedAttempts?: number; // Tracks the number of consecutive failed login attempts
 	blocked?: boolean; // Indicates if the user is blocked
-	resetRequestedAt?: Date; // The last time the user requested a password reset (ISO date string)
+	resetRequestedAt?: ISODateString; // The last time the user requested a password reset (ISO date string)
 	resetToken?: string; // Token for resetting the user's password
-	lockoutUntil?: Date | null; // Time until which the user is locked out of their account (ISO date string)
+	lockoutUntil?: ISODateString | null; // Time until which the user is locked out of their account (ISO date string)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
 	totpSecret?: string; // TOTP secret for 2FA (base32 encoded)
 	backupCodes?: string[]; // Array of hashed backup codes for 2FA recovery
-	last2FAVerification?: Date; // Timestamp of last successful 2FA verification
+	last2FAVerification?: ISODateString; // Timestamp of last successful 2FA verification
 	permissions: string[]; // Set of permissions associated with the user
-	isAdmin?: boolean; // Is the user an admin
 	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
 }
 
@@ -65,6 +66,7 @@ export interface Role {
 	description?: string; // Optional description of the role
 	isAdmin?: boolean; // Indicates if the role has admin privileges
 	permissions: string[]; // Array of permission IDs associated with the role
+	tenantId?: string; // Optional tenant identifier for multi-tenant installations
 	groupName?: string; // Optional group name associated with the role
 	icon?: string; // Optional icon for the role (e.g., for UI display)
 	color?: string; // Optional color for the role (e.g., for UI display)
@@ -94,7 +96,7 @@ export interface RolePermissions {
 export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
-	expires: Date; // When the session expires (ISO date string)
+	expires: ISODateString; // When the session expires (ISO date string)
 	tenantId?: string; // Identifier for the tenant the session belongs to (in multi-tenant mode)
 	rotated?: boolean; // Flag to mark rotated sessions
 	rotatedTo?: string; // ID of the new session this was rotated to
@@ -106,19 +108,20 @@ export interface Token {
 	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email: string; // Email associated with the token
-	expires: Date; // When the session expires (ISO date string)
+	expires: ISODateString; // When the session expires (ISO date string)
 	type: string; // Type of the token (e.g., 'create', 'register', 'reset')
+	tenantId?: string; // Tenant ID for multi-tenancy support
 	blocked?: boolean; // Whether the token is blocked
 	username?: string; // Username associated with the token
 	role?: string; // Role associated with the token
-	createdAt?: Date; // When the token was created
-	updatedAt?: Date; // When the token was last updated
+	createdAt?: ISODateString; // When the token was created
+	updatedAt?: ISODateString; // When the token was last updated
 }
 
 // Session Store Interface
 export interface SessionStore {
 	get(session_id: string): Promise<User | null>;
-	set(session_id: string, user: User, expiration: Date): Promise<void>;
+	set(session_id: string, user: User, expiration: ISODateString): Promise<void>;
 	delete(session_id: string): Promise<void>;
 	deletePattern(pattern: string): Promise<number>;
 	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
@@ -141,7 +144,7 @@ export type Cookie = {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
 		httpOnly: boolean;
-		expires: Date; // Expiration date of the cookie (ISO date string)
+		expires: ISODateString; // Expiration date of the cookie (ISO date string)
 		secure: boolean;
 	};
 };

@@ -4,7 +4,7 @@
  */
 import { contentManager } from '@src/content/ContentManager';
 import { error, json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
+import { logger } from '@utils/logger.server';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
@@ -51,14 +51,16 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		requiredWidgets.push(...Array.from(widgetSet));
 
+		const collectionCount = Object.keys(allCollections).length;
+
 		logger.trace('Analyzed collection widget dependencies', {
 			tenantId,
-			collectionsAnalyzed: collectionNames.length,
+			collectionsAnalyzed: collectionCount,
 			requiredWidgets: Array.from(requiredWidgets)
 		});
 		return json({
 			requiredWidgets,
-			collectionsAnalyzed: Object.keys(allCollections).length,
+			collectionsAnalyzed: collectionCount,
 			tenantId
 		});
 	} catch (err) {
