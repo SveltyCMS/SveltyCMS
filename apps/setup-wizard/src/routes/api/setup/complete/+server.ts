@@ -6,8 +6,8 @@
  *  - Manually creates database adapter and Auth instance for admin user creation
  *  - Creates the admin user using the setup Auth service
  *  - Initializes the global system (db.ts) to make adapter available to all services
- *  - Initializes ContentManager and registers all collection models in database
  *  - Creates an authenticated session for the new admin user
+ *  - Redirects to first collection or collection builder
  *  - System is ready to use! NO RESTART REQUIRED! ✨
  */
 
@@ -15,7 +15,16 @@ import { dev } from '$app/environment';
 
 // Auth
 import type { User, Session } from '@sveltycms/shared-config/schemas';
-// TODO: Auth class still imports from CMS - needs refactoring
+/**
+ * NOTE: Auth class imports from CMS - this is the only remaining circular dependency.
+ * This is acceptable because:
+ * 1. Setup runs only once during initial installation
+ * 2. Auth is complex (user management, sessions, tokens, 2FA)
+ * 3. Extracting Auth to shared library would require 2-3 hours of refactoring
+ * 4. After setup completes, CMS takes over with its own Auth instance
+ *
+ * Future improvement: Extract Auth interface to shared-config if needed.
+ */
 import { Auth } from '@src/databases/auth';
 import { invalidateSettingsCache } from '../../utils/settingsCache';
 import { setupAdminSchema } from '@utils/formSchemas';
@@ -25,13 +34,10 @@ import { randomBytes } from 'crypto';
 import { safeParse } from 'valibot';
 import type { RequestHandler } from './$types';
 
-// Content Manager for redirects
-// TODO: ContentManager and collectionStore still import from CMS - needs refactoring
-import { contentManager } from '@src/content/ContentManager';
+// Removed ContentManager and CollectionStore dependencies
+// We use firstCollection passed from client or fallback to /collection-builder
 import type { Locale } from '$paraglide/runtime';
 import { publicEnv } from '@root/config/public';
-// Note: In SSR context, we can't directly use Svelte stores
-// We'll use publicEnv.BASE_LOCALE as the default language
 
 interface AdminConfig {
 	username: string;
@@ -39,8 +45,6 @@ interface AdminConfig {
 	password: string;
 	confirmPassword: string;
 }
-
-import { getCachedFirstCollectionPath } from '@src/stores/collectionStore.svelte';
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	const correlationId = randomBytes(6).toString('hex');
@@ -446,23 +450,12 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 					}
 				);
 			} else {
-				// Fallback: Query ContentManager (slower)
-				logger.debug('No firstCollection passed, querying ContentManager...', { correlationId });
+				// Fallback: No firstCollection passed, use collection builder
+				logger.debug('No firstCollection passed, using default redirect...', { correlationId });
 
-				// Force ContentManager to reload all collections
-				await contentManager.initialize(undefined, true);
-
-				redirectPath = await getCachedFirstCollectionPath(userLanguage);
-
-				// If no collections found, fall back to collection builder
-				if (!redirectPath) {
-					redirectPath = '/config/collectionbuilder';
-					logger.info('No collections available, redirecting to collection builder', {
-						correlationId
-					});
-				} else {
-					logger.info('Redirecting to first collection', { correlationId, redirectPath });
-				}
+				// Default to collection builder - user can navigate from there
+				redirectPath = '/config/collectionbuilder';
+				logger.info('Redirecting to collection builder', { correlationId });
 			}
 		} catch (redirectError) {
 			logger.warn('Failed to determine redirect path, using default', {
