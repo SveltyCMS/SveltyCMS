@@ -109,7 +109,19 @@ const THREAT_PATTERNS = {
 		/(\/\*.*\*\/)/,
 		/(\b(AND|OR)\b.*\b\d+\s*=\s*\d+\b)/i
 	],
-	XSS_PATTERNS: [/<script[^>]*>.*?<\/script\s*>/i, /javascript:/i, /on\w+\s*=/i, /<iframe[^>]*>/i, /eval\s*\(/i, /document\.cookie/i],
+	// Enhanced XSS detection patterns to catch malformed/obfuscated variants
+	XSS_PATTERNS: [
+		/<script\b[^>]*>.*?<\/script[\s\S]*?>/i, // Script tags with any whitespace/attributes in closing tag
+		/<script\b[^>]*>/i, // Standalone script opening tags
+		/javascript:/i,
+		/on\w+\s*=/i,
+		/<iframe[^>]*>/i,
+		/eval\s*\(/i,
+		/document\.cookie/i,
+		/data:text\/html/i, // Data URIs that can contain HTML/JS
+		/<embed[^>]*>/i,
+		/<object[^>]*>/i
+	],
 	SUSPICIOUS_USER_AGENTS: [/sqlmap/i, /nikto/i, /burpsuite/i, /nmap/i, /masscan/i, /bot/i]
 };
 

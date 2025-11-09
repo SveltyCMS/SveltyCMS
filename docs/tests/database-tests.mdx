@@ -1,0 +1,756 @@
+---
+path: 'docs/tests/database-tests.mdx'
+title: 'Database & Authentication Testing Guide'
+description: 'Comprehensive guide for testing the database layer, authentication system, and MongoDB adapter in SveltyCMS.'
+order: 4
+icon: 'mdi:database-check'
+author: 'admin'
+created: '2025-11-08'
+updated: '2025-11-08'
+tags:
+  - 'testing'
+  - 'database'
+  - 'authentication'
+  - 'mongodb'
+  - 'security'
+---
+
+# Database & Authentication Testing Guide
+
+## Overview
+
+SveltyCMS uses a **database-agnostic architecture** with an interface (`IDBAdapter`) that can be implemented for any database system. Currently, MongoDB is the primary adapter, with SQL support planned.
+
+This guide covers testing for:
+
+- **Database Interface Contract** - Ensures adapters implement the full interface
+- **MongoDB Adapter** - Tests MongoDB-specific implementation
+- **Authentication System** - Tests user auth, sessions, tokens, permissions
+- **Multi-Tenant Support** - Tests tenant isolation and scoping
+
+## Architecture
+
+### Database Layers
+
+```
+┌─────────────────────────────────────┐
+│    Application Code (Services)      │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│    Database Interface (IDBAdapter)   │ ← Contract Tests
+│  - CRUD Operations                   │
+│  - Auth Methods                      │
+│  - Query Builder                     │
+│  - Batch Operations                  │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   MongoDB Adapter Implementation     │ ← Adapter Tests
+│  - MongoDBAdapter class              │
+│  - Mongoose Models                   │
+│  - MongoDB-specific features         │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│      MongoDB Database                │
+└─────────────────────────────────────┘
+```
+
+### Authentication System
+
+```
+┌─────────────────────────────────────┐
+│        Auth Class                    │ ← Auth System Tests
+│  - User Management                   │
+│  - Session Management                │
+│  - Token Management                  │
+│  - Role & Permission System          │
+│  - 2FA/TOTP                          │
+│  - Quantum-Resistant (Argon2id)      │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│    Database Adapter (IDBAdapter)     │
+└─────────────────────────────────────┘
+```
+
+## Test Files
+
+### 1. Database Interface Tests
+
+**File:** `tests/bun/databases/db-interface.test.ts`
+
+**Purpose:** Validate that database adapters properly implement the `IDBAdapter` interface contract.
+
+**Coverage:** 50+ test cases across 15+ test suites
+
+**Key Test Areas:**
+
+#### Connection Management (5 tests)
+
+- `connect()` method implementation
+- `disconnect()` method implementation
+- `isConnected()` status checking
+- Error handling for connection failures
+- Reconnection logic
+
+#### CRUD Operations (8 tests)
+
+- `findOne()` - Single document retrieval
+- `findMany()` - Multiple documents with filters
+- `create()` - Document creation
+- `update()` - Document updates
+- `delete()` - Document deletion
+- `batchCreate()` - Bulk creation
+- `batchUpdate()` - Bulk updates
+- `batchDelete()` - Bulk deletion
+
+#### Authentication Interface (12 tests)
+
+- User management methods
+  - `createUser()`, `getUserById()`, `getUserByEmail()`
+  - `updateUser()`, `deleteUser()`, `listUsers()`
+- Session management methods
+  - `createSession()`, `getSession()`, `deleteSession()`
+  - `invalidateUserSessions()`, `cleanupExpiredSessions()`
+- Token management methods
+  - `createToken()`, `validateToken()`, `consumeToken()`
+  - `cleanupExpiredTokens()`
+- Role & permission methods
+  - `createRole()`, `getRole()`, `updateRole()`, `deleteRole()`
+
+#### Query Builder (6 tests)
+
+- Filter construction
+- Sort operations
+- Pagination (offset, limit)
+- Field selection
+- Join operations
+- Aggregation pipelines
+
+#### Content Management (7 tests)
+
+- Content CRUD operations
+- Version management
+- Publishing workflow
+- Metadata handling
+- Relationships
+
+#### Media Management (5 tests)
+
+- Upload handling
+- Retrieval by ID/path
+- Deletion
+- Metadata storage
+- Transformations
+
+**Running:**
+
+```bash
+bun test tests/bun/databases/db-interface.test.ts
+```
+
+---
+
+### 2. MongoDB Adapter Tests
+
+**File:** `tests/bun/databases/mongodb-adapter.test.ts`
+
+**Purpose:** Test MongoDB-specific implementation details and optimizations.
+
+**Coverage:** 40+ test cases across 10 test suites
+
+**Key Test Areas:**
+
+#### Model Registration (4 tests)
+
+- Idempotent model registration
+- User model registration
+- Session model registration
+- Token model registration
+
+#### Connection Management (5 tests)
+
+- Connection with retry logic
+- Exponential backoff implementation
+- Connection pooling
+- Disconnect handling
+- Error recovery
+
+#### CRUD Operations (7 tests)
+
+- Create with schema validation
+- Read with projections
+- Update operations (findOneAndUpdate)
+- Delete operations (findOneAndDelete)
+- Upsert operations
+- Array operations ($push, $pull)
+
+#### Batch Operations (4 tests)
+
+- Parallel batch processing
+- Transaction support
+- Error handling in batches
+- Performance optimization
+
+#### Query Builder (6 tests)
+
+- Complex filter queries
+- Aggregation pipelines
+- Population (joins)
+- Text search
+- Geospatial queries
+- Index usage
+
+#### Transaction Support (3 tests)
+
+- Multi-document ACID transactions
+- Atomic operations
+- Rollback on error
+
+#### MongoDB Features (5 tests)
+
+- Index creation and usage
+- Full-text search
+- Geospatial queries
+- TTL indexes
+- Aggregation framework
+
+#### Error Handling (3 tests)
+
+- Network errors
+- Validation errors
+- Duplicate key errors
+
+#### Performance (3 tests)
+
+- Query optimization
+- Connection pooling
+- Bulk write performance
+
+**Running:**
+
+```bash
+bun test tests/bun/databases/mongodb-adapter.test.ts
+```
+
+---
+
+### 3. Authentication System Tests
+
+**File:** `tests/bun/databases/auth-system.test.ts`
+
+**Purpose:** Comprehensive testing of authentication, authorization, and security features.
+
+**Coverage:** 50+ test cases across 12 test suites
+
+**Key Test Areas:**
+
+#### Password Security (5 tests)
+
+- **Argon2id hashing** (quantum-resistant)
+- Password verification
+- Unique salt generation
+- Minimum password length
+- Timing attack prevention
+
+**Security Features:**
+
+- Memory-hard algorithm (prevents GPU cracking)
+- Time-hard algorithm (prevents ASIC acceleration)
+- Quantum-resistant design
+- Configurable work factors
+
+#### User Management (9 tests)
+
+- Create user with required fields
+- Prevent duplicate emails
+- Retrieve by ID/email
+- Update user attributes
+- Delete user
+- List users with pagination
+- Block/unblock users
+- Tenant scoping
+
+#### Session Management (9 tests)
+
+- Create session for authenticated user
+- Validate active session
+- Reject expired session
+- Delete session (logout)
+- Invalidate all user sessions
+- Cleanup expired sessions
+- Update session expiry
+- Session rotation
+- Session fixation attack prevention
+
+**Session Security:**
+
+- Secure cookies (HttpOnly, Secure, SameSite)
+- Session rotation on privilege change
+- Automatic expiry and cleanup
+- CSRF token integration
+
+#### Token Management (8 tests)
+
+- Create token with expiration
+- Validate active token
+- Reject expired token
+- Consume token (one-time use)
+- Reject consumed token
+- Cleanup expired tokens
+- Block/unblock tokens
+- Token hashing before storage
+
+**Token Types:**
+
+- Password reset tokens
+- Email verification tokens
+- API tokens
+- Invitation tokens
+
+#### Role Management (6 tests)
+
+- Create role with permissions
+- Retrieve role by ID
+- List all roles
+- Update role permissions
+- Delete role
+- Prevent deletion of roles in use
+
+**Default Roles:**
+
+- **Admin** - Full system access
+- **Developer** - Configuration and code access
+- **Editor** - Content management
+
+#### Permission System (6 tests)
+
+- Check user has specific permission
+- Admin override (admins bypass checks)
+- Permission by action and type
+- Dynamic permission registration
+- Retrieve all permissions
+- Role permission validation
+
+**Permission Structure:**
+
+```typescript
+{
+  action: 'create' | 'read' | 'update' | 'delete',
+  type: 'content' | 'media' | 'users' | 'settings',
+  scope: 'own' | 'all' | 'tenant'
+}
+```
+
+#### Two-Factor Authentication (8 tests)
+
+- Generate TOTP secret
+- Verify valid TOTP code
+- Reject invalid TOTP code
+- Reject expired TOTP code
+- Generate backup codes
+- Consume backup code (one-time)
+- Enable 2FA for user
+- Disable 2FA for user
+
+**2FA Features:**
+
+- Time-based One-Time Passwords (TOTP)
+- QR code generation
+- Backup codes (10 per user)
+- Recovery flow
+
+#### Google OAuth (4 tests)
+
+- Validate Google OAuth token
+- Create user from Google profile
+- Link existing user to Google
+- Reject invalid OAuth token
+
+#### Multi-Tenant Support (5 tests)
+
+- Scope users by tenant ID
+- Scope sessions by tenant ID
+- Scope tokens by tenant ID
+- Prevent cross-tenant access
+- List users within tenant only
+
+**Tenant Isolation:**
+
+- All database queries include tenant filter
+- Tenant ID in JWT tokens
+- Cross-tenant prevention middleware
+- Tenant-specific configurations
+
+#### Session Cleanup (3 tests)
+
+- Automatic expired session cleanup
+- Cleanup rotated sessions
+- Scheduled cleanup jobs
+
+#### Security Best Practices (5 tests)
+
+- Secure cookie settings
+- Rate limiting for login attempts
+- Timing attack prevention
+- Cryptographically random tokens
+- Token hashing before storage
+
+**Running:**
+
+```bash
+bun test tests/bun/databases/auth-system.test.ts
+```
+
+---
+
+## Test Infrastructure Setup
+
+### Prerequisites
+
+Before running database tests, you need:
+
+1. **MongoDB Test Instance**
+   - Local MongoDB server
+   - MongoDB Docker container
+   - In-memory MongoDB (mongodb-memory-server)
+
+2. **Test Database Configuration**
+   - Separate test database
+   - Test environment variables
+   - Database seeding utilities
+
+3. **Test Helpers**
+   - Connection management
+   - Cleanup utilities
+   - Fixture data
+
+### Setting Up Test Database
+
+#### Option 1: Docker Container
+
+```bash
+# Start MongoDB test container
+docker run -d \
+  --name sveltycms-test-db \
+  -p 27017:27017 \
+  -e MONGO_INITDB_ROOT_USERNAME=test \
+  -e MONGO_INITDB_ROOT_PASSWORD=test \
+  mongo:latest
+```
+
+#### Option 2: In-Memory MongoDB
+
+```bash
+# Install mongodb-memory-server
+bun add -D mongodb-memory-server
+
+# Will start/stop automatically in tests
+```
+
+#### Option 3: Local MongoDB
+
+```bash
+# Use existing local MongoDB
+# Configure different database name for tests
+```
+
+### Environment Variables
+
+Create `.env.test`:
+
+```env
+# Test Database
+MONGODB_URI=mongodb://test:test@localhost:27017/sveltycms-test
+DB_NAME=sveltycms-test
+
+# Auth Configuration
+JWT_SECRET=test-secret-key-do-not-use-in-production
+SESSION_SECRET=test-session-secret
+
+# Disable external services in tests
+DISABLE_EMAIL=true
+DISABLE_WEBHOOKS=true
+```
+
+### Test Helper Structure
+
+```typescript
+// tests/bun/helpers/database.ts
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import { initializeDatabase } from '@/databases/db';
+
+let mongod: MongoMemoryServer;
+
+export async function setupTestDatabase() {
+	mongod = await MongoMemoryServer.create();
+	const uri = mongod.getUri();
+
+	process.env.MONGODB_URI = uri;
+	await initializeDatabase();
+}
+
+export async function teardownTestDatabase() {
+	await mongod.stop();
+}
+
+export async function clearDatabase() {
+	// Clear all collections
+}
+
+export async function seedDatabase(data: any) {
+	// Seed test data
+}
+```
+
+### Test Setup Example
+
+```typescript
+import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'bun:test';
+import { setupTestDatabase, teardownTestDatabase, clearDatabase } from './helpers/database';
+
+describe('Database Tests', () => {
+	beforeAll(async () => {
+		await setupTestDatabase();
+	});
+
+	afterAll(async () => {
+		await teardownTestDatabase();
+	});
+
+	beforeEach(async () => {
+		await clearDatabase();
+	});
+
+	it('should connect to database', async () => {
+		// Test implementation
+	});
+});
+```
+
+---
+
+## Running Tests
+
+### Run All Database Tests
+
+```bash
+# All database and auth tests
+bun test tests/bun/databases/
+
+# With coverage
+bun test --coverage tests/bun/databases/
+```
+
+### Run Specific Test Suite
+
+```bash
+# Interface contract tests
+bun test tests/bun/databases/db-interface.test.ts
+
+# MongoDB adapter tests
+bun test tests/bun/databases/mongodb-adapter.test.ts
+
+# Authentication system tests
+bun test tests/bun/databases/auth-system.test.ts
+```
+
+### Run Specific Test Case
+
+```bash
+# Run single test by name
+bun test tests/bun/databases/auth-system.test.ts -t "should hash passwords with Argon2id"
+```
+
+### Watch Mode
+
+```bash
+# Re-run tests on file changes
+bun test --watch tests/bun/databases/
+```
+
+---
+
+## Current Status
+
+### Implementation Status
+
+| Test File                 | Status        | Tests | Notes                   |
+| ------------------------- | ------------- | ----- | ----------------------- |
+| `db-interface.test.ts`    | 📝 Scaffolded | 0/50+ | Awaiting database setup |
+| `mongodb-adapter.test.ts` | 📝 Scaffolded | 0/40+ | Awaiting database setup |
+| `auth-system.test.ts`     | 📝 Scaffolded | 0/50+ | Awaiting database setup |
+
+### Next Steps
+
+1. **Set up test database infrastructure**
+   - Choose MongoDB test strategy (Docker, in-memory, or local)
+   - Create database helper utilities
+   - Configure test environment
+
+2. **Implement placeholder tests**
+   - Replace `expect(true).toBe(true)` with real tests
+   - Add proper assertions
+   - Test error conditions
+
+3. **Add fixture data**
+   - Create test users
+   - Create test roles/permissions
+   - Create test content
+
+4. **Integration with CI/CD**
+   - Add database tests to GitHub Actions
+   - Configure test database in CI
+   - Add coverage reporting
+
+---
+
+## Best Practices
+
+### Test Isolation
+
+✅ **Do:**
+
+- Clear database before each test
+- Use unique data for each test
+- Clean up after tests
+- Use transactions when possible
+
+❌ **Don't:**
+
+- Share state between tests
+- Rely on test execution order
+- Leave data in database
+- Use production database
+
+### Test Data
+
+✅ **Do:**
+
+- Use factory functions for test data
+- Make test data obvious and readable
+- Test edge cases
+- Use realistic data
+
+❌ **Don't:**
+
+- Use random data unnecessarily
+- Reuse same test user everywhere
+- Use production data
+- Create dependencies between tests
+
+### Performance
+
+✅ **Do:**
+
+- Use in-memory database for unit tests
+- Parallelize independent tests
+- Use database transactions
+- Clean up efficiently
+
+❌ **Don't:**
+
+- Make unnecessary database calls
+- Test same thing multiple times
+- Ignore slow tests
+- Skip cleanup
+
+### Security Testing
+
+✅ **Do:**
+
+- Test authentication failures
+- Test authorization boundaries
+- Test injection attacks
+- Test timing attacks
+
+❌ **Don't:**
+
+- Skip security tests
+- Use weak test credentials
+- Ignore edge cases
+- Test only happy paths
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Database Connection Timeout
+
+```
+Error: Connection timeout after 5000ms
+```
+
+**Solution:**
+
+- Check MongoDB is running
+- Verify connection string
+- Check firewall settings
+- Increase timeout in tests
+
+#### Model Already Registered
+
+```
+Error: Cannot overwrite 'User' model
+```
+
+**Solution:**
+
+- Clear models between tests
+- Use separate database per test
+- Reset Mongoose connection
+
+#### Validation Errors
+
+```
+Error: User validation failed: email is required
+```
+
+**Solution:**
+
+- Check required fields
+- Verify test data structure
+- Review model schema
+- Use factory functions
+
+#### Permission Denied
+
+```
+Error: Insufficient permissions
+```
+
+**Solution:**
+
+- Check test user roles
+- Verify permission setup
+- Review tenant scoping
+- Check admin override
+
+---
+
+## Related Documentation
+
+- [Test Suite Status](./test-status.mdx) - Overall test status
+- [User API Tests](./user-api-tests.mdx) - API endpoint tests
+- [Testing Guide](./index.mdx) - General testing information
+- [Database Architecture](../architecture/database-methods.mdx) - Database system design
+- [Authentication System](../architecture/authentication-system.mdx) - Auth architecture
+
+---
+
+## Contributing
+
+When adding database tests:
+
+1. Follow existing test structure
+2. Test both success and failure cases
+3. Include security tests
+4. Document test purpose
+5. Clean up test data
+6. Update this documentation
+
+See [Contributing Guide](../contributing/contributing-docs.mdx) for more information.

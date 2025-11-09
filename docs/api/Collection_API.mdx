@@ -578,6 +578,241 @@ curl -X POST "https://api.example.com/api/collections/posts/batch" \
   -d '{"action":"status","entryIds":["id1","id2"],"status":"published"}'
 ```
 
+## Testing
+
+### Test Suite Overview
+
+The Collection API has comprehensive integration tests located in `tests/bun/api/collections.test.ts`.
+
+**Test Coverage:**
+
+| Test Area            | Tests  | Description                                       |
+| -------------------- | ------ | ------------------------------------------------- |
+| Authentication       | 6      | Verify auth requirements for all endpoints        |
+| Collection Listing   | 2      | Test GET /api/collections with various parameters |
+| Content Structure    | 3      | Test collection metadata and recompilation        |
+| Search Functionality | 3      | Test POST /api/search with different queries      |
+| CRUD Operations      | 4      | Test create, read, update, delete operations      |
+| Data Export          | 1      | Test GET /api/exportData endpoint                 |
+| **Total**            | **19** | **Comprehensive API coverage**                    |
+
+### Running Tests
+
+```bash
+# Run all collection tests
+bun test tests/bun/api/collections.test.ts
+
+# Run with verbose output
+bun test tests/bun/api/collections.test.ts --verbose
+
+# Run specific test suite
+bun test tests/bun/api/collections.test.ts -t "RESTful Collection Operations"
+```
+
+### Key Test Scenarios
+
+#### 1. Authentication Tests
+
+```typescript
+// Tests verify that all endpoints require authentication
+it('should fail without authentication', async () => {
+	const response = await fetch(`${API_BASE_URL}/api/collections`);
+	expect(response.status).toBe(401);
+});
+```
+
+#### 2. Collection Listing
+
+```typescript
+it('should list all collections with admin authentication', async () => {
+	const response = await fetch(`${API_BASE_URL}/api/collections`, {
+		headers: { Authorization: `Bearer ${authToken}` }
+	});
+	expect(response.status).toBe(200);
+	const result = await response.json();
+	expect(result.success).toBe(true);
+	expect(result.data.collections).toBeDefined();
+});
+```
+
+#### 3. CRUD Operations
+
+```typescript
+// Create entry
+it('should create a new entry', async () => {
+	const response = await fetch(`${API_BASE_URL}/api/collections/${collectionId}`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${authToken}`
+		},
+		body: JSON.stringify({ title: 'Test Post', content: 'Test content' })
+	});
+	expect(response.status).toBe(200);
+	expect(result.success).toBe(true);
+});
+
+// Get entries with pagination
+it('should get collection entries with pagination', async () => {
+	const response = await fetch(`${API_BASE_URL}/api/collections/${collectionId}?page=1&pageSize=10`, {
+		headers: { Authorization: `Bearer ${authToken}` }
+	});
+	expect(response.status).toBe(200);
+});
+```
+
+#### 4. Search Functionality
+
+```typescript
+it('should search content across collections', async () => {
+	const response = await fetch(`${API_BASE_URL}/api/search`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${authToken}`
+		},
+		body: JSON.stringify({ query: 'test', collections: [] })
+	});
+	expect(response.status).toBe(200);
+	expect(result.success).toBe(true);
+});
+```
+
+#### 5. Error Handling
+
+```typescript
+it('should return 404 for invalid collection ID', async () => {
+	const response = await fetch(`${API_BASE_URL}/api/collections/invalid-collection-id`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${authToken}`
+		},
+		body: JSON.stringify({ title: 'Test Post' })
+	});
+	expect(response.status).toBe(404);
+});
+```
+
+### Manual Testing with cURL
+
+#### List Collections
+
+```bash
+curl -X GET "http://localhost:5173/api/collections" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Create Entry
+
+```bash
+curl -X POST "http://localhost:5173/api/collections/23d772dd3783492a9115ee9ea6bc6185" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Post",
+    "content": "This is test content",
+    "status": "published"
+  }'
+```
+
+#### Get Collection Entries
+
+```bash
+curl -X GET "http://localhost:5173/api/collections/23d772dd3783492a9115ee9ea6bc6185?page=1&pageSize=10" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+#### Search Content
+
+```bash
+curl -X POST "http://localhost:5173/api/search" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "test",
+    "collections": []
+  }'
+```
+
+#### Recompile Collections
+
+```bash
+curl -X POST "http://localhost:5173/api/content-structure" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "recompile"}'
+```
+
+### Test Data Setup
+
+The test suite uses the following setup pattern:
+
+```typescript
+beforeEach(async () => {
+	// Clean database to ensure test isolation
+	await cleanupTestDatabase();
+
+	// Create admin user and get authentication token
+	authToken = await loginAsAdminAndGetToken();
+});
+```
+
+### Integration Testing
+
+For testing collection operations in your own code:
+
+```typescript
+import { getData, postData, patchData, deleteData } from '@utils/apiClient';
+
+// Test creating an entry
+const newEntry = await postData({
+	endpoint: `/api/collections/${collectionId}`,
+	data: { title: 'Test', content: 'Content' }
+});
+
+// Test retrieving entries
+const entries = await getData({
+	endpoint: `/api/collections/${collectionId}`,
+	params: { page: 1, pageSize: 10 }
+});
+
+// Test updating an entry
+const updated = await patchData({
+	endpoint: `/api/collections/${collectionId}/${entryId}`,
+	data: { title: 'Updated Title' }
+});
+
+// Test deleting an entry
+await deleteData({
+	endpoint: `/api/collections/${collectionId}/${entryId}`
+});
+```
+
+### Test Coverage Summary
+
+| Endpoint                          | Method | Coverage       |
+| --------------------------------- | ------ | -------------- |
+| `/api/collections`                | GET    | ✅ Tested      |
+| `/api/collections/{id}`           | GET    | ✅ Tested      |
+| `/api/collections/{id}`           | POST   | ✅ Tested      |
+| `/api/collections/{id}/{entryId}` | GET    | ⚠️ Partial     |
+| `/api/collections/{id}/{entryId}` | PATCH  | ⚠️ Partial     |
+| `/api/collections/{id}/{entryId}` | DELETE | ⚠️ Partial     |
+| `/api/collections/{id}/batch`     | POST   | ❌ Needs tests |
+| `/api/collections/{id}/export`    | GET    | ⚠️ Partial     |
+| `/api/collections/{id}/import`    | POST   | ❌ Needs tests |
+| `/api/search`                     | POST   | ✅ Tested      |
+| `/api/content-structure`          | GET    | ✅ Tested      |
+| `/api/content-structure`          | POST   | ✅ Tested      |
+| `/api/exportData`                 | GET    | ✅ Tested      |
+
+**Legend:**
+
+- ✅ Tested: Comprehensive test coverage
+- ⚠️ Partial: Basic tests exist, needs expansion
+- ❌ Needs tests: No test coverage yet
+
 ## Best Practices
 
 ### Performance

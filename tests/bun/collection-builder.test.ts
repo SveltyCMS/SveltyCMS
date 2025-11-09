@@ -1,30 +1,20 @@
 // tests/bun/collection-builder.test.ts
 // @ts-expect-error - Bun types are not available in TypeScript
-import type { WidgetConfig } from '@src/widgets/factory';
-import { createWidget } from '@src/widgets/factory';
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import type { WidgetConfig } from '../../src/widgets/factory';
+import { createWidget } from '../../src/widgets/factory';
+import { beforeEach, describe, expect, test } from 'bun:test';
 
-// Mock the widget store
+// Mock widget store data
 const mockWidgetStore = {
-	widgetFunctions: {},
-	activeWidgets: [],
-	initializeWidgets: mock(() => Promise.resolve())
+	widgetFunctions: {} as Record<string, ReturnType<typeof createWidget>>,
+	activeWidgets: [] as string[]
 };
-
-mock('@stores/widgetStore.svelte', () => ({
-	widgetFunctions: { subscribe: (fn: any) => fn(mockWidgetStore.widgetFunctions) },
-	activeWidgets: { subscribe: (fn: any) => fn(mockWidgetStore.activeWidgets) },
-	widgetStoreActions: {
-		initializeWidgets: mockWidgetStore.initializeWidgets
-	}
-}));
 
 describe('Collection Builder Widget Integration', () => {
 	beforeEach(() => {
 		// Reset mock store
 		mockWidgetStore.widgetFunctions = {};
 		mockWidgetStore.activeWidgets = [];
-		mockWidgetStore.initializeWidgets.mockClear();
 	});
 
 	describe('Widget Selection', () => {
@@ -33,13 +23,15 @@ describe('Collection Builder Widget Integration', () => {
 			const widget1Config: WidgetConfig = {
 				Name: 'ActiveWidget',
 				Icon: 'active-icon',
-				Description: 'Active widget'
+				Description: 'Active widget',
+				validationSchema: {}
 			};
 
 			const widget2Config: WidgetConfig = {
 				Name: 'InactiveWidget',
 				Icon: 'inactive-icon',
-				Description: 'Inactive widget'
+				Description: 'Inactive widget',
+				validationSchema: {}
 			};
 
 			const activeWidget = createWidget(widget1Config);
@@ -64,11 +56,12 @@ describe('Collection Builder Widget Integration', () => {
 
 		test('should handle widget search functionality', () => {
 			// Setup mock widgets
-			const widgets = {
-				TextInput: createWidget({ Name: 'TextInput', Description: 'Text input widget' }),
-				NumberInput: createWidget({ Name: 'NumberInput', Description: 'Number input widget' }),
-				EmailInput: createWidget({ Name: 'EmailInput', Description: 'Email input widget' }),
-				FileUpload: createWidget({ Name: 'FileUpload', Description: 'File upload widget' })
+			type WidgetMap = Record<string, ReturnType<typeof createWidget>>;
+			const widgets: WidgetMap = {
+				TextInput: createWidget({ Name: 'TextInput', Description: 'Text input widget', validationSchema: {} }),
+				NumberInput: createWidget({ Name: 'NumberInput', Description: 'Number input widget', validationSchema: {} }),
+				EmailInput: createWidget({ Name: 'EmailInput', Description: 'Email input widget', validationSchema: {} }),
+				FileUpload: createWidget({ Name: 'FileUpload', Description: 'File upload widget', validationSchema: {} })
 			};
 
 			mockWidgetStore.widgetFunctions = widgets;
@@ -93,6 +86,7 @@ describe('Collection Builder Widget Integration', () => {
 			const widgetConfig: WidgetConfig = {
 				Name: 'ConfigurableWidget',
 				Description: 'Widget with configuration options',
+				validationSchema: {},
 				GuiSchema: {
 					properties: {
 						label: { type: 'string', title: 'Label' },
@@ -111,7 +105,7 @@ describe('Collection Builder Widget Integration', () => {
 			expect(guiSchema).toBeDefined();
 			expect(guiSchema?.properties).toBeDefined();
 
-			const properties = guiSchema?.properties as Record<string, any>;
+			const properties = guiSchema?.properties as Record<string, unknown>;
 			expect(properties.label).toBeDefined();
 			expect(properties.required).toBeDefined();
 			expect(properties.placeholder).toBeDefined();
@@ -131,7 +125,8 @@ describe('Collection Builder Widget Integration', () => {
 			const widgetConfig: WidgetConfig = {
 				Name: 'TestWidget',
 				Icon: 'test-icon',
-				Description: 'Test widget for field creation'
+				Description: 'Test widget for field creation',
+				validationSchema: {}
 			};
 
 			const widget = createWidget(widgetConfig);
@@ -157,17 +152,10 @@ describe('Collection Builder Widget Integration', () => {
 	});
 
 	describe('Widget Management Integration', () => {
-		test('should initialize widgets on component mount', async () => {
-			// Simulate component mount behavior
-			await mockWidgetStore.initializeWidgets();
-
-			expect(mockWidgetStore.initializeWidgets).toHaveBeenCalledTimes(1);
-		});
-
 		test('should handle widget activation/deactivation', () => {
 			const widgets = {
-				Widget1: createWidget({ Name: 'Widget1', Description: 'First widget' }),
-				Widget2: createWidget({ Name: 'Widget2', Description: 'Second widget' })
+				Widget1: createWidget({ Name: 'Widget1', Description: 'First widget', validationSchema: {} }),
+				Widget2: createWidget({ Name: 'Widget2', Description: 'Second widget', validationSchema: {} })
 			};
 
 			mockWidgetStore.widgetFunctions = widgets;
@@ -196,7 +184,8 @@ describe('Collection Builder Widget Integration', () => {
 				Name: 'TextInput',
 				Icon: 'text-icon',
 				Description: 'Text input widget',
-				componentPath: '/src/widgets/core/input/Input.svelte',
+				inputComponentPath: '/src/widgets/core/input/Input.svelte',
+				validationSchema: {},
 				GuiSchema: {
 					properties: {
 						label: { type: 'string' },
@@ -241,13 +230,14 @@ describe('Collection Builder Widget Integration', () => {
 			expect(fieldInstance.placeholder).toBe('Enter article title');
 			expect(fieldInstance.maxlength).toBe(100);
 			expect(fieldInstance.widget.Name).toBe('TextInput');
-			expect(fieldInstance.widget.componentPath).toBe('/src/widgets/core/input/Input.svelte');
+			expect(fieldInstance.widget.inputComponentPath).toBe('/src/widgets/core/input/Input.svelte');
 		});
 
 		test('should validate field configuration', () => {
 			const widgetConfig: WidgetConfig = {
 				Name: 'ValidatedWidget',
-				Description: 'Widget with validation'
+				Description: 'Widget with validation',
+				validationSchema: {}
 			};
 
 			const widget = createWidget(widgetConfig);

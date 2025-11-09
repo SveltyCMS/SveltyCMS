@@ -5,6 +5,19 @@
  * This module provides a simplified collection scanning function that can be used
  * during system setup without requiring the full ContentManager or global dbAdapter.
  *
+ * ## Usage Contexts:
+ * 1. **Setup Process** - Scans collections during initial system setup (`/api/setup/seed`)
+ * 2. **Production Runtime** - Optimized filesystem scanning for better performance (`src/content/index.ts`)
+ * 3. **Build Time** - Development-time collection scanning (Vite plugin)
+ *
+ * ## Testing:
+ * This module is tested indirectly through:
+ * - **Setup API Tests** (`tests/bun/api/setup.test.ts`) - Tests the seed endpoint which uses scanCompiledCollections
+ * - **Integration Tests** - Runtime usage is tested through collection-related integration tests
+ *
+ * Direct unit testing is complex because processModule() requires WidgetRegistryService initialization,
+ * which depends on Vite's import.meta.glob (not available in test environment).
+ *
  * NOTE: This is SERVER-ONLY code that uses Node.js fs module.
  */
 

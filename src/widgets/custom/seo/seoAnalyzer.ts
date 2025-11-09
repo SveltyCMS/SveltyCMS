@@ -19,6 +19,23 @@ export class SeoAnalyzer {
 	private stopWords: Set<string>;
 	private transitionWords: Set<string>;
 
+	/**
+	 * Robustly remove all <script> tags and their content from input string.
+	 * Applies replacements repeatedly until no more script tags can be found,
+	 * preventing bypass via malformed or nested tags.
+	 */
+	private removeScriptTags(input: string): string {
+		let previous: string;
+		do {
+			previous = input;
+			// Remove <script>...</script> blocks (with any whitespace/attributes)
+			input = input.replace(/<script[\s\S]*?>[\s\S]*?<\/script\s*>/gi, '');
+			// Remove standalone/orphaned <script> opening tags
+			input = input.replace(/<script[^>]*>/gi, '');
+		} while (input !== previous);
+		return input;
+	}
+
 	constructor(config: SeoAnalysisConfig) {
 		this.config = config;
 		this.stopWords = new Set([
@@ -242,9 +259,7 @@ export class SeoAnalyzer {
 		let match;
 		while ((match = headingRegex.exec(content)) !== null) {
 			const level = parseInt(match[1]) as 1 | 2 | 3 | 4 | 5 | 6;
-			const text = match[2]
-				.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '') // Remove <script> tags and their content
-				.replace(/<script.*?>/gi, '') // Remove any remaining <script> tags
+			const text = this.removeScriptTags(match[2])
 				.replace(/<[^>]*>/g, '') // Remove other HTML tags
 				.trim();
 			headings[`h${level}` as keyof typeof headings].push(text);

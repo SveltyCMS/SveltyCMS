@@ -1,11 +1,11 @@
 /**
- * @file tests/bun/cache-integration.test.ts
+ * @file tests/bun/databases/cache-integration.test.ts
  * @description Integration tests for cache behavior across database operations.
  * Tests cache hits, misses, invalidation, multi-tenancy, and metrics tracking.
  */
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { mockCacheService, mockCacheMetrics } from './mocks/cacheService';
+import { mockCacheService, mockCacheMetrics } from '../mocks/cacheService';
 
 describe('Cache Integration Tests', () => {
 	beforeEach(async () => {

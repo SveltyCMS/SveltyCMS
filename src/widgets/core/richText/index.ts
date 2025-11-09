@@ -21,10 +21,27 @@ import type { RichTextProps } from './types';
 // Helper to check if HTML content is effectively empty.
 const isContentEmpty = (html: string) => {
 	if (!html) return true;
+
 	// Remove <script> tags and their content first for security
-	const noScripts = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-	const stripped = noScripts.replace(/<[^>]+>/g, '').trim();
-	return stripped.length === 0;
+	// Use loop to prevent bypass via malformed/nested tags
+	let noScripts = html;
+	let prev: string;
+	do {
+		prev = noScripts;
+		// Remove <script>...</script> blocks (with any whitespace/attributes in closing tag)
+		noScripts = noScripts.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+		// Remove orphaned <script> opening tags
+		noScripts = noScripts.replace(/<script\b[^>]*>/gi, '');
+	} while (noScripts !== prev);
+
+	// Remove all remaining HTML tags, also using loop for security
+	let stripped = noScripts;
+	do {
+		prev = stripped;
+		stripped = stripped.replace(/<[^>]+>/g, '');
+	} while (stripped !== prev);
+
+	return stripped.trim().length === 0;
 };
 
 // The validation schema is a function to accommodate the `required` flag.

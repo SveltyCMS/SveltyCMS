@@ -499,6 +499,397 @@ The audit widget seamlessly integrates with:
 
 ---
 
+## Dashboard API Endpoints
+
+The dashboard system provides 9 RESTful API endpoints that serve data to widgets. All endpoints (except `/health`) require authentication and support multi-tenancy.
+
+### Authentication & Multi-tenancy
+
+All dashboard endpoints use session-based authentication:
+
+```typescript
+// Authentication check in endpoints
+const session = await locals.auth();
+if (!session?.user) {
+	return json({ error: 'Unauthorized' }, { status: 401 });
+}
+
+// Tenant-scoped queries
+const tenantId = getTenantFromUrl(url);
+const data = await db.query({ tenantId });
+```
+
+### Endpoint Reference
+
+#### 1. **GET /api/dashboard/health**
+
+Public health check endpoint for load balancers and monitoring systems.
+
+**Authentication**: None (public endpoint)
+
+**Response**:
+
+```json
+{
+	"overallStatus": "READY" | "DEGRADED" | "INITIALIZING" | "FAILED" | "IDLE",
+	"timestamp": "2025-01-20T10:30:00Z",
+	"uptime": 3600,
+	"components": {
+		"database": { "status": "healthy", "responseTime": 5 },
+		"cache": { "status": "healthy" }
+	}
+}
+```
+
+**Status Codes**:
+
+- `200`: System is READY or DEGRADED
+- `503`: System is INITIALIZING, FAILED, or IDLE
+
+**Use Case**: Load balancer health checks, uptime monitoring
+
+---
+
+#### 2. **GET /api/dashboard/metrics**
+
+Performance metrics from the MetricsService.
+
+**Authentication**: Required (session cookie)
+
+**Query Parameters**:
+
+- `detailed` (boolean): Include system metrics (memory, uptime)
+
+**Response**:
+
+```json
+{
+	"requests": { "total": 1523, "success": 1498, "errors": 25 },
+	"auth": { "logins": 342, "failures": 12, "logouts": 298 },
+	"cache": { "hits": 8543, "misses": 432 },
+	"sessions": { "active": 23, "total": 342 },
+	"system": {
+		// Only if detailed=true
+		"memory": { "used": 2147483648, "total": 8589934592 },
+		"uptime": 3600000
+	}
+}
+```
+
+**Use Case**: PerformanceWidget, UnifiedMetricsWidget
+
+---
+
+#### 3. **GET /api/dashboard/systemInfo**
+
+Comprehensive system information: CPU, memory, disk, network, OS, processes.
+
+**Authentication**: Required (session cookie)
+
+**Query Parameters**:
+
+- `type` (string): Filter by type (`cpu`, `disk`, `memory`, `network`, `os`, `process`, or `all`)
+
+**Caching**: 1-second TTL to prevent excessive system calls
+
+**Response**:
+
+```json
+{
+	"cpuInfo": {
+		"model": "Intel Core i7-9750H",
+		"cores": 12,
+		"speed": 2600,
+		"usage": 45.3,
+		"loadAverage": [2.1, 1.8, 1.5],
+		"history": [42.1, 43.5, 45.3]
+	},
+	"memoryInfo": {
+		"total": 17179869184,
+		"used": 12884901888,
+		"free": 4294967296,
+		"swapTotal": 2147483648,
+		"swapUsed": 1073741824
+	},
+	"diskInfo": {
+		"mounts": [
+			{
+				"filesystem": "/dev/sda1",
+				"size": 512110190592,
+				"used": 256055095296,
+				"available": 256055095296,
+				"capacity": 50,
+				"mounted": "/"
+			}
+		]
+	}
+}
+```
+
+**Use Case**: CPUWidget, MemoryWidget, DiskWidget, SystemHealthWidget
+
+---
+
+#### 4. **GET /api/dashboard/logs**
+
+System logs with ANSI color conversion to HTML.
+
+**Authentication**: Required (session cookie)
+
+**Query Parameters**:
+
+- `level` (string): Filter by log level (`error`, `warn`, `info`, `debug`)
+- `search` (string): Search within log messages
+- `startDate` (ISO 8601): Filter logs after this date
+- `endDate` (ISO 8601): Filter logs before this date
+- `page` (number): Page number (default: 1)
+- `limit` (number): Results per page (max: 100, default: 50)
+
+**Features**:
+
+- ANSI color codes converted to HTML `<span>` elements
+- Supports compressed log files (`.gz`, `.br`)
+- Pagination for large log files
+- Real-time log tailing
+
+**Response**:
+
+```json
+{
+	"logs": [
+		{
+			"timestamp": "2025-01-20T10:30:15",
+			"level": "info",
+			"message": "User logged in",
+			"messageHtml": "<span style='color:#00ff00'>User logged in</span>"
+		}
+	],
+	"total": 1523,
+	"page": 1,
+	"totalPages": 31
+}
+```
+
+**Use Case**: LogsWidget
+
+---
+
+#### 5. **GET /api/dashboard/last5Content**
+
+Recent content from all collections.
+
+**Authentication**: Required (session cookie)
+
+**Query Parameters**:
+
+- `limit` (number): Number of items (max: 20, default: 5)
+
+**Features**:
+
+- Multi-collection aggregation
+- Username lookup for `createdBy` field
+- Tenant-scoped queries
+- Sorted by creation date (newest first)
+
+**Response**:
+
+```json
+[
+	{
+		"id": "post-123",
+		"title": "Latest Blog Post",
+		"collection": "posts",
+		"createdAt": "2025-01-20T10:00:00Z",
+		"createdBy": "john.doe",
+		"status": "published"
+	}
+]
+```
+
+**Use Case**: Last5ContentWidget
+
+---
+
+#### 6. **GET /api/dashboard/last5media**
+
+Recent media files from the media library.
+
+**Authentication**: Required (session cookie)
+
+**Features**:
+
+- Database adapter integration
+- Tenant-scoped queries
+- File metadata (size, modified date, MIME type)
+
+**Response**:
+
+```json
+[
+	{
+		"name": "hero-image.jpg",
+		"size": 2457600,
+		"modified": "2025-01-20T09:45:00Z",
+		"type": "image/jpeg",
+		"url": "/media/hero-image.jpg"
+	}
+]
+```
+
+**Use Case**: Last5MediaWidget
+
+---
+
+#### 7. **GET /api/dashboard/online_user**
+
+Currently online users with session duration.
+
+**Authentication**: Required (session cookie)
+
+**Features**:
+
+- Active session tracking
+- Username and avatar display
+- Online time formatting ("2h 15m")
+- Sorted by longest online time first
+
+**Response**:
+
+```json
+{
+	"onlineUsers": [
+		{
+			"id": "user-123",
+			"name": "John Doe",
+			"avatarUrl": "/avatars/john.jpg",
+			"onlineTime": "2h 15m",
+			"onlineMinutes": 135
+		}
+	]
+}
+```
+
+**Use Case**: UserOnlineWidget
+
+---
+
+#### 8. **GET /api/dashboard/systemMessages**
+
+System messages from log files.
+
+**Authentication**: Required (session cookie)
+
+**Query Parameters**:
+
+- `limit` (number): Number of messages (max: 50, default: 5)
+
+**Features**:
+
+- Tail reading from log files
+- Log parsing with structured output
+- Default message when no logs available
+- Message prioritization by severity
+
+**Response**:
+
+```json
+[
+	{
+		"id": "msg-1",
+		"title": "System Update",
+		"message": "New version deployed successfully",
+		"level": "info",
+		"timestamp": "2025-01-20T10:30:00Z",
+		"type": "system"
+	}
+]
+```
+
+**Use Case**: SystemMessagesWidget
+
+---
+
+#### 9. **GET /api/dashboard/cache-metrics**
+
+Cache performance metrics from CacheMetrics service.
+
+**Authentication**: Required (session cookie)
+
+**Methods**:
+
+- **GET**: Retrieve cache metrics
+- **DELETE**: Reset all cache metrics (admin only)
+
+**Response**:
+
+```json
+{
+	"overall": {
+		"hits": 8543,
+		"misses": 432,
+		"hitRate": 95.2,
+		"size": 2147483648
+	},
+	"byCategory": {
+		"content": { "hits": 5234, "misses": 123 },
+		"media": { "hits": 2109, "misses": 234 },
+		"system": { "hits": 1200, "misses": 75 }
+	},
+	"byTenant": {
+		"tenant-1": { "hits": 4321, "misses": 198 },
+		"tenant-2": { "hits": 4222, "misses": 234 }
+	},
+	"recentMisses": [{ "key": "content:post-123", "timestamp": "2025-01-20T10:30:00Z" }],
+	"timestamp": "2025-01-20T10:30:15Z"
+}
+```
+
+**Use Case**: CacheMonitorWidget
+
+---
+
+### API Testing
+
+Dashboard APIs have comprehensive integration test coverage (48 tests):
+
+**Test File**: `tests/bun/api/dashboard.test.ts`
+
+**Coverage by Endpoint**:
+
+- `/health`: 3 tests (status codes, component health, structure)
+- `/metrics`: 3 tests (basic metrics, detailed mode, validation)
+- `/systemInfo`: 6 tests (type filtering, caching, multi-platform)
+- `/logs`: 5 tests (pagination, filtering, search, ANSI colors)
+- `/last5Content`: 4 tests (content structure, limits, sorting)
+- `/last5media`: 3 tests (media structure, empty handling)
+- `/online_user`: 4 tests (user list, sorting, current user)
+- `/systemMessages`: 4 tests (message structure, limits, defaults)
+- `/cache-metrics`: 6 tests (metrics structure, categories, hit rates)
+
+**Running Dashboard Tests**:
+
+```bash
+# Requires running development server
+npm run dev  # In terminal 1
+bun test tests/bun/api/dashboard.test.ts  # In terminal 2
+```
+
+**Authentication in Tests**:
+
+```typescript
+// All tests use authenticated session
+beforeAll(async () => {
+	const loginRes = await fetch('http://localhost:5173/api/auth/login', {
+		method: 'POST',
+		body: JSON.stringify({ email: 'admin@example.com', password: 'admin123' })
+	});
+	const cookies = loginRes.headers.get('set-cookie');
+	authCookie = cookies?.split(';')[0] || '';
+});
+```
+
+---
+
 ## Customization & Extension
 
 ### Adding New Widgets

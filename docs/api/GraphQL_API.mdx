@@ -1,42 +1,88 @@
 ---
 path: 'docs/api/GraphQL_API.mdx'
 title: 'GraphQL API'
-description: 'Complete GraphQL API reference for querying and mutating data in SveltyCMS.'
+description: 'Complete GraphQL API reference for querying and mutating data in SveltyCMS with dynamic schema generation.'
 order: 11
 icon: 'mdi:graphql'
 author: 'admin'
 created: '2025-10-05'
-updated: '2025-10-05'
+updated: '2025-11-08'
 tags:
   - 'api'
   - 'graphql'
   - 'query'
   - 'mutation'
+  - 'subscriptions'
 ---
 
 # GraphQL API
 
 ## Overview
 
-The GraphQL API provides a flexible query language for accessing and manipulating data in SveltyCMS. It supports collections, users, media, and custom queries with permission-based access control.
+The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure.
 
-**Endpoint:** `/api/graphql`
+**Endpoint:** `/api/graphql`  
+**Method:** `POST`  
+**Content-Type:** `application/json`
 
-## Authentication
+**Key Features:**
 
-GraphQL endpoint requires authentication:
-
-```http
-Cookie: session=your-session-id
-```
-
-**Permissions:** Query-specific (checked per operation)
+- ✅ Dynamic schema generation from collections
+- ✅ Type-safe queries with auto-completion
+- ✅ Pagination support for all queries
+- ✅ Real-time subscriptions via WebSocket
+- ✅ Multi-tenant data isolation
+- ✅ Redis caching integration
+- ✅ Permission-based access control
+- ✅ Introspection and GraphiQL playground
 
 ---
 
-## GraphQL Playground
+## Authentication
 
-Access the interactive GraphQL playground:
+All GraphQL requests require authentication via session cookie:
+
+```http
+Cookie: session=your-session-cookie
+```
+
+### Authentication Methods
+
+#### Browser/Frontend
+
+```javascript
+// Session cookie automatically sent
+fetch('/api/graphql', {
+	method: 'POST',
+	credentials: 'include',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ query })
+});
+```
+
+#### API Token (Bearer)
+
+```bash
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Authorization: Bearer your-api-token" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ users { _id email } }"}'
+```
+
+**Unauthorized Response (401):**
+
+```json
+{
+	"error": "Unauthorized",
+	"message": "You must be logged in to access the GraphQL endpoint."
+}
+```
+
+---
+
+## GraphiQL Playground
+
+Access the interactive GraphQL playground for development:
 
 ```
 https://your-domain.com/api/graphql
@@ -44,57 +90,65 @@ https://your-domain.com/api/graphql
 
 The playground provides:
 
-- Schema explorer
-- Auto-completion
-- Query validation
-- Documentation browser
+- 📖 Full schema documentation browser
+- ✨ Auto-completion and syntax highlighting
+- ✔️ Real-time query validation
+- 🔍 Schema introspection
+- 📊 Query performance metrics
+- 🔌 WebSocket subscription testing
 
 ---
 
-## Schema Overview
+## Dynamic Schema Generation
 
-### Base Types
+The GraphQL schema is dynamically generated based on your:
+
+1. **Collections** - Each collection becomes a queryable type
+2. **Widgets** - Widget schemas define field types
+3. **Custom Fields** - Extracted and nested fields are supported
+4. **Media Types** - Images, documents, audio, video, remote
+
+### Example Generated Schema
 
 ```graphql
+# Auto-generated from "Posts" collection
+type Posts_abc123 {
+	_id: String
+	title: String
+	content: String
+	author: User
+	tags: [String]
+	status: String
+	createdAt: String
+	updatedAt: String
+	createdBy: String
+	updatedBy: String
+}
+
 type Query {
-	# Collection queries
-	posts(filter: JSON, limit: Int, skip: Int): [Post]
-	post(id: ID!): Post
+	# Collection queries (dynamically generated)
+	Posts_abc123: [Posts_abc123]
+	Articles_def456: [Articles_def456]
 
 	# User queries
-	users(filter: JSON, limit: Int): [User]
-	user(id: ID!): User
-	me: User
+	users(pagination: PaginationInput): [User]
 
 	# Media queries
-	media(filter: JSON, limit: Int): [Media]
-	mediaFile(id: ID!): Media
+	mediaImages(pagination: PaginationInput): [MediaImage]
+	mediaDocuments(pagination: PaginationInput): [MediaDocument]
+	mediaAudio(pagination: PaginationInput): [MediaAudio]
+	mediaVideos(pagination: PaginationInput): [MediaVideo]
+	mediaRemote(pagination: PaginationInput): [MediaRemote]
+
+	# Permission queries
+	accessManagementPermission: AccessManagementPermission
 }
 
-type Mutation {
-	# Collection mutations
-	createPost(input: PostInput!): Post
-	updatePost(id: ID!, input: PostInput!): Post
-	deletePost(id: ID!): Boolean
-
-	# User mutations
-	createUser(input: UserInput!): User
-	updateUser(id: ID!, input: UserInput!): User
-	deleteUser(id: ID!): Boolean
-
-	# Media mutations
-	deleteMedia(id: ID!): Boolean
-}
-
-type Subscription {
-	# Real-time collection updates
-	postAdded: Post
-	postUpdated: Post
-	postDeleted: ID
+input PaginationInput {
+	page: Int = 1
+	limit: Int = 50
 }
 ```
-
-> **Note:** Subscriptions require WebSocket connection. See [WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx) for details.
 
 ---
 
@@ -835,12 +889,187 @@ For complete WebSocket authentication methods and implementation details, see:
 
 ---
 
+## Testing
+
+Comprehensive test coverage for all GraphQL features.
+
+### Test Suite Location
+
+```
+tests/bun/api/graphql.test.ts
+```
+
+### Running Tests
+
+```bash
+# Run all GraphQL tests
+bun test tests/bun/api/graphql.test.ts
+
+# Run specific test suite
+bun test tests/bun/api/graphql.test.ts -t "User Queries"
+
+# Run with coverage
+bun test --coverage tests/bun/api/graphql.test.ts
+```
+
+### Test Coverage
+
+**Authentication & Authorization (2 tests)**
+
+- ✅ Reject unauthenticated requests
+- ✅ Accept authenticated requests
+
+**User Queries (3 tests)**
+
+- ✅ Fetch users list
+- ✅ Fetch users with pagination
+- ✅ Verify sensitive fields not exposed
+
+**Media Queries (5 tests)**
+
+- ✅ Fetch media images
+- ✅ Fetch media documents
+- ✅ Fetch media with pagination
+- ✅ Fetch different media types
+- ✅ Verify media type isolation
+
+**Schema Introspection (2 tests)**
+
+- ✅ Support introspection queries
+- ✅ List available query fields
+
+**Error Handling (3 tests)**
+
+- ✅ Return errors for invalid queries
+- ✅ Return errors for malformed queries
+- ✅ Handle missing required fields
+
+**Complex Queries (3 tests)**
+
+- ✅ Support multiple queries in one request
+- ✅ Support query aliases
+- ✅ Support fragments
+
+**Multi-Tenant Support (1 test)**
+
+- ✅ Scope queries to tenant context
+
+**Performance & Caching (2 tests)**
+
+- ✅ Handle large pagination requests
+- ✅ Execute queries efficiently (<5s)
+
+**Total:** 21 test cases covering all GraphQL features
+
+### Example Test
+
+```typescript
+describe('User Queries', () => {
+	it('should fetch users with pagination', async () => {
+		const query = `
+      query GetUsers($pagination: PaginationInput) {
+        users(pagination: $pagination) {
+          _id
+          email
+          username
+        }
+      }
+    `;
+
+		const response = await executeGraphQL(
+			query,
+			{
+				pagination: {
+					page: 1,
+					limit: 5
+				}
+			},
+			authCookie
+		);
+
+		expect(response.status).toBe(200);
+		const result = await response.json();
+		expect(result.data.users).toBeDefined();
+		expect(Array.isArray(result.data.users)).toBe(true);
+	});
+});
+```
+
+### Manual Testing with cURL
+
+```bash
+# Test user query
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { users { _id email username } }"
+  }'
+
+# Test media query with pagination
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query($pagination: PaginationInput) { mediaImages(pagination: $pagination) { _id url } }",
+    "variables": { "pagination": { "page": 1, "limit": 10 } }
+  }'
+
+# Test introspection
+curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { __schema { types { name } } }"
+  }'
+```
+
+### Performance Testing
+
+```bash
+# Test query performance
+time curl -X POST https://cms.example.com/api/graphql \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "query { users { _id } mediaImages { _id } }"
+  }'
+```
+
+### Integration Testing
+
+Test GraphQL with other API endpoints:
+
+```javascript
+// 1. Create user via REST API
+const userResponse = await fetch('/api/user/createUser', {
+	method: 'POST',
+	body: JSON.stringify({ email, username, password })
+});
+
+// 2. Query user via GraphQL
+const graphqlResponse = await fetch('/api/graphql', {
+	method: 'POST',
+	body: JSON.stringify({
+		query: `query { users { _id email } }`
+	})
+});
+
+// 3. Verify user exists in GraphQL response
+const result = await graphqlResponse.json();
+const user = result.data.users.find((u) => u.email === email);
+expect(user).toBeDefined();
+```
+
+---
+
 ## Related Documentation
 
 - [GraphQL WebSocket Subscriptions](/docs/api/graphql-websocket-subscriptions.mdx) - Real-time updates guide
 - [Collection API](/docs/api/Collection_API.mdx)
 - [User Management API](/docs/api/User_Management_API.mdx)
 - [Media API](/docs/api/Media_API.mdx)
+- [Testing Documentation](/docs/tests/) - Complete testing guide
 
 ---
 
@@ -849,6 +1078,7 @@ For complete WebSocket authentication methods and implementation details, see:
 For implementation details, see:
 
 - `src/routes/api/graphql/+server.ts` - Main GraphQL endpoint
-- `src/routes/api/graphql/resolvers/collections.ts` - Collection resolvers
-- `src/routes/api/graphql/resolvers/users.ts` - User resolvers
-- `src/routes/api/graphql/resolvers/media.ts` - Media resolvers
+- `src/routes/api/graphql/resolvers/collections.ts` - Dynamic collection schema generation
+- `src/routes/api/graphql/resolvers/users.ts` - User queries and type definitions
+- `src/routes/api/graphql/resolvers/media.ts` - Media queries for all media types
+- `tests/bun/api/graphql.test.ts` - Complete test suite

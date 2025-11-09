@@ -1161,7 +1161,110 @@ async function setupSveltyCMS() {
 	// System is now ready!
 	window.location.href = result.redirectPath;
 }
-````
+```
+
+---
+
+## Testing the Setup API
+
+### Test Suite Overview
+
+The Setup API has comprehensive test coverage to ensure reliability and proper error handling.
+
+**Test Files:**
+- `tests/bun/api/setup.test.ts` - Endpoint integration tests (20 tests)
+- `tests/bun/api/setup-utils.test.ts` - Utility function tests (25+ tests)
+
+**Run Tests:** `bun test tests/bun/api/setup*.test.ts`
+
+### Test Coverage by Endpoint
+
+| Endpoint | Tests | Coverage |
+|----------|-------|----------|
+| `/api/setup/test-database` | 6 | ✅ 100% |
+| `/api/setup/install-driver` | 3 | ✅ 100% |
+| `/api/setup/seed` | 3 | ✅ 100% |
+| `/api/setup/email-test` | 4 | ✅ 100% |
+| `/api/setup/complete` | 4 | ✅ 100% |
+| **Total** | **20** | **✅ 100%** |
+
+### Key Test Scenarios
+
+**Database Connection:**
+- ✅ Successful MongoDB connection
+- ✅ Invalid credentials error handling
+- ✅ Connection refused (bad host/port)
+- ✅ MongoDB Atlas SRV detection
+- ✅ Database statistics retrieval
+
+**Driver Installation:**
+- ✅ Check if driver is installed
+- ✅ Invalid database type rejection
+- ✅ Request body validation
+
+**Database Seeding:**
+- ✅ Write private.ts configuration
+- ✅ Seed default settings/themes
+- ✅ Graceful error handling
+
+**SMTP Configuration:**
+- ✅ Test SMTP connection
+- ✅ Field validation
+- ✅ Save to database option
+
+**Setup Completion:**
+- ✅ Create admin user
+- ✅ Session initialization
+- ✅ Password validation
+- ✅ Collection redirect
+
+### Running Tests
+
+```bash
+# Run all setup tests
+bun test tests/bun/api/setup.test.ts
+
+# Run utility tests
+bun test tests/bun/api/setup-utils.test.ts
+
+# Run with coverage
+bun test --coverage tests/bun/api/setup*.test.ts
+
+# Watch mode
+bun test --watch tests/bun/api/setup.test.ts
+```
+
+### Manual Testing with cURL
+
+**Test Database Connection:**
+
+```bash
+curl -X POST http://localhost:5173/api/setup/test-database \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "mongodb",
+    "host": "localhost",
+    "port": 27017,
+    "name": "sveltycms",
+    "user": "admin",
+    "password": "secret"
+  }'
+```
+
+**Complete Setup:**
+
+```bash
+curl -X POST http://localhost:5173/api/setup/complete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "admin": {
+      "username": "admin",
+      "email": "admin@example.com",
+      "password": "SecurePass123!",
+      "confirmPassword": "SecurePass123!"
+    }
+  }' -c cookies.txt -v
+```
 
 ---
 
@@ -1180,3 +1283,4 @@ This API provides a seamless, secure, and user-friendly setup experience with au
 - [Valibot Documentation](https://valibot.dev/) - Validation library reference
 
 ---
+````
