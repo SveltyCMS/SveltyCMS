@@ -31,9 +31,7 @@ import type { User } from '@src/databases/auth/types';
 // System Logger (ensure server-safe implementation)
 import { logger } from '@utils/logger.server';
 
-/**
- * Error type for structured error handling
- */
+// Error type for structured error handling
 interface LayoutError {
 	message: string;
 	details?: string;

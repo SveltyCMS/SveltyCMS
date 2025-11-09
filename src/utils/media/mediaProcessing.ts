@@ -12,6 +12,7 @@
 import { error } from '@sveltejs/kit';
 import { Buffer } from 'buffer';
 import { sha256, sanitize } from '@utils/utils';
+import Sharp from 'sharp';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -94,4 +95,25 @@ export function getSanitizedFileName(fileName: string): {
 		normalizedExt: sanitized.ext
 	});
 	return sanitized;
+}
+
+export async function extractMetadata(buffer: Buffer): Promise<Sharp.Metadata> {
+	if (!import.meta.env.SSR) {
+		const message = 'extractMetadata can only be performed on the server';
+		logger.error(message);
+		throw error(500, message);
+	}
+
+	try {
+		const sharpInstance = Sharp(buffer);
+		const metadata = await sharpInstance.metadata();
+		return metadata;
+	} catch (err) {
+		const message = `Error extracting metadata: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, {
+			bufferSize: buffer?.length,
+			error: err
+		});
+		throw error(500, message);
+	}
 }

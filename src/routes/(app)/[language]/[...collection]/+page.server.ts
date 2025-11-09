@@ -113,11 +113,11 @@ export const load: PageServerLoad = async ({ locals, params, url, fetch }) => {
 			throw error(404, `Collection not found: ${collection}`);
 		}
 
-		// If accessed via UUID, redirect to clean path URL
-		if (isUUID && currentCollection.path) {
-			const cleanPath = `/${language}${currentCollection.path}${url.search}`;
-			logger.debug(`Redirecting from UUID to path: ${cleanPath}`);
-			throw redirect(302, cleanPath);
+		// If accessed via a non-canonical path, it will be handled by the client-side to update the URL,
+		// but the server will still serve the content to avoid a redirect.
+		// This check is to prevent potential redirect loops if client-side logic fails.
+		if (!isUUID && currentCollection.path && `/${collection}` !== currentCollection.path) {
+			logger.warn(`Serving content from non-canonical path: /${collection}. Canonical is ${currentCollection.path}`);
 		}
 
 		// =================================================================

@@ -449,16 +449,16 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
 			// Check if collections exist in the database (runtime-created collections)
 			// First try the firstCollection passed from setup wizard (if available)
-			if (firstCollection?.path) {
-				// Use path for redirect (friendly URL)
-				redirectPath = `/${userLanguage}${firstCollection.path}`;
-				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${firstCollection.name} (path: ${firstCollection.path})`, {
+			if (firstCollection?._id) {
+				// Use ID for redirect (most robust)
+				redirectPath = `/${userLanguage}/${firstCollection._id}`;
+				logger.info(`Setup complete: Redirecting to pre-seeded collection: ${firstCollection.name} (id: ${firstCollection._id})`, {
 					correlationId
 				});
-			} else if (firstCollection?._id) {
-				// Fallback to ID if path not available (will redirect to UUID which might be less friendly)
-				redirectPath = `/${userLanguage}/${firstCollection._id}`;
-				logger.warn(`Setup complete: Using ID-based redirect (missing path): ${redirectPath}`, { correlationId });
+			} else if (firstCollection?.path) {
+				// Fallback to path if ID not available
+				redirectPath = `/${userLanguage}${firstCollection.path}`;
+				logger.warn(`Setup complete: Using path-based redirect (missing ID): ${redirectPath}`, { correlationId });
 			} else {
 				// Fallback: Query database for available collections
 				const collectionPath = await getCachedFirstCollectionPath(userLanguage);

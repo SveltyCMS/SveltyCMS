@@ -84,6 +84,22 @@
 		}
 	});
 
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const currentPath = page.url.pathname;
+			const collectionIdFromPath = currentPath.split('/').pop() || '';
+			const isUUID = /^[a-f0-9]{32}$/i.test(collectionIdFromPath);
+
+			if (isUUID && collectionSchema?.path) {
+				const newPath = `/${serverContentLanguage}${collectionSchema.path}${page.url.search}`;
+				if (newPath !== currentPath) {
+					logger.debug(`[URL Update] Replacing UUID path with pretty path: ${newPath}`);
+					history.replaceState(history.state, '', newPath);
+				}
+			}
+		}
+	});
+
 	// ============================================================================
 	// URL-TO-MODE TRANSLATION & INITIAL LOAD DETECTION
 	// ============================================================================

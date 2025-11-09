@@ -503,6 +503,11 @@ async function initializeSystem(forceReload = false, skipSetupCheck = false): Pr
 		updateServiceHealth('contentManager', 'healthy', 'Will lazy-initialize on first use');
 		logger.info('\x1b[32mStep 4:\x1b[0m Server services (Widgets & Content) will lazy-initialize on first use');
 
+		// Eagerly initialize ContentManager to prevent race conditions on first load
+		const { contentManager } = await import('@src/content/ContentManager');
+		await contentManager.initialize();
+		logger.info('ContentManager eagerly initialized.');
+
 		// Step 5: Initialize Critical Components (optimized for speed)
 		const step5StartTime = performance.now();
 

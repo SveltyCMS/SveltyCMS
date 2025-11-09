@@ -117,9 +117,9 @@ function createSetupStore() {
 	}
 
 	return {
-		get wizard() {
-			return wizard;
-		},
+		// Export the writable $state rune directly, not through a getter
+		// This allows components to use bind: directives with wizard properties
+		wizard,
 
 		// Call this from component to enable persistence
 		setupPersistence,

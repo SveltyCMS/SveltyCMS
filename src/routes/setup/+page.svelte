@@ -26,10 +26,11 @@
 	import { setupStore } from '@stores/setupStore.svelte';
 	import { systemLanguage } from '@stores/store.svelte';
 
-	// Componets
+	// Components - Eager load first step components
 	import SiteName from '@components/SiteName.svelte';
 	import ThemeToggle from '@components/ThemeToggle.svelte';
 	import WelcomeModal from './WelcomeModal.svelte';
+	import DatabaseConfig from './DatabaseConfig.svelte';
 	import VersionCheck from '@components/VersionCheck.svelte';
 
 	// Skeleton
@@ -51,7 +52,12 @@
 	import { safeParse } from 'valibot';
 
 	// --- 1. STATE MANAGEMENT ---
-	const { wizard, load: loadStore, clear: clearStore, setupPersistence } = setupStore;
+	// ✅ Get direct reference to the existing $state rune from setupStore
+	// Do NOT wrap in $derived - wizard is already a reactive $state rune
+	const wizard = setupStore.wizard;
+	const loadStore = setupStore.load.bind(setupStore);
+	const clearStore = setupStore.clear.bind(setupStore);
+	const setupPersistenceFn = setupStore.setupPersistence.bind(setupStore);
 
 	// --- 2. TYPE DEFINITIONS ---
 	type ValidationErrors = Record<string, string>;
@@ -132,7 +138,7 @@
 		document.addEventListener('click', outsideLang);
 
 		// Initialize persistence effect now that we're in component context
-		setupPersistence();
+		setupPersistenceFn();
 
 		// Check if we should show the welcome modal
 		// Using sessionStorage so it shows once per browser session
@@ -514,7 +520,9 @@
 	}
 
 	// --- 7. UI HANDLERS ---
-	let dbConfigComponent = $state<unknown>(null);
+	// Component reference for bind:this - doesn't need $state() as it's set once and doesn't trigger UI updates
+	// svelte-ignore non_reactive_update
+	let dbConfigComponent: any = null;
 
 	async function nextStep() {
 		if (!canProceed) return;
@@ -641,71 +649,149 @@
 	}
 
 	// --- 9. LAZY COMPONENT STATE & ERROR HANDLING ---
-	let DatabaseConfig: unknown = null;
-	let AdminConfig: unknown = null;
-	let SystemConfig: unknown = null;
-	let EmailConfig: unknown = null;
-	let ReviewConfig: unknown = null;
+	// DatabaseConfig is eagerly imported above - set it immediately
+	// Use $state.raw() for component references - provides reactivity without deep proxying
+	let DatabaseConfigComponent = $state.raw<Component<any, any, any> | null>(DatabaseConfig);
+	let AdminConfig = $state.raw<Component<any, any, any> | null>(null);
+	let SystemConfig = $state.raw<Component<any, any, any> | null>(null);
+	let EmailConfig = $state.raw<Component<any, any, any> | null>(null);
+	let ReviewConfig = $state.raw<Component<any, any, any> | null>(null);
 	let stepLoadError = $state('');
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let CurrentStepComponent = $state<Component<any, any, any> | null>(null);
+	let isLoadingComponent = $state(false);
 
+	// Track which components have been prefetched
+	let isPrefetched = $state({
+		admin: false,
+		system: false,
+		email: false,
+		review: false
+	});
+
+	// Prefetch functions for hover optimization
+	async function prefetchAdminConfig() {
+		if (isPrefetched.admin || AdminConfig) return;
+		try {
+			const module = await import('./AdminConfig.svelte');
+			AdminConfig = module.default;
+			isPrefetched.admin = true;
+		} catch (err) {
+			logger.error('Failed to prefetch AdminConfig', err);
+		}
+	}
+
+	async function prefetchSystemConfig() {
+		if (isPrefetched.system || SystemConfig) return;
+		try {
+			const module = await import('./SystemConfig.svelte');
+			SystemConfig = module.default;
+			isPrefetched.system = true;
+		} catch (err) {
+			logger.error('Failed to prefetch SystemConfig', err);
+		}
+	}
+
+	async function prefetchEmailConfig() {
+		if (isPrefetched.email || EmailConfig) return;
+		try {
+			const module = await import('./EmailConfig.svelte');
+			EmailConfig = module.default;
+			isPrefetched.email = true;
+		} catch (err) {
+			logger.error('Failed to prefetch EmailConfig', err);
+		}
+	}
+
+	async function prefetchReviewConfig() {
+		if (isPrefetched.review || ReviewConfig) return;
+		try {
+			const module = await import('./ReviewConfig.svelte');
+			ReviewConfig = module.default;
+			isPrefetched.review = true;
+		} catch (err) {
+			logger.error('Failed to prefetch ReviewConfig', err);
+		}
+	}
+
+	// Handler for next button hover - prefetch next step
+	function handleNextButtonHover() {
+		switch (wizard.currentStep) {
+			case 0:
+				prefetchAdminConfig();
+				break;
+			case 1:
+				prefetchSystemConfig();
+				break;
+			case 2:
+				prefetchEmailConfig();
+				break;
+			case 3:
+				prefetchReviewConfig();
+				break;
+		}
+	}
+
+	// Handler for step navigation hover - prefetch that step
+	function handleStepHover(stepIndex: number) {
+		switch (stepIndex) {
+			case 1:
+				prefetchAdminConfig();
+				break;
+			case 2:
+				prefetchSystemConfig();
+				break;
+			case 3:
+				prefetchEmailConfig();
+				break;
+			case 4:
+				prefetchReviewConfig();
+				break;
+		}
+	}
+
+	// Effect to load components when step changes (fallback if not prefetched)
 	$effect(() => {
+		const currentStep = wizard.currentStep;
 		stepLoadError = '';
-		const loadStep = async (step: number) => {
+
+		// Load current step component if not already loaded
+		(async () => {
 			try {
-				switch (step) {
+				isLoadingComponent = true;
+				switch (currentStep) {
 					case 0:
-						if (!DatabaseConfig) DatabaseConfig = (await import('./DatabaseConfig.svelte')).default;
+						// Already eagerly loaded
 						break;
 					case 1:
-						if (!AdminConfig) AdminConfig = (await import('./AdminConfig.svelte')).default;
+						if (!AdminConfig) {
+							const module = await import('./AdminConfig.svelte');
+							AdminConfig = module.default;
+						}
 						break;
 					case 2:
-						if (!SystemConfig) SystemConfig = (await import('./SystemConfig.svelte')).default;
+						if (!SystemConfig) {
+							const module = await import('./SystemConfig.svelte');
+							SystemConfig = module.default;
+						}
 						break;
 					case 3:
-						if (!EmailConfig) EmailConfig = (await import('./EmailConfig.svelte')).default;
+						if (!EmailConfig) {
+							const module = await import('./EmailConfig.svelte');
+							EmailConfig = module.default;
+						}
 						break;
 					case 4:
-						if (!ReviewConfig) ReviewConfig = (await import('./ReviewConfig.svelte')).default;
+						if (!ReviewConfig) {
+							const module = await import('./ReviewConfig.svelte');
+							ReviewConfig = module.default;
+						}
 						break;
 				}
 			} catch (err) {
 				stepLoadError = `Failed to load step component. Please reload or contact support. (${err instanceof Error ? err.message : String(err)})`;
+			} finally {
+				isLoadingComponent = false;
 			}
-		};
-		// Load current step
-		loadStep(wizard.currentStep).then(() => {
-			switch (wizard.currentStep) {
-				case 0:
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					CurrentStepComponent = DatabaseConfig as any;
-					break;
-				case 1:
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					CurrentStepComponent = AdminConfig as any;
-					break;
-				case 2:
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					CurrentStepComponent = SystemConfig as any;
-					break;
-				case 3:
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					CurrentStepComponent = EmailConfig as any;
-					break;
-				case 4:
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					CurrentStepComponent = ReviewConfig as any;
-					break;
-				default:
-					CurrentStepComponent = null;
-			}
-		});
-		// Prefetch next step in background
-		if (wizard.currentStep < 4) {
-			loadStep(wizard.currentStep + 1);
-		}
+		})();
 	});
 </script>
 
@@ -838,6 +924,8 @@
 									aria-current={i === wizard.currentStep ? 'step' : undefined}
 									aria-label={`${step.label} – ${stepCompleted[i] ? 'Completed' : i === wizard.currentStep ? 'Current step' : 'Pending step'}`}
 									disabled={!(stepClickable[i] || i === wizard.currentStep)}
+									onmouseenter={() => handleStepHover(i)}
+									onfocus={() => handleStepHover(i)}
 									onclick={() => (stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
 								>
 									<span class="text-[0.65rem]">
@@ -873,6 +961,8 @@
 										? 'hover:bg-slate-50 dark:hover:bg-slate-800/70'
 										: 'cursor-not-allowed opacity-50'}"
 									disabled={!(stepClickable[i] || i === wizard.currentStep)}
+									onmouseenter={() => handleStepHover(i)}
+									onfocus={() => handleStepHover(i)}
 									onclick={() => (stepClickable[i] || i === wizard.currentStep) && (wizard.currentStep = i)}
 								>
 									<div
@@ -987,28 +1077,55 @@
 				<div class="p-4 sm:p-6 lg:p-8">
 					{#if stepLoadError}
 						<div class="mb-4 rounded bg-red-100 p-4 text-red-700">{stepLoadError}</div>
-					{:else if CurrentStepComponent}
-						<CurrentStepComponent
-							bind:dbConfig={wizard.dbConfig}
-							{validationErrors}
-							{isLoading}
-							bind:showDbPassword
-							{toggleDbPassword}
-							{testDatabaseConnection}
-							{dbConfigChangedSinceTest}
-							{clearDbTestError}
-							bind:this={dbConfigComponent}
-							bind:adminUser={wizard.adminUser}
-							{passwordRequirements}
-							bind:showAdminPassword
-							bind:showConfirmPassword
-							{toggleAdminPassword}
-							{toggleConfirmPassword}
-							{checkPasswordRequirements}
-							bind:systemSettings={wizard.systemSettings}
-							availableLanguages={systemLanguages}
-							{completeSetup}
-						/>
+					{:else if isLoadingComponent}
+						<div class="flex flex-col items-center justify-center py-12">
+							<div class="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-tertiary-500 border-t-transparent dark:border-primary-500"></div>
+							<div class="text-surface-600 dark:text-surface-400">Loading step...</div>
+						</div>
+					{:else if wizard.currentStep === 0 && DatabaseConfigComponent}
+						{#key DatabaseConfigComponent}
+							<!-- Database Config Step -->
+							<DatabaseConfigComponent
+								bind:dbConfig={wizard.dbConfig}
+								{validationErrors}
+								{isLoading}
+								bind:showDbPassword
+								{toggleDbPassword}
+								{testDatabaseConnection}
+								{dbConfigChangedSinceTest}
+								{clearDbTestError}
+								bind:this={dbConfigComponent}
+							/>
+						{/key}
+					{:else if wizard.currentStep === 1 && AdminConfig}
+						{#key AdminConfig}
+							<!-- Admin Config Step -->
+							<AdminConfig
+								bind:adminUser={wizard.adminUser}
+								{validationErrors}
+								{passwordRequirements}
+								bind:showAdminPassword
+								bind:showConfirmPassword
+								{toggleAdminPassword}
+								{toggleConfirmPassword}
+								{checkPasswordRequirements}
+							/>
+						{/key}
+					{:else if wizard.currentStep === 2 && SystemConfig}
+						{#key SystemConfig}
+							<!-- System Config Step -->
+							<SystemConfig bind:systemSettings={wizard.systemSettings} {validationErrors} />
+						{/key}
+					{:else if wizard.currentStep === 3 && EmailConfig}
+						{#key EmailConfig}
+							<!-- Email Config Step (optional) -->
+							<EmailConfig />
+						{/key}
+					{:else if wizard.currentStep === 4 && ReviewConfig}
+						{#key ReviewConfig}
+							<!-- Review Config Step -->
+							<ReviewConfig dbConfig={wizard.dbConfig} adminUser={wizard.adminUser} systemSettings={wizard.systemSettings} />
+						{/key}
 					{:else}
 						<div class="animate-pulse">Loading step...</div>
 					{/if}
@@ -1130,6 +1247,8 @@
 						{#if wizard.currentStep < steps.length - 1}
 							<button
 								onclick={nextStep}
+								onmouseenter={handleNextButtonHover}
+								onfocus={handleNextButtonHover}
 								disabled={!canProceed}
 								aria-disabled={!canProceed}
 								class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"

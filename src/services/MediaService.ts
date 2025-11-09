@@ -485,4 +485,17 @@ export class MediaService {
 			throw Error(`Unsupported media type: ${mimeType}`);
 		}
 	}
+
+	public async saveRemoteMedia(url: string, userId: string, access: MediaAccess, basePath: string = 'global'): Promise<MediaType> {
+		const response = await fetch(url);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch remote file: ${response.statusText}`);
+		}
+		const buffer = Buffer.from(await response.arrayBuffer());
+		const fileName = Path.basename(new URL(url).pathname);
+		const mimeType = response.headers.get('content-type') || mime.lookup(fileName) || 'application/octet-stream';
+		const file = new File([buffer], fileName, { type: mimeType });
+
+		return this.saveMedia(file, userId, access, basePath);
+	}
 }
