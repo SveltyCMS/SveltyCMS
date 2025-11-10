@@ -25,12 +25,30 @@ beforeAll(async () => {
 	await waitForServer();
 	await initializeTestEnvironment();
 
-	// Create and login as admin user
-	await fetch(`${BASE_URL}/api/user/createUser`, {
+	// Ensure system is initialized before creating admin user
+	const setupResponse = await fetch(`${BASE_URL}/api/setup`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			admin: testFixtures.users.firstAdmin,
+			...testFixtures.setup
+		})
+	});
+	if (!setupResponse.ok) {
+		const errorText = await setupResponse.text();
+		throw new Error('Failed to initialize system: ' + errorText);
+	}
+
+	// Create and login as admin user (should succeed after setup)
+	const createUserResponse = await fetch(`${BASE_URL}/api/user/createUser`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(testFixtures.users.firstAdmin)
 	});
+	if (!createUserResponse.ok) {
+		const errorText = await createUserResponse.text();
+		throw new Error('Failed to create admin user: ' + errorText);
+	}
 
 	const loginResponse = await fetch(`${BASE_URL}/api/user/login`, {
 		method: 'POST',

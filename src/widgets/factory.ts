@@ -91,48 +91,61 @@ export function createWidget<TProps extends WidgetProps = WidgetProps>(config: W
 	};
 
 	// 2. Return the factory function that creates field instances.
-	const widgetFactory = (fieldConfig: FieldConfig<TProps>): FieldInstance => {
-		// Elegantly combine widget-defined defaults with user-provided configuration.
-		const combinedProps = { ...config.defaults, ...fieldConfig };
-
-		// Separate base fields from widget-specific props using a rest operator.
-		const {
-			label,
-			db_fieldName,
-			required,
-			translated,
-			width,
-			helper,
-			permissions,
-			...widgetSpecificProps // Custom specifig Widget props
-		} = combinedProps;
-
+	const widgetFactoryFunction = (fieldConfig: FieldConfig<TProps>): FieldInstance => {
 		const fieldInstance: FieldInstance = {
 			widget: widgetDefinition,
-			label,
-			db_fieldName: db_fieldName || (label ? label.toLowerCase().replace(/\s+/g, '_') : 'unnamed_field'),
-			required: required ?? false,
-			translated: translated ?? false,
-			width,
-			helper,
-			permissions,
-			...widgetSpecificProps // Spread the strongly-typed custom props.
-		};
+			label: fieldConfig.label, // Will be overridden by fieldConfig later if present
+			db_fieldName: '', // Will be set below
+			required: false, // Will be overridden by fieldConfig or config.defaults later
+			translated: false, // Will be overridden by fieldConfig or config.defaults later
+			width: undefined, // Will be overridden by fieldConfig or config.defaults later
+			helper: undefined, // Will be overridden by fieldConfig or config.defaults later
+			permissions: undefined // Will be overridden by fieldConfig or config.defaults later
+		} as FieldInstance; // Cast to FieldInstance to allow adding custom properties
+
+		// 1. Apply defaults from config.defaults (for custom properties)
+		if (config.defaults) {
+			for (const key in config.defaults) {
+				if (Object.prototype.hasOwnProperty.call(config.defaults, key)) {
+					(fieldInstance as Record<string, unknown>)[key] = (config.defaults as Record<string, unknown>)[key];
+				}
+			}
+		}
+
+		// 2. Apply fieldConfig properties, overriding defaults and initial standard values
+		for (const key in fieldConfig) {
+			if (Object.prototype.hasOwnProperty.call(fieldConfig, key)) {
+				const value = (fieldConfig as Record<string, unknown>)[key];
+				if (value !== undefined) {
+					// Only apply if not undefined
+					(fieldInstance as Record<string, unknown>)[key] = value;
+				}
+			}
+		}
+
+		// 3. Handle specific standard property defaults and generation after all merges
+		fieldInstance.required = fieldInstance.required ?? false;
+		fieldInstance.translated = fieldInstance.translated ?? false;
+		if (!fieldInstance.db_fieldName && fieldInstance.label) {
+			fieldInstance.db_fieldName = fieldInstance.label.toLowerCase().replace(/\s+/g, '_');
+		} else if (!fieldInstance.db_fieldName) {
+			fieldInstance.db_fieldName = 'unnamed_field';
+		}
 
 		return fieldInstance;
 	};
 
 	// 3. Attach metadata to the factory for compatibility with existing system
-	widgetFactory.Name = config.Name;
-	widgetFactory.Icon = config.Icon;
-	widgetFactory.Description = config.Description;
-	widgetFactory.GuiSchema = config.GuiSchema;
-	widgetFactory.GraphqlSchema = config.GraphqlSchema;
-	widgetFactory.aggregations = config.aggregations;
-	widgetFactory.__inputComponentPath = config.inputComponentPath || '';
-	widgetFactory.__displayComponentPath = config.displayComponentPath || '';
-	widgetFactory.toString = () => '';
+	widgetFactoryFunction.Name = config.Name;
+	widgetFactoryFunction.Icon = config.Icon;
+	widgetFactoryFunction.Description = config.Description;
+	widgetFactoryFunction.GuiSchema = config.GuiSchema;
+	widgetFactoryFunction.GraphqlSchema = config.GraphqlSchema;
+	widgetFactoryFunction.aggregations = config.aggregations;
+	widgetFactoryFunction.__inputComponentPath = config.inputComponentPath || '';
+	widgetFactoryFunction.__displayComponentPath = config.displayComponentPath || '';
+	widgetFactoryFunction.toString = () => '';
 
 	// 4. Return the clean factory.
-	return widgetFactory;
+	return widgetFactoryFunction;
 }
