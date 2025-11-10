@@ -1,5 +1,5 @@
 {
-    "name": "@sveltycms/shared-theme",
+    "name": "shared-theme",
     "version": "0.0.1",
     "private": true,
     "type": "module",
