@@ -23,6 +23,11 @@ export const GET = async () => {
 		}
 	}
 
+	if (!dbAdapter) {
+		// If database is not initialized, return only default values
+		return json(publicSettings);
+	}
+
 	const dbValues = await dbAdapter.systemPreferences.getMany(keys);
 
 	if (dbValues.success && dbValues.data) {

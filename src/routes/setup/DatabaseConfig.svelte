@@ -7,7 +7,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
-	import type { DbConfig } from '@stores/setupStore.svelte';
+	import type { DbConfig, ValidationErrors } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';
 	import { dbConfigSchema } from '@utils/formSchemas';
 
@@ -18,16 +18,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	const popupDbName: PopupSettings = { event: 'click', target: 'popupDbName', placement: 'top' };
 	const popupDbUser: PopupSettings = { event: 'click', target: 'popupDbUser', placement: 'top' };
 	const popupDbPassword: PopupSettings = { event: 'click', target: 'popupDbPassword', placement: 'top' };
-
-	// Type definitions for validation errors and component props
-	type ValidationErrors = {
-		host?: string;
-		port?: string;
-		name?: string;
-		user?: string;
-		password?: string;
-		[key: string]: string | undefined;
-	};
 
 	// Props from parent wizard (destructure via $props to allow internal mutation without warnings)
 	let {
@@ -45,7 +35,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		isLoading: boolean;
 		showDbPassword: boolean;
 		toggleDbPassword: () => void;
-		testDatabaseConnection: () => Promise<void>;
+		testDatabaseConnection: () => Promise<boolean>;
 		dbConfigChangedSinceTest: boolean;
 		clearDbTestError: () => void;
 		installDatabaseDriver?: (dbType: string) => Promise<void>;
@@ -76,11 +66,6 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			password: dbConfig.password
 		})
 	);
-
-	// Export validation state for parent to check if form is valid
-	export function getIsValid() {
-		return validationResult.success;
-	}
 
 	// Update local validation errors when validation result changes
 	$effect(() => {

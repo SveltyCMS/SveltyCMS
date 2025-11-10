@@ -14,8 +14,13 @@ import { getPrivateSettingSync } from '@src/services/settingsService'; // Assumi
 import { logger } from '@utils/logger.server'; // Assuming this is a server-side logger
 import type { RemoteVideoData, VideoPlatform } from './types';
 
+// Cached version of RemoteVideoData with internal timestamp
+interface CachedRemoteVideoData extends RemoteVideoData {
+	_cachedAt: number;
+}
+
 // Simple in-memory cache for API responses.
-const cache = new Map<string, RemoteVideoData>();
+const cache = new Map<string, CachedRemoteVideoData>();
 const CACHE_TTL = 15 * 60 * 1000; // Cache for 15 minutes.
 
 interface ExternalVideoMetadata {
@@ -238,7 +243,7 @@ export async function getRemoteVideoData(url: string): Promise<RemoteVideoData |
 		return null;
 	}
 
-	const result: RemoteVideoData = {
+	const result: CachedRemoteVideoData = {
 		platform: parsed.platform,
 		url: metadata.videoUrl,
 		videoId: parsed.id,

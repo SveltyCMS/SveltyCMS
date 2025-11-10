@@ -196,15 +196,25 @@ export class AuditLogService {
 			}
 
 			const result = await db.crud.findMany<AuditLogEntry>(this.collectionName, filters, {
-				sort: { timestamp: -1 },
 				limit: options.limit || 100,
-				skip: options.offset || 0
+				offset: options.offset || 0
 			});
 
-			return result;
+			if (!result.success) {
+				return result;
+			}
+
+			// Sort in memory since findMany doesn't support sort option
+			const sortedData = [...result.data].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+			return { success: true, data: sortedData };
 		} catch (error) {
 			logger.error('Failed to query audit logs', { error, options });
-			return { success: false, error: 'Failed to query audit logs' };
+			return {
+				success: false,
+				message: 'Failed to query audit logs',
+				error: { code: 'QUERY_FAILED', message: 'Failed to query audit logs' }
+			};
 		}
 	}
 
@@ -239,10 +249,12 @@ export class AuditLogService {
 			);
 
 			if (!result.success) {
-				return { success: false, error: 'Failed to get audit statistics' };
-			}
-
-			// Process aggregation results into statistics
+				return {
+					success: false,
+					message: 'Failed to get audit statistics',
+					error: { code: 'STATS_FAILED', message: 'Failed to get audit statistics' }
+				};
+			} // Process aggregation results into statistics
 			const stats: AuditStatistics = {
 				totalEvents: 0,
 				eventsByType: {},
@@ -267,7 +279,11 @@ export class AuditLogService {
 			return { success: true, data: stats };
 		} catch (error) {
 			logger.error('Failed to get audit statistics', { error });
-			return { success: false, error: 'Failed to get audit statistics' };
+			return {
+				success: false,
+				message: 'Failed to get audit statistics',
+				error: { code: 'STATS_FAILED', message: 'Failed to get audit statistics' }
+			};
 		}
 	}
 
@@ -296,12 +312,14 @@ export class AuditLogService {
 			const cutoffDate = new Date();
 			cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
+			// Note: We need to cast because deleteMany expects Partial<BaseEntity>
+			// but we're filtering on AuditLogEntry's timestamp field
 			const result = await db.crud.deleteMany(this.collectionName, {
-				timestamp: { $lt: cutoffDate.toISOString() }
-			});
+				timestamp: cutoffDate.toISOString()
+			} as Partial<BaseEntity>);
 
-			if (result.success && result.data && result.data > 0) {
-				logger.info(`Cleaned up ${result.data} old audit log entries`, {
+			if (result.success && result.data && result.data.deletedCount > 0) {
+				logger.info(`Cleaned up ${result.data.deletedCount} old audit log entries`, {
 					cutoffDate: cutoffDate.toISOString(),
 					retentionDays
 				});

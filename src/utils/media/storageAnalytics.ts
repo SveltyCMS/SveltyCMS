@@ -12,7 +12,7 @@
  */
 
 import type { DatabaseId } from '@src/databases/dbInterface';
-import type { MediaBase } from '@collections/Collections/Media';
+import type { MediaBase } from './mediaModels';
 
 export interface StorageBreakdown {
 	byType: Map<string, { count: number; size: number; percentage: number }>;
@@ -75,16 +75,16 @@ export function analyzeStorage(files: MediaBase[]): StorageBreakdown {
 		byFolder.set(folder, folderStats);
 
 		// By user
-		if (file.createdBy) {
-			const userStats = byUser.get(file.createdBy) || { count: 0, size: 0, percentage: 0 };
+		if (file.user) {
+			const userStats = byUser.get(file.user as DatabaseId) || { count: 0, size: 0, percentage: 0 };
 			userStats.count++;
 			userStats.size += size;
-			byUser.set(file.createdBy, userStats);
+			byUser.set(file.user as DatabaseId, userStats);
 		}
 
 		// By month
-		if (file.uploadDate) {
-			const month = file.uploadDate.substring(0, 7); // YYYY-MM
+		if (file.createdAt) {
+			const month = file.createdAt.substring(0, 7); // YYYY-MM
 			const monthStats = byMonth.get(month) || { count: 0, size: 0 };
 			monthStats.count++;
 			monthStats.size += size;
@@ -145,8 +145,8 @@ export function generateInsights(files: MediaBase[], breakdown: StorageBreakdown
 	const oneYearAgo = new Date();
 	oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 	const oldFiles = files.filter((f) => {
-		if (!f.uploadDate) return false;
-		return new Date(f.uploadDate) < oneYearAgo;
+		if (!f.createdAt) return false;
+		return new Date(f.createdAt) < oneYearAgo;
 	});
 	if (oldFiles.length > 0) {
 		const totalOldSize = oldFiles.reduce((sum, f) => sum + (f.size || 0), 0);
@@ -193,8 +193,8 @@ export function generateInsights(files: MediaBase[], breakdown: StorageBreakdown
 
 	// Check for unused files (no metadata updates)
 	const unusedFiles = files.filter((f) => {
-		if (!f.uploadDate) return false;
-		const uploadDate = new Date(f.uploadDate);
+		if (!f.createdAt) return false;
+		const uploadDate = new Date(f.createdAt);
 		const threeMonthsAgo = new Date();
 		threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 		return uploadDate < threeMonthsAgo && !f.updatedAt;
@@ -234,8 +234,8 @@ export function calculateTrends(files: MediaBase[]): StorageTrend[] {
 	const byMonth = new Map<string, { count: number; size: number }>();
 
 	for (const file of files) {
-		if (!file.uploadDate) continue;
-		const month = file.uploadDate.substring(0, 7); // YYYY-MM
+		if (!file.createdAt) continue;
+		const month = file.createdAt.substring(0, 7); // YYYY-MM
 		const stats = byMonth.get(month) || { count: 0, size: 0 };
 		stats.count++;
 		stats.size += file.size || 0;

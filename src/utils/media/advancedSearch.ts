@@ -142,12 +142,11 @@ export function advancedSearch(files: MediaBase[], criteria: SearchCriteria): Se
 		}
 
 		if (criteria.camera) {
-			const cameraMatch = file.metadata?.exif?.Make || file.metadata?.exif?.Model;
+			const exif = file.metadata?.exif as { Make?: string; Model?: string } | undefined;
+			const cameraMatch = exif?.Make || exif?.Model;
 			matches = matches && !!cameraMatch && cameraMatch.toLowerCase().includes(criteria.camera.toLowerCase());
 			if (matches) matchedCriteria.push(`Camera: ${criteria.camera}`);
-		}
-
-		// Duplicate detection
+		} // Duplicate detection
 		if (criteria.showDuplicatesOnly) {
 			const duplicateCount = files.filter((f) => f.hash === file.hash).length;
 			matches = matches && duplicateCount > 1;
@@ -190,12 +189,11 @@ export function getSearchSuggestions(files: MediaBase[]): {
 		}
 
 		// Collect cameras
-		if (file.metadata?.exif?.Make || file.metadata?.exif?.Model) {
-			const camera = `${file.metadata.exif.Make || ''} ${file.metadata.exif.Model || ''}`.trim();
+		const exif = file.metadata?.exif as { Make?: string; Model?: string } | undefined;
+		if (exif?.Make || exif?.Model) {
+			const camera = `${exif.Make || ''} ${exif.Model || ''}`.trim();
 			if (camera) cameras.add(camera);
-		}
-
-		// Collect common dimensions (for images)
+		} // Collect common dimensions (for images)
 		if ('width' in file && 'height' in file) {
 			const img = file as MediaImage;
 			if (img.width && img.height) {

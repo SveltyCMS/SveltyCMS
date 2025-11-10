@@ -5,6 +5,7 @@
  */
 
 import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
 import path from 'path';
 import { dbAdapter } from '@src/databases/db';
 import { createChecksum } from '@utils/crypto';
@@ -82,7 +83,7 @@ class ConfigService {
 				const filePath = path.join(exportDir, `${key}.json`);
 				// Stream write for large arrays
 				if (filtered.length > 10000) {
-					const stream = fs.createWriteStream(filePath);
+					const stream = createWriteStream(filePath);
 					stream.write('[\n');
 					for (let i = 0; i < filtered.length; i++) {
 						stream.write(JSON.stringify(filtered[i], null, 2));
@@ -104,7 +105,7 @@ class ConfigService {
 	}
 
 	/** Imports configuration entities from filesystem into the database. */
-	public async performImport(options: { changes?: any } = {}) {
+	public async performImport(options: { changes?: { new: ConfigEntity[]; updated: ConfigEntity[]; deleted: ConfigEntity[] } } = {}) {
 		logger.info('Performing configuration import...');
 		let changes = options.changes;
 
@@ -114,7 +115,7 @@ class ConfigService {
 		}
 		// Placeholder for real import logic
 		// You could read from compiledCollections + update dbAdapter.collections/roles/etc.
-		logger.debug('Import uuids:', uuids ?? 'all');
+		logger.debug('Import changes:', changes);
 	}
 
 	private async getSourceState(): Promise<Map<string, ConfigEntity>> {
@@ -125,8 +126,15 @@ class ConfigService {
 		// 1. Scan Collections
 		const collections = await contentManager.getCollections();
 		for (const collection of collections) {
+			if (!collection._id || !collection.name) continue; // Skip if no _id or name
 			const hash = createChecksum(collection);
-			state.set(collection.uuid, { uuid: collection.uuid, type: 'collection', name: collection.name, hash, entity: collection });
+			state.set(collection._id, {
+				uuid: collection._id,
+				type: 'collection',
+				name: collection.name,
+				hash,
+				entity: collection as unknown as Record<string, unknown>
+			});
 		}
 
 		// Note: Roles are managed directly in the database via /api/permission/update
@@ -208,7 +216,8 @@ class ConfigService {
 						if (!uuid) return;
 						const entity = entityParser(content, uuid, filePath);
 						const hash = createChecksum(entity);
-						state.set(uuid, { uuid, type, name: entity.name, hash, entity });
+						const name = typeof entity.name === 'string' ? entity.name : 'Unknown';
+						state.set(uuid, { uuid, type, name, hash, entity });
 					})
 			);
 		} catch (err: unknown) {

@@ -40,8 +40,8 @@ import { dbAdapter } from '@src/databases/db';
 // Permissions
 
 // Nodemailer for actual email sending
-// @ts-expect-error - nodemailer has no type declarations
 import nodemailer from 'nodemailer';
+import type { TransportOptions } from 'nodemailer';
 
 // System Logger
 import { logger } from '@utils/logger.server';
@@ -252,7 +252,7 @@ export const POST: RequestHandler = async ({ request, locals }): Promise<Respons
 			rejectUnauthorized: process.env.NODE_ENV === 'development' ? false : true
 		},
 		debug: process.env.NODE_ENV === 'development'
-	});
+	} as TransportOptions);
 	// 4. Define Mail Options
 
 	const fromName = props?.sitename || 'SveltyCMS';

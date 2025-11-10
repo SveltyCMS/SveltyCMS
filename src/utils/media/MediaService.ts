@@ -4,10 +4,8 @@
  */
 
 import { error } from '@sveltejs/kit';
-// @ts-expect-error - mime-types has no type declarations
 import mime from 'mime-types';
 import Path from 'path';
-// @ts-expect-error - sharp has no type declarations
 import sharp from 'sharp';
 
 // Database Interface

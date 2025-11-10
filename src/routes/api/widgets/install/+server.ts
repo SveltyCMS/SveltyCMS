@@ -28,7 +28,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Widget ID is required');
 		}
 
-		const actualTenantId = tenantId || user.tenantId || 'default-tenant';
+		const actualTenantId = tenantId || locals.tenantId || 'default-tenant';
 
 		// TODO: Implement marketplace widget installation logic
 		// 1. Download widget from marketplace

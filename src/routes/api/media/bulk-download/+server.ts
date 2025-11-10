@@ -42,6 +42,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		// Fetch files from database
+		if (!dbAdapter) {
+			throw error(500, 'Database not available');
+		}
+
 		const filesPromises = fileIds.map(async (id) => {
 			const result = await dbAdapter.crud.findOne<MediaItem>('MediaItem', { _id: id });
 			if (result.success && result.data) {
@@ -51,7 +55,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		const files = (await Promise.all(filesPromises)).filter(Boolean) as MediaItem[];
-
 		if (files.length === 0) {
 			throw error(404, 'No files found');
 		}
@@ -63,8 +66,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Create archive
 		const outputDir = '/tmp/archives';
-		const archive = await createBulkDownloadArchive(files, outputDir);
-
+		const archive = await createBulkDownloadArchive(files as unknown as import('@utils/media/mediaModels').MediaBase[], outputDir);
 		logger.info('Archive created successfully', {
 			path: archive.path,
 			size: archive.size,
@@ -72,9 +74,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		// Stream to response
-		const stream = await streamArchiveToResponse(archive.path, archive.filename, new Headers());
-
-		// Schedule cleanup after stream ends
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const setHeader = (_name: string, _value: string) => {
+			// Headers will be set in Response constructor
+		};
+		const stream = await streamArchiveToResponse(archive.path, archive.filename, setHeader); // Schedule cleanup after stream ends
 		setTimeout(() => {
 			cleanupArchive(archive.path).catch((err) => {
 				logger.warn('Failed to cleanup archive', { error: err, path: archive.path });

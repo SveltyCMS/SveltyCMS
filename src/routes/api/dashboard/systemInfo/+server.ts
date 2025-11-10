@@ -166,27 +166,28 @@ const fetchCPUInfo = async () => {
 // Fetches detailed disk usage information for multiple mount points
 const fetchDiskInfo = async () => {
 	// Get the root drive info
-	const rootDiskUsageResult = await osUtils.disk.info('/');
+	const rootDiskUsageResult = await osUtils.disk.info();
 	// node-os-utils v2.x returns { success, data, timestamp, cached, platform }
 	// data is an array of disk objects with nested byte values
-	let rootDiskUsage;
-	if (typeof rootDiskUsageResult === 'object' && rootDiskUsageResult.data !== undefined) {
+	let rootDiskUsage: { totalGb: number; usedGb: number; freeGb: number; usedPercentage: number; freePercentage: number } | undefined;
+
+	if (rootDiskUsageResult.success && 'data' in rootDiskUsageResult && Array.isArray(rootDiskUsageResult.data)) {
 		// v2.x format - find the main filesystem
 		const diskData =
 			rootDiskUsageResult.data.find((d: { filesystem: string }) => d.filesystem.includes('/dev/')) ||
 			rootDiskUsageResult.data[1] ||
 			rootDiskUsageResult.data[0];
-		// Convert v2.x format to expected format
-		rootDiskUsage = {
-			totalGb: parseFloat((diskData.total.bytes / 1024 / 1024 / 1024).toFixed(2)),
-			usedGb: parseFloat((diskData.used.bytes / 1024 / 1024 / 1024).toFixed(2)),
-			freeGb: parseFloat((diskData.available.bytes / 1024 / 1024 / 1024).toFixed(2)),
-			usedPercentage: parseFloat(diskData.usagePercentage.toFixed(2)),
-			freePercentage: parseFloat((100 - diskData.usagePercentage).toFixed(2))
-		};
-	} else {
-		// v1.x format - use as is
-		rootDiskUsage = rootDiskUsageResult;
+
+		if (diskData) {
+			// Convert v2.x format to expected format
+			rootDiskUsage = {
+				totalGb: parseFloat((diskData.total.bytes / 1024 / 1024 / 1024).toFixed(2)),
+				usedGb: parseFloat((diskData.used.bytes / 1024 / 1024 / 1024).toFixed(2)),
+				freeGb: parseFloat((diskData.available.bytes / 1024 / 1024 / 1024).toFixed(2)),
+				usedPercentage: parseFloat(diskData.usagePercentage.toFixed(2)),
+				freePercentage: parseFloat((100 - diskData.usagePercentage).toFixed(2))
+			};
+		}
 	}
 
 	// Try to get all mount points on Linux/Unix systems
@@ -209,7 +210,7 @@ const fetchDiskInfo = async () => {
 						freePercentage: 100 - parseFloat(parts[4].replace('%', ''))
 					};
 				});
-		} else {
+		} else if (rootDiskUsage) {
 			// Windows - fallback to just root disk for now
 			allMounts = [
 				{
@@ -226,17 +227,19 @@ const fetchDiskInfo = async () => {
 	} catch (error) {
 		logger.warn('Failed to get detailed mount points, falling back to root:', error instanceof Error ? error.message : String(error));
 		// Fallback to just root disk
-		allMounts = [
-			{
-				filesystem: '/',
-				mountpoint: '/',
-				totalGb: rootDiskUsage.totalGb,
-				usedGb: rootDiskUsage.usedGb,
-				freeGb: rootDiskUsage.freeGb,
-				usedPercentage: rootDiskUsage.usedPercentage,
-				freePercentage: rootDiskUsage.freePercentage
-			}
-		];
+		if (rootDiskUsage) {
+			allMounts = [
+				{
+					filesystem: '/',
+					mountpoint: '/',
+					totalGb: rootDiskUsage.totalGb,
+					usedGb: rootDiskUsage.usedGb,
+					freeGb: rootDiskUsage.freeGb,
+					usedPercentage: rootDiskUsage.usedPercentage,
+					freePercentage: rootDiskUsage.freePercentage
+				}
+			];
+		}
 	}
 
 	// Get I/O statistics if available (Linux only)
@@ -274,8 +277,9 @@ const fetchDiskInfo = async () => {
 const fetchMemoryInfo = async () => {
 	const memoryInfoResult = await osUtils.memory.info();
 	// node-os-utils v2.x returns { success, data: { total: {bytes}, used: {bytes}, ... }, timestamp, cached, platform }
-	let memoryInfo;
-	if (typeof memoryInfoResult === 'object' && memoryInfoResult.data !== undefined) {
+	let memoryInfo: { totalMemMb: number; usedMemMb: number; freeMemMb: number; usedMemPercentage: number; freeMemPercentage: number } | undefined;
+
+	if (memoryInfoResult.success && 'data' in memoryInfoResult && memoryInfoResult.data) {
 		// v2.x format - convert to expected format
 		const memData = memoryInfoResult.data;
 		memoryInfo = {
@@ -285,9 +289,6 @@ const fetchMemoryInfo = async () => {
 			usedMemPercentage: parseFloat(memData.usagePercentage.toFixed(2)),
 			freeMemPercentage: parseFloat((100 - memData.usagePercentage).toFixed(2))
 		};
-	} else {
-		// v1.x format - use as is
-		memoryInfo = memoryInfoResult;
 	}
 
 	// Get swap information if available
@@ -329,13 +330,21 @@ const fetchMemoryInfo = async () => {
 	}
 
 	return {
-		total: {
-			totalMemMb: memoryInfo.totalMemMb,
-			usedMemMb: memoryInfo.usedMemMb,
-			freeMemMb: memoryInfo.freeMemMb,
-			usedMemPercentage: memoryInfo.usedMemPercentage,
-			freeMemPercentage: memoryInfo.freeMemPercentage
-		},
+		total: memoryInfo
+			? {
+					totalMemMb: memoryInfo.totalMemMb,
+					usedMemMb: memoryInfo.usedMemMb,
+					freeMemMb: memoryInfo.freeMemMb,
+					usedMemPercentage: memoryInfo.usedMemPercentage,
+					freeMemPercentage: memoryInfo.freeMemPercentage
+				}
+			: {
+					totalMemMb: 0,
+					usedMemMb: 0,
+					freeMemMb: 0,
+					usedMemPercentage: 0,
+					freeMemPercentage: 0
+				},
 		swap: swapInfo,
 		// Memory breakdown (if available)
 		breakdown: {
@@ -409,8 +418,16 @@ const fetchNetworkInfo = async () => {
 };
 
 // Fetches process information including top CPU and memory consumers
-const fetchProcessInfo = async () => {
-	let processes = [];
+const fetchProcessInfo = async (): Promise<{
+	processes: Array<{
+		pid: number;
+		name: string;
+		cpu: number;
+		memory: number;
+		rss?: number;
+	}>;
+}> => {
+	let processes: Array<{ pid: number; name: string; cpu: number; memory: number; rss?: number }> = [];
 
 	try {
 		if (os.platform() === 'win32') {

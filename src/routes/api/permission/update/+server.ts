@@ -19,6 +19,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const user = locals.user;
 	const tenantId = locals.tenantId;
 
+	if (!user) {
+		logger.warn('Unauthenticated attempt to update permissions', { tenantId });
+		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+	}
+
 	if (!locals.isAdmin) {
 		logger.warn('Unauthorized attempt to update permissions', { userId: user._id, tenantId });
 		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
@@ -26,13 +31,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	try {
 		await dbInitPromise;
+
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			return json({ success: false, error: 'Database not initialized' }, { status: 500 });
+		}
+
 		const { roles } = await request.json();
 
 		if (!Array.isArray(roles)) {
 			return json({ success: false, error: 'Roles must be provided as an array' }, { status: 400 });
 		}
 
-		const validationResult = await validateRoles(roles, tenantId);
+		const validationResult = await validateRoles(roles);
 		if (!validationResult.isValid) {
 			return json({ success: false, error: validationResult.error }, { status: 400 });
 		}
@@ -68,7 +79,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 };
 
-async function validateRoles(roles: Role[], tenantId?: string): Promise<{ isValid: boolean; error?: string }> {
+async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
 	if (roles.length === 0) return { isValid: false, error: 'At least one role required' };
 
 	const permissions = await getAllPermissions();

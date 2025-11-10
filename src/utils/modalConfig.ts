@@ -186,7 +186,7 @@ export function createBatchModal(
 	availableActions: string[],
 	onAction: (action: string) => void
 ): ModalSettings {
-	const messages = m as Record<string, ((args?: Record<string, unknown>) => string) | undefined>;
+	const messages = m as unknown as Record<string, ((args?: Record<string, unknown>) => string) | undefined>;
 	return {
 		type: 'component',
 		title: messages.batch_title?.({ count: selectedCount, type: itemType }) || `Batch Actions (${selectedCount})`,

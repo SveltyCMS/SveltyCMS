@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		switch (action) {
 			case 'getStructure': {
 				// Return full structure with metadata
-				const contentNodes = await contentManager.getContentStructure(tenantId);
+				const contentNodes = await contentManager.getContentStructure();
 
 				response = {
 					contentStructure: contentNodes
@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 			case 'getContentStructure': {
 				// Return content nodes from database
-				const contentStructure = await contentManager.getContentStructure(tenantId);
+				const contentStructure = await contentManager.getContentStructure();
 				logger.info('Returning content structure from database', { tenantId });
 				response = {
 					success: true,
@@ -125,7 +125,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					throw error(400, 'Items array is required for updateContentStructure');
 				}
 
-				const updatedContentStructure = await contentManager.upsertContentNodes(items, tenantId);
+				const updatedContentStructure = await contentManager.upsertContentNodes(items);
 
 				if (!browser) {
 					const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
@@ -147,7 +147,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					logger.debug('Cleared all content-structure related caches.', { tenantId });
 				}
 
-				await contentManager.updateCollections(true, tenantId);
+				await contentManager.refresh(tenantId);
 				logger.info('Collections recompiled successfully', { tenantId });
 				return json({
 					success: true,
@@ -162,8 +162,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					logger.debug('Cleared content-structure caches for refresh.', { tenantId });
 				}
 
-				await contentManager.updateCollections(true, tenantId);
-				const contentStructure = await contentManager.getContentStructure(tenantId);
+				await contentManager.refresh(tenantId);
+				const contentStructure = await contentManager.getContentStructure();
 
 				logger.info('Collections refreshed from compiled files', { tenantId, collectionsFound: contentStructure?.length || 0 });
 				return json({
@@ -201,24 +201,33 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			throw error(400, '_id and updates are required');
 		}
 
-		const updatedNode = await dbAdapter.updateContentStructure(_id, updates, tenantId);
-		if (!updatedNode) throw error(404, 'Node not found'); // Invalidate cache after a single node update
+		if (!dbAdapter) {
+			throw error(503, 'Database adapter not available');
+		}
 
+		const updateResult = await dbAdapter.content.nodes.update(_id, updates);
+		if (!updateResult.success || !updateResult.data) {
+			throw error(404, 'Node not found');
+		}
+
+		const updatedNode = updateResult.data;
+
+		// Invalidate cache after a single node update
 		if (!browser) {
 			const cachePattern = `api:content-structure:${tenantId || 'global'}:*`;
 			await cacheService.clearByPattern(cachePattern);
 			logger.debug(`Cleared content-structure cache after PUT update for node ${_id}.`, { tenantId });
 		}
 
-		await contentManager.updateCollections(true, tenantId);
+		await contentManager.refresh(tenantId);
 		logger.info(`Content node \x1b[34m${_id}\x1b[0m updated successfully`, { tenantId });
 		return json({
 			success: true,
 			message: 'Content Structure updated successfully',
 			data: updatedNode
 		});
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
+	} catch (err) {
+		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error in PUT /api/content-structure:', errorMessage);
 		throw error(500, `Failed to update content structure: ${errorMessage}`);
 	}

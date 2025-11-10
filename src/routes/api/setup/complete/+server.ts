@@ -15,6 +15,7 @@ import { dev } from '$app/environment';
 
 // Auth
 import type { User, Session } from '@src/databases/auth/types';
+import type { ISODateString } from '@src/content/types';
 import { Auth } from '@src/databases/auth';
 import { invalidateSettingsCache } from '@src/services/settingsService';
 import { setupAdminSchema } from '@src/utils/formSchemas';
@@ -177,7 +178,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				throw new Error('Auth service not initialized');
 			}
 
-			const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+			const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() as ISODateString; // 24 hours
 
 			// Check if user already exists
 			const existingUser = await setupAuth.getUserByEmail({ email: admin.email });
@@ -244,14 +245,18 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 				logger.debug('createUserAndSession result:', {
 					correlationId,
 					success: result.success,
-					hasData: !!result.data,
-					message: result.message,
-					dataType: typeof result.data,
-					dataKeys: result.data ? Object.keys(result.data) : []
+					hasData: result.success ? !!result.data : false,
+					dataType: result.success ? typeof result.data : 'none',
+					dataKeys: result.success && result.data ? Object.keys(result.data) : []
 				});
 
-				if (!result.success || !result.data) {
-					throw new Error(result.message || 'Failed to create user and session');
+				if (!result.success) {
+					const errorMsg = 'error' in result ? result.error?.message : 'Failed to create user and session';
+					throw new Error(errorMsg);
+				}
+
+				if (!result.data) {
+					throw new Error('Failed to create user and session - no data returned');
 				}
 
 				adminUser = result.data.user;

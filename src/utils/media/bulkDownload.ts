@@ -71,13 +71,11 @@ class SimpleTar {
 
 			// Write file content
 			const fileStream = createReadStream(entry.path);
-			await new Promise((resolve, reject) => {
-				fileStream.on('end', resolve);
+			await new Promise<void>((resolve, reject) => {
+				fileStream.on('end', () => resolve());
 				fileStream.on('error', reject);
 				fileStream.pipe(output, { end: false });
-			});
-
-			// Padding to 512-byte boundary
+			}); // Padding to 512-byte boundary
 			const padding = 512 - (entry.size % 512);
 			if (padding < 512) {
 				output.write(Buffer.alloc(padding));
@@ -88,8 +86,8 @@ class SimpleTar {
 		output.write(Buffer.alloc(1024));
 		output.end();
 
-		await new Promise((resolve, reject) => {
-			output.on('finish', resolve);
+		await new Promise<void>((resolve, reject) => {
+			output.on('finish', () => resolve());
 			output.on('error', reject);
 		});
 	}

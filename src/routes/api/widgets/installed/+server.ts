@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			logger.warn(`User ${user._id} denied access to widget API due to insufficient permissions`);
 			throw error(403, 'Insufficient permissions');
 		}
-		const tenantId = url.searchParams.get('tenantId') || user.tenantId || 'default-tenant';
+		const tenantId = url.searchParams.get('tenantId') || locals.tenantId || 'default-tenant';
 
 		// Initialize widgets to get custom widgets list
 		await widgetStoreActions.initializeWidgets(tenantId);

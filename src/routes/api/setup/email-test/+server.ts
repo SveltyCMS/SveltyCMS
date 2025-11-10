@@ -149,40 +149,13 @@ export const POST: RequestHandler = async ({ request }) => {
 					if (!dbAdapter) {
 						logger.warn('Database adapter not available, skipping save');
 					} else {
-						// Update privateEnv settings in database
-						const settingsCollection = 'system_settings';
-
 						// Update SMTP settings
-						await dbAdapter.update(
-							settingsCollection,
-							{ key: 'SMTP_HOST' },
-							{ key: 'SMTP_HOST', value: host, category: 'email', updatedAt: new Date() }
-						);
-						await dbAdapter.update(
-							settingsCollection,
-							{ key: 'SMTP_PORT' },
-							{ key: 'SMTP_PORT', value: port.toString(), category: 'email', updatedAt: new Date() }
-						);
-						await dbAdapter.update(
-							settingsCollection,
-							{ key: 'SMTP_USER' },
-							{ key: 'SMTP_USER', value: user, category: 'email', updatedAt: new Date() }
-						);
-						await dbAdapter.update(
-							settingsCollection,
-							{ key: 'SMTP_PASS' },
-							{ key: 'SMTP_PASS', value: password, category: 'email', updatedAt: new Date() }
-						);
-						await dbAdapter.update(
-							settingsCollection,
-							{ key: 'SMTP_FROM' },
-							{ key: 'SMTP_FROM', value: from || user, category: 'email', updatedAt: new Date() }
-						);
-						await dbAdapter.update(
-							settingsCollection,
-							{ key: 'SMTP_SECURE' },
-							{ key: 'SMTP_SECURE', value: secure ? 'true' : 'false', category: 'email', updatedAt: new Date() }
-						);
+						await dbAdapter.systemPreferences.set('SMTP_HOST', host, 'system');
+						await dbAdapter.systemPreferences.set('SMTP_PORT', port.toString(), 'system');
+						await dbAdapter.systemPreferences.set('SMTP_USER', user, 'system');
+						await dbAdapter.systemPreferences.set('SMTP_PASS', password, 'system');
+						await dbAdapter.systemPreferences.set('SMTP_FROM', from || user, 'system');
+						await dbAdapter.systemPreferences.set('SMTP_SECURE', secure ? 'true' : 'false', 'system');
 
 						saved = true;
 						logger.info('✅ SMTP settings saved to database');

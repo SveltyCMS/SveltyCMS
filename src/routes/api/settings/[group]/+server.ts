@@ -58,6 +58,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		logger.debug(`[${groupId}] Initial values from defaults:`, finalValues);
 
 		// 2. Fetch database overrides
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database not initialized');
+		}
+
 		const dbResult = await dbAdapter.systemPreferences.getMany(fieldKeys);
 
 		// 3. Overlay database values over defaults
@@ -214,6 +219,11 @@ export const PUT: RequestHandler = async ({ request, locals, params }) => {
 			scope: 'system' as const
 		}));
 
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database not initialized');
+		}
+
 		const updateResult = await dbAdapter.systemPreferences.setMany(settingsArray);
 
 		if (!updateResult.success) {
@@ -275,6 +285,11 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 	try {
 		const keysToReset = groupDef.fields.map((f) => f.key);
+
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database not initialized');
+		}
 
 		// Delete database overrides - settings will revert to seed defaults
 		const deleteResult = await dbAdapter.systemPreferences.deleteMany(keysToReset);

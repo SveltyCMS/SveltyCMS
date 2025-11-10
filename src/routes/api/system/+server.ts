@@ -85,8 +85,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		logger.info('System management action requested', {
 			action,
-			userId: locals.user.id,
-			username: locals.user.username,
+			userId: locals.user._id,
+			userEmail: locals.user.email,
 			params
 		});
 
@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				const result = await reinitializeSystem(force);
 
 				if (result.status === 'initialized') {
-					logger.info('System reinitialized successfully', { userId: locals.user.id });
+					logger.info('System reinitialized successfully', { userId: locals.user._id });
 					return json({
 						success: true,
 						status: result.status,
@@ -105,7 +105,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				} else {
 					logger.error('System reinitialization failed', {
 						result,
-						userId: locals.user.id
+						userId: locals.user._id
 					});
 					return json(
 						{
@@ -134,7 +134,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 				logger.info('Service restart requested', {
 					service: serviceName,
-					userId: locals.user.id
+					userId: locals.user._id
 				});
 
 				return json(
@@ -150,7 +150,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			case 'backup': {
 				// Future: Trigger system backup
-				logger.info('System backup requested', { userId: locals.user.id });
+				logger.info('System backup requested', { userId: locals.user._id });
 
 				return json(
 					{
@@ -164,7 +164,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 			case 'clear-cache': {
 				// Future: Clear system caches
-				logger.info('Cache clear requested', { userId: locals.user.id });
+				logger.info('Cache clear requested', { userId: locals.user._id });
 
 				return json(
 					{

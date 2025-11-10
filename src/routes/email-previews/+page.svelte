@@ -15,7 +15,11 @@
 
 <script lang="ts">
 	import { EmailPreview } from 'better-svelte-email/preview';
-	export let data;
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 </script>
 
-<EmailPreview emailList={data.emails} />
+{#if data.emails}
+	<EmailPreview emailList={{ ...data, files: data.emails?.map((e) => e.path) || null, path: '/src/components/emails' }} />
+{/if}

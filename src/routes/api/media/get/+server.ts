@@ -42,8 +42,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			throw error(400, 'URL parameter is required');
 		}
 
-		// Pass tenantId to ensure the file is retrieved from the correct tenant's storage
-		const buffer = await getFile(fileUrl, tenantId);
+		// Retrieve the file from storage
+		const buffer = await getFile(fileUrl);
 
 		logger.debug('Media file retrieved successfully', {
 			fileUrl,
@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			tenantId
 		});
 
-		return new Response(buffer, {
+		return new Response(buffer.buffer, {
 			headers: {
 				'Content-Type': 'application/octet-stream',
 				'Content-Disposition': `attachment; filename="${fileUrl.split('/').pop()}"`,

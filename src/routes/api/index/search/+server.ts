@@ -40,7 +40,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Tenant could not be identified for this operation.');
 		}
 
-		const collections = await dbAdapter.getCollectionModels(tenantId);
+		// Get collections from the collections store
+		const availableCollections = (await import('@stores/collectionStore.svelte')).collections.value;
+
 		// Parse request body
 		const body = await request.json();
 		const { query, page = 1, limit = 10 } = body;
@@ -54,21 +56,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const results = [];
 		const skip = (page - 1) * limit;
 
-		for (const [collectionName, collection] of collections) {
+		for (const [collectionName] of Object.entries(availableCollections)) {
 			// TODO: Add collection-specific search permissions if needed
 
-			// Perform search on collection, scoped by tenant
-			const searchResults = await collection.search({
-				query,
+			// Use database adapter to search in the collection
+			const searchQuery = { $text: { $search: query } } as Partial<BaseEntity>;
+			const searchResults = await dbAdapter.crud.findMany(collectionName, searchQuery, {
 				skip,
-				limit,
-				tenantId
+				limit
 			});
 
-			if (searchResults.length > 0) {
+			if (searchResults.success && searchResults.data && searchResults.data.length > 0) {
 				results.push({
 					collection: collectionName,
-					results: searchResults
+					results: searchResults.data
 				});
 			}
 		}
