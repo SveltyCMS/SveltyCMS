@@ -87,21 +87,29 @@ Displays quick action buttons for crop operations without blocking the canvas.
 
 <style>
 	.crop-top-toolbar {
-		@apply absolute left-0 right-0 top-0 z-40;
-		@apply flex items-center justify-center;
-		@apply gap-4 px-4 py-3;
+		position: absolute;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.75rem; padding-bottom: 0.75rem;
 		background: rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(8px);
 	}
 
 	.quick-actions {
-		@apply flex items-center gap-2;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.action-btn-icon {
-		@apply flex items-center justify-center;
-		@apply h-10 w-10 rounded-lg;
-		@apply transition-all duration-200;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+		/* @apply transition-all duration-200; */
 		background-color: rgba(255, 255, 255, 0.1);
 		color: rgb(var(--color-surface-50) / 1);
 		border: 1px solid rgba(255, 255, 255, 0.2);
@@ -117,29 +125,38 @@ Displays quick action buttons for crop operations without blocking the canvas.
 	}
 
 	.divider {
-		@apply h-6 w-px;
+		/* @apply h-6 w-px; */
 		background-color: rgba(255, 255, 255, 0.2);
 	}
 
 	.action-btn-group {
-		@apply flex items-center gap-2;
-		@apply rounded-lg px-3 py-2;
-		@apply text-sm font-medium;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		border-radius: 0.5rem;
+		padding-left: 0.75rem; padding-right: 0.75rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 		background-color: rgba(255, 255, 255, 0.1);
 		color: rgb(var(--color-surface-50) / 1);
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
 	.aspect-ratio-group {
-		@apply flex items-center gap-1;
-		@apply rounded-lg px-2 py-1;
+		display: flex;
+		align-items: center;
+		border-radius: 0.5rem;
+		padding-left: 0.5rem; padding-right: 0.5rem;
 		background-color: rgba(255, 255, 255, 0.1);
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
 	.aspect-btn {
-		@apply rounded px-2.5 py-1 text-xs font-medium;
-		@apply transition-all duration-200;
+		border-radius: 0.25rem;
+		font-size: 0.75rem; line-height: 1rem;
+		font-weight: 500;
+		/* @apply transition-all duration-200; */
 		background-color: rgba(255, 255, 255, 0.1);
 		color: rgb(var(--color-surface-50) / 1);
 	}
@@ -153,21 +170,28 @@ Displays quick action buttons for crop operations without blocking the canvas.
 	}
 
 	.shape-select {
-		@apply rounded px-2 py-1 text-sm;
-		@apply border-0 outline-none;
+		border-radius: 0.25rem;
+		padding-left: 0.5rem; padding-right: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		/* @apply border-0 outline-none; */
 		background-color: rgba(0, 0, 0, 0.3);
 		color: white;
 	}
 
 	.shape-select:focus {
-		@apply ring-2 ring-primary-500;
+		/* @apply ring-2 ring-primary-500; */
 	}
 
 	.done-btn {
-		@apply flex items-center gap-2;
-		@apply rounded-lg px-4 py-2;
-		@apply text-sm font-semibold;
-		@apply transition-all duration-200;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		border-radius: 0.5rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
+		/* @apply transition-all duration-200; */
 		background-color: rgb(250, 204, 21);
 		color: rgb(30, 30, 30);
 	}

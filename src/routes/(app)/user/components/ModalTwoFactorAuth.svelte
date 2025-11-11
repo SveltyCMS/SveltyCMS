@@ -27,8 +27,8 @@ This component provides a user interface for managing 2FA settings:
 	import { invalidateAll } from '$app/navigation';
 	import type { User } from '@src/databases/auth/types';
 	// Skeleton & Stores
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '$lib/skeleton-compat';
+	import { getModalStore } from '$lib/skeleton-compat';
 	import TwoFactorVerifyModal from './TwoFactorVerifyModal.svelte';
 
 	// ParaglideJS

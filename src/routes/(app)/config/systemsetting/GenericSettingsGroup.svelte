@@ -16,8 +16,8 @@ Handles all field types and validation automatically
 	import type { Writable } from 'svelte/store';
 	import type { SettingGroup, SettingField } from './settingsGroups';
 	import { showToast } from '@utils/toast';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '$lib/skeleton-compat';
+	import type { ModalSettings } from '$lib/skeleton-compat';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/languageUtils';
 	import { logger } from '@utils/logger';
@@ -1176,38 +1176,71 @@ Handles all field types and validation automatically
 </div>
 
 <style lang="postcss">
-	@import "tailwindcss/theme";
 	.generic-settings-group {
-		@apply space-y-4;
 		/* Prevent horizontal overflow */
 		max-width: 100%;
 		overflow-x: hidden;
 	}
+	.generic-settings-group > * + * {
+		margin-top: 1rem;
+	}
 
 	.header h2 {
-		@apply text-xl md:text-2xl;
+		font-size: 1.25rem;
+		line-height: 1.75rem;
+	}
+	@media (min-width: 768px) {
+		.header h2 {
+			font-size: 1.5rem;
+			line-height: 2rem;
+		}
 	}
 
 	.alert {
-		@apply p-3 rounded-lg md:p-4;
+		padding: 0.75rem;
+		border-radius: 0.5rem;
+	}
+	@media (min-width: 768px) {
+		.alert {
+			padding: 1rem;
+		}
 	}
 
 	.alert-message strong {
-		@apply mb-1 block text-sm md:text-base;
+		margin-bottom: 0.25rem;
+		display: block;
+		font-size: 0.875rem;
+		line-height: 1.25rem;
+	}
+	@media (min-width: 768px) {
+		.alert-message strong {
+			font-size: 1rem;
+			line-height: 1.5rem;
+		}
 	}
 
 	.alert-message p {
-		@apply text-xs md:text-sm;
+		font-size: 0.75rem;
+		line-height: 1rem;
+	}
+	@media (min-width: 768px) {
+		.alert-message p {
+			font-size: 0.875rem;
+			line-height: 1.25rem;
+		}
 	}
 
 	.form-field {
-		@apply space-y-2;
 		/* Prevent input overflow */
 		max-width: 100%;
 	}
+	.form-field > * + * {
+		margin-top: 0.5rem;
+	}
 
 	.label {
-		@apply mb-2 block;
+		margin-bottom: 0.5rem;
+		display: block;
 	}
 
 	/* Tooltip styling */
@@ -1252,7 +1285,7 @@ Handles all field types and validation automatically
 
 	.input,
 	.select {
-		@apply w-full;
+		width: 100%;
 		/* Better touch targets on mobile */
 		min-height: 44px;
 		/* Prevent overflow */
@@ -1260,7 +1293,7 @@ Handles all field types and validation automatically
 	}
 
 	.checkbox {
-		@apply w-auto;
+		width: auto;
 		/* Better touch target */
 		min-width: 20px;
 		min-height: 20px;
@@ -1275,29 +1308,42 @@ Handles all field types and validation automatically
 
 	.actions-container button {
 		/* Ensure buttons don't shrink too much */
-		@apply min-w-fit px-4;
+		min-width: fit-content;
+		padding-left: 1rem;
+		padding-right: 1rem;
 	}
 
 	/* Touch-friendly spacing for mobile */
 	@media (max-width: 640px) {
-		.form-field {
-			@apply space-y-3;
+		.form-field > * + * {
+			margin-top: 0.75rem;
 		}
 
 		.actions-container button {
 			/* Full width on mobile for easier tapping */
-			@apply min-h-[48px];
+			min-height: 48px;
 		}
 	}
 
 	/* Input group responsiveness */
 	.input-group {
-		@apply flex-col sm:flex-row;
+		display: flex;
+		flex-direction: column;
 		/* Prevent overflow */
 		max-width: 100%;
 	}
+	@media (min-width: 640px) {
+		.input-group {
+			flex-direction: row;
+		}
+	}
 
 	.input-group-shim {
-		@apply text-center sm:text-left;
+		text-align: center;
+	}
+	@media (min-width: 640px) {
+		.input-group-shim {
+			text-align: left;
+		}
 	}
 </style>

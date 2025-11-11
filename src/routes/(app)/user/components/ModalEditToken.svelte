@@ -21,8 +21,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { page } from '$app/state';
 
 	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '$lib/skeleton-compat';
+	import type { ModalComponent } from '$lib/skeleton-compat';
 	const modalStore = getModalStore();
 	import { showToast } from '@utils/toast';
 

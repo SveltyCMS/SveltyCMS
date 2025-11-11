@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '$lib/skeleton-compat';
 	import { logger } from '@utils/logger';
 	import { untrack } from 'svelte';
 	const modalStore = getModalStore();

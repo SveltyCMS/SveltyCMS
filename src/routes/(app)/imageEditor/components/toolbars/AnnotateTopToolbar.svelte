@@ -177,8 +177,14 @@ and action buttons (delete, done).
 <style lang="postcss">
 	@import "tailwindcss/theme";
 	.annotate-toolbar {
-		@apply absolute left-0 right-0 top-0 z-40;
-		@apply flex flex-wrap items-center gap-4 rounded-lg px-4 py-3 shadow-lg;
+		position: absolute;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 1rem;
+		border-radius: 0.5rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.75rem; padding-bottom: 0.75rem;
 		background-color: rgb(var(--color-surface-900) / 0.95);
 		backdrop-filter: blur(10px);
 		color: rgb(var(--color-surface-100));
@@ -186,7 +192,9 @@ and action buttons (delete, done).
 	}
 
 	.toolbar-section {
-		@apply flex items-center gap-2;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		border-right: 1px solid rgb(var(--color-surface-700));
 		padding-right: 1rem;
 	}
@@ -197,15 +205,19 @@ and action buttons (delete, done).
 	}
 
 	.section-label {
-		@apply text-sm font-medium text-surface-400;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 	}
 
 	.tool-buttons {
-		@apply flex gap-1;
+		display: flex;
 	}
 
 	.tool-button {
-		@apply flex h-10 w-10 items-center justify-center rounded-lg transition-all;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
 		background-color: rgb(var(--color-surface-800));
 		color: rgb(var(--color-surface-300));
 	}
@@ -216,37 +228,46 @@ and action buttons (delete, done).
 	}
 
 	.tool-button.active {
-		@apply bg-primary-500 text-white;
+		color: rgb(255 255 255);
 	}
 
 	.style-controls {
-		@apply flex flex-wrap items-center gap-3;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	.control-group {
-		@apply flex items-center gap-2;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.control-group label {
-		@apply text-surface-400;
+		/* @apply text-surface-400; */
 	}
 
 	.control-group input[type='color'] {
-		@apply h-8 w-12 cursor-pointer rounded border-0;
+		cursor: pointer;
+		border-radius: 0.25rem;
 		background: none;
 	}
 
 	.control-group input[type='range'] {
-		@apply w-24;
+		/* @apply w-24; */
 	}
 
 	.value-label {
-		@apply text-sm text-surface-300;
+		font-size: 0.875rem; line-height: 1.25rem;
 		min-width: 40px;
 	}
 
 	.transparent-btn {
-		@apply flex h-8 w-8 items-center justify-center rounded transition-all;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.25rem;
 		background-color: rgb(var(--color-surface-800));
 		color: rgb(var(--color-surface-400));
 	}
@@ -256,33 +277,43 @@ and action buttons (delete, done).
 	}
 
 	.transparent-btn.active {
-		@apply bg-primary-500 text-white;
+		color: rgb(255 255 255);
 	}
 
 	.action-button {
-		@apply flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-all;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		border-radius: 0.5rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		font-weight: 500;
 	}
 
 	.delete-button {
-		@apply bg-red-500 text-white hover:bg-red-600;
+		color: rgb(255 255 255);
 	}
 
 	.reset-button {
-		@apply bg-orange-500 text-white hover:bg-orange-600;
+		color: rgb(255 255 255);
 	}
 
 	.done-button {
-		@apply bg-green-500 text-white hover:bg-green-600;
+		color: rgb(255 255 255);
 	}
 
 	/* Responsive adjustments */
 	@media (max-width: 768px) {
 		.annotate-toolbar {
-			@apply flex-col items-stretch gap-2 px-2 py-2;
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.5rem;
+			padding-left: 0.5rem; padding-right: 0.5rem;
+			padding-top: 0.5rem; padding-bottom: 0.5rem;
 		}
 
 		.toolbar-section {
-			@apply border-b border-r-0 pb-2;
+			border-bottom-width: 1px;
 			padding-right: 0;
 		}
 
@@ -292,20 +323,21 @@ and action buttons (delete, done).
 		}
 
 		.section-label {
-			@apply hidden;
+			display: none;
 		}
 
 		.tool-buttons,
 		.style-controls {
-			@apply w-full justify-between;
+			width: 100%;
+			justify-content: space-between;
 		}
 
 		.action-button span {
-			@apply hidden;
+			display: none;
 		}
 
 		.action-button {
-			@apply flex-1;
+			flex: 1 1 0%;
 		}
 	}
 </style>

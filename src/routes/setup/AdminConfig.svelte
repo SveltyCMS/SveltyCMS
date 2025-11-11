@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import * as m from '@src/paraglide/messages';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup, type PopupSettings } from '$lib/skeleton-compat';
 	// ✅ FIX: Import types from the store
 	import type { AdminUser, ValidationErrors, PasswordRequirements } from '@stores/setupStore.svelte';
 	import { safeParse } from 'valibot';

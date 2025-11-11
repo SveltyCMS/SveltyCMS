@@ -65,25 +65,32 @@ Displays blur strength slider and action buttons without blocking the canvas.
 
 <style>
 	.blur-top-toolbar {
-		@apply absolute left-0 right-0 top-0 z-40;
-		@apply flex items-center justify-between;
-		@apply gap-4 px-6 py-3;
+		position: absolute;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-top: 0.75rem; padding-bottom: 0.75rem;
 		background: rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(8px);
 	}
 
 	.slider-container {
-		@apply flex flex-1 items-center gap-3;
+		display: flex;
+		flex: 1 1 0%;
+		align-items: center;
+		gap: 0.75rem;
 		max-width: 500px;
 	}
 
 	.slider-label {
-		@apply whitespace-nowrap text-sm font-medium;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 		color: rgb(var(--color-surface-50) / 1);
 	}
 
 	.blur-slider {
-		@apply flex-1;
+		flex: 1 1 0%;
 		-webkit-appearance: none;
 		appearance: none;
 		height: 6px;
@@ -127,19 +134,29 @@ Displays blur strength slider and action buttons without blocking the canvas.
 	}
 
 	.slider-value {
-		@apply min-w-[2rem] text-center text-sm font-semibold;
+		text-align: center;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
 		color: rgb(var(--color-surface-50) / 1);
 	}
 
 	.action-buttons {
-		@apply flex items-center gap-3;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	.reset-btn,
 	.apply-btn {
-		@apply flex items-center gap-2 rounded-lg px-4 py-2;
-		@apply transition-all duration-200;
-		@apply text-sm font-medium;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		border-radius: 0.5rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		/* @apply transition-all duration-200; */
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 	}
 
 	.reset-btn {

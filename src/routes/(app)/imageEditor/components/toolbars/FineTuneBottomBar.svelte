@@ -55,8 +55,11 @@ Displays tabs below the canvas for selecting different adjustment types.
 
 <style>
 	.finetune-bottom-bar {
-		@apply flex flex-col items-center;
-		@apply px-4 py-3;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.75rem; padding-bottom: 0.75rem;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-top: 1px solid rgb(var(--color-surface-200) / 1);
 	}
@@ -67,8 +70,9 @@ Displays tabs below the canvas for selecting different adjustment types.
 	}
 
 	.adjustment-tabs {
-		@apply flex gap-1 overflow-x-auto;
-		@apply max-w-full;
+		display: flex;
+		overflow-x: auto;
+		max-width: 100%;
 		scrollbar-width: none;
 		-ms-overflow-style: none;
 	}
@@ -78,10 +82,15 @@ Displays tabs below the canvas for selecting different adjustment types.
 	}
 
 	.adjustment-tab {
-		@apply flex flex-col items-center gap-1;
-		@apply rounded-lg px-3 py-2;
-		@apply transition-all duration-200;
-		@apply min-w-0 flex-shrink-0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		border-radius: 0.5rem;
+		padding-left: 0.75rem; padding-right: 0.75rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		/* @apply transition-all duration-200; */
+		min-width: 0;
+		flex-shrink: 0;
 		background-color: rgb(var(--color-surface-200) / 1);
 		color: rgb(var(--color-surface-600) / 1);
 	}
@@ -107,17 +116,18 @@ Displays tabs below the canvas for selecting different adjustment types.
 	}
 
 	.tab-label {
-		@apply whitespace-nowrap text-xs font-medium;
+		font-size: 0.75rem; line-height: 1rem;
+		font-weight: 500;
 	}
 
 	/* Responsive adjustments */
 	@media (max-width: 768px) {
 		.adjustment-tab {
-			@apply px-2 py-1.5;
+			padding-left: 0.5rem; padding-right: 0.5rem;
 		}
 
 		.tab-label {
-			@apply text-xs;
+			font-size: 0.75rem; line-height: 1rem;
 		}
 
 		.adjustment-tab svg {
@@ -128,11 +138,11 @@ Displays tabs below the canvas for selecting different adjustment types.
 
 	@media (max-width: 640px) {
 		.adjustment-tabs {
-			@apply gap-0.5;
+			/* @apply gap-0.5; */
 		}
 
 		.adjustment-tab {
-			@apply px-1.5 py-1;
+			/* @apply px-1.5 py-1; */
 		}
 
 		.tab-label {

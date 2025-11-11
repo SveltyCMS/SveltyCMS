@@ -134,7 +134,8 @@ and proper active state indication.
 
 <style>
 	.editor-sidebar {
-		@apply flex w-16 flex-col border-r lg:w-20;
+		display: flex;
+		flex-direction: column;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 100%;
@@ -146,7 +147,11 @@ and proper active state indication.
 	}
 
 	.sidebar-header {
-		@apply flex items-center justify-center border-b p-4;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-bottom-width: 1px;
+		padding: 1rem;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -155,16 +160,27 @@ and proper active state indication.
 	}
 
 	.logo {
-		@apply flex h-8 w-8 items-center justify-center lg:h-10 lg:w-10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.sidebar-tools {
-		@apply flex flex-1 flex-col gap-1 p-2;
+		display: flex;
+		flex: 1 1 0%;
+		flex-direction: column;
+		padding: 0.5rem;
 	}
 
 	.tool-button {
-		@apply relative flex flex-col items-center justify-center gap-1 rounded-lg p-2 transition-all duration-200 lg:p-3;
-		@apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+		padding: 0.5rem;
+		/* @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2; */
 		color: rgb(var(--color-surface-600) / 1);
 		min-height: 3rem;
 	}
@@ -185,20 +201,20 @@ and proper active state indication.
 	}
 
 	.tool-button.active {
-		@apply bg-primary-500 text-white shadow-md;
+		color: rgb(255 255 255);
 	}
 
 	.tool-button.active:hover {
-		@apply bg-primary-600;
+		/* @apply bg-primary-600; */
 		transform: none;
 	}
 
 	.tool-button.disabled {
-		@apply cursor-not-allowed opacity-50;
+		/* @apply cursor-not-allowed opacity-50; */
 	}
 
 	.tool-button.disabled:hover {
-		@apply bg-transparent;
+		/* @apply bg-transparent; */
 		color: rgb(var(--color-surface-600) / 1);
 		transform: none;
 	}
@@ -208,19 +224,24 @@ and proper active state indication.
 	}
 
 	.tool-icon {
-		@apply flex items-center justify-center;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.tool-label {
-		@apply text-xs font-medium leading-none;
+		font-size: 0.75rem; line-height: 1rem;
+		font-weight: 500;
 	}
 
 	.coming-soon-badge {
-		@apply absolute -right-1 -top-1 rounded-full bg-warning-500 px-1.5 py-0.5 text-warning-50;
+		position: absolute;
+		border-radius: 9999px;
 	}
 
 	.sidebar-footer {
-		@apply border-t p-2;
+		border-top-width: 1px;
+		padding: 0.5rem;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -229,21 +250,25 @@ and proper active state indication.
 	}
 
 	.no-image-hint {
-		@apply flex flex-col items-center gap-1 p-2 text-center;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 0.5rem;
+		text-align: center;
 	}
 
 	/* Responsive adjustments */
 	@media (max-width: 1023px) {
 		.tool-label {
-			@apply text-[10px];
+			/* @apply text-[10px]; */
 		}
 
 		.sidebar-tools {
-			@apply gap-0.5 p-1;
+			/* @apply gap-0.5 p-1; */
 		}
 
 		.tool-button {
-			@apply p-1.5;
+			/* @apply p-1.5; */
 			min-height: 2.5rem;
 		}
 	}

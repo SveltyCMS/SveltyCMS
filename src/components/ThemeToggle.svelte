@@ -10,7 +10,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 -->
 <script lang="ts">
 	import { themeStore, setThemePreference, useSystemPreference } from '@stores/themeStore.svelte';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { popup, type PopupSettings } from '$lib/skeleton-compat';
 
 	// Props
 	interface Props {

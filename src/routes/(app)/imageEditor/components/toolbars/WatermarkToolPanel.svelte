@@ -150,7 +150,8 @@ Provides the interface for uploading, selecting, and managing stickers
 
 <style>
 	.sticker-panel {
-		@apply flex w-80 flex-col border-l;
+		display: flex;
+		flex-direction: column;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 100%;
@@ -162,7 +163,11 @@ Provides the interface for uploading, selecting, and managing stickers
 	}
 
 	.panel-header {
-		@apply flex items-center justify-between border-b p-4;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		border-bottom-width: 1px;
+		padding: 1rem;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -171,79 +176,123 @@ Provides the interface for uploading, selecting, and managing stickers
 	}
 
 	.panel-title {
-		@apply flex flex-1 flex-col gap-1;
+		display: flex;
+		flex: 1 1 0%;
+		flex-direction: column;
 	}
 
 	.panel-content {
-		@apply flex flex-1 flex-col gap-4 overflow-y-auto p-4;
+		display: flex;
+		flex: 1 1 0%;
+		flex-direction: column;
+		gap: 1rem;
+		overflow-y: auto;
+		padding: 1rem;
 	}
 
 	.sticker-list {
-		@apply flex flex-col gap-2;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	.list-title {
-		@apply text-sm font-semibold text-surface-700 dark:text-surface-300;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
 	}
 
 	.sticker-grid {
-		@apply grid grid-cols-4 gap-2;
+		display: grid;
+		gap: 0.5rem;
 	}
 
 	.sticker-item {
-		@apply relative aspect-square overflow-hidden rounded-lg border-2 transition-all;
-		@apply border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-800;
-		@apply hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500;
+		position: relative;
+		overflow: hidden;
+		border-radius: 0.5rem;
+		/* @apply border-surface-300 bg-surface-100 dark:border-surface-600 dark:bg-surface-800; */
+		/* @apply hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500; */
 	}
 
 	.sticker-item.selected {
-		@apply border-primary-500 ring-2 ring-primary-500 ring-offset-2;
+		/* @apply border-primary-500 ring-2 ring-primary-500 ring-offset-2; */
 	}
 
 	.sticker-img {
-		@apply h-full w-full object-contain p-1;
+		height: 100%;
+		width: 100%;
 	}
 
 	.selected-badge {
-		@apply absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-white;
+		position: absolute;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		color: rgb(255 255 255);
 	}
 
 	.sticker-controls {
-		@apply flex flex-col gap-3 rounded-lg border p-3;
-		@apply border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		border-radius: 0.5rem;
+		border-width: 1px;
+		padding: 0.75rem;
+		/* @apply border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800; */
 	}
 
 	.controls-title {
-		@apply text-sm font-semibold text-surface-700 dark:text-surface-300;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
 	}
 
 	.control-buttons {
-		@apply flex gap-2;
+		display: flex;
+		gap: 0.5rem;
 	}
 
 	.help-text {
-		@apply flex items-center gap-2 text-surface-600 dark:text-surface-400;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.empty-state {
-		@apply flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-8;
-		@apply border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		border-radius: 0.5rem;
+		/* @apply border-surface-300 bg-surface-50 dark:border-surface-600 dark:bg-surface-800; */
 	}
 
 	.tips-section {
-		@apply mt-auto flex flex-col gap-2 rounded-lg border p-3;
-		@apply border-surface-200 bg-surface-100 dark:border-surface-700 dark:bg-surface-800;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		border-radius: 0.5rem;
+		border-width: 1px;
+		padding: 0.75rem;
+		/* @apply border-surface-200 bg-surface-100 dark:border-surface-700 dark:bg-surface-800; */
 	}
 
 	.tips-title {
-		@apply flex items-center gap-2 text-sm font-semibold text-surface-700 dark:text-surface-300;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
 	}
 
 	.tips-list {
-		@apply flex flex-col gap-1;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.tip-item {
-		@apply flex items-start gap-1 text-surface-600 dark:text-surface-300;
+		display: flex;
+		align-items: flex-start;
 	}
 </style>

@@ -206,7 +206,8 @@ tool controls for mobile/tablet editing experience.
 
 <style>
 	.mobile-toolbar {
-		@apply fixed bottom-0 left-0 right-0 z-40 border-t shadow-lg;
+		position: fixed;
+		border-top-width: 1px;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
@@ -217,19 +218,26 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.toolbar-scroll {
-		@apply overflow-x-auto overflow-y-hidden;
-		@apply scrollbar-hide; /* Hide scrollbar for cleaner look */
+		overflow-x: auto;
+		scrollbar-width: none; -ms-overflow-style: none; /* Hide scrollbar for cleaner look */
 		-webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 	}
 
 	.toolbar-tools {
-		@apply flex gap-1 p-2;
-		@apply min-w-max; /* Prevent wrapping */
+		display: flex;
+		padding: 0.5rem;
+		min-width: max-content; /* Prevent wrapping */
 	}
 
 	.mobile-tool-btn {
-		@apply flex flex-col items-center justify-center gap-1.5 rounded-lg px-4 py-2;
-		@apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		/* @apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500; */
 		color: rgb(var(--color-surface-600) / 1);
 		min-width: 72px; /* Consistent button width */
 		min-height: 56px; /* Minimum touch target size */
@@ -250,24 +258,28 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.mobile-tool-btn.active {
-		@apply bg-primary-500 text-white;
+		color: rgb(255 255 255);
 	}
 
 	.mobile-tool-btn.active:active {
-		@apply bg-primary-600;
+		/* @apply bg-primary-600; */
 	}
 
 	.mobile-tool-btn.disabled {
-		@apply opacity-50;
+		/* @apply opacity-50; */
 		pointer-events: none;
 	}
 
 	.tool-icon-wrapper {
-		@apply relative flex items-center justify-center;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.soon-dot {
-		@apply absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning-500 ring-2;
+		position: absolute;
+		border-radius: 9999px;
 		--tw-ring-color: rgb(var(--color-surface-50) / 1);
 	}
 
@@ -276,7 +288,8 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.tool-name {
-		@apply text-xs font-medium leading-none;
+		font-size: 0.75rem; line-height: 1rem;
+		font-weight: 500;
 	}
 
 	.safe-area-spacer {
@@ -290,17 +303,17 @@ tool controls for mobile/tablet editing experience.
 
 	/* Bottom sheet overlay */
 	.tool-panel-overlay {
-		@apply fixed inset-0 z-50;
-		@apply bg-black/20 dark:bg-black/40;
-		@apply transition-opacity duration-300;
+		position: fixed;
+		/* @apply bg-black/20 dark:bg-black/40; */
+		/* @apply transition-opacity duration-300; */
 		-webkit-backdrop-filter: blur(4px);
 		backdrop-filter: blur(4px);
 	}
 
 	/* Bottom sheet panel */
 	.tool-panel-sheet {
-		@apply fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl shadow-2xl;
-		@apply transition-transform duration-300 ease-out;
+		position: fixed;
+		/* @apply transition-transform duration-300 ease-out; */
 		background-color: rgb(var(--color-surface-50) / 1);
 		transform: translateY(100%);
 		max-height: 60vh;
@@ -316,12 +329,13 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.sheet-handle {
-		@apply flex justify-center pb-1 pt-2;
-		@apply cursor-grab active:cursor-grabbing;
+		display: flex;
+		justify-content: center;
+		/* @apply cursor-grab active:cursor-grabbing; */
 	}
 
 	.handle-bar {
-		@apply h-1 w-12 rounded-full;
+		border-radius: 9999px;
 		background-color: rgb(var(--color-surface-300) / 1);
 	}
 
@@ -330,13 +344,20 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.sheet-content {
-		@apply flex flex-col gap-4 p-4;
-		@apply overflow-y-auto;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		padding: 1rem;
+		overflow-y: auto;
 		max-height: calc(60vh - 3rem);
 	}
 
 	.sheet-header {
-		@apply flex items-center justify-between gap-3 border-b pb-3;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		border-bottom-width: 1px;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -345,24 +366,28 @@ tool controls for mobile/tablet editing experience.
 	}
 
 	.sheet-tips {
-		@apply space-y-3;
+		/* @apply space-y-3; */
 	}
 
 	.tips-title {
-		@apply flex items-center gap-2;
-		@apply text-sm font-medium text-surface-700 dark:text-surface-200;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 	}
 
 	.tips-list {
-		@apply space-y-2;
+		/* @apply space-y-2; */
 	}
 
 	.tip-item {
-		@apply flex items-start gap-1;
+		display: flex;
+		align-items: flex-start;
 	}
 
 	.tool-controls-placeholder {
-		@apply rounded-lg border-2 border-dashed p-8;
+		border-radius: 0.5rem;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-300) / 1);
 	}

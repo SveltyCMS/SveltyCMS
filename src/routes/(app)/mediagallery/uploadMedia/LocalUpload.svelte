@@ -24,7 +24,7 @@
 	import { logger } from '@utils/logger';
 	import { showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '$lib/skeleton-compat';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 

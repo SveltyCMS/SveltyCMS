@@ -78,9 +78,11 @@ for the image editor canvas with responsive behavior.
 
 <style>
 	.editor-canvas-wrapper {
-		@apply relative flex-1;
-		@apply border border-surface-200;
-		@apply overflow-hidden rounded-lg;
+		position: relative;
+		flex: 1 1 0%;
+		border-width: 1px;
+		overflow: hidden;
+		border-radius: 0.5rem;
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 400px;
@@ -92,7 +94,8 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.canvas-container {
-		@apply h-full w-full;
+		height: 100%;
+		width: 100%;
 		background-color: rgb(var(--color-surface-100) / 1);
 		/* Checkered pattern for transparency visualization */
 		background-image:
@@ -114,8 +117,11 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.empty-state {
-		@apply absolute inset-0 flex items-center justify-center;
-		@apply pointer-events-none z-10;
+		position: absolute;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		pointer-events: none;
 		background: linear-gradient(to bottom right, rgb(var(--color-surface-50) / 0.95), rgb(var(--color-surface-100) / 0.95));
 	}
 
@@ -124,81 +130,100 @@ for the image editor canvas with responsive behavior.
 	}
 
 	.empty-state-content {
-		@apply flex flex-col items-center gap-6 p-8 text-center;
-		@apply max-w-md;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		/* @apply max-w-md; */
 	}
 
 	.empty-icon {
-		@apply flex h-20 w-20 items-center justify-center;
-		@apply rounded-full bg-surface-200 dark:bg-surface-700;
-		@apply ring-4 ring-surface-300 dark:ring-surface-600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		/* @apply ring-4 ring-surface-300 dark:ring-surface-600; */
 	}
 
 	.empty-text h3 {
-		@apply mb-2;
+		/* @apply mb-2; */
 	}
 
 	.empty-hints {
-		@apply flex flex-col gap-2;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	.hint-item {
-		@apply flex items-center justify-center gap-2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
 	}
 
 	.loading-overlay {
-		@apply absolute inset-0 flex flex-col items-center justify-center gap-3;
-		@apply bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80;
+		position: absolute;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		/* @apply bg-surface-50/80 backdrop-blur-sm dark:bg-surface-900/80; */
 	}
 
 	.loading-spinner {
-		@apply flex h-12 w-12 items-center justify-center;
-		@apply rounded-full bg-white shadow-lg dark:bg-surface-800;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		background-color: rgb(255 255 255);
 	}
 
 	/* Responsive adjustments */
 	@media (max-width: 768px) {
 		.editor-canvas-wrapper {
-			@apply rounded-none border-0 border-b border-t;
+			border-bottom-width: 1px;
+			border-top-width: 1px;
 			min-height: 50vh;
 		}
 
 		.empty-state-content {
-			@apply p-6;
+			/* @apply p-6; */
 		}
 
 		.empty-icon {
-			@apply h-16 w-16;
+			/* @apply h-16 w-16; */
 		}
 
 		.empty-text h3 {
-			@apply text-base;
+			font-size: 1rem; line-height: 1.5rem;
 		}
 
 		.empty-text p {
-			@apply text-xs;
+			font-size: 0.75rem; line-height: 1rem;
 		}
 
 		.hint-item span {
-			@apply text-[10px];
+			/* @apply text-[10px]; */
 		}
 	}
 
 	/* Tablet adjustments */
 	@media (min-width: 769px) and (max-width: 1023px) {
 		.empty-state-content {
-			@apply p-6;
+			/* @apply p-6; */
 		}
 	}
 
 	/* Animation for state transitions */
 	.empty-state,
 	.canvas-container {
-		@apply transition-all duration-300 ease-in-out;
+		/* @apply transition-all duration-300 ease-in-out; */
 	}
 
 	/* Focus indicators for accessibility */
 	.editor-canvas-wrapper:focus-within {
-		@apply ring-2 ring-primary-500 ring-offset-2 ring-offset-surface-50 dark:ring-offset-surface-900;
+		/* @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-surface-50 dark:ring-offset-surface-900; */
 	}
 </style>

@@ -1240,55 +1240,81 @@ and unified tool experiences (crop includes rotation, scale, flip).
 <style lang="postcss">
 	@import "tailwindcss/theme";
 	.image-editor {
-		@apply h-full w-full;
+		height: 100%;
+		width: 100%;
 	}
 
 	.editor-layout {
-		@apply flex h-full;
+		display: flex;
+		height: 100%;
 	}
 
 	.editor-main {
-		@apply flex min-w-0 flex-1 flex-col;
+		display: flex;
+		min-width: 0;
+		flex: 1 1 0%;
+		flex-direction: column;
 	}
 
 	.canvas-wrapper {
-		@apply relative flex flex-1 flex-col;
+		position: relative;
+		display: flex;
+		flex: 1 1 0%;
+		flex-direction: column;
 	}
 
 	.editor-controls {
-		@apply flex items-center justify-between gap-4 border-b p-4;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		border-bottom-width: 1px;
+		padding: 1rem;
 		border-color: var(--color-surface-300);
 	}
 
 	.controls-left,
 	.controls-right {
-		@apply flex items-center gap-2;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.controls-center {
-		@apply flex flex-1 items-center justify-center;
+		display: flex;
+		flex: 1 1 0%;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.filename {
-		@apply max-w-48 truncate;
+		max-width: 12.0rem;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
 
 	.editor-mobile {
-		@apply flex h-full flex-col;
+		display: flex;
+		height: 100%;
+		flex-direction: column;
 	}
 
 	.mobile-controls {
-		@apply flex items-center justify-between gap-2 border-b p-3;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		border-bottom-width: 1px;
+		padding: 0.75rem;
 		border-color: var(--color-surface-300);
 	}
 
 	.controls-left .btn-icon,
 	.controls-right .btn-icon {
-		@apply text-surface-600 dark:text-surface-300;
+		/* @apply text-surface-600 dark:text-surface-300; */
 	}
 
 	.canvas-wrapper-mobile {
-		@apply relative;
+		position: relative;
 		flex-grow: 1;
 	}
 
@@ -1304,10 +1330,10 @@ and unified tool experiences (crop includes rotation, scale, flip).
 	/* Responsive adjustments */
 	.tablet .editor-layout,
 	.mobile .editor-layout {
-		@apply grid grid-cols-[auto_1fr];
+		display: grid;
 	}
 
 	.mobile .editor-main {
-		@apply flex;
+		display: flex;
 	}
 </style>

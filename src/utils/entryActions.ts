@@ -4,7 +4,7 @@
  */
 
 import { invalidateAll } from '$app/navigation';
-import type { ModalSettings, ModalStore } from '@skeletonlabs/skeleton';
+import type { ModalSettings, ModalStore } from '$lib/skeleton-compat';
 import type { StatusType } from '@src/content/types';
 import { StatusTypes } from '@src/content/types';
 import { publicEnv } from '@src/stores/globalSettings.svelte';

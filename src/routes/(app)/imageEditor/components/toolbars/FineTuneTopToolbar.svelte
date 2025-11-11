@@ -189,29 +189,41 @@ Displays a single slider at the top of the editor for the selected adjustment.
 
 <style>
 	.finetune-top-toolbar {
-		@apply absolute left-0 right-0 top-0 z-40;
-		@apply flex items-center justify-between gap-4;
-		@apply px-4 py-3;
+		position: absolute;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.75rem; padding-bottom: 0.75rem;
 		background: rgba(0, 0, 0, 0.7);
 		backdrop-filter: blur(10px);
 	}
 
 	.adjustment-controls {
-		@apply flex min-w-0 items-center gap-3;
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	/* Custom dropdown styles */
 	.custom-dropdown {
-		@apply relative;
+		position: relative;
 	}
 
 	.dropdown-button {
-		@apply flex items-center justify-between;
-		@apply bg-transparent text-sm font-medium text-white;
-		@apply rounded px-2 py-1;
-		@apply transition-all duration-200;
-		@apply cursor-pointer;
-		@apply border border-transparent;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
+		color: rgb(255 255 255);
+		border-radius: 0.25rem;
+		padding-left: 0.5rem; padding-right: 0.5rem;
+		/* @apply transition-all duration-200; */
+		cursor: pointer;
+		border-width: 1px;
 		text-transform: capitalize;
 		min-width: 120px;
 	}
@@ -227,7 +239,7 @@ Displays a single slider at the top of the editor for the selected adjustment.
 	}
 
 	.dropdown-arrow {
-		@apply transition-transform duration-200;
+		/* @apply transition-transform duration-200; */
 	}
 
 	.dropdown-arrow.rotate {
@@ -235,28 +247,33 @@ Displays a single slider at the top of the editor for the selected adjustment.
 	}
 
 	.dropdown-menu {
-		@apply absolute left-0 top-full mt-1;
-		@apply bg-black/90 backdrop-blur-md;
-		@apply rounded-lg shadow-lg;
-		@apply z-50;
-		@apply min-w-full;
+		position: absolute;
+		/* @apply bg-black/90 backdrop-blur-md; */
+		border-radius: 0.5rem;
+		/* @apply z-50; */
+		/* @apply min-w-full; */
 		border: 1px solid rgba(255, 255, 255, 0.1);
 	}
 
 	.dropdown-option {
-		@apply block w-full text-left;
-		@apply px-3 py-2 text-sm text-white;
-		@apply transition-colors duration-150;
-		@apply cursor-pointer;
-		@apply border-b border-white/10 last:border-b-0;
+		display: block;
+		width: 100%;
+		text-align: left;
+		padding-left: 0.75rem; padding-right: 0.75rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		color: rgb(255 255 255);
+		/* @apply transition-colors duration-150; */
+		cursor: pointer;
+		border-bottom-width: 1px;
 	}
 
 	.dropdown-option:first-child {
-		@apply rounded-t-lg;
+		/* @apply rounded-t-lg; */
 	}
 
 	.dropdown-option:last-child {
-		@apply rounded-b-lg;
+		/* @apply rounded-b-lg; */
 	}
 
 	.dropdown-option:hover {
@@ -270,15 +287,18 @@ Displays a single slider at the top of the editor for the selected adjustment.
 
 	/* Number input styles */
 	.number-input-container {
-		@apply flex items-center;
+		display: flex;
+		align-items: center;
 	}
 
 	.number-input {
-		@apply h-8 w-16 text-center;
-		@apply bg-white/10 text-sm text-white;
-		@apply rounded border border-white/20;
-		@apply transition-all duration-200;
-		@apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50;
+		text-align: center;
+		font-size: 0.875rem; line-height: 1.25rem;
+		color: rgb(255 255 255);
+		border-radius: 0.25rem;
+		border-width: 1px;
+		/* @apply transition-all duration-200; */
+		/* @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50; */
 	}
 
 	.number-input:hover {
@@ -302,12 +322,18 @@ Displays a single slider at the top of the editor for the selected adjustment.
 	}
 
 	.slider-container {
-		@apply flex flex-1 items-center justify-center px-4;
+		display: flex;
+		flex: 1 1 0%;
+		align-items: center;
+		justify-content: center;
+		padding-left: 1rem; padding-right: 1rem;
 		max-width: 500px;
 	}
 
 	.adjustment-slider {
-		@apply h-2 w-full cursor-pointer appearance-none rounded-full;
+		width: 100%;
+		cursor: pointer;
+		border-radius: 9999px;
 		background: linear-gradient(
 			to right,
 			rgb(var(--color-surface-400) / 0.3) 0%,
@@ -317,29 +343,35 @@ Displays a single slider at the top of the editor for the selected adjustment.
 	}
 
 	.adjustment-slider::-webkit-slider-thumb {
-		@apply h-5 w-5 cursor-pointer appearance-none rounded-full;
+		cursor: pointer;
+		border-radius: 9999px;
 		background-color: white;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 		border: 2px solid rgb(var(--color-primary-500) / 1);
 	}
 
 	.adjustment-slider::-moz-range-thumb {
-		@apply h-5 w-5 cursor-pointer rounded-full border-2;
+		cursor: pointer;
+		border-radius: 9999px;
 		background-color: white;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 		border-color: rgb(var(--color-primary-500) / 1);
 	}
 
 	.action-buttons {
-		@apply flex items-center gap-2;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.comparison-btn,
 	.reset-btn,
 	.apply-btn {
-		@apply flex items-center justify-center;
-		@apply h-10 w-10 rounded-lg;
-		@apply transition-all duration-200;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+		/* @apply transition-all duration-200; */
 	}
 
 	.comparison-btn {

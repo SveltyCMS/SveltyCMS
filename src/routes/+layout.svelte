@@ -13,7 +13,7 @@
 	import { onMount } from 'svelte';
 
 	// Initializing Skeleton stores
-	import { initializeStores, storePopup } from '@skeletonlabs/skeleton';
+	import { initializeStores, storePopup } from '$lib/skeleton-compat';
 	// Import from Floating UI
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 

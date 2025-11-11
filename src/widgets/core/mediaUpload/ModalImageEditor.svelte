@@ -18,7 +18,7 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores (getModalStore commented for future use)
-	// import { getModalStore } from '@skeletonlabs/skeleton';
+	// import { getModalStore } from '$lib/skeleton-compat';
 
 	// Props
 

@@ -32,8 +32,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { Avatar, clipboard } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '$lib/skeleton-compat';
+	import { Avatar, clipboard } from '$lib/skeleton-compat';
 	import { showConfirm, showModal } from '@utils/modalUtils';
 	import { showToast } from '@utils/toast';
 	// Svelte-dnd-action

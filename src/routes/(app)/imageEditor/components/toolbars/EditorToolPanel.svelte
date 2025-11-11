@@ -180,8 +180,9 @@ Provides a clean interface for tool parameters and quick actions.
 <style lang="postcss">
 	@import "tailwindcss/theme";
 	.editor-tool-panel {
-		@apply flex w-80 flex-col border-l;
-		@apply transition-all duration-300 ease-in-out;
+		display: flex;
+		flex-direction: column;
+		/* @apply transition-all duration-300 ease-in-out; */
 		background-color: rgb(var(--color-surface-50) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 		min-height: 100%;
@@ -199,7 +200,12 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.panel-header {
-		@apply flex items-start justify-between gap-3 border-b p-4;
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.75rem;
+		border-bottom-width: 1px;
+		padding: 1rem;
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -208,19 +214,27 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.panel-title {
-		@apply flex-1;
+		flex: 1 1 0%;
 	}
 
 	.panel-title h3 {
-		@apply mb-1;
+		/* @apply mb-1; */
 	}
 
 	.panel-content {
-		@apply flex flex-1 flex-col gap-6 overflow-y-auto p-4;
+		display: flex;
+		flex: 1 1 0%;
+		flex-direction: column;
+		overflow-y: auto;
+		padding: 1rem;
 	}
 
 	.tool-placeholder {
-		@apply flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+		border-radius: 0.5rem;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-300) / 1);
 	}
@@ -231,7 +245,10 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.placeholder-icon {
-		@apply flex h-12 w-12 items-center justify-center rounded-full;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
 		background-color: rgb(var(--color-surface-200) / 1);
 	}
 
@@ -240,35 +257,44 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.help-section {
-		@apply space-y-3;
+		/* @apply space-y-3; */
 	}
 
 	.help-title {
-		@apply flex items-center gap-2 text-sm font-medium text-surface-700 dark:text-surface-200;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 	}
 
 	.help-tips {
-		@apply space-y-2;
+		/* @apply space-y-2; */
 	}
 
 	.tip-item {
-		@apply flex items-start gap-1;
+		display: flex;
+		align-items: flex-start;
 	}
 
 	.quick-actions {
-		@apply space-y-3;
+		/* @apply space-y-3; */
 	}
 
 	.action-title {
-		@apply text-sm font-medium text-surface-700 dark:text-surface-200;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
 	}
 
 	.action-buttons {
-		@apply flex flex-col gap-2;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	.panel-footer {
-		@apply border-t p-4;
+		border-top-width: 1px;
+		padding: 1rem;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-color: rgb(var(--color-surface-200) / 1);
 	}
@@ -279,15 +305,16 @@ Provides a clean interface for tool parameters and quick actions.
 	}
 
 	.shortcuts {
-		@apply space-y-2;
+		/* @apply space-y-2; */
 	}
 
 	.shortcuts-title {
-		@apply text-xs font-medium uppercase tracking-wider text-surface-600 dark:text-surface-300;
+		font-size: 0.75rem; line-height: 1rem;
+		font-weight: 500;
 	}
 
 	.shortcut-list {
-		@apply space-y-1;
+		/* @apply space-y-1; */
 	}
 
 	.shortcut-item {
@@ -298,30 +325,32 @@ Provides a clean interface for tool parameters and quick actions.
 
 	/* Custom kbd styling */
 	.kbd {
-		@apply border border-surface-300 bg-surface-200 px-1.5 py-0.5 dark:border-surface-500 dark:bg-surface-600;
-		@apply rounded font-mono text-xs text-surface-700 dark:text-surface-200;
+		border-width: 1px;
+		border-radius: 0.25rem;
+		font-size: 0.75rem; line-height: 1rem;
 	}
 
 	.kbd-sm {
-		@apply px-1 py-0.5 text-[10px];
+		/* @apply px-1 py-0.5 text-[10px]; */
 	}
 
 	/* Responsive adjustments */
 	@media (max-width: 1279px) {
 		.editor-tool-panel {
-			@apply w-64;
+			/* @apply w-64; */
 		}
 
 		.panel-content {
-			@apply gap-4 p-3;
+			gap: 1rem;
+			padding: 0.75rem;
 		}
 
 		.panel-header {
-			@apply p-3;
+			padding: 0.75rem;
 		}
 
 		.panel-footer {
-			@apply p-3;
+			padding: 0.75rem;
 		}
 	}
 

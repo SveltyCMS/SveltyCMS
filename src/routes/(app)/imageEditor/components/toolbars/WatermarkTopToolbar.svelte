@@ -91,8 +91,8 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 
 <style>
 	.sticker-top-toolbar {
-		@apply absolute left-0 right-0 top-0 z-10;
-		@apply border-b backdrop-blur-md;
+		position: absolute;
+		border-bottom-width: 1px;
 		background-color: rgba(var(--color-surface-900) / 0.98);
 		border-color: rgb(var(--color-surface-700) / 1);
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -104,64 +104,85 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 	}
 
 	.toolbar-content {
-		@apply flex items-center justify-between gap-4 px-4 py-3;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.75rem; padding-bottom: 0.75rem;
 	}
 
 	.toolbar-section {
-		@apply flex items-center gap-2;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.toolbar-actions {
-		@apply flex-1 justify-center gap-2;
+		flex: 1 1 0%;
+		justify-content: center;
+		gap: 0.5rem;
 	}
 
 	.toolbar-title {
-		@apply text-sm font-semibold text-surface-100 dark:text-surface-100;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
 	}
 
 	.sticker-count {
-		@apply flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-bold;
-		@apply bg-primary-500 text-white;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 9999px;
+		font-size: 0.75rem; line-height: 1rem;
+		font-weight: 700;
+		color: rgb(255 255 255);
 	}
 
 	.toolbar-btn {
-		@apply flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all;
-		@apply text-surface-100 hover:bg-surface-700 dark:text-surface-100 dark:hover:bg-surface-700;
-		@apply focus:outline-none focus:ring-2 focus:ring-primary-500;
+		display: flex;
+		align-items: center;
+		border-radius: 0.5rem;
+		padding-left: 0.75rem; padding-right: 0.75rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
+		/* @apply text-surface-100 hover:bg-surface-700 dark:text-surface-100 dark:hover:bg-surface-700; */
+		/* @apply focus:outline-none focus:ring-2 focus:ring-primary-500; */
 	}
 
 	.toolbar-btn-primary {
-		@apply bg-primary-500 text-white hover:bg-primary-600 dark:hover:bg-primary-600;
+		color: rgb(255 255 255);
 	}
 
 	.toolbar-btn-danger {
-		@apply text-error-600 hover:bg-error-100 dark:text-error-400 dark:hover:bg-error-900/30;
+		/* @apply text-error-600 hover:bg-error-100 dark:text-error-400 dark:hover:bg-error-900/30; */
 	}
 
 	.toolbar-btn-done {
-		@apply bg-success-600 text-white hover:bg-success-700 dark:bg-success-600 dark:hover:bg-success-700;
+		color: rgb(255 255 255);
 	}
 
 	.btn-label {
-		@apply hidden sm:inline;
+		display: none;
 	}
 
 	.divider {
-		@apply h-6 w-px bg-surface-300 dark:bg-surface-600;
+		/* @apply h-6 w-px bg-surface-300 dark:bg-surface-600; */
 	}
 
 	/* Mobile adjustments */
 	@media (max-width: 640px) {
 		.toolbar-content {
-			@apply px-2 py-2;
+			padding-left: 0.5rem; padding-right: 0.5rem;
+			padding-top: 0.5rem; padding-bottom: 0.5rem;
 		}
 
 		.toolbar-btn {
-			@apply px-2 py-1.5;
+			padding-left: 0.5rem; padding-right: 0.5rem;
 		}
 
 		.toolbar-title {
-			@apply hidden;
+			display: none;
 		}
 	}
 </style>

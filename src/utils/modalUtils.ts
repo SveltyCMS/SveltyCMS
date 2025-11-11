@@ -8,7 +8,7 @@
  * - Global modal store management
  */
 
-import { getModalStore, type ModalSettings, type ModalStore } from '@skeletonlabs/skeleton';
+import { getModalStore, type ModalSettings, type ModalStore } from '$lib/skeleton-compat';
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 import { logger } from './logger';

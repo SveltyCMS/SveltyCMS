@@ -75,8 +75,12 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 <style>
 	.crop-bottom-bar {
-		@apply flex flex-col items-center gap-3;
-		@apply px-4 py-4;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.75rem;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 1rem; padding-bottom: 1rem;
 		background-color: rgb(var(--color-surface-100) / 1);
 		border-top: 1px solid rgb(var(--color-surface-200) / 1);
 	}
@@ -87,17 +91,22 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	}
 
 	.slider-container {
-		@apply w-full max-w-xl;
+		width: 100%;
 	}
 
 	.slider-wrapper {
-		@apply relative flex flex-col items-center gap-2;
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.rotation-slider,
 	.scale-slider {
-		@apply h-1 w-full rounded-full;
-		@apply cursor-pointer appearance-none;
+		width: 100%;
+		border-radius: 9999px;
+		cursor: pointer;
 		background: linear-gradient(
 			to right,
 			rgb(var(--color-surface-300) / 1) 0%,
@@ -136,36 +145,40 @@ Displays rotation/scale sliders below the canvas without blocking view.
 
 	.rotation-slider::-webkit-slider-thumb,
 	.scale-slider::-webkit-slider-thumb {
-		@apply h-4 w-4 appearance-none rounded-full;
-		@apply cursor-pointer;
+		border-radius: 9999px;
+		cursor: pointer;
 		background-color: white;
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 	}
 
 	.rotation-slider::-moz-range-thumb,
 	.scale-slider::-moz-range-thumb {
-		@apply h-4 w-4 rounded-full border-0;
-		@apply cursor-pointer;
+		border-radius: 9999px;
+		cursor: pointer;
 		background-color: white;
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 	}
 
 	.angle-display {
-		@apply absolute -top-8 left-1/2 -translate-x-1/2 transform;
-		@apply text-sm font-semibold;
-		@apply rounded px-2 py-1;
+		position: absolute;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 600;
+		border-radius: 0.25rem;
+		padding-left: 0.5rem; padding-right: 0.5rem;
 		background-color: rgba(0, 0, 0, 0.7);
 		color: white;
 	}
 
 	.slider-dots {
-		@apply mt-1 flex w-full justify-between;
-		@apply px-1;
+		display: flex;
+		width: 100%;
+		justify-content: space-between;
+		/* @apply px-1; */
 	}
 
 	.dot {
-		@apply h-1.5 w-1.5 rounded-full;
-		@apply transition-all duration-200;
+		border-radius: 9999px;
+		/* @apply transition-all duration-200; */
 		background-color: rgb(var(--color-surface-400) / 1);
 	}
 
@@ -174,23 +187,27 @@ Displays rotation/scale sliders below the canvas without blocking view.
 	}
 
 	.dot.active {
-		@apply h-2 w-2;
+		/* @apply h-2 w-2; */
 		background-color: rgb(var(--color-primary-500) / 1);
 	}
 
 	.dot:hover {
-		@apply scale-125;
+		/* @apply scale-125; */
 		background-color: rgb(var(--color-primary-400) / 1);
 	}
 
 	.mode-tabs {
-		@apply flex gap-2;
+		display: flex;
+		gap: 0.5rem;
 	}
 
 	.mode-tab {
-		@apply rounded-full px-4 py-2;
-		@apply text-sm font-medium;
-		@apply transition-all duration-200;
+		border-radius: 9999px;
+		padding-left: 1rem; padding-right: 1rem;
+		padding-top: 0.5rem; padding-bottom: 0.5rem;
+		font-size: 0.875rem; line-height: 1.25rem;
+		font-weight: 500;
+		/* @apply transition-all duration-200; */
 		background-color: rgb(var(--color-surface-200) / 1);
 		color: rgb(var(--color-surface-600) / 1);
 	}
