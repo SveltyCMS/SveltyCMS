@@ -7,7 +7,8 @@
  */
 
 import { replaceTokens, getAvailableTokens, getTokensByScope } from './index';
-import type { TokenContext, Schema, CollectionEntry } from './types';
+import type { TokenContext, TokenDefinition } from './types';
+import type { Schema, CollectionEntry } from '../../content/types';
 
 // =============================================================================
 // Example 1: SEO Meta Title Generation
@@ -451,8 +452,5 @@ export function generateRSSItem(entry: CollectionEntry, siteUrl: string): {
 	};
 }
 
-// =============================================================================
-// Helper type import for examples
-// =============================================================================
+// (No additional imports needed - removed duplicate import)
 
-import type { TokenDefinition } from './types';

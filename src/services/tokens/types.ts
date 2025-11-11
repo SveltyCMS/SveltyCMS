@@ -7,7 +7,7 @@
  * a simple {{token}} syntax.
  */
 
-import type { Schema, FieldInstance, CollectionEntry } from '@src/content/types';
+import type { Schema, FieldInstance, CollectionEntry } from '../../content/types';
 
 /**
  * Represents the scope/category of a token

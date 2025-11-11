@@ -6,7 +6,7 @@
  * a comprehensive list of available tokens for UI display and validation.
  */
 
-import type { Schema, FieldInstance } from '@src/content/types';
+import type { Schema, FieldInstance } from '../../content/types';
 import type { TokenDefinition, TokenContext, GetTokensOptions, TokenScope } from './types';
 
 /**
