@@ -225,7 +225,7 @@ export async function loadSettingsFromDB() {
 	}
 }
 
-// Load database and authentication adapters
+// Load database and authentication adapters with resilience
 async function loadAdapters() {
 	if (adaptersLoaded && dbAdapter) {
 		logger.debug('Adapters already loaded, skipping');
@@ -248,25 +248,38 @@ async function loadAdapters() {
 
 	logger.debug(`🔌 Loading \x1b[34m${config.DB_TYPE}\x1b[0m adapters...`);
 
-	try {
-		switch (config.DB_TYPE) {
-			case 'mongodb':
-			case 'mongodb+srv': {
-				logger.debug('Importing MongoDB adapter...');
-				const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
-				if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
-					throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
-				}
-				const { MongoDBAdapter } = mongoAdapterModule;
-				dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
+	// Use DatabaseResilience for adapter loading (handles transient import failures)
+	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+	const resilience = getDatabaseResilience({
+		maxAttempts: 3, // Retry adapter loading up to 3 times
+		initialDelayMs: 500,
+		backoffMultiplier: 2,
+		maxDelayMs: 5000,
+		jitterMs: 200
+	});
 
-				logger.debug('MongoDB adapter created');
-				break;
+	try {
+		await resilience.executeWithRetry(async () => {
+			switch (config.DB_TYPE) {
+				case 'mongodb':
+				case 'mongodb+srv': {
+					logger.debug('Importing MongoDB adapter...');
+					const mongoAdapterModule = await import('./mongodb/mongoDBAdapter');
+					if (!mongoAdapterModule || !mongoAdapterModule.MongoDBAdapter) {
+						throw new Error('MongoDBAdapter is not exported correctly from mongoDBAdapter.ts');
+					}
+					const { MongoDBAdapter } = mongoAdapterModule;
+					dbAdapter = new MongoDBAdapter() as unknown as DatabaseAdapter;
+
+					logger.debug('MongoDB adapter created');
+					break;
+				}
+				default:
+					logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
+					throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
 			}
-			default:
-				logger.error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is supported.`);
-				throw new Error(`Unsupported DB_TYPE: ${config.DB_TYPE}. Only MongoDB is currently supported.`);
-		}
+		}, 'Database Adapter Loading');
+
 		adaptersLoaded = true;
 		logger.debug('All adapters loaded successfully');
 	} catch (err) {
@@ -329,83 +342,61 @@ async function initializeMediaFolder(): Promise<void> {
 	}
 }
 
-// Initialize virtual folders with retry logic
-async function initializeVirtualFolders(maxRetries = 3, retryDelay = 1000): Promise<void> {
+// Initialize virtual folders using DatabaseResilience
+async function initializeVirtualFolders(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
 	if (!dbAdapter.systemVirtualFolder) {
 		logger.warn('systemVirtualFolder adapter not available, skipping initialization.');
 		return;
 	}
 
-	let lastError: unknown;
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			// Only log attempts if there are retries (attempt > 1)
-			if (attempt > 1) {
-				logger.debug(`Initializing virtual folders (attempt ${attempt}/${maxRetries})...`);
+	// Use DatabaseResilience for automatic retry with exponential backoff
+	const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+	const resilience = getDatabaseResilience();
+
+	await resilience.executeWithRetry(async () => {
+		// Verify the connection is still active before querying
+		if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
+			throw new Error('Database connection lost - reconnection required');
+		}
+
+		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+
+		if (!systemVirtualFoldersResult.success) {
+			const error = systemVirtualFoldersResult.error;
+			let errorMessage = 'Unknown error';
+
+			if (error instanceof Error) {
+				errorMessage = error.message;
+			} else if (error && typeof error === 'object' && 'message' in error) {
+				errorMessage = String((error as { message: unknown }).message);
+			} else if (error) {
+				errorMessage = String(error);
 			}
 
-			// Verify the connection is still active before querying
-			if (dbAdapter.isConnected && !dbAdapter.isConnected()) {
-				throw new Error('Database connection lost - reconnection required');
-			}
+			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
+		}
 
-			const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+		const systemVirtualFolders = systemVirtualFoldersResult.data;
 
-			if (!systemVirtualFoldersResult.success) {
-				const error = systemVirtualFoldersResult.error;
-				let errorMessage = 'Unknown error';
+		if (systemVirtualFolders.length === 0) {
+			// Create default virtual folder
+			const { getPublicSetting } = await import('@src/services/settingsService');
+			const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
+			const creationResult = await dbAdapter.systemVirtualFolder.create({
+				name: defaultMediaFolder,
+				path: defaultMediaFolder,
+				order: 0,
+				type: 'folder' as const
+			});
 
-				if (error instanceof Error) {
-					errorMessage = error.message;
-				} else if (error && typeof error === 'object' && 'message' in error) {
-					errorMessage = String((error as { message: unknown }).message);
-				} else if (error) {
-					errorMessage = String(error);
-				}
-
-				throw new Error(`Failed to get virtual folders: ${errorMessage}`);
-			}
-
-			const systemVirtualFolders = systemVirtualFoldersResult.data;
-
-			if (systemVirtualFolders.length === 0) {
-				// 🚀 OPTIMIZATION: Streamlined folder creation, minimal logging
-				const { getPublicSetting } = await import('@src/services/settingsService');
-				const defaultMediaFolder = (await getPublicSetting('MEDIA_FOLDER')) || 'mediaFolder';
-				const creationResult = await dbAdapter.systemVirtualFolder.create({
-					name: defaultMediaFolder,
-					path: defaultMediaFolder,
-					order: 0,
-					type: 'folder' as const
-				});
-
-				if (!creationResult.success) {
-					const error = creationResult.error;
-					const errorMessage = error instanceof Error ? error.message : String(error);
-					throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
-				}
-			}
-			// Success - exit fast (no success logging needed, timing will be shown in parallel summary)
-			return;
-		} catch (err) {
-			lastError = err;
-			const errorMsg = err instanceof Error ? err.message : String(err);
-
-			if (attempt < maxRetries) {
-				// Only log retry attempts, not the first failure
-				logger.debug(`Virtual folder initialization failed (attempt ${attempt}/${maxRetries}), retrying: ${errorMsg}`);
-				await new Promise((resolve) => setTimeout(resolve, retryDelay));
-				// Exponential backoff
-				retryDelay *= 2;
-			} else {
-				logger.error(`Virtual folder initialization failed after \x1b[34m${maxRetries}\x1b[0m attempts: ${errorMsg}`);
+			if (!creationResult.success) {
+				const error = creationResult.error;
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 		}
-	} // All retries exhausted
-	const message = `Error initializing virtual folders after ${maxRetries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`;
-	logger.error(message);
-	throw new Error(message);
+	}, 'Virtual Folders Initialization');
 }
 
 // Initialize adapters (instant validation only)
@@ -681,13 +672,65 @@ export function initializeOnRequest(forceInit = false): Promise<void> {
 	return initializationPromise;
 }
 
-export function getSystemStatus() {
-	return {
+export async function getSystemStatus() {
+	const basicStatus = {
 		initialized: isInitialized,
 		connected: isConnected,
 		authReady: !!auth,
 		initializing: !!initializationPromise && !isInitialized
 	};
+
+	// If not connected, return basic status without health check
+	if (!isConnected || !dbAdapter) {
+		return basicStatus;
+	}
+
+	try {
+		// Get database health metrics using DatabaseResilience
+		const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+		const resilience = getDatabaseResilience();
+
+		// Perform health check with database ping
+		const healthResult = await resilience.healthCheck(async () => {
+			const start = Date.now();
+			// Ping the database by running a lightweight query
+			if (dbAdapter.isConnected && dbAdapter.isConnected()) {
+				return Date.now() - start;
+			}
+			throw new Error('Database not connected');
+		});
+
+		// Get resilience metrics for additional insights
+		const metrics = resilience.getMetrics();
+
+		return {
+			...basicStatus,
+			health: {
+				healthy: healthResult.healthy,
+				latency: healthResult.latency,
+				message: healthResult.message
+			},
+			metrics: {
+				totalRetries: metrics.totalRetries,
+				successfulRetries: metrics.successfulRetries,
+				failedRetries: metrics.failedRetries,
+				totalReconnections: metrics.totalReconnections,
+				successfulReconnections: metrics.successfulReconnections,
+				connectionUptime: metrics.connectionUptime,
+				averageRecoveryTime: Math.round(metrics.averageRecoveryTime)
+			}
+		};
+	} catch (error) {
+		// If health check fails, return basic status with error
+		return {
+			...basicStatus,
+			health: {
+				healthy: false,
+				latency: -1,
+				message: error instanceof Error ? error.message : 'Health check failed'
+			}
+		};
+	}
 }
 
 export function getAuth() {

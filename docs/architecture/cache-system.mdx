@@ -357,6 +357,16 @@ export const privateEnv = {
 };
 ```
 
+### Resilience & Retries
+
+Redis connection initialization uses the centralized DatabaseResilience system for automatic retries with exponential backoff and jitter.
+
+- Connection attempts are retried using `executeWithRetry()`
+- Configurable attempts and delays sourced from CacheService
+- Structured logging and metrics via the resilience singleton
+
+See: [Database Resilience](./database-resilience.mdx)
+
 ### Environment Variables
 
 ```bash

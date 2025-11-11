@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
-<p align="center"><strong>(Still in Development - Your Support is always Appreciated!!)</strong></>
+<p align="center"><strong>(Still in Development — your support is appreciated!)</strong></p>
 
 <div align="center">
 
@@ -32,31 +32,67 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with a fast [MongoDB](https://www.mongodb.com), and will use [drizzel](https://drizzle-orm.netlify.app) for future SQL/Postgres support.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with [MongoDB](https://www.mongodb.com); SQL/Postgres support via [Drizzle ORM](https://drizzle-orm.netlify.app) is planned.
 
-Content Collections can easily be implemented, due to full typescript support by using many available widgets. We offer two ways to use define your collections, via code or via a Gui based collection builder.
+You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
-All Widget fields offer full translation, and customization, validation using [valibot](https://valibot.dev) and access handling..
+All widget fields support localization, validation using [Valibot](https://valibot.dev), and access control.
 
-The System language uses [Inlang's Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
+System localization uses [Inlang Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), a lightweight, type-safe i18n library. English is the default; additional languages are bundled and can be extended.
 
 We used [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
 
-The Backend Data is provided via Rest Api or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
+Backend data is available via REST API or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server) for fast, flexible frontends.
+
+## ⭐ Key Features
+
+| Feature                    | Status     | Notes                                                         |
+| -------------------------- | ---------- | ------------------------------------------------------------- |
+| Collection Builder         | ✅         | GUI and code-based definitions                                |
+| Typed Widget System        | ✅         | Localization, validation, access control                      |
+| Multi-language (Paraglide) | ✅         | Type-safe i18n out of the box                                 |
+| REST API                   | ✅         | CRUD and configuration endpoints                              |
+| GraphQL API (Yoga)         | ✅         | High-performance schema                                       |
+| Database Resilience        | ✅         | Retries, self-healing reconnection, diagnostics, log download |
+| Email Templating           | ✅         | Svelte Email + SMTP                                           |
+| Roles & Permissions        | ✅         | Database-backed access control                                |
+| SQL/Postgres via Drizzle   | 📅 Planned | Roadmap item                                                  |
+
+## 🚀 Quick Start
+
+Get up and running fast:
+
+1. Clone and install
+
+```bash
+git clone https://github.com/SveltyCMS/SveltyCMS.git
+cd SveltyCMS
+bun install  # or npm/pnpm
+```
+
+2. Start dev server (guided installer auto-launches)
+
+```bash
+bun run dev  # or npm run dev / pnpm run dev
+```
+
+3. Open the app
+
+- Admin: http://localhost:5173/admin
+- API: http://localhost:5173/api
+- GraphQL: http://localhost:5173/api/graphql
+
+Prefer a full walkthrough? See: ./docs/getting-started.mdx
 
 <p align="center">
  <img width="100%" alt="SveltyCMS Gui" src="https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/static/docs/SveltyCMS-Demo1.png">
 </p>
 
-## :toolbox: SveltyCMS & DXP: Your Gateway to Streamlined Digital Experiences
+## :toolbox: Developer Experience (DXP)
 
-Leverage the power of SveltyCMS along with the capabilities of Developer Experience Platform (DXP). This potent combination redefines content development, making it agile, efficient and optimized.
-
-When DXP integrates into our CMS, it presents a suite of advanced tools, offering developers the freedom and adaptability for content creation and management. The result is a streamlined workflow and a quicker process of crafting superior quality content.
-
-Experience a leap in productivity with DXP seamlessly woven into SveltyCMS. Watch it automate routine tasks, provide clear interfaces and simplify CMS management. Developers can now channel their focus on core tasks - creating premium content and applications.
-
-Footnote: As a headless CMS fortified with GraphQL API, SveltyCMS fully harnesses the potential of DXP, driving functions, ensuring scalability, enhancing adaptability and delivering personalized digital experiences. Empower your development voyage today with the versatile capabilities of SveltyCMS integrated with DXP.
+- CLI installer auto-launches for smooth first-run setup
+- Typed widgets and schema-driven collection builder
+- Fast feedback loop with hot reloads and strong typing
 
 ## :rocket: Setup
 
@@ -145,17 +181,20 @@ bun run preview
 
 </details>
 
-### Automated Setup via GUI Setup Installer
+### Setup Wizard (auto)
 
-SveltyCMS features an intelligent CLI installer that automatically launches when you start the development server without configuration files. The installer handles all setup automatically:
+When starting the dev server without configuration, the guided installer launches automatically:
 
-- **Smart Detection**: Runs automatically via `vite.config.ts` when config files are missing
-- **Database Configuration**: Choose from MongoDB, PostgreSQL, or SQLite
-- **Admin Account Setup**: Create your first administrator account
-- **Security Configuration**: Automatic generation of secrets and keys
-- **Email & OAuth Setup**: Optional SMTP and Google OAuth configuration
+- Smart detection via `vite.config.ts`
+- Database configuration: MongoDB (SQL/Postgres planned via Drizzle ORM)
+- Admin account setup, secrets/keys generation
+- Optional SMTP and Google OAuth configuration
 
-Simply run `bun run dev` (or npm/pnpm equivalent) and follow the interactive prompts!
+Start with:
+
+```bash
+bun run dev  # or npm run dev / pnpm run dev
+```
 
 ### Development and Production
 
@@ -170,9 +209,7 @@ We want to keep your data Private and Secure.
 
 Our extensive Authentication allows us to stay flexible for the future and adapt to changing security needs.
 
-You can login into SveltyCMS by email and password or use google oauth.
-
-Field-based content access enables the allocation of varying levels of access to users according to their roles and permissions. This way, you can control who can view, edit, or delete your data.
+You can log in with email/password or Google OAuth. Role- and field-based access control lets you define precisely who can view, edit, or delete content. Sensitive data is masked in logs; admin-only endpoints protect operational features.
 
 ## :art: Easy Theme Adaptions to your needs
 
@@ -233,11 +270,10 @@ SveltyCMS is built with modern optimization techniques resulting in a **compact 
 
 Comprehensive documentation is available to help you get started:
 
-- 📖 **[Full Documentation](docs/)** - Complete guides, API reference, and architecture docs
-- 🚀 **[Installation Guide](docs/installation.mdx)** - Setup instructions
-- 🎯 **[Getting Started](docs/getting-started.mdx)** - Quick start guide
-- 🧪 **[Testing Guide](docs/testing.mdx)** - Testing documentation
-- 🤝 **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
+- 📖 **[Documentation](./docs/)** — Guides, API reference, and architecture
+- 🎯 **[Getting Started](./docs/getting-started.mdx)** — Quick start
+- � **Architecture: Database Resilience** — `./docs/architecture/database-resilience.mdx`
+- 🤝 **[Contributing Guide](./CONTRIBUTING.md)** — How to contribute
 
 ## :question: Need help
 
@@ -274,7 +310,31 @@ Thank you for helping us maintain a consistent and predictable release process! 
 
 # Contributing
 
-We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](./CONTRIBUTING.md) for details on how to get started.
+
+## 🔌 Quick API Examples
+
+REST (fetch 5 posts):
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:5173/api/collections/posts?limit=5"
+```
+
+GraphQL (posts with author):
+
+```graphql
+query {
+	posts(limit: 5) {
+		id
+		title
+		slug
+		author {
+			name
+		}
+	}
+}
+```
 
 ## :moneybag: Sponsoring
 

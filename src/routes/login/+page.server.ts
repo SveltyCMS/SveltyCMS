@@ -74,8 +74,63 @@ function calculatePasswordStrength(password: string): number {
 	return 0;
 }
 
+// Helper function to check database health by querying system state
+async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
+	try {
+		// First check system state - leverage existing state management
+		const { getSystemState, isServiceHealthy } = await import('@src/stores/system');
+		const systemState = getSystemState();
+
+		// If database service is explicitly unhealthy in state management, return early
+		if (!isServiceHealthy('database')) {
+			const dbStatus = systemState.services.database;
+			return {
+				healthy: false,
+				reason: dbStatus.message || dbStatus.error || 'Database service is unhealthy'
+			};
+		}
+
+		// If system is in FAILED state, check if it's database-related
+		if (systemState.overallState === 'FAILED') {
+			const lastFailure = systemState.performanceMetrics.stateTransitions
+				.slice()
+				.reverse()
+				.find((t) => t.to === 'FAILED');
+			if (lastFailure?.reason) {
+				return { healthy: false, reason: lastFailure.reason };
+			}
+		}
+
+		// State looks good, verify database actually has data (setup completion check)
+		await dbInitPromise;
+
+		const { dbAdapter } = await import('@src/databases/db');
+		if (!dbAdapter) {
+			return { healthy: false, reason: 'Database adapter not initialized' };
+		}
+
+		// Lightweight check: verify database has roles (indicates setup was completed)
+		if (!dbAdapter.roles) {
+			return { healthy: false, reason: 'Database roles interface not available' };
+		}
+
+		const rolesResult = await dbAdapter.roles.getAll();
+		if (!rolesResult.success || !rolesResult.data || rolesResult.data.length === 0) {
+			return {
+				healthy: false,
+				reason: 'Database is empty - no roles found. Setup may not have completed successfully.'
+			};
+		}
+
+		return { healthy: true };
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		return { healthy: false, reason: `Database connection error: ${errorMessage}` };
+	}
+}
+
 // Helper function to wait for auth service to be ready
-async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
+async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 	const startTime = Date.now();
 	logger.debug(`Waiting for auth service to be ready (timeout: \x1b[32m${maxWaitMs}ms\x1b[0m)...`);
 
@@ -174,12 +229,18 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 	// --- END: Language Validation Logic ---
 
 	try {
-		// Check system state first - don't wait if system is FAILED
+		// Check system state first - leverage existing state management for performance
 		const { getSystemState } = await import('@src/stores/system');
 		const systemState = getSystemState();
 
+		// If system is FAILED, provide detailed error immediately without waiting
 		if (systemState.overallState === 'FAILED') {
 			logger.error('System is in FAILED state, cannot proceed with login');
+			const lastFailure = systemState.performanceMetrics.stateTransitions
+				.slice()
+				.reverse()
+				.find((t) => t.to === 'FAILED');
+
 			return {
 				firstUserExists: true,
 				showOAuth: false,
@@ -188,15 +249,38 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				forgotForm: await superValidate(wrappedForgotSchema),
 				resetForm: await superValidate(wrappedResetSchema),
 				signUpForm: await superValidate(wrappedSignUpSchema),
+				showDatabaseError: true,
+				errorReason: lastFailure?.reason || 'System initialization failed. Please check the database connection and configuration.',
+				canReset: true,
 				authNotReady: true,
-				authNotReadyMessage: 'System initialization failed. Please check the database connection and configuration.'
+				authNotReadyMessage: lastFailure?.reason || 'System initialization failed. Please check the database connection and configuration.'
 			};
 		}
 
 		// Ensure initialization is complete
 		await dbInitPromise;
 
-		// Wait for auth service to be ready instead of throwing error immediately
+		// Fast health check using state management + database verification
+		const dbHealth = await checkDatabaseHealth();
+		if (!dbHealth.healthy) {
+			logger.error(`Database health check failed: ${dbHealth.reason}`);
+			return {
+				firstUserExists: true,
+				showOAuth: false,
+				hasExistingOAuthUsers: false,
+				loginForm: await superValidate(wrappedLoginSchema),
+				forgotForm: await superValidate(wrappedForgotSchema),
+				resetForm: await superValidate(wrappedResetSchema),
+				signUpForm: await superValidate(wrappedSignUpSchema),
+				showDatabaseError: true,
+				errorReason: dbHealth.reason,
+				canReset: true,
+				authNotReady: true,
+				authNotReadyMessage: dbHealth.reason
+			};
+		}
+
+		// Database is healthy, now check auth service (reduced timeout from 30s to 10s)
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
 			logger.warn('Authentication system is not ready yet, checking if database is empty');
