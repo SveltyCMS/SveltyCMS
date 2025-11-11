@@ -22,6 +22,14 @@ export const ADMIN_CREDENTIALS = {
 export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = '**/dashboard') {
 	await page.goto('/login');
 
+	// Check if we got redirected to setup (config incomplete)
+	if (page.url().includes('/setup')) {
+		throw new Error('Setup is not complete. Cannot login - being redirected to setup page.');
+	}
+
+	// Wait for login form to be visible
+	await page.waitForSelector('input[name="email"]', { timeout: 10000 });
+
 	// Fill login form
 	await page.fill('input[name="email"]', ADMIN_CREDENTIALS.email);
 	await page.fill('input[name="password"]', ADMIN_CREDENTIALS.password);
