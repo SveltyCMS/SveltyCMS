@@ -256,7 +256,7 @@ Features:
 	});
 </script>
 
-<div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
+<div class="flex min-h-lvh w-full overflow-y-auto transition-colors duration-300" style="background-color: {background}">
 	<!-- Database Error Display -->
 	{#if data.showDatabaseError}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
