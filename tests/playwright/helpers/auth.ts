@@ -20,25 +20,37 @@ export const ADMIN_CREDENTIALS = {
  * @param waitForUrl - URL pattern to wait for after login (default: dashboard)
  */
 export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = '**/dashboard') {
-	await page.goto('/login');
+	// First, try to logout if already logged in
+	await logout(page);
+
+	// Navigate to login page
+	await page.goto('/login', { waitUntil: 'networkidle', timeout: 30000 });
 
 	// Check if we got redirected to setup (config incomplete)
 	if (page.url().includes('/setup')) {
-		throw new Error('Setup is not complete. Cannot login - being redirected to setup page.');
+		throw new Error(`Setup is not complete. Cannot login - redirected to: ${page.url()}`);
+	}
+
+	// Check if we're on the login selection page (SIGN IN / SIGN UP buttons)
+	const signInButton = page.locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")').first();
+	if (await signInButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+		console.log('[Auth] Clicking SIGN IN button...');
+		await signInButton.click();
+		await page.waitForTimeout(1000);
 	}
 
 	// Wait for login form to be visible
-	await page.waitForSelector('input[name="email"]', { timeout: 10000 });
+	await page.waitForSelector('input[name="email"]', { timeout: 15000, state: 'visible' });
 
 	// Fill login form
 	await page.fill('input[name="email"]', ADMIN_CREDENTIALS.email);
 	await page.fill('input[name="password"]', ADMIN_CREDENTIALS.password);
 
-	// Submit form
-	await page.click('button[type="submit"]');
+	// Submit form - look for the "Sign In" submit button
+	await page.click('button[type="submit"]:has-text("Sign In")');
 
 	// Wait for redirect after successful login
-	await page.waitForURL(waitForUrl, { timeout: 10000 });
+	await page.waitForURL(waitForUrl, { timeout: 15000 });
 }
 
 /**
@@ -46,11 +58,45 @@ export async function loginAsAdmin(page: Page, waitForUrl: string | RegExp = '**
  * @param page - Playwright page object
  */
 export async function logout(page: Page) {
-	// Look for logout button or menu
-	const logoutButton = page.locator('button:has-text("Logout"), a:has-text("Logout"), button:has-text("Sign out")');
+	try {
+		// Try to navigate to home/dashboard first to check if logged in
+		await page.goto('/', { timeout: 10000, waitUntil: 'domcontentloaded' });
 
-	if (await logoutButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-		await logoutButton.click();
-		await page.waitForURL('**/login', { timeout: 5000 });
+		// If we're on setup or login page, we're not logged in
+		if (page.url().includes('/setup') || page.url().includes('/login')) {
+			console.log('[Auth] Not logged in, skipping logout');
+			return;
+		}
+
+		// Look for logout button or menu - try multiple selectors
+		const logoutSelectors = [
+			'button:has-text("Logout")',
+			'button:has-text("Sign out")',
+			'button:has-text("Log out")',
+			'a:has-text("Logout")',
+			'a:has-text("Sign out")',
+			'[aria-label*="logout" i]',
+			'[aria-label*="sign out" i]'
+		];
+
+		for (const selector of logoutSelectors) {
+			const button = page.locator(selector).first();
+			if (await button.isVisible({ timeout: 1000 }).catch(() => false)) {
+				console.log(`[Auth] Logging out using selector: ${selector}`);
+				await button.click();
+				await page.waitForURL(/\/(login|signup)/, { timeout: 5000 }).catch(() => {});
+				return;
+			}
+		}
+
+		console.log('[Auth] No logout button found, clearing cookies and localStorage');
+		// If no logout button found, clear session manually
+		await page.context().clearCookies();
+		await page.evaluate(() => {
+			localStorage.clear();
+			sessionStorage.clear();
+		});
+	} catch (error) {
+		console.log('[Auth] Error during logout, continuing anyway:', error);
 	}
 }

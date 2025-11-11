@@ -151,17 +151,19 @@ jobs:
             bun run preview --port 4173 &
           fi
 
-          # Wait for server to be ready
+          # Wait for server to be ready and fully initialized
           echo "Waiting for server at $PLAYWRIGHT_TEST_BASE_URL..."
-          for i in {1..60}; do
+          for i in {1..90}; do
             if curl -sf "$PLAYWRIGHT_TEST_BASE_URL" > /dev/null 2>&1; then
+              echo "Server responded! Waiting 5 more seconds for full initialization..."
+              sleep 5
               echo "Server is ready!"
               exit 0
             fi
-            echo "Attempt $i/60: Server not ready yet, waiting..."
+            echo "Attempt $i/90: Server not ready yet, waiting..."
             sleep 1
           done
-          echo "Server failed to start within 60 seconds"
+          echo "Server failed to start within 90 seconds"
           exit 1
         env:
           PLAYWRIGHT_TEST: 'true'
