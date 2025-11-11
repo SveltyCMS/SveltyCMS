@@ -31,6 +31,7 @@
 // Mongoose and core types
 import mongoose, { type FilterQuery } from 'mongoose';
 import type { BaseEntity, ConnectionPoolOptions, DatabaseId, DatabaseResult, IDBAdapter, DatabaseError, ISODateString } from '../dbInterface';
+import type { ConnectionPoolDiagnostics } from '../DatabaseResilience';
 
 // All Mongoose Models
 import {
@@ -229,49 +230,94 @@ export class MongoDBAdapter implements IDBAdapter {
 				connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/sveltycms';
 			}
 
-			// Pass options to mongoose.connect if they exist
-			if (mongooseOptions) {
-				await mongoose.connect(connectionString, mongooseOptions as mongoose.ConnectOptions);
-				logger.info('MongoDB connection established successfully with custom options.');
-			} else {
-				// Connection pool configuration for optimal performance
-				const connectOptions: mongoose.ConnectOptions = {
-					// Connection Pool Settings (MongoDB 8.0+ optimized)
-					maxPoolSize: 50, // Maximum concurrent connections
-					minPoolSize: 10, // Maintain minimum pool for fast response
-					maxIdleTimeMS: 30000, // Close idle connections after 30s
+			// Connection pool configuration for optimal performance
+			const connectOptions: mongoose.ConnectOptions = (mongooseOptions as mongoose.ConnectOptions) || {
+				// Connection Pool Settings (MongoDB 8.0+ optimized)
+				maxPoolSize: 50, // Maximum concurrent connections
+				minPoolSize: 10, // Maintain minimum pool for fast response
+				maxIdleTimeMS: 30000, // Close idle connections after 30s
 
-					// Performance Optimizations
-					// Note: Compression disabled to avoid optional dependency issues (zstd, snappy not installed)
-					// You can enable compression by installing: bun add snappy @mongodb-js/zstd
-					readPreference: 'primaryPreferred', // Balance between consistency and availability
+				// Performance Optimizations
+				// Note: Compression disabled to avoid optional dependency issues (zstd, snappy not installed)
+				// You can enable compression by installing: bun add snappy @mongodb-js/zstd
+				readPreference: 'primaryPreferred', // Balance between consistency and availability
 
-					// Timeout Settings
-					serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
-					socketTimeoutMS: 45000, // Socket timeout for long-running queries
-					connectTimeoutMS: 10000, // Connection timeout
+				// Timeout Settings
+				serverSelectionTimeoutMS: 5000, // Fail fast on connection issues
+				socketTimeoutMS: 45000, // Socket timeout for long-running queries
+				connectTimeoutMS: 10000, // Connection timeout
 
-					// Reliability Settings
-					retryWrites: true, // Auto-retry failed writes
-					retryReads: true, // Auto-retry failed reads
-					w: 'majority', // Write concern for data durability
+				// Reliability Settings
+				retryWrites: true, // Auto-retry failed writes
+				retryReads: true, // Auto-retry failed reads
+				w: 'majority', // Write concern for data durability
 
-					// Monitoring
-					monitorCommands: process.env.NODE_ENV === 'development' // Enable command monitoring in dev
-				};
+				// Monitoring
+				monitorCommands: process.env.NODE_ENV === 'development' // Enable command monitoring in dev
+			};
 
+			// Use DatabaseResilience for automatic retry with exponential backoff
+			const { getDatabaseResilience } = await import('@databases/DatabaseResilience');
+			const resilience = getDatabaseResilience();
+
+			await resilience.executeWithRetry(async () => {
 				await mongoose.connect(connectionString, connectOptions);
-				logger.info('MongoDB connection established with optimized pool configuration.');
-			}
+				logger.info('MongoDB connection established with resilience and optimized pool configuration.');
+			}, 'MongoDB connection');
+
+			// Setup self-healing reconnection listeners
+			this._setupReconnectionHandlers(connectionString, connectOptions);
 
 			// Initialize models and wrappers
 			await this._initializeModelsAndWrappers();
 		});
 	}
 
-	/**
-	 * Initialize all models, repositories, method classes, and wrappers
-	 */
+	// Setup mongoose event listeners for self-healing database reconnection
+	private _setupReconnectionHandlers(connectionString: string, connectOptions: mongoose.ConnectOptions): void {
+		// Remove existing listeners to avoid duplicates
+		mongoose.connection.removeAllListeners('disconnected');
+		mongoose.connection.removeAllListeners('error');
+		mongoose.connection.removeAllListeners('reconnected');
+
+		// Handle disconnection events
+		mongoose.connection.on('disconnected', async () => {
+			logger.warn('MongoDB connection lost. Attempting self-healing reconnection...');
+
+			const { getDatabaseResilience, notifyAdminsOfDatabaseFailure } = await import('@databases/DatabaseResilience');
+			const resilience = getDatabaseResilience();
+
+			const reconnected = await resilience.attemptReconnection(
+				async () => {
+					await mongoose.connect(connectionString, connectOptions);
+				},
+				async (error) => {
+					// Notify admins on persistent failure
+					await notifyAdminsOfDatabaseFailure(error, resilience.getMetrics());
+				}
+			);
+
+			if (reconnected) {
+				logger.info('MongoDB self-healing reconnection successful');
+			} else {
+				logger.error('MongoDB self-healing reconnection failed after all attempts');
+			}
+		});
+
+		// Handle connection errors
+		mongoose.connection.on('error', (err) => {
+			logger.error('MongoDB connection error occurred', { error: err });
+		});
+
+		// Log successful reconnections
+		mongoose.connection.on('reconnected', () => {
+			logger.info('MongoDB reconnected successfully');
+		});
+
+		logger.debug('Self-healing reconnection handlers registered');
+	}
+
+	// Initialize all models, repositories, method classes, and wrappers
 	private async _initializeModelsAndWrappers(): Promise<void> {
 		// --- 1. Register All Models ---
 		this._auth = new MongoAuthModelRegistrar(mongoose);
@@ -1118,6 +1164,21 @@ export class MongoDBAdapter implements IDBAdapter {
 				};
 			});
 			return { success: true, data: slowQueries };
+		},
+		getPoolDiagnostics: async (): Promise<DatabaseResult<ConnectionPoolDiagnostics>> => {
+			try {
+				const { getDatabaseResilience } = await import('@databases/DatabaseResilience');
+				const resilience = getDatabaseResilience();
+				const diagnostics = await resilience.getPoolDiagnostics();
+
+				return { success: true, data: diagnostics };
+			} catch (error) {
+				return {
+					success: false,
+					message: 'Failed to get pool diagnostics',
+					error: createDatabaseError(error, 'POOL_DIAGNOSTICS_ERROR', 'Failed to retrieve connection pool diagnostics')
+				};
+			}
 		}
 	};
 

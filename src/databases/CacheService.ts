@@ -128,24 +128,26 @@ class RedisStore implements ICacheStore {
 		if (!config) {
 			throw new Error('Cache configuration is not available');
 		}
-		for (let attempt = 1; attempt <= config.RETRY_ATTEMPTS; attempt++) {
-			try {
-				const { createClient } = await import('redis');
-				this.client = createClient({ url: config.URL, password: config.PASSWORD });
-				this.client.on('error', (err) => logger.error('Redis Client Error', err));
-				this.client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
-				await this.client.connect();
-				this.isInitialized = true;
-				logger.info('Redis client connected successfully.');
-				return;
-			} catch (err) {
-				logger.error(`Redis connection attempt ${attempt} failed: ${err instanceof Error ? err.message : String(err)}`);
-				if (attempt === config.RETRY_ATTEMPTS) {
-					throw new Error(`Failed to initialize Redis after ${config.RETRY_ATTEMPTS} attempts.`);
-				}
-				await new Promise((r) => setTimeout(r, config.RETRY_DELAY));
-			}
-		}
+
+		// Use DatabaseResilience for automatic retry with exponential backoff
+		const { getDatabaseResilience } = await import('@src/databases/DatabaseResilience');
+		const resilience = getDatabaseResilience({
+			maxAttempts: config.RETRY_ATTEMPTS,
+			initialDelayMs: config.RETRY_DELAY,
+			backoffMultiplier: 2,
+			maxDelayMs: 30000, // Max 30s delay
+			jitterMs: 500
+		});
+
+		await resilience.executeWithRetry(async () => {
+			const { createClient } = await import('redis');
+			this.client = createClient({ url: config.URL, password: config.PASSWORD });
+			this.client.on('error', (err) => logger.error('Redis Client Error', err));
+			this.client.on('reconnecting', () => logger.warn('Reconnecting to Redis...'));
+			await this.client.connect();
+			this.isInitialized = true;
+			logger.info('Redis client connected successfully.');
+		}, 'Redis Connection');
 	}
 
 	private async ensureReady(): Promise<void> {
