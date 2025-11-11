@@ -7,24 +7,14 @@
  *   - Asserts success via URL and confirmation message
  */
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './helpers/auth';
 
 test.describe('Permission Management Flow', () => {
 	test.setTimeout(60000); // 1 min
 
-	const adminEmail = 'admin@example.com';
-	const adminPassword = 'admin@123';
-
 	test('Login and change permissions in Access Management', async ({ page }) => {
 		// 1. Login
-		await page.goto('http://localhost:5173/login');
-		await page
-			.getByRole('button', { name: /sign in/i })
-			.first()
-			.click();
-		await page.fill('input[name="email"]', adminEmail);
-		await page.fill('input[name="password"]', adminPassword);
-		await page.click('button:has-text("Sign In")');
-		await expect(page).toHaveURL(/\/admin|\/en\/Collections\/Names/);
+		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
 
 		// 2. Navigate to System Configuration
 		await page.getByRole('button', { name: /system configuration/i }).click();

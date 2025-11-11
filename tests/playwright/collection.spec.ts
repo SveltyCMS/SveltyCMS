@@ -7,21 +7,14 @@
  *   - Adds a widget to the dashboard and verifies navigation
  */
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './helpers/auth';
 
 test.describe('Full Collection & Widget Flow', () => {
 	test.setTimeout(120000); // 2 minutes
 
 	test('Login, create collection, perform actions, and add widget', async ({ page }) => {
 		// 1. Login
-		await page.goto('http://localhost:5173/login', { timeout: 60000 });
-		await page
-			.getByRole('button', { name: /sign in/i })
-			.first()
-			.click();
-		await page.fill('input[name="email"]', 'admin@example.com');
-		await page.fill('input[name="password"]', 'admin@123');
-		await page.click('button:has-text("Sign In")');
-		await expect(page).toHaveURL(/\/admin|\/en\/Collections\/Names/, { timeout: 15000 });
+		await loginAsAdmin(page, /\/admin|\/en\/Collections\/Names/);
 
 		// 2. Create Collection
 		await page.getByRole('button', { name: /create/i }).click();

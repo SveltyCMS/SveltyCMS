@@ -7,12 +7,13 @@
  *   - Invite user via email and accept invitation
  */
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin, ADMIN_CREDENTIALS } from './helpers/auth';
 
 test.describe('User Management Flow', () => {
 	test.setTimeout(120000); // 2 min timeout
 
-	const adminEmail = 'admin@example.com';
-	const adminPassword = 'admin@123';
+	const adminEmail = ADMIN_CREDENTIALS.email;
+	const adminPassword = ADMIN_CREDENTIALS.password;
 
 	test('Admin Login', async ({ page }) => {
 		await page.goto('http://localhost:5173/login');
