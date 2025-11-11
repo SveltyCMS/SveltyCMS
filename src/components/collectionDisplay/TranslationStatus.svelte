@@ -420,7 +420,7 @@
 			<button
 				type="button"
 				onclick={toggleDropdown}
-				class="variant-outline-surface btn flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
+				class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn flex w-full items-center gap-1 p-1.5 transition-all duration-200 hover:scale-105"
 				aria-haspopup="true"
 				aria-expanded={isOpen}
 				aria-controls="translation-menu"
@@ -438,7 +438,7 @@
 			<!-- Overall progress bar -->
 			<div class="mt-0.5 transition-all duration-300">
 				<ProgressBar
-					class="variant-outline-secondary transition-all duration-300 hover:shadow-sm"
+					class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 transition-all duration-300 hover:shadow-sm"
 					value={overallPercentage}
 					meter={getProgressColor(overallPercentage)}
 					aria-label={m.translationsstatus_overall_progress({ percentage: overallPercentage })}

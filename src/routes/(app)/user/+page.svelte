@@ -205,7 +205,7 @@
 				</div>
 				<!-- Two-Factor Authentication Status -->
 				{#if is2FAEnabledGlobal}
-					<button onclick={open2FAModal} class="variant-ghost-surface btn-sm w-full max-w-xs">
+					<button onclick={open2FAModal} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-sm w-full max-w-xs">
 						<div class="flex w-full items-center justify-between">
 							<span>Two-Factor Auth</span>
 							<div class="flex items-center gap-1">

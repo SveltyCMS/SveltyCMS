@@ -31,7 +31,7 @@
 
 	let { items, headers = [], flipDurationMs, handleDndConsider, handleDndFinalize, children }: Props = $props();
 
-	const gridClass = `grid grid-cols-${headers.length + 1} variant-ghost-tertiary dark:variant-ghost-primary w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
+	const gridClass = `grid grid-cols-${headers.length + 1} bg-tertiary-500/10 text-tertiary-500 hover:bg-tertiary-500/20 dark:bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
 </script>
 
 <div class="h-full overflow-y-auto">

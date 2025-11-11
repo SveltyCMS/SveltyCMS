@@ -168,7 +168,7 @@ Interactive menu builder with add/edit/reorder capabilities
 <div class="space-y-4">
 	<div class="flex items-center justify-between border-b border-surface-200 pb-3 dark:border-surface-700">
 		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">Menu Structure</h3>
-		<button type="button" class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={addItem}>
+		<button type="button" class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white" onclick={addItem}>
 			<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 			Add Menu Item
 		</button>
@@ -211,7 +211,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if item.children.length > 0 && (field as any).defaults?.enableExpandCollapse !== false}
 								<button
 									type="button"
-									class="variant-filled-surface btn"
+									class="bg-surface-500 text-white btn"
 									onclick={() => toggleExpanded(item)}
 									aria-expanded={item._expanded !== false}
 									aria-label={item._expanded !== false ? 'Collapse children' : 'Expand children'}
@@ -241,7 +241,7 @@ Interactive menu builder with add/edit/reorder capabilities
 							{#if (field as any).fields && (field as any).fields.length > 1}
 								<button
 									type="button"
-									class="variant-filled-tertiary btn dark:variant-filled-primary"
+									class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white"
 									onclick={() => addChildItem(item)}
 									aria-label="Add child item"
 									title="Add child item"
@@ -250,11 +250,11 @@ Interactive menu builder with add/edit/reorder capabilities
 								</button>
 							{/if}
 
-							<button type="button" class="abtn variant-filled-surface" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
+							<button type="button" class="abtn bg-surface-500 text-white" onclick={() => editItem(item, 0)} aria-label="Edit item" title="Edit item">
 								<iconify-icon icon="mdi:pencil" width="14"></iconify-icon>
 							</button>
 
-							<button type="button" class="variant-filled-error btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
+							<button type="button" class="bg-error-500 text-white btn" onclick={() => deleteItem(item)} aria-label="Delete item" title="Delete item">
 								<iconify-icon icon="mdi:delete" width="14"></iconify-icon>
 							</button>
 						</div>

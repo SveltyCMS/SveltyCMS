@@ -54,6 +54,7 @@ Displays tabs below the canvas for selecting different adjustment types.
 </div>
 
 <style>
+@import "tailwindcss";
 	.finetune-bottom-bar {
 		@apply flex flex-col items-center;
 		@apply px-4 py-3;

@@ -203,9 +203,9 @@
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<button class="variant-filled-primary btn" aria-label="Save" onclick={handleSave}>Save</button>
+				<button class="bg-primary-500 text-white btn" aria-label="Save" onclick={handleSave}>Save</button>
 				<!-- Cancel Button -->
-				<button class="variant-ghost-secondary btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
+				<button class="bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 				</button>
 			</div>

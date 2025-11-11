@@ -149,7 +149,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 				}
 			}}
 			aria-label="Clear Search"
-			class="variant-filled-surface w-12"
+			class="bg-surface-500 text-white w-12"
 		>
 			<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 		</button>
@@ -163,7 +163,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Search"
 		title="Search"
-		class="variant-ghost-surface btn-icon"
+		class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon"
 	>
 		<iconify-icon icon="material-symbols:search-rounded" width="24" class={searchShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
@@ -177,7 +177,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Toggle Column Filters"
 		title="Column Filters"
-		class="variant-ghost-surface btn-icon"
+		class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon"
 	>
 		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
@@ -191,7 +191,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Toggle Column Visibility/Order"
 		title="Manage Columns"
-		class="variant-ghost-surface btn-icon"
+		class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon"
 	>
 		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" class={columnShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
@@ -205,7 +205,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 		}}
 		aria-label="Cycle Table Density"
 		title={`Density: ${getDensityDisplayName()}`}
-		class="variant-ghost-surface btn-icon"
+		class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon"
 	>
 		<iconify-icon icon={getDensityIcon()} width="24"></iconify-icon>
 	</button>

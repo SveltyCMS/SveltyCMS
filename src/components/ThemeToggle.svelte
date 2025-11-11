@@ -20,7 +20,7 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		iconSize?: number;
 	}
 
-	let { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'variant-ghost btn-icon', iconSize = 22 }: Props = $props();
+	let { showTooltip = true, tooltipPlacement = 'bottom', buttonClass = 'bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon', iconSize = 22 }: Props = $props();
 
 	// Theme toggle tooltip settings
 	const themeToggleTooltip: PopupSettings = {
@@ -63,11 +63,11 @@ It relies entirely on the centralized `themeStore` for its state and logic.
 		<iconify-icon icon={getCurrentIcon()} width={iconSize}></iconify-icon>
 	</button>
 
-	<div class="card variant-filled z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
+	<div class="card bg-surface-500 text-white z-50 max-w-sm p-2" data-popup="ThemeToggleTooltip">
 		<span class="text-sm">
 			{getTooltipText()}
 		</span>
-		<div class="variant-filled arrow"></div>
+		<div class="bg-surface-500 text-white arrow"></div>
 	</div>
 {:else}
 	<button onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>

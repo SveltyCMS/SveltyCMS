@@ -157,7 +157,7 @@ All dynamic CMS settings organized into logical groups
 </p>
 
 {#if unconfiguredCount > 0}
-	<div class="alert variant-filled-error mb-6">
+	<div class="alert bg-error-500 text-white mb-6">
 		<div class="alert-message">
 			<strong
 				>⚠️ Action Required: {unconfiguredCount}
@@ -201,7 +201,7 @@ All dynamic CMS settings organized into logical groups
 								<span class="text-lg text-warning-500" title="Needs configuration">⚠️</span>
 							{/if}
 							{#if group.requiresRestart}
-								<span class="variant-soft-warning badge text-xs">Restart</span>
+								<span class="bg-warning-100 text-warning-900 dark:bg-warning-900 dark:text-warning-100 badge text-xs">Restart</span>
 							{/if}
 						</div>
 					</div>
@@ -275,8 +275,9 @@ All dynamic CMS settings organized into logical groups
 </div>
 
 <style lang="postcss">
+@import "tailwindcss";
 	.alert {
-		@apply rounded-container-token;
+		@apply rounded-lg;
 	}
 	.alert-message p {
 		@apply text-sm opacity-90;

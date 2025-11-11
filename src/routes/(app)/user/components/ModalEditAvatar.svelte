@@ -355,7 +355,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if $modalStore[0]}
@@ -447,7 +447,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 						e.stopPropagation();
 						deleteAvatar();
 					}}
-					class="variant-filled-error btn"
+					class="bg-error-500 text-white btn"
 				>
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>
@@ -458,12 +458,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			{/if}
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" onclick={parent.onClose} disabled={isUploading}>
+				<button class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 btn" onclick={parent.onClose} disabled={isUploading}>
 					{m.button_cancel()}
 				</button>
 				<!-- Save -->
 				<button
-					class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+					class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white {parent.buttonPositive}"
 					onclick={onFormSubmit}
 					disabled={!files || isUploading}
 				>

@@ -324,7 +324,7 @@
 			<button
 				type="button"
 				onclick={() => input?.click()}
-				class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+				class="bg-tertiary-500 text-white btn mt-3 dark:bg-primary-500 text-white"
 				disabled={isUploading}
 			>
 				Browse Files

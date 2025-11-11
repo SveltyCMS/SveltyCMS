@@ -289,8 +289,8 @@
 	justify={collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '}
 	rounded="rounded-tl-container-token rounded-tr-container-token"
 	flex="flex-1 items-center"
-	active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
-	hover="hover:variant-soft-secondary"
+	active="border-b border-tertiary-500 dark:border-primary-500 bg-secondary-100 text-secondary-900 dark:bg-secondary-900 dark:text-secondary-100"
+	hover="hover:bg-secondary-100 text-secondary-900 dark:bg-secondary-900 dark:text-secondary-100"
 	bind:group={localTabSet}
 >
 	<Tab bind:group={localTabSet} name="edit" value={0}>
@@ -304,7 +304,7 @@
 		<Tab bind:group={localTabSet} name="revisions" value={1}>
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:history" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				{m.applayout_version()} <span class="variant-filled-secondary badge">{revisions.length}</span>
+				{m.applayout_version()} <span class="bg-secondary-500 text-white badge">{revisions.length}</span>
 			</div>
 		</Tab>
 	{/if}
@@ -418,7 +418,7 @@
 								</option>
 							{/each}
 						</select>
-						<button class="variant-filled-primary btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
+						<button class="bg-primary-500 text-white btn" onclick={handleRevert} disabled={!selectedRevision?.data}>
 							<iconify-icon icon="mdi:restore" class="mr-1"></iconify-icon> Revert
 						</button>
 					</div>
@@ -467,11 +467,11 @@
 					<div class="flex flex-1 items-center gap-2">
 						<iconify-icon icon="mdi:open-in-new" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<input type="text" class="input flex-grow text-sm" readonly value={previewUrl} />
-						<button class="variant-ghost-surface btn btn-sm" use:clipboard={previewUrl} aria-label="Copy preview URL">
+						<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm" use:clipboard={previewUrl} aria-label="Copy preview URL">
 							<iconify-icon icon="mdi:content-copy" width="16"></iconify-icon>
 						</button>
 					</div>
-					<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="variant-filled-primary btn btn-sm">
+					<a href={previewUrl} target="_blank" rel="noopener noreferrer" class="bg-primary-500 text-white btn btn-sm">
 						<iconify-icon icon="mdi:open-in-new" width="16" class="mr-1"></iconify-icon>
 						Open
 					</a>
@@ -490,7 +490,7 @@
 			<div class="space-y-4 p-4">
 				<div class="flex items-center gap-2">
 					<input type="text" class="input flex-grow" readonly value={apiUrl} />
-					<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
+					<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn" use:clipboard={apiUrl}>Copy</button>
 				</div>
 				<CodeBlock language="json" code={JSON.stringify((collectionValue as any).value, null, 2)} />
 			</div>

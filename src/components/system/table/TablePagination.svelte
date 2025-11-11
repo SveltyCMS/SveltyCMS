@@ -117,7 +117,7 @@
 </div>
 
 <!-- Pagination controls -->
-<nav class="variant-outline btn-group" aria-label="Table pagination">
+<nav class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn-group" aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}

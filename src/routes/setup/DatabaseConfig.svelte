@@ -562,7 +562,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				type="submit"
 				disabled={isLoading}
 				aria-label={isLoading ? 'Testing database connection, please wait' : 'Test database connection'}
-				class="variant-filled-tertiary btn w-full dark:variant-filled-primary"
+				class="bg-tertiary-500 text-white btn w-full dark:bg-primary-500 text-white"
 			>
 				{#if isLoading}
 					<div

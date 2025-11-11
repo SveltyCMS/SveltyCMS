@@ -129,7 +129,7 @@
 				e.preventDefault();
 			}
 		}}
-		class="variant-filled-tertiary btn flex w-fit items-center gap-1 rounded dark:variant-ghost-primary"
+		class="bg-tertiary-500 text-white btn flex w-fit items-center gap-1 rounded dark:bg-primary-500/10 text-primary-500 hover:bg-primary-500/20"
 		aria-haspopup="true"
 		aria-expanded={expanded}
 		aria-controls={listboxId}

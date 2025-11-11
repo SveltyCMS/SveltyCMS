@@ -260,7 +260,7 @@ Simple file-manager-like component for organizing media folders.
 			<button
 				type="button"
 				onclick={toggleEditMode}
-				class="btn btn-sm transition-colors {isEditMode ? 'variant-filled-warning' : 'variant-ghost-surface'}"
+				class="btn btn-sm transition-colors {isEditMode ? 'bg-warning-500 text-white' : 'bg-surface-500/10 text-surface-500 hover:bg-surface-500/20'}"
 				title={isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}
 				aria-pressed={isEditMode}
 			>
@@ -299,7 +299,7 @@ Simple file-manager-like component for organizing media folders.
 			<div class="flex flex-col items-center justify-center space-y-3 p-6 text-center" role="alert" aria-live="assertive">
 				<iconify-icon icon="ic:outline-error" width="32" class="text-error-500" aria-hidden="true"></iconify-icon>
 				<p class="text-sm text-error-500">{error}</p>
-				<button type="button" class="variant-filled-error btn btn-sm" onclick={fetchFolders}>
+				<button type="button" class="bg-error-500 text-white btn btn-sm" onclick={fetchFolders}>
 					<iconify-icon icon="ic:outline-refresh" width="16" class="mr-1" aria-hidden="true"></iconify-icon>
 					Retry
 				</button>

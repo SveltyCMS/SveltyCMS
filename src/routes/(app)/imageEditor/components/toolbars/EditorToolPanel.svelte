@@ -108,7 +108,7 @@ Provides a clean interface for tool parameters and quick actions.
 					{currentTool.description}
 				</p>
 			</div>
-			<button onclick={onClose} class="variant-ghost btn-icon" aria-label="Close panel" title="Close panel">
+			<button onclick={onClose} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" aria-label="Close panel" title="Close panel">
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</div>
@@ -142,11 +142,11 @@ Provides a clean interface for tool parameters and quick actions.
 			<div class="quick-actions">
 				<h4 class="action-title">Quick Actions</h4>
 				<div class="action-buttons">
-					<button class="variant-outline-surface btn btn-sm w-full">
+					<button class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn btn-sm w-full">
 						<iconify-icon icon="mdi:undo" width="16" class="mr-1"></iconify-icon>
 						Reset
 					</button>
-					<button class="variant-filled-primary btn btn-sm w-full">
+					<button class="bg-primary-500 text-white btn btn-sm w-full">
 						<iconify-icon icon="mdi:check" width="16" class="mr-1"></iconify-icon>
 						Apply
 					</button>
@@ -178,6 +178,7 @@ Provides a clean interface for tool parameters and quick actions.
 </div>
 
 <style lang="postcss">
+@import "tailwindcss";
 	.editor-tool-panel {
 		@apply flex w-80 flex-col border-l;
 		@apply transition-all duration-300 ease-in-out;

@@ -407,7 +407,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
-				class="variant-ghost-surface btn-icon mt-1"
+				class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -418,8 +418,8 @@
 			aria-label="Save"
 			class={`btn-icon mt-1 ${
 				!validationStore.isValid || !canWrite
-					? 'variant-filled-surface cursor-not-allowed opacity-50'
-					: 'variant-ghost-surface hover:variant-filled-surface'
+					? 'bg-surface-500 text-white cursor-not-allowed opacity-50'
+					: 'bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 hover:bg-surface-500 text-white'
 			}`}
 			disabled={!validationStore.isValid || !canWrite}
 		>
@@ -447,7 +447,7 @@
 						type="button"
 						onclick={saveData}
 						aria-label="Save"
-						class={`variant-filled-tertiary btn-icon dark:variant-filled-primary ` + (!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
+						class={`bg-tertiary-500 text-white btn-icon dark:bg-primary-500 text-white ` + (!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
 						disabled={!validationStore.isValid || !canWrite}
 					>
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
@@ -459,7 +459,7 @@
 					type="button"
 					onclick={() => (showMore = !showMore)}
 					aria-label="Hide extra actions"
-					class="variant-filled-tertiary btn-icon text-white"
+					class="bg-tertiary-500 text-white btn-icon text-white"
 				>
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
@@ -470,7 +470,7 @@
 
 				{#if ['edit', 'create'].includes(mode.value)}
 					{#if shouldHideNextButton}
-						<button type="button" onclick={next} class="variant-filled-primary btn-icon dark:variant-filled-primary lg:hidden" aria-label="Next">
+						<button type="button" onclick={next} class="bg-primary-500 text-white btn-icon dark:bg-primary-500 text-white lg:hidden" aria-label="Next">
 							<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 						</button>
 					{/if}
@@ -478,7 +478,7 @@
 						<button
 							type="button"
 							onclick={saveData}
-							class={`variant-filled-tertiary btn-icon dark:variant-filled-primary lg:hidden ` +
+							class={`bg-tertiary-500 text-white btn-icon dark:bg-primary-500 text-white lg:hidden ` +
 								(!validationStore.isValid || !canWrite ? 'btn:disabled' : 'btn')}
 							aria-label="Save entry"
 							disabled={!validationStore.isValid || !canWrite}
@@ -487,7 +487,7 @@
 						</button>
 					{/if}
 				{/if}
-				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="variant-ghost-surface btn-icon">
+				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
@@ -498,7 +498,7 @@
 		{/if}
 
 		{#if !headerActionButton.value}
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
 		{/if}
@@ -567,7 +567,7 @@
 				<input
 					type="datetime-local"
 					bind:value={createdAtDate}
-					class="variant-filled-surface w-full p-2 text-left text-sm"
+					class="bg-surface-500 text-white w-full p-2 text-left text-sm"
 					aria-label="Set creation date"
 				/>
 			</div>

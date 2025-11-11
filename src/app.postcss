@@ -1,9 +1,46 @@
+/**
+ * @file app.postcss
+ * @description Global styles for SveltyCMS
+ * TailwindCSS v4 + Skeleton v4
+ */
+
+@import 'tailwindcss';
+@import '@tailwindcss/forms';
+@import '@tailwindcss/typography';
+
+@theme {
+	/* Custom breakpoints - TailwindCSS v4 syntax */
+	--breakpoint-xs: 360px;
+	/* TailwindCSS v4 uses these default breakpoints automatically:
+	   sm: 640px, md: 768px, lg: 1024px, xl: 1280px, 2xl: 1536px */
+}
+
+@import '@skeletonlabs/skeleton';
 @import './themes/SveltyCMS/SveltyCMSTheme.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-@tailwind variants;
+/* Write your global styles here, in PostCSS syntax */
+/* Place global styles here */
 
-/*Write your global styles here, in PostCSS syntax */
-/*place global styles here */
+html,
+body {
+	height: 100%;
+	overflow: auto;
+}
+
+@layer components {
+	.wrapper {
+		@apply rounded-md border bg-white px-4 py-6 drop-shadow-2xl;
+	}
+
+	.dark .wrapper {
+		@apply border-surface-500 bg-surface-900;
+	}
+
+	.wrapper2 {
+		@apply rounded-md border border-secondary-500 bg-white px-4 py-6 drop-shadow-2xl;
+	}
+
+	.dark .wrapper2 {
+		@apply border-surface-400 bg-surface-900;
+	}
+}

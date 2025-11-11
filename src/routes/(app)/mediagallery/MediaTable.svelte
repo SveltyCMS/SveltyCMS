@@ -180,7 +180,7 @@ Key features:
 							<td>{file.type || 'Unknown'}</td>
 							<td>{file.path}</td>
 							<td>
-								<button onclick={() => handleDelete(file)} class="variant-filled-primary btn btn-sm" aria-label="Delete"> Delete </button>
+								<button onclick={() => handleDelete(file)} class="bg-primary-500 text-white btn btn-sm" aria-label="Delete"> Delete </button>
 							</td>
 						</tr>
 					{/each}

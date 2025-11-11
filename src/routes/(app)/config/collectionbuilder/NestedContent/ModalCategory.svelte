@@ -172,7 +172,7 @@
 	// Base Classes for Skeleton modal
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if $modalStore[0]}
@@ -218,19 +218,19 @@
 			</label>
 			<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 				{#if existingCategory.name}
-					<button type="button" onclick={deleteCategory} class="variant-filled-error btn" aria-label="Delete category" disabled={isSubmitting}>
+					<button type="button" onclick={deleteCategory} class="bg-error-500 text-white btn" aria-label="Delete category" disabled={isSubmitting}>
 						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 						<span class="hidden md:inline">{m.button_delete()}</span>
 					</button>
 				{/if}
 
 				<div class="flex gap-2">
-					<button type="button" onclick={parent.onClose} class="variant-outline-secondary btn" aria-label={m.button_cancel()} disabled={isSubmitting}>
+					<button type="button" onclick={parent.onClose} class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 btn" aria-label={m.button_cancel()} disabled={isSubmitting}>
 						{m.button_cancel()}
 					</button>
 					<button
 						type="submit"
-						class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+						class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white {parent.buttonPositive}"
 						aria-label={m.button_save()}
 						disabled={isSubmitting}
 					>

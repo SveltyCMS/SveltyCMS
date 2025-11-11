@@ -356,7 +356,7 @@
 
 <div class="space-y-6">
 	<!-- Why SMTP is Needed -->
-	<div class="card variant-ghost-primary p-4">
+	<div class="card bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 p-4">
 		<!-- Header - Always visible with toggle button -->
 		<button
 			type="button"
@@ -402,7 +402,7 @@
 		{#if selectedPreset !== m.setup_email_preset_custom()}
 			{@const preset = presets.find((p) => p.name === selectedPreset)}
 			{#if preset?.note}
-				<div class="card variant-ghost-warning flex items-start gap-2 p-3" role="alert">
+				<div class="card bg-warning-500/10 text-warning-500 hover:bg-warning-500/20 flex items-start gap-2 p-3" role="alert">
 					<iconify-icon icon="mdi:alert" class="mt-0.5 text-lg text-warning-500" aria-hidden="true"></iconify-icon>
 					<p class="text-sm text-warning-700 dark:text-warning-300">{preset.note}</p>
 				</div>
@@ -450,7 +450,7 @@
 			<div class="mb-1 flex items-center justify-between">
 				<span class="font-medium">{m.setup_email_port()} <span class="text-error-500">*</span></span>
 				{#if portAutoDetected && !useCustomPort}
-					<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+					<span class="bg-success-100 text-success-900 dark:bg-success-900 dark:text-success-100 badge flex items-center gap-1 text-xs">
 						<iconify-icon icon="mdi:auto-fix" class="text-sm"></iconify-icon>
 						Auto-detected
 					</span>
@@ -478,7 +478,7 @@
 					/>
 					<button
 						type="button"
-						class="variant-ghost-surface btn btn-sm"
+						class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm"
 						aria-label="Switch back to standard SMTP ports"
 						onclick={() => {
 							useCustomPort = false;
@@ -516,7 +516,7 @@
 					</select>
 					<button
 						type="button"
-						class="variant-ghost-surface btn btn-sm whitespace-nowrap"
+						class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm whitespace-nowrap"
 						aria-label="Enter a custom SMTP port"
 						onclick={() => {
 							useCustomPort = true;
@@ -531,7 +531,7 @@
 				{#if selectedPort}
 					<div class="mt-1 flex items-center gap-2">
 						{#if smtpSecure}
-							<span class="variant-soft-success badge flex items-center gap-1 text-xs">
+							<span class="bg-success-100 text-success-900 dark:bg-success-900 dark:text-success-100 badge flex items-center gap-1 text-xs">
 								<iconify-icon icon="mdi:lock" class="text-sm"></iconify-icon>
 								Encrypted
 							</span>
@@ -610,14 +610,14 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<button type="button" class="variant-filled-primary btn w-full" onclick={testConnection} disabled={!isFormValid || isTesting}>
+		<button type="button" class="bg-primary-500 text-white btn w-full" onclick={testConnection} disabled={!isFormValid || isTesting}>
 			<iconify-icon icon="mdi:email" class="mr-2 text-xl"></iconify-icon>
 			{isTesting ? m.setup_email_testing() : m.setup_email_test_button()}
 		</button>
 
 		<!-- Test Result -->
 		{#if testSuccess}
-			<div class="card variant-ghost-success p-4">
+			<div class="card bg-success-500/10 text-success-500 hover:bg-success-500/20 p-4">
 				<!-- Header - Always visible with toggle button on mobile -->
 				<div class="flex items-start gap-3">
 					<iconify-icon icon="mdi:check-circle" class="text-2xl text-success-500"></iconify-icon>
@@ -648,7 +648,7 @@
 		{/if}
 
 		{#if testError}
-			<div class="card variant-ghost-error flex items-start gap-3 p-4">
+			<div class="card bg-error-500/10 text-error-500 hover:bg-error-500/20 flex items-start gap-3 p-4">
 				<iconify-icon icon="mdi:close-circle" class="text-2xl text-error-500"></iconify-icon>
 				<div class="flex-1">
 					<p class="font-semibold text-error-700 dark:text-error-300">{m.setup_email_connection_failed()}</p>

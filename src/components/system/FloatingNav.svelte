@@ -434,9 +434,9 @@ with quick access to main sections: Home, User, Collections, Config, etc.
 </script>
 
 <!-- Tooltip -->
-<div class="card variant-filled-surface z-[99999999] p-2" data-popup={NAV_POPUP_ID}>
+<div class="card bg-surface-500 text-white z-[99999999] p-2" data-popup={NAV_POPUP_ID}>
 	{activeTooltipText}
-	<div class="variant-filled-surface arrow"></div>
+	<div class="bg-surface-500 text-white arrow"></div>
 </div>
 
 <!-- Main navigation button -->

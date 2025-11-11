@@ -44,14 +44,14 @@ Provides the interface for uploading, selecting, and managing stickers
 			<h3 class="text-lg font-semibold text-surface-700 dark:text-surface-200">Sticker Tool</h3>
 			<p class="text-sm text-surface-500 dark:text-surface-400">Add image overlays to your photo</p>
 		</div>
-		<button onclick={onClose} class="variant-ghost btn-icon" aria-label="Close sticker panel" title="Close panel">
+		<button onclick={onClose} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" aria-label="Close sticker panel" title="Close panel">
 			<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 		</button>
 	</div>
 
 	<div class="panel-content">
 		<!-- Add sticker button -->
-		<button onclick={onAddSticker} class="variant-filled-primary btn w-full" aria-label="Add new sticker">
+		<button onclick={onAddSticker} class="bg-primary-500 text-white btn w-full" aria-label="Add new sticker">
 			<iconify-icon icon="mdi:sticker-plus" width="20"></iconify-icon>
 			<span>Add Sticker</span>
 		</button>
@@ -85,17 +85,17 @@ Provides the interface for uploading, selecting, and managing stickers
 					<h4 class="controls-title">Selected Sticker</h4>
 
 					<div class="control-buttons">
-						<button onclick={onBringToFront} class="variant-outline btn btn-sm" aria-label="Bring to front">
+						<button onclick={onBringToFront} class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn btn-sm" aria-label="Bring to front">
 							<iconify-icon icon="mdi:arrow-up-bold" width="16"></iconify-icon>
 							<span>Front</span>
 						</button>
 
-						<button onclick={onSendToBack} class="variant-outline btn btn-sm" aria-label="Send to back">
+						<button onclick={onSendToBack} class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn btn-sm" aria-label="Send to back">
 							<iconify-icon icon="mdi:arrow-down-bold" width="16"></iconify-icon>
 							<span>Back</span>
 						</button>
 
-						<button onclick={onDeleteSelected} class="variant-filled-error btn btn-sm" aria-label="Delete selected sticker">
+						<button onclick={onDeleteSelected} class="bg-error-500 text-white btn btn-sm" aria-label="Delete selected sticker">
 							<iconify-icon icon="mdi:delete" width="16"></iconify-icon>
 							<span>Delete</span>
 						</button>
@@ -109,7 +109,7 @@ Provides the interface for uploading, selecting, and managing stickers
 			{/if}
 
 			<!-- Delete all button -->
-			<button onclick={onDeleteAll} class="variant-outline-error btn mt-2 w-full" aria-label="Delete all stickers">
+			<button onclick={onDeleteAll} class="border border-error-500 text-error-500 hover:bg-error-500/10 btn mt-2 w-full" aria-label="Delete all stickers">
 				<iconify-icon icon="mdi:delete-sweep" width="20"></iconify-icon>
 				<span>Remove All Stickers</span>
 			</button>
@@ -149,6 +149,7 @@ Provides the interface for uploading, selecting, and managing stickers
 </div>
 
 <style>
+@import "tailwindcss";
 	.sticker-panel {
 		@apply flex w-80 flex-col border-l;
 		background-color: rgb(var(--color-surface-50) / 1);

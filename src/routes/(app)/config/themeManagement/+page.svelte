@@ -115,7 +115,7 @@
 			onfocus={() => previewThemeChange(theme)}
 			onmouseout={resetPreview}
 			onblur={resetPreview}
-			class="variant-outline-tertiary btn mt-2"
+			class="border border-tertiary-500 text-tertiary-500 hover:bg-tertiary-500/10 btn mt-2"
 		>
 			Preview {theme.name}
 		</button>
@@ -133,7 +133,7 @@
 		target="_blank"
 		rel="noopener noreferrer"
 		aria-label={m.marketplace()}
-		class="variant-ghost-primary btn w-full gap-2 py-6"
+		class="bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 btn w-full gap-2 py-6"
 	>
 		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 		<p class="uppercase">{m.marketplace()}</p>

@@ -60,7 +60,7 @@ The `children` snippet is passed an object with the following properties:
 	// Use the pkg version passed from the server load function
 	const pkg = $derived(page.data?.settings?.PKG_VERSION || '0.0.0');
 	let githubVersion = $state('');
-	let pkgBgColor = $state('variant-soft-surface'); // Default neutral color
+	let pkgBgColor = $state('bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100'); // Default neutral color
 	let versionStatusMessage = $state('Checking for updates...');
 	let statusIcon = $state('mdi:loading');
 	let isLoading = $state(true);
@@ -75,22 +75,22 @@ The `children` snippet is passed an object with the following properties:
 				const [localMajor, localMinor, localPatch] = pkg.split('.').map(Number);
 				const [githubMajor, githubMinor, githubPatch] = githubVersion.split('.').map(Number);
 				if (githubMajor > localMajor) {
-					pkgBgColor = 'variant-filled-error';
+					pkgBgColor = 'bg-error-500 text-white';
 					versionStatusMessage = `Major update to v${githubVersion} available!`;
 					statusIcon = 'mdi:alert-circle';
 				} else if (githubMinor > localMinor || (githubMinor === localMinor && githubPatch > localPatch)) {
-					pkgBgColor = 'variant-filled-warning';
+					pkgBgColor = 'bg-warning-500 text-white';
 					versionStatusMessage = `Update to v${githubVersion} recommended`;
 					statusIcon = 'mdi:information';
 				} else {
-					pkgBgColor = 'variant-filled-success';
+					pkgBgColor = 'bg-success-500 text-white';
 					versionStatusMessage = 'You are up to date';
 					statusIcon = 'mdi:check-circle';
 				}
 			})
 			.catch(() => {
 				githubVersion = pkg;
-				pkgBgColor = 'variant-soft-surface';
+				pkgBgColor = 'bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100';
 				versionStatusMessage = '';
 				statusIcon = 'mdi:loading';
 			})

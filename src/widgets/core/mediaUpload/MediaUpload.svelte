@@ -185,12 +185,12 @@ functionality for image editing and basic file information display.
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Edit -->
-						<button onclick={() => (showImageEditor = true)} aria-label="Edit image" class="variant-ghost btn-icon" title="Edit image">
+						<button onclick={() => (showImageEditor = true)} aria-label="Edit image" class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" title="Edit image">
 							<iconify-icon icon="material-symbols:edit" width="24" class="text-primary-500"></iconify-icon>
 						</button>
 
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon" title="Flip details">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" title="Flip details">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
@@ -199,7 +199,7 @@ functionality for image editing and basic file information display.
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon" title="Delete image">
+						<button onclick={() => (_data = undefined)} aria-label="Delete" class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" title="Delete image">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>

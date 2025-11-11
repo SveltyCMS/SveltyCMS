@@ -215,13 +215,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				const currentState = imageEditorStore.state.activeState;
 				if (currentState === 'textoverlay') {
 					// Trigger delete for selected text
-					const deleteBtn = document.querySelector('.variant-filled-error.btn') as HTMLButtonElement;
+					const deleteBtn = document.querySelector('.bg-error-500 text-white.btn') as HTMLButtonElement;
 					if (deleteBtn && !deleteBtn.disabled) {
 						deleteBtn.click();
 					}
 				} else if (currentState === 'shapeoverlay') {
 					// Trigger delete for selected shape
-					const deleteBtn = document.querySelector('.variant-filled-error.btn') as HTMLButtonElement;
+					const deleteBtn = document.querySelector('.bg-error-500 text-white.btn') as HTMLButtonElement;
 					if (deleteBtn && !deleteBtn.disabled) {
 						deleteBtn.click();
 					}
@@ -632,7 +632,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 					<div class="controls-left">
 						<div class="file-upload">
 							<input id="image-upload" class="sr-only" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
-							<label for="image-upload" class="variant-filled-primary btn">
+							<label for="image-upload" class="bg-primary-500 text-white btn">
 								<iconify-icon icon="mdi:upload" width="18" class="mr-2"></iconify-icon>
 								Choose Image
 								<span class="sr-only">Upload an image to edit</span>
@@ -656,7 +656,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									disabled={!imageEditorStore.canUndoState}
 									aria-label="Undo last edit"
 									aria-describedby="undo-shortcut"
-									class="variant-soft-surface btn-icon"
+									class="bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100 btn-icon"
 									title="Undo (Ctrl+Z)"
 								>
 									<iconify-icon icon="mdi:undo" width="20"></iconify-icon>
@@ -667,7 +667,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 									disabled={!imageEditorStore.canRedoState}
 									aria-label="Redo last edit"
 									aria-describedby="redo-shortcut"
-									class="variant-soft-surface btn-icon"
+									class="bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100 btn-icon"
 									title="Redo (Ctrl+Shift+Z)"
 								>
 									<iconify-icon icon="mdi:redo" width="20"></iconify-icon>
@@ -675,13 +675,13 @@ and unified tool experiences (crop includes rotation, scale, flip).
 								<span id="redo-shortcut" class="sr-only">Keyboard shortcut: Ctrl+Shift+Z or Cmd+Shift+Z</span>
 							</div>
 							<div class="h-6 w-px bg-surface-300 dark:bg-surface-600"></div>
-							<button onclick={handleSave} aria-label="Save edited image" class="variant-filled-success btn" title="Save Image">
+							<button onclick={handleSave} aria-label="Save edited image" class="bg-success-500 text-white btn" title="Save Image">
 								<iconify-icon icon="material-symbols:save" width="18" class="mr-2"></iconify-icon>
 								Save
 							</button>
 						{/if}
 						{#if onCancel}
-							<button onclick={handleCancel} aria-label="Cancel" class="variant-outline-surface btn"> Cancel </button>
+							<button onclick={handleCancel} aria-label="Cancel" class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn"> Cancel </button>
 						{/if}
 					</div>
 				</div>
@@ -961,7 +961,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 			<div class="mobile-controls">
 				<div class="controls-left">
 					{#if onCancel}
-						<button onclick={handleCancel} class="variant-ghost btn-icon" aria-label="Cancel editing">
+						<button onclick={handleCancel} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" aria-label="Cancel editing">
 							<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 						</button>
 					{/if}
@@ -975,7 +975,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 				</div>
 				<div class="controls-right">
 					{#if storeState.file}
-						<button onclick={handleSave} class="variant-filled-primary btn btn-sm"> Save </button>
+						<button onclick={handleSave} class="bg-primary-500 text-white btn btn-sm"> Save </button>
 					{/if}
 				</div>
 			</div>
@@ -1238,6 +1238,7 @@ and unified tool experiences (crop includes rotation, scale, flip).
 </div>
 
 <style lang="postcss">
+@import "tailwindcss";
 	.image-editor {
 		@apply h-full w-full;
 	}

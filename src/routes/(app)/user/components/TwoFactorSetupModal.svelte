@@ -132,7 +132,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if $modalStore[0]}
@@ -171,7 +171,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 							<button
 								type="button"
 								onclick={() => copyToClipboard(secret)}
-								class="variant-soft-primary btn btn-sm"
+								class="bg-primary-100 text-primary-900 dark:bg-primary-900 dark:text-primary-100 btn btn-sm"
 								title={m.button_copy()}
 								aria-label={m.button_copy()}
 							>
@@ -222,7 +222,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 
 				<!-- Backup Codes (Always Visible) -->
 				{#if backupCodes.length > 0}
-					<div class="variant-ghost-warning rounded-lg border p-4">
+					<div class="bg-warning-500/10 text-warning-500 hover:bg-warning-500/20 rounded-lg border p-4">
 						<div class="mb-3 flex items-start gap-3">
 							<iconify-icon icon="mdi:key-variant" width="24" class="shrink-0"></iconify-icon>
 							<div class="flex-1">
@@ -240,7 +240,7 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						</div>
 
 						<div class="mb-3 flex justify-center">
-							<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="variant-soft-primary btn btn-sm">
+							<button type="button" onclick={() => copyToClipboard(backupCodes.join('\n'))} class="bg-primary-100 text-primary-900 dark:bg-primary-900 dark:text-primary-100 btn btn-sm">
 								<iconify-icon icon="mdi:content-copy" width="16" class="mr-1"></iconify-icon>
 								{m.button_copy_all()}
 							</button>
@@ -260,14 +260,14 @@ This modal displays the QR code for setting up 2FA and handles verification.
 		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
 			{#if currentStep === 'setup'}
 				<!-- Setup Footer -->
-				<button type="button" class="variant-outline-secondary btn" onclick={cancelSetup}>
+				<button type="button" class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 btn" onclick={cancelSetup}>
 					{m.button_cancel()}
 				</button>
 				<button
 					type="submit"
 					form="twofa-form"
 					disabled={verificationCode.length !== 6 || isVerifying}
-					class="variant-filled-primary btn {parent?.buttonPositive ?? ''}"
+					class="bg-primary-500 text-white btn {parent?.buttonPositive ?? ''}"
 				>
 					{#if isVerifying}
 						<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>
@@ -279,10 +279,10 @@ This modal displays the QR code for setting up 2FA and handles verification.
 				</button>
 			{:else}
 				<!-- Complete Footer -->
-				<button type="button" class="variant-outline-secondary btn" onclick={cancelSetup}>
+				<button type="button" class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 btn" onclick={cancelSetup}>
 					{m.button_cancel()}
 				</button>
-				<button type="button" onclick={completeSetup} class="variant-filled-success btn {parent?.buttonPositive ?? ''}">
+				<button type="button" onclick={completeSetup} class="bg-success-500 text-white btn {parent?.buttonPositive ?? ''}">
 					<iconify-icon icon="mdi:check" width="20" class="mr-2"></iconify-icon>
 					{m.button_complete()}
 				</button>

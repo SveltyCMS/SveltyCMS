@@ -85,8 +85,8 @@
 		if (field?.maxLength && length > (field?.maxLength as number)) return 'bg-red-600';
 		if (field?.count && length === (field?.count as number)) return 'bg-green-600';
 		if (field?.count && length > (field?.count as number)) return 'bg-orange-600';
-		if (field?.minLength) return '!variant-filled-surface';
-		return '!variant-ghost-surface';
+		if (field?.minLength) return '!bg-surface-500 text-white';
+		return '!bg-surface-500/10 text-surface-500 hover:bg-surface-500/20';
 	});
 
 	// Create validation schema
@@ -247,7 +247,7 @@
 </script>
 
 <div class="relative mb-4 min-h-10 w-full pb-6">
-	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+	<div class="bg-surface-500 text-white btn-group flex w-full rounded" role="group">
 		{#if field?.prefix}
 			<button class="!px-2" type="button" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}

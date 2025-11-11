@@ -675,7 +675,7 @@ Features:
 					onkeydown={() => {}}
 					onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
-					class="variant-ghost-surface btn-icon mt-1"
+					class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon mt-1"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 				</button>
@@ -708,7 +708,7 @@ Features:
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="variant-ghost-surface btn-icon p-1 sm:hidden"
+				class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon p-1 sm:hidden"
 				aria-label="Expand/Collapse Filters"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
@@ -765,7 +765,7 @@ Features:
 						{m.entrylist_all()}
 					</label>
 
-					<button class="variant-ghost-surface btn btn-sm" onclick={resetViewSettings}>
+					<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm" onclick={resetViewSettings}>
 						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-tertiary-500"></iconify-icon>
 						Reset View
 					</button>
@@ -778,7 +778,7 @@ Features:
 				>
 					{#each displayTableHeaders as header (header.id)}
 						<button
-							class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} mr-1 flex items-center justify-center text-xs"
+							class="chip {header.visible ? 'bg-secondary-500 text-white' : 'bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20'} mr-1 flex items-center justify-center text-xs"
 							animate:flip={{ duration: flipDurationMs }}
 							onclick={() => handleColumnVisibilityToggle(header)}
 						>
@@ -814,7 +814,7 @@ Features:
 											entryListPaginationSettings.filters = clearedFilters;
 										}}
 										aria-label="Clear All Filters"
-										class="variant-ghost-surface btn-icon btn-sm"
+										class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon btn-sm"
 									>
 										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
 									</button>

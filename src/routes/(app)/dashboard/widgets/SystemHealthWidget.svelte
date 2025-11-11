@@ -70,7 +70,7 @@
 		try {
 			toastStore.trigger({
 				message: 'Reinitializing system...',
-				background: 'variant-filled-warning'
+				background: 'bg-warning-500 text-white'
 			});
 
 			const response = await fetch('/api/system', {
@@ -83,7 +83,7 @@
 				const result = await response.json();
 				toastStore.trigger({
 					message: result.message || `System reinitialized: ${result.status}`,
-					background: 'variant-filled-success'
+					background: 'bg-success-500 text-white'
 				});
 			} else {
 				const error = await response.json();
@@ -92,7 +92,7 @@
 		} catch (error) {
 			toastStore.trigger({
 				message: `Failed to reinitialize: ${error instanceof Error ? error.message : 'Unknown error'}`,
-				background: 'variant-filled-error'
+				background: 'bg-error-500 text-white'
 			});
 		}
 	}
@@ -133,13 +133,13 @@
 	function getServiceBadgeClass(status: ServiceHealth): string {
 		switch (status) {
 			case 'healthy':
-				return 'variant-filled-primary';
+				return 'bg-primary-500 text-white';
 			case 'unhealthy':
-				return 'variant-filled-error';
+				return 'bg-error-500 text-white';
 			case 'initializing':
-				return 'variant-filled-warning';
+				return 'bg-warning-500 text-white';
 			default:
-				return 'variant-filled-surface';
+				return 'bg-surface-500 text-white';
 		}
 	}
 
@@ -176,7 +176,7 @@
 						</div>
 					</div>
 
-					<button class="variant-ghost-warning btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
+					<button class="bg-warning-500/10 text-warning-500 hover:bg-warning-500/20 btn btn-sm" onclick={reinitializeSystem} title="Reinitialize system">
 						<iconify-icon icon="mdi:refresh" width="16"></iconify-icon>
 					</button>
 				</div>
@@ -184,7 +184,7 @@
 				<!-- Services Grid -->
 				<div class="grid flex-1 grid-cols-2 gap-2 overflow-y-auto" style="max-height: calc({size.h} * 120px - 80px);">
 					{#each Object.entries(data.components) as [name, service]}
-						<div class="card variant-ghost-surface flex flex-col gap-1 p-2">
+						<div class="card bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 flex flex-col gap-1 p-2">
 							<div class="flex items-center justify-between">
 								<span class="text-xs font-semibold">{formatServiceName(name)}</span>
 								<span class={`badge ${getServiceBadgeClass(service.status)}`}>

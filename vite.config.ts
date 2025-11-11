@@ -12,6 +12,7 @@
 
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 import { existsSync, promises as fs } from 'fs';
 import { builtinModules } from 'module';
 import path from 'path';
@@ -314,6 +315,7 @@ export default defineConfig((): UserConfig => {
 				showWarnings: true,
 				extensions: ['.svelte', '.ts', '.js']
 			}),
+			tailwindcss(),
 			sveltekit(),
 			!setupComplete ? setupWizardPlugin() : cmsWatcherPlugin(),
 			paraglideVitePlugin({

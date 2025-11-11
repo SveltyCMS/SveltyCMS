@@ -75,7 +75,7 @@ is handled in reusable backend APIs.
 		<section class="card p-4 md:p-6">
 			<h3 class="h3 mb-4">Export Configuration</h3>
 			<p class="mb-4 text-sm">Download a JSON backup of all your collections and settings.</p>
-			<button onclick={handleExport} class="variant-filled-primary btn" disabled={isExporting}>
+			<button onclick={handleExport} class="bg-primary-500 text-white btn" disabled={isExporting}>
 				<iconify-icon icon="mdi:database-export" class="mr-2"></iconify-icon>
 				<span>{isExporting ? 'Exporting...' : 'Download Export'}</span>
 			</button>
@@ -93,7 +93,7 @@ is handled in reusable backend APIs.
 			{#if importResult}
 				<div class="mt-4">
 					<h4 class="mb-2 text-sm font-bold">Import Result:</h4>
-					<pre class="card variant-soft max-h-64 overflow-x-auto p-4 font-mono text-xs">{importResult}</pre>
+					<pre class="card bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100 max-h-64 overflow-x-auto p-4 font-mono text-xs">{importResult}</pre>
 				</div>
 			{/if}
 		</section>

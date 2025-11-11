@@ -371,7 +371,7 @@ Features:
 			</div>
 
 			<!-- Filters and Search -->
-			<div class="card variant-filled-surface mt-6 space-y-4 p-4">
+			<div class="card bg-surface-500 text-white mt-6 space-y-4 p-4">
 				<!-- Search and Sync Button Row -->
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-center">
 					<!-- Search -->
@@ -396,7 +396,7 @@ Features:
 					{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter}
 						<button
 							onclick={() => (activeFilter = filter.value)}
-							class="btn {activeFilter === filter.value ? 'variant-filled-tertiary text-white' : 'variant-ghost-secondary '}"
+							class="btn {activeFilter === filter.value ? 'bg-tertiary-500 text-white text-white' : 'bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20 '}"
 							aria-label="{filter.label} widgets ({filter.count})"
 						>
 							<iconify-icon icon={filter.icon} class="text-lg"></iconify-icon>
@@ -491,22 +491,22 @@ Features:
 </div>
 
 <!-- Tooltip Popups for Metric Cards - Uniform Dark/Light Theme -->
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="totalTooltip">
+<div class="card bg-surface-500 text-white z-50 max-w-xs p-3 shadow-xl" data-popup="totalTooltip">
 	<p class="text-sm">All registered widgets in the system (core + custom)</p>
-	<div class="variant-filled arrow"></div>
+	<div class="bg-surface-500 text-white arrow"></div>
 </div>
 
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="activeTooltip">
+<div class="card bg-surface-500 text-white z-50 max-w-xs p-3 shadow-xl" data-popup="activeTooltip">
 	<p class="text-sm">Widgets currently enabled and available for use in collections</p>
-	<div class="variant-filled arrow"></div>
+	<div class="bg-surface-500 text-white arrow"></div>
 </div>
 
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="coreTooltip">
+<div class="card bg-surface-500 text-white z-50 max-w-xs p-3 shadow-xl" data-popup="coreTooltip">
 	<p class="text-sm">Essential system widgets that are always active and cannot be disabled</p>
-	<div class="variant-filled arrow"></div>
+	<div class="bg-surface-500 text-white arrow"></div>
 </div>
 
-<div class="card variant-filled z-50 max-w-xs p-3 shadow-xl" data-popup="customTooltip">
+<div class="card bg-surface-500 text-white z-50 max-w-xs p-3 shadow-xl" data-popup="customTooltip">
 	<p class="text-sm">Optional widgets that can be toggled on/off as needed</p>
-	<div class="variant-filled arrow"></div>
+	<div class="bg-surface-500 text-white arrow"></div>
 </div>

@@ -64,7 +64,7 @@
 	<!-- Dropdown button -->
 	<button
 		onclick={toggleExpanded}
-		class="variant-filled-tertiary btn dark:variant-ghost-primary"
+		class="bg-tertiary-500 text-white btn dark:bg-primary-500/10 text-primary-500 hover:bg-primary-500/20"
 		aria-label="Toggle Dropdown"
 		class:selected={expanded}
 	>
@@ -82,7 +82,7 @@
 		{#each filteredItems as item}
 			<button
 				onclick={() => selectItem(item)}
-				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
+				class="bg-warning-500 text-white btn relative hover:bg-secondary-500 text-white dark:border border-warning-500 text-warning-500 hover:bg-warning-500/10"
 				aria-label={modifier(item)}
 			>
 				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>

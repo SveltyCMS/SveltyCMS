@@ -261,7 +261,7 @@
 		onclick={() => modalAddCategory()}
 		type="button"
 		aria-label="Add New Category"
-		class="variant-filled-tertiary btn flex items-center gap-1 md:variant-filled-tertiary md:btn"
+		class="bg-tertiary-500 text-white btn flex items-center gap-1 md:bg-tertiary-500 text-white md:btn"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
@@ -273,7 +273,7 @@
 		onclick={handleAddCollectionClick}
 		type="button"
 		aria-label="Add New Collection"
-		class="variant-filled-surface btn flex items-center justify-between gap-1 rounded font-bold"
+		class="bg-surface-500 text-white btn flex items-center justify-between gap-1 rounded font-bold"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
@@ -281,7 +281,7 @@
 	</button>
 
 	<!-- Save Button -->
-	<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-primary btn flex items-center gap-1 md:btn" disabled={isLoading}>
+	<button type="button" onclick={handleSave} aria-label="Save" class="bg-primary-500 text-white btn flex items-center gap-1 md:btn" disabled={isLoading}>
 		{#if isLoading}
 			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
 		{:else}

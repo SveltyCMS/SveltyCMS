@@ -176,7 +176,7 @@
 			title: 'Delete Token',
 			body: `Are you sure you want to delete the token "${name}"? This action cannot be undone.`,
 			confirmText: 'Delete',
-			confirmClasses: 'variant-filled-error',
+			confirmClasses: 'bg-error-500 text-white',
 			onConfirm: async () => {
 				try {
 					const response = await fetch(`/api/website-tokens/${id}`, {
@@ -216,7 +216,7 @@
 			<h4 class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500">Generate New Website Token</h4>
 			<div class="flex gap-2">
 				<input type="text" class="input" placeholder="Token Name" bind:value={newTokenName} />
-				<button class="variant-filled-primary btn" onclick={generateToken}>Generate</button>
+				<button class="bg-primary-500 text-white btn" onclick={generateToken}>Generate</button>
 			</div>
 		</div>
 	</div>
@@ -247,7 +247,7 @@
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button
-									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									class="chip {header.visible ? 'bg-secondary-500 text-white' : 'bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: 300 }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -319,7 +319,7 @@
 												<button
 													use:clipboard={token.token}
 													onclick={() => showToast('Token copied to clipboard', 'success')}
-													class="variant-ghost-surface btn-icon btn-icon-sm"
+													class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon btn-icon-sm"
 													aria-label="Copy token to clipboard"
 												>
 													<iconify-icon icon="mdi:clipboard-outline" width="16"></iconify-icon>
@@ -335,7 +335,7 @@
 									</td>
 								{/each}
 								<td>
-									<button class="variant-filled-error btn btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
+									<button class="bg-error-500 text-white btn btn-sm" onclick={() => deleteToken(token._id, token.name)}>Delete</button>
 								</td>
 							</tr>
 						{/each}

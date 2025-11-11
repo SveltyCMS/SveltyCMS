@@ -87,7 +87,7 @@ Interactive level configuration with add/remove level capabilities
 					{#if value.length > 1}
 						<button
 							type="button"
-							class="variant-filled-error btn"
+							class="bg-error-500 text-white btn"
 							onclick={() => removeLevel(levelIndex)}
 							aria-label="Remove level {levelIndex + 1}"
 							title="Remove this menu level"
@@ -124,7 +124,7 @@ Interactive level configuration with add/remove level capabilities
 	</div>
 
 	<div class=" border-t border-surface-200 pt-4 dark:border-surface-700">
-		<button type="button" class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={addLevel}>
+		<button type="button" class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white" onclick={addLevel}>
 			<iconify-icon icon="mdi:plus" width="20"></iconify-icon>
 			Add Menu Level
 		</button>

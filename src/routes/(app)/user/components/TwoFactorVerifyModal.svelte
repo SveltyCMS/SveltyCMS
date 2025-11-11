@@ -174,14 +174,14 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Action Buttons -->
 	<div class="flex gap-3">
-		<button onclick={cancelVerification} class="variant-soft-surface btn flex-1">
+		<button onclick={cancelVerification} class="bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100 btn flex-1">
 			{m.button_cancel()}
 		</button>
 
 		<button
 			onclick={submitCode}
 			disabled={!code.trim() || isVerifying || (!useBackupCode && code.length !== 6) || (useBackupCode && code.length < 8)}
-			class="variant-filled-primary btn flex-1"
+			class="bg-primary-500 text-white btn flex-1"
 		>
 			{#if isVerifying}
 				<iconify-icon icon="svg-spinners:3-dots-fade" width="20" class="mr-2"></iconify-icon>

@@ -176,7 +176,7 @@ tool controls for mobile/tablet editing experience.
 				<h3 class="text-lg font-semibold text-surface-700 dark:text-surface-200">
 					{currentToolInfo.title}
 				</h3>
-				<button onclick={closeToolPanel} class="variant-ghost-surface btn-icon" aria-label="Close">
+				<button onclick={closeToolPanel} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" aria-label="Close">
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</button>
 			</div>
@@ -205,6 +205,7 @@ tool controls for mobile/tablet editing experience.
 {/if}
 
 <style>
+@import "tailwindcss";
 	.mobile-toolbar {
 		@apply fixed bottom-0 left-0 right-0 z-40 border-t shadow-lg;
 		background-color: rgb(var(--color-surface-50) / 1);

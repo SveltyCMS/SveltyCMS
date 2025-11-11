@@ -44,7 +44,7 @@
 		<button
 			onclick={handleTogglePreview}
 			aria-label="Preview"
-			class="{SeoPreviewToggle ? 'hidden' : 'block'} variant-filled-tertiary btn btn-sm flex items-center justify-center"
+			class="{SeoPreviewToggle ? 'hidden' : 'block'} bg-tertiary-500 text-white btn btn-sm flex items-center justify-center"
 		>
 			<iconify-icon icon="ion:desktop-outline" width="20" class="mr-1"></iconify-icon>
 			{m.widget_seo_suggestionwidthdesktop()}
@@ -53,7 +53,7 @@
 		<button
 			onclick={handleTogglePreview}
 			aria-label="Preview"
-			class="{SeoPreviewToggle ? 'block' : 'hidden'} variant-filled-tertiary btn flex items-center justify-center"
+			class="{SeoPreviewToggle ? 'block' : 'hidden'} bg-tertiary-500 text-white btn flex items-center justify-center"
 		>
 			<iconify-icon icon="bi:phone" width="18" class="mr-1"></iconify-icon>
 			{m.widget_seo_suggestionwidthmobile()}
@@ -62,7 +62,7 @@
 
 	{#if SeoPreviewToggle}
 		<!-- Mobile Preview -->
-		<div class="min-h-30 card variant-glass-secondary mx-auto mt-4 max-w-sm p-1 sm:p-2 md:p-4">
+		<div class="min-h-30 card bg-secondary-500/50 backdrop-blur mx-auto mt-4 max-w-sm p-1 sm:p-2 md:p-4">
 			<p class="flex items-center !text-xs text-surface-400">
 				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white"></iconify-icon>{hostUrl}
 			</p>
@@ -75,7 +75,7 @@
 		</div>
 	{:else}
 		<!-- Desktop Preview -->
-		<div class="card variant-glass-secondary mt-4 p-1 sm:p-2 md:p-4">
+		<div class="card bg-secondary-500/50 backdrop-blur mt-4 p-1 sm:p-2 md:p-4">
 			<p class="flex items-center !text-xs text-surface-400 sm:px-4">
 				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white"></iconify-icon>{hostUrl}
 			</p>

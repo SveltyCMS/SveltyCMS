@@ -75,7 +75,7 @@ It handles widget configuration, permissions, and specific options.
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 {#if modalData}
@@ -129,7 +129,7 @@ It handles widget configuration, permissions, and specific options.
 
 		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->
-			<button type="button" onclick={deleteWidget} aria-label="Delete" class="variant-filled-error btn">
+			<button type="button" onclick={deleteWidget} aria-label="Delete" class="bg-error-500 text-white btn">
 				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 				<span class="hidden sm:block">{m.button_delete()}</span>
 			</button>

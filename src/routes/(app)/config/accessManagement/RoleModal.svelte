@@ -70,7 +70,7 @@
 		{isEditMode ? 'Edit Role' : 'Create New Role'}
 	</header>
 
-	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={onFormSubmit} id="roleForm">
+	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-lg" onsubmit={onFormSubmit} id="roleForm">
 		<label class="label">
 			<span>Role Name:</span>
 			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
@@ -84,7 +84,7 @@
 
 	<!-- Footer -->
 	<footer class="modal-footer flex justify-end gap-4">
-		<button class="variant-ghost-surface btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-		<button type="submit" form="roleForm" class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create'}</button>
+		<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+		<button type="submit" form="roleForm" class="bg-primary-500 text-white btn">{isEditMode ? 'Update' : 'Create'}</button>
 	</footer>
 </div>

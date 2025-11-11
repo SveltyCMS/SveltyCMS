@@ -344,9 +344,9 @@ Structure optimized for LLM integration and AI-powered search.
 
 			<!-- Actions -->
 			<div class="flex justify-end gap-3 border-t border-surface-300 pt-4 dark:border-surface-600">
-				<button type="button" onclick={resetForm} class="variant-ghost-surface btn">Reset</button>
-				<button type="button" onclick={onClose} class="variant-ghost-surface btn">Cancel</button>
-				<button type="submit" class="variant-filled-primary btn">
+				<button type="button" onclick={resetForm} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn">Reset</button>
+				<button type="button" onclick={onClose} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn">Cancel</button>
+				<button type="submit" class="bg-primary-500 text-white btn">
 					<iconify-icon icon="mdi:magnify" width="20"></iconify-icon>
 					Search
 				</button>
@@ -355,8 +355,8 @@ Structure optimized for LLM integration and AI-powered search.
 
 		<div class="text-md mt-4">
 			<strong class="text-tertiary-500 dark:text-primary-500">Tip:</strong> Press
-			<kbd class="variant-filled-tertiary badge dark:variant-filled-primary">Ctrl+Enter</kbd>
-			to search, <kbd class="variant-filled-tertiary badge dark:variant-filled-primary">Esc</kbd> to close
+			<kbd class="bg-tertiary-500 text-white badge dark:bg-primary-500 text-white">Ctrl+Enter</kbd>
+			to search, <kbd class="bg-tertiary-500 text-white badge dark:bg-primary-500 text-white">Esc</kbd> to close
 		</div>
 	</div>
 </div>

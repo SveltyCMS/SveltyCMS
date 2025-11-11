@@ -243,7 +243,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Close Sidebar"
-				class="variant-ghost-surface btn-icon mt-1"
+				class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -337,9 +337,9 @@
 					{/if}
 				</button>
 
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="User">
+				<div class="card bg-surface-500 text-white z-50 max-w-sm p-2" data-popup="User">
 					{m.applayout_userprofile()}
-					<div class="variant-filled arrow"></div>
+					<div class="bg-surface-500 text-white arrow"></div>
 				</div>
 			</div>
 
@@ -348,7 +348,7 @@
 				<div class="language-selector relative" bind:this={dropdownRef}>
 					{#if showLanguageDropdown}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {isSidebarFull
+							class="bg-surface-500 text-white btn-icon flex items-center justify-between uppercase text-white {isSidebarFull
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
 							onclick={toggleLanguageDropdown}
@@ -398,7 +398,7 @@
 							bind:value={languageTag}
 							onchange={handleLanguageSelectChange}
 							aria-label="Select language"
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {isSidebarFull
+							class="bg-surface-500 text-white !appearance-none rounded-full uppercase text-white {isSidebarFull
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
 						>
@@ -409,9 +409,9 @@
 					{/if}
 				</div>
 
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
+				<div class="card bg-surface-500 text-white z-50 max-w-sm p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
-					<div class="variant-filled arrow"></div>
+					<div class="bg-surface-500 text-white arrow"></div>
 				</div>
 			</div>
 
@@ -432,9 +432,9 @@
 					<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 				</button>
 
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
+				<div class="card bg-surface-500 text-white z-50 max-w-sm p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
-					<div class="variant-filled arrow"></div>
+					<div class="bg-surface-500 text-white arrow"></div>
 				</div>
 			</div>
 
@@ -450,9 +450,9 @@
 					<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 				</button>
 
-				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Config">
+				<div class="card bg-surface-500 text-white z-50 max-w-sm p-2" data-popup="Config">
 					{m.applayout_systemconfiguration()}
-					<div class="variant-filled arrow"></div>
+					<div class="bg-surface-500 text-white arrow"></div>
 				</div>
 			</div>
 
@@ -469,9 +469,9 @@
 							<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
 						</button>
 
-						<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
+						<div class="card bg-surface-500 text-white z-50 max-w-sm p-2" data-popup="Github">
 							{m.applayout_githubdiscussion()}
-							<div class="variant-filled arrow"></div>
+							<div class="bg-surface-500 text-white arrow"></div>
 						</div>
 					</a>
 				</div>

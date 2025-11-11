@@ -87,7 +87,7 @@
 
 			<!-- Uninstall (only for inactive custom widgets) -->
 			{#if canManage && !widget.isCore && !widget.isActive && onUninstall}
-				<button type="button" onclick={() => onUninstall?.(widget.name)} class="variant-ghost-secondary btn-icon" title="Uninstall widget">
+				<button type="button" onclick={() => onUninstall?.(widget.name)} class="bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20 btn-icon" title="Uninstall widget">
 					<iconify-icon icon="mdi:delete" class="text-xl"></iconify-icon>
 				</button>
 			{/if}

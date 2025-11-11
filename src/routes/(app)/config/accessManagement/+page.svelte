@@ -107,7 +107,7 @@
 		<button
 			onclick={saveAllChanges}
 			aria-label="Save all changes"
-			class="variant-filled-tertiary btn"
+			class="bg-tertiary-500 text-white btn"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		>
 			{#if globalLoadingStore.isLoadingReason(loadingOperations.configSave)}
@@ -120,7 +120,7 @@
 		<button
 			onclick={resetChanges}
 			aria-label="Reset changes"
-			class="variant-filled-secondary btn"
+			class="bg-secondary-500 text-white btn"
 			disabled={!hasModifiedChanges || globalLoadingStore.isLoading}
 		>
 			Reset

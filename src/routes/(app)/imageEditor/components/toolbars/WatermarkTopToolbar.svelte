@@ -90,6 +90,7 @@ Provides a compact toolbar at the top of the canvas for sticker operations
 </div>
 
 <style>
+@import "tailwindcss";
 	.sticker-top-toolbar {
 		@apply absolute left-0 right-0 top-0 z-10;
 		@apply border-b backdrop-blur-md;

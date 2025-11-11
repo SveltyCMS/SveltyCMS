@@ -111,7 +111,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', isDesktop.value ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="variant-ghost-surface btn-icon"
+				class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -145,7 +145,7 @@
 			<a
 				href={backUrl}
 				aria-label="Go back"
-				class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
+				class="border border-tertiary-500 text-tertiary-500 hover:bg-tertiary-500/10 btn-icon shrink-0 dark:border border-primary-500 text-primary-500 hover:bg-primary-500/10"
 				style="min-width: 48px; min-height: 48px;"
 				data-cms-action="back"
 				data-sveltekit-preload-data="hover"
@@ -158,7 +158,7 @@
 				onclick={(e) => handleBackClick(e)}
 				aria-label="Go back"
 				tabindex="0"
-				class="variant-outline-tertiary btn-icon shrink-0 dark:variant-outline-primary"
+				class="border border-tertiary-500 text-tertiary-500 hover:bg-tertiary-500/10 btn-icon shrink-0 dark:border border-primary-500 text-primary-500 hover:bg-primary-500/10"
 				style="min-width: 48px; min-height: 48px;"
 				data-cms-action="back"
 			>

@@ -188,6 +188,7 @@ Displays a single slider at the top of the editor for the selected adjustment.
 </div>
 
 <style>
+@import "tailwindcss";
 	.finetune-top-toolbar {
 		@apply absolute left-0 right-0 top-0 z-40;
 		@apply flex items-center justify-between gap-4;

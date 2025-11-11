@@ -39,7 +39,7 @@
 	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 
 	<!-- Back -->
-	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-tertiary btn-icon dark:variant-outline-primary">
+	<button onclick={() => history.back()} aria-label="Back" class="border border-tertiary-500 text-tertiary-500 hover:bg-tertiary-500/10 btn-icon dark:border border-primary-500 text-primary-500 hover:bg-primary-500/10">
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>

@@ -160,7 +160,7 @@ Implements custom virtual scrolling without external dependencies.
 					isSelectionMode = !isSelectionMode;
 					selectedFiles = new Set();
 				}}
-				class="variant-ghost-surface btn btn-sm"
+				class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm"
 				aria-label="Toggle selection mode"
 			>
 				<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
@@ -168,11 +168,11 @@ Implements custom virtual scrolling without external dependencies.
 			</button>
 
 			{#if isSelectionMode}
-				<button onclick={selectAll} class="variant-ghost-surface btn btn-sm">
+				<button onclick={selectAll} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm">
 					<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
 					All
 				</button>
-				<button onclick={deselectAll} class="variant-ghost-surface btn btn-sm">
+				<button onclick={deselectAll} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm">
 					<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
 					None
 				</button>
@@ -183,27 +183,27 @@ Implements custom virtual scrolling without external dependencies.
 			<div class="flex flex-wrap items-center gap-2">
 				<span class="text-sm font-semibold">{selectedFiles.size} selected</span>
 
-				<button onclick={handleBulkDownload} class="variant-filled-primary btn btn-sm">
+				<button onclick={handleBulkDownload} class="bg-primary-500 text-white btn btn-sm">
 					<iconify-icon icon="mdi:download" width="18"></iconify-icon>
 					Download
 				</button>
 
-				<button onclick={() => openBulkEditModal('tag')} class="variant-filled-secondary btn btn-sm">
+				<button onclick={() => openBulkEditModal('tag')} class="bg-secondary-500 text-white btn btn-sm">
 					<iconify-icon icon="mdi:tag-multiple" width="18"></iconify-icon>
 					Tag
 				</button>
 
-				<button onclick={() => openBulkEditModal('move')} class="variant-filled-secondary btn btn-sm">
+				<button onclick={() => openBulkEditModal('move')} class="bg-secondary-500 text-white btn btn-sm">
 					<iconify-icon icon="mdi:folder-move" width="18"></iconify-icon>
 					Move
 				</button>
 
-				<button onclick={() => openBulkEditModal('rename')} class="variant-filled-secondary btn btn-sm">
+				<button onclick={() => openBulkEditModal('rename')} class="bg-secondary-500 text-white btn btn-sm">
 					<iconify-icon icon="mdi:rename-box" width="18"></iconify-icon>
 					Rename
 				</button>
 
-				<button onclick={handleBulkDelete} class="variant-filled-error btn btn-sm">
+				<button onclick={handleBulkDelete} class="bg-error-500 text-white btn btn-sm">
 					<iconify-icon icon="mdi:delete" width="18"></iconify-icon>
 					Delete
 				</button>
@@ -259,7 +259,7 @@ Implements custom virtual scrolling without external dependencies.
 									<iconify-icon icon="raphael:info" width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 								</button>
 
-								<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{fileId}">
+								<div class="card bg-surface-500 text-white z-50 min-w-[250px] p-2" data-popup="FileInfo-{fileId}">
 									<table class="table-hover w-full table-auto text-xs">
 										<tbody>
 											<tr><td class="font-semibold">Dimensions:</td><td>{file.width || 'N/A'}x{file.height || 'N/A'}</td></tr>
@@ -374,8 +374,8 @@ Implements custom virtual scrolling without external dependencies.
 			</div>
 
 			<div class="flex justify-end gap-2">
-				<button onclick={() => (showBulkEditModal = false)} class="variant-ghost-surface btn">Cancel</button>
-				<button onclick={applyBulkEdit} class="variant-filled-primary btn" disabled={!bulkEditValue.trim()}>Apply</button>
+				<button onclick={() => (showBulkEditModal = false)} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn">Cancel</button>
+				<button onclick={applyBulkEdit} class="bg-primary-500 text-white btn" disabled={!bulkEditValue.trim()}>Apply</button>
 			</div>
 		</div>
 	</div>

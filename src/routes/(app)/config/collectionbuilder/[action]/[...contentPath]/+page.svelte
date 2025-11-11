@@ -230,7 +230,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
 	<!-- Back -->
-	<button onclick={() => history.back()} type="button" aria-label="Back" class="variant-outline-primary btn-icon">
+	<button onclick={() => history.back()} type="button" aria-label="Back" class="border border-primary-500 text-primary-500 hover:bg-primary-500/10 btn-icon">
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
@@ -241,13 +241,13 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			<button
 				type="button"
 				onclick={handleCollectionDelete}
-				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+				class=" bg-error-500 text-white btn mb-3 mr-1 mt-1 justify-end dark:bg-error-500 text-white dark:text-black"
 				>{m.button_delete()}
 			</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+				class="bg-tertiary-500 text-white btn mb-3 mr-1 mt-1 justify-end dark:bg-tertiary-500 text-white dark:text-black">{m.button_save()}</button
 			>
 		</div>
 	{/if}

@@ -58,7 +58,7 @@ Displays logo, site name, language selector, and theme toggle.
 			</div>
 			<div class="language-selector relative">
 				{#if systemLanguages.length > 5}
-					<button onclick={toggleLang} class="variant-ghost btn rounded px-2 py-1">
+					<button onclick={toggleLang} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn rounded px-2 py-1">
 						<span class="hidden sm:inline">{getLanguageName(currentLanguageTag)}</span>
 						<span class="font-mono text-xs font-bold">{currentLanguageTag.toUpperCase()}</span>
 						<svg class="ml-1 h-3.5 w-3.5 transition-transform {isLangOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +100,7 @@ Displays logo, site name, language selector, and theme toggle.
 					</select>
 				{/if}
 			</div>
-			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="variant-ghost btn-icon" iconSize={22} />
+			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" buttonClass="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon" iconSize={22} />
 		</div>
 
 		<p class="w-full text-center text-sm sm:text-base">

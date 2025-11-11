@@ -61,7 +61,7 @@
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 
 	// Call tooltip
 	function getIconTooltip(item: string): PopupSettings {
@@ -93,9 +93,9 @@
 									onFormSubmit(item);
 								}}
 								aria-label={item}
-								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
+								class="border border-warning-500 text-warning-500 hover:bg-warning-500/10 btn relative flex items-center justify-start gap-1 {selected === item
 									? 'bg-primary-500'
-									: ' variant-outline-warning hover:variant-ghost-warning'}"
+									: ' border border-warning-500 text-warning-500 hover:bg-warning-500/10 hover:bg-warning-500/10 text-warning-500 hover:bg-warning-500/20'}"
 							>
 								<iconify-icon icon={$widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
@@ -109,9 +109,9 @@
 								></iconify-icon>
 							</button>
 							<!-- IconTooltip -->
-							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
+							<div class="card bg-secondary-500 text-white z-50 max-w-sm p-4" data-popup={item}>
 								<p>{$widgets[item]?.Description}</p>
-								<div class="variant-filled-secondary arrow"></div>
+								<div class="bg-secondary-500 text-white arrow"></div>
 							</div>
 						{/if}
 					{/if}
@@ -121,7 +121,7 @@
 
 		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			<div class="flex gap-2">
-				<button class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+				<button class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button> -->
 			</div>
 		</footer>

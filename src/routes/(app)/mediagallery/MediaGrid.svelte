@@ -124,7 +124,7 @@ Key features:
 						isSelectionMode = !isSelectionMode;
 						selectedFiles = new Set();
 					}}
-					class="variant-ghost-surface btn btn-sm"
+					class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm"
 					aria-label="Toggle selection mode"
 				>
 					<iconify-icon icon={isSelectionMode ? 'mdi:close' : 'mdi:checkbox-multiple-marked'} width="20"></iconify-icon>
@@ -132,11 +132,11 @@ Key features:
 				</button>
 
 				{#if isSelectionMode}
-					<button onclick={selectAll} class="variant-ghost-surface btn btn-sm">
+					<button onclick={selectAll} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm">
 						<iconify-icon icon="mdi:select-all" width="20"></iconify-icon>
 						Select All
 					</button>
-					<button onclick={deselectAll} class="variant-ghost-surface btn btn-sm">
+					<button onclick={deselectAll} class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm">
 						<iconify-icon icon="mdi:select-off" width="20"></iconify-icon>
 						Deselect All
 					</button>
@@ -146,7 +146,7 @@ Key features:
 			{#if selectedFiles.size > 0}
 				<div class="flex items-center gap-2">
 					<span class="text-sm">{selectedFiles.size} selected</span>
-					<button onclick={handleBulkDelete} class="variant-filled-error btn btn-sm">
+					<button onclick={handleBulkDelete} class="bg-error-500 text-white btn btn-sm">
 						<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
 						Delete Selected
 					</button>
@@ -192,7 +192,7 @@ Key features:
 						<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</button>
 
-					<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo-{index}">
+					<div class="card bg-surface-500 text-white z-50 min-w-[250px] p-2" data-popup="FileInfo-{index}">
 						<table class="table-hover w-full table-auto">
 							<thead class="text-tertiary-500">
 								<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
@@ -289,7 +289,7 @@ Key features:
 					<!-- Type & Size badges -->
 					<div class="flex items-center justify-between gap-1">
 						<!-- File Type Badge -->
-						<div class="variant-ghost-tertiary badge flex items-center gap-1">
+						<div class="bg-tertiary-500/10 text-tertiary-500 hover:bg-tertiary-500/20 badge flex items-center gap-1">
 							<iconify-icon
 								icon={file.type === 'image'
 									? 'fa-solid:image'
@@ -307,7 +307,7 @@ Key features:
 						</div>
 
 						<!-- File Size Badge -->
-						<div class="variant-ghost-tertiary badge flex items-center gap-1">
+						<div class="bg-tertiary-500/10 text-tertiary-500 hover:bg-tertiary-500/20 badge flex items-center gap-1">
 							{#if file.size}
 								<span class="text-tertiary-500 dark:text-primary-500">{formatBytes(file.size)}</span>
 							{:else}

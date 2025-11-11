@@ -261,7 +261,7 @@
 				onclick={removeIcon}
 				type="button"
 				aria-label="Remove selected icon"
-				class="variant-ghost btn-icon transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
+				class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
 			>
 				<iconify-icon icon="icomoon-free:bin" width="22" aria-hidden="true"></iconify-icon>
 			</button>
@@ -366,7 +366,7 @@
 						<button
 							onclick={previousPage}
 							disabled={!canGoPrevious}
-							class="variant-filled-primary btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
+							class="bg-primary-500 text-white btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
 							aria-label="Previous page"
 						>
 							{m.button_previous()}
@@ -379,7 +379,7 @@
 						<button
 							onclick={nextPage}
 							disabled={!canGoNext}
-							class="variant-filled-primary btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
+							class="bg-primary-500 text-white btn btn-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:pointer-events-none disabled:opacity-0"
 							aria-label="Next page"
 						>
 							{m.button_next()}

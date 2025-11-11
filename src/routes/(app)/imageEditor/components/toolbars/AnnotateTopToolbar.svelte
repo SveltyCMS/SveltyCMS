@@ -175,6 +175,7 @@ and action buttons (delete, done).
 </div>
 
 <style lang="postcss">
+@import "tailwindcss";
 	.annotate-toolbar {
 		@apply absolute left-0 right-0 top-0 z-40;
 		@apply flex flex-wrap items-center gap-4 rounded-lg px-4 py-3 shadow-lg;

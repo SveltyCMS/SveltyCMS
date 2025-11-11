@@ -25,7 +25,7 @@ Handles Previous, Next, and Complete buttons and their states.
 	<!-- Previous Button -->
 	<div class="flex-1">
 		{#if currentStep > 0}
-			<button onclick={() => dispatch('prev')} class="variant-filled-tertiary btn dark:variant-filled-primary">
+			<button onclick={() => dispatch('prev')} class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white">
 				<iconify-icon icon="mdi:arrow-left-bold" class="mr-1 h-4 w-4" aria-hidden="true"></iconify-icon>
 				{m.button_previous()}
 			</button>
@@ -44,7 +44,7 @@ Handles Previous, Next, and Complete buttons and their states.
 				onclick={() => dispatch('next')}
 				disabled={!canProceed || isLoading}
 				aria-disabled={!canProceed || isLoading}
-				class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
+				class="bg-tertiary-500 text-white btn transition-all dark:bg-primary-500 text-white {canProceed ? '' : 'cursor-not-allowed opacity-60'}"
 			>
 				{#if isLoading && currentStep === 0}
 					<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>
@@ -59,7 +59,7 @@ Handles Previous, Next, and Complete buttons and their states.
 				onclick={() => dispatch('complete')}
 				disabled={isLoading}
 				aria-disabled={isLoading}
-				class="variant-filled-tertiary btn transition-all dark:variant-filled-primary {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
+				class="bg-tertiary-500 text-white btn transition-all dark:bg-primary-500 text-white {isLoading ? 'cursor-not-allowed opacity-60' : ''}"
 			>
 				{#if isLoading}
 					<div class="h-4 w-4 animate-spin rounded-full border-2 border-t-2 border-transparent border-t-white" role="status"></div>

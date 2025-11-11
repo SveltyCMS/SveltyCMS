@@ -225,9 +225,9 @@ It provides the following functionality:
 	<div class="wrapper my-4">
 		<div class="mb-4 flex items-center justify-between">
 			<!-- Create -->
-			<button onclick={() => openModal(null, '')} class="variant-filled-primary btn">Create Role</button>
+			<button onclick={() => openModal(null, '')} class="bg-primary-500 text-white btn">Create Role</button>
 			<!-- Delete -->
-			<button onclick={deleteSelectedRoles} class="variant-filled-error btn" disabled={selectedRoles.size === 0}>
+			<button onclick={deleteSelectedRoles} class="bg-error-500 text-white btn" disabled={selectedRoles.size === 0}>
 				Delete Roles ({selectedRoles.size})
 			</button>
 		</div>
@@ -264,7 +264,7 @@ It provides the following functionality:
 												class="ml-1 text-tertiary-500 dark:text-primary-500"
 												use:popup={getPopupSettings(role._id)}
 											></iconify-icon>
-											<div class="card variant-filled-surface p-4" data-popup="role-{role._id}">
+											<div class="card bg-surface-500 text-white p-4" data-popup="role-{role._id}">
 												{role.description}
 												<div class="arrow"></div>
 											</div>
@@ -278,7 +278,7 @@ It provides the following functionality:
 								</p>
 
 								<!-- Edit Button: changes layout depending on screen size -->
-								<button onclick={() => openModal(role)} aria-label="Edit role" class="variant-filled-secondary btn">
+								<button onclick={() => openModal(role)} aria-label="Edit role" class="bg-secondary-500 text-white btn">
 									<iconify-icon icon="mdi:pencil" class="text-white" width="18"></iconify-icon>
 									<span class="hidden md:block">Edit</span>
 								</button>

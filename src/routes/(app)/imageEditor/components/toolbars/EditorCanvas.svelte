@@ -77,6 +77,7 @@ for the image editor canvas with responsive behavior.
 </div>
 
 <style>
+@import "tailwindcss";
 	.editor-canvas-wrapper {
 		@apply relative flex-1;
 		@apply border border-surface-200;

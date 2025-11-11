@@ -88,7 +88,7 @@ Registers and manages the service worker for offline support and caching.
 
 {#if updateAvailable}
 	<!-- Update notification -->
-	<div class="card variant-filled-primary fixed bottom-4 right-4 z-50 max-w-sm p-4 shadow-xl">
+	<div class="card bg-primary-500 text-white fixed bottom-4 right-4 z-50 max-w-sm p-4 shadow-xl">
 		<div class="flex items-center gap-3">
 			<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
@@ -104,15 +104,15 @@ Registers and manages the service worker for offline support and caching.
 			</div>
 		</div>
 		<div class="mt-3 flex gap-2">
-			<button class="variant-ghost-surface btn btn-sm" onclick={updateServiceWorker}> Update Now </button>
-			<button class="variant-ghost btn btn-sm" onclick={() => (updateAvailable = false)}> Later </button>
+			<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm" onclick={updateServiceWorker}> Update Now </button>
+			<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm" onclick={() => (updateAvailable = false)}> Later </button>
 		</div>
 	</div>
 {/if}
 
 <!-- Debug tools (only in dev mode) -->
 {#if import.meta.env.DEV && browser}
-	<div class="card variant-soft-surface fixed bottom-4 left-4 z-50 p-2 text-xs">
-		<button class="variant-ghost btn btn-sm" onclick={clearCache}> Clear Cache </button>
+	<div class="card bg-surface-100 text-surface-900 dark:bg-surface-900 dark:text-surface-100 fixed bottom-4 left-4 z-50 p-2 text-xs">
+		<button class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn btn-sm" onclick={clearCache}> Clear Cache </button>
 	</div>
 {/if}

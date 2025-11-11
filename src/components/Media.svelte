@@ -157,7 +157,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 			aria-label="Search media files"
 			disabled={isLoading}
 		/>
-		<button onclick={fetchMedia} class="variant-ghost-primary btn btn-sm" disabled={isLoading} aria-label="Refresh media">
+		<button onclick={fetchMedia} class="bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 btn btn-sm" disabled={isLoading} aria-label="Refresh media">
 			<iconify-icon icon="mdi:refresh" width="20"></iconify-icon>
 		</button>
 	</div>
@@ -176,7 +176,7 @@ Displays a grid of media files with search, thumbnails, and detailed info view.
 			<div class="flex flex-col items-center gap-2">
 				<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="text-error-500"></iconify-icon>
 				<p class="text-lg text-error-500">Error: {error}</p>
-				<button onclick={fetchMedia} class="variant-filled-primary btn btn-sm"> Try Again </button>
+				<button onclick={fetchMedia} class="bg-primary-500 text-white btn btn-sm"> Try Again </button>
 			</div>
 		</div>
 	{:else if filteredFiles.length === 0}

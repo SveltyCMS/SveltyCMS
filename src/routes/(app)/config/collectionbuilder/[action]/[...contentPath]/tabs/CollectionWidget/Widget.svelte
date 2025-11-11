@@ -177,7 +177,7 @@
 </script>
 
 <div class="flex flex-col">
-	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
+	<div class="border border-tertiary-500 text-tertiary-500 hover:bg-tertiary-500/10 rounded-t-md p-2 text-center dark:border border-primary-500 text-primary-500 hover:bg-primary-500/10">
 		<p>
 			{m.collection_widgetfield_addrequired()}
 			<span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
@@ -188,9 +188,9 @@
 		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 			{#each fields as field (field.id)}
 				<div
-					class="border-blue variant-outline-surface my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
+					class="border-blue border border-surface-500 text-surface-500 hover:bg-surface-500/10 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:bg-surface-500 text-white dark:text-white"
 				>
-					<div class="variant-ghost-tertiary badge h-10 w-10 rounded-full dark:variant-ghost-primary">
+					<div class="bg-tertiary-500/10 text-tertiary-500 hover:bg-tertiary-500/20 badge h-10 w-10 rounded-full dark:bg-primary-500/10 text-primary-500 hover:bg-primary-500/20">
 						{field.id}
 					</div>
 
@@ -199,7 +199,7 @@
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key}</div>
 
-					<button type="button" onclick={() => modalWidgetForm(field)} aria-label={m.button_edit()} class="variant-ghost-primary btn-icon ml-auto">
+					<button type="button" onclick={() => modalWidgetForm(field)} aria-label={m.button_edit()} class="bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 btn-icon ml-auto">
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
 					</button>
 				</div>
@@ -208,14 +208,14 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button onclick={() => modalSelectWidget()} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
+			<button onclick={() => modalSelectWidget()} class="bg-tertiary-500 text-white btn">{m.collection_widgetfield_addFields()} </button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button type="button" onclick={() => tabSet.set(1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
+			<button type="button" onclick={() => tabSet.set(1)} class="bg-secondary-500 text-white btn mt-2 justify-end">{m.button_previous()}</button>
 			<button
 				type="button"
 				onclick={handleCollectionSave}
-				class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button
+				class="bg-tertiary-500 text-white btn mt-2 justify-end dark:bg-primary-500 text-white dark:text-black">{m.button_save()}</button
 			>
 		</div>
 	</div>

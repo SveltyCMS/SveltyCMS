@@ -399,7 +399,7 @@
 			title: modalTitle,
 			body: modalBody,
 			confirmText: actionWord,
-			confirmClasses: user.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
+			confirmClasses: user.blocked ? 'bg-warning-500 text-white' : 'bg-pink-500 hover:bg-pink-600 text-white',
 			onConfirm: async () => {
 				await performBlockAction(user, action, actionPastTense);
 			}
@@ -457,7 +457,7 @@
 			title: modalTitle,
 			body: modalBody,
 			confirmText: actionWord,
-			confirmClasses: token.blocked ? 'variant-filled-warning' : 'bg-pink-500 hover:bg-pink-600 text-white',
+			confirmClasses: token.blocked ? 'bg-warning-500 text-white' : 'bg-pink-500 hover:bg-pink-600 text-white',
 			onConfirm: async () => {
 				await performTokenBlockAction(token, action, actionPastTense);
 			}
@@ -656,7 +656,7 @@
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button
-									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									class="chip {header.visible ? 'bg-secondary-500 text-white' : 'bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -683,7 +683,7 @@
 							<tr class="divide-x divide-surface-400">
 								<th>
 									{#if Object.keys(filters).length > 0}
-										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="variant-outline btn-icon">
+										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="border border-surface-500 text-surface-500 hover:bg-surface-500/10 btn-icon">
 											<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 										</button>
 									{/if}
@@ -812,7 +812,7 @@
 												<span class="font-mono text-sm">{row[header.key]}</span>
 												<button
 													use:clipboard={String(row[header.key] ?? '')}
-													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon btn-icon-sm hover:bg-tertiary-500 text-white"
 													aria-label="Copy User ID"
 													title="Copy User ID to clipboard"
 													onclick={(event) => {
@@ -829,7 +829,7 @@
 												<span class="max-w-[200px] truncate font-mono text-sm">{isToken(row) && header.key === 'token' ? row.token : '-'}</span>
 												<button
 													use:clipboard={isToken(row) && header.key === 'token' ? row.token : ''}
-													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													class="bg-surface-500/10 text-surface-500 hover:bg-surface-500/20 btn-icon btn-icon-sm hover:bg-tertiary-500 text-white"
 													aria-label="Copy Token"
 													title="Copy Token to clipboard"
 													onclick={(event) => {
@@ -897,7 +897,7 @@
 				/>
 			</div>
 		{:else}
-			<div class="variant-ghost-error btn text-center font-bold">
+			<div class="bg-error-500/10 text-error-500 hover:bg-error-500/20 btn text-center font-bold">
 				{#if showUserList}{m.adminarea_nouser()}{:else if showUsertoken}{m.adminarea_notoken()}{/if}
 			</div>
 		{/if}

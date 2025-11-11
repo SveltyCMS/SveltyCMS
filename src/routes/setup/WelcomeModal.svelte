@@ -44,7 +44,7 @@
 		</section>
 
 		<footer class="card-footer flex justify-center">
-			<button class="variant-filled-primary btn" onclick={handleGetStarted}>
+			<button class="bg-primary-500 text-white btn" onclick={handleGetStarted}>
 				{m.welcome_modal_cta()}
 				<svg class="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />

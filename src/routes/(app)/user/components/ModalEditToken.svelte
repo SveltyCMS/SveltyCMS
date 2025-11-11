@@ -214,7 +214,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-lg';
 </script>
 
 <!-- The HTML markup for the form does not need to change -->
@@ -261,7 +261,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								{#each roles as r}
 									<button
 										type="button"
-										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										class="chip {formData.role === r._id ? 'bg-tertiary-500 text-white' : 'bg-secondary-500/10 text-secondary-500 hover:bg-secondary-500/20'}"
 										onclick={() => (formData.role = r._id)}
 									>
 										{#if formData.role === r._id}
@@ -300,15 +300,15 @@ It handles token creation, updates, and deletion with proper validation and erro
 		<footer class="modal-footer flex items-center {formData.token ? 'justify-between' : 'justify-end'} p-4 {parent?.regionFooter ?? ''}">
 			<!-- Delete - Only show for existing tokens -->
 			{#if formData.token}
-				<button type="button" onclick={deleteToken} class="variant-filled-error btn">
+				<button type="button" onclick={deleteToken} class="bg-error-500 text-white btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{/if}
 			<div class="flex gap-2">
 				<!-- Cancel -->
-				<button type="button" class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
+				<button type="button" class="border border-secondary-500 text-secondary-500 hover:bg-secondary-500/10 btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button type="submit" form="token-form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent?.buttonPositive ?? ''}">
+				<button type="submit" form="token-form" class="bg-tertiary-500 text-white btn dark:bg-primary-500 text-white {parent?.buttonPositive ?? ''}">
 					{m.button_save()}
 				</button>
 			</div>

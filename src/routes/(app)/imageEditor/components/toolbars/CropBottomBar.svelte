@@ -74,6 +74,7 @@ Displays rotation/scale sliders below the canvas without blocking view.
 </div>
 
 <style>
+@import "tailwindcss";
 	.crop-bottom-bar {
 		@apply flex flex-col items-center gap-3;
 		@apply px-4 py-4;
