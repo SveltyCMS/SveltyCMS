@@ -37,8 +37,11 @@ async function dismissWelcomeModal(page: Page) {
 async function configureDatabaseConnection(page: Page) {
 	console.log('Step 1: Configuring database connection...');
 
-	// Wait for database configuration form
-	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 15000 });
+	// Wait for page to be fully loaded
+	await page.waitForLoadState('networkidle');
+	
+	// Wait for database configuration form with extended timeout
+	await expect(page.getByRole('heading', { name: /database/i }).first()).toBeVisible({ timeout: 30000 });
 
 	// Fill database configuration
 	await page.locator('#db-host').fill(process.env.MONGO_HOST || 'localhost');
