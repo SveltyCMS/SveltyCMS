@@ -74,8 +74,37 @@ function calculatePasswordStrength(password: string): number {
 	return 0;
 }
 
+// Helper function to check database health
+async function checkDatabaseHealth(): Promise<{ healthy: boolean; reason?: string }> {
+	try {
+		await dbInitPromise;
+
+		// Import dbAdapter
+		const { dbAdapter } = await import('@src/databases/db');
+
+		if (!dbAdapter) {
+			return { healthy: false, reason: 'Database adapter not initialized' };
+		}
+
+		// Check if database has roles (indicates setup was completed)
+		if (!dbAdapter.roles) {
+			return { healthy: false, reason: 'Database roles interface not available' };
+		}
+
+		const rolesResult = await dbAdapter.roles.getAll();
+		if (!rolesResult.success || !rolesResult.data || rolesResult.data.length === 0) {
+			return { healthy: false, reason: 'Database is empty - no roles found. Setup may not have completed successfully.' };
+		}
+
+		return { healthy: true };
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		return { healthy: false, reason: `Database connection error: ${errorMessage}` };
+	}
+}
+
 // Helper function to wait for auth service to be ready
-async function waitForAuthService(maxWaitMs: number = 30000): Promise<boolean> {
+async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 	const startTime = Date.now();
 	logger.debug(`Waiting for auth service to be ready (timeout: \x1b[32m${maxWaitMs}ms\x1b[0m)...`);
 
@@ -196,41 +225,42 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Ensure initialization is complete
 		await dbInitPromise;
 
-		// Wait for auth service to be ready instead of throwing error immediately
+		// First check database health before waiting for auth
+		const dbHealth = await checkDatabaseHealth();
+		if (!dbHealth.healthy) {
+			logger.error(`Database health check failed: ${dbHealth.reason}`);
+			return {
+				firstUserExists: true,
+				showOAuth: false,
+				hasExistingOAuthUsers: false,
+				loginForm: await superValidate(wrappedLoginSchema),
+				forgotForm: await superValidate(wrappedForgotSchema),
+				resetForm: await superValidate(wrappedResetSchema),
+				signUpForm: await superValidate(wrappedSignUpSchema),
+				showDatabaseError: true,
+				errorReason: dbHealth.reason,
+				canReset: true,
+				authNotReady: true,
+				authNotReadyMessage: dbHealth.reason
+			};
+		}
+
+		// Wait for auth service to be ready (reduced timeout from 30s to 10s)
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
-			logger.warn('Authentication system is not ready yet, checking if database is empty');
-
-			// Check if this is a "database empty" scenario
-			const { isSetupCompleteAsync } = await import('@utils/setupCheck');
-			const setupComplete = await isSetupCompleteAsync();
-
-			if (!setupComplete) {
-				logger.error('Database is empty but config exists. This typically means the database was manually dropped.');
-				return {
-					firstUserExists: true,
-					showOAuth: false,
-					hasExistingOAuthUsers: false,
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema),
-					authNotReady: true,
-					authNotReadyMessage: 'Database is empty. Please restore your database from backup or delete config/private.ts to run setup again.'
-				};
-			}
+			logger.warn('Authentication system is not ready after database health check passed');
 
 			// Return fallback data instead of throwing error
 			return {
 				firstUserExists: true,
-				showOAuth: false, // Don't show OAuth if auth system isn't ready
+				showOAuth: false,
 				hasExistingOAuthUsers: false,
 				loginForm: await superValidate(wrappedLoginSchema),
 				forgotForm: await superValidate(wrappedForgotSchema),
 				resetForm: await superValidate(wrappedResetSchema),
 				signUpForm: await superValidate(wrappedSignUpSchema),
 				authNotReady: true,
-				authNotReadyMessage: 'System is still initializing. Please wait a moment and try again.'
+				authNotReadyMessage: 'Authentication system is still initializing. Please wait a moment and try again.'
 			};
 		}
 

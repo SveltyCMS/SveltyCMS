@@ -257,6 +257,66 @@ Features:
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
+	<!-- Database Error Display -->
+	{#if data.showDatabaseError}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+			<div class="max-w-2xl rounded-lg bg-white p-8 shadow-xl">
+				<div class="mb-4 flex items-center gap-3">
+					<svg class="h-8 w-8 text-error-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+					</svg>
+					<h2 class="text-2xl font-bold text-error-500">Database Issue Detected</h2>
+				</div>
+				
+				<p class="mb-4 text-lg">The system configuration exists, but the database is empty or unavailable.</p>
+				
+				<div class="mb-4 rounded-lg bg-surface-200 p-4">
+					<p class="font-semibold">Reason:</p>
+					<p class="text-sm">{data.errorReason}</p>
+				</div>
+				
+				<div class="mb-6">
+					<h3 class="mb-2 font-semibold">Possible Solutions:</h3>
+					<ul class="list-inside list-disc space-y-1 text-sm">
+						<li>If MongoDB is not running, start it and refresh this page</li>
+						<li>If the database was manually dropped, you need to reset the setup</li>
+						<li>Check your database connection settings in config/private.ts</li>
+						<li>Restore your database from a backup if available</li>
+					</ul>
+				</div>
+				
+				{#if data.canReset}
+					<div class="flex gap-4">
+						<button
+							type="button"
+							onclick={async () => {
+								if (confirm('This will delete your configuration and restart the setup process. Are you sure?')) {
+									const response = await fetch('/api/setup/reset', { method: 'POST' });
+									const result = await response.json();
+									if (result.success) {
+										window.location.href = '/setup';
+									} else {
+										alert('Failed to reset setup: ' + result.error);
+									}
+								}
+							}}
+							class="btn variant-filled-warning"
+						>
+							Reset Setup
+						</button>
+						<button
+							type="button"
+							onclick={() => window.location.reload()}
+							class="btn variant-filled-secondary"
+						>
+							Refresh Page
+						</button>
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
 	<!-- SignIn and SignUp Forms -->
 	<SignIn
 		bind:active
